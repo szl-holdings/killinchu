@@ -660,7 +660,7 @@ async def vessels_catch(path: str) -> JSONResponse:
 try:
     import szl_provenance as _prov
     _prov_status = _prov.register_provenance(app, "killinchu")
-    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L2): {{_prov_status}}", file=sys.stderr)
+    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L1 honest; L2 roadmap): {{_prov_status}}", file=sys.stderr)
 except Exception as _pe:  # pragma: no cover - defensive, additive-only
     print(f"[killinchu] szl_provenance NOT registered ({{_pe!r}}); existing app unaffected", file=sys.stderr)
 
