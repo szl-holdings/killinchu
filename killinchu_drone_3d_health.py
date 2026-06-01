@@ -139,11 +139,18 @@ def fetch_spaceweather() -> dict[str, Any]:
     kp = None
     try:
         kp_rows = _get_json("https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json")
-        # rows[0] is header; last row is most recent
+        # NOAA SWPC has shipped this feed in two shapes over time; support BOTH:
+        #   (a) array-of-arrays w/ header row: [["time_tag","Kp_index",...],["...","2.67",...]]
+        #   (b) array-of-objects (current):   [{"time_tag":"...","Kp":2.67,"a_running":12,...}]
         last = kp_rows[-1]
-        kp = float(last[1])
+        if isinstance(last, dict):
+            kp_val = last.get("Kp", last.get("kp_index", last.get("kp")))
+            kp = float(kp_val)
+            out["kp_time"] = last.get("time_tag")
+        else:
+            kp = float(last[1])
+            out["kp_time"] = last[0]
         out["kp_index"] = kp
-        out["kp_time"] = last[0]
         out["sources"].append({"name": "NOAA SWPC planetary K-index", "live": True,
                                "url": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"})
         out["live"] = True
