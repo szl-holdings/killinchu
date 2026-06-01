@@ -1,0 +1,74 @@
+{
+ "DU": {
+  "org": "DU",
+  "org_name": "Defense Unicorns",
+  "duration": "30s",
+  "pitch": "Andrew \u2014 you said it'd be awesome to see a running deployment of what we've built. Here it is. Killinchu is counter-UAS sense-and-evidence that ships as a UDS Zarf package, deploys into UDS Core airgapped, and emits cosign-attested Khipu receipts on the exact supply-chain surface your team builds \u2014 Zarf, Pepr, NeuVector. We detect, classify, and geolocate drones from the signals they emit, sign every decision with a real ECDSA-P256 DSSE receipt, and hand a court-admissible Body-of-Evidence to the authorized customer. We don't jam, spoof, or hijack \u2014 that's the customer's lawful authority. We're the verifiable governance overlay on top of your air-gap future.",
+  "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. See /api/killinchu/v2/legal.",
+  "scout_ref": "/api/killinchu/v2/scouts",
+  "doctrine": "v11"
+ },
+ "CDAO": {
+  "org": "CDAO",
+  "org_name": "DoD CDAO / Agent Network",
+  "duration": "30s",
+  "pitch": "Killinchu gives your Agent Network the one thing the primes don't ship: interpretable, auditable agent decisions. Every sense-and-evidence decision emits a cosign-verifiable receipt on a Lean-proved total-order chain \u2014 cutting or reordering is mathematically observable. It's a Responsible-AI governance overlay for agentic battle-management, deployable airgapped via UDS, with a 13-axis trust gate where a legality-zero event is an unconditional hard reject.",
+  "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. See /api/killinchu/v2/legal.",
+  "scout_ref": "/api/killinchu/v2/scouts",
+  "doctrine": "v11"
+ },
+ "DIU": {
+  "org": "DIU",
+  "org_name": "DIU CSO \u2014 CUAS",
+  "duration": "30s",
+  "pitch": "For the CUAS networked kill-chain, Killinchu stays strictly in the post-quantum encryption, governance, and receipt-chain layer. We provide packet-level data protection, a TAK-compatible signed receipt chain, and audit-log verification for the prime's network. No kinetic targeting, no fire-control, no AiTR \u2014 effector selection stays with the prime. Lambda-axis governance attaches as a verification and audit overlay only. That's the lawful commercial sweet spot.",
+  "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. See /api/killinchu/v2/legal.",
+  "scout_ref": "/api/killinchu/v2/scouts",
+  "doctrine": "v11"
+ },
+ "AFWERX": {
+  "org": "AFWERX",
+  "org_name": "AFWERX / SpaceWERX 26.1",
+  "duration": "30s",
+  "pitch": "Killinchu is edge-deployable counter-UAS governance: it runs fully airgapped via a UDS Zarf bundle, puts Lambda-axis policy gates on field-updatable edge models, and emits signed evidence receipts at the tactical edge. SBIR Phase I to STRATFI/TACFI on-ramp \u2014 the governance overlay that makes any edge-AI autonomy defensible, with cosign attestation and a 749/14/163 doctrine baseline.",
+  "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. See /api/killinchu/v2/legal.",
+  "scout_ref": "/api/killinchu/v2/scouts",
+  "doctrine": "v11"
+ },
+ "Anduril": {
+  "org": "Anduril",
+  "org_name": "Anduril (Lattice)",
+  "duration": "30s",
+  "pitch": "Killinchu is a sensor-fusion and governance overlay that complements Lattice \u2014 not a C2 competitor. We ingest Remote-ID, ADS-B, MAVLink, and RF passively, fuse them onto a Cesium globe, and attach a cosign-verifiable receipt to every track and decision. Where Lattice mesh moves the data, Killinchu proves the governance: signed Body-of-Evidence, a 13-axis gate, and after-action replay. We sense and evidence; the authorized operator acts.",
+  "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. See /api/killinchu/v2/legal.",
+  "scout_ref": "/api/killinchu/v2/scouts",
+  "doctrine": "v11"
+ },
+ "Scale": {
+  "org": "Scale",
+  "org_name": "Scale AI (Thunderforge)",
+  "duration": "30s",
+  "pitch": "Scale primes Thunderforge, but no prime ships a publicly-auditable, proof-carrying governance surface. Killinchu is that overlay: signed Khipu receipts, a 13-axis Lambda gate, and a Lean-proved total-order chain that make agentic defense decisions interpretable and auditable under DoW Responsible-AI policy. UDS-deployable, cosign-attested, airgap-ready.",
+  "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. See /api/killinchu/v2/legal.",
+  "scout_ref": "/api/killinchu/v2/scouts",
+  "doctrine": "v11"
+ },
+ "ShieldAI": {
+  "org": "ShieldAI",
+  "org_name": "Shield AI (Hivemind)",
+  "duration": "30s",
+  "pitch": "Hivemind flies; Killinchu senses and evidences. As a partnership overlay for EdgeOS Pilot blocks, Killinchu attaches Lambda-gated decision receipts and a signed Body-of-Evidence for after-action review on V-BAT and MQ-20 missions. Two-person Yuyay gate for any own-fleet action, cosign-attested, deployable airgapped via UDS. Governance and explainability, not a competing autonomy stack.",
+  "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. See /api/killinchu/v2/legal.",
+  "scout_ref": "/api/killinchu/v2/scouts",
+  "doctrine": "v11"
+ },
+ "Replicator": {
+  "org": "Replicator",
+  "org_name": "Replicator (ORIENT/ACT integrators)",
+  "duration": "30s",
+  "pitch": "Killinchu rides on the substrate you already operate: it deploys via Zarf into OpenShift and UDS Core, takes its signing keys from Vault, and adds the Lambda-gated, cosign-attested receipt chain that none of the integrator pipelines ship. For resilient C2 and autonomous teaming, it's the verifiable governance layer \u2014 complementary to aiSSEMBLE, OpenShift AI, and Lattice, not a replacement.",
+  "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. See /api/killinchu/v2/legal.",
+  "scout_ref": "/api/killinchu/v2/scouts",
+  "doctrine": "v11"
+ }
+}

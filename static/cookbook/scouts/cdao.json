@@ -1,0 +1,19 @@
+{
+ "key": "cdao",
+ "name": "DoD CDAO / Thunderforge (Agent Network)",
+ "summary": "CDAO accelerates AI adoption boardroom-to-battlefield; programs include Agent Network (Thunderforge), Swarm Forge, Maven Smart System, War Data Platform. Realigned 2025 under USD(R&E).",
+ "killinchu_fit": "Killinchu's signed, replayable, interpretable sense-and-evidence decisions map onto CDAO's 'interpretable results' + 'rapid + secure AI agent deployment' language. The Yuyay-13 gate + Khipu receipts give Agent Network agents an auditable governance overlay.",
+ "hooks": [
+  "Agent Network: auditable agent decisions via Khipu receipts + Lean-proved total-order chain",
+  "Maven-adjacent object detection/track -> Killinchu sense-and-evidence overlay (governance, not a Maven competitor)",
+  "GenAI.mil/Enterprise Agents: 13-axis Lambda gate as a Responsible-AI guardrail"
+ ],
+ "sources": [
+  "https://www.ai.mil/About/Organization-V2/",
+  "https://www.ai.mil/About/Leadership/",
+  "https://defensescoop.com/2025/12/17/dod-cdao-douglas-matty-dow-departing-to-work-on-golden-dome/"
+ ],
+ "doctrine": "v11",
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

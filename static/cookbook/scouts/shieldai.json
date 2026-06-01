@@ -1,0 +1,18 @@
+{
+ "key": "shieldai",
+ "name": "Shield AI (Hivemind / EdgeOS)",
+ "summary": "Shield AI builds Hivemind autonomy + EdgeOS middleware (closed proprietary); platforms include V-BAT, Nova 2, ViDAR, MQ-20, F-16. Public GitHub is mostly upstream forks.",
+ "killinchu_fit": "Partnership/sub-vendor lane: Killinchu provides a governance + explainability + signed-evidence overlay for EdgeOS Pilot blocks. Killinchu senses + evidences; Hivemind flies. Two-person Yuyay gate for any own-fleet action.",
+ "hooks": [
+  "EdgeOS Pilot block: Lambda-gated decision receipts",
+  "V-BAT/MQ-20 missions: signed Body-of-Evidence for after-action review",
+  "Hivemind autonomy + Killinchu governance overlay (complementary)"
+ ],
+ "sources": [
+  "https://shield.ai/hivemind/",
+  "https://research.contrary.com/company/shield-ai"
+ ],
+ "doctrine": "v11",
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

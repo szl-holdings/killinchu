@@ -1,0 +1,25 @@
+{
+ "id": "P1",
+ "title": "Opening \u2014 the four-layer gap",
+ "duration_min": 5,
+ "live_cli": false,
+ "thesis": "Most defense-AI stacks ship model + pipeline + delivery but leave governance unproven. Killinchu adds a verifiable sense-and-evidence governance overlay.",
+ "script": "Frame the four-layer gap (model / pipeline / delivery / governance). Killinchu sits in the governance layer: every detection and decision emits a cosign-verifiable Khipu receipt.",
+ "expected_output": "Audience sees the four-layer diagram with Killinchu in the governance overlay.",
+ "fallback": "Static slide of the four-layer diagram.",
+ "endpoints": [
+  "/api/killinchu/healthz"
+ ],
+ "drone_domain": false,
+ "sources": [
+  "https://defenseunicorns.com/warhacker/"
+ ],
+ "doctrine": "v11",
+ "numbers": {
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163
+ },
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

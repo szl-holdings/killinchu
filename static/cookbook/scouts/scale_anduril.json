@@ -1,0 +1,19 @@
+{
+ "key": "scale_anduril",
+ "name": "Scale AI + Anduril + Palantir + Vannevar Labs",
+ "summary": "The primes owning the operational AI substrate: Scale AI (Thunderforge prime, $500M ceiling), Anduril (Lattice C2/sensor mesh, ~$30.5B+), Palantir (Maven prime, $1.3B), Vannevar Labs (OSINT/Decrypt). None ship a publicly-auditable governance/proof-carrying surface.",
+ "killinchu_fit": "The single biggest finding: none of the four primes ship a publicly-auditable governance / proof-carrying interpretability surface. Killinchu's signed receipts + Lambda gate + Lean total-order proof are the OVERLAY that makes any of these stacks defensible under DoW Responsible-AI policy.",
+ "hooks": [
+  "Anduril Lattice: Killinchu as a sensor-fusion + governance overlay (not a Lattice C2 competitor)",
+  "Palantir Maven: interpretable, auditable decision receipts",
+  "Scale Thunderforge: Lambda governance on agentic decisions"
+ ],
+ "sources": [
+  "https://www.govconwire.com/articles/thunderforge-dod-scale-ai-prime-prototype-contract",
+  "https://breakingdefense.com/2024/12/decentralizing-battle-data-cdao-anduril-open-tactical-mesh-to-third-party-developers/",
+  "https://defensescoop.com/2025/05/23/dod-palantir-maven-smart-system-contract-increase/"
+ ],
+ "doctrine": "v11",
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

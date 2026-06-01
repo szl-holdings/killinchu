@@ -1,0 +1,19 @@
+{
+ "key": "latentai_shieldai",
+ "name": "Latent AI + Striveworks + Shield AI + Vectara",
+ "summary": "Four AFWERX/SBIR-adjacent awardees: Latent AI (LEIP edge inference), Striveworks (Chariot MLOps), Shield AI (Hivemind autonomy/EdgeOS, closed), Vectara (Trusted RAG, 53+ public repos incl. hallucination-leaderboard).",
+ "killinchu_fit": "Edge governance overlay: Lambda-axis policy gates on field-updatable models (Latent AI), data-lineage governance on Chariot (Striveworks), explainability overlay for EdgeOS Pilot blocks (Shield AI, partnership-only), RAG-bias mitigation on Vectara pipelines.",
+ "hooks": [
+  "Latent AI LEIP: Lambda policy gates on edge models (Jetson Orin/Snapdragon)",
+  "Shield AI Hivemind: governance/explainability overlay (partnership, not OSS PR)",
+  "Vectara RAG: bias/Lambda-governance layer (direct AFWERX 26.1 lane)"
+ ],
+ "sources": [
+  "https://latentai.com/product/capability-deploy/",
+  "https://shield.ai/hivemind/",
+  "https://www.vectara.com/platform"
+ ],
+ "doctrine": "v11",
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

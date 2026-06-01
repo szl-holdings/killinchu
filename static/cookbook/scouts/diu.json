@@ -1,0 +1,19 @@
+{
+ "key": "diu",
+ "name": "DIU CSO \u2014 Lasercom + CUAS networked kill-chain",
+ "summary": "Defense Innovation Unit runs Commercial Solutions Openings; ~ $983M FY24; CUAS Part 4 networked kill-chain with post-quantum encryption track. Leadership: Owen West (Director).",
+ "killinchu_fit": "SZL stays in the post-quantum encryption + Lambda governance + receipt-chain layer for CUAS. Killinchu provides packet-level data protection, a TAK-compatible signed receipt chain, and audit-log verification for the prime's kill-chain network \u2014 verification/audit overlay ONLY.",
+ "hooks": [
+  "Endpoint Accuracy 2 / Part 4: post-quantum cryptographic envelope + tiered key governance + signed receipt chain",
+  "TAK-compatible Body-of-Evidence receipts for the prime's network",
+  "GUARDRAIL: no kinetic targeting, no fire-control, no AiTR \u2014 Lambda governance attaches as audit overlay only"
+ ],
+ "sources": [
+  "https://www.diu.mil/work-with-us/open-solicitations",
+  "https://www.diu.mil/team",
+  "https://www.diu.mil/latest/diu-announces-strategic-allocation-of-2024-budget-and-plan-to-scale"
+ ],
+ "doctrine": "v11",
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

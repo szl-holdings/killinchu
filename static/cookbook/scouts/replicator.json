@@ -1,0 +1,19 @@
+{
+ "key": "replicator",
+ "name": "Replicator + Booz Allen + Red Hat + Microsoft Federal + HashiCorp",
+ "summary": "The integrator + cloud-federal pool owning DoD AI substrate ops: Booz Allen (Project Linchpin/aiSSEMBLE), Red Hat (OpenShift AI), Microsoft Federal (Azure Gov IL5/IL6), HashiCorp (Vault/Terraform), Replicator ORIENT/ACT vendors (Anduril, Swarm Aero, L3Harris).",
+ "killinchu_fit": "Killinchu rides ON this substrate: it deploys via UDS/Zarf into OpenShift/UDS Core, signs with cosign, and adds the Lambda-gated receipt chain none of these integrators ship. Complementary governance layer, not a competitor.",
+ "hooks": [
+  "Deploy into OpenShift / UDS Core via Zarf (Red Hat / Defense Unicorns substrate)",
+  "Vault-provisioned signing keys (HashiCorp) for the Khipu chain",
+  "Linchpin pipeline: Lambda governance overlay on aiSSEMBLE MLOps outputs"
+ ],
+ "sources": [
+  "https://breakingdefense.com/2023/09/army-awards-booz-allen-red-hat-2m-project-linchpin-artificial-intelligence-contract/",
+  "https://www.redhat.com/en/products/ai/openshift-ai",
+  "https://www.diu.mil/latest/defense-innovation-unit-announces-software-vendors-to-support-replicator"
+ ],
+ "doctrine": "v11",
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

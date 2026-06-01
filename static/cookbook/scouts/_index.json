@@ -1,0 +1,41 @@
+{
+ "count": 9,
+ "scouts": [
+  {
+   "key": "cdao",
+   "name": "DoD CDAO / Thunderforge (Agent Network)"
+  },
+  {
+   "key": "diu",
+   "name": "DIU CSO \u2014 Lasercom + CUAS networked kill-chain"
+  },
+  {
+   "key": "afwerx",
+   "name": "AFWERX / SpaceWERX 26.1 SBIR/STTR"
+  },
+  {
+   "key": "tychee",
+   "name": "Tychee Research Group (Turion Space)"
+  },
+  {
+   "key": "replicator",
+   "name": "Replicator + Booz Allen + Red Hat + Microsoft Federal + HashiCorp"
+  },
+  {
+   "key": "scale_anduril",
+   "name": "Scale AI + Anduril + Palantir + Vannevar Labs"
+  },
+  {
+   "key": "latentai_shieldai",
+   "name": "Latent AI + Striveworks + Shield AI + Vectara"
+  },
+  {
+   "key": "shieldai",
+   "name": "Shield AI (Hivemind / EdgeOS)"
+  },
+  {
+   "key": "du",
+   "name": "Defense Unicorns (UDS Core / Zarf)"
+  }
+ ]
+}

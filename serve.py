@@ -834,6 +834,47 @@ except Exception as _ue:
     print(f"[szl_unay] UNAY+Khipu-LMDB v2 NOT mounted ({_ue!r}); existing routes unaffected", file=_sysu.stderr)
 
 
+# ===========================================================================
+# UNDERSTUDY-PARITY layer (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
+# Founder directive: killinchu gets EVERY a11oy moat + full understudy posture
+# (LLM router, agentic RAG, MCP server, PURIQ organs, 23 formulas, AYNI, WAYRA,
+# KIPU+QILLQAQ, Khipu-DAG RS(10,6), Yuyay-13 gate, connections, metrics,
+# understudy failover) under killinchu's defense vertical lens. NEW
+# /api/killinchu/v2/* + canonical cross-organ routes only; registered BEFORE the
+# SPA catch-all so they resolve LOCALLY. try/except-guarded; NEVER crash the app.
+# Imports the REAL substrate (szl_dsse, szl_brain, szl_rag, szl_formulas) — no
+# copy-paste. v11 verbatim 749/14/163. Sign: Yachay.
+# ---------------------------------------------------------------------------
+try:
+    import szl_understudy as _understudy
+    _u_info = _understudy.register(app, ns="killinchu")
+    print(f"[killinchu] understudy-parity registered: {_u_info['registered_count']} routes, "
+          f"substrate={_u_info['substrate']}", file=sys.stderr)
+except Exception as _u_e:
+    print(f"[killinchu] understudy-parity NOT registered: {_u_e!r}; existing app unaffected", file=sys.stderr)
+
+
+# ===========================================================================
+# DEFENSE RUNTIME COOKBOOK (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
+# Founder cherry-pick: make Killinchu one-of-one in the defense vertical. NEW
+# /api/killinchu/v2/cookbook* + /v2/missions* + /v2/scouts + /v2/uds/* + /v2/legal
+# + /v2/specs/* + /v2/pitch routes ONLY. Registered BEFORE the SPA catch-all so
+# they resolve LOCALLY. Every drone-domain response embeds the LEGAL_BOUNDARIES
+# disclaimer ("WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES.").
+# Recall receipts are REAL ECDSA-P256-SHA256 DSSE via szl_dsse (no copy-paste).
+# Data vendored under static/cookbook/. try/except-guarded; NEVER crash the app.
+# 22+ recipes · 8 Warhacker mission packs (P1-P8) · 9 prospect scouts · UDS
+# bundle self-awareness (HONEST STAGED) · per-prospect pitch. v11 verbatim 749/14/163.
+# ---------------------------------------------------------------------------
+try:
+    import szl_killinchu_cookbook as _cookbook
+    _cb_info = _cookbook.register_cookbook(app, ns="killinchu")
+    print(f"[killinchu] defense cookbook registered: {_cb_info['registered_count']} routes, "
+          f"signing={_cb_info['signing']}", file=sys.stderr)
+except Exception as _cb_e:
+    print(f"[killinchu] defense cookbook NOT registered: {_cb_e!r}; existing app unaffected", file=sys.stderr)
+
+
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
     if full_path.startswith("api/"):

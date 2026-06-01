@@ -1,0 +1,19 @@
+{
+ "key": "du",
+ "name": "Defense Unicorns (UDS Core / Zarf)",
+ "summary": "Defense Unicorns builds UDS Core (Istio/Keycloak/NeuVector/Pepr), Zarf airgap delivery, uds-cli, and runs Warhacker 2026 (San Diego, June 16-19). Andrew Greene's Option-A endorsement: 'It'd be awesome to see a running deployment of what you've built.'",
+ "killinchu_fit": "Killinchu is UDS-deployable by construction: it ships as a Zarf package, deploys into UDS Core airgapped, and emits cosign-attested receipts on the exact supply-chain surface DU's engineers (eddiezane/Zarf, brandtkeller/SBOM-provenance, AustinAbro321/UDS-Core) build. The szl-warhacker meta-bundle v0.4.0 was built in direct response to Greene's ask.",
+ "hooks": [
+  "UDS Zarf airgap deploy (recipe-uds-deploy) on UDS Core",
+  "cosign attestation chain aligned to brandtkeller's falco-zarf + SBOM-provenance work",
+  "Mission P2/P4 live kind deploy of the uds-mesh bundle"
+ ],
+ "sources": [
+  "https://defenseunicorns.com/warhacker/",
+  "https://github.com/defenseunicorns/uds-core",
+  "https://docs.defenseunicorns.com/"
+ ],
+ "doctrine": "v11",
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

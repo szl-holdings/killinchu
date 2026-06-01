@@ -1,0 +1,26 @@
+{
+ "id": "P4",
+ "title": "Tychee-style composition in 10 minutes",
+ "duration_min": 10,
+ "live_cli": true,
+ "thesis": "Tychee's problem (fragmented, air-gapped satellite ground software) is a uds-mesh composition problem; the composition is the deliverable.",
+ "script": "Compose four mock ground-software components (telemetry-decoder, orbit-prop, ccsds-uplink, mission-planner) into one MeshPointerManifest with four pinned SHAs + cosign signatures; deploy as a sibling bundle.",
+ "cli": "for c in telemetry-decoder orbit-prop ccsds-uplink mission-planner; do ... done; uds zarf package deploy /tmp/tychee-mocks/bundle.yaml --confirm",
+ "expected_output": "Four component tarballs hashed+signed; manifest cosign verify OK; OTEL span set emitted.",
+ "fallback": "Show the pre-built manifest + four .tar.zst hashes; run cosign verify-blob on the manifest only.",
+ "endpoints": [
+  "/api/killinchu/v2/uds/bundle-inspect"
+ ],
+ "drone_domain": false,
+ "sources": [
+  "https://defenseunicorns.com/warhacker/"
+ ],
+ "doctrine": "v11",
+ "numbers": {
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163
+ },
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

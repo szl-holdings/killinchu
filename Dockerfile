@@ -81,4 +81,23 @@ COPY szl_unay_routes.py ./szl_unay_routes.py
 # Per-file COPY (no `COPY . .`) — without these the imports fail and routes 404.
 COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
 COPY killinchu_genius.py ./killinchu_genius.py
+# ADDITIVE (Understudy-parity, Yachay 2026-06-01): the understudy moat-fabric layer
+# + its portable substrate (LLM router / agentic RAG / 23-formula registry). Explicit
+# per-file COPY (this Dockerfile never uses `COPY . .`); without these `import
+# szl_understudy` (and its substrate imports) fail and every /api/killinchu/v2/*
+# understudy route 404s. szl_brain/szl_rag/szl_formulas are VENDORED from the
+# platform monorepo (header in each file) until `pip install ./packages/*` lands.
+RUN pip install --no-cache-dir "huggingface_hub>=0.23" || true
+COPY szl_brain.py ./szl_brain.py
+COPY szl_rag.py ./szl_rag.py
+COPY szl_formulas.py ./szl_formulas.py
+COPY szl_understudy.py ./szl_understudy.py
+# ADDITIVE (Defense Runtime Cookbook, 2026-06-01, Yachay / Perplexity Computer Agent):
+# the self-contained cookbook module. Explicit per-file COPY (this Dockerfile never uses
+# `COPY . .`); without it `import szl_killinchu_cookbook` fails and every /api/killinchu/
+# v2/cookbook* + /v2/missions* + /v2/scouts + /v2/uds/* + /v2/legal + /v2/specs/* +
+# /v2/pitch route 404s. The vendored data lives under static/cookbook/ (already COPY'd by
+# the `COPY static/ ./static/` line above). Recall receipts sign live via szl_dsse.
+COPY szl_killinchu_cookbook.py ./szl_killinchu_cookbook.py
+COPY serve.py ./serve.py
 CMD ["python", "serve.py"]

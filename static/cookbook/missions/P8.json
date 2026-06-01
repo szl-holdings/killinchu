@@ -1,0 +1,30 @@
+{
+ "id": "P8",
+ "title": "Counter-UAS sense + evidence finale",
+ "duration_min": 6,
+ "live_cli": true,
+ "thesis": "Killinchu detects a coordinated Shahed swarm passively and hands a signed Body-of-Evidence to the authorized customer. WE SENSE, WE EVIDENCE.",
+ "script": "Ingest Remote-ID broadcasts of a Shahed-136 swarm + FPV cluster + lone TB2. Union-Find clustering detects the swarm. Threat-assess each. Every detection emits a signed Khipu receipt. Hand the BoE to the customer. Killinchu does NOT jam, spoof, hijack, or engage.",
+ "cli": "curl -s $K/api/killinchu/v1/swarm/topology | jq '.swarms_detected'",
+ "expected_output": "swarms_detected >= 1; signed receipts in /receipt/ledger; BoE bundle.",
+ "fallback": "Use the seeded SE-Ukraine broadcast set built into /swarm/topology; verify receipts offline.",
+ "endpoints": [
+  "/api/killinchu/v1/swarm/topology",
+  "/api/killinchu/v2/threat/assess",
+  "/khipu/sign"
+ ],
+ "drone_domain": true,
+ "sources": [
+  "https://www.cisa.gov/topics/physical-security/counter-unmanned-aircraft-systems",
+  "https://defenseunicorns.com/warhacker/"
+ ],
+ "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. Passive sensing + evidence only; offensive action is the lawful customer's responsibility. See /api/killinchu/v2/legal.",
+ "doctrine": "v11",
+ "numbers": {
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163
+ },
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

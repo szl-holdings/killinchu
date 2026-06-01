@@ -1,0 +1,30 @@
+{
+ "id": "P3",
+ "title": "Mission plan with live geofence check",
+ "duration_min": 8,
+ "live_cli": true,
+ "thesis": "A counter-UAS ISR mission must respect FAA TFR + NPS no-fly + 5nm airport boundaries; the plan is signed and replayable.",
+ "script": "Plan a passive ISR mission for own-fleet drone toward an objective. Each waypoint is checked against active geofence zones; breaching legs re-route to the nearest legal vertex; PURIQ F7 scores feasibility; the final plan is Wire-D signed.",
+ "cli": "curl -s -X POST $K/api/killinchu/v2/mission/plan -d '{\"objective\":{...},\"drone_id\":\"own-1\"}'",
+ "expected_output": "Plan with ordered legs, F7 feasibility, geofence_status per leg, and a signed receipt (keyid szlholdings-cosign).",
+ "fallback": "Use a pre-computed plan object + its stored signed receipt; verify offline via /khipu/pubkey.",
+ "endpoints": [
+  "/api/killinchu/v2/mission/plan",
+  "/api/killinchu/v2/geofence/check",
+  "/khipu/sign"
+ ],
+ "drone_domain": true,
+ "sources": [
+  "https://www.faa.gov/uas/getting_started/temporary_flight_restrictions",
+  "https://defenseunicorns.com/warhacker/"
+ ],
+ "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. Passive sensing + evidence only; offensive action is the lawful customer's responsibility. See /api/killinchu/v2/legal.",
+ "doctrine": "v11",
+ "numbers": {
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163
+ },
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

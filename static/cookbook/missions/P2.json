@@ -1,0 +1,28 @@
+{
+ "id": "P2",
+ "title": "Live kind deploy of uds-mesh @ uds-v0.2.0",
+ "duration_min": 10,
+ "live_cli": true,
+ "thesis": "The five-link attestation chain records source-tree-merkle, zarf-tarballs, pointer-manifest, cosign-signing, and deploy commitments.",
+ "script": "Deploy the szl-mesh UDS bundle at uds-v0.2.0. The pointer manifest names four component releases at tag-pinned SHAs and four cosigned tarball hashes. Watch the four cross-component SHAs land in manifest order; one cosign verify-blob closes the loop.",
+ "cli": "uds zarf package deploy ./bundles/v0.3.1/uds-bundle.yaml --confirm",
+ "expected_output": "Four SHAs land in declared order; cosign verify-blob OK.",
+ "fallback": "Replay the recorded deploy log from a prior run; show extended-attestations.jsonl entries 1-5.",
+ "endpoints": [
+  "/api/killinchu/v2/uds/bundle-inspect",
+  "/khipu/verify"
+ ],
+ "drone_domain": false,
+ "sources": [
+  "https://defenseunicorns.com/warhacker/",
+  "https://github.com/szl-holdings/uds-mesh/blob/main/extended-attestations.jsonl"
+ ],
+ "doctrine": "v11",
+ "numbers": {
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163
+ },
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

@@ -1,0 +1,19 @@
+{
+ "key": "afwerx",
+ "name": "AFWERX / SpaceWERX 26.1 SBIR/STTR",
+ "summary": "AFWERX is the DAF innovation arm within AFRL: SBIR/STTR, Spark, SpaceWERX. ~1,400 SBIR/STTR awards/yr, ~$1.4B; 26.1 Phase I closed March 6, 2026. Director Col. Nathan Stuckey.",
+ "killinchu_fit": "Killinchu fits the edge-inference + governance overlay + air-gap deployment lane: UDS/Zarf airgap delivery + Lambda-axis governance + RAG-bias mitigation. SBIR Phase I -> STRATFI/TACFI on-ramp.",
+ "hooks": [
+  "Air-gap deployment via UDS Zarf bundle (recipe-airgap-mode)",
+  "Lambda-axis governance overlay on field-updatable edge models",
+  "Agentic-AI doctrine with auditable receipts for AFWERX Autonomy Prime"
+ ],
+ "sources": [
+  "https://afwerx.com/about-us/",
+  "https://www.afrl.af.mil/News/Article-Display/Article/4219581/afwerx-welcomes-new-director-during-change-of-leadership-ceremony/",
+  "https://afwerx.com/wp-content/uploads/2024_AFWERXSPACEWERX_AnnualReport_Cleared_AFRL-2025-2954.pdf"
+ ],
+ "doctrine": "v11",
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

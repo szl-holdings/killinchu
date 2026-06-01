@@ -1,0 +1,30 @@
+{
+ "id": "P6",
+ "title": "Operator console + Killinchu globe",
+ "duration_min": 8,
+ "live_cli": true,
+ "thesis": "Operators need a live, provenance-linked view; the Cesium globe renders tracks + own-fleet with signed-receipt links.",
+ "script": "Open the operator console UDS panes + Killinchu /globe. Live telemetry traces; each entity links to its signed Khipu receipt. Mobile-first degrade to a 2D map panel.",
+ "cli": "open $K/globe",
+ "expected_output": "Globe with drone entities + geofence overlays; click -> /khipu/verify receipt.",
+ "fallback": "Static screenshot of the globe + a verified receipt JSON.",
+ "endpoints": [
+  "/globe",
+  "/api/killinchu/v1/threats/active",
+  "/khipu/verify"
+ ],
+ "drone_domain": true,
+ "sources": [
+  "https://cesium.com/platform/cesiumjs/",
+  "https://defenseunicorns.com/warhacker/"
+ ],
+ "disclaimer": "WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES. Passive sensing + evidence only; offensive action is the lawful customer's responsibility. See /api/killinchu/v2/legal.",
+ "doctrine": "v11",
+ "numbers": {
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163
+ },
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

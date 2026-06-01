@@ -1,0 +1,30 @@
+{
+ "id": "P7",
+ "title": "Outbrief \u2014 AGPL-3.0 publication path + federal on-ramp",
+ "duration_min": 5,
+ "live_cli": true,
+ "thesis": "The demo artifacts are AGPL-3.0-publishable atop Apache-2.0 surfaces; federal on-ramps are CDAO Agent Network, DIU CSO, AFWERX 26.1.",
+ "script": "AGPL-3.0 publishable artifacts (Lean module + console) consume only Apache-2.0 surfaces. Hand the room the cosigned tarball of the deliverable kit.",
+ "cli": "pandoc PITCH_DECK_outbrief.md -o outbrief.pdf && cosign sign-blob --key cosign.key outbrief.pdf > outbrief.pdf.sig",
+ "expected_output": "Cosigned outbrief PDF; sha256 displayed.",
+ "fallback": "Show the pre-cosigned kit tarball + its .sig.",
+ "endpoints": [
+  "/api/killinchu/v2/pitch",
+  "/provenance"
+ ],
+ "drone_domain": false,
+ "sources": [
+  "https://defenseunicorns.com/warhacker/",
+  "https://www.ai.mil/About/Organization-V2/",
+  "https://www.diu.mil/work-with-us/open-solicitations",
+  "https://afwerx.com/about-us/"
+ ],
+ "doctrine": "v11",
+ "numbers": {
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163
+ },
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

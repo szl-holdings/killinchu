@@ -1,0 +1,62 @@
+{
+ "count": 8,
+ "total_min": 60,
+ "missions": [
+  {
+   "id": "P1",
+   "title": "Opening \u2014 the four-layer gap",
+   "duration_min": 5,
+   "live_cli": false,
+   "drone_domain": false
+  },
+  {
+   "id": "P2",
+   "title": "Live kind deploy of uds-mesh @ uds-v0.2.0",
+   "duration_min": 10,
+   "live_cli": true,
+   "drone_domain": false
+  },
+  {
+   "id": "P3",
+   "title": "Mission plan with live geofence check",
+   "duration_min": 8,
+   "live_cli": true,
+   "drone_domain": true
+  },
+  {
+   "id": "P4",
+   "title": "Tychee-style composition in 10 minutes",
+   "duration_min": 10,
+   "live_cli": true,
+   "drone_domain": false
+  },
+  {
+   "id": "P5",
+   "title": "Lean kernel proof \u2014 UDSSensorReceiptChain.total_order",
+   "duration_min": 8,
+   "live_cli": true,
+   "drone_domain": false
+  },
+  {
+   "id": "P6",
+   "title": "Operator console + Killinchu globe",
+   "duration_min": 8,
+   "live_cli": true,
+   "drone_domain": true
+  },
+  {
+   "id": "P7",
+   "title": "Outbrief \u2014 AGPL-3.0 publication path + federal on-ramp",
+   "duration_min": 5,
+   "live_cli": true,
+   "drone_domain": false
+  },
+  {
+   "id": "P8",
+   "title": "Counter-UAS sense + evidence finale",
+   "duration_min": 6,
+   "live_cli": true,
+   "drone_domain": true
+  }
+ ]
+}

@@ -1,0 +1,312 @@
+[
+ {
+  "id": "recipe-mission-plan-with-geofence",
+  "title": "Plan a mission inside FAA TFR + NPS no-fly + airport 5nm boundaries; emit signed plan",
+  "tags": [
+   "mission",
+   "geofence",
+   "planning",
+   "F7"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-swarm-formation",
+  "title": "Coordinate N drones in a boids formation toward objective X",
+  "tags": [
+   "swarm",
+   "boids",
+   "F11",
+   "coordination"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-decode-remote-id",
+  "title": "Parse an incoming Remote-ID broadcast frame per ASTM F3411-22a",
+  "tags": [
+   "remote-id",
+   "ASTM-F3411",
+   "decoder"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-decode-mavlink",
+  "title": "Parse a MAVLink v2 frame, extract msg_id + payload",
+  "tags": [
+   "mavlink",
+   "decoder",
+   "pymavlink"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-adsb-track",
+  "title": "Track ADS-B aircraft in current airspace, integrate with mission planner",
+  "tags": [
+   "ads-b",
+   "mode-s",
+   "deconfliction",
+   "decoder"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-threat-assess",
+  "title": "Score a target via Sentra integration (dual-use check)",
+  "tags": [
+   "threat",
+   "sentra",
+   "dual-use",
+   "classification"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-drone-digital-twin",
+  "title": "Get real-time state of drone N (location, battery, mission, geofence, threat)",
+  "tags": [
+   "twin",
+   "telemetry",
+   "state"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-mission-replay",
+  "title": "Event-source replay of mission X for after-action review",
+  "tags": [
+   "replay",
+   "ayni",
+   "after-action",
+   "khipu"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-uds-deploy",
+  "title": "Deploy Killinchu via UDS Zarf bundle in an airgapped env (cosign verify steps)",
+  "tags": [
+   "uds",
+   "zarf",
+   "airgap",
+   "cosign",
+   "deploy"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-legal-disclaimer",
+  "title": "When and how to attach the LEGAL_BOUNDARIES disclaimer to a response",
+  "tags": [
+   "legal",
+   "compliance",
+   "disclaimer"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-sign-mission-command",
+  "title": "DSSE-sign a drone command + verify cross-organ",
+  "tags": [
+   "wire-d",
+   "dsse",
+   "signing",
+   "cross-organ"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-bekenstein-autonomy-budget",
+  "title": "Compute an autonomy budget for a mission via formula F15",
+  "tags": [
+   "F15",
+   "bekenstein",
+   "autonomy",
+   "budget"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-cesium-visualize",
+  "title": "Render N drones on a globe with telemetry traces",
+  "tags": [
+   "cesium",
+   "globe",
+   "viz",
+   "telemetry"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-airgap-mode",
+  "title": "Operate offline via the UDS Zarf bundle",
+  "tags": [
+   "airgap",
+   "uds",
+   "offline",
+   "zarf"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-yuyay-gate-defense",
+  "title": "13-axis Yuyay gate with legal-heavy weights for defense actions",
+  "tags": [
+   "yuyay-13",
+   "gate",
+   "legal",
+   "governance",
+   "lambda"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-cross-organ-rosie-handoff",
+  "title": "Hand off to Rosie for an operator decision when the gate fails",
+  "tags": [
+   "rosie",
+   "handoff",
+   "wire-i",
+   "operator"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-fedramp-attestation",
+  "title": "Generate an attestation snapshot for a FedRAMP / IL-4 audit",
+  "tags": [
+   "fedramp",
+   "il-4",
+   "attestation",
+   "sbom",
+   "compliance"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-andrew-greene-demo",
+  "title": "30-second + 5-minute + full demo flows tuned for Defense Unicorns",
+  "tags": [
+   "demo",
+   "defense-unicorns",
+   "greene",
+   "pitch"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-honest-walkback",
+  "title": "Refuse non-defense overreach; cite LEGAL_BOUNDARIES",
+  "tags": [
+   "honesty",
+   "refusal",
+   "legal",
+   "walkback"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-prospect-tour",
+  "title": "Tour for CDAO/DIU/AFWERX/Anduril prospects based on their interest",
+  "tags": [
+   "prospect",
+   "tour",
+   "sales",
+   "pitch"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-counter-uas-sense",
+  "title": "Sense + evidence + report; we do NOT jack into third-party drones",
+  "tags": [
+   "counter-uas",
+   "sense",
+   "evidence",
+   "passive"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-warhacker-demo-p1",
+  "title": "Warhacker demo P1: Opening: the four-layer gap",
+  "tags": [
+   "warhacker",
+   "demo",
+   "p1"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-warhacker-demo-p2",
+  "title": "Warhacker demo P2: Live kind deploy of uds-mesh @ uds-v0.2.0",
+  "tags": [
+   "warhacker",
+   "demo",
+   "p2"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-warhacker-demo-p3",
+  "title": "Warhacker demo P3: Mission plan with live geofence check",
+  "tags": [
+   "warhacker",
+   "demo",
+   "p3"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-warhacker-demo-p4",
+  "title": "Warhacker demo P4: Tychee-style fragmented satellite ground software, composed in 10 minutes",
+  "tags": [
+   "warhacker",
+   "demo",
+   "p4"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-warhacker-demo-p5",
+  "title": "Warhacker demo P5: Lean kernel proof \u2014 UDSSensorReceiptChain.total_order",
+  "tags": [
+   "warhacker",
+   "demo",
+   "p5"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-warhacker-demo-p6",
+  "title": "Warhacker demo P6: Operator console live + Killinchu globe",
+  "tags": [
+   "warhacker",
+   "demo",
+   "p6"
+  ],
+  "drone_domain": true
+ },
+ {
+  "id": "recipe-warhacker-demo-p7",
+  "title": "Warhacker demo P7: Outbrief \u2014 AGPL-3.0 publication path",
+  "tags": [
+   "warhacker",
+   "demo",
+   "p7"
+  ],
+  "drone_domain": false
+ },
+ {
+  "id": "recipe-warhacker-demo-p8",
+  "title": "Warhacker demo P8: Counter-UAS sense + evidence finale",
+  "tags": [
+   "warhacker",
+   "demo",
+   "p8"
+  ],
+  "drone_domain": true
+ }
+]

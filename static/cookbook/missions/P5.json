@@ -1,0 +1,26 @@
+{
+ "id": "P5",
+ "title": "Lean kernel proof \u2014 UDSSensorReceiptChain.total_order",
+ "duration_min": 8,
+ "live_cli": true,
+ "thesis": "The receipt chain is total-ordered; every entry's hash includes the prior hash, so cutting or reordering is observable.",
+ "script": "Display the theorem statement Lutar.UDSSensorReceiptChain.total_order and its axiom dependency list via lake build + --print-axioms.",
+ "cli": "lake build && lake env lean --print-axioms Lutar/UDSSensorReceiptChain.lean",
+ "expected_output": "Theorem statement + minimal axiom list printed.",
+ "fallback": "Load committed .olean artifact and run --print-axioms only; or show .lean source beside SBOMProvenance.lean.",
+ "endpoints": [
+  "/api/killinchu/v1/receipt/ledger"
+ ],
+ "drone_domain": false,
+ "sources": [
+  "https://defenseunicorns.com/warhacker/"
+ ],
+ "doctrine": "v11",
+ "numbers": {
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163
+ },
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}

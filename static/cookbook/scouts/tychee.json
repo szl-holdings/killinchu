@@ -1,0 +1,19 @@
+{
+ "key": "tychee",
+ "name": "Tychee Research Group (Turion Space)",
+ "summary": "Tychee Research Group (El Segundo, CA; founded 2018; founder Rob Brady; acquired by Turion Space Jan 2026) \u2014 Warhacker approved problem: fragmented, air-gapped satellite ground software needing reusable deployment stacks.",
+ "killinchu_fit": "Tychee's problem statement is exactly what SZL's uds-mesh pointer-manifest pattern solves \u2014 Tychee is publicly asking for the artifact SZL has already shipped (mission P4 composition).",
+ "hooks": [
+  "uds-mesh pointer-manifest composition of 4 ground-software components (mission P4)",
+  "cosign-verified reusable deployment stack",
+  "OTEL span set an operator can chain-verify"
+ ],
+ "sources": [
+  "https://defenseunicorns.com/warhacker/",
+  "https://www.latimes.com/b2b/space-tech/story/2026-01-28/turion-space-acquires-tychee-research-group",
+  "https://www.tycrg.com"
+ ],
+ "doctrine": "v11",
+ "maintainer": "Yachay <yachay@szlholdings.dev>",
+ "co_author": "Perplexity Computer Agent"
+}
