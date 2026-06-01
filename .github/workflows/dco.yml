@@ -10,9 +10,16 @@ on:
   pull_request:
     branches: [main]
 
+# The reusable workflow reads PR commits via the GitHub API, so the caller must
+# grant pull-requests: read (a called workflow's permissions are capped by the
+# caller's). Omitting this caused a startup_failure after the pin repoint.
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   dco:
+    permissions:
+      contents: read
+      pull-requests: read
     uses: szl-holdings/.github/.github/workflows/reusable-dco.yml@c9112b1e62b178e89fc4da119fd47fa6982371f5 # .github main HEAD (reusable-dco present)
