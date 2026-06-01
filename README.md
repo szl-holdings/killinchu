@@ -15,8 +15,7 @@ short_description: "Provenanced defense intel · 53-drone mesh · cosign-signed"
 > **Killinchu** (Quechua: *kestrel / hawk*) — the SZL Holdings drone-intelligence
 > flagship. A formally-verified **counter-UAS rule engine** with **Λ-gate
 > governance**, **DSSE Khipu receipts**, and real **Remote-ID / ADS-B / MAVLink**
-> protocol ingest. A vessels pivot: maritime domain awareness → airborne unmanned
-> domain awareness.
+> protocol ingest. Counter-UAS rule engine for the SZL governance substrate.
 
 ## What this is
 
@@ -77,9 +76,6 @@ Base: `/api/killinchu`
 | GET | `/api/killinchu/v1/lambda` | Λ-gate axis definitions |
 | GET | `/api/killinchu/v1/research` | Sourced research corpus |
 | GET | `/api/killinchu/v1/samples` | Verified sample test vectors |
-
-Preserved **vessels aliases** (ADDITIVE, GREEN baseline untouched):
-`/api/vessels/healthz`, `/api/vessels/v1/killinchu-redirect`.
 
 ## Stack
 
