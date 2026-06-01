@@ -165,6 +165,26 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         return JSONResponse(_sign(data))
     registered.append(base + "/tradewinds/listing")
 
+    # ---- CMMC L2 delta (NIST 800-171, 110 controls) — ADDITIVE (COMPLIANCE PACKETS, Yachay) ----
+    @app.get(base + "/cmmc/delta")
+    async def uds_cmmc_delta() -> JSONResponse:
+        data = _load("cmmc_delta.json")
+        if data is None:
+            data = {"kind": "uds.cmmc.delta", "available": False,
+                    "honesty": "cmmc_delta.json not found in .compliance/."}
+        return JSONResponse(_sign(data))
+    registered.append(base + "/cmmc/delta")
+
+    # ---- FedRAMP Moderate posture (NIST 800-53, 325 controls) — ADDITIVE (COMPLIANCE PACKETS) ----
+    @app.get(base + "/fedramp/posture")
+    async def uds_fedramp_posture() -> JSONResponse:
+        data = _load("fedramp_posture.json")
+        if data is None:
+            data = {"kind": "uds.fedramp.posture", "available": False,
+                    "honesty": "fedramp_posture.json not found in .compliance/."}
+        return JSONResponse(_sign(data))
+    registered.append(base + "/fedramp/posture")
+
     # ---- Hardening index (manifest of every real artifact) ----
     @app.get(base + "/hardening/index")
     async def uds_hardening_index() -> JSONResponse:

@@ -1,0 +1,82 @@
+{
+  "endpoint": "/api/killinchu/uds/v1/cmmc/delta",
+  "served_as": "static JSON artifact on uds-demo HF Space (sdk: static)",
+  "framework": "CMMC L2 / NIST SP 800-171 Rev 2 (110 controls)",
+  "generated": "2026-06-01",
+  "summary": {
+    "total": 110,
+    "satisfied": 27,
+    "pct_satisfied": 24.5,
+    "partial": 58,
+    "pct_partial": 52.7,
+    "roadmap": 9,
+    "pct_roadmap": 8.2,
+    "not_applicable": 16,
+    "pct_not_applicable": 14.5
+  },
+  "by_family": {
+    "AC": {
+      "PARTIAL": 12,
+      "SATISFIED": 5,
+      "ROADMAP": 1,
+      "NOT_APPLICABLE": 4
+    },
+    "AT": {
+      "PARTIAL": 1,
+      "ROADMAP": 2
+    },
+    "AU": {
+      "SATISFIED": 2,
+      "PARTIAL": 7
+    },
+    "CM": {
+      "SATISFIED": 7,
+      "PARTIAL": 2
+    },
+    "IA": {
+      "PARTIAL": 8,
+      "ROADMAP": 1,
+      "SATISFIED": 2
+    },
+    "IR": {
+      "PARTIAL": 2,
+      "ROADMAP": 1
+    },
+    "MA": {
+      "SATISFIED": 1,
+      "PARTIAL": 3,
+      "NOT_APPLICABLE": 2
+    },
+    "MP": {
+      "NOT_APPLICABLE": 6,
+      "ROADMAP": 1,
+      "PARTIAL": 1,
+      "SATISFIED": 1
+    },
+    "PE": {
+      "PARTIAL": 4,
+      "NOT_APPLICABLE": 2
+    },
+    "PS": {
+      "ROADMAP": 2
+    },
+    "RA": {
+      "PARTIAL": 3
+    },
+    "CA": {
+      "SATISFIED": 3,
+      "PARTIAL": 1
+    },
+    "SC": {
+      "SATISFIED": 6,
+      "PARTIAL": 7,
+      "ROADMAP": 1,
+      "NOT_APPLICABLE": 2
+    },
+    "SI": {
+      "PARTIAL": 7
+    }
+  },
+  "honest_disclosure": "Self-assessment, not a third-party C3PAO assessment. No CMMC certification held. SZL is pre-revenue, 1 FTE. PARTIAL/ROADMAP statuses carry explicit closure notes (de facto POA&M).",
+  "signed": "Yachay, SZL Holdings"
+}

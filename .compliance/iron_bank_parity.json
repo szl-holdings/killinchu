@@ -1,8 +1,8 @@
 {
  "kind": "uds.iron-bank.parity",
  "iron_bank_reference": "https://registry1.dso.mil (DoD Platform One Iron Bank)",
- "generated_by": "UDS HARDENING (Yachay) \u2014 real Dockerfile audit 2026-06-01",
- "pull_credentials_status": "REQUIRED \u2014 registry1.dso.mil needs a Platform One Iron Bank account + robot token. Build host in this sandbox does NOT have them; Iron Bank FROM lines are real and will pull once `docker login registry1.dso.mil` succeeds. Fallback documented (registry.access.redhat.com UBI mirror = same upstream).",
+ "generated_by": "UDS HARDENING (Yachay) — real Dockerfile audit 2026-06-01",
+ "pull_credentials_status": "REQUIRED — registry1.dso.mil needs a Platform One Iron Bank account + robot token. Build host in this sandbox does NOT have them; Iron Bank FROM lines are real and will pull once `docker login registry1.dso.mil` succeeds. Fallback documented (registry.access.redhat.com UBI mirror = same upstream).",
  "flagships": [
   {
    "flagship": "a11oy",
@@ -85,5 +85,53 @@
   "note": "Real oscap output against ubi9-minimal:9.4 (Iron Bank equivalent base). See scap-reports/scan_summary.json."
  },
  "honesty": "Iron Bank Dockerfiles are REAL and SCAFFOLDED (FROM registry1.dso.mil/...). Per-flagship status is `not_built_iron_bank_pending_credentials` until Platform One pull credentials arrive (~2 wks, pre-Warhacker). No image is pushed; no fabricated Iron Bank VAT-approval / accreditation is claimed. Founder action: obtain Platform One Iron Bank account + robot token, then `docker login registry1.dso.mil` and build.",
- "credentials_timeline": "Founder update 2026-06-01: Iron Bank (registry1.dso.mil) pull credentials are NOT available pre-Warhacker \u2014 ~2 weeks of Platform One paperwork. Iron Bank Dockerfile variants (:v0.1.0-ironbank) are SCAFFOLDED: the `FROM registry1.dso.mil/...` lines and STIG remediation layer are real and committed, but the images are not built in CI until credentials arrive. Each flagship status flips to `built` once `docker login registry1.dso.mil` succeeds. This is the HONEST posture \u2014 scaffolded path + credentials-in-progress, never a fabricated Iron Bank accreditation."
+ "credentials_timeline": "Founder update 2026-06-01: Iron Bank (registry1.dso.mil) pull credentials are NOT available pre-Warhacker — ~2 weeks of Platform One paperwork. Iron Bank Dockerfile variants (:v0.1.0-ironbank) are SCAFFOLDED: the `FROM registry1.dso.mil/...` lines and STIG remediation layer are real and committed, but the images are not built in CI until credentials arrive. Each flagship status flips to `built` once `docker login registry1.dso.mil` succeeds. This is the HONEST posture — scaffolded path + credentials-in-progress, never a fabricated Iron Bank accreditation.",
+ "submission_packets": {
+  "a11oy": {
+   "hardening_manifest": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/a11oy/hardening_manifest.yaml",
+   "vat_summary": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/a11oy/vat-summary.json",
+   "license_audit_spdx": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/a11oy/license-audit.spdx",
+   "justification": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/a11oy/justification.md"
+  },
+  "amaru": {
+   "hardening_manifest": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/amaru/hardening_manifest.yaml",
+   "vat_summary": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/amaru/vat-summary.json",
+   "license_audit_spdx": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/amaru/license-audit.spdx",
+   "justification": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/amaru/justification.md"
+  },
+  "sentra": {
+   "hardening_manifest": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/sentra/hardening_manifest.yaml",
+   "vat_summary": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/sentra/vat-summary.json",
+   "license_audit_spdx": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/sentra/license-audit.spdx",
+   "justification": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/sentra/justification.md"
+  },
+  "rosie": {
+   "hardening_manifest": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/rosie/hardening_manifest.yaml",
+   "vat_summary": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/rosie/vat-summary.json",
+   "license_audit_spdx": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/rosie/license-audit.spdx",
+   "justification": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/rosie/justification.md"
+  },
+  "killinchu": {
+   "hardening_manifest": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/killinchu/hardening_manifest.yaml",
+   "vat_summary": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/killinchu/vat-summary.json",
+   "license_audit_spdx": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/killinchu/license-audit.spdx",
+   "justification": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/killinchu/justification.md"
+  },
+  "vessels": {
+   "hardening_manifest": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/vessels/hardening_manifest.yaml",
+   "vat_summary": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/vessels/vat-summary.json",
+   "license_audit_spdx": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/vessels/license-audit.spdx",
+   "justification": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/vessels/justification.md"
+  },
+  "hatun-mcp": {
+   "hardening_manifest": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/hatun-mcp/hardening_manifest.yaml",
+   "vat_summary": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/hatun-mcp/vat-summary.json",
+   "license_audit_spdx": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/hatun-mcp/license-audit.spdx",
+   "justification": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/hatun-mcp/justification.md"
+  }
+ },
+ "submission_packet_status": "PREPARED — 7/7 flagships have a complete Iron Bank hardening packet (valid hardening_manifest.yaml + VAT prep + SPDX license audit + justification). Real syft SBOMs. cht_member=false / no DoD identity yet; MR steps in iron-bank/SUBMISSION_README.md.",
+ "submission_readme": "https://github.com/szl-holdings/compliance-posture/blob/main/iron-bank/SUBMISSION_README.md",
+ "extended_by": "COMPLIANCE PACKETS (Yachay) — ADDITIVE extension of UDS Hardening parity, 2026-06-01",
+ "extended_date": "2026-06-01"
 }

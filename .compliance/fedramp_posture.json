@@ -1,0 +1,83 @@
+{
+  "endpoint": "/api/killinchu/uds/v1/fedramp/posture",
+  "served_as": "static JSON artifact on uds-demo HF Space (sdk: static)",
+  "framework": "FedRAMP Moderate (NIST SP 800-53), 325 controls/enhancements",
+  "generated": "2026-06-01",
+  "sponsor_status": "SEEKING — FedRAMP Marketplace Pending. No ATO, no authorization today. Path: FedRAMP Moderate equivalency via Defense Unicorns (DU) sponsorship -> IL-4 (target Q4 2027).",
+  "summary": {
+    "total": 325,
+    "satisfied": 52,
+    "pct_satisfied": 16.0,
+    "partial": 223,
+    "pct_partial": 68.6,
+    "planned": 38,
+    "pct_planned": 11.7,
+    "not_applicable": 12,
+    "pct_not_applicable": 3.7
+  },
+  "inheritance": {
+    "partial": 234,
+    "customer-managed": 70,
+    "full": 21
+  },
+  "by_family": {
+    "AC": {
+      "PARTIAL": 34,
+      "SATISFIED": 7,
+      "NOT_APPLICABLE": 2
+    },
+    "AT": {
+      "PLANNED": 5
+    },
+    "AU": {
+      "PARTIAL": 14,
+      "SATISFIED": 5
+    },
+    "CA": {
+      "PARTIAL": 15
+    },
+    "CM": {
+      "SATISFIED": 26
+    },
+    "CP": {
+      "PLANNED": 24
+    },
+    "IA": {
+      "PARTIAL": 27
+    },
+    "IR": {
+      "PARTIAL": 18
+    },
+    "MA": {
+      "PARTIAL": 11
+    },
+    "MP": {
+      "NOT_APPLICABLE": 10
+    },
+    "PE": {
+      "PARTIAL": 20
+    },
+    "PL": {
+      "PARTIAL": 6
+    },
+    "PS": {
+      "PLANNED": 9
+    },
+    "RA": {
+      "PARTIAL": 10
+    },
+    "SA": {
+      "PARTIAL": 22
+    },
+    "SC": {
+      "PARTIAL": 21,
+      "SATISFIED": 11
+    },
+    "SI": {
+      "PARTIAL": 25,
+      "SATISFIED": 3
+    }
+  },
+  "honest_disclosure": "This is an SSP artifact, not an authorization. No ATO. Sponsor SEEKING. PARTIAL/PLANNED carry closure notes (POA&M).",
+  "signed": "Yachay, SZL Holdings"
+}
