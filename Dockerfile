@@ -35,6 +35,11 @@ RUN pip install --no-cache-dir \
     "pymavlink>=2.4.40"
 # ADDITIVE (Yachay / Provenance Hardening): cryptography for DSSE+Cosign Khipu signing.
 RUN pip install --no-cache-dir "cryptography>=42.0"
+# ADDITIVE (Yachay / PQC): pure-Python ML-DSA-65 (NIST FIPS 204) backend for
+# /khipu/sign?mode={pqc,hybrid}. liboqs (oqs-python) is preferred in prod but is
+# a C lib not always installable; dilithium-py is the pure-Python fallback so
+# hybrid signing works in the Space. ECDSA stays the default regardless.
+RUN pip install --no-cache-dir "dilithium-py>=1.0.0"
 
 # Copy the pre-built SPA to the static root.
 # index.html + assets/* served directly at / and /assets/*; unknown GET -> index.html.
@@ -61,6 +66,10 @@ COPY live_wires_3d.js ./live_wires_3d.js
 
 # ADDITIVE (Wire I): Rosie-companion module baked into the image. Yachay.
 COPY szl_rosie_companion.py ./szl_rosie_companion.py
+# ADDITIVE (PQC/hybrid signing): bake the signing module so `import
+# killinchu_szl_pqc_sign` resolves in-container and register() wires the
+# /khipu/sign endpoints. ADDITIVE ONLY. Sign: Yachay.
+COPY killinchu_szl_pqc_sign.py ./killinchu_szl_pqc_sign.py
 COPY serve.py ./serve.py
 ENV PORT=7860
 EXPOSE 7860
