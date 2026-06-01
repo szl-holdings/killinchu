@@ -90,6 +90,12 @@ COPY szl_unay_routes.py ./szl_unay_routes.py
 # Per-file COPY (no `COPY . .`) — without these the imports fail and routes 404.
 COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
 COPY killinchu_genius.py ./killinchu_genius.py
+# ADDITIVE (Killinchu v3 deep C-UAS, Yachay 2026-06-01): killinchu_v3 registers
+# /api/killinchu/v3/* (ingest pipelines + Kalman fusion + provenanced threat
+# scoring + honest effector catalogue + airspace + boids/ORCA swarm + replay +
+# daily brief) and the deep operational console at /globe/v3. Per-file COPY
+# (no `COPY . .`) — without it `import killinchu_v3` fails and v3 routes 404.
+COPY killinchu_v3.py ./killinchu_v3.py
 # ADDITIVE (Understudy-parity, Yachay 2026-06-01): the understudy moat-fabric layer
 # + its portable substrate (LLM router / agentic RAG / 23-formula registry). Explicit
 # per-file COPY (this Dockerfile never uses `COPY . .`); without these `import

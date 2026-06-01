@@ -707,6 +707,21 @@ try:
 except Exception as _kg_e:
     print(f"[killinchu] v2 genius endpoints NOT registered: {_kg_e!r}", file=sys.stderr)
 
+# ---------------------------------------------------------------------------
+# v3 "deep" C-UAS runtime (ADDITIVE): /api/killinchu/v3/* — ingest pipelines
+# (adsb/remote-id/mavlink/rf/radar/eo/acoustic) + constant-velocity Kalman
+# sensor fusion + provenanced threat scoring + honest effector catalogue
+# (Sentra+Yuyay-13 gated, rehearsal-only) + airspace deconfliction + boids/ORCA
+# swarm + replay + daily brief + the deep operational globe at /globe/v3.
+# Registered BEFORE the catch-all so /globe/v3 + /api/killinchu/v3/* resolve LOCALLY.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_v3 as _kv3
+    _kv3_status = _kv3.register(app, "killinchu")
+    print(f"[killinchu] v3 deep C-UAS endpoints registered: {_kv3_status}", file=sys.stderr)
+except Exception as _kv3_e:
+    print(f"[killinchu] v3 deep C-UAS endpoints NOT registered: {_kv3_e!r}", file=sys.stderr)
+
 @app.get("/")
 async def spa_root() -> FileResponse:
     return FileResponse(INDEX_HTML, media_type="text/html")
