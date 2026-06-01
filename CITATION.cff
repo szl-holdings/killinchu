@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: "If you use killinchu, please cite the canonical Ouroboros Thesis below. The concept DOI 10.5281/zenodo.19944926 always resolves to the latest version."
+title: "szl-holdings/killinchu — Andean drone-intelligence counter-UAS rule engine"
+authors:
+  - family-names: Lutar
+    given-names: "Stephen P."
+    name-suffix: "Jr."
+    email: stephen@szlholdings.com
+    affiliation: "SZL Holdings, Inc."
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+date-released: "2026-06-01"
+version: "0.1.0"
+license: Apache-2.0
+type: software
+url: "https://github.com/szl-holdings/killinchu"
+repository-code: "https://github.com/szl-holdings/killinchu"
+identifiers:
+  - description: "Concept DOI for the canonical Ouroboros Thesis (always resolves to the latest version)"
+    type: doi
+    value: "10.5281/zenodo.19944926"
+keywords:
+  - counter-uas
+  - drone-intelligence
+  - remote-id
+  - ads-b
+  - mavlink
+  - stanag-4609
+  - governance
+  - formal-verification
+contact:
+  - family-names: Lutar
+    given-names: "Stephen P."
+    name-suffix: "Jr."
+    email: "stephen@szlholdings.com"

@@ -1,0 +1,16 @@
+name: SBOM
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    permissions:
+      contents: write
+    uses: szl-holdings/.github/.github/workflows/reusable-sbom.yml@c8359e53b40560f15ed5c25c3e4e1256b0536cf8 # v1 (.github main)

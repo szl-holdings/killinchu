@@ -1,0 +1,24 @@
+name: Scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: '41 5 * * 2'
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scorecard:
+    permissions:
+      security-events: write
+      id-token: write
+      contents: read
+      actions: read
+    uses: szl-holdings/.github/.github/workflows/reusable-scorecard.yml@c8359e53b40560f15ed5c25c3e4e1256b0536cf8 # v1 (.github main)

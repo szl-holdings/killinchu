@@ -1,0 +1,24 @@
+name: CI
+
+# killinchu — showcase + decoder CI. Validates citation/markdown/governance files
+# via the org reusable docs workflow, plus secret scanning. SHA-pinned to .github main.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    uses: szl-holdings/.github/.github/workflows/reusable-docs-ci.yml@c8359e53b40560f15ed5c25c3e4e1256b0536cf8 # v1 (.github main)
+
+  secrets:
+    uses: szl-holdings/.github/.github/workflows/reusable-secret-scan.yml@c8359e53b40560f15ed5c25c3e4e1256b0536cf8 # v1 (.github main)
