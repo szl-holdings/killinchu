@@ -174,8 +174,10 @@ async def healthz() -> JSONResponse:
         "trust_axes": 13,
         "lambda_floor": _LAMBDA_FLOOR,
         "lambda_uniqueness": "Conjecture (open CAUCHY_ND sorry + missing symmetry axiom) — NOT a Theorem",
-        "slsa": "L1 (honest)",
-        "receipt_signature": SIGNATURE_PLACEHOLDER,
+        "slsa": "L1 (honest; L2 in roadmap via Wire D)",
+        "receipt_signature": "REAL — ECDSA-P256-SHA256 DSSE; live at /khipu/sign + /api/killinchu/khipu/sign (Wire D shipped)",
+        "signing_available": True,
+        "numbers": {"declarations": 749, "axioms": 14, "sorries": 163, "putnam_sorries": 51, "baseline_sorries": 112},
         "drones_in_database": len(_DRONES),
         "khipu_root": _khipu_root(),
         "khipu_nodes": len(_KHIPU_DAG),
@@ -662,6 +664,31 @@ try:
 except Exception as _pe:  # pragma: no cover - defensive, additive-only
     print(f"[killinchu] szl_provenance NOT registered ({{_pe!r}}); existing app unaffected", file=sys.stderr)
 
+# ---------------------------------------------------------------------------
+# Warhacker top-level alias routes (ADDITIVE, Yachay, 2026-06-01). Registered
+# BEFORE the /{full_path:path} catch-all: /healthz + /khipu/{sign,verify,pubkey}
+# + /api/killinchu/v3/doctrine + /wires/D. Real DSSE via szl_dsse. v11 verbatim.
+# ---------------------------------------------------------------------------
+try:
+    import szl_warhacker_aliases as _wh_aliases
+    _wh_status = _wh_aliases.register(app, "killinchu", build_sha=os.environ.get("SPACE_COMMIT_SHA", "warhacker-aliases-v1"))
+    print(f"[killinchu] Warhacker aliases registered: {_wh_status}", file=sys.stderr)
+except Exception as _wh_e:
+    print(f"[killinchu] Warhacker aliases NOT registered: {_wh_e!r}", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# Killinchu v2 GENIUS endpoints (ADDITIVE, Yachay, 2026-06-01). Cesium /globe +
+# geofence/check + mission/plan (PURIQ F7) + swarm/coordinate (boids) + remote-id
+# /mavlink/adsb decoders + digital twin + threat/assess (sentra) + warhacker P1-P8.
+# Registered BEFORE the catch-all so /globe + /api/killinchu/v2/* resolve LOCALLY.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_genius as _kg
+    _kg_status = _kg.register(app, "killinchu")
+    print(f"[killinchu] v2 genius endpoints registered: {_kg_status}", file=sys.stderr)
+except Exception as _kg_e:
+    print(f"[killinchu] v2 genius endpoints NOT registered: {_kg_e!r}", file=sys.stderr)
+
 @app.get("/")
 async def spa_root() -> FileResponse:
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -789,6 +816,23 @@ try:
     print("[killinchu] Wire I rosie-companion registered (identify/with-rosie conf<0.7 consult)", file=sys.stderr)
 except Exception as _rc_e:
     print(f"[killinchu] Wire I rosie-companion NOT registered: {_rc_e!r}", file=sys.stderr)
+
+# ===========================================================================
+# UNAY + Khipu-LMDB v2 organs (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
+# NEW /api/killinchu/v2/* paths only, registered on the ROOT app BEFORE the SPA
+# catch-all "/{full_path:path}" so they resolve LOCALLY. try/except-guarded.
+# Real durable lmdb + real sqlite-vss (honest cosine-fallback). LOCKED: 749/14/163.
+# ---------------------------------------------------------------------------
+try:
+    import szl_unay_routes as _unay
+    _unay_info = _unay.register(app, ns="killinchu")
+    import sys as _sysu
+    print(f"[szl_unay] UNAY+Khipu-LMDB v2 mounted: backend={_unay_info.get('unay_backend')}, "
+          f"lmdb={_unay_info.get('lmdb_version')}, boot_entries={_unay_info.get('lmdb_entries_at_boot')}", file=_sysu.stderr)
+except Exception as _ue:
+    import sys as _sysu
+    print(f"[szl_unay] UNAY+Khipu-LMDB v2 NOT mounted ({_ue!r}); existing routes unaffected", file=_sysu.stderr)
+
 
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
