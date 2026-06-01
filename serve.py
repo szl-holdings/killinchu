@@ -54,6 +54,24 @@ KILLINCHU_REDIRECT = "https://szlholdings-killinchu.hf.space"
 
 app = FastAPI(title="Killinchu — Andean Drone Intelligence", version="1.0.0")
 
+# ---------------------------------------------------------------------------
+# KHIPU CONSENSUS — 3-of-4 BFT multi-organ signed agreement (ADDITIVE, Yachay).
+# Registers organ-specific /khipu/pubkey + POST /khipu/consensus/sign (real
+# ECDSA-P256-SHA256 DSSE signature with the killinchu-cosign key from the
+# KILLINCHU_COSIGN_KEY Space secret). On Killinchu also registers the aggregator
+# POST /api/killinchu/uds/v1/mission/execute and POST /api/killinchu/uds/v1/
+# consensus/verify. Registered EARLY so these routes win over any catch-all.
+# Doctrine v11 LOCKED 749/14/163 (public). NEVER crashes the host app.
+# ---------------------------------------------------------------------------
+try:
+    import szl_khipu_consensus as _kc
+    _kc_status = _kc.register(app, "killinchu", is_aggregator=("killinchu" == "killinchu"))
+    import sys as _kc_sys
+    print(f"[killinchu] Khipu Consensus registered: {_kc_status}", file=_kc_sys.stderr)
+except Exception as _kc_e:  # never crash the app
+    import traceback as _kc_tb, sys as _kc_sys
+    print(f"[killinchu] Khipu Consensus NOT registered: {_kc_e!r}\n{_kc_tb.format_exc()}", file=_kc_sys.stderr)
+
 # ── Live 3D Wires (PURIQ / Doctrine v12) — ADDITIVE, re-pinned FIRST ─────────
 # Registered immediately after the app is constructed so FastAPI's ordered route
 # matching gives /live-wires + the 3DWPP SSE stream + court-admissible BoE
