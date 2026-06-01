@@ -2,6 +2,9 @@
 
 # 🦅 killinchu
 
+<!-- CII-BEST-PRACTICES-BADGE: PENDING — replace 'PENDING' with the project id once founder registers this repo at https://bestpractices.coreinfrastructure.org/ -->
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/PENDING/badge)](https://bestpractices.coreinfrastructure.org/)
+
 **Andean Drone Intelligence — a formally-anchored counter-UAS rule engine**
 
 > *Killinchu* (Quechua) — the American kestrel, the smallest and sharpest-eyed falcon of the Andes. A fitting namesake for a rule engine that watches the sky.
