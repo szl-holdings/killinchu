@@ -70,6 +70,11 @@ COPY szl_rosie_companion.py ./szl_rosie_companion.py
 # killinchu_szl_pqc_sign` resolves in-container and register() wires the
 # /khipu/sign endpoints. ADDITIVE ONLY. Sign: Yachay.
 COPY killinchu_szl_pqc_sign.py ./killinchu_szl_pqc_sign.py
+# ADDITIVE (Sigstore Rekor public cross-verify, Yachay 2026-06-01): bake the
+# Rekor client so `import szl_rekor` resolves in-container and serve.py wires
+# the UDS-facing /api/killinchu/uds/v1/rekor/* endpoints. stdlib-only (no new
+# pip deps); reuses the existing cryptography install. ADDITIVE ONLY.
+COPY szl_rekor.py ./szl_rekor.py
 COPY serve.py ./serve.py
 ENV PORT=7860
 EXPOSE 7860

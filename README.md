@@ -78,6 +78,23 @@ Base: `/api/killinchu`
 | GET | `/api/killinchu/v1/research` | Sourced research corpus |
 | GET | `/api/killinchu/v1/samples` | Verified sample test vectors |
 
+**UDS-facing Sigstore Rekor cross-verify** (ADDITIVE). Per Founder directive
+(2026-06-01) Killinchu is the single UDS-facing product, so the public Rekor
+surface is consolidated here; other flagships anchor receipts via the Rekor
+SDK internally.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/api/killinchu/uds/v1/rekor/log` | Push a signed Khipu DSSE receipt to the **public** Sigstore Rekor log → `{rekor_log_index, rekor_uuid, verifiable_at}` |
+| GET | `/api/killinchu/uds/v1/rekor/verify/{log_index}` | Verify a logged entry; returns canonical content + inclusion proof |
+| GET | `/api/killinchu/uds/v1/rekor/info` | keyid `szlholdings-cosign`, pub fingerprint, `search.sigstore.dev` URL pattern |
+
+Verifiers get two independent paths: local `cosign verify-blob --key cosign.pub`,
+and the public log at `https://search.sigstore.dev/?logIndex=<N>`. Real
+submissions only — an unsigned envelope is never pushed. Endpoint configurable
+via `REKOR_URL` (default `rekor.sigstore.dev`); set `REKOR_AUTO_ANCHOR=1` to
+auto-anchor aggregated fusion receipts.
+
 Preserved **vessels aliases** (ADDITIVE, GREEN baseline untouched):
 `/api/vessels/healthz`, `/api/vessels/v1/killinchu-redirect`.
 

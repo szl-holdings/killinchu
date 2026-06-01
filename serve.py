@@ -88,6 +88,32 @@ except Exception as _pqc_e:
     print(f"[killinchu] PQC/hybrid signing NOT registered: {_pqc_e}", file=_sys_pqc.stderr)
     _tb_pqc.print_exc()
 # ── end PQC / Hybrid signing ─────────────────────────────────────────────────
+
+# ── Sigstore Rekor public cross-verify (ADDITIVE, Yachay) ────────────────────
+# Founder directive (2026-06-01): UDS-facing endpoints consolidate in Killinchu,
+# the single UDS-facing product. Registers the external Rekor surface under the
+# Killinchu UDS namespace:
+#   POST /api/killinchu/uds/v1/rekor/log
+#   GET  /api/killinchu/uds/v1/rekor/verify/{log_index}
+#   GET  /api/killinchu/uds/v1/rekor/info
+# Pushes the SZL DSSE receipt (signed with the SZLHOLDINGS cosign key, keyid
+# szlholdings-cosign) into the PUBLIC Sigstore Rekor transparency log so
+# judges/auditors can cross-verify in a trust-rooted log they already use
+# (search.sigstore.dev). a11oy.code + other flagships anchor receipts via the
+# Rekor SDK internally; only Killinchu exposes the public HTTP surface.
+# Real submissions only — never a fabricated logIndex; an unsigned envelope
+# returns an honest 503. Endpoint configurable via the REKOR_URL secret
+# (default rekor.sigstore.dev). Sign: Yachay <yachay@szlholdings.dev>. Perplexity Computer Agent.
+try:
+    import szl_rekor as _rekor
+    _rekor_info = _rekor.register(app, ns="killinchu")
+    import sys as _sys_rk
+    print(f"[killinchu] Rekor cross-verify registered: {_rekor_info['registered']}", file=_sys_rk.stderr)
+except Exception as _rk_e:
+    import sys as _sys_rk, traceback as _tb_rk
+    print(f"[killinchu] Rekor cross-verify NOT registered: {_rk_e}", file=_sys_rk.stderr)
+    _tb_rk.print_exc()
+# ── end Sigstore Rekor cross-verify ──────────────────────────────────────────
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # ---------------------------------------------------------------------------
