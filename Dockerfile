@@ -116,5 +116,11 @@ COPY szl_killinchu_cookbook.py ./szl_killinchu_cookbook.py
 COPY szl_uds_hardening.py ./szl_uds_hardening.py
 COPY .compliance/ ./.compliance/
 COPY killinchu_fusion.py ./killinchu_fusion.py
+# ADDITIVE (Drone 3D Health v4, Yachay 2026-06-01 / Perplexity Computer Agent): bake the
+# 3D drone-health-diagnostics module into the image. Explicit per-file COPY (this Dockerfile
+# never uses `COPY . .`); without it `import killinchu_drone_3d_health` fails and every
+# /api/killinchu/v4/* route 404s. The /drone-3d page (static/drone-3d.html) and the operator
+# tab (static/uds.html) are already COPY'd by the `COPY static/ ./static/` line above.
+COPY killinchu_drone_3d_health.py ./killinchu_drone_3d_health.py
 COPY serve.py ./serve.py
 CMD ["python", "serve.py"]
