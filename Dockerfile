@@ -65,4 +65,20 @@ COPY serve.py ./serve.py
 ENV PORT=7860
 EXPOSE 7860
 
+# ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay): real durable lmdb persistence
+# + optional sqlite-vss vector recall (szl_unay degrades to honest cosine-fallback if
+# the extension cannot load in the slim image). Never affects existing routes.
+RUN pip install --no-cache-dir "lmdb>=1.4.0" "sqlite-vss>=0.1.2"
+# ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay / Perplexity Computer Agent):
+# explicit per-file COPY (this Dockerfile does not use `COPY . .`). serve.py imports
+# szl_unay_routes and calls .register(app, ns="killinchu") -> /api/killinchu/v2/unay/* +
+# /api/killinchu/v2/khipu/lmdb/*. Real durable lmdb + real sqlite-vss honest fallback.
+COPY szl_unay.py ./szl_unay.py
+COPY szl_khipu_lmdb.py ./szl_khipu_lmdb.py
+COPY szl_khipu_replicate.py ./szl_khipu_replicate.py
+COPY szl_unay_routes.py ./szl_unay_routes.py
+# ADDITIVE (Warhacker v2 genius pass, Yachay 2026-06-01): aliases + killinchu_genius.
+# Per-file COPY (no `COPY . .`) — without these the imports fail and routes 404.
+COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
+COPY killinchu_genius.py ./killinchu_genius.py
 CMD ["python", "serve.py"]
