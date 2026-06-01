@@ -191,5 +191,22 @@ def register(app, ns: str = "killinchu") -> None:
         except Exception as e:  # never fake a signature
             return JSONResponse({"error": str(e), "mode": mode}, status_code=503)
 
-    app.add_api_route("/khipu/sign", _handler, methods=["POST"])
+    # Race-aware / additive: a sibling may already own POST /khipu/sign. We never
+    # clobber it. The namespaced PQC path is always registered; the bare path and
+    # an explicit /khipu/sign/pqc path are registered as available additive
+    # surfaces. Callers get genuine ML-DSA via the namespaced or /pqc routes
+    # regardless of who owns the bare path.
+    existing = set()
+    for r in getattr(app, "routes", []):
+        path = getattr(r, "path", None)
+        methods = getattr(r, "methods", None) or set()
+        if path and "POST" in methods:
+            existing.add(path)
+
+    # Always-additive PQC surfaces (guaranteed not to collide).
     app.add_api_route(f"/api/{ns}/v1/khipu/sign", _handler, methods=["POST"])
+    app.add_api_route("/khipu/sign/pqc", _handler, methods=["POST"])
+
+    # Bare path only if free (don't clobber a sibling's existing endpoint).
+    if "/khipu/sign" not in existing:
+        app.add_api_route("/khipu/sign", _handler, methods=["POST"])
