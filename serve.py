@@ -893,6 +893,32 @@ except Exception as _cb_e:
     print(f"[killinchu] defense cookbook NOT registered: {_cb_e!r}; existing app unaffected", file=sys.stderr)
 
 
+# ===========================================================================
+# KILLINCHU FUSION — UDS-native single front door (ADDITIVE, 2026-06-01,
+# Yachay / Perplexity Computer Agent). Killinchu is the SOLE UDS-facing surface:
+# every UDS endpoint lives under /api/killinchu/uds/v1/*. One operator action
+# fans out to the live organ Spaces (Sentra immune gate -> Amaru cortex || a11oy
+# policy -> Killinchu field action) and returns ONE aggregated DSSE receipt whose
+# chain[] carries all four organ verdicts + signatures, signed with the SAME
+# szlholdings-cosign ECDSA-P256 key (cosign verify-blob "Verified OK"). Appended
+# to the Khipu DAG. Registration is ADDITIVE + IDEMPOTENT: any path a sibling
+# agent already owns is DEFERRED to (never double-registered). Registered BEFORE
+# the SPA catch-all so these explicit routes resolve LOCALLY. try/except-guarded;
+# NEVER crash the existing app. UI: /uds.html (Command/Field/Audit/Compliance).
+# Honesty preserved: drone positions SIMULATED, geofence STATIC SNAPSHOT, amaru
+# organ_signed=false, Rekor not_submitted, fail-WARNING never fail-open.
+# Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1 is NOT a theorem.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_fusion as _fusion
+    _fusion_info = _fusion.register(app, "killinchu")
+    print(f"[killinchu] UDS fusion front-door registered: {_fusion_info['registered_count']} routes, "
+          f"signing={_fusion_info['signing']}, deferred={len(_fusion_info.get('deferred_to_siblings', []))}",
+          file=sys.stderr)
+except Exception as _fusion_e:
+    print(f"[killinchu] UDS fusion front-door NOT registered: {_fusion_e!r}; existing app unaffected", file=sys.stderr)
+
+
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
     if full_path.startswith("api/"):
