@@ -35,6 +35,11 @@ jobs:
     permissions:
       contents: read
       actions: read
+      # OSSF Scorecard queries the GraphQL API (ListCommits, branch protection),
+      # which the default token rejects ("Resource not accessible by
+      # integration") unless these read scopes are granted.
+      pull-requests: read
+      checks: read
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -51,6 +56,10 @@ jobs:
         with:
           results_file: results.sarif
           results_format: sarif
+          # Pass the workflow token explicitly so the GraphQL queries
+          # (ListCommits / branch-protection) are authenticated on this
+          # private repo.
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           # Private repo without GHAS: do not publish to the public OSSF DB.
           publish_results: false
 
