@@ -1,5 +1,12 @@
 name: SBOM
 
+# FIX (Yachay, empire-reliability 2026-06-01): the caller pinned the org
+# reusable workflows at .github SHA c8359e53, which PRE-DATES the creation of
+# reusable-sbom.yml in that repo. The referenced reusable file did not exist at
+# that SHA, so every SBOM run failed to resolve the workflow. Repoint to the
+# current .github main HEAD (c9112b1e) where reusable-sbom.yml exists. This is
+# the same reusable the passing flagships (amaru, sentra) consume.
+
 on:
   push:
     branches: [main]
@@ -13,4 +20,4 @@ jobs:
   sbom:
     permissions:
       contents: write
-    uses: szl-holdings/.github/.github/workflows/reusable-sbom.yml@c8359e53b40560f15ed5c25c3e4e1256b0536cf8 # v1 (.github main)
+    uses: szl-holdings/.github/.github/workflows/reusable-sbom.yml@c9112b1e62b178e89fc4da119fd47fa6982371f5 # .github main HEAD (reusable-sbom present)
