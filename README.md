@@ -7,7 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: false
 license: apache-2.0
-short_description: "Drone intelligence: counter-UAS, GEOINT, Remote-ID/ADS-B"
+short_description: "Provenanced defense intel · 53-drone mesh · cosign-signed"
 ---
 
 # Killinchu 🦅 — Andean Drone Intelligence
@@ -92,3 +92,23 @@ MapLibre GL (OpenFreeMap tokenless tiles) · Docker on Hugging Face Spaces.
 Apache-2.0 · Doctrine v11 · *Hatun-Willay*
 
 Built with Yachay CTO + Opus 4.8.
+
+---
+
+## Understudy Parity (Doctrine v11 · 2026-06-01)
+
+**Provenanced defense intelligence · 53-drone mesh · cosign-signed missions · geofence-enforced.**
+
+Killinchu carries every a11oy moat plus the **11 understudy capabilities** under its defense
+namespace `/api/killinchu/v2/*`, so it is failover-ready to substitute for the a11oy platform
+while keeping its defense-vertical (legal/authority) gate posture:
+
+- **7-tier LLM router** (open stack) — `/llm/{tiers,route}`
+- **Agentic RAG** — `/rag/{ingest,query,stats}` (honest 503 where embedding deps absent)
+- **MCP server, 18 tools, streamable-HTTP** — `/mcp`, `/mcp/{tools,claude-config,rpc}`
+- **Understudy failover** — `/understudy/{health,promote,ask}` (`ready_to_substitute: true`; promote gated)
+- **PURIQ 12 organs · 23 formulas · KIPU/QILLQAQ 16 genomes · Khipu DAG RS(10,6) · AYNI-OS · WAYRA**
+- Canonical cross-organ: `/healthz`, `/khipu/{sign,verify,pubkey}`, `/wires/D`, `/v1/yuyay/gate`, `/api/killinchu/v2/metrics`
+
+Built from `platform/packages/understudy-runtime` (`szl_understudy.register(app, "killinchu")`).
+Additive — no routes removed. See `docs/moat-equivalence.md`.
