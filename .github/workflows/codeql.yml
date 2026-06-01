@@ -19,4 +19,12 @@ concurrency:
 
 jobs:
   analyze:
+    # FIX (Yachay, empire-reliability 2026-06-01): killinchu is a docs/config-only
+    # repo (CITATION.cff, LICENSE, README.md) with no JavaScript/TypeScript source.
+    # The reusable workflow defaults to languages '["javascript-typescript"]', so
+    # CodeQL init found no analysable source and the run failed. Root-cause fix:
+    # analyse the GitHub Actions workflow files instead (CodeQL `actions` language),
+    # matching the established pattern used by the `terra` repo for config-only repos.
     uses: szl-holdings/.github/.github/workflows/reusable-codeql.yml@c8359e53b40560f15ed5c25c3e4e1256b0536cf8 # v1 (.github main)
+    with:
+      languages: '["actions"]'
