@@ -688,7 +688,7 @@ async def vessels_catch(path: str) -> JSONResponse:
 
 # ---------------------------------------------------------------------------
 # ADDITIVE (Yachay / Provenance Hardening): Wire D (W3C traceparent trace
-# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L2 signed provenance).
+# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L1 honest; L2 roadmap via Wire D).
 # Registers /api/{space}/wires/D, /khipu/{sign,verify,ledger}, /provenance.
 # Wrapped so a missing dep (cryptography) can NEVER take down the existing app.
 # PLACEHOLDER -> REAL: every receipt now DSSE-signed with szlholdings-cosign.
@@ -696,7 +696,7 @@ async def vessels_catch(path: str) -> JSONResponse:
 try:
     import szl_provenance as _prov
     _prov_status = _prov.register_provenance(app, "killinchu")
-    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L2): {{_prov_status}}", file=sys.stderr)
+    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L1 honest; L2 roadmap): {{_prov_status}}", file=sys.stderr)
 except Exception as _pe:  # pragma: no cover - defensive, additive-only
     print(f"[killinchu] szl_provenance NOT registered ({{_pe!r}}); existing app unaffected", file=sys.stderr)
 
