@@ -744,6 +744,17 @@ async def uds_compliance_dashboard() -> FileResponse:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# ADDITIVE (Drone 3D Health v4, Yachay 2026-06-01): clean operator-shell aliases.
+# /operator + /uds serve the UDS Command Center (which now carries the Drone 3D tab).
+@app.get("/operator")
+@app.get("/uds")
+async def operator_shell() -> FileResponse:
+    _page = STATIC_DIR / "uds.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 
 
 # ===========================================================================
@@ -969,6 +980,43 @@ try:
           file=sys.stderr)
 except Exception as _fusion_e:
     print(f"[killinchu] UDS fusion front-door NOT registered: {_fusion_e!r}; existing app unaffected", file=sys.stderr)
+
+
+# ===========================================================================
+# DRONE 3D HEALTH DIAGNOSTICS (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer
+# Agent). Founder mandate: SZL DNA, not a generic counter-UAS rule engine —
+# "see drones before they break, before they're shot, before they're fried."
+# NEW /api/killinchu/v4/* surface ONLY: per-drone Yuyay-13 health score, Λ-combined
+# risk, satellite RF environment, weather/space-weather/quake impact, probabilistic
+# failure mode + ETA, fired/intact component map, Three.js scene JSON, and an
+# HF-Inference LLM "explain" narrative. Fuses ONLY free public APIs (USGS quakes,
+# NOAA SWPC Kp + solar wind, NOAA Aviation Weather METAR, N2YO satellites [free key],
+# HF Inference router [Space token]). Codex-Kernel: every report is BIT-EXACT
+# reproducible from its fusion_inputs seed. Each diagnostic is Khipu-DAG chained
+# (host _emit_receipt) + REAL DSSE-signed (szl_dsse). Registered BEFORE the SPA
+# catch-all so /api/killinchu/v4/* + /drone-3d resolve LOCALLY. try/except-guarded;
+# NEVER crashes the host app. Does NOT touch v1/v2/v3 drone DB or decoder routes.
+# Honest: "predicted failure" is PROBABILISTIC, signed by Λ — NOT a guarantee.
+# Doctrine v11 LOCKED 749/14/163. Sign: Yachay. Co-author: Perplexity Computer Agent.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_drone_3d_health as _drone3d
+    try:
+        import szl_dsse as _d3d_dsse
+        _d3d_signer = _d3d_dsse.sign_khipu_receipt
+    except Exception:
+        _d3d_signer = None
+    _drone3d_info = _drone3d.register(
+        app, "killinchu",
+        emit_receipt=_emit_receipt,
+        sign_receipt=_d3d_signer,
+        static_dir=str(STATIC_DIR),
+    )
+    print(f"[killinchu] Drone 3D Health v4 registered: {_drone3d_info['registered_count']} routes, "
+          f"signing={_drone3d_info['signing']}", file=sys.stderr)
+except Exception as _d3d_e:
+    import traceback as _d3d_tb
+    print(f"[killinchu] Drone 3D Health v4 NOT registered: {_d3d_e!r}\n{_d3d_tb.format_exc()}", file=sys.stderr)
 
 
 @app.get("/{full_path:path}")

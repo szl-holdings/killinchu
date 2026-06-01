@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11 · Yachay (CTO) + Perplexity Computer Agent -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Killinchu · Drone 3D Health Diagnostics</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3 L27 27 L16 21 L5 27 Z' fill='%237dd3fc'/%3E%3C/svg%3E"/>
+<style>
+  :root{
+    --bg:#070b16;--panel:#0c1322;--panel2:#0a1020;--line:#1b2540;--line2:#141d33;
+    --ink:#dbe6ff;--muted:#7e8db0;--faint:#54608a;
+    --teal:#5fe3d6;--gold:#d7b96b;--sky:#7dd3fc;--green:#36d27f;--amber:#ffaa3c;--red:#ff4d4d;--violet:#b026ff;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;--sans:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden}
+  .app{display:flex;flex-direction:column;height:100vh}
+  header{display:flex;align-items:center;gap:14px;padding:0 16px;height:52px;background:linear-gradient(180deg,#0c1322,#0a0f1e);border-bottom:1px solid var(--line)}
+  header .logo{width:24px;height:24px}
+  header .ttl{font-weight:700;font-size:15px;letter-spacing:-.01em}
+  header .ttl b{color:var(--sky)}
+  .pills{display:flex;gap:8px;margin-left:6px}
+  .pill{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--muted);background:var(--panel2);border:1px solid var(--line2);border-radius:999px;padding:5px 11px;white-space:nowrap}
+  .pill b{color:var(--ink)}
+  .pill .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;box-shadow:0 0 8px var(--green)}
+  header .sp{margin-left:auto}
+  header .doc{font-family:var(--mono);font-size:10px;color:var(--muted)}
+  header .doc b{color:var(--gold)}
+  header a.back{font-family:var(--mono);font-size:11px;color:var(--sky);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:6px 11px}
+  .body{flex:1;display:flex;min-height:0}
+  /* 3D stage */
+  .stage{flex:1;position:relative;min-width:0}
+  #scene{position:absolute;inset:0}
+  .stage .legend{position:absolute;left:14px;bottom:14px;font-family:var(--mono);font-size:10.5px;color:var(--muted);background:rgba(8,12,22,.7);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;line-height:1.9}
+  .legend .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .stage .hint{position:absolute;left:50%;top:14px;transform:translateX(-50%);font-family:var(--mono);font-size:11px;color:var(--muted);background:rgba(8,12,22,.6);border:1px solid var(--line2);border-radius:999px;padding:6px 14px}
+  .stage .dronesel{position:absolute;right:14px;top:14px;display:flex;gap:8px;align-items:center}
+  .stage select,.stage input{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-family:var(--mono);font-size:11px}
+  /* right rail */
+  .rail{width:380px;flex-shrink:0;border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:14px}
+  .sec{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 9px}
+  .card{background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:13px;margin-bottom:14px}
+  .gaugewrap{display:flex;align-items:center;gap:14px}
+  .gauge{position:relative;width:120px;height:120px;flex-shrink:0}
+  .gauge .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .gauge .val .num{font-family:var(--mono);font-size:24px;font-weight:700}
+  .gauge .val .lbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em}
+  .gmeta{flex:1;font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--muted)}
+  .gmeta b{color:var(--ink)}
+  .gate{display:inline-block;font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:7px}
+  .gate.PASS{color:var(--green);background:rgba(54,210,127,.1);border:1px solid rgba(54,210,127,.4)}
+  .gate.HALT{color:var(--amber);background:rgba(255,170,60,.1);border:1px solid rgba(255,170,60,.4)}
+  #radar{width:100%;height:300px}
+  .pred{font-family:var(--mono);font-size:12px;line-height:1.7}
+  .pred .mode{color:var(--amber);font-weight:700}
+  .pred .eta{color:var(--sky)}
+  .feed{font-family:var(--mono);font-size:10px;color:var(--teal);max-height:170px;overflow:auto;line-height:1.6}
+  .feed .row{padding:6px 0;border-bottom:1px solid var(--line2)}
+  .feed .row .k{color:var(--gold)}
+  .feed .sig{color:var(--green)}
+  .feed .unsig{color:var(--amber)}
+  .honest{font-family:var(--mono);font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:6px}
+  /* drill-down modal */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:40}
+  .modal.show{display:flex}
+  .modal .ov{position:absolute;inset:0;background:rgba(4,7,13,.74)}
+  .sheet{position:relative;width:560px;max-width:92vw;max-height:84vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
+  .sheet .x{position:absolute;top:14px;right:18px;color:var(--muted);cursor:pointer;font-size:20px}
+  .sheet h3{margin:0 0 4px;font-size:18px}
+  .sheet .comphead{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:10px}
+  .sheet .statline{display:flex;gap:18px;font-family:var(--mono);font-size:12px;margin:10px 0}
+  .sheet .statline .b{color:var(--ink);font-weight:700}
+  .narr{font-size:13px;line-height:1.7;color:var(--ink);background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:13px;margin-top:8px;min-height:60px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--sky);border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .topwx{display:flex;gap:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <svg class="logo" viewBox="0 0 32 32"><path d="M16 3 L27 27 L16 21 L5 27 Z" fill="#7dd3fc"/></svg>
+    <div class="ttl">Killinchu <b>· Drone 3D Health</b></div>
+    <div class="pills topwx">
+      <span class="pill"><span class="dot"></span>SATS <b id="pillSat">—</b></span>
+      <span class="pill">Kp <b id="pillKp">—</b></span>
+      <span class="pill">WIND <b id="pillWind">—</b> kt</span>
+      <span class="pill">SHAKE <b id="pillShake">—</b></span>
+    </div>
+    <span class="sp"></span>
+    <span class="doc">DOCTRINE <b>v11</b> · 749·14·163 · Λ Conjecture (not a theorem)</span>
+    <a class="back" href="/uds">← Operator</a>
+  </header>
+
+  <div class="body">
+    <!-- 3D STAGE -->
+    <div class="stage">
+      <div id="scene"></div>
+      <div class="hint">drag to orbit · scroll to zoom · <b>click a component</b> to drill down</div>
+      <div class="dronesel">
+        <select id="droneSel"></select>
+        <input id="stationIn" value="KDEN" size="5" title="METAR station"/>
+        <select id="liveSel"><option value="1">live feeds</option><option value="0">offline (seed)</option></select>
+      </div>
+      <div class="legend">
+        <div><span class="sw" style="background:#dcdc3c"></span>healthy <span class="sw" style="background:#ffaa3c;margin-left:10px"></span>degraded <span class="sw" style="background:#ff3c3c;margin-left:10px"></span>critical</div>
+        <div><span class="sw" style="background:#b026ff"></span>fired (kinetic) · orange-shift = thermal anomaly</div>
+      </div>
+    </div>
+
+    <!-- RIGHT RAIL -->
+    <div class="rail">
+      <h2 class="sec">Λ-combined risk · Yuyay-13</h2>
+      <div class="card">
+        <div class="gaugewrap">
+          <svg class="gauge" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#141d33" stroke-width="10"/>
+            <circle id="gaugeArc" cx="60" cy="60" r="50" fill="none" stroke="#36d27f" stroke-width="10"
+                    stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314" transform="rotate(-90 60 60)"/>
+            <div class="val"></div>
+          </svg>
+          <div class="val" style="position:absolute"></div>
+          <div class="gmeta">
+            <div>Λ <b id="lamVal">—</b></div>
+            <div>health <b id="healthVal">—</b></div>
+            <div>gate <span id="gatePill" class="gate">—</span></div>
+            <div style="margin-top:6px;color:var(--faint);font-size:10px">geometric-mean aggregate · floor 0.90</div>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="sec">Yuyay-13 trust axes</h2>
+      <div class="card"><canvas id="radar"></canvas></div>
+
+      <h2 class="sec">Predicted failure (Λ-signed · probabilistic)</h2>
+      <div class="card">
+        <div class="pred" id="predBox">—</div>
+      </div>
+
+      <h2 class="sec">Signed receipt feed (Khipu DAG · DSSE)</h2>
+      <div class="card">
+        <div class="feed" id="feed"></div>
+        <div class="honest" id="honest"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DRILL-DOWN -->
+<div class="modal" id="modal">
+  <div class="ov" id="ov"></div>
+  <div class="sheet">
+    <div class="x" id="closeX">×</div>
+    <h3 id="mTitle">Component</h3>
+    <div class="comphead" id="mHead"></div>
+    <div class="statline">
+      <div>health <span class="b" id="mHealth">—</span></div>
+      <div>temp <span class="b" id="mTemp">—</span>°C</div>
+      <div>status <span class="b" id="mStatus">—</span></div>
+    </div>
+    <h2 class="sec">LLM explain (HF Inference · free tier)</h2>
+    <div class="narr" id="mNarr"><span class="spin"></span> querying Killinchu co-pilot…</div>
+  </div>
+</div>
+
+<!-- Three.js r128 UMD globals (last release shipping global build + examples/js controls). -->
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const API = (p)=>`/api/killinchu/v4${p}`;
+const DRONES = ["mq9","bayraktar-tb2","switchblade-300","shahed-136","mavic-3","skydio-x10","wing-loong-2","global-hawk"];
+let DRONE = "mq9", STATION="KDEN", LIVE="1";
+let scene, camera, renderer, controls, raycaster, mouse, meshes={}, lastReport=null;
+
+function initThree(){
+  const el=document.getElementById('scene');
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x070b16);
+  camera=new THREE.PerspectiveCamera(45, el.clientWidth/el.clientHeight, 0.1, 100);
+  camera.position.set(3.2,2.6,3.6);
+  renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setSize(el.clientWidth, el.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2)); el.appendChild(renderer.domElement);
+  controls=new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping=true; controls.target.set(0,0,0);
+  scene.add(new THREE.AmbientLight(0xffffff,0.6));
+  const d=new THREE.DirectionalLight(0xffffff,0.9); d.position.set(4,6,4); scene.add(d);
+  const grid=new THREE.GridHelper(8,16,0x1b2540,0x141d33); grid.position.y=-0.6; scene.add(grid);
+  raycaster=new THREE.Raycaster(); mouse=new THREE.Vector2();
+  renderer.domElement.addEventListener('click', onClick);
+  window.addEventListener('resize', ()=>{camera.aspect=el.clientWidth/el.clientHeight;camera.updateProjectionMatrix();renderer.setSize(el.clientWidth,el.clientHeight);});
+  (function loop(){requestAnimationFrame(loop);controls.update();
+    // spin rotors slightly + pulse unhealthy emissive
+    Object.values(meshes).forEach(m=>{ if(m.userData.id&&m.userData.id.startsWith('rotor')) m.rotation.y+=0.06;
+      if(m.material&&m.userData.health<0.5){ m.material.emissiveIntensity=0.4+0.4*Math.abs(Math.sin(Date.now()/300)); } });
+    renderer.render(scene,camera);})();
+}
+
+function clearMeshes(){ Object.values(meshes).forEach(m=>scene.remove(m)); meshes={}; }
+
+function buildScene(sceneJson){
+  clearMeshes();
+  sceneJson.scene.components.forEach(c=>{
+    let geo;
+    if(c.geometry==='box') geo=new THREE.BoxGeometry(c.size[0],c.size[1],c.size[2]);
+    else if(c.geometry==='cylinder') geo=new THREE.CylinderGeometry(c.size[0],c.size[1],c.size[2],32);
+    else geo=new THREE.SphereGeometry(c.size[0],24,24);
+    const col=new THREE.Color(c.color);
+    const mat=new THREE.MeshStandardMaterial({color:col, emissive:col, emissiveIntensity:c.emissive_intensity, metalness:0.3, roughness:0.5});
+    const mesh=new THREE.Mesh(geo,mat);
+    mesh.position.set(c.position[0],c.position[1],c.position[2]);
+    if(c.geometry==='cylinder' && c.id.startsWith('rotor')) mesh.rotation.x=Math.PI/2;
+    mesh.userData={id:c.id,label:c.label,health:c.health,temp:c.temp_c,status:c.status,fired:c.fired};
+    scene.add(mesh); meshes[c.id]=mesh;
+    // arm strut to body for rotors
+    if(c.arm){ const ag=new THREE.BoxGeometry(0.06,0.05,Math.hypot(c.position[0],c.position[2])*1.1);
+      const am=new THREE.MeshStandardMaterial({color:0x2a3450}); const arm=new THREE.Mesh(ag,am);
+      arm.position.set(c.position[0]/2,0.05,c.position[2]/2); arm.lookAt(0,0.05,0); scene.add(arm); meshes['arm_'+c.id]=arm; }
+  });
+}
+
+function onClick(ev){
+  const r=renderer.domElement.getBoundingClientRect();
+  mouse.x=((ev.clientX-r.left)/r.width)*2-1; mouse.y=-((ev.clientY-r.top)/r.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(Object.values(meshes).filter(m=>m.userData.id));
+  if(hits.length){ openDrill(hits[0].object.userData); }
+}
+
+function openDrill(ud){
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('mTitle').textContent=ud.label;
+  document.getElementById('mHead').textContent=`component: ${ud.id} · drone: ${DRONE}`;
+  document.getElementById('mHealth').textContent=ud.health;
+  document.getElementById('mTemp').textContent=ud.temp;
+  document.getElementById('mStatus').textContent=ud.status;
+  const nb=document.getElementById('mNarr'); nb.innerHTML='<span class="spin"></span> querying Killinchu co-pilot…';
+  fetch(API(`/drones/${DRONE}/explain?station=${STATION}&live=${LIVE}`)).then(r=>r.json()).then(d=>{
+    nb.textContent=d.narrative + (d.live_llm?'  ['+d.model+' · live]':'  [local fallback]');
+  }).catch(e=>{ nb.textContent='explain unavailable: '+e; });
+}
+document.getElementById('closeX').onclick=()=>document.getElementById('modal').classList.remove('show');
+document.getElementById('ov').onclick=()=>document.getElementById('modal').classList.remove('show');
+
+// ---- radar chart (Yuyay-13) ----
+function drawRadar(axes){
+  const cv=document.getElementById('radar'); const dpr=Math.min(devicePixelRatio,2);
+  const W=cv.clientWidth, H=300; cv.width=W*dpr; cv.height=H*dpr; const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H); const cx=W/2, cy=H/2, R=Math.min(W,H)/2-34;
+  const keys=Object.keys(axes); const n=keys.length;
+  ctx.strokeStyle='#1b2540'; ctx.fillStyle='#54608a'; ctx.font='8px ui-monospace';
+  for(let ring=1;ring<=4;ring++){ ctx.beginPath();
+    for(let i=0;i<=n;i++){const a=(i/n)*2*Math.PI-Math.PI/2;const rr=R*ring/4;const x=cx+rr*Math.cos(a),y=cy+rr*Math.sin(a);i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.stroke(); }
+  keys.forEach((k,i)=>{const a=(i/n)*2*Math.PI-Math.PI/2;const x=cx+(R+14)*Math.cos(a),y=cy+(R+14)*Math.sin(a);
+    ctx.textAlign=Math.abs(Math.cos(a))<0.3?'center':(Math.cos(a)>0?'left':'right'); ctx.fillText(k.slice(0,8),x,y+3);});
+  ctx.beginPath();
+  keys.forEach((k,i)=>{const a=(i/n)*2*Math.PI-Math.PI/2;const rr=R*Math.max(0,Math.min(1,axes[k]));const x=cx+rr*Math.cos(a),y=cy+rr*Math.sin(a);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.closePath(); ctx.fillStyle='rgba(125,211,252,.18)'; ctx.fill(); ctx.strokeStyle='#7dd3fc'; ctx.lineWidth=1.5; ctx.stroke();
+}
+
+function setGauge(lam){
+  const arc=document.getElementById('gaugeArc'); const off=314*(1-lam); arc.style.strokeDashoffset=off;
+  arc.setAttribute('stroke', lam>=0.9?'#36d27f':(lam>=0.75?'#ffaa3c':'#ff4d4d'));
+}
+
+function pushFeed(receipt){
+  const f=document.getElementById('feed'); const dsse=(receipt&&receipt.dsse)||{};
+  const signed=dsse.signed; const dig=(receipt&&receipt.receipt&&receipt.receipt.khipu_digest)||'(in-memory)';
+  const row=document.createElement('div'); row.className='row';
+  row.innerHTML=`<span class="k">${receipt.receipt.kind}</span> · idx ${receipt.receipt.khipu_index} · `+
+    `<span class="${signed?'sig':'unsig'}">${signed?'DSSE ✓ ECDSA-P256':'UNSIGNED (no key)'}</span><br>`+
+    `<span style="color:#54608a">${(dig+'').slice(0,40)}</span>`;
+  f.insertBefore(row, f.firstChild); while(f.children.length>12) f.removeChild(f.lastChild);
+}
+
+async function refresh(){
+  // 3d-model (carries health + receipt)
+  const model=await (await fetch(API(`/drones/${DRONE}/3d-model?station=${STATION}&live=${LIVE}`))).json();
+  buildScene(model); if(model.receipt) pushFeed(model.receipt);
+  // health (axes + prediction + topbar)
+  const h=await (await fetch(API(`/drones/${DRONE}/health?station=${STATION}&live=${LIVE}`))).json();
+  lastReport=h;
+  document.getElementById('lamVal').textContent=h.lambda_combined_risk;
+  document.getElementById('healthVal').textContent=h.drone_health_score;
+  const gp=document.getElementById('gatePill'); gp.textContent=h.lambda_gate; gp.className='gate '+h.lambda_gate;
+  setGauge(h.lambda_combined_risk); drawRadar(h.yuyay_13_axes);
+  const p=h.prediction;
+  document.getElementById('predBox').innerHTML=
+    `<span class="mode">${p.predicted_failure_mode}</span><br>`+
+    `ETA <span class="eta">${p.predicted_eta_hours} h</span> · p=${p.predicted_failure_probability}<br>`+
+    `driver: ${p.driving_component} (h=${p.driving_component_health})<br>`+
+    `<span style="color:#54608a">${p.disclaimer}</span>`;
+  // topbar
+  document.getElementById('pillSat').textContent=h.satellite_rf_environment.satellite_count ?? 'n/a';
+  document.getElementById('pillKp').textContent=h.satellite_rf_environment.kp_index ?? 'n/a';
+  document.getElementById('pillWind').textContent=h.weather_impact.wind_speed_kt ?? 'n/a';
+  document.getElementById('pillShake').textContent=h.weather_impact.landing_shake_risk ?? 'n/a';
+  document.getElementById('honest').textContent=h.honesty;
+  if(h.receipt) pushFeed(h.receipt);
+}
+
+// init
+const ds=document.getElementById('droneSel'); DRONES.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;ds.appendChild(o);});
+ds.onchange=()=>{DRONE=ds.value;refresh();};
+document.getElementById('stationIn').onchange=(e)=>{STATION=e.target.value.toUpperCase();refresh();};
+document.getElementById('liveSel').onchange=(e)=>{LIVE=e.target.value;refresh();};
+initThree(); refresh(); setInterval(refresh, 60000);
+</script>
+</body>
+</html>
