@@ -1,14 +1,24 @@
 name: SBOM
 
-# FIX (Yachay, empire-reliability 2026-06-01): the caller pinned the org
-# reusable workflows at .github SHA c8359e53, which PRE-DATES the creation of
-# reusable-sbom.yml in that repo. The referenced reusable file did not exist at
-# that SHA, so every SBOM run failed to resolve the workflow. Repoint to the
-# current .github main HEAD (c9112b1e) where reusable-sbom.yml exists. This is
-# the same reusable the passing flagships (amaru, sentra) consume.
+# FIX (Yachay, empire-reliability 2026-06-01): two stacked root causes.
+#  (1) The caller pinned .github @c8359e53, which PRE-DATES reusable-sbom.yml
+#      (the reusable did not exist at that SHA) -> unresolved workflow.
+#  (2) The org reusable-sbom.yml runs a Trivy job that UPLOADS SARIF to GitHub
+#      code scanning. killinchu is a PRIVATE repo without GitHub Advanced
+#      Security / Code Security, so that upload errors out (same limitation the
+#      CodeQL workflow hit). The public flagships (e.g. amaru) can upload SARIF
+#      for free; killinchu cannot.
+#
+# Root-cause fix: run the SBOM pipeline self-contained — generate CycloneDX +
+# SPDX with Syft (the investor-/procurement-facing artifacts) and run Trivy in
+# report-only mode, WITHOUT pushing SARIF to a code-scanning backend this
+# private tier does not provide. If GHAS is later enabled on killinchu, switch
+# back to the org reusable-sbom.yml at the current .github HEAD.
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   release:
     types: [published]
@@ -16,8 +26,78 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   sbom:
+    name: Generate SBOM (CycloneDX + SPDX)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
-      contents: write
-    uses: szl-holdings/.github/.github/workflows/reusable-sbom.yml@c9112b1e62b178e89fc4da119fd47fa6982371f5 # .github main HEAD (reusable-sbom present)
+      contents: write   # only used to attach SBOMs on a tagged release
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Generate CycloneDX SBOM (Syft)
+        uses: anchore/sbom-action@f5e124a5e5e1d497a692818ae907d3c45829d033 # v0.20.7
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cyclonedx.json
+
+      - name: Generate SPDX SBOM (Syft)
+        uses: anchore/sbom-action@f5e124a5e5e1d497a692818ae907d3c45829d033 # v0.20.7
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom
+          path: |
+            sbom.cyclonedx.json
+            sbom.spdx.json
+          if-no-files-found: error
+
+      - name: Attach SBOMs to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            sbom.cyclonedx.json sbom.spdx.json --clobber
+
+  trivy:
+    name: Trivy filesystem scan (report-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Trivy filesystem scan (table, report-only)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '0'   # report-only; Dependabot handles blocking on PRs
+          ignore-unfixed: true
