@@ -24,6 +24,20 @@
 
 ---
 
+<div align="center">
+
+<!-- genius-hero (Doctrine v11) -->
+<a href="https://szl-holdings.github.io/killinchu/"><img src="assets/genius/killinchu_arch.svg" alt="killinchu air-domain architecture — animated" width="860"></a>
+
+<sub><b><a href="https://szl-holdings.github.io/killinchu/">▶ Open the live air-domain scene (3D)</a></b> — telemetry → claim → policy → Λ-receipt, rendered as a live airspace.</sub>
+
+<img src="assets/genius/killinchu_card.svg" alt="killinchu metric card" width="860">
+
+<img src="assets/genius/killinchu_cast.svg" alt="decode — Mode-S frame → geofence eval → Λ-receipt" width="720">
+
+</div>
+
+
 ## What killinchu is
 
 killinchu is the **drone-intelligence flagship** of the SZL governance substrate — the air-domain
