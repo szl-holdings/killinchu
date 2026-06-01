@@ -116,7 +116,7 @@ python -m killinchu.evaluate --telemetry sample/rid_basic.json --policy policy/g
   [`lutar-lean@main`](https://github.com/szl-holdings/lutar-lean). Λ uniqueness is a
   **Conjecture**, not a closed theorem.
 - **13-axis** canonical trust schema.
-- **SLSA L1** (honest, not L3). Receipt DSSE signatures = `PLACEHOLDER` until Sigstore CI wired.
+- **SLSA L2** (signed provenance via DSSE+Cosign; receipts now REAL-signed, verify with [cosign.pub](https://github.com/szl-holdings/.github/blob/main/cosign.pub)). NOT L3 (no hardened CI yet).
 - Mythos: **Hatun-Willay**.
 
 ---
