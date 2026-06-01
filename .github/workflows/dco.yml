@@ -1,12 +1,25 @@
 name: DCO
 
+# FIX (Yachay, empire-reliability 2026-06-01): the caller pinned the org
+# reusable workflow at .github SHA c8359e53, which PRE-DATES the creation of
+# reusable-dco.yml in that repo (the file did not exist at that SHA), so the
+# workflow could not be resolved and every DCO run failed. Repoint to current
+# .github main HEAD (c9112b1e) where reusable-dco.yml exists.
+
 on:
   pull_request:
     branches: [main]
 
+# The reusable workflow reads PR commits via the GitHub API, so the caller must
+# grant pull-requests: read (a called workflow's permissions are capped by the
+# caller's). Omitting this caused a startup_failure after the pin repoint.
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   dco:
-    uses: szl-holdings/.github/.github/workflows/reusable-dco.yml@c8359e53b40560f15ed5c25c3e4e1256b0536cf8 # v1 (.github main)
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: szl-holdings/.github/.github/workflows/reusable-dco.yml@c9112b1e62b178e89fc4da119fd47fa6982371f5 # .github main HEAD (reusable-dco present)

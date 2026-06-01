@@ -1,5 +1,20 @@
 name: CodeQL
 
+# FIX (Yachay, empire-reliability 2026-06-01): two stacked root causes made this fail.
+#  (1) The caller used the org reusable-codeql workflow with its default language
+#      'javascript-typescript'. killinchu is a docs/config-only repo (CITATION.cff,
+#      LICENSE, README.md) with no JS/TS source, so CodeQL found nothing to analyse.
+#  (2) Even after switching to the `actions` language, the reusable workflow always
+#      *uploads* SARIF to GitHub code scanning. killinchu is a PRIVATE repo without
+#      GitHub Advanced Security / Code Security, so the upload returned a configuration
+#      error ("Code Security must be enabled for this repository to use code scanning").
+#
+# Root-cause fix: run CodeQL self-contained (matching the working public `terra`
+# pattern) over the `actions` language, but with `upload: false`. The analysis still
+# runs and validates the workflow files; we simply do not push SARIF to a code-scanning
+# backend that this private repo tier does not provide. If GHAS is later enabled on
+# killinchu, flip `upload` back to the default to surface results in the Security tab.
+
 on:
   push:
     branches: [main]
@@ -10,13 +25,37 @@ on:
 
 permissions:
   contents: read
-  security-events: write
-  actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: codeql-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   analyze:
-    uses: szl-holdings/.github/.github/workflows/reusable-codeql.yml@c8359e53b40560f15ed5c25c3e4e1256b0536cf8 # v1 (.github main)
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions]
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          languages: ${{ matrix.language }}
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          category: "/language:${{ matrix.language }}"
+          # PRIVATE repo without GHAS Code Security cannot receive SARIF uploads.
+          upload: false
