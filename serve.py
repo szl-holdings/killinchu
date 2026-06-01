@@ -70,6 +70,24 @@ except Exception as _lw_e:
     print(f"[killinchu] Live 3D Wires NOT registered: {_lw_e}", file=_sys_lw.stderr)
     _tb_lw.print_exc()
 # ── end Live 3D Wires ────────────────────────────────────────────────────────
+
+# ── PQC / Hybrid signing (ADDITIVE, Yachay) ──────────────────────────────────
+# Registers POST /khipu/sign?mode={ecdsa,pqc,hybrid} and the namespaced alias.
+# ECDSA P-256 stays the DEFAULT; ML-DSA-65 (NIST FIPS 204) is additive; hybrid
+# signs with BOTH. Defense procurement (killinchu vertical) asks about PQC —
+# hybrid mode live = real competitive advantage. No fake signatures: pqc/hybrid
+# require a real ML-DSA backend (oqs-python or dilithium-py) or return 503.
+# Sign: Yachay <yachay@szlholdings.dev>.
+try:
+    import killinchu_szl_pqc_sign as _pqc_sign
+    _pqc_sign.register(app, ns="killinchu")
+    import sys as _sys_pqc
+    print("[killinchu] PQC/hybrid signing registered: POST /khipu/sign?mode={ecdsa,pqc,hybrid}", file=_sys_pqc.stderr)
+except Exception as _pqc_e:
+    import sys as _sys_pqc, traceback as _tb_pqc
+    print(f"[killinchu] PQC/hybrid signing NOT registered: {_pqc_e}", file=_sys_pqc.stderr)
+    _tb_pqc.print_exc()
+# ── end PQC / Hybrid signing ─────────────────────────────────────────────────
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # ---------------------------------------------------------------------------
