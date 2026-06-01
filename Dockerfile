@@ -46,6 +46,10 @@ RUN pip install --no-cache-dir "dilithium-py>=1.0.0"
 COPY static/ ./static/
 
 # Copy serve orchestrator + real drone DB + real protocol decoders.
+# ADDITIVE (Unified Operator Shell v4, 2026-06-01, Yachay / Perplexity Computer Agent):
+# v4 endpoint module + self-contained desktop shell. Per-file COPY (no `COPY . .`).
+COPY operator_shell_v4.py ./operator_shell_v4.py
+COPY web/operator.html ./web/operator.html
 COPY serve.py ./serve.py
 COPY drones_db.json ./drones_db.json
 COPY killinchu_protocols.py ./killinchu_protocols.py
