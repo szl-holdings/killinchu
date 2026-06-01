@@ -1,0 +1,85 @@
+{
+  "kind": "uds.big-bang.inventory",
+  "chart": "charts/szl",
+  "chart_version": "0.1.0",
+  "app_version": "uds-v0.1.0",
+  "packaged_artifact": "szl-0.1.0.tgz",
+  "helm_version": "v3.21.0+ge0878d4",
+  "lint_status": "PASS \u2014 1 chart(s) linted, 0 chart(s) failed (1 INFO: icon recommended)",
+  "rendered_objects": {
+    "Deployment": 7,
+    "Service": 7,
+    "VirtualService": 7,
+    "AuthorizationPolicy": 7,
+    "PeerAuthentication": 7,
+    "NetworkPolicy": 7,
+    "PodMonitor": 7,
+    "Namespace": 1,
+    "total": 50
+  },
+  "sub_chart_inventory": [
+    "a11oy",
+    "amaru",
+    "sentra",
+    "rosie",
+    "killinchu",
+    "vessels",
+    "hatun-mcp"
+  ],
+  "big_bang_compat_matrix": [
+    {
+      "feature": "Istio sidecar mTLS (STRICT PeerAuthentication)",
+      "big_bang": true,
+      "szl": true
+    },
+    {
+      "feature": "Istio VirtualService + public gateway",
+      "big_bang": true,
+      "szl": true
+    },
+    {
+      "feature": "AuthorizationPolicy (ALLOW from mesh)",
+      "big_bang": true,
+      "szl": true
+    },
+    {
+      "feature": "NetworkPolicy default-deny ingress",
+      "big_bang": true,
+      "szl": true
+    },
+    {
+      "feature": "Prometheus PodMonitor scrape",
+      "big_bang": true,
+      "szl": true
+    },
+    {
+      "feature": "Keycloak realm client",
+      "big_bang": true,
+      "szl": "configured-not-deployed"
+    },
+    {
+      "feature": "Authservice SSO chain",
+      "big_bang": true,
+      "szl": "configured-not-deployed"
+    },
+    {
+      "feature": "Flux GitOps HelmRelease",
+      "big_bang": true,
+      "szl": "roadmap (chart packaged; Flux wrapper pending)"
+    },
+    {
+      "feature": "STIG-hardened Iron Bank base image",
+      "big_bang": true,
+      "szl": "Dockerfile.ironbank (creds required)"
+    },
+    {
+      "feature": "DSSE 4-organ aggregate receipt",
+      "big_bang": false,
+      "szl": true
+    }
+  ],
+  "big_bang_reference": "https://repo1.dso.mil/big-bang/bigbang",
+  "install_command": "helm install bigbang-szl ./charts/szl --namespace szl-system --create-namespace",
+  "kustomize_overlay": "bigbang/ (kubectl kustomize ./bigbang -> 50 objects, exit 0)",
+  "honesty": "Chart + overlay are REAL and render/lint clean (verified with helm 3.21 + kubectl kustomize). Authservice/Keycloak are configured-not-deployed (Big Bang core owns them). Flux GitOps wrapper is honest roadmap."
+}

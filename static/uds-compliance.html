@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!-- KILLINCHU / UDS COMPLIANCE DASHBOARD — DESKTOP-FIRST (1280px+ workstation
+     operators). ADDITIVE, self-contained, no build step, no external CDN.
+     Reads REAL data from /api/killinchu/uds/v1/* (STIG/SCAP, Iron Bank parity,
+     Big Bang chart, Tradewinds, CMMC, NIST AI RMF, EU AI Act Art.12, FedRAMP).
+     Quechua brand tokens (yawar/yuyay/hatun). Every panel shows the cosign
+     keyid + signed flag from the DSSE envelope. Honesty preserved: real oscap
+     numbers, Iron Bank images not pushed (creds required), no fabricated PASS.
+     Sign: Yachay <yachay@szlholdings.dev> · Doctrine v11/v12 · Λ Conjecture 1. -->
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1280">
+<title>Killinchu / UDS — Compliance Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3 L27 27 L16 21 L5 27 Z' fill='%23d7b96b'/%3E%3C/svg%3E"/>
+<style>
+  :root{
+    --bg:#0a0f1e; --panel:#10151c; --panel2:#0d1119; --line:#3c4757; --line2:#222b38;
+    --txt:#f5f7fa; --muted:#9aa7b8; --faint:#5b6a7e;
+    --gold:#d7b96b; --gold-2:#e4cf99; --teal:#5cc4bf; --teal-d:#0f726e;
+    --green:#1f9d57; --warn:#cda64a; --red:#d65151; --yawar:#c0392b;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"Inter","IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;line-height:1.5}
+  a{color:var(--teal);text-decoration:none} a:hover{text-decoration:underline}
+  .mono{font-family:var(--mono)}
+  /* Desktop layout: fixed sidebar + main grid, min 1280px */
+  .app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+  aside{background:var(--panel2);border-right:1px solid var(--line2);padding:20px 16px;position:sticky;top:0;height:100vh}
+  aside .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  aside .brand svg{width:30px;height:30px}
+  aside .brand .t{font-weight:700;font-size:16px} aside .brand .t b{color:var(--gold)}
+  aside .doc{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted);margin:2px 0 22px;text-transform:uppercase}
+  nav a{display:block;padding:9px 12px;border-radius:8px;color:var(--muted);font-weight:600;font-size:13px;margin-bottom:3px}
+  nav a:hover{background:#161d28;color:var(--txt);text-decoration:none}
+  nav a.on{background:linear-gradient(90deg,rgba(215,185,107,.16),transparent);color:var(--gold-2);border-left:3px solid var(--gold)}
+  main{padding:26px 34px 60px;max-width:1500px}
+  h1{font-size:24px;letter-spacing:-.02em;margin:0 0 2px} h1 b{color:var(--gold)}
+  .sub{color:var(--muted);margin:0 0 22px;font-size:13px}
+  .grid{display:grid;gap:18px}
+  .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:repeat(2,1fr)} .g4{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:18px 20px}
+  .card h3{margin:0 0 12px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .kpi{font-size:40px;font-weight:760;font-family:var(--mono);letter-spacing:-.02em;line-height:1}
+  .kpi small{font-size:15px;color:var(--faint)}
+  .delta{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;display:inline-block;margin-top:8px}
+  .delta.up{background:rgba(31,157,87,.16);color:#5bd699}
+  .badge{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:6px;letter-spacing:.06em;text-transform:uppercase}
+  .b-green{background:rgba(31,157,87,.15);color:#5bd699;border:1px solid rgba(31,157,87,.4)}
+  .b-warn{background:rgba(205,166,74,.15);color:var(--gold-2);border:1px solid rgba(205,166,74,.4)}
+  .b-red{background:rgba(214,81,81,.15);color:#ee8c8c;border:1px solid rgba(214,81,81,.4)}
+  .b-mute{background:#161d28;color:var(--muted);border:1px solid var(--line2)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line2);vertical-align:top}
+  th{color:var(--muted);font-size:11px;letter-spacing:.05em;text-transform:uppercase;font-weight:600}
+  td.num{font-family:var(--mono);text-align:right}
+  .bar{height:9px;border-radius:6px;background:#1a2330;overflow:hidden;margin-top:8px}
+  .bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--teal-d),var(--teal))}
+  .sig{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.ok{background:var(--green)} .dot.no{background:var(--warn)}
+  .honest{font-size:11.5px;color:var(--faint);border-left:2px solid var(--line);padding-left:10px;margin-top:12px;line-height:1.5}
+  .sec{display:none} .sec.on{display:block}
+  pre{background:#0b0f17;border:1px solid var(--line2);border-radius:10px;padding:14px;overflow:auto;font-size:11.5px;color:#cdd7e5;max-height:420px}
+  .load{color:var(--faint);font-size:12px}
+  footer{grid-column:1/-1;border-top:1px solid var(--line2);padding:16px 34px;color:var(--faint);font-size:11px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <svg viewBox="0 0 32 32"><path d="M16 3 L27 27 L16 21 L5 27 Z" fill="#d7b96b"/></svg>
+      <div class="t">Killinchu<br><b>UDS Compliance</b></div>
+    </div>
+    <div class="doc">Doctrine v11 · 749/14/163<br>cosign szlholdings-cosign</div>
+    <nav id="nav">
+      <a data-s="stig" class="on">STIG / SCAP Scans</a>
+      <a data-s="ironbank">Iron Bank Parity</a>
+      <a data-s="bigbang">Big Bang Chart</a>
+      <a data-s="tradewinds">Tradewinds Listing</a>
+      <a data-s="frameworks">CMMC · NIST · EU AI Act</a>
+      <a data-s="raw">Raw / Signed JSON</a>
+    </nav>
+  </aside>
+  <main>
+    <!-- STIG -->
+    <section class="sec on" id="s-stig">
+      <h1>STIG / <b>SCAP</b> Compliance Scans</h1>
+      <p class="sub">Real OpenSCAP <span class="mono">oscap</span> output — DISA STIG for Red Hat Enterprise Linux 9, against the Iron Bank <span class="mono">ubi9-minimal:9.4</span> base. No fabrication.</p>
+      <div class="grid g4" id="stig-kpis"><div class="load">Loading scan summary…</div></div>
+      <div class="card" style="margin-top:18px"><h3>Per-flagship STIG baseline</h3>
+        <table id="stig-table"><thead><tr><th>Flagship</th><th>Base image</th><th class="num">Baseline</th><th class="num">Hardened</th><th class="num">Δ fixed</th><th>Status</th></tr></thead><tbody></tbody></table>
+        <div class="sig" id="stig-sig"></div>
+      </div>
+      <div class="card" style="margin-top:18px"><h3>High-severity findings (honest gaps)</h3>
+        <div id="stig-fails" class="load">Loading…</div>
+      </div>
+    </section>
+    <!-- IRON BANK -->
+    <section class="sec" id="s-ironbank">
+      <h1>Iron Bank <b>Parity</b> Matrix</h1>
+      <p class="sub">DoD Platform One Iron Bank base-image audit across the 7 flagship Dockerfiles. Pull credentials required for <span class="mono">registry1.dso.mil</span>.</p>
+      <div class="card"><table id="ib-table"><thead><tr><th>Flagship</th><th>Lang</th><th>Current base</th><th>Iron Bank target</th><th>Pushed</th><th>Pull status</th></tr></thead><tbody></tbody></table>
+        <div class="honest" id="ib-honest"></div><div class="sig" id="ib-sig"></div></div>
+    </section>
+    <!-- BIG BANG -->
+    <section class="sec" id="s-bigbang">
+      <h1>Big Bang <b>Chart</b> Parity</h1>
+      <p class="sub">SZL umbrella Helm chart (<span class="mono">charts/szl</span> v0.1.0) drops into a Big Bang cluster. Real <span class="mono">helm lint</span> + render.</p>
+      <div class="grid g3" id="bb-kpis"><div class="load">Loading…</div></div>
+      <div class="card" style="margin-top:18px"><h3>Big Bang compatibility matrix</h3>
+        <table id="bb-table"><thead><tr><th>Feature</th><th>Big Bang</th><th>SZL</th></tr></thead><tbody></tbody></table>
+        <div class="honest" id="bb-honest"></div><div class="sig" id="bb-sig"></div></div>
+    </section>
+    <!-- TRADEWINDS -->
+    <section class="sec" id="s-tradewinds">
+      <h1>Tradewinds <b>Listing</b></h1>
+      <p class="sub">DoD CDAO Tradewinds Solutions Marketplace listing data. CAGE/UEI are honest stubs pending founder SAM.gov registration.</p>
+      <div class="grid g2"><div class="card" id="tw-company"><h3>Company</h3><div class="load">Loading…</div></div>
+        <div class="card" id="tw-posture"><h3>Compliance posture</h3><div class="load">Loading…</div></div></div>
+      <div class="card" style="margin-top:18px"><h3>Solution capabilities</h3><div id="tw-caps"></div><div class="sig" id="tw-sig"></div></div>
+    </section>
+    <!-- FRAMEWORKS -->
+    <section class="sec" id="s-frameworks">
+      <h1>Framework <b>Mappings</b></h1>
+      <p class="sub">CMMC 2.0 L2 delta · NIST AI RMF 1.0 · EU AI Act Article 12 · FedRAMP Moderate posture. Mappings, not certifications.</p>
+      <div class="grid g2">
+        <div class="card" id="fw-cmmc"><h3>CMMC 2.0 Level 2 delta</h3><div class="load">Loading…</div></div>
+        <div class="card" id="fw-nist"><h3>NIST AI RMF 1.0</h3><div class="load">Loading…</div></div>
+        <div class="card" id="fw-eu"><h3>EU AI Act Article 12</h3><div class="load">Loading…</div></div>
+        <div class="card" id="fw-fedramp"><h3>FedRAMP Moderate posture</h3><div class="load">Loading…</div></div>
+      </div>
+    </section>
+    <!-- RAW -->
+    <section class="sec" id="s-raw">
+      <h1>Raw / <b>Signed</b> JSON</h1>
+      <p class="sub">Every response carries a DSSE envelope (ECDSA-P256, keyid szlholdings-cosign). Pick an endpoint:</p>
+      <select id="raw-pick" style="background:#0b0f17;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px;font-family:var(--mono);font-size:12px">
+        <option value="stig/scan-report/killinchu">stig/scan-report/killinchu</option>
+        <option value="iron-bank/parity">iron-bank/parity</option>
+        <option value="big-bang/parity">big-bang/parity</option>
+        <option value="tradewinds/listing">tradewinds/listing</option>
+        <option value="hardening/index">hardening/index</option>
+        <option value="cmmc/delta">cmmc/delta</option>
+        <option value="nist-ai-rmf/map">nist-ai-rmf/map</option>
+        <option value="fedramp/posture">fedramp/posture</option>
+        <option value="eu-ai-act/article-12">eu-ai-act/article-12</option>
+      </select>
+      <pre id="raw-out" style="margin-top:14px">…</pre>
+    </section>
+    <footer>SZL Holdings · Killinchu UDS Edition · real OpenSCAP + helm + cosign · no ATO/CMMC certification claimed · © 2026 Lutar, Stephen P. — Apache-2.0 · Sign: Yachay</footer>
+  </div>
+</div>
+<script>
+const API="/api/killinchu/uds/v1";
+const FLAGSHIPS=["a11oy","amaru","sentra","rosie","killinchu","vessels","hatun-mcp"];
+const $=s=>document.querySelector(s);
+async function get(p){const r=await fetch(API+"/"+p);return r.json();}
+function sigLine(j){const ok=j.signed;return `<span class="dot ${ok?'ok':'no'}"></span>${ok?'DSSE SIGNED':'UNSIGNED (no key in runtime — honest, not fabricated)'} · keyid ${(j.dsse&&j.dsse.signatures&&j.dsse.signatures[0]?j.dsse.signatures[0].keyid:'szlholdings-cosign')} · receipt ${(j.receipt_sha256||'').slice(0,16)||'—'}`;}
+function badge(v){if(v===true)return '<span class="badge b-green">yes</span>';if(v===false)return '<span class="badge b-red">no</span>';return `<span class="badge b-warn">${v}</span>`;}
+
+// nav
+document.querySelectorAll('#nav a').forEach(a=>a.onclick=()=>{
+  document.querySelectorAll('#nav a').forEach(x=>x.classList.remove('on'));a.classList.add('on');
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));$('#s-'+a.dataset.s).classList.add('on');});
+
+async function loadStig(){
+  const j=await get("stig/scan-report/killinchu");
+  const b=j.baseline||{},h=j.hardened||{};
+  $('#stig-kpis').innerHTML=`
+   <div class="card"><h3>Baseline score</h3><div class="kpi">${b.score_pct}<small>/100</small></div><div class="bar"><span style="width:${b.score_pct}%"></span></div></div>
+   <div class="card"><h3>Hardened score</h3><div class="kpi" style="color:var(--teal)">${h.score_pct}<small>/100</small></div><div class="delta up">+${(h.score_pct-b.score_pct).toFixed(2)} from hardening layer</div></div>
+   <div class="card"><h3>Rules passed</h3><div class="kpi">${b.rules_passed}→${h.rules_passed}</div><div class="delta up">${j.rules_fixed_by_image_hardening} fixed</div></div>
+   <div class="card"><h3>High-sev fails</h3><div class="kpi" style="color:var(--gold)">${(b.fail_by_severity||{}).high||0}</div><div class="honest" style="margin-top:6px">FIPS/SELinux — kernel-boot, not image-layer</div></div>`;
+  const tb=$('#stig-table tbody');tb.innerHTML="";
+  for(const f of FLAGSHIPS){const jr=await get("stig/scan-report/"+f);const node=(f==="sentra"||f==="vessels");
+    const jb=jr.baseline||{},jh=jr.hardened||{};
+    tb.innerHTML+=`<tr><td><b>${f}</b></td><td class="mono" style="font-size:11px">${node?'nodejs20 (IB)':'ubi9-minimal (IB)'}</td>
+      <td class="num">${jb.score_pct??'—'}</td><td class="num" style="color:var(--teal)">${jh.score_pct??'—'}</td>
+      <td class="num">${jr.rules_fixed_by_image_hardening??'—'}</td>
+      <td>${node?'<span class="badge b-warn">node base pending</span>':'<span class="badge b-green">scanned</span>'}</td></tr>`;}
+  $('#stig-sig').innerHTML=sigLine(j);
+  $('#stig-fails').innerHTML=(j.top_high_severity_fails||[]).map(r=>`<span class="badge b-red" style="margin:3px">${r}</span>`).join('')+
+    `<div class="honest">${j.honesty||''}</div>`;
+}
+async function loadIB(){const j=await get("iron-bank/parity");const tb=$('#ib-table tbody');tb.innerHTML="";
+  (j.flagships||[]).forEach(f=>tb.innerHTML+=`<tr><td><b>${f.flagship}</b></td><td>${f.language}</td>
+    <td class="mono" style="font-size:11px">${f.current_base}</td><td class="mono" style="font-size:11px">${f.ironbank_target_base.replace('registry1.dso.mil/ironbank/','…/')}</td>
+    <td>${badge(f.ironbank_image_pushed==='Y')}</td><td><span class="badge b-warn">${f.pull_status}</span></td></tr>`);
+  $('#ib-honest').textContent=j.honesty||'';$('#ib-sig').innerHTML=sigLine(j);}
+async function loadBB(){const j=await get("big-bang/parity");const o=j.rendered_objects||{};
+  $('#bb-kpis').innerHTML=`<div class="card"><h3>helm lint</h3><div class="kpi" style="font-size:22px;color:var(--green)">PASS</div><div class="honest">${j.lint_status||''}</div></div>
+   <div class="card"><h3>Rendered objects</h3><div class="kpi">${o.total||'—'}</div><div class="delta up">7 flagships × full set</div></div>
+   <div class="card"><h3>Chart artifact</h3><div class="kpi" style="font-size:18px">${j.packaged_artifact||'szl-0.1.0.tgz'}</div><div class="honest">helm ${j.helm_version||''}</div></div>`;
+  const tb=$('#bb-table tbody');tb.innerHTML="";(j.big_bang_compat_matrix||[]).forEach(m=>
+    tb.innerHTML+=`<tr><td>${m.feature}</td><td>${badge(m.big_bang)}</td><td>${badge(m.szl)}</td></tr>`);
+  $('#bb-honest').textContent=(j.install_command?'$ '+j.install_command+'  —  ':'')+(j.honesty||'');$('#bb-sig').innerHTML=sigLine(j);}
+async function loadTW(){const j=await get("tradewinds/listing");const c=j.company||{},p=j.compliance_posture||{},s=j.solution||{};
+  $('#tw-company').innerHTML=`<h3>Company</h3><table>
+    <tr><td>Name</td><td><b>${c.name||''}</b></td></tr>
+    <tr><td>CAGE</td><td>${c.cage_code&&c.cage_code.value?c.cage_code.value:'<span class="badge b-warn">stub — SAM.gov</span>'}</td></tr>
+    <tr><td>UEI</td><td>${c.uei&&c.uei.value?c.uei.value:'<span class="badge b-warn">stub — SAM.gov</span>'}</td></tr>
+    <tr><td>Tradewinds acct</td><td><span class="badge b-warn">founder action</span></td></tr></table>`;
+  $('#tw-posture').innerHTML=`<h3>Compliance posture</h3><table>
+    <tr><td>IL5</td><td>${badge((p.il5_readiness||{}).status||'ROADMAP')}</td></tr>
+    <tr><td>CMMC</td><td>${badge((p.cmmc||{}).status||'ROADMAP')}</td></tr>
+    <tr><td>FedRAMP</td><td>${badge((p.fedramp||{}).status||'ROADMAP')}</td></tr>
+    <tr><td>SLSA</td><td>${badge((p.slsa||{}).status||'L1')}</td></tr>
+    <tr><td>Signing</td><td class="mono" style="font-size:11px">${(p.signing||{}).keyid||'szlholdings-cosign'}</td></tr></table>`;
+  $('#tw-caps').innerHTML=`<div style="font-weight:600;margin-bottom:8px">${s.name||''}</div><div class="honest" style="border-color:var(--gold)">${s.tagline||''}</div><ul>`+
+    (s.capabilities||[]).map(x=>`<li style="margin:4px 0">${x}</li>`).join('')+'</ul><div class="honest">'+(j.honesty||'')+'</div>';
+  $('#tw-sig').innerHTML=sigLine(j);}
+async function loadFW(){
+  const cm=await get("cmmc/delta");$('#fw-cmmc').innerHTML=`<h3>CMMC 2.0 Level 2 delta</h3>`+
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">'+(cm.level||'')+'</div>'+
+    (cm.satisfied||[]).map(c=>`<div style="margin:4px 0">${badge(true)} <span class="mono" style="font-size:11px">${c.control}</span> — ${c.evidence}</div>`).join('')+
+    (cm.gaps||[]).map(c=>`<div style="margin:4px 0">${badge('gap')} <span class="mono" style="font-size:11px">${c.control}</span> — ${c.note}</div>`).join('')+
+    `<div class="honest">${cm.honesty||''}</div><div class="sig">${sigLine(cm)}</div>`;
+  const nm=await get("nist-ai-rmf/map");$('#fw-nist').innerHTML=`<h3>NIST AI RMF 1.0</h3>`+
+    (nm.mapping||[]).map(m=>`<div style="margin:6px 0"><span class="badge b-mute">${m.function}</span> ${m.szl_primitive}<div class="honest" style="margin-top:2px">${m.subcategory}</div></div>`).join('')+
+    `<div class="honest">${nm.honesty||''}</div><div class="sig">${sigLine(nm)}</div>`;
+  const eu=await get("eu-ai-act/article-12");$('#fw-eu').innerHTML=`<h3>EU AI Act Article 12</h3>`+
+    `<div style="font-size:12px;color:var(--muted)">${eu.article||''}</div><pre style="max-height:200px;margin-top:8px">${JSON.stringify(eu.logging_mechanism||eu,null,1)}</pre>`+
+    `<div class="honest">${eu.honesty||''}</div><div class="sig">${sigLine(eu)}</div>`;
+  const fr=await get("fedramp/posture");$('#fw-fedramp').innerHTML=`<h3>FedRAMP Moderate posture</h3>`+
+    `<div style="font-size:12px;color:var(--muted);margin-bottom:6px">${fr.baseline||''}</div>`+
+    (fr.families||[]).map(f=>`<div style="margin:4px 0">${badge(f.status==='supported'?true:f.status)} <b>${f.family}</b></div>`).join('')+
+    `<div class="honest">${fr.authorization_status||''} ${fr.honesty||''}</div><div class="sig">${sigLine(fr)}</div>`;
+}
+$('#raw-pick').onchange=async e=>{$('#raw-out').textContent='…';const j=await get(e.target.value);$('#raw-out').textContent=JSON.stringify(j,null,2);};
+(async()=>{try{await loadStig();await loadIB();await loadBB();await loadTW();await loadFW();
+  $('#raw-out').textContent=JSON.stringify(await get("stig/scan-report/killinchu"),null,2);}catch(e){console.error(e);}})();
+</script>
+</body>
+</html>

@@ -1,0 +1,539 @@
+{
+  "counts": {
+    "notselected": 971,
+    "fail": 130,
+    "pass": 154,
+    "notapplicable": 203,
+    "notchecked": 8,
+    "unknown": 1
+  },
+  "fail_severities": {
+    "high": 7,
+    "medium": 104,
+    "low": 16,
+    "unknown": 3
+  },
+  "fails": [
+    {
+      "severity": "high",
+      "rule": "configure_crypto_policy"
+    },
+    {
+      "severity": "high",
+      "rule": "disable_ctrlaltdel_reboot"
+    },
+    {
+      "severity": "high",
+      "rule": "enable_dracut_fips_module"
+    },
+    {
+      "severity": "high",
+      "rule": "enable_fips_mode"
+    },
+    {
+      "severity": "high",
+      "rule": "harden_sshd_ciphers_openssh_conf_crypto_policy"
+    },
+    {
+      "severity": "high",
+      "rule": "selinux_state"
+    },
+    {
+      "severity": "high",
+      "rule": "sysctl_crypto_fips_enabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "account_disable_post_pw_expiration"
+    },
+    {
+      "severity": "medium",
+      "rule": "account_password_pam_faillock_password_auth"
+    },
+    {
+      "severity": "medium",
+      "rule": "account_password_pam_faillock_system_auth"
+    },
+    {
+      "severity": "medium",
+      "rule": "accounts_logon_fail_delay"
+    },
+    {
+      "severity": "medium",
+      "rule": "accounts_maximum_age_login_defs"
+    },
+    {
+      "severity": "medium",
+      "rule": "accounts_minimum_age_login_defs"
+    },
+    {
+      "severity": "medium",
+      "rule": "accounts_password_minlen_login_defs"
+    },
+    {
+      "severity": "medium",
+      "rule": "accounts_passwords_pam_faillock_audit"
+    },
+    {
+      "severity": "medium",
+      "rule": "accounts_tmout"
+    },
+    {
+      "severity": "medium",
+      "rule": "accounts_umask_etc_bashrc"
+    },
+    {
+      "severity": "medium",
+      "rule": "accounts_umask_etc_csh_cshrc"
+    },
+    {
+      "severity": "medium",
+      "rule": "accounts_umask_etc_login_defs"
+    },
+    {
+      "severity": "medium",
+      "rule": "accounts_umask_etc_profile"
+    },
+    {
+      "severity": "medium",
+      "rule": "agent_mfetpd_running"
+    },
+    {
+      "severity": "medium",
+      "rule": "aide_build_database"
+    },
+    {
+      "severity": "medium",
+      "rule": "aide_check_audit_tools"
+    },
+    {
+      "severity": "medium",
+      "rule": "aide_periodic_cron_checking"
+    },
+    {
+      "severity": "medium",
+      "rule": "aide_scan_notification"
+    },
+    {
+      "severity": "medium",
+      "rule": "aide_use_fips_hashes"
+    },
+    {
+      "severity": "medium",
+      "rule": "banner_etc_issue"
+    },
+    {
+      "severity": "medium",
+      "rule": "configure_opensc_card_drivers"
+    },
+    {
+      "severity": "medium",
+      "rule": "configure_openssl_tls_crypto_policy"
+    },
+    {
+      "severity": "medium",
+      "rule": "enable_authselect"
+    },
+    {
+      "severity": "medium",
+      "rule": "firewalld_sshd_port_enabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "harden_sshd_ciphers_opensshserver_conf_crypto_policy"
+    },
+    {
+      "severity": "medium",
+      "rule": "install_smartcard_packages"
+    },
+    {
+      "severity": "medium",
+      "rule": "kernel_module_atm_disabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "kernel_module_bluetooth_disabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "kernel_module_can_disabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "kernel_module_sctp_disabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "kernel_module_usb-storage_disabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "mount_option_dev_shm_nodev"
+    },
+    {
+      "severity": "medium",
+      "rule": "mount_option_dev_shm_noexec"
+    },
+    {
+      "severity": "medium",
+      "rule": "mount_option_dev_shm_nosuid"
+    },
+    {
+      "severity": "medium",
+      "rule": "network_configure_name_resolution"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_aide_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_audispd-plugins_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_audit_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_chrony_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_fapolicyd_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_firewalld_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_gnutls-utils_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_libreswan_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_mcafeetp_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_nss-tools_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_opensc_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_openssh-clients_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_openssh-server_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_pcsc-lite_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_policycoreutils-python-utils_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_rsyslog-gnutls_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_rsyslog_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_s-nail_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_subscription-manager_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_sudo_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_tmux_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "package_usbguard_installed"
+    },
+    {
+      "severity": "medium",
+      "rule": "partition_for_var_tmp"
+    },
+    {
+      "severity": "medium",
+      "rule": "postfix_client_configure_mail_alias"
+    },
+    {
+      "severity": "medium",
+      "rule": "require_emergency_target_auth"
+    },
+    {
+      "severity": "medium",
+      "rule": "require_singleuser_auth"
+    },
+    {
+      "severity": "medium",
+      "rule": "rsyslog_cron_logging"
+    },
+    {
+      "severity": "medium",
+      "rule": "rsyslog_encrypt_offload_actionsendstreamdriverauthmode"
+    },
+    {
+      "severity": "medium",
+      "rule": "rsyslog_encrypt_offload_actionsendstreamdrivermode"
+    },
+    {
+      "severity": "medium",
+      "rule": "rsyslog_encrypt_offload_defaultnetstreamdriver"
+    },
+    {
+      "severity": "medium",
+      "rule": "rsyslog_remote_access_monitoring"
+    },
+    {
+      "severity": "medium",
+      "rule": "rsyslog_remote_loghost"
+    },
+    {
+      "severity": "medium",
+      "rule": "selinux_policytype"
+    },
+    {
+      "severity": "medium",
+      "rule": "service_fapolicyd_enabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "service_pcscd_enabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "service_rsyslog_enabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "service_sshd_enabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "service_systemd-journald_enabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "service_usbguard_enabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_fs_protected_hardlinks"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_fs_protected_symlinks"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_kernel_core_pattern"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_kernel_kexec_load_disabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_kernel_kptr_restrict"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_kernel_randomize_va_space"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_kernel_unprivileged_bpf_disabled"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_kernel_yama_ptrace_scope"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_core_bpf_jit_harden"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_conf_all_accept_redirects"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_conf_all_accept_source_route"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_conf_all_forwarding"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_conf_all_rp_filter"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_conf_all_send_redirects"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_conf_default_accept_redirects"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_conf_default_accept_source_route"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_conf_default_rp_filter"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_conf_default_send_redirects"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_icmp_echo_ignore_broadcasts"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv4_tcp_syncookies"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv6_conf_all_accept_ra"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv6_conf_all_accept_redirects"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv6_conf_all_accept_source_route"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv6_conf_all_forwarding"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv6_conf_default_accept_ra"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv6_conf_default_accept_redirects"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_net_ipv6_conf_default_accept_source_route"
+    },
+    {
+      "severity": "medium",
+      "rule": "sysctl_user_max_user_namespaces"
+    },
+    {
+      "severity": "medium",
+      "rule": "usbguard_generate_policy"
+    },
+    {
+      "severity": "medium",
+      "rule": "xwindows_runlevel_target"
+    },
+    {
+      "severity": "low",
+      "rule": "aide_verify_acls"
+    },
+    {
+      "severity": "low",
+      "rule": "aide_verify_ext_attributes"
+    },
+    {
+      "severity": "low",
+      "rule": "chronyd_client_only"
+    },
+    {
+      "severity": "low",
+      "rule": "chronyd_no_chronyc_network"
+    },
+    {
+      "severity": "low",
+      "rule": "kernel_module_cramfs_disabled"
+    },
+    {
+      "severity": "low",
+      "rule": "kernel_module_firewire-core_disabled"
+    },
+    {
+      "severity": "low",
+      "rule": "kernel_module_tipc_disabled"
+    },
+    {
+      "severity": "low",
+      "rule": "package_policycoreutils_installed"
+    },
+    {
+      "severity": "low",
+      "rule": "package_rng-tools_installed"
+    },
+    {
+      "severity": "low",
+      "rule": "partition_for_home"
+    },
+    {
+      "severity": "low",
+      "rule": "partition_for_tmp"
+    },
+    {
+      "severity": "low",
+      "rule": "partition_for_var"
+    },
+    {
+      "severity": "low",
+      "rule": "partition_for_var_log"
+    },
+    {
+      "severity": "low",
+      "rule": "partition_for_var_log_audit"
+    },
+    {
+      "severity": "low",
+      "rule": "sysctl_kernel_dmesg_restrict"
+    },
+    {
+      "severity": "low",
+      "rule": "sysctl_kernel_perf_event_paranoid"
+    },
+    {
+      "severity": "unknown",
+      "rule": "sysctl_net_ipv4_conf_all_log_martians"
+    },
+    {
+      "severity": "unknown",
+      "rule": "sysctl_net_ipv4_conf_default_log_martians"
+    },
+    {
+      "severity": "unknown",
+      "rule": "sysctl_net_ipv4_icmp_ignore_bogus_error_responses"
+    }
+  ],
+  "remediable_count": 56
+}

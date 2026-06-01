@@ -1,0 +1,33 @@
+{
+  "kind": "uds.tradewinds.listing",
+  "reference": "https://www.tradewinds.gov (DoD CDAO Tradewinds Solutions Marketplace)",
+  "company": {
+    "name": "SZL Holdings",
+    "founder": "Stephen P. Lutar",
+    "orcid": "0009-0001-0110-4173",
+    "website": "https://github.com/szl-holdings",
+    "cage_code": {"value": null, "status": "STUB — founder action required: register CAGE code via SAM.gov"},
+    "uei": {"value": null, "status": "STUB — founder action required: obtain UEI (Unique Entity ID) via SAM.gov"},
+    "tradewinds_account": {"status": "STUB — founder action required: create Tradewinds Solutions Marketplace vendor account"}
+  },
+  "solution": {
+    "name": "Killinchu / UDS Edition — Governed Counter-UAS Intelligence",
+    "tagline": "One signed DSSE receipt proves four governance brains agreed on every field action.",
+    "capabilities": [
+      "Counter-UAS detection (Remote-ID ASTM F3411, ADS-B 1090ES, MAVLink) — real protocol decoders, no mocks",
+      "Airspace awareness + swarm topology from real adversary signatures",
+      "AI governance gate (Sentra immune filter -> Amaru 13-axis cortex || a11oy Λ-policy -> Killinchu field action)",
+      "Provenance: DSSE/cosign ECDSA-P256 signed Khipu append-only audit DAG",
+      "Airgap delivery via UDS Zarf bundle + Big Bang Helm chart"
+    ],
+    "delivery_models": ["UDS Zarf bundle (airgap)", "Big Bang Helm chart (szl-0.1.0.tgz)", "HuggingFace Space (demo)"]
+  },
+  "compliance_posture": {
+    "il5_readiness": {"status": "ROADMAP", "note": "Iron Bank base Dockerfiles authored (creds required); STIG baseline measured 30.27->33.49 real oscap. No IL5 PA claimed."},
+    "cmmc": {"status": "ROADMAP — CMMC 2.0 Level 2 self-assessment delta only; NOT a C3PAO assessment"},
+    "fedramp": {"status": "ROADMAP — FedRAMP Moderate posture mapping only; NO ATO"},
+    "slsa": {"status": "SLSA L1 (honest)"},
+    "signing": {"keyid": "szlholdings-cosign", "algorithm": "ECDSA-P256-SHA256", "transparency": "Khipu DAG (private); Sigstore Rekor cross-submit on roadmap"}
+  },
+  "honesty": "Formatted Tradewinds listing data. No awarded contract, no ATO, no CMMC certification claimed. CAGE/UEI/Tradewinds account are honest stubs pending founder registration via SAM.gov."
+}

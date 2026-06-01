@@ -712,6 +712,20 @@ async def spa_root() -> FileResponse:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# ADDITIVE (UDS HARDENING, Yachay 2026-06-01): DESKTOP-FIRST UDS compliance
+# dashboard for 1280px+ workstation operators (STIG/SCAP, Iron Bank parity, Big
+# Bang chart, Tradewinds, CMMC/NIST/EU-AI-Act). Self-contained static page that
+# reads the live /api/killinchu/uds/v1/* real-data endpoints. Clean aliases so
+# operators don't need the .html suffix.
+@app.get("/uds/compliance")
+@app.get("/compliance")
+async def uds_compliance_dashboard() -> FileResponse:
+    _page = STATIC_DIR / "uds-compliance.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 
 
 # ===========================================================================
@@ -909,6 +923,26 @@ except Exception as _cb_e:
 # organ_signed=false, Rekor not_submitted, fail-WARNING never fail-open.
 # Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1 is NOT a theorem.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# UDS HARDENING — REAL-DATA endpoints (ADDITIVE, 2026-06-01, Yachay). Registered
+# BEFORE killinchu_fusion so the fusion module's honest SYNTHETIC STIG/parity
+# stubs DEFER (via its _claim() guard) to these real-data routes backed by
+# committed .compliance/ artifacts: real OpenSCAP oscap 1.4.2 DISA STIG output
+# (baseline 30.27 -> hardened 33.49, 16 rules fail->pass), real Dockerfile
+# Iron Bank base audit, real `helm lint`/render Big Bang inventory, Tradewinds
+# listing. Cosign-signed (szlholdings-cosign ECDSA-P256) via szl_dsse; honest
+# UNSIGNED envelope if the key secret is absent. try/except-guarded; NEVER
+# crashes the existing app. Sign: Yachay <yachay@szlholdings.dev>.
+# ---------------------------------------------------------------------------
+try:
+    import szl_uds_hardening as _uds_hard
+    _uds_hard_info = _uds_hard.register(app, "killinchu")
+    print(f"[killinchu] UDS HARDENING real-data endpoints registered: "
+          f"{_uds_hard_info['registered_count']} routes, signing={_uds_hard_info['signing']}",
+          file=sys.stderr)
+except Exception as _uds_hard_e:
+    print(f"[killinchu] UDS HARDENING endpoints NOT registered: {_uds_hard_e!r}; existing app unaffected", file=sys.stderr)
+
 try:
     import killinchu_fusion as _fusion
     _fusion_info = _fusion.register(app, "killinchu")

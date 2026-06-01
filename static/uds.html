@@ -1,270 +1,254 @@
 <!doctype html>
 <html lang="en">
 <head>
-<!-- KILLINCHU / UDS EDITION — Command Center (ADDITIVE, self-contained, mobile-first).
+<!-- KILLINCHU / UDS EDITION — Command Center (ADDITIVE, self-contained, DESKTOP-FIRST).
      Sign: Yachay <yachay@szlholdings.dev> · Co-Authored-By: Perplexity Computer Agent.
-     Single UDS front door: every call hits /api/killinchu/uds/v1/*. No build step,
-     no external CDN. Honesty preserved: drone positions SIMULATED, geofence STATIC
-     SNAPSHOT, amaru organ_signed=false, Rekor not_submitted, fail-WARNING never fail-open.
+     Optimized for 1280px+ workstation + the RTX 4060 Ti tower display. Single UDS
+     front door: every call hits /api/killinchu/uds/v1/*. No build step, no external CDN
+     (Cesium loaded from the Space's own /cesium/ bundle, same as the SPA). Honesty
+     preserved: drone positions SIMULATED, geofence STATIC SNAPSHOT, amaru
+     organ_signed=false, Rekor not_submitted, fail-WARNING never fail-open.
      Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1 is NOT a theorem. -->
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0a0f1e">
 <title>Killinchu / UDS Edition — Command Center</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3 L27 27 L16 21 L5 27 Z' fill='%23d7b96b'/%3E%3C/svg%3E"/>
+<link rel="stylesheet" href="/cesium/Widgets/widgets.css">
+<script src="/cesium/Cesium.js"></script>
 <style>
   :root{
-    --bg:#0a0f1e; --panel:#10151c; --panel2:#0d1119; --line:#3c4757; --line2:#222b38;
+    --bg:#070b14; --panel:#10151c; --panel2:#0d1119; --line:#3c4757; --line2:#1d2533;
     --txt:#f5f7fa; --muted:#9aa7b8; --faint:#5b6a7e;
     --gold:#d7b96b; --gold-2:#e4cf99; --teal:#5cc4bf; --green:#1f9d57; --warn:#d8932f; --red:#d65a5a;
     --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
     --sans:"Inter","IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
   }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);
-    font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
-  body{padding-bottom:84px}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;height:100%}
+  body{height:100vh;overflow:hidden}
   a{color:var(--teal);text-decoration:none}
   .mono{font-family:var(--mono)}
-  .wrap{max-width:760px;margin:0 auto;padding:0 16px}
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#26303f;border-radius:5px}
+  ::-webkit-scrollbar-track{background:transparent}
 
-  /* Top bar */
-  header{position:sticky;top:0;z-index:30;background:rgba(10,15,30,.92);
-    backdrop-filter:blur(8px);border-bottom:1px solid var(--line2)}
-  .bar{display:flex;align-items:center;gap:9px;padding:12px 16px;max-width:760px;margin:0 auto}
-  .bar .logo{width:26px;height:26px;flex:0 0 auto}
-  .bar .ttl{font-weight:680;letter-spacing:-.01em;font-size:15px}
-  .bar .ttl b{color:var(--gold)}
-  .bar .doc{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--muted);text-align:right;line-height:1.35}
-  .bar .doc .dot{display:inline-block;width:7px;height:7px;border-radius:50%;
-    background:var(--green);margin-right:5px;vertical-align:middle;
-    box-shadow:0 0 0 0 rgba(31,157,87,.6);animation:pulse 2.4s infinite}
+  /* App shell — desktop grid */
+  .app{display:grid;grid-template-rows:52px 1fr;height:100vh}
+  header{display:flex;align-items:center;gap:12px;padding:0 18px;background:linear-gradient(180deg,#0c1322,#0a0f1e);
+    border-bottom:1px solid var(--line2);z-index:20}
+  header .logo{width:24px;height:24px}
+  header .ttl{font-weight:700;font-size:15px;letter-spacing:-.01em}
+  header .ttl b{color:var(--gold)}
+  header .chip{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+    border:1px solid var(--line2);border-radius:7px;padding:4px 9px}
+  header .chip .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;
+    vertical-align:middle;box-shadow:0 0 0 0 rgba(31,157,87,.6);animation:pulse 2.4s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(31,157,87,.55)}70%{box-shadow:0 0 0 8px rgba(31,157,87,0)}100%{box-shadow:0 0 0 0 rgba(31,157,87,0)}}
+  header .sp{margin-left:auto}
+  header .doc{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  header .doc b{color:var(--gold)}
 
-  /* Tabs (bottom nav, mobile-first) */
-  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(13,17,25,.97);
-    backdrop-filter:blur(10px);border-top:1px solid var(--line2);
-    padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
-  nav.tabs .row{display:flex;gap:4px;max-width:760px;margin:0 auto}
-  nav.tabs button{flex:1;background:none;border:0;color:var(--muted);font-family:var(--sans);
-    font-size:11px;font-weight:600;letter-spacing:.02em;padding:7px 4px 5px;border-radius:10px;
-    display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-height:48px}
-  nav.tabs button .ic{font-size:18px;line-height:1}
-  nav.tabs button[aria-selected="true"]{color:var(--gold);background:rgba(215,185,107,.09)}
+  /* Main 3-column workstation layout: heroes/field LEFT-CENTER, globe CENTER, compliance RIGHT rail */
+  .body{display:grid;grid-template-columns:340px 1fr 420px;height:100%;overflow:hidden}
+  .col{overflow:auto;padding:14px}
+  .col.center{padding:0;position:relative;border-left:1px solid var(--line2);border-right:1px solid var(--line2);display:grid;grid-template-rows:1fr auto}
 
-  section.tab{display:none;padding:18px 0 8px}
-  section.tab.on{display:block;animation:fade .22s ease}
-  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  h2.sec{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:2px 0 11px;font-weight:700}
 
-  h2.sec{font-size:13px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
-    margin:4px 0 12px;font-weight:700}
-  .lede{color:var(--muted);font-size:13.5px;margin:-4px 0 16px}
-
-  /* Superhero cards */
-  .heroes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .hero{background:linear-gradient(160deg,var(--panel),var(--panel2));border:1px solid var(--line2);
-    border-radius:14px;padding:14px;position:relative;overflow:hidden}
-  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 90% -10%,rgba(92,196,191,.10),transparent 60%);pointer-events:none}
-  .hero .ic{font-size:26px;line-height:1}
-  .hero .nm{font-weight:700;font-size:15px;margin-top:8px;letter-spacing:-.01em}
-  .hero .role{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:2px}
-  .hero .st{display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-family:var(--mono);
-    font-size:11px;color:var(--muted)}
-  .hero .st .d{width:8px;height:8px;border-radius:50%;background:var(--faint)}
-  .hero.ok .st .d{background:var(--green)} .hero.ok .st{color:var(--teal)}
-  .hero.amber .st .d{background:var(--warn)} .hero.red .st .d{background:var(--red)}
-  .hero .lat{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:3px}
-  .hero .badge{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:9px;
-    padding:3px 6px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
+  /* Command Center superhero cards (top-left) */
+  .heroes{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px}
+  .hero{background:linear-gradient(158deg,var(--panel),var(--panel2));border:1px solid var(--line2);border-radius:12px;
+    padding:11px;position:relative;overflow:hidden;transition:.18s}
+  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 88% -12%,rgba(92,196,191,.10),transparent 60%);pointer-events:none}
+  .hero .ic{font-size:22px;line-height:1}
+  .hero .nm{font-weight:700;font-size:13px;margin-top:6px}
+  .hero .role{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+  .hero .st{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .hero .st .d{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+  .hero.ok{border-color:rgba(31,157,87,.35)} .hero.ok .st .d{background:var(--green)} .hero.ok .st{color:var(--teal)}
+  .hero.amber .st .d{background:var(--warn)} .hero.red{border-color:rgba(214,90,90,.4)} .hero.red .st .d{background:var(--red)}
+  .hero .lat{font-family:var(--mono);font-size:9px;color:var(--faint);margin-top:2px}
+  .hero .badge{position:absolute;top:10px;right:10px;font-family:var(--mono);font-size:8px;padding:2px 5px;border-radius:5px;border:1px solid var(--line);color:var(--muted)}
   .hero .badge.signed{color:var(--green);border-color:rgba(31,157,87,.4)}
   .hero .badge.placeholder{color:var(--warn);border-color:rgba(216,147,47,.4)}
 
-  /* Kill-move chain strip */
-  .killbar{margin:16px 0 4px;background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:14px}
-  .killbar .hd{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-  .killbar .hd .t{font-weight:700;font-size:14px}
-  .killbar .hd .v{margin-left:auto;font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:7px;
-    border:1px solid var(--line);color:var(--muted)}
-  .killbar .hd .v.allow{color:var(--green);border-color:rgba(31,157,87,.45);background:rgba(31,157,87,.08)}
-  .killbar .hd .v.warn{color:var(--warn);border-color:rgba(216,147,47,.45);background:rgba(216,147,47,.08)}
-  .killbar .hd .v.block{color:var(--red);border-color:rgba(214,90,90,.45);background:rgba(214,90,90,.08)}
-  .chain{display:flex;align-items:stretch;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .link{flex:1 0 auto;min-width:74px;text-align:center;position:relative;padding:0 4px}
-  .link .o{font-size:22px;line-height:1}
-  .link .n{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:.05em}
-  .link .vv{font-family:var(--mono);font-size:10px;margin-top:4px;padding:2px 6px;border-radius:5px;display:inline-block}
+  /* Action panel */
+  .panel{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:13px;margin-bottom:14px}
+  .field{margin-bottom:10px}
+  .field label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+  select,input{width:100%;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);border-radius:8px;padding:9px 10px;font-family:var(--sans);font-size:13px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-family:var(--sans);font-size:13px;font-weight:600;
+    border-radius:9px;padding:10px 14px;border:1px solid var(--line);background:var(--panel);color:var(--txt);cursor:pointer;width:100%}
+  .btn.primary{background:var(--gold);color:#10151c;border-color:var(--gold)}
+  .btn.primary:hover{background:var(--gold-2)}
+  .btn.ghost:hover{border-color:var(--teal);color:var(--teal)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btnrow{display:grid;gap:8px;margin-top:6px}
+
+  .receipt{margin-top:11px;background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:11px}
+  .receipt .kv{display:flex;gap:8px;font-family:var(--mono);font-size:10.5px;padding:3px 0;border-bottom:1px solid var(--line2)}
+  .receipt .kv:last-child{border-bottom:0}
+  .receipt .kv .k{color:var(--muted);flex:0 0 92px}
+  .receipt .kv .vl{color:var(--txt);word-break:break-all;flex:1}
+  .receipt .kv .vl.sha{color:var(--teal)} .receipt .kv .vl.sig{color:var(--gold)}
+
+  /* CENTER — Cesium globe + kill-move chain strip at bottom */
+  #cesiumContainer{position:relative;width:100%;height:100%}
+  .globe-tag{position:absolute;top:12px;left:12px;z-index:5;font-family:var(--mono);font-size:10px;color:var(--muted);
+    background:rgba(7,11,20,.72);border:1px solid var(--line2);border-radius:8px;padding:7px 11px;backdrop-filter:blur(4px)}
+  .globe-tag b{color:var(--gold)}
+  .globe-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;
+    color:var(--muted);font-family:var(--mono);font-size:12px;text-align:center;padding:30px}
+  .killstrip{background:linear-gradient(180deg,#0a0f1e,#0c1322);border-top:1px solid var(--line2);padding:12px 16px}
+  .killstrip .hd{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+  .killstrip .hd .t{font-weight:700;font-size:13px}
+  .killstrip .hd .v{margin-left:auto;font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:7px;border:1px solid var(--line);color:var(--muted)}
+  .killstrip .hd .v.allow{color:var(--green);border-color:rgba(31,157,87,.45);background:rgba(31,157,87,.08)}
+  .killstrip .hd .v.warn{color:var(--warn);border-color:rgba(216,147,47,.45);background:rgba(216,147,47,.08)}
+  .killstrip .hd .v.block{color:var(--red);border-color:rgba(214,90,90,.45);background:rgba(214,90,90,.08)}
+  .chain{display:flex;align-items:stretch;gap:0}
+  .link{flex:1;text-align:center;position:relative}
+  .link .o{font-size:20px;line-height:1}
+  .link .n{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.05em}
+  .link .vv{font-family:var(--mono);font-size:9.5px;margin-top:3px;padding:2px 7px;border-radius:5px;display:inline-block}
   .link .vv.allow{color:var(--green);background:rgba(31,157,87,.12)}
   .link .vv.warn{color:var(--warn);background:rgba(216,147,47,.12)}
   .link .vv.block{color:var(--red);background:rgba(214,90,90,.12)}
   .link .vv.pending{color:var(--faint);background:rgba(91,106,126,.12)}
-  .link:not(:last-child)::after{content:"→";position:absolute;right:-6px;top:8px;color:var(--line);font-size:14px}
+  .link:not(:last-child)::after{content:"→";position:absolute;right:-7px;top:6px;color:var(--line);font-size:14px}
 
-  /* Buttons */
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-family:var(--sans);
-    font-size:14px;font-weight:600;border-radius:10px;padding:12px 16px;border:1px solid var(--line);
-    background:var(--panel);color:var(--txt);cursor:pointer;min-height:46px;width:100%}
-  .btn.primary{background:var(--gold);color:#10151c;border-color:var(--gold)}
-  .btn.primary:active{background:var(--gold-2)}
-  .btn.ghost:active{border-color:var(--teal);color:var(--teal)}
-  .btn:disabled{opacity:.5}
-  .btnrow{display:grid;gap:10px;margin-top:14px}
-  .field{margin-top:12px}
-  .field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;
-    text-transform:uppercase;color:var(--muted);margin-bottom:5px}
-  .field select,.field input{width:100%;background:var(--panel2);border:1px solid var(--line2);
-    color:var(--txt);border-radius:9px;padding:11px 12px;font-family:var(--sans);font-size:14px;min-height:44px}
+  /* Field operative + GPU (bottom-left below action) */
+  .gpu{background:linear-gradient(158deg,var(--panel),var(--panel2));border:1px solid var(--line2);border-radius:12px;padding:12px;margin-top:4px}
+  .gpu .hd{display:flex;align-items:center;gap:7px;font-weight:700;font-size:12.5px}
+  .gpu .meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:7px}
+  .gpu .bar{margin:7px 0}
+  .gpu .bar .lab{font-family:var(--mono);font-size:9px;color:var(--muted);display:flex;justify-content:space-between}
+  .gpu .bar .track{height:6px;background:var(--panel2);border-radius:4px;margin-top:3px;overflow:hidden;border:1px solid var(--line2)}
+  .gpu .bar .fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));width:0%;transition:width .6s ease}
+  .honest{font-size:10px;color:var(--faint);margin-top:8px;line-height:1.5;font-style:italic}
 
-  /* Receipt / output */
-  .receipt{margin-top:14px;background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:13px}
-  .receipt .kv{display:flex;gap:8px;font-family:var(--mono);font-size:11.5px;padding:3px 0;border-bottom:1px solid var(--line2)}
-  .receipt .kv:last-child{border-bottom:0}
-  .receipt .kv .k{color:var(--muted);flex:0 0 118px}
-  .receipt .kv .vl{color:var(--txt);word-break:break-all;flex:1}
-  .receipt .kv .vl.sha{color:var(--teal)}
-  .receipt .kv .vl.sig{color:var(--gold)}
-
-  /* Compliance grid */
-  .grid2{display:grid;grid-template-columns:1fr;gap:10px}
-  .ccard{background:var(--panel);border:1px solid var(--line2);border-radius:13px;padding:14px}
-  .ccard .ct{font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px}
-  .ccard .ce{font-family:var(--mono);font-size:9px;padding:3px 7px;border-radius:6px;border:1px solid var(--line);
-    color:var(--muted);margin-left:auto}
-  .ccard .cd{color:var(--muted);font-size:12.5px;margin-top:7px}
-  .ccard .out{margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--teal);
-    background:var(--panel2);border-radius:8px;padding:9px;max-height:160px;overflow:auto;white-space:pre-wrap;display:none}
+  /* RIGHT rail — compliance tabs + audit */
+  .rail-tabs{display:flex;gap:4px;margin-bottom:12px}
+  .rail-tabs button{flex:1;background:var(--panel2);border:1px solid var(--line2);color:var(--muted);font-family:var(--sans);
+    font-size:11px;font-weight:600;padding:8px 4px;border-radius:8px;cursor:pointer}
+  .rail-tabs button[aria-selected="true"]{color:var(--gold);border-color:rgba(215,185,107,.4);background:rgba(215,185,107,.08)}
+  .rail-panel{display:none}.rail-panel.on{display:block}
+  .ccard{background:var(--panel);border:1px solid var(--line2);border-radius:11px;padding:11px;margin-bottom:9px}
+  .ccard .ct{font-weight:700;font-size:12.5px;display:flex;align-items:center;gap:7px}
+  .ccard .ce{font-family:var(--mono);font-size:8px;padding:2px 6px;border-radius:5px;border:1px solid var(--line);color:var(--muted);margin-left:auto}
+  .ccard .cd{color:var(--muted);font-size:11px;margin-top:6px;line-height:1.45}
+  .ccard .run{margin-top:8px;font-family:var(--sans);font-size:11px;font-weight:600;color:var(--teal);background:none;border:1px solid var(--line2);
+    border-radius:7px;padding:6px 10px;cursor:pointer}
+  .ccard .run:hover{border-color:var(--teal)}
+  .ccard .out{margin-top:9px;font-family:var(--mono);font-size:10px;color:var(--teal);background:var(--panel2);border-radius:7px;
+    padding:9px;max-height:200px;overflow:auto;white-space:pre-wrap;display:none;line-height:1.5}
   .ccard .out.on{display:block}
 
-  /* GPU panel */
-  .gpu{background:linear-gradient(160deg,var(--panel),var(--panel2));border:1px solid var(--line2);
-    border-radius:14px;padding:14px;margin-top:14px}
-  .gpu .hd{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
-  .gpu .meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px}
-  .gpu .bars{margin-top:10px;display:none}
-  .gpu .bar{margin:8px 0}
-  .gpu .bar .lab{font-family:var(--mono);font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
-  .gpu .bar .track{height:7px;background:var(--panel2);border-radius:5px;margin-top:4px;overflow:hidden;border:1px solid var(--line2)}
-  .gpu .bar .fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));width:0%}
-  .honest{font-size:11px;color:var(--faint);margin-top:10px;line-height:1.45;font-style:italic}
-
-  /* Modal */
-  .modal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-end;justify-content:center}
+  /* Verify modal */
+  .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center}
   .modal.on{display:flex}
-  .modal .ov{position:absolute;inset:0;background:rgba(5,8,15,.7)}
-  .sheet{position:relative;width:100%;max-width:760px;max-height:86vh;overflow:auto;
-    background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;
-    padding:18px 16px calc(20px + env(safe-area-inset-bottom));animation:up .26s ease}
-  @keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
-  .sheet .grip{width:38px;height:4px;border-radius:3px;background:var(--line);margin:0 auto 14px}
+  .modal .ov{position:absolute;inset:0;background:rgba(4,7,13,.74)}
+  .sheet{position:relative;width:680px;max-width:92vw;max-height:84vh;overflow:auto;background:var(--panel);
+    border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
+  .sheet .x{position:absolute;top:16px;right:18px;color:var(--muted);cursor:pointer;font-size:20px;line-height:1}
   .sheet h3{margin:0 0 4px;font-size:17px;font-weight:700}
-  .sheet .verdict-big{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;
-    padding:5px 11px;border-radius:8px;margin:6px 0 12px}
+  .sheet .verdict-big{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;padding:5px 11px;border-radius:8px;margin:8px 0 12px}
   .sheet .verdict-big.allow{color:var(--green);background:rgba(31,157,87,.1);border:1px solid rgba(31,157,87,.4)}
-  .sheet pre{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:12px;
-    font-family:var(--mono);font-size:10.5px;color:var(--teal);overflow:auto;white-space:pre-wrap;word-break:break-all;line-height:1.55}
+  .sheet pre{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:13px;font-family:var(--mono);
+    font-size:11px;color:var(--teal);overflow:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6}
   .sheet .ok{color:var(--green);font-weight:700}
-  .footer-note{text-align:center;font-family:var(--mono);font-size:9.5px;color:var(--faint);
-    letter-spacing:.06em;padding:18px 0 4px;line-height:1.6}
-  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--gold);
-    border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle}
+  .spin{display:inline-block;width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--gold);border-radius:50%;
+    animation:sp .7s linear infinite;vertical-align:middle}
   @keyframes sp{to{transform:rotate(360deg)}}
+  .foot{font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:.04em;margin-top:12px;line-height:1.6}
 </style>
 </head>
 <body>
-<header>
-  <div class="bar">
+<div class="app">
+  <header>
     <svg class="logo" viewBox="0 0 32 32"><path d="M16 3 L27 27 L16 21 L5 27 Z" fill="#d7b96b"/></svg>
-    <div class="ttl">Killinchu <b>/ UDS</b></div>
-    <div class="doc"><span class="dot"></span>DOCTRINE v11 · LOCKED<br>749 · 14 · 163 · SLSA L1</div>
-  </div>
-</header>
+    <div class="ttl">Killinchu <b>/ UDS Edition</b> — Command Center</div>
+    <span class="chip"><span class="dot"></span>4 ORGANS LIVE</span>
+    <span class="chip">SOLE FRONT DOOR · /api/killinchu/uds/v1/*</span>
+    <span class="sp"></span>
+    <span class="doc">DOCTRINE <b>v11</b> LOCKED · 749 · 14 · 163 · SLSA L1 (honest) · Λ Conjecture (not a theorem)</span>
+  </header>
 
-<div class="wrap">
+  <div class="body">
+    <!-- ============ LEFT: Command Center + Action + GPU ============ -->
+    <div class="col left">
+      <h2 class="sec">Command Center — four brains</h2>
+      <div class="heroes" id="heroes"></div>
 
-  <!-- ===================== COMMAND CENTER ===================== -->
-  <section class="tab on" id="tab-command" role="tabpanel">
-    <h2 class="sec">Command Center — four brains, one signed receipt</h2>
-    <p class="lede">Issue one operator action. Server-side it fans out to four live governance organs and returns a <b>single aggregated DSSE receipt</b> — verifiable with <span class="mono">cosign verify-blob</span>.</p>
-
-    <div class="heroes" id="heroes"></div>
-
-    <div class="killbar">
-      <div class="hd">
-        <span style="font-size:18px">🦅</span>
-        <span class="t">Kill-move chain</span>
-        <span class="v" id="killverdict">idle</span>
+      <div class="panel">
+        <div class="field">
+          <label for="actsel">Operator action</label>
+          <select id="actsel">
+            <option value="threat_assess">Threat assess — classify track</option>
+            <option value="effector_recommend">Effector recommend — Sentra dual-use gate</option>
+            <option value="mission_plan">Mission plan — Amaru F7 + Yuyay-13</option>
+            <option value="swarm_coordinate">Swarm coordinate — boids + ORCA</option>
+            <option value="geofence_check">Geofence check — airspace class</option>
+          </select>
+        </div>
+        <div class="btnrow">
+          <button class="btn primary" id="execBtn">▶ Execute mission</button>
+          <button class="btn ghost" id="verifyBtn" disabled>🔏 Verify aggregated receipt</button>
+        </div>
+        <div class="receipt" id="receipt" style="display:none"></div>
       </div>
-      <div class="chain" id="chain"></div>
+
+      <div class="gpu" id="gpupanel">
+        <div class="hd"><span style="font-size:16px">🎮</span> GPU substrate — RTX 4060 Ti (airgap tower)</div>
+        <div class="meta" id="gpumeta"><span class="spin"></span> querying nvidia-smi…</div>
+        <div id="gpubars"></div>
+        <div class="honest" id="gpuhonest"></div>
+      </div>
+
+      <div class="foot">drone positions SIMULATED (seeded) · geofence STATIC SNAPSHOT · amaru per-organ signature PLACEHOLDER (honest) · fail-WARNING never fail-open</div>
     </div>
 
-    <div class="field">
-      <label for="actsel">Operator action</label>
-      <select id="actsel">
-        <option value="threat_assess">Threat assess — classify track</option>
-        <option value="effector_recommend">Effector recommend — Sentra dual-use gate</option>
-        <option value="mission_plan">Mission plan — Amaru F7 + Yuyay-13</option>
-        <option value="swarm_coordinate">Swarm coordinate — boids + ORCA</option>
-        <option value="geofence_check">Geofence check — airspace class</option>
-      </select>
+    <!-- ============ CENTER: Cesium globe + kill-move chain ============ -->
+    <div class="col center">
+      <div style="position:relative">
+        <div id="cesiumContainer"></div>
+        <div class="globe-tag" id="globetag">🦅 <b>Killinchu</b> in the field · airspace <b id="gt-class">—</b> · tracks <b id="gt-tracks">simulated snapshot</b></div>
+      </div>
+      <div class="killstrip">
+        <div class="hd">
+          <span style="font-size:16px">🦅</span><span class="t">Kill-move chain</span>
+          <span class="v" id="killverdict">idle</span>
+        </div>
+        <div class="chain" id="chain"></div>
+      </div>
     </div>
-    <div class="btnrow">
-      <button class="btn primary" id="execBtn">▶ Execute mission</button>
-      <button class="btn ghost" id="verifyBtn" disabled>🔏 Verify aggregated receipt</button>
+
+    <!-- ============ RIGHT rail: Compliance + Audit ============ -->
+    <div class="col right">
+      <div class="rail-tabs">
+        <button data-rail="compliance" aria-selected="true">🛡️ Compliance</button>
+        <button data-rail="audit">📜 Audit</button>
+      </div>
+      <div class="rail-panel on" id="rail-compliance">
+        <h2 class="sec">Every UDS pain-point — real signed endpoint</h2>
+        <div id="complist"></div>
+        <div class="foot">Honest status everywhere — no fabricated Iron Bank PASS, no fabricated Rekor inclusion, no FedRAMP ATO claimed. When the UDS-HARDENING real-data module is present, the fusion synthetic stubs DEFER to it.</div>
+      </div>
+      <div class="rail-panel" id="rail-audit">
+        <h2 class="sec">Khipu transparency log</h2>
+        <button class="btn ghost" id="refreshAudit" style="margin-bottom:12px">↻ Refresh recent chain</button>
+        <div id="auditlist"></div>
+        <div class="foot">Append-only hash-chained DAG. Public Sigstore Rekor cross-submission is not_submitted (honest); Khipu is our private transparency log.</div>
+      </div>
     </div>
-
-    <div class="receipt" id="receipt" style="display:none"></div>
-
-    <div class="footer-note">drone positions SIMULATED (seeded) · geofence STATIC SNAPSHOT · amaru per-organ signature PLACEHOLDER (honest) · fail-WARNING never fail-open · Λ Conjecture 1 — NOT a theorem</div>
-  </section>
-
-  <!-- ===================== FIELD ===================== -->
-  <section class="tab" id="tab-field" role="tabpanel">
-    <h2 class="sec">Field — Killinchu the operative</h2>
-    <p class="lede">The four superheroes run the command center; Killinchu is in the field. Live 4-organ health + airspace picture (static snapshot, honest).</p>
-    <div id="fieldhealth"></div>
-
-    <div class="gpu" id="gpupanel">
-      <div class="hd"><span style="font-size:18px">🎮</span> GPU substrate — RTX 4060 Ti (airgap tower)</div>
-      <div class="meta" id="gpumeta"><span class="spin"></span> querying nvidia-smi…</div>
-      <div class="bars" id="gpubars"></div>
-      <div class="honest" id="gpuhonest"></div>
-    </div>
-  </section>
-
-  <!-- ===================== AUDIT ===================== -->
-  <section class="tab" id="tab-audit" role="tabpanel">
-    <h2 class="sec">Audit — Khipu transparency log</h2>
-    <p class="lede">Append-only hash-chained DAG. Every mission produces a signed aggregated receipt. Public Sigstore Rekor cross-submission is <b>not_submitted</b> (honest) — Khipu is our private transparency log.</p>
-    <div class="btnrow"><button class="btn ghost" id="refreshAudit">↻ Refresh recent chain</button></div>
-    <div id="auditlist" style="margin-top:14px"></div>
-  </section>
-
-  <!-- ===================== COMPLIANCE ===================== -->
-  <section class="tab" id="tab-compliance" role="tabpanel">
-    <h2 class="sec">Compliance — every UDS pain-point, signed</h2>
-    <p class="lede">Each card is a real endpoint under <span class="mono">/api/killinchu/uds/v1/*</span> returning a DSSE-signed response. Tap to run.</p>
-    <div class="grid2" id="complist"></div>
-    <div class="footer-note">Honest status everywhere — no fabricated Iron Bank PASS, no fabricated Rekor inclusion, no FedRAMP ATO claimed. Gaps stated plainly.</div>
-  </section>
-
+  </div>
 </div>
 
-<!-- Bottom tab nav -->
-<nav class="tabs">
-  <div class="row">
-    <button data-tab="command" aria-selected="true"><span class="ic">🎯</span>Command</button>
-    <button data-tab="field"><span class="ic">🦅</span>Field</button>
-    <button data-tab="audit"><span class="ic">📜</span>Audit</button>
-    <button data-tab="compliance"><span class="ic">🛡️</span>Compliance</button>
-  </div>
-</nav>
-
-<!-- Verify modal / bottom sheet -->
+<!-- Verify modal -->
 <div class="modal" id="modal">
   <div class="ov" id="modalov"></div>
   <div class="sheet">
-    <div class="grip"></div>
+    <span class="x" id="modalx">✕</span>
     <h3>🔏 Aggregated receipt — cosign verify-blob</h3>
     <div id="verifybody"></div>
   </div>
@@ -278,240 +262,196 @@
     {k:"sentra",   ic:"🛡️", nm:"Sentra",   role:"Immune Officer", badge:"signed"},
     {k:"amaru",    ic:"🧠", nm:"Amaru",    role:"Cortex Officer", badge:"placeholder"},
     {k:"a11oy",    ic:"📜", nm:"a11oy",    role:"Policy Officer", badge:"signed"},
-    {k:"killinchu",ic:"🦅", nm:"Rosie/Killinchu", role:"Field Operative", badge:"signed"}
+    {k:"killinchu",ic:"🦅", nm:"Killinchu", role:"Field Operative", badge:"signed"}
   ];
-  var lastReceipt = null, lastSha = null;
-
+  var lastSha = null;
   function el(id){return document.getElementById(id);}
   function esc(s){return String(s==null?"":s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+  function kv(k,v,cls){return '<div class="kv"><span class="k">'+esc(k)+'</span><span class="vl '+(cls||"")+'">'+esc(v)+'</span></div>';}
 
-  // ---- Render superhero cards ----
   function renderHeroes(){
     el("heroes").innerHTML = ORGANS.map(function(o){
-      var bcls = o.badge==="signed"?"signed":"placeholder";
-      var btxt = o.badge==="signed"?"DSSE signed":"placeholder (honest)";
-      return '<div class="hero" id="hero-'+o.k+'">'+
-        '<span class="badge '+bcls+'">'+btxt+'</span>'+
-        '<div class="ic">'+o.ic+'</div>'+
-        '<div class="nm">'+o.nm+'</div>'+
-        '<div class="role">'+o.role+'</div>'+
-        '<div class="st"><span class="d"></span><span class="t">standby</span></div>'+
-        '<div class="lat" id="lat-'+o.k+'"></div>'+
-        '</div>';
+      var b = o.badge==="signed"?["signed","DSSE signed"]:["placeholder","placeholder"];
+      return '<div class="hero" id="hero-'+o.k+'"><span class="badge '+b[0]+'">'+b[1]+'</span>'+
+        '<div class="ic">'+o.ic+'</div><div class="nm">'+o.nm+'</div><div class="role">'+o.role+'</div>'+
+        '<div class="st"><span class="d"></span><span class="t">standby</span></div><div class="lat" id="lat-'+o.k+'"></div></div>';
     }).join("");
   }
   function renderChain(links){
     el("chain").innerHTML = ORGANS.map(function(o){
-      var lk = (links||[]).filter(function(l){return l.organ===o.k;})[0];
-      var v = lk?lk.verdict:"pending";
-      return '<div class="link"><div class="o">'+o.ic+'</div>'+
-        '<div class="n">'+o.nm.split("/")[0]+'</div>'+
-        '<div class="vv '+v+'">'+v+'</div></div>';
+      var lk=(links||[]).filter(function(l){return l.organ===o.k;})[0]; var v=lk?lk.verdict:"pending";
+      return '<div class="link"><div class="o">'+o.ic+'</div><div class="n">'+o.nm+'</div><div class="vv '+v+'">'+v+'</div></div>';
     }).join("");
   }
   function setHero(k,status,latency){
-    var c = el("hero-"+k); if(!c) return;
-    c.className = "hero "+(status==="ok"||status==="allow"?"ok":(status==="block"||status==="red"?"red":"amber"));
-    var t = c.querySelector(".st .t");
-    if(t) t.textContent = status;
-    if(latency!=null){var L=el("lat-"+k); if(L) L.textContent = latency.toFixed(1)+" ms";}
+    var c=el("hero-"+k); if(!c) return;
+    c.className="hero "+(status==="ok"||status==="allow"?"ok":(status==="block"||status==="red"?"red":"amber"));
+    var t=c.querySelector(".st .t"); if(t) t.textContent=status;
+    if(latency!=null){var L=el("lat-"+k); if(L) L.textContent=latency.toFixed(1)+" ms";}
   }
 
-  // ---- Execute mission ----
   function execMission(){
-    var action = el("actsel").value;
-    var btn = el("execBtn");
-    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> executing 4-organ chain…';
-    el("verifyBtn").disabled = true;
-    el("killverdict").className = "v"; el("killverdict").textContent = "running…";
-    ORGANS.forEach(function(o){setHero(o.k,"running…");});
-    renderChain([]);
-    var body = {action:action,
-      payload:{severity:"high",confidence:0.95,target:"fpv7in"},
+    var action=el("actsel").value, btn=el("execBtn");
+    btn.disabled=true; btn.innerHTML='<span class="spin"></span> executing 4-organ chain…'; el("verifyBtn").disabled=true;
+    el("killverdict").className="v"; el("killverdict").textContent="running…";
+    ORGANS.forEach(function(o){setHero(o.k,"running…");}); renderChain([]);
+    var body={action:action,payload:{severity:"high",confidence:0.95,target:"fpv7in"},
       context:{operator_id:"op-yachay",mission_id:"M-"+Date.now().toString().slice(-5),roe:"defensive-only"}};
     fetch(BASE+"/mission/execute",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
-      .then(function(r){return r.json().then(function(j){return {status:r.status,j:j};});})
-      .then(function(res){
-        var j = res.j;
-        var links = (j.aggregated_receipt&&j.aggregated_receipt.chain)||[];
-        renderChain(links);
-        links.forEach(function(l){setHero(l.organ,l.verdict,l.latency_ms);});
-        // organs not in chain (e.g. blocked early) → mark pending
+      .then(function(r){return r.json();})
+      .then(function(j){
+        var links=(j.aggregated_receipt&&j.aggregated_receipt.chain)||[];
+        renderChain(links); links.forEach(function(l){setHero(l.organ,l.verdict,l.latency_ms);});
         ORGANS.forEach(function(o){ if(!links.filter(function(l){return l.organ===o.k;})[0]) setHero(o.k,"—"); });
-        var v = j.verdict||"warn";
-        el("killverdict").className = "v "+v; el("killverdict").textContent = v.toUpperCase();
-        lastReceipt = j.aggregated_receipt; lastSha = j.receipt_sha256;
-        showReceipt(j);
-        el("verifyBtn").disabled = false;
+        var v=j.verdict||"warn"; el("killverdict").className="v "+v; el("killverdict").textContent=v.toUpperCase();
+        lastSha=j.receipt_sha256;
+        var agg=j.aggregated_receipt||{}, sig=(agg.aggregate_signature||"").slice(0,42);
+        var R=el("receipt"); R.style.display="block";
+        R.innerHTML=kv("mission",j.uds_mission_id||"—")+kv("verdict",(j.verdict||"—").toUpperCase())+
+          kv("sha256",j.receipt_sha256||"—","sha")+kv("signed",String(agg.aggregate_signed))+
+          kv("keyid",agg.keyid||"szlholdings-cosign")+kv("sig",sig?sig+"…":"—","sig");
+        el("verifyBtn").disabled=false;
+        if(action==="geofence_check"){ el("gt-class").textContent="checked"; }
       })
       .catch(function(e){ el("killverdict").textContent="error"; el("receipt").style.display="block";
-        el("receipt").innerHTML='<div class="kv"><span class="k">error</span><span class="vl">'+esc(e.message)+'</span></div>'; })
+        el("receipt").innerHTML=kv("error",e.message); })
       .finally(function(){ btn.disabled=false; btn.innerHTML="▶ Execute mission"; });
   }
-  function showReceipt(j){
-    var agg = j.aggregated_receipt||{};
-    var sig = (agg.aggregate_signature||"").slice(0,46)+(agg.aggregate_signature&&agg.aggregate_signature.length>46?"…":"");
-    var r = el("receipt"); r.style.display="block";
-    r.innerHTML =
-      kv("mission id", j.uds_mission_id||"—") +
-      kv("verdict", (j.verdict||"—").toUpperCase()) +
-      kv("receipt sha256", j.receipt_sha256||"—","sha") +
-      kv("aggregate signed", String(agg.aggregate_signed)) +
-      kv("keyid", agg.keyid||"szlholdings-cosign") +
-      kv("signature", sig||"—","sig") +
-      kv("doctrine", j.doctrine||"v11 LOCKED");
-  }
-  function kv(k,v,cls){return '<div class="kv"><span class="k">'+esc(k)+'</span><span class="vl '+(cls||"")+'">'+esc(v)+'</span></div>';}
 
-  // ---- Verify modal ----
   function openVerify(){
-    if(!lastSha) return;
-    el("modal").classList.add("on");
-    el("verifybody").innerHTML = '<p class="mono" style="color:var(--muted);font-size:12px"><span class="spin"></span> verifying receipt '+esc(lastSha.slice(0,16))+'… </p>';
+    if(!lastSha) return; el("modal").classList.add("on");
+    el("verifybody").innerHTML='<p class="mono" style="color:var(--muted)"><span class="spin"></span> verifying '+esc(lastSha.slice(0,16))+'…</p>';
     fetch(BASE+"/receipt/"+lastSha+"/verify").then(function(r){return r.json();}).then(function(v){
-      var okcls = v.verified?"allow":"";
-      var cmd = v.cosign_verify_blob_cmd || "(command unavailable)";
-      el("verifybody").innerHTML =
-        '<span class="verdict-big '+okcls+'">'+(v.verified?'✓ in-process verify: TRUE':'verify: '+v.verified)+'</span>'+
-        '<div class="receipt" style="margin-top:0">'+
-          kv("sha256", v.sha||lastSha,"sha")+
-          kv("keyid", v.keyid_expected||"szlholdings-cosign")+
-          kv("pae sha256", (v.pae_sha256||"").slice(0,40)+"…","sha")+
-          kv("pubkey", v.verify_key_url||"")+
-        '</div>'+
-        '<p class="mono" style="color:var(--muted);font-size:11px;margin:14px 0 6px">Reproduce offline — expected output <span class="ok">Verified OK</span>:</p>'+
-        '<pre>'+esc(cmd)+'</pre>';
+      var cmd=v.cosign_verify_blob_cmd||"(command unavailable)";
+      el("verifybody").innerHTML='<span class="verdict-big '+(v.verified?"allow":"")+'">'+(v.verified?"✓ in-process verify: TRUE":"verify: "+v.verified)+'</span>'+
+        '<div class="receipt" style="margin-top:0">'+kv("sha256",v.sha||lastSha,"sha")+kv("keyid",v.keyid_expected||"szlholdings-cosign")+
+        kv("pae sha256",(v.pae_sha256||"").slice(0,40)+"…","sha")+kv("pubkey",v.verify_key_url||"")+'</div>'+
+        '<p class="mono" style="color:var(--muted);margin:14px 0 6px">Reproduce offline — expected output <span class="ok">Verified OK</span>:</p><pre>'+esc(cmd)+'</pre>';
     }).catch(function(e){ el("verifybody").innerHTML='<pre>'+esc(e.message)+'</pre>'; });
   }
-  function closeVerify(){ el("modal").classList.remove("on"); }
 
-  // ---- Field health + GPU ----
   function loadHealth(){
     fetch(BASE+"/healthz").then(function(r){return r.json();}).then(function(h){
-      var organs = h.organs||{};
-      var rows = ORGANS.map(function(o){
-        var st = (organs[o.k]&&organs[o.k].status)||"—";
-        var lat = organs[o.k]&&organs[o.k].latency_ms!=null?organs[o.k].latency_ms+" ms":(organs[o.k]&&organs[o.k].local?"local":"");
-        var cls = st==="ok"?"ok":(st==="red"?"red":"amber");
-        return '<div class="hero '+cls+'" style="margin-bottom:10px"><div class="ic">'+o.ic+'</div>'+
-          '<div class="nm">'+o.nm+'</div><div class="role">'+o.role+'</div>'+
-          '<div class="st"><span class="d"></span><span class="t">'+st+'</span></div>'+
-          '<div class="lat">'+lat+'</div></div>';
-      }).join("");
-      el("fieldhealth").innerHTML = '<div class="heroes">'+rows+'</div>'+
-        '<p class="honest" style="text-align:center">status: '+esc(h.status)+' · signing: '+esc(String(h.signing_available))+
-        ' · keyid '+esc(h.keyid)+' · '+esc(h.doctrine)+'</p>';
-      // mirror to command center heroes
-      ORGANS.forEach(function(o){ if(organs[o.k]) setHero(o.k, organs[o.k].status); });
-    }).catch(function(e){ el("fieldhealth").innerHTML='<p class="honest">health error: '+esc(e.message)+'</p>'; });
+      var organs=h.organs||{};
+      ORGANS.forEach(function(o){ if(organs[o.k]){ var st=organs[o.k].status; setHero(o.k, st, organs[o.k].latency_ms); } });
+    }).catch(function(){});
   }
   function loadGpu(){
     fetch(BASE+"/gpu/stats").then(function(r){return r.json();}).then(function(g){
-      el("gpuhonest").textContent = g.honesty||"";
-      if(g.gpu_present && g.gpus && g.gpus.length){
-        var u = parseFloat(g.gpus[0].utilization_pct)||0;
-        var memU = parseFloat(g.gpus[0].memory_used_mib)||0, memT = parseFloat(g.gpus[0].memory_total_mib)||1;
-        var memPct = Math.round(memU/memT*100);
-        el("gpumeta").textContent = g.gpus[0].name+" · "+g.gpus[0].temperature_c+"°C · source "+g.source;
-        el("gpubars").innerHTML =
-          bar("GPU utilization", u, u+"%") + bar("VRAM", memPct, memU+" / "+memT+" MiB");
-        el("gpubars").classList.add("on");
-        setTimeout(function(){ var f=document.querySelectorAll("#gpubars .fill"); if(f[0])f[0].style.width=u+"%"; if(f[1])f[1].style.width=memPct+"%"; },60);
-      } else {
-        el("gpumeta").textContent = "no live GPU in this runtime · source "+esc(g.source||"honest-fallback");
-      }
+      el("gpuhonest").textContent=g.honesty||"";
+      if(g.gpu_present&&g.gpus&&g.gpus.length){
+        var u=parseFloat(g.gpus[0].utilization_pct)||0, mU=parseFloat(g.gpus[0].memory_used_mib)||0, mT=parseFloat(g.gpus[0].memory_total_mib)||1;
+        var mp=Math.round(mU/mT*100);
+        el("gpumeta").textContent=g.gpus[0].name+" · "+g.gpus[0].temperature_c+"°C · source "+g.source;
+        el("gpubars").innerHTML=bar("GPU util",u,u+"%")+bar("VRAM",mp,mU+" / "+mT+" MiB");
+        setTimeout(function(){var f=document.querySelectorAll("#gpubars .fill"); if(f[0])f[0].style.width=u+"%"; if(f[1])f[1].style.width=mp+"%";},60);
+      } else { el("gpumeta").textContent="no live GPU in this runtime · source "+esc(g.source||"honest-fallback"); }
     }).catch(function(e){ el("gpumeta").textContent="gpu query error: "+e.message; });
   }
-  function bar(lab,pct,val){return '<div class="bar"><div class="lab"><span>'+esc(lab)+'</span><span>'+esc(val)+'</span></div>'+
-    '<div class="track"><div class="fill"></div></div></div>';}
+  function bar(l,p,v){return '<div class="bar"><div class="lab"><span>'+esc(l)+'</span><span>'+esc(v)+'</span></div><div class="track"><div class="fill"></div></div></div>';}
 
-  // ---- Audit ----
   function loadAudit(){
-    el("auditlist").innerHTML = '<p class="honest"><span class="spin"></span> loading…</p>';
+    el("auditlist").innerHTML='<p class="honest"><span class="spin"></span> loading…</p>';
     fetch(BASE+"/chain/recent").then(function(r){return r.json();}).then(function(d){
-      var items = d.recent||[];
-      if(!items.length){ el("auditlist").innerHTML='<p class="honest">No missions executed in this runtime yet. Run one in Command.</p>'; return; }
-      el("auditlist").innerHTML = items.map(function(it){
-        var chain = (it.chain||[]).map(function(c){return c.icon;}).join(" → ");
-        return '<div class="ccard"><div class="ct">'+esc((it.verdict||"").toUpperCase())+
-          '<span class="ce">'+(it.aggregate_signed?"signed":"unsigned")+'</span></div>'+
-          '<div class="cd mono" style="font-size:11px">'+chain+'</div>'+
-          '<div class="cd mono" style="color:var(--teal);font-size:10.5px;word-break:break-all">'+esc((it.receipt_sha256||"").slice(0,48))+'…</div>'+
-          '<div class="cd mono" style="font-size:10px">'+esc(it.ts||"")+'</div></div>';
+      var items=d.recent||[];
+      if(!items.length){ el("auditlist").innerHTML='<p class="honest">No missions executed in this runtime yet. Run one from Command.</p>'; return; }
+      el("auditlist").innerHTML=items.map(function(it){
+        var chain=(it.chain||[]).map(function(c){return c.icon;}).join(" → ");
+        return '<div class="ccard"><div class="ct">'+esc((it.verdict||"").toUpperCase())+'<span class="ce">'+(it.aggregate_signed?"signed":"unsigned")+'</span></div>'+
+          '<div class="cd mono">'+chain+'</div><div class="cd mono" style="color:var(--teal);word-break:break-all">'+esc((it.receipt_sha256||"").slice(0,44))+'…</div>'+
+          '<div class="cd mono" style="font-size:9px">'+esc(it.ts||"")+'</div></div>';
       }).join("");
     }).catch(function(e){ el("auditlist").innerHTML='<p class="honest">audit error: '+esc(e.message)+'</p>'; });
   }
 
-  // ---- Compliance cards ----
-  var COMPLIANCE = [
-    {nm:"STIG / SCAP scan", ic:"🔍", ep:"/stig/scan-report/registry1.dso.mil%2Fkillinchu%3Av11", m:"GET", d:"DISA STIG / OpenSCAP rules pass/fail (seeded synthetic; honest)."},
-    {nm:"Iron Bank parity", ic:"⚙️", ep:"/iron-bank/parity", m:"GET", d:"Requirement-level parity vs Platform One Iron Bank. Honest gaps."},
-    {nm:"Big Bang lint", ic:"💥", ep:"/big-bang/lint", m:"POST", b:{values:{istio:{enabled:true},pepr:true,monitoring:{enabled:true}}}, d:"Lints values.yaml; fail-WARNING on high-severity gaps."},
-    {nm:"Tradewinds listing", ic:"🛒", ep:"/tradewinds/listing", m:"GET", d:"Marketplace listing data. No awarded-contract claim."},
-    {nm:"CMMC L2 delta", ic:"📋", ep:"/cmmc/delta", m:"GET", d:"NIST 800-171 self-assessment delta. Not a C3PAO assessment."},
-    {nm:"NIST AI RMF map", ic:"🧭", ep:"/nist-ai-rmf/map", m:"GET", d:"GOVERN/MAP/MEASURE/MANAGE control mapping. Λ stays a Conjecture."},
-    {nm:"FedRAMP posture", ic:"🏛️", ep:"/fedramp/posture", m:"GET", d:"FedRAMP Moderate posture. NOT authorized — no ATO."},
-    {nm:"EU AI Act Art. 12", ic:"🇪🇺", ep:"/eu-ai-act/article-12", m:"GET", d:"Record-keeping primitives. Engineering mapping, not a conformity assessment."},
-    {nm:"Pepr admission", ic:"🚧", ep:"/pepr/test-admission", m:"POST", b:{object:{kind:"Pod",spec:{hostNetwork:true,containers:[]},metadata:{labels:{}}}}, d:"Admission decision, fail-CLOSED defaults."},
-    {nm:"Airgap verify-deploy", ic:"✈️", ep:"/airgap/verify-deploy", m:"POST", b:{inventory:[{image:"registry1.dso.mil/killinchu:v11",signed:true}],cluster:"k3d-uds-core"}, d:"Signed-bundle inventory check. Never fail-open."},
-    {nm:"SBOM diff", ic:"📦", ep:"/sbom/diff/v10/v11", m:"GET", d:"Package-level SBOM diff (deterministic given tags)."},
-    {nm:"JADC2 event", ic:"📡", ep:"/jadc2/event", m:"POST", b:{event:{type:"track",mission_id:"jadc2-1"}}, d:"C2 event routed through live 4-organ chain; verdict signed."},
-    {nm:"Rekor cross-verify", ic:"🔗", ep:"/rekor/cross-verify", m:"POST", b:{receipt_sha256:""}, d:"Khipu membership verified; Rekor not_submitted (honest)."},
-    {nm:"Yuyay-Rego compile", ic:"⚖️", ep:"/policy/yuyay-rego", m:"POST", b:{rego:"package x\ndeny[m]{input.priv}\nallow{input.ok}"}, d:"OPA Rego → 13-axis Yuyay constraints (syntactic map)."},
-    {nm:"D3FEND map", ic:"🗺️", ep:"/d3fend/map", m:"GET", d:"SZL primitives → MITRE D3FEND techniques (interpretive)."}
+  var COMPLIANCE=[
+    {nm:"STIG / SCAP scan",ic:"🔍",ep:"/stig/scan-report/registry1.dso.mil%2Fkillinchu%3Av11",m:"GET",d:"DISA STIG / OpenSCAP pass/fail. Defers to UDS-HARDENING real-data when present."},
+    {nm:"Iron Bank parity",ic:"⚙️",ep:"/iron-bank/parity",m:"GET",d:"Requirement-level parity vs Platform One Iron Bank. Honest gaps."},
+    {nm:"Iron Bank check",ic:"🏗️",ep:"/iron-bank/check-image",m:"POST",b:{image:"registry1.dso.mil/ironbank/killinchu:v11"},d:"Hardened-image check; no fabricated PASS."},
+    {nm:"Big Bang lint",ic:"💥",ep:"/big-bang/lint",m:"POST",b:{values:{istio:{enabled:true},pepr:true,monitoring:{enabled:true}}},d:"Lints values.yaml; fail-WARNING on high-severity gaps."},
+    {nm:"Big Bang parity",ic:"🧩",ep:"/big-bang/parity",m:"GET",d:"Feature parity map; Flux GitOps on roadmap (honest)."},
+    {nm:"Tradewinds listing",ic:"🛒",ep:"/tradewinds/listing",m:"GET",d:"Marketplace listing data. No awarded-contract claim."},
+    {nm:"CMMC L2 delta",ic:"📋",ep:"/cmmc/delta",m:"GET",d:"NIST 800-171 self-assessment delta. Not a C3PAO assessment."},
+    {nm:"NIST AI RMF map",ic:"🧭",ep:"/nist-ai-rmf/map",m:"GET",d:"GOVERN/MAP/MEASURE/MANAGE mapping. Λ stays a Conjecture."},
+    {nm:"FedRAMP posture",ic:"🏛️",ep:"/fedramp/posture",m:"GET",d:"FedRAMP Moderate posture. NOT authorized — no ATO."},
+    {nm:"EU AI Act Art.12",ic:"🇪🇺",ep:"/eu-ai-act/article-12",m:"GET",d:"Record-keeping primitives. Engineering mapping, not conformity."},
+    {nm:"Pepr admission",ic:"🚧",ep:"/pepr/test-admission",m:"POST",b:{object:{kind:"Pod",spec:{hostNetwork:true,containers:[]},metadata:{labels:{}}}},d:"Admission decision, fail-CLOSED defaults."},
+    {nm:"Airgap verify-deploy",ic:"✈️",ep:"/airgap/verify-deploy",m:"POST",b:{inventory:[{image:"registry1.dso.mil/killinchu:v11",signed:true}],cluster:"k3d-uds-core"},d:"Signed-bundle inventory check. Never fail-open."},
+    {nm:"SBOM diff",ic:"📦",ep:"/sbom/diff/v10/v11",m:"GET",d:"Package-level SBOM diff (deterministic given tags)."},
+    {nm:"JADC2 event",ic:"📡",ep:"/jadc2/event",m:"POST",b:{event:{type:"track",mission_id:"jadc2-1"}},d:"C2 event routed through the live 4-organ chain; verdict signed."},
+    {nm:"Rekor log",ic:"🪵",ep:"/rekor/log",m:"GET",d:"Khipu private transparency log. Public Rekor not_submitted (honest)."},
+    {nm:"Rekor cross-verify",ic:"🔗",ep:"/rekor/cross-verify",m:"POST",b:{receipt_sha256:""},d:"Khipu membership verified; Rekor not_submitted."},
+    {nm:"Yuyay-Rego compile",ic:"⚖️",ep:"/policy/yuyay-rego",m:"POST",b:{rego:"package x\ndeny[m]{input.priv}\nallow{input.ok}"},d:"OPA Rego → 13-axis Yuyay constraints (syntactic map)."},
+    {nm:"D3FEND map",ic:"🗺️",ep:"/d3fend/map",m:"GET",d:"SZL primitives → MITRE D3FEND techniques (interpretive)."}
   ];
   function renderCompliance(){
-    el("complist").innerHTML = COMPLIANCE.map(function(c,i){
-      return '<div class="ccard"><div class="ct">'+c.ic+' '+esc(c.nm)+'<span class="ce">'+c.m+'</span></div>'+
-        '<div class="cd">'+esc(c.d)+'</div>'+
-        '<button class="btn ghost" data-ci="'+i+'" style="margin-top:11px">Run &amp; sign →</button>'+
-        '<div class="out mono" id="cout-'+i+'"></div></div>';
+    el("complist").innerHTML=COMPLIANCE.map(function(c,i){
+      return '<div class="ccard"><div class="ct">'+c.ic+' '+esc(c.nm)+'<span class="ce">'+c.m+'</span></div><div class="cd">'+esc(c.d)+'</div>'+
+        '<button class="run" data-ci="'+i+'">Run &amp; sign →</button><div class="out mono" id="cout-'+i+'"></div></div>';
     }).join("");
     Array.prototype.forEach.call(document.querySelectorAll("[data-ci]"),function(b){
-      b.addEventListener("click",function(){ runCompliance(parseInt(b.getAttribute("data-ci"),10), b); });
+      b.addEventListener("click",function(){ runCompliance(parseInt(b.getAttribute("data-ci"),10)); });
     });
   }
-  function runCompliance(i, btn){
-    var c = COMPLIANCE[i]; var out = el("cout-"+i);
-    out.classList.add("on"); out.textContent="running…";
-    var opt = {method:c.m, headers:{"Content-Type":"application/json"}};
-    var bodyObj = c.b; if(c.ep==="/rekor/cross-verify" && lastSha){ bodyObj = {receipt_sha256:lastSha}; }
-    if(c.m==="POST") opt.body = JSON.stringify(bodyObj||{});
-    fetch(BASE+c.ep, opt).then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});}).then(function(res){
-      var j = res.j;
-      var signed = j.signed!=null?j.signed:(j.aggregate_signed!=null?j.aggregate_signed:"-");
-      var head = "HTTP "+res.s+" · signed="+signed+"\n";
-      // show a few salient fields + honesty
-      var keys = ["verdict","finding_count","allowed","iron_bank_hardened","score_pct","rules_passed","in_khipu_dag","sigstore_rekor","authorization_status","compliance_posture","honesty"];
-      var lines = keys.filter(function(k){return j[k]!=null;}).map(function(k){return k+": "+(typeof j[k]==="object"?JSON.stringify(j[k]):j[k]);});
-      out.textContent = head + lines.join("\n") + "\nsha256: " + (j.receipt_sha256||"-");
-    }).catch(function(e){ out.textContent = "error: "+e.message; });
+  function runCompliance(i){
+    var c=COMPLIANCE[i], out=el("cout-"+i); out.classList.add("on"); out.textContent="running…";
+    var opt={method:c.m,headers:{"Content-Type":"application/json"}};
+    var bodyObj=c.b; if(c.ep==="/rekor/cross-verify"&&lastSha){ bodyObj={receipt_sha256:lastSha}; }
+    if(c.m==="POST") opt.body=JSON.stringify(bodyObj||{});
+    fetch(BASE+c.ep,opt).then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});}).then(function(res){
+      var j=res.j, signed=j.signed!=null?j.signed:(j.aggregate_signed!=null?j.aggregate_signed:"-");
+      var keys=["verdict","finding_count","allowed","iron_bank_hardened","score_pct","rules_passed","in_khipu_dag","sigstore_rekor","authorization_status","honesty"];
+      var lines=keys.filter(function(k){return j[k]!=null;}).map(function(k){return k+": "+(typeof j[k]==="object"?JSON.stringify(j[k]):j[k]);});
+      out.textContent="HTTP "+res.s+" · signed="+signed+"\n"+lines.join("\n")+"\nsha256: "+(j.receipt_sha256||"-");
+    }).catch(function(e){ out.textContent="error: "+e.message; });
   }
 
-  // ---- Tabs ----
-  function showTab(name){
-    Array.prototype.forEach.call(document.querySelectorAll("section.tab"),function(s){
-      s.classList.toggle("on", s.id==="tab-"+name);
-    });
-    Array.prototype.forEach.call(document.querySelectorAll("nav.tabs button"),function(b){
-      b.setAttribute("aria-selected", b.getAttribute("data-tab")===name?"true":"false");
-    });
-    if(name==="field"){ loadHealth(); loadGpu(); }
-    if(name==="audit"){ loadAudit(); }
-    window.scrollTo(0,0);
+  // Cesium globe (uses the Space's own /cesium bundle; honest fallback if unavailable)
+  function initGlobe(){
+    try{
+      if(typeof Cesium==="undefined"){ throw new Error("Cesium bundle not loaded"); }
+      var viewer=new Cesium.Viewer("cesiumContainer",{
+        baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,
+        animation:false,timeline:false,fullscreenButton:false,infoBox:false,selectionIndicator:false,
+        imageryProvider:new Cesium.TileMapServiceImageryProvider({url:Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII")})
+      });
+      viewer.scene.globe.baseColor=Cesium.Color.fromCssColorString("#0a1422");
+      viewer.scene.skyBox.show=false; viewer.scene.backgroundColor=Cesium.Color.fromCssColorString("#070b14");
+      viewer.scene.globe.showGroundAtmosphere=true;
+      // SIMULATED (seeded) tracks — labeled honest.
+      var seed=[[47.05,35.10,"fpv7in","STRIKE"],[47.91,35.05,"djimavic3","RECON"],[46.50,34.20,"wingloong2","ISR"],[47.10,35.80,"tb2","PATROL"]];
+      seed.forEach(function(t,i){
+        viewer.entities.add({position:Cesium.Cartesian3.fromDegrees(t[1],t[0],1200+i*800),
+          point:{pixelSize:11,color:Cesium.Color.fromCssColorString(i===0?"#d65a5a":"#5cc4bf"),outlineColor:Cesium.Color.fromCssColorString("#d7b96b"),outlineWidth:2},
+          label:{text:t[2]+" · "+t[3],font:"11px JetBrains Mono",fillColor:Cesium.Color.WHITE,style:Cesium.LabelStyle.FILL,
+            verticalOrigin:Cesium.VerticalOrigin.BOTTOM,pixelOffset:new Cesium.Cartesian2(0,-14),showBackground:true,
+            backgroundColor:Cesium.Color.fromCssColorString("rgba(7,11,20,.7)")}});
+      });
+      viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(35.2,47.0,520000),duration:0});
+      el("gt-class").textContent="B"; el("gt-tracks").textContent=seed.length+" simulated (seeded)";
+    }catch(e){
+      el("cesiumContainer").innerHTML='<div class="globe-fallback">🌐 Cesium globe unavailable in this runtime ('+esc(e.message)+').<br>Tracks are SIMULATED (seeded) — honest fallback, no live telemetry.<br>On the 4060 Ti tower the globe renders the airspace picture.</div>';
+    }
   }
 
-  // ---- Wire up ----
-  renderHeroes(); renderChain([]); renderCompliance();
-  el("execBtn").addEventListener("click", execMission);
-  el("verifyBtn").addEventListener("click", openVerify);
-  el("modalov").addEventListener("click", closeVerify);
-  el("refreshAudit").addEventListener("click", loadAudit);
-  Array.prototype.forEach.call(document.querySelectorAll("nav.tabs button"),function(b){
-    b.addEventListener("click", function(){ showTab(b.getAttribute("data-tab")); });
+  function showRail(name){
+    Array.prototype.forEach.call(document.querySelectorAll(".rail-panel"),function(p){p.classList.toggle("on",p.id==="rail-"+name);});
+    Array.prototype.forEach.call(document.querySelectorAll(".rail-tabs button"),function(b){b.setAttribute("aria-selected",b.getAttribute("data-rail")===name?"true":"false");});
+    if(name==="audit") loadAudit();
+  }
+
+  // Wire up
+  renderHeroes(); renderChain([]); renderCompliance(); initGlobe();
+  el("execBtn").addEventListener("click",execMission);
+  el("verifyBtn").addEventListener("click",openVerify);
+  el("modalov").addEventListener("click",function(){el("modal").classList.remove("on");});
+  el("modalx").addEventListener("click",function(){el("modal").classList.remove("on");});
+  el("refreshAudit").addEventListener("click",loadAudit);
+  Array.prototype.forEach.call(document.querySelectorAll(".rail-tabs button"),function(b){
+    b.addEventListener("click",function(){showRail(b.getAttribute("data-rail"));});
   });
-  // initial organ health on load
-  loadHealth();
+  loadHealth(); loadGpu();
+  setInterval(loadHealth,20000);
 })();
 </script>
 </body>

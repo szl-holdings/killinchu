@@ -1,0 +1,103 @@
+# syntax=docker/dockerfile:1
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v12
+#
+# Killinchu — Iron Bank hardened variant (tag :v0.1.0-ironbank). ADDITIVE.
+# The canonical Dockerfile (python:3.12-slim) remains the GREEN fallback.
+#
+# DoD Platform One Iron Bank base. registry1.dso.mil requires Iron Bank pull
+# credentials (Platform One account + robot token). If the build host lacks
+# those credentials, this build will fail at the FROM line — that is the HONEST
+# behaviour. A mirror fallback is documented below; we do NOT vendor a fake
+# "iron bank" image. Founder action required: obtain Iron Bank account
+# (https://p1.dso.mil/) and `docker login registry1.dso.mil`.
+#
+# STIG remediation layer (Part A.4) is applied here so the hardened image scores
+# materially higher under the DISA STIG RHEL9 SCAP profile than the slim base.
+# Real baseline measured by OpenSCAP oscap 1.4.2 against ubi9-minimal:9.4:
+#   baseline score 30.27/100 (154 pass / 130 fail) -> hardened config 33.49/100
+#   (170 pass / 114 fail), 16 rules fail->pass from this hardening layer alone.
+#   Runtime sysctl/service rules lift further once the kernel applies the configs.
+# See .compliance/scap-reports/scan_summary.json for the full real numbers.
+
+# ---- Iron Bank hardened base (Platform One). Pull creds required. ----
+FROM registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4
+
+# Fallback mirror (documented, NOT a fake): if registry1.dso.mil is unreachable
+# in CI, retag from the Red Hat public UBI mirror which is the SAME upstream
+# content Iron Bank hardens on top of:
+#   FROM registry.access.redhat.com/ubi9/ubi-minimal:9.4
+# Iron Bank adds: STIG hardening, FIPS, removed CVEs, VAT approval metadata.
+
+LABEL maintainer="Yachay <yachay@szlholdings.dev>" \
+      org.opencontainers.image.title="killinchu" \
+      org.opencontainers.image.vendor="SZL Holdings" \
+      io.szl.base="iron-bank/ubi9-minimal:9.4" \
+      io.szl.stig.profile="xccdf_org.ssgproject.content_profile_stig" \
+      io.szl.cosign.keyid="szlholdings-cosign"
+
+WORKDIR /app
+
+# Runtime + Python via microdnf (UBI package manager). audit/aide/firewalld/chrony
+# satisfy STIG package_* rules that the slim base failed.
+RUN microdnf install -y python3.12 python3.12-pip ca-certificates shadow-utils \
+      aide audit chrony && \
+    microdnf clean all && rm -rf /var/cache/yum
+
+# ---- STIG image hardening layer (Part A.4) — concrete operations ----
+# 1) login.defs password aging + min length + umask + fail delay
+RUN set -eux; \
+    f=/etc/login.defs; touch $f; \
+    sed -i -E 's/^[[:space:]]*PASS_MAX_DAYS.*/PASS_MAX_DAYS 60/' $f || echo 'PASS_MAX_DAYS 60' >> $f; \
+    grep -q '^PASS_MIN_DAYS' $f || echo 'PASS_MIN_DAYS 1' >> $f; \
+    grep -q '^PASS_MIN_LEN'  $f || echo 'PASS_MIN_LEN 15'  >> $f; \
+    grep -q '^FAIL_DELAY'    $f || echo 'FAIL_DELAY 4'      >> $f; \
+    grep -q '^UMASK'         $f || echo 'UMASK 077'         >> $f
+# 2) umask in shell init files
+RUN for f in /etc/profile /etc/bashrc /etc/csh.cshrc; do touch "$f"; \
+      grep -qi umask "$f" || echo 'umask 077' >> "$f"; done
+# 3) DoD Standard Mandatory Notice & Consent banner
+RUN printf '%s\n' 'You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only.' \
+      | tee /etc/issue /etc/issue.net >/dev/null
+# 4) disable unused kernel modules (modprobe.d)
+RUN for m in atm bluetooth can sctp usb-storage cramfs firewire-core tipc dccp rds; do \
+      printf 'install %s /bin/false\nblacklist %s\n' "$m" "$m" > /etc/modprobe.d/75-stig-$m.conf; done
+# 5) sysctl hardening (applied by kernel at runtime)
+COPY .compliance/sysctl-stig.conf /etc/sysctl.d/75-stig-hardening.conf
+# 6) file permissions on critical /etc config files
+RUN chmod 0644 /etc/passwd /etc/group 2>/dev/null || true; \
+    chmod 0000 /etc/shadow /etc/gshadow 2>/dev/null || true; \
+    chmod 0700 /etc/cron.d 2>/dev/null || true
+# 7) remove SUID/SGID bits from non-essential binaries
+RUN for b in /usr/bin/chage /usr/bin/gpasswd /usr/bin/wall /usr/bin/write /usr/bin/mount /usr/bin/umount; do \
+      [ -e "$b" ] && chmod u-s,g-s "$b" || true; done
+
+# Python dependencies — same real stacks as the canonical image.
+RUN python3.12 -m pip install --no-cache-dir \
+      "fastapi>=0.111.0,<1.0.0" "uvicorn[standard]>=0.29.0,<1.0.0" \
+      "httpx>=0.27.0,<1.0.0" "starlette>=0.37.0" \
+      "pyModeS>=3.3.0,<4.0" "pymavlink>=2.4.40" \
+      "cryptography>=42.0" "dilithium-py>=1.0.0" "lmdb>=1.4.0"
+
+# Application (per-file COPY, mirrors canonical Dockerfile contract).
+COPY static/ ./static/
+COPY serve.py drones_db.json killinchu_protocols.py killinchu_expansion.py \
+     killinchu_naval_haps.py szl_dsse.py szl_provenance.py LEGAL_BOUNDARIES.md \
+     szl_live_wires.py live_wires.html live_wires_3d.js szl_rosie_companion.py \
+     killinchu_szl_pqc_sign.py szl_rekor.py szl_unay.py szl_khipu_lmdb.py \
+     szl_unay_routes.py szl_warhacker_aliases.py killinchu_genius.py \
+     szl_killinchu_cookbook.py killinchu_fusion.py szl_uds_hardening.py ./
+COPY .compliance/ ./.compliance/
+
+# 8) USER non-root (STIG: no container as root)
+RUN useradd -u 10001 -m -s /sbin/nologin killinchu || true
+USER 10001
+
+ENV PORT=7860
+EXPOSE 7860
+
+# 9) HEALTHCHECK (STIG / Iron Bank requirement)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python3.12 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7860/api/killinchu/healthz',timeout=4).status==200 else 1)"
+
+CMD ["python3.12", "serve.py"]

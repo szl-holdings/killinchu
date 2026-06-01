@@ -108,5 +108,13 @@ COPY szl_understudy.py ./szl_understudy.py
 # /v2/pitch route 404s. The vendored data lives under static/cookbook/ (already COPY'd by
 # the `COPY static/ ./static/` line above). Recall receipts sign live via szl_dsse.
 COPY szl_killinchu_cookbook.py ./szl_killinchu_cookbook.py
+# ADDITIVE (UDS HARDENING, 2026-06-01, Yachay): real-data STIG/SCAP + Iron Bank +
+# Big Bang + Tradewinds endpoints under /api/killinchu/uds/v1/*, backed by the
+# committed .compliance/ artifacts (real OpenSCAP oscap output, Dockerfile audit,
+# helm lint inventory). Registered BEFORE killinchu_fusion so its synthetic stubs
+# defer to this real data. Per-file COPY (no `COPY . .`). Sign: Yachay.
+COPY szl_uds_hardening.py ./szl_uds_hardening.py
+COPY .compliance/ ./.compliance/
+COPY killinchu_fusion.py ./killinchu_fusion.py
 COPY serve.py ./serve.py
 CMD ["python", "serve.py"]
