@@ -36,7 +36,7 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
 
 ## What's Deprecated
 
-- **`vessels` (maritime sibling)** — `vessels` is the maritime predecessor to killinchu (maritime track data). The architecture is preserved but `vessels` is not the primary defense flagship. See [vessels/STATUS.md](https://github.com/szl-holdings/vessels/blob/main/STATUS.md).
+- **Earlier track-decoder reference** — an earlier track-decoder reference predates killinchu; its decoder architecture is preserved but it is not the primary defense flagship.
 
 ---
 
