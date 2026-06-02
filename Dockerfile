@@ -134,5 +134,14 @@ COPY .compliance/SECTION_889_REP.md ./.compliance/SECTION_889_REP.md
 COPY .compliance/SLSA_LEVEL.md ./.compliance/SLSA_LEVEL.md
 COPY killinchu_fusion.py ./killinchu_fusion.py
 COPY serve.py ./serve.py
+# ADDITIVE (V4 Fleet Panel, 2026-06-02, Dev2 Inti):
+# explicit per-file COPY (this Dockerfile does not use COPY . .).
+# serve.py registers /api/health + /api/killinchu/v4/fleet + /fleet (szl_v4_fleet).
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY szl_v4_fleet.py ./szl_v4_fleet.py
+COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
+
+
 CMD ["python", "serve.py"]
 
