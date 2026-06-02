@@ -86,7 +86,7 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
     # NOTE: param name is `img` (not `flagship`) so the path string matches the
     # fusion module's pre-registered "/stig/scan-report/{img}" exactly and its
     # synthetic stub DEFERS to this real-data route via _claim().
-    @app.get(base + "/stig/scan-report/{img}")
+    @app.get(base + "/stig/scan-report/{img:path}")
     async def uds_stig_report(img: str) -> JSONResponse:
         flagship = img
         summ = _load("scap-reports/scan_summary.json")
@@ -133,9 +133,18 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         return JSONResponse(_sign(result))
     registered.append(base + "/stig/scan-report/{img}")
 
-    # ---- Iron Bank parity REMOVED (P0 CTO REJECT B1 — Charter §24 NO Iron Bank) ----
-    # Route GET /api/killinchu/uds/v1/iron-bank/parity deleted by Dev1 Rumi.
-    # iron_bank_parity.json remains in repo as reference; NOT served at runtime.
+    # ---- Iron Bank parity (real Dockerfile audit) ----
+    # CHARTER VIOLATION REMOVED: iron-bank/parity (NO Iron Bank rule)
+    # Signed-off-by: Yachay <yachay@szlholdings.ai>
+    # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+    if False:  # Charter: NO Iron Bank — route disabled
+        async def uds_iron_bank_parity() -> JSONResponse:
+            data = _load("iron_bank_parity.json")
+            if data is None:
+                data = {"kind": "uds.iron-bank.parity", "available": False,
+                        "honesty": "iron_bank_parity.json not found in .compliance/."}
+            return JSONResponse(_sign(data))
+        registered.append(base + "/iron-bank/parity")  # REMOVED
 
     # ---- Big Bang parity (real helm lint + render inventory) ----
     @app.get(base + "/big-bang/parity")
@@ -159,6 +168,29 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         return JSONResponse(_sign(data))
     registered.append(base + "/tradewinds/listing")
 
+    # ---- CMMC L2 delta (NIST 800-171, 110 controls) — ADDITIVE (COMPLIANCE PACKETS, Yachay) ----
+    # CHARTER VIOLATION REMOVED: cmmc/delta (NO CMMC rule)
+    # Signed-off-by: Yachay <yachay@szlholdings.ai>
+    # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+    if False:  # Charter: NO CMMC — route disabled
+        async def uds_cmmc_delta() -> JSONResponse:
+            data = _load("cmmc_delta.json")
+            if data is None:
+                data = {"kind": "uds.cmmc.delta", "available": False,
+                        "honesty": "cmmc_delta.json not found in .compliance/."}
+            return JSONResponse(_sign(data))
+        registered.append(base + "/cmmc/delta")  # REMOVED
+
+    # ---- FedRAMP Moderate posture (NIST 800-53, 325 controls) — ADDITIVE (COMPLIANCE PACKETS) ----
+    @app.get(base + "/fedramp/posture")
+    async def uds_fedramp_posture() -> JSONResponse:
+        data = _load("fedramp_posture.json")
+        if data is None:
+            data = {"kind": "uds.fedramp.posture", "available": False,
+                    "honesty": "fedramp_posture.json not found in .compliance/."}
+        return JSONResponse(_sign(data))
+    registered.append(base + "/fedramp/posture")
+
     # ---- Hardening index (manifest of every real artifact) ----
     @app.get(base + "/hardening/index")
     async def uds_hardening_index() -> JSONResponse:
@@ -177,4 +209,3 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
     return {"module": "szl_uds_hardening", "registered_count": len(registered),
             "registered": registered, "flagships": _FLAGSHIPS,
             "signing": bool(_dsse and _dsse.signing_available())}
-
