@@ -1,0 +1,59 @@
+# SZL Holdings — Killinchu Zarf package
+# Authored by: Operationalize Sweep · Yachay CTO 2026-06-03
+# Doctrine: v11 LOCKED 749/14/163 · Lambda = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# Build:   zarf package create deploy/ --confirm
+# Deploy:  zarf package deploy zarf-package-killinchu-amd64-uds-v0.3.1-rc.1.tar.zst --confirm
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+kind: ZarfPackageConfig
+metadata:
+  name: killinchu
+  version: uds-v0.3.1-rc.1
+  description: |
+    Killinchu — Andean Drone Intelligence / Counter-UAS Operator Surface.
+    Formally-verified C-UAS rule engine. Decodes OpenDroneID/ASTM F3411-22a,
+    ADS-B Mode-S 1090ES, MAVLink. Applies 13-axis Lambda-gate geofence + governance.
+    Issues DSSE Khipu receipts. Drone telemetry + intercept + fleet-state surfaces.
+    Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem).
+    SLSA L1 honest. NO Iron Bank.
+  url: https://github.com/szl-holdings/killinchu
+  authors: "Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings"
+  architecture: amd64
+
+components:
+  - name: killinchu-runtime
+    required: true
+    description: Killinchu C-UAS runtime + drone telemetry surface.
+    images:
+      - ghcr.io/szl-holdings/killinchu:uds-v0.3.1-rc.1
+      - ghcr.io/szl-holdings/killinchu:v1.0.0-alpha
+    manifests:
+      - name: killinchu
+        namespace: killinchu
+        files:
+          - manifests/killinchu-namespace.yaml
+          - manifests/killinchu-deployment.yaml
+          - manifests/killinchu-service.yaml
+
+  - name: killinchu-drone-surfaces
+    required: true
+    description: |
+      Drone-facing endpoints: /api/killinchu/drone/{telemetry,intercept,cued-tracks,fleet-state}.
+      UDS-deployable counter-UAS operator surface per Track C operationalize mandate.
+    files:
+      - source: killinchu_drone_routes.py
+        target: /app/killinchu_drone_routes.py
+        executable: false
+
+  - name: killinchu-peat-node
+    required: false
+    description: peat-node CRDT mesh sidecar for killinchu drone-intel telemetry documents.
+    manifests:
+      - name: killinchu-peat
+        namespace: killinchu
+        files:
+          - peat-node.yaml
