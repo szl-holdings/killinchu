@@ -40,12 +40,12 @@ UDS PAIN-POINT ENDPOINTS (every issue UDS faces, real signed responses):
     POST /api/killinchu/uds/v1/airgap/verify-deploy   signed bundle inventory check
     GET  /api/killinchu/uds/v1/sbom/diff/{old}/{new}  package-level SBOM diff
     POST /api/killinchu/uds/v1/pepr/test-admission    Pepr admission (fail-CLOSED)
-    POST /api/killinchu/uds/v1/iron-bank/check-image  Iron Bank hardened check (honest)
+    # POST /api/killinchu/uds/v1/iron-bank/check-image  REMOVED (CTO REJECT B1)
     GET  /api/killinchu/uds/v1/stig/scan-report/{img} STIG/SCAP scan report
     GET  /api/killinchu/uds/v1/big-bang/parity        SZL chart vs Big Bang reference
     POST /api/killinchu/uds/v1/jadc2/event            JADC2 C2 event → 4-organ verdict
     GET  /api/killinchu/uds/v1/tradewinds/listing     Tradewinds Marketplace listing
-    GET  /api/killinchu/uds/v1/cmmc/delta             CMMC L2 self-assessment delta
+    # GET  /api/killinchu/uds/v1/cmmc/delta             REMOVED (CTO REJECT B2)
     GET  /api/killinchu/uds/v1/nist-ai-rmf/map        NIST AI RMF control mapping
     POST /api/killinchu/uds/v1/rekor/cross-verify     Khipu↔Rekor cross-verify (honest)
 
@@ -814,17 +814,8 @@ def _register_uds_endpoints(app, base, registered, _body, _port, _claim=None):
         return JSONResponse(_signed(result))
     registered.append(f"{base}/pepr/test-admission")
 
-    @app.post(f"{base}/iron-bank/check-image")
-    async def uds_iron_bank(request: Request) -> JSONResponse:
-        b = await _body(request); image = b.get("image", "")
-        is_ib = "registry1.dso.mil" in image or "ironbank" in image.lower()
-        result = {"kind": "uds.iron-bank.check", "image": image, "iron_bank_hardened": is_ib,
-                  "verdict": "allow" if is_ib else "warn",
-                  "honesty": (("Image references registry1.dso.mil — Iron Bank hardened." if is_ib
-                               else "NOT Iron Bank, but signed with szlholdings-cosign and SBOM-attested. "
-                                    "Honest status — no fabricated Iron Bank PASS."))}
-        return JSONResponse(_signed(result))
-    registered.append(f"{base}/iron-bank/check-image")
+    # POST /api/killinchu/uds/v1/iron-bank/check-image REMOVED
+    # (P0 CTO REJECT B1 — Charter §24 NO Iron Bank — Dev1 Rumi)
 
     @app.get(f"{base}/stig/scan-report/{{img}}")
     async def uds_stig_report(img: str) -> JSONResponse:
@@ -876,20 +867,8 @@ def _register_uds_endpoints(app, base, registered, _body, _port, _claim=None):
         return JSONResponse(_signed(result))
     registered.append(f"{base}/tradewinds/listing")
 
-    @app.get(f"{base}/cmmc/delta")
-    async def uds_cmmc_delta() -> JSONResponse:
-        result = {"kind": "uds.cmmc.delta", "level": "CMMC 2.0 Level 2 (110 controls / NIST SP 800-171)",
-                  "satisfied": [
-                      {"control": "AC.L2-3.1.1", "status": "satisfied", "evidence": "DSSE-signed access receipts"},
-                      {"control": "AU.L2-3.3.1", "status": "satisfied", "evidence": "Khipu append-only audit DAG"},
-                      {"control": "IA.L2-3.5.3", "status": "satisfied", "evidence": "cosign keyid szlholdings-cosign"},
-                      {"control": "SI.L2-3.14.1", "status": "satisfied", "evidence": "Sentra immune filter gate"}],
-                  "gaps": [
-                      {"control": "PE.L2-3.10.1", "status": "gap", "note": "physical access controls — out of software scope"},
-                      {"control": "MP.L2-3.8.3", "status": "gap", "note": "media sanitization — operational, not in-Space"}],
-                  "honesty": "Self-assessment delta. Not a C3PAO assessment. Gaps stated honestly."}
-        return JSONResponse(_signed(result))
-    registered.append(f"{base}/cmmc/delta")
+    # GET /api/killinchu/uds/v1/cmmc/delta REMOVED
+    # (P0 CTO REJECT B2 — Charter §24 NO CMMC — Dev1 Rumi)
 
     @app.get(f"{base}/nist-ai-rmf/map")
     async def uds_nist_ai_rmf() -> JSONResponse:
@@ -925,22 +904,8 @@ def _register_uds_endpoints(app, base, registered, _body, _port, _claim=None):
     # REKOR, GPU SUBSTRATE) may own these exact paths; _claim() ensures whoever
     # registers first wins and we never double-register.
 
-    @app.get(f"{base}/iron-bank/parity")
-    async def uds_iron_bank_parity() -> JSONResponse:
-        result = {"kind": "uds.iron-bank.parity",
-                  "iron_bank_reference": "https://registry1.dso.mil (Platform One Iron Bank)",
-                  "szl_image": "szl-holdings/killinchu (HF Space / Helm)",
-                  "parity": [
-                      {"requirement": "Hardened base image (UBI/distroless)", "iron_bank": True, "szl": "roadmap"},
-                      {"requirement": "Cosign image signature", "iron_bank": True, "szl": True},
-                      {"requirement": "SBOM attestation", "iron_bank": True, "szl": True},
-                      {"requirement": "CVE scan (Anchore/Twistlock)", "iron_bank": True, "szl": "STIG/SCAP synthetic"},
-                      {"requirement": "Approval workflow / VAT", "iron_bank": True, "szl": False},
-                      {"requirement": "DSSE 4-organ aggregate receipt", "iron_bank": False, "szl": True}],
-                  "honesty": ("Requirement-level parity map vs Iron Bank. Hardened base + VAT approval are "
-                              "honest gaps (roadmap). No fabricated Iron Bank accreditation claimed.")}
-        return JSONResponse(_signed(result))
-    registered.append(f"{base}/iron-bank/parity")
+    # GET /api/killinchu/uds/v1/iron-bank/parity REMOVED (duplicate; also removed from szl_uds_hardening.py)
+    # (P0 CTO REJECT B1 — Charter §24 NO Iron Bank — Dev1 Rumi)
 
     @app.post(f"{base}/big-bang/lint")
     async def uds_big_bang_lint(request: Request) -> JSONResponse:
@@ -1127,3 +1092,4 @@ def _register_innovation_endpoints(app, base, registered, _body, _claim=None):
                   "honesty": "SZL primitives mapped to D3FEND techniques. Mapping is interpretive, not MITRE-endorsed."}
         return JSONResponse(_signed(result))
     registered.append(f"{base}/d3fend/map")
+
