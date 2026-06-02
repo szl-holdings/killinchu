@@ -109,7 +109,7 @@ LEAN_SHA = "86d9fb2c"
 AGG_PAYLOAD_TYPE = "application/vnd.szl.uds.aggregate+json"
 DEFENSE_UNICORNS_NOTICE = (
     "Killinchu / UDS Edition — independent SZL Holdings work referencing Defense "
-    "Unicorns' Unicorn Delivery Service (USPTO Serial 99831126). SZL Holdings is "
+    "Unicorns' Unicorn Delivery Service (USPTO Serial 99831122). SZL Holdings is "
     "not affiliated with Defense Unicorns. SZL contributions to the UDS ecosystem "
     "are made through upstream PRs only. See: https://defenseunicorns.com/uds"
 )
