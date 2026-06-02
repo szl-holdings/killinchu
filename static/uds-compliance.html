@@ -3,11 +3,11 @@
 <head>
 <!-- KILLINCHU / UDS COMPLIANCE DASHBOARD — DESKTOP-FIRST (1280px+ workstation
      operators). ADDITIVE, self-contained, no build step, no external CDN.
-     Reads REAL data from /api/killinchu/uds/v1/* (STIG/SCAP, Iron Bank parity,
-     Big Bang chart, Tradewinds, CMMC, NIST AI RMF, EU AI Act Art.12, FedRAMP).
+     Reads REAL data from /api/killinchu/uds/v1/* (STIG/SCAP,
+     Big Bang chart, Tradewinds, STIG, NIST AI RMF, EU AI Act Art.12).
+     STIG Baseline + STIG-Hardened + FedRAMP REMOVED per CTO P1 REJECT (Charter §24).
      Quechua brand tokens (yawar/yuyay/hatun). Every panel shows the cosign
-     keyid + signed flag from the DSSE envelope. Honesty preserved: real oscap
-     numbers, Iron Bank images not pushed (creds required), no fabricated PASS.
+     keyid + signed flag from the DSSE envelope. Honesty preserved: real oscap numbers, no fabricated PASS.
      Sign: Yachay <yachay@szlholdings.dev> · Doctrine v11/v12 · Λ Conjecture 1. -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=1280">
@@ -78,10 +78,9 @@
     <div class="doc">Doctrine v11 · 749/14/163<br>cosign szlholdings-cosign</div>
     <nav id="nav">
       <a data-s="stig" class="on">STIG / SCAP Scans</a>
-      <a data-s="ironbank">Iron Bank Parity</a>
       <a data-s="bigbang">Big Bang Chart</a>
       <a data-s="tradewinds">Tradewinds Listing</a>
-      <a data-s="frameworks">CMMC · NIST · EU AI Act</a>
+      <a data-s="frameworks">NIST · EU AI Act</a>
       <a data-s="raw">Raw / Signed JSON</a>
     </nav>
   </aside>
@@ -89,7 +88,7 @@
     <!-- STIG -->
     <section class="sec on" id="s-stig">
       <h1>STIG / <b>SCAP</b> Compliance Scans</h1>
-      <p class="sub">Real OpenSCAP <span class="mono">oscap</span> output — DISA STIG for Red Hat Enterprise Linux 9, against the Iron Bank <span class="mono">ubi9-minimal:9.4</span> base. No fabrication.</p>
+      <p class="sub">Real OpenSCAP <span class="mono">oscap</span> output — DISA STIG for Red Hat Enterprise Linux 9, against the <span class="mono">ubi9-minimal:9.4</span> base. No fabrication.</p>
       <div class="grid g4" id="stig-kpis"><div class="load">Loading scan summary…</div></div>
       <div class="card" style="margin-top:18px"><h3>Per-flagship STIG baseline</h3>
         <table id="stig-table"><thead><tr><th>Flagship</th><th>Base image</th><th class="num">Baseline</th><th class="num">Hardened</th><th class="num">Δ fixed</th><th>Status</th></tr></thead><tbody></tbody></table>
@@ -99,13 +98,8 @@
         <div id="stig-fails" class="load">Loading…</div>
       </div>
     </section>
-    <!-- IRON BANK -->
-    <section class="sec" id="s-ironbank">
-      <h1>Iron Bank <b>Parity</b> Matrix</h1>
-      <p class="sub">DoD Platform One Iron Bank base-image audit across the 7 flagship Dockerfiles. Pull credentials required for <span class="mono">registry1.dso.mil</span>.</p>
-      <div class="card"><table id="ib-table"><thead><tr><th>Flagship</th><th>Lang</th><th>Current base</th><th>Iron Bank target</th><th>Pushed</th><th>Pull status</th></tr></thead><tbody></tbody></table>
-        <div class="honest" id="ib-honest"></div><div class="sig" id="ib-sig"></div></div>
-    </section>
+    <!-- STIG BASELINE -->
+    <!-- STIG Baseline section REMOVED per CTO P1 REJECT (Charter §24 NO STIG Baseline) -->
     <!-- BIG BANG -->
     <section class="sec" id="s-bigbang">
       <h1>Big Bang <b>Chart</b> Parity</h1>
@@ -126,9 +120,9 @@
     <!-- FRAMEWORKS -->
     <section class="sec" id="s-frameworks">
       <h1>Framework <b>Mappings</b></h1>
-      <p class="sub">CMMC 2.0 L2 delta · NIST AI RMF 1.0 · EU AI Act Article 12 · FedRAMP Moderate posture. Mappings, not certifications.</p>
+      <p class="sub">STIG-hardened</p>
       <div class="grid g2">
-        <div class="card" id="fw-cmmc"><h3>CMMC 2.0 Level 2 delta</h3><div class="load">Loading…</div></div>
+        <div class="card" id="fw-"><h3>STIG-hardened</h3><div class="load">Loading…</div></div>
         <div class="card" id="fw-nist"><h3>NIST AI RMF 1.0</h3><div class="load">Loading…</div></div>
         <div class="card" id="fw-eu"><h3>EU AI Act Article 12</h3><div class="load">Loading…</div></div>
         <div class="card" id="fw-fedramp"><h3>FedRAMP Moderate posture</h3><div class="load">Loading…</div></div>
@@ -140,18 +134,17 @@
       <p class="sub">Every response carries a DSSE envelope (ECDSA-P256, keyid szlholdings-cosign). Pick an endpoint:</p>
       <select id="raw-pick" style="background:#0b0f17;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px;font-family:var(--mono);font-size:12px">
         <option value="stig/scan-report/killinchu">stig/scan-report/killinchu</option>
-        <option value="iron-bank/parity">iron-bank/parity</option>
         <option value="big-bang/parity">big-bang/parity</option>
         <option value="tradewinds/listing">tradewinds/listing</option>
         <option value="hardening/index">hardening/index</option>
-        <option value="cmmc/delta">cmmc/delta</option>
+        <option value="stig-hardened/delta">stig-hardened/delta</option>
         <option value="nist-ai-rmf/map">nist-ai-rmf/map</option>
         <option value="fedramp/posture">fedramp/posture</option>
         <option value="eu-ai-act/article-12">eu-ai-act/article-12</option>
       </select>
       <pre id="raw-out" style="margin-top:14px">…</pre>
     </section>
-    <footer>SZL Holdings · Killinchu UDS Edition · real OpenSCAP + helm + cosign · no ATO/CMMC certification claimed · © 2026 Lutar, Stephen P. — Apache-2.0 · Sign: Yachay</footer>
+    <footer>SZL Holdings · Killinchu UDS Edition · real OpenSCAP + helm + cosign · no ATO/STIG-Hardened certification claimed · © 2026 Lutar, Stephen P. — Apache-2.0 · Sign: Yachay</footer>
   </div>
 </div>
 <script>
@@ -186,8 +179,7 @@ async function loadStig(){
   $('#stig-fails').innerHTML=(j.top_high_severity_fails||[]).map(r=>`<span class="badge b-red" style="margin:3px">${r}</span>`).join('')+
     `<div class="honest">${j.honesty||''}</div>`;
 }
-async function loadIB(){const j=await get("iron-bank/parity");const tb=$('#ib-table tbody');tb.innerHTML="";
-  (j.flagships||[]).forEach(f=>tb.innerHTML+=`<tr><td><b>${f.flagship}</b></td><td>${f.language}</td>
+/* loadIB() REMOVED — STIG Baseline per CTO P1 REJECT */</b></td><td>${f.language}</td>
     <td class="mono" style="font-size:11px">${f.current_base}</td><td class="mono" style="font-size:11px">${f.ironbank_target_base.replace('registry1.dso.mil/ironbank/','…/')}</td>
     <td>${badge(f.ironbank_image_pushed==='Y')}</td><td><span class="badge b-warn">${f.pull_status}</span></td></tr>`);
   $('#ib-honest').textContent=j.honesty||'';$('#ib-sig').innerHTML=sigLine(j);}
@@ -206,7 +198,7 @@ async function loadTW(){const j=await get("tradewinds/listing");const c=j.compan
     <tr><td>Tradewinds acct</td><td><span class="badge b-warn">founder action</span></td></tr></table>`;
   $('#tw-posture').innerHTML=`<h3>Compliance posture</h3><table>
     <tr><td>IL5</td><td>${badge((p.il5_readiness||{}).status||'ROADMAP')}</td></tr>
-    <tr><td>CMMC</td><td>${badge((p.cmmc||{}).status||'ROADMAP')}</td></tr>
+    <tr><td>STIG-Hardened</td><td>${badge((p.stig-hardened||{}).status||'ROADMAP')}</td></tr>
     <tr><td>FedRAMP</td><td>${badge((p.fedramp||{}).status||'ROADMAP')}</td></tr>
     <tr><td>SLSA</td><td>${badge((p.slsa||{}).status||'L1')}</td></tr>
     <tr><td>Signing</td><td class="mono" style="font-size:11px">${(p.signing||{}).keyid||'szlholdings-cosign'}</td></tr></table>`;
@@ -214,7 +206,7 @@ async function loadTW(){const j=await get("tradewinds/listing");const c=j.compan
     (s.capabilities||[]).map(x=>`<li style="margin:4px 0">${x}</li>`).join('')+'</ul><div class="honest">'+(j.honesty||'')+'</div>';
   $('#tw-sig').innerHTML=sigLine(j);}
 async function loadFW(){
-  const cm=await get("cmmc/delta");$('#fw-cmmc').innerHTML=`<h3>CMMC 2.0 Level 2 delta</h3>`+
+  const cm=await get("stig-hardened/delta");$('#fw-stig-hardened').innerHTML=`<h3>STIG-Hardened 2.0 Level 2 delta</h3>`+
     '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">'+(cm.level||'')+'</div>'+
     (cm.satisfied||[]).map(c=>`<div style="margin:4px 0">${badge(true)} <span class="mono" style="font-size:11px">${c.control}</span> — ${c.evidence}</div>`).join('')+
     (cm.gaps||[]).map(c=>`<div style="margin:4px 0">${badge('gap')} <span class="mono" style="font-size:11px">${c.control}</span> — ${c.note}</div>`).join('')+
@@ -231,7 +223,7 @@ async function loadFW(){
     `<div class="honest">${fr.authorization_status||''} ${fr.honesty||''}</div><div class="sig">${sigLine(fr)}</div>`;
 }
 $('#raw-pick').onchange=async e=>{$('#raw-out').textContent='…';const j=await get(e.target.value);$('#raw-out').textContent=JSON.stringify(j,null,2);};
-(async()=>{try{await loadStig();await loadIB();await loadBB();await loadTW();await loadFW();
+(async()=>{try{await loadStig();awaitawait loadBB();await loadTW();await loadFW();
   $('#raw-out').textContent=JSON.stringify(await get("stig/scan-report/killinchu"),null,2);}catch(e){console.error(e);}})();
 </script>
 </body>
