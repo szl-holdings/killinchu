@@ -1,0 +1,91 @@
+# deploy/peat-node.yaml — killinchu peat-node CRDT mesh participation
+# Authored by: Operationalize Sweep · Yachay CTO 2026-06-03
+# Doctrine: v11 LOCKED 749/14/163 · Lambda = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# peat-node sidecar: Rust binary that runs alongside killinchu in Kubernetes pods,
+# participates as a full CRDT mesh node (Automerge + Iroh QUIC),
+# and exposes gRPC API on localhost:50051.
+#
+# Killinchu-specific mesh documents:
+#   szl/killinchu/drone-fleet     — LWW drone fleet state (5 friendly KESTREL drones)
+#   szl/killinchu/threat-tracks   — GrowOnlyLog of C-UAS threat tracks
+#   szl/killinchu/intercept-log   — GrowOnlyLog of DSSE intercept receipts
+#
+# References:
+#   peat-node: https://github.com/defenseunicorns/peat-node
+#   peat-node BRIEF: szl-ingest/specs/peat-node_BRIEF.md
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+apiVersion: peat.dev/v1
+kind: Node
+metadata:
+  name: killinchu-node
+  namespace: killinchu
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-locked: "749/14/163"
+    szl.io/lean-sha: "c7c0ba17"
+    szl.io/lambda-status: "Conjecture 1 — NOT a theorem"
+    szl.io/slsa-level: "L1"
+    szl.io/no-iron-bank: "true"
+    szl.io/role: "counter-uas-operator-surface"
+spec:
+  image: ghcr.io/szl-holdings/killinchu:v1.0.0-alpha
+  port: 7860
+  role: "counter-uas-drone-intelligence"
+  capabilities:
+    - "crdt-mesh-participant"
+    - "receipt-substrate"
+    - "drone-telemetry-emitter"
+    - "counter-uas-gate"
+    - "wire-d-rosie-sync"
+    - "khipu-intercept-log"
+  transport: "iroh-quic"
+  mesh:
+    grpcPort: 50051
+    documentNamespace: "szl/killinchu"
+    documents:
+      - name: "drone-fleet"
+        type: "LWWRegister"
+        description: "Killinchu drone fleet state — 5 KESTREL friendly drones"
+      - name: "threat-tracks"
+        type: "GrowOnlyLog"
+        description: "C-UAS threat tracks — cued threats from sensor fusion"
+      - name: "intercept-log"
+        type: "GrowOnlyLog"
+        description: "DSSE intercept receipt log — all issued intercept actions"
+      - name: "proof-state"
+        type: "LWWRegister"
+        description: "Lambda proof state — Conjecture 1 milestone tracking"
+      - name: "doctrine-version"
+        type: "LWWRegister"
+        description: "Active doctrine version (v11 LOCKED)"
+  env:
+    - name: SZL_DOCTRINE_VERSION
+      value: "v11"
+    - name: SZL_LEAN_SHA
+      value: "c7c0ba17"
+    - name: SZL_FLAGSHIP
+      value: "killinchu"
+    - name: SZL_ROLE
+      value: "counter-uas-drone-intelligence"
+    - name: PEAT_GRPC_PORT
+      value: "50051"
+    - name: SZL_DRONE_FLEET_DOC
+      value: "szl/killinchu/drone-fleet"
+    - name: SZL_THREAT_TRACKS_DOC
+      value: "szl/killinchu/threat-tracks"
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 7860
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 3
+  cosign:
+    keyRef: killinchu-cosign
+    certificateIdentityRegexp: "https://github.com/szl-holdings/killinchu/.github/workflows/zarf-build-and-sign.yml.*"
+    certificateOIDCIssuer: "https://token.actions.githubusercontent.com"
