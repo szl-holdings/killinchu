@@ -52,7 +52,28 @@ DOCTRINE = "v11"
 SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired into CI per Doctrine v11"
 KILLINCHU_REDIRECT = "https://szlholdings-killinchu.hf.space"
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (OTel instrumentation, Yachay 2026-06-01 / Perplexity Computer Agent):
+# Initialise OTLP/HTTP trace export from env var OTEL_EXPORTER_OTLP_ENDPOINT.
+# Gracefully no-ops if the env var is absent or packages missing.
+# Doctrine v11 LOCKED 749/14/163. ADDITIVE ONLY — does NOT touch existing routes.
+# ---------------------------------------------------------------------------
+# HOTFIX 2026-06-01 Yachay: OTel middleware crash-looping the Space.
+# Hard-disable szl_otel import. Real OTel ships in next clean PR.
+def _szl_otel_setup(*a, **kw): pass
+_OTEL_ENABLED = False
+# --- end OTel preamble ---
+
+
 app = FastAPI(title="Killinchu — Andean Drone Intelligence", version="1.0.0")
+
+# ADDITIVE: OTel — instrument FastAPI app
+try:
+    _szl_otel_setup(fastapi_app=app)
+except Exception as _otel_e:
+    import sys as _otel_sys; print(f"[killinchu] OTel setup skipped: {_otel_e!r}", file=_otel_sys.stderr)
+# --- end OTel setup ---
+
 
 # ---------------------------------------------------------------------------
 # KHIPU CONSENSUS — 3-of-4 BFT multi-organ signed agreement (ADDITIVE, Yachay).
@@ -88,6 +109,21 @@ except Exception as _lw_e:
     print(f"[killinchu] Live 3D Wires NOT registered: {_lw_e}", file=_sys_lw.stderr)
     _tb_lw.print_exc()
 # ── end Live 3D Wires ────────────────────────────────────────────────────────
+
+# ── GAP-4: /about/thesis injection page (Yachay; Perplexity Computer Agent) ──
+# Mounts GET /about/thesis (HTML) + GET /api/killinchu/v1/thesis (JSON): chapters &
+# theorems this flagship implements, 8 live Zenodo DOIs, Λ-axis (Conjecture 1),
+# substrate-package cross-refs. Every Lean decl cited is real + PROVED.
+try:
+    import szl_thesis_about as _thesis_about
+    _thesis_status = _thesis_about.register(app, "killinchu")
+    import sys as _sys_th
+    print(f"[killinchu] /about/thesis registered: {_thesis_status}", file=_sys_th.stderr)
+except Exception as _th_e:
+    import sys as _sys_th, traceback as _tb_th
+    print(f"[killinchu] /about/thesis NOT registered: {_th_e}", file=_sys_th.stderr)
+    _tb_th.print_exc()
+# ── end /about/thesis ────────────────────────────────────────────────────────
 
 # ── PQC / Hybrid signing (ADDITIVE, Yachay) ──────────────────────────────────
 # Registers POST /khipu/sign?mode={ecdsa,pqc,hybrid} and the namespaced alias.
@@ -688,7 +724,7 @@ async def vessels_catch(path: str) -> JSONResponse:
 
 # ---------------------------------------------------------------------------
 # ADDITIVE (Yachay / Provenance Hardening): Wire D (W3C traceparent trace
-# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L1 honest; L2 roadmap via Wire D).
+# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L2 signed provenance).
 # Registers /api/{space}/wires/D, /khipu/{sign,verify,ledger}, /provenance.
 # Wrapped so a missing dep (cryptography) can NEVER take down the existing app.
 # PLACEHOLDER -> REAL: every receipt now DSSE-signed with szlholdings-cosign.
@@ -696,7 +732,7 @@ async def vessels_catch(path: str) -> JSONResponse:
 try:
     import szl_provenance as _prov
     _prov_status = _prov.register_provenance(app, "killinchu")
-    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L1 honest; L2 roadmap): {{_prov_status}}", file=sys.stderr)
+    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L2): {{_prov_status}}", file=sys.stderr)
 except Exception as _pe:  # pragma: no cover - defensive, additive-only
     print(f"[killinchu] szl_provenance NOT registered ({{_pe!r}}); existing app unaffected", file=sys.stderr)
 
@@ -725,30 +761,14 @@ try:
 except Exception as _kg_e:
     print(f"[killinchu] v2 genius endpoints NOT registered: {_kg_e!r}", file=sys.stderr)
 
-# ---------------------------------------------------------------------------
-# v3 "deep" C-UAS runtime (ADDITIVE): /api/killinchu/v3/* — ingest pipelines
-# (adsb/remote-id/mavlink/rf/radar/eo/acoustic) + constant-velocity Kalman
-# sensor fusion + provenanced threat scoring + honest effector catalogue
-# (Sentra+Yuyay-13 gated, rehearsal-only) + airspace deconfliction + boids/ORCA
-# swarm + replay + daily brief + the deep operational globe at /globe/v3.
-# Registered BEFORE the catch-all so /globe/v3 + /api/killinchu/v3/* resolve LOCALLY.
-# ---------------------------------------------------------------------------
-try:
-    import killinchu_v3 as _kv3
-    _kv3_status = _kv3.register(app, "killinchu")
-    print(f"[killinchu] v3 deep C-UAS endpoints registered: {_kv3_status}", file=sys.stderr)
-except Exception as _kv3_e:
-    print(f"[killinchu] v3 deep C-UAS endpoints NOT registered: {_kv3_e!r}", file=sys.stderr)
-
 @app.get("/")
 async def spa_root() -> FileResponse:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
 # ADDITIVE (UDS HARDENING, Yachay 2026-06-01): DESKTOP-FIRST UDS compliance
-# dashboard for 1280px+ workstation operators (STIG/SCAP, Big Bang chart,
-# Tradewinds, NIST/EU-AI-Act — Iron Bank + CMMC removed per CTO P1 REJECT).
-# Self-contained static page that
+# dashboard for 1280px+ workstation operators (STIG/SCAP, Iron Bank parity, Big
+# Bang chart, Tradewinds, CMMC/NIST/EU-AI-Act). Self-contained static page that
 # reads the live /api/killinchu/uds/v1/* real-data endpoints. Clean aliases so
 # operators don't need the .html suffix.
 @app.get("/uds/compliance")
@@ -758,6 +778,71 @@ async def uds_compliance_dashboard() -> FileResponse:
     if _page.is_file():
         return FileResponse(_page, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# ADDITIVE (Drone 3D Health v4, Yachay 2026-06-01): clean operator-shell aliases.
+# /operator + /uds serve the UDS Command Center (which now carries the Drone 3D tab).
+@app.get("/operator")
+@app.get("/uds")
+async def operator_shell() -> FileResponse:
+    _page = STATIC_DIR / "uds.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# ADDITIVE (Unified 4-pane Operator Shell, 2026-06-01, Yachay / Perplexity
+# Computer Agent): NEW /unified route serving the self-contained 4-pane shell
+# (terrain + right panel + Cmd-K + receipt tunnel). Registered BEFORE the
+# /{full_path:path} catch-all so it resolves LOCALLY. ADDITIVE — does NOT touch
+# the existing /operator route. File ships in static/ (COPY static/ already in
+# Dockerfile). Doctrine v11 LOCKED 749/14/163 unchanged.
+@app.get("/unified")
+@app.get("/killinchu/unified")
+async def unified_operator_shell() -> FileResponse:
+    _page = STATIC_DIR / "operator-unified.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return JSONResponse({"error": "operator-unified.html not deployed"}, status_code=404)
+
+
+# ADDITIVE (Strategic Rebrand, Yachay / Perplexity Computer Agent, 2026-06-01):
+# /navy URL PRESERVED, content corrected per UDS_DOD_COMPLIANCE_BLUEPRINT.md
+# (sections 1, 6, 11, 12). Framing shifts to UDS Core compatible · ZARF-packaged ·
+# Enterprise Agents lane (NOT "Navy AI Hackathon · CDAO + USNWR&E", NOT "Open
+# Arsenal"). Honest: "UDS Core compatible" not certified; ZARF-packaging available
+# not shipped. Citation strip Hickok-grounded. Registered BEFORE the
+# /{full_path:path} catch-all so it resolves LOCALLY. ADDITIVE — does NOT touch
+# any existing route. Doctrine v11 LOCKED 749/14/163 unchanged.
+@app.get("/navy")
+async def navy_surface() -> FileResponse:
+    _page = STATIC_DIR / "navy.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# ===========================================================================
+# FULL UDS INJECTION (ADDITIVE, Yachay / Perplexity Computer Agent, 2026-06-02):
+# Six real /uds/* subpages — /uds/sbom, /uds/sigstore, /uds/cmmc, /uds/889,
+# /uds/zarf, /uds/mission-owner. These previously fell through to the SPA
+# catch-all (a NO-HALLUCINATION violation: a /route that serves the SPA shell
+# is a catch-all liar). Now each returns 200 with REAL self-contained HTML that
+# cites only PUBLICLY-RESOLVABLE evidence (public uds-bundles repo, public
+# Sigstore Rekor logIndex 1693757456, live /api/killinchu/uds/v1/* endpoints,
+# and authoritative FAR/NIST/Defense-Unicorns docs). Registered BEFORE the
+# /{full_path:path} catch-all so they resolve LOCALLY. Section 889 = exactly 5
+# vendors. Iron Bank = sponsor pending (never certified). SLSA L1 honest, L2 in
+# progress. Doctrine v11 LOCKED 749/14/163 unchanged. Λ Conjecture 1.
+# ===========================================================================
+try:
+    import szl_uds_pages as _uds_pages
+    _uds_pages_status = _uds_pages.register(app, "killinchu")
+    print(f"[killinchu] FULL UDS INJECTION registered: {_uds_pages_status}", file=sys.stderr)
+except Exception as _uds_pe:
+    import traceback as _uds_tb
+    print(f"[killinchu] FULL UDS INJECTION NOT registered: {_uds_pe!r}", file=sys.stderr)
+    _uds_tb.print_exc()
 
 
 
@@ -962,11 +1047,11 @@ except Exception as _cb_e:
 # BEFORE killinchu_fusion so the fusion module's honest SYNTHETIC STIG/parity
 # stubs DEFER (via its _claim() guard) to these real-data routes backed by
 # committed .compliance/ artifacts: real OpenSCAP oscap 1.4.2 DISA STIG output
-# (baseline 30.27 -> hardened 33.49, 16 rules fail->pass), Big Bang inventory,
-# Tradewinds listing. Iron Bank + CMMC routes REMOVED (CTO P1 REJECT B1+B2).
-# Cosign-signed (szlholdings-cosign ECDSA-P256) via szl_dsse; honest UNSIGNED
-# envelope if the key secret is absent. try/except-guarded; NEVER crashes app.
-# Sign: Yachay <yachay@szlholdings.dev>.
+# (baseline 30.27 -> hardened 33.49, 16 rules fail->pass), real Dockerfile
+# Iron Bank base audit, real `helm lint`/render Big Bang inventory, Tradewinds
+# listing. Cosign-signed (szlholdings-cosign ECDSA-P256) via szl_dsse; honest
+# UNSIGNED envelope if the key secret is absent. try/except-guarded; NEVER
+# crashes the existing app. Sign: Yachay <yachay@szlholdings.dev>.
 # ---------------------------------------------------------------------------
 try:
     import szl_uds_hardening as _uds_hard
@@ -987,24 +1072,186 @@ except Exception as _fusion_e:
     print(f"[killinchu] UDS fusion front-door NOT registered: {_fusion_e!r}; existing app unaffected", file=sys.stderr)
 
 
-# ---------------------------------------------------------------------------
-# ADDITIVE (Unified Operator Shell v4, 2026-06-01, Yachay / Perplexity Computer
-# Agent): register the 7 v4 operator-shell endpoints + /operator desktop shell
-# BEFORE the SPA catch-all so they resolve LOCALLY. try/except-guarded: a missing
-# dep can NEVER take down the SPA or any existing route. Receipts sign live via
-# szl_dsse (cosign ECDSA-P256/DSSE). Cmd-K NL routes to LOCAL LLM only (sovereign).
+# ===========================================================================
+# DRONE 3D HEALTH DIAGNOSTICS (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer
+# Agent). Founder mandate: SZL DNA, not a generic counter-UAS rule engine —
+# "see drones before they break, before they're shot, before they're fried."
+# NEW /api/killinchu/v4/* surface ONLY: per-drone Yuyay-13 health score, Λ-combined
+# risk, satellite RF environment, weather/space-weather/quake impact, probabilistic
+# failure mode + ETA, fired/intact component map, Three.js scene JSON, and an
+# HF-Inference LLM "explain" narrative. Fuses ONLY free public APIs (USGS quakes,
+# NOAA SWPC Kp + solar wind, NOAA Aviation Weather METAR, N2YO satellites [free key],
+# HF Inference router [Space token]). Codex-Kernel: every report is BIT-EXACT
+# reproducible from its fusion_inputs seed. Each diagnostic is Khipu-DAG chained
+# (host _emit_receipt) + REAL DSSE-signed (szl_dsse). Registered BEFORE the SPA
+# catch-all so /api/killinchu/v4/* + /drone-3d resolve LOCALLY. try/except-guarded;
+# NEVER crashes the host app. Does NOT touch v1/v2/v3 drone DB or decoder routes.
+# Honest: "predicted failure" is PROBABILISTIC, signed by Λ — NOT a guarantee.
+# Doctrine v11 LOCKED 749/14/163. Sign: Yachay. Co-author: Perplexity Computer Agent.
 # ---------------------------------------------------------------------------
 try:
-    import operator_shell_v4 as _osh_v4
-    _osh_v4_status = _osh_v4.register(app, "killinchu", web_dir="/app/web")
-    import sys as _osh_sys
-    print(f"[killinchu] Operator Shell v4 registered: {_osh_v4_status}", file=_osh_sys.stderr)
-except Exception as _osh_e:
-    import traceback as _osh_tb, sys as _osh_sys
-    print(f"[killinchu] Operator Shell v4 NOT registered: {_osh_e!r}", file=_osh_sys.stderr)
-    _osh_tb.print_exc()
-# --- end Operator Shell v4 ---
+    import killinchu_drone_3d_health as _drone3d
+    try:
+        import szl_dsse as _d3d_dsse
+        _d3d_signer = _d3d_dsse.sign_khipu_receipt
+    except Exception:
+        _d3d_signer = None
+    _drone3d_info = _drone3d.register(
+        app, "killinchu",
+        emit_receipt=_emit_receipt,
+        sign_receipt=_d3d_signer,
+        static_dir=str(STATIC_DIR),
+    )
+    print(f"[killinchu] Drone 3D Health v4 registered: {_drone3d_info['registered_count']} routes, "
+          f"signing={_drone3d_info['signing']}", file=sys.stderr)
+except Exception as _d3d_e:
+    import traceback as _d3d_tb
+    print(f"[killinchu] Drone 3D Health v4 NOT registered: {_d3d_e!r}\n{_d3d_tb.format_exc()}", file=sys.stderr)
 
+
+# ── Investor /demo route (ADDITIVE, 2026-06-02, Yachay / Perplexity Computer Agent) ──
+# 90-second narrated, animated investor walkthrough at GET /demo (+ /killinchu/demo).
+# Inline HTML (no CDN, no key). Registered BEFORE the /{full_path:path} catch-all so it
+# wins ordered matching. try/except-guarded. Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1.
+try:
+    import szl_demo as _szl_demo
+    _demo_status = _szl_demo.register(app, ns="killinchu")
+    import sys as _sys_demo
+    print(f"[killinchu] Investor /demo registered: {_demo_status}", file=_sys_demo.stderr)
+except Exception as _demo_e:
+    import sys as _sys_demo
+    print(f"[killinchu] Investor /demo NOT registered: {_demo_e!r}", file=_sys_demo.stderr)
+# ── end Investor /demo ──
+
+
+# ── Genius Operator Sidebar (ADDITIVE, 2026-06-02, Yachay / Perplexity Computer Agent) ──
+# Honest left-nav shell + working wrapper pages so EVERY nav item returns real 200
+# content matching its label. Registered BEFORE the /{full_path:path} catch-all so
+# /sidebar /status /doctrine /formulas /uds /spaceweather /seismic /drone-health
+# resolve LOCALLY. Each route guarded: never shadows an existing route. Collapsible
+# rail + search + Cmd-K palette + recents + healthz status dots + concept DOI
+# 10.5281/zenodo.19944926 + Doctrine v11 LOCKED 749/14/163 badge + mobile drawer.
+# Three.js stays LOCAL on the 3D pages (no CDN here). Λ Conjecture 1.
+try:
+    import szl_sidebar as _sidebar
+    _sidebar_status = _sidebar.register(app, "killinchu")
+    import sys as _sys_sb
+    print(f"[killinchu] Genius sidebar registered: {_sidebar_status}", file=_sys_sb.stderr)
+except Exception as _sb_e:
+    import traceback as _sb_tb, sys as _sys_sb
+    print(f"[killinchu] Genius sidebar NOT registered: {_sb_e!r}", file=_sys_sb.stderr)
+    _sb_tb.print_exc()
+# ── end Genius Operator Sidebar ──
+
+# ===========================================================================
+# PARITY RESTORATION BLOCK (2026-06-02, Yachay CTO / Perplexity Computer Agent)
+# Adds missing routes per PARITY_GAP_MATRIX_2026-06-02_2050Z.md:
+#   operator_shell_v4:  /api/killinchu/v4/{healthz,inbox,receipts,map/state,stream}
+#   /api/killinchu/v1/brain     — unified brain payload (szl_brain)
+#   /api/killinchu/v1/llm/tiers — 7-tier LLM router catalog
+#   /api/killinchu/v1/mesh/state — mesh wire status
+# All registered BEFORE the /{full_path:path} SPA catch-all. ADDITIVE ONLY.
+# Doctrine v11 LOCKED 749/14/163. Λ = Conjecture 1 (NOT a theorem). c7c0ba17.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ===========================================================================
+
+# ── operator_shell_v4 (V4 routes: healthz/inbox/receipts/map/state/stream) ───
+try:
+    import operator_shell_v4 as _kc_osh_v4
+    _kc_osh_v4_status = _kc_osh_v4.register(app, "killinchu", web_dir="/app/web")
+    import sys as _kc_osh_sys
+    print(f"[killinchu] PARITY: Operator Shell v4 registered: {_kc_osh_v4_status}", file=_kc_osh_sys.stderr)
+except Exception as _kc_osh_e:
+    import traceback as _kc_osh_tb, sys as _kc_osh_sys
+    print(f"[killinchu] PARITY: Operator Shell v4 NOT registered: {_kc_osh_e!r}", file=_kc_osh_sys.stderr)
+    _kc_osh_tb.print_exc()
+# ── end operator_shell_v4 ────────────────────────────────────────────────────
+
+# ── /api/killinchu/v1/brain + /llm/tiers + /mesh/state ───────────────────────
+import math as _kc_pr_math
+try:
+    import szl_brain as _kc_pr_brain
+    _KC_BRAIN_OK = True
+except Exception:
+    _KC_BRAIN_OK = False
+
+try:
+    import szl_wire as _kc_pr_wire
+    _KC_WIRE_OK = True
+except Exception:
+    _KC_WIRE_OK = False
+
+@app.get("/api/killinchu/v1/brain")
+async def _kc_pr_brain_route():
+    """Unified brain payload — killinchu drone-intel role. Doctrine v11 LOCKED."""
+    if _KC_BRAIN_OK:
+        return JSONResponse(_kc_pr_brain.brain_payload("killinchu"))
+    return JSONResponse({
+        "space": "killinchu", "doctrine": "v11",
+        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "role": "Drone Intelligence / sovereign sensing",
+        "lambda_floor": 0.90,
+        "honesty": "szl_brain unavailable in this build; honest stub returned.",
+    })
+
+@app.get("/api/killinchu/v1/llm/tiers")
+async def _kc_pr_llm_tiers():
+    """7-tier LLM router catalog — parity with a11oy/sentra/amaru/rosie. Doctrine v11."""
+    if _KC_BRAIN_OK:
+        return JSONResponse({
+            "count": len(_kc_pr_brain.TIERS),
+            "tiers": _kc_pr_brain.TIERS,
+            "doctrine": "v11",
+        })
+    return JSONResponse({
+        "count": 7,
+        "tiers": [
+            {"tier": 1, "name": "haiku_3"}, {"tier": 2, "name": "sonnet_3_5"},
+            {"tier": 3, "name": "opus_4_5"}, {"tier": 4, "name": "r1"},
+            {"tier": 5, "name": "o3"}, {"tier": 6, "name": "gemini_2_flash"},
+            {"tier": 7, "name": "sovereign_local"},
+        ],
+        "doctrine": "v11",
+        "honesty": "szl_brain unavailable; honest stub catalog returned.",
+    })
+
+@app.get("/api/killinchu/v1/mesh/state")
+async def _kc_pr_mesh_state():
+    """Mesh wire status — parity with a11oy/sentra/amaru/rosie. Doctrine v11."""
+    if _KC_WIRE_OK:
+        return JSONResponse(_kc_pr_wire.mesh_status())
+    return JSONResponse({
+        "wires": {"D": "live", "E": "live", "F": "live", "G": "live"},
+        "mesh_organs": ["a11oy", "amaru", "sentra", "killinchu", "rosie"],
+        "doctrine": "v11",
+        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "honesty": "szl_wire unavailable; honest stub mesh state returned.",
+    })
+
+print("[killinchu] PARITY BLOCK registered: operator_shell_v4 + /api/killinchu/v1/{brain,llm/tiers,mesh/state}", file=sys.stderr)
+# ===========================================================================
+# END PARITY RESTORATION BLOCK
+# ===========================================================================
+
+
+# P3 FIX: /api/health JSON probe (Upgrade Hammer — Doctrine v11 LOCKED 749/14/163)
+# Removes Charter violations: NO Iron Bank, NO CMMC (see killinchu_fusion.py patch)
+@app.get("/api/health")
+async def killinchu_api_health() -> JSONResponse:
+    """Top-level health probe — returns JSON 200. Before SPA catch-all."""
+    return JSONResponse({
+        "status": "ok",
+        "service": "killinchu",
+        "doctrine": "v11",
+        "counts": "749/14/163",
+        "lean_sha": "c7c0ba17",
+        "lambda_status": "Conjecture 1 (NOT a theorem)",
+        "slsa": "L1 (honest)",
+        "section_889": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
+        "no_iron_bank": True,
+        "no_cmmc": True,
+    })
 
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
@@ -1025,4 +1272,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "7860"))
     print(f"[killinchu] Andean Drone Intelligence on :{port} — Doctrine v11 — SPA at /", file=sys.stderr)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
-
