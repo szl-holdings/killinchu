@@ -1,0 +1,81 @@
+# deploy/uds-package.yaml — killinchu UDS Package CR
+# Authored by: Operationalize Sweep · Yachay CTO 2026-06-03
+# Doctrine: v11 LOCKED 749/14/163 · Lambda = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# References:
+#   UDS Core CRD: https://github.com/defenseunicorns/uds-core/blob/main/src/pepr/operator/crd/
+#   SZL P2 Spec: SHARED_LEDGER/killinchu/P2_SPEC_PM.md
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: killinchu
+  namespace: killinchu
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-locked: "749/14/163"
+    szl.io/lean-sha: "c7c0ba17"
+    szl.io/lambda-status: "Conjecture 1 — NOT a theorem"
+    szl.io/slsa-level: "L1"
+    szl.io/section-889: "Huawei,ZTE,Hytera,Hikvision,Dahua"
+    szl.io/no-iron-bank: "true"
+    szl.io/role: "counter-uas-operator-surface"
+spec:
+  network:
+    allow:
+      - direction: Egress
+        selector:
+          app: killinchu
+        remoteGenerated: Anywhere
+        port: 443
+        description: "HF Space egress + rosie companion + drone telemetry outbound"
+      - direction: Egress
+        selector:
+          app: killinchu
+        remoteNamespace: rosie
+        port: 7860
+        description: "Wire D: killinchu -> rosie (drone fleet state mirror)"
+      - direction: Ingress
+        selector:
+          app: killinchu
+        remoteNamespace: istio-system
+        port: 7860
+        description: "Istio ingress gateway"
+      - direction: Ingress
+        selector:
+          app: killinchu
+        remoteNamespace: rosie
+        port: 7860
+        description: "Rosie drone fleet mirror pull"
+  expose:
+    - service: killinchu-svc
+      selector:
+        app: killinchu
+      host: killinchu
+      gateway: tenant
+      port: 7860
+      targetPort: 7860
+  sso:
+    - name: killinchu SSO
+      clientId: killinchu
+      redirectUris:
+        - "https://killinchu.uds.dev/callback"
+        - "https://szlholdings-killinchu.hf.space/callback"
+      description: "Killinchu counter-UAS operator surface — Andean Drone Intelligence"
+  monitor:
+    - selector:
+        app: killinchu
+      portName: http
+      targetPort: 7860
+      path: /api/health
+      description: "killinchu health monitor"
+    - selector:
+        app: killinchu
+      portName: http
+      targetPort: 7860
+      path: /api/killinchu/drone/fleet-state
+      description: "killinchu drone fleet state monitor"
