@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 SZL Holdings. Build + push the killinchu container image to GHCR and
+# sign it with cosign (keyless, GitHub OIDC + Fulcio + Rekor).
+# Commit DCO-signed: git commit -s -m "ci(killinchu): add build-uds-image workflow"
+name: build-uds-image
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'image tag'
+        required: true
+        default: 'uds-v0.2.0'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/szl-holdings/${{ github.event.repository.name }}:${{ inputs.tag }}
+      - uses: sigstore/cosign-installer@v3
+      - name: cosign sign
+        run: cosign sign --yes ghcr.io/szl-holdings/${{ github.event.repository.name }}:${{ inputs.tag }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"
