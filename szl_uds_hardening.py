@@ -133,15 +133,9 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         return JSONResponse(_sign(result))
     registered.append(base + "/stig/scan-report/{img}")
 
-    # ---- Iron Bank parity (real Dockerfile audit) ----
-    @app.get(base + "/iron-bank/parity")
-    async def uds_iron_bank_parity() -> JSONResponse:
-        data = _load("iron_bank_parity.json")
-        if data is None:
-            data = {"kind": "uds.iron-bank.parity", "available": False,
-                    "honesty": "iron_bank_parity.json not found in .compliance/."}
-        return JSONResponse(_sign(data))
-    registered.append(base + "/iron-bank/parity")
+    # ---- Iron Bank parity REMOVED (P0 CTO REJECT B1 — Charter §24 NO Iron Bank) ----
+    # Route GET /api/killinchu/uds/v1/iron-bank/parity deleted by Dev1 Rumi.
+    # iron_bank_parity.json remains in repo as reference; NOT served at runtime.
 
     # ---- Big Bang parity (real helm lint + render inventory) ----
     @app.get(base + "/big-bang/parity")
@@ -183,3 +177,4 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
     return {"module": "szl_uds_hardening", "registered_count": len(registered),
             "registered": registered, "flagships": _FLAGSHIPS,
             "signing": bool(_dsse and _dsse.signing_available())}
+
