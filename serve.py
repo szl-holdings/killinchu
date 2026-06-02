@@ -746,8 +746,9 @@ async def spa_root() -> FileResponse:
 
 
 # ADDITIVE (UDS HARDENING, Yachay 2026-06-01): DESKTOP-FIRST UDS compliance
-# dashboard for 1280px+ workstation operators (STIG/SCAP, Iron Bank parity, Big
-# Bang chart, Tradewinds, CMMC/NIST/EU-AI-Act). Self-contained static page that
+# dashboard for 1280px+ workstation operators (STIG/SCAP, Big Bang chart,
+# Tradewinds, NIST/EU-AI-Act — Iron Bank + CMMC removed per CTO P1 REJECT).
+# Self-contained static page that
 # reads the live /api/killinchu/uds/v1/* real-data endpoints. Clean aliases so
 # operators don't need the .html suffix.
 @app.get("/uds/compliance")
@@ -961,11 +962,11 @@ except Exception as _cb_e:
 # BEFORE killinchu_fusion so the fusion module's honest SYNTHETIC STIG/parity
 # stubs DEFER (via its _claim() guard) to these real-data routes backed by
 # committed .compliance/ artifacts: real OpenSCAP oscap 1.4.2 DISA STIG output
-# (baseline 30.27 -> hardened 33.49, 16 rules fail->pass), real Dockerfile
-# Iron Bank base audit, real `helm lint`/render Big Bang inventory, Tradewinds
-# listing. Cosign-signed (szlholdings-cosign ECDSA-P256) via szl_dsse; honest
-# UNSIGNED envelope if the key secret is absent. try/except-guarded; NEVER
-# crashes the existing app. Sign: Yachay <yachay@szlholdings.dev>.
+# (baseline 30.27 -> hardened 33.49, 16 rules fail->pass), Big Bang inventory,
+# Tradewinds listing. Iron Bank + CMMC routes REMOVED (CTO P1 REJECT B1+B2).
+# Cosign-signed (szlholdings-cosign ECDSA-P256) via szl_dsse; honest UNSIGNED
+# envelope if the key secret is absent. try/except-guarded; NEVER crashes app.
+# Sign: Yachay <yachay@szlholdings.dev>.
 # ---------------------------------------------------------------------------
 try:
     import szl_uds_hardening as _uds_hard
@@ -1024,3 +1025,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "7860"))
     print(f"[killinchu] Andean Drone Intelligence on :{port} — Doctrine v11 — SPA at /", file=sys.stderr)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+
