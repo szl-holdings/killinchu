@@ -1253,6 +1253,30 @@ async def killinchu_api_health() -> JSONResponse:
         "no_cmmc": True,
     })
 
+
+# ===========================================================================
+# TRACK C: DRONE-FACING ENDPOINTS (Operationalize Sweep — Yachay CTO 2026-06-03)
+# Adds UDS-deployable counter-UAS operator surface:
+#   GET  /api/killinchu/drone/telemetry    — friendly fleet + threat tracks
+#   POST /api/killinchu/drone/intercept    — mock action with DSSE receipt
+#   GET  /api/killinchu/drone/cued-tracks  — cued threat list
+#   GET  /api/killinchu/drone/fleet-state  — 5 friendly drone roster
+# Also adds MISSING P2-spec routes:
+#   GET  /api/killinchu/v1/gates           — 13-axis Lambda-gate manifest
+#   GET  /api/killinchu/v1/audit-log       — in-memory audit ring
+# Doctrine v11 LOCKED 749/14/163. NO Iron Bank. ADDITIVE ONLY.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ===========================================================================
+try:
+    from killinchu_drone_routes import register_drone_routes as _register_drone
+    _register_drone(app, space="killinchu")
+    print("[killinchu] Drone routes registered via killinchu_drone_routes", file=sys.stderr)
+except Exception as _drone_e:
+    import traceback as _drone_tb
+    print(f"[killinchu] Drone routes NOT registered: {_drone_e!r}", file=sys.stderr)
+    print(_drone_tb.format_exc(), file=sys.stderr)
+
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
     if full_path.startswith("api/"):
