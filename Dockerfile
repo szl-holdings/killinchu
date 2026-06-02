@@ -124,7 +124,15 @@ COPY szl_killinchu_cookbook.py ./szl_killinchu_cookbook.py
 # helm lint inventory). Registered BEFORE killinchu_fusion so its synthetic stubs
 # defer to this real data. Per-file COPY (no `COPY . .`). Sign: Yachay.
 COPY szl_uds_hardening.py ./szl_uds_hardening.py
-COPY .compliance/ ./.compliance/
+# COPY .compliance/ ./.compliance/ — REPLACED with per-file copies that exclude
+# iron_bank_parity.json (CTO P1 REJECT B1 — Charter §24 NO Iron Bank in runtime).
+# iron_bank_parity.json stays in repo for reference; not baked into the served layer.
+COPY .compliance/big_bang_inventory.json ./.compliance/big_bang_inventory.json
+COPY .compliance/tradewinds_listing.json ./.compliance/tradewinds_listing.json
+COPY .compliance/sysctl-stig.conf ./.compliance/sysctl-stig.conf
+COPY .compliance/SECTION_889_REP.md ./.compliance/SECTION_889_REP.md
+COPY .compliance/SLSA_LEVEL.md ./.compliance/SLSA_LEVEL.md
 COPY killinchu_fusion.py ./killinchu_fusion.py
 COPY serve.py ./serve.py
 CMD ["python", "serve.py"]
+
