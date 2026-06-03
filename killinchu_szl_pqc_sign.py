@@ -33,6 +33,15 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.exceptions import InvalidSignature
 
+# NOTE: `from __future__ import annotations` (above) makes every annotation a
+# *string*. FastAPI resolves the `request: Request` annotation via this module's
+# globals (typing.get_type_hints), so `Request`/`JSONResponse` MUST be importable
+# at MODULE scope — not only inside register(). A prior local-only import caused
+# the handler's `request` param to be mis-read as a missing query field → HTTP 422
+# on POST /khipu/sign. Importing them here fixes that route-resolution bug.
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
 ECDSA_TYPE = "ECDSA-P256-SHA256"
 MLDSA_TYPE = "ML-DSA-65"
 
@@ -171,9 +180,9 @@ def _sign(payload: bytes, mode: str) -> dict:
 
 
 def register(app, ns: str = "killinchu") -> None:
-    from fastapi import Request
-    from fastapi.responses import JSONResponse
-
+    # Request / JSONResponse are imported at module scope (see top-of-file note)
+    # so the string-form `request: Request` annotation resolves under
+    # `from __future__ import annotations`. Do NOT re-import them locally only.
     async def _handler(request: Request) -> JSONResponse:
         mode = (request.query_params.get("mode") or "ecdsa").lower()
         if mode not in ("ecdsa", "pqc", "hybrid"):
