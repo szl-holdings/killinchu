@@ -67,6 +67,12 @@ _OTEL_ENABLED = False
 
 app = FastAPI(title="Killinchu — Andean Drone Intelligence", version="1.0.0")
 
+# ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
+try:
+    from vsp_otel.middleware import install as install_vsp; install_vsp(app)
+except Exception as _vsp_e:
+    import sys as _vsp_sys; print(f"[killinchu] vsp-otel wire skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
+
 # ADDITIVE: OTel — instrument FastAPI app
 try:
     _szl_otel_setup(fastapi_app=app)
