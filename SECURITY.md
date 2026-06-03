@@ -1,32 +1,63 @@
 # Security Policy
 
-This policy is governed by [SZL Doctrine v11](https://github.com/szl-holdings/.github/blob/main/DOCTRINE_V11.md),
-including the No-Hallucinations / No-Fake-Green and Every-Claim-Citable clauses.
-We do not publish security claims we cannot back with a verifiable source.
+## Supported Versions
 
-## Reporting a vulnerability
+| Version | Supported          |
+| ------- | ------------------ |
+| 1.x     | :white_check_mark: |
+| < 1.0   | :x:                |
 
-Report security vulnerabilities to **security@szlholdings.com**.
-If you do not receive a response, use **stephen@szlholdings.com** as a fallback.
+## Reporting a Vulnerability
 
-Please do NOT open a public issue for security reports.
+**Do NOT open a public GitHub issue for security vulnerabilities.**
 
-## PGP
+Please report security vulnerabilities via email to **security@szlholdings.ai** with:
 
-PGP key: TBD — request the current key at security@szlholdings.com.
+1. Description of the vulnerability
+2. Steps to reproduce
+3. Potential impact assessment
+4. Any suggested mitigations
 
-We do not publish a fingerprint here until a key is in place, to avoid asserting
-a key that cannot be verified.
+### Response SLA
 
-## Scope
+| Severity | Initial Response | Resolution Target |
+|---|---|---|
+| Critical | 24 hours | 7 days |
+| High | 48 hours | 30 days |
+| Medium | 5 business days | 90 days |
+| Low | 10 business days | 180 days |
 
-- Code on the current default branch (`main`) of this repository (szl-holdings/killinchu).
-- Released, signed artifacts published from this repository.
+We follow a **90-day responsible disclosure** policy. After 90 days from initial report, details may be published regardless of patch status (with appropriate notice to reporter).
 
-Out of scope: third-party dependencies (report upstream), and forks outside the
-szl-holdings organization.
+## Supply-Chain Security
 
-## Response
+- **SLSA Build Level 1** — build provenance generated per release (honest; not L2/L3)
+- **DCO required** — all commits carry `Signed-off-by:` trailers per [Linux Foundation DCO](https://developercertificate.org/)
+- **Cosign keyless signing** — containers signed via Sigstore OIDC keyless mode; verify with `cosign verify ghcr.io/szl-holdings/<repo>:<tag>`
+- **SBOM** — CycloneDX SBOM attached to each GitHub Release
 
-We acknowledge valid reports and coordinate disclosure timelines with the
-reporter. Fixes land on `main` with SLSA-signed provenance.
+## Section 889 Attestation
+
+SZL Holdings attests that no covered telecommunications equipment or services from the following vendors are used in this software:
+
+1. Huawei Technologies Company
+2. ZTE Corporation
+3. Hytera Communications Corporation
+4. Hangzhou Hikvision Digital Technology Company
+5. Dahua Technology Company
+
+Per NDAA Section 889, 41 U.S.C. § 4713.
+
+## Doctrine
+
+- Doctrine v11 LOCKED — kernel commit `c7c0ba17` (749 declarations / 14 axioms / 163 sorries)
+- Λ = Conjecture 1 (never a theorem)
+- No Iron Bank, FedRAMP, CMMC, or SWFT claims
+
+## Contact
+
+- **Security disclosures:** security@szlholdings.ai
+- **General:** hello@szlholdings.ai
+- **Website:** https://szlholdings.ai
+
+*This policy follows [OpenSSF Vulnerability Disclosure Guide](https://github.com/ossf/oss-vulnerability-guide).*
