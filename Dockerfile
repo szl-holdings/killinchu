@@ -38,6 +38,9 @@ RUN pip install --no-cache-dir "slowapi>=0.1.9"
 
 # ADDITIVE (Yachay / Provenance Hardening): cryptography for DSSE+Cosign Khipu signing.
 RUN pip install --no-cache-dir "cryptography>=42.0"
+# ADDITIVE (Formulas real-edge-v2, Opus 4.8, 2026-06-03): numpy is REQUIRED for the real
+# Kalman trajectory smoother in szl_shared_formulas/kalman.py (no pure-Python mock path).
+RUN pip install --no-cache-dir "numpy>=1.26"
 # ADDITIVE (Yachay / PQC): pure-Python ML-DSA-65 (NIST FIPS 204) backend for
 # /khipu/sign?mode={pqc,hybrid}. liboqs (oqs-python) is preferred in prod but is
 # a C lib not always installable; dilithium-py is the pure-Python fallback so
@@ -178,7 +181,11 @@ COPY killinchu_formula_endpoints.py ./killinchu_formula_endpoints.py
 # Byzantine quorum), the real edge package (src/killinchu/*), the real-edge
 # formula endpoint shim, the premium edge console deck, and the no-mock tests.
 # This Dockerfile NEVER uses `COPY . .` — every file is copied explicitly.
-# NO MOCKS — real flight-dynamics sim, real ECDSA-P256 DSSEv1, real Khipu DAG.
+# serve.py imports killinchu_edge_formulas which imports
+# szl_shared_formulas.{pac_bayes,kalman,byzantine_quorum}; without these COPYs
+# the import fails and /api/killinchu/v1/edge/* fall through to the SPA shell.
+# NO MOCKS — real flight-dynamics sim, real ECDSA-P256 DSSEv1, real Khipu DAG,
+# real Kalman (numpy).
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY szl_shared_formulas/pac_bayes.py ./szl_shared_formulas/pac_bayes.py

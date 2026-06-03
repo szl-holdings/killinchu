@@ -188,3 +188,38 @@ def test_no_mock_fake_stub_outside_tests_on_edge_surface():
     assert not offenders, (
         "mock/fake/stub leaked outside /tests/ on the killinchu edge surface:\n"
         + "\n".join(offenders))
+
+
+# ── Merged from #44 (Formulas squad): formula-surface mock scan ──────────────
+# Preserves the Formulas-squad no-mock coverage over the shared formula modules
+# (the edge-formula shim + szl_shared_formulas) alongside the edge-surface scan
+# above. HONESTY OVER CHECKLIST — keep both teams' guards.
+_FORMULA_TARGETS = [
+    "killinchu_edge_formulas.py",
+    os.path.join("szl_shared_formulas", "pac_bayes.py"),
+    os.path.join("szl_shared_formulas", "kalman.py"),
+    os.path.join("szl_shared_formulas", "byzantine_quorum.py"),
+    os.path.join("szl_shared_formulas", "__init__.py"),
+]
+_FORMULA_FORBIDDEN = re.compile(r"\b(mock|fake|stub|dummy)\b", re.IGNORECASE)
+
+
+def test_no_mock_in_formula_sources():
+    """FAIL if mock/fake/stub/dummy appears in the shared formula sources,
+    except inside an explicit honesty negation (no/not a/never a ...)."""
+    all_hits = {}
+    for rel in _FORMULA_TARGETS:
+        p = os.path.join(REPO, rel)
+        if not os.path.exists(p):
+            continue
+        hits = []
+        with open(p, "r", encoding="utf-8") as f:
+            for i, line in enumerate(f, 1):
+                low = line.lower()
+                if re.search(r"\b(no|not a|never a|never|without)\b[^\n]*\b(mock|fake|stub|dummy)", low):
+                    continue
+                if _FORMULA_FORBIDDEN.search(line):
+                    hits.append((i, line.rstrip()))
+        if hits:
+            all_hits[rel] = hits
+    assert not all_hits, f"forbidden mock/fake/stub/dummy tokens found: {all_hits}"

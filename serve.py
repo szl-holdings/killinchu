@@ -134,6 +134,32 @@ except Exception as _be_e:
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# ADDITIVE (Formulas real-edge-v2, Opus 4.8, 2026-06-03, Yachay). The REAL-EDGE
+# formula surface: PAC-Bayes (Catoni verdict confidence) + Kalman (real numpy
+# trajectory smoothing of noisy drone telemetry) + Byzantine quorum (n≥3f+1 over
+# 5 sensors, tolerate 1 fault) + Welford + Bloom, fused into a per-request Λ verdict
+# carrying a REAL DSSE-v1 ECDSA receipt. NO MOCKS. Mounted FIRST so its richer
+# /api/killinchu/v1/formulas/index (5 formulas + Lean permalinks) wins.
+#   POST /api/killinchu/v1/edge/verdict        telemetry → Λ∈[0,1] + DSSE receipt
+#   POST /api/killinchu/v1/edge/track-smooth   Kalman smoothing of a trajectory
+#   GET  /api/killinchu/v1/edge/quorum-status  Byzantine quorum on sensor fusion
+#   GET  /api/killinchu/v1/formulas/index      wired formulas + thesis cite + Lean link
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+_killinchu_edge_formulas = None
+_killinchu_edge_status = "edge-formulas-not-wired"
+try:
+    if "/app" not in sys.path and os.path.isdir("/app/szl_shared_formulas"):
+        sys.path.insert(0, "/app")
+    import killinchu_edge_formulas as _killinchu_edge_formulas
+    _killinchu_edge_status = _killinchu_edge_formulas.register(app, ns="killinchu")
+    print(f"[killinchu] real-edge formulas wired ({_killinchu_edge_status})", file=sys.stderr)
+except Exception as _killinchu_edge_fx:  # additive: never break the Space
+    _killinchu_edge_status = f"edge-formulas-not-wired:{_killinchu_edge_fx!r}"
+    print(f"[killinchu] real-edge formulas NOT mounted ({_killinchu_edge_fx!r}); app unaffected", file=sys.stderr)
+
 _killinchu_formulas = None
 _killinchu_formulas_status = "formulas-not-wired"
 try:
