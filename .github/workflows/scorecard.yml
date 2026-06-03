@@ -1,37 +1,33 @@
-name: OpenSSF Scorecard supply-chain security
+name: Scorecard
 
+# FIX (Yachay, empire-reliability 2026-06-01): two root causes made every run fail.
+#  (1) The `branch_protection_rule` trigger runs without a checked-out commit context
+#      and produces a `startup_failure` (the reusable workflow explicitly warns against
+#      it). Removed.
+#  (2) killinchu is a PRIVATE repo; `publish_results: true` requires public visibility
+#      to publish to the OSSF public database, so the publish step failed. We pass
+#      `publish-results: false` so the SARIF still uploads to the Security tab while the
+#      unsupported public publish is disabled for this private repo.
 on:
-  branch_protection_rule:
-  push:
-    branches: [ main ]
   schedule:
-    - cron: '30 1 * * 6'  # Weekly Saturday 01:30 UTC
+    - cron: '41 5 * * 2'
+  push:
+    branches: [main]
 
-permissions: read-all
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  analysis:
-    name: Scorecard analysis
-    runs-on: ubuntu-latest
+  scorecard:
     permissions:
       security-events: write
       id-token: write
       contents: read
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          persist-credentials: false
-
-      - name: Run Scorecard
-        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
-        with:
-          results_file: results.sarif
-          results_format: sarif
-          publish_results: true
-
-      - name: Upload Scorecard SARIF results
-        uses: github/codeql-action/upload-sarif@8ed7f7c384ef65d96d422e33fe592d3572522558 # v3.28.15
-        with:
-          sarif_file: results.sarif
+      actions: read
+    uses: szl-holdings/.github/.github/workflows/reusable-scorecard.yml@c8359e53b40560f15ed5c25c3e4e1256b0536cf8 # v1 (.github main)
+    with:
+      publish-results: false
