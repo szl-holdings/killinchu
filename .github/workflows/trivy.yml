@@ -32,6 +32,7 @@ jobs:
 
       - name: Upload Trivy SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@b0565cb28b456da32509aef995361ffcc63f40b0 # v3.28.15
+        continue-on-error: true  # SARIF upload may fail on fork PRs (permissions); scan result above is the gate
         with:
           sarif_file: trivy-results.sarif
 
@@ -52,6 +53,7 @@ jobs:
 
       - name: Upload Grype SARIF
         uses: github/codeql-action/upload-sarif@b0565cb28b456da32509aef995361ffcc63f40b0 # v3.28.15
+        continue-on-error: true  # SARIF upload may fail on fork PRs (permissions); scan result above is the gate
         if: always()
         with:
           sarif_file: results.sarif
