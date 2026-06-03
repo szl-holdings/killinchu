@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-wheel-metadata/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Local secrets / env
+.env
+.env.*
+*.pem
+*.key
+secrets/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker local
+docker-compose.override.yml
+
+# Lean build artifacts (do not commit)
+*.olean
+.lake/build/
+
+# Node
+node_modules/
+npm-debug.log*
