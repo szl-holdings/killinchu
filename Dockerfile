@@ -33,6 +33,9 @@ RUN pip install --no-cache-dir \
     "starlette>=0.37.0" \
     "pyModeS>=3.3.0,<4.0" \
     "pymavlink>=2.4.40"
+# BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
+RUN pip install --no-cache-dir "slowapi>=0.1.9"
+
 # ADDITIVE (Yachay / Provenance Hardening): cryptography for DSSE+Cosign Khipu signing.
 RUN pip install --no-cache-dir "cryptography>=42.0"
 # ADDITIVE (Yachay / PQC): pure-Python ML-DSA-65 (NIST FIPS 204) backend for
@@ -76,6 +79,9 @@ COPY szl_rosie_companion.py ./szl_rosie_companion.py
 COPY killinchu_szl_pqc_sign.py ./killinchu_szl_pqc_sign.py
 COPY serve.py ./serve.py
 ENV PORT=7860
+# BE hardening (Greene) — per-file COPY (this Dockerfile uses per-file COPY).
+COPY szl_be_hardening.py ./szl_be_hardening.py
+
 EXPOSE 7860
 
 # ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay): real durable lmdb persistence
