@@ -43,6 +43,9 @@ RUN pip install --no-cache-dir "cryptography>=42.0"
 # a C lib not always installable; dilithium-py is the pure-Python fallback so
 # hybrid signing works in the Space. ECDSA stays the default regardless.
 RUN pip install --no-cache-dir "dilithium-py>=1.0.0"
+# ADDITIVE (real-edge): numpy for the constant-velocity Kalman trajectory smoother
+# in szl_shared_formulas/kalman.py (real linear-algebra filter, no mocks).
+RUN pip install --no-cache-dir "numpy>=1.26,<3.0"
 
 # Copy the pre-built SPA to the static root.
 # index.html + assets/* served directly at / and /assets/*; unknown GET -> index.html.
@@ -169,6 +172,28 @@ COPY szl_shared_formulas/__init__.py ./szl_shared_formulas/__init__.py
 COPY szl_shared_formulas/welford.py ./szl_shared_formulas/welford.py
 COPY szl_shared_formulas/bloom_filter.py ./szl_shared_formulas/bloom_filter.py
 COPY killinchu_formula_endpoints.py ./killinchu_formula_endpoints.py
+
+# ADDITIVE (Killinchu Closeout, Opus 4.8, 2026-06-03): per-file COPY of the
+# REAL-EDGE surface — the three extra shared formulas (PAC-Bayes + Kalman +
+# Byzantine quorum), the real edge package (src/killinchu/*), the real-edge
+# formula endpoint shim, the premium edge console deck, and the no-mock tests.
+# This Dockerfile NEVER uses `COPY . .` — every file is copied explicitly.
+# NO MOCKS — real flight-dynamics sim, real ECDSA-P256 DSSEv1, real Khipu DAG.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY szl_shared_formulas/pac_bayes.py ./szl_shared_formulas/pac_bayes.py
+COPY szl_shared_formulas/kalman.py ./szl_shared_formulas/kalman.py
+COPY szl_shared_formulas/byzantine_quorum.py ./szl_shared_formulas/byzantine_quorum.py
+COPY killinchu_edge_formulas.py ./killinchu_edge_formulas.py
+COPY killinchu_edge_console.py ./killinchu_edge_console.py
+COPY src/killinchu/__init__.py ./src/killinchu/__init__.py
+COPY src/killinchu/lambda_calc.py ./src/killinchu/lambda_calc.py
+COPY src/killinchu/dsse.py ./src/killinchu/dsse.py
+COPY src/killinchu/khipu.py ./src/killinchu/khipu.py
+COPY src/killinchu/edge.py ./src/killinchu/edge.py
+COPY src/killinchu/simulator.py ./src/killinchu/simulator.py
+COPY web/console.html ./web/console.html
+COPY web/console.js ./web/console.js
 
 CMD ["python", "serve.py"]
 
