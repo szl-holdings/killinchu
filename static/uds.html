@@ -366,14 +366,10 @@
 
   var COMPLIANCE=[
     {nm:"STIG / SCAP scan",ic:"🔍",ep:"/stig/scan-report/registry1.dso.mil%2Fkillinchu%3Av11",m:"GET",d:"DISA STIG / OpenSCAP pass/fail. Defers to UDS-HARDENING real-data when present."},
-    {nm:"Iron Bank parity",ic:"⚙️",ep:"/iron-bank/parity",m:"GET",d:"Requirement-level parity vs Platform One Iron Bank. Honest gaps."},
-    {nm:"Iron Bank check",ic:"🏗️",ep:"/iron-bank/check-image",m:"POST",b:{image:"registry1.dso.mil/ironbank/killinchu:v11"},d:"Hardened-image check; no fabricated PASS."},
     {nm:"Big Bang lint",ic:"💥",ep:"/big-bang/lint",m:"POST",b:{values:{istio:{enabled:true},pepr:true,monitoring:{enabled:true}}},d:"Lints values.yaml; fail-WARNING on high-severity gaps."},
     {nm:"Big Bang parity",ic:"🧩",ep:"/big-bang/parity",m:"GET",d:"Feature parity map; Flux GitOps on roadmap (honest)."},
     {nm:"Tradewinds listing",ic:"🛒",ep:"/tradewinds/listing",m:"GET",d:"Marketplace listing data. No awarded-contract claim."},
-    {nm:"CMMC L2 delta",ic:"📋",ep:"/cmmc/delta",m:"GET",d:"NIST 800-171 self-assessment delta. Not a C3PAO assessment."},
     {nm:"NIST AI RMF map",ic:"🧭",ep:"/nist-ai-rmf/map",m:"GET",d:"GOVERN/MAP/MEASURE/MANAGE mapping. Λ stays a Conjecture."},
-    {nm:"FedRAMP posture",ic:"🏛️",ep:"/fedramp/posture",m:"GET",d:"FedRAMP Moderate posture. NOT authorized — no ATO."},
     {nm:"EU AI Act Art.12",ic:"🇪🇺",ep:"/eu-ai-act/article-12",m:"GET",d:"Record-keeping primitives. Engineering mapping, not conformity."},
     {nm:"Pepr admission",ic:"🚧",ep:"/pepr/test-admission",m:"POST",b:{object:{kind:"Pod",spec:{hostNetwork:true,containers:[]},metadata:{labels:{}}}},d:"Admission decision, fail-CLOSED defaults."},
     {nm:"Airgap verify-deploy",ic:"✈️",ep:"/airgap/verify-deploy",m:"POST",b:{inventory:[{image:"registry1.dso.mil/killinchu:v11",signed:true}],cluster:"k3d-uds-core"},d:"Signed-bundle inventory check. Never fail-open."},
@@ -400,7 +396,7 @@
     if(c.m==="POST") opt.body=JSON.stringify(bodyObj||{});
     fetch(BASE+c.ep,opt).then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});}).then(function(res){
       var j=res.j, signed=j.signed!=null?j.signed:(j.aggregate_signed!=null?j.aggregate_signed:"-");
-      var keys=["verdict","finding_count","allowed","iron_bank_hardened","score_pct","rules_passed","in_khipu_dag","sigstore_rekor","authorization_status","honesty"];
+      var keys=["verdict","finding_count","allowed","score_pct","rules_passed","in_khipu_dag","sigstore_rekor","authorization_status","honesty"];
       var lines=keys.filter(function(k){return j[k]!=null;}).map(function(k){return k+": "+(typeof j[k]==="object"?JSON.stringify(j[k]):j[k]);});
       out.textContent="HTTP "+res.s+" · signed="+signed+"\n"+lines.join("\n")+"\nsha256: "+(j.receipt_sha256||"-");
     }).catch(function(e){ out.textContent="error: "+e.message; });
