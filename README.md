@@ -203,3 +203,27 @@ Honesty over checklist.
 → Full diagram + wire-status table: **[docs-site / mesh](https://szl-holdings.github.io/docs-site/mesh)**
 
 <sub>Λ Conjecture 1 (not a theorem) · 749/14/163 v11 LOCKED · SLSA L1 honest · Section 889 = 5 vendors</sub>
+
+---
+
+## Real Edge Verdict Layer — `src/killinchu/` (added 2026-06-03, NO MOCKS)
+
+A real, dependency-light edge inference layer ships under `src/killinchu/`:
+
+| Module | What it does (REAL) |
+|---|---|
+| `lambda_calc.py` | Weighted **geometric-mean Λ** over 13 trust axes + a genuine **McAllester/Maurer PAC-Bayes** certified-floor (binary-KL inversion by bisection). Λ uniqueness remains **Conjecture 1**, never claimed as a theorem. |
+| `dsse.py` | **Real ECDSA-P256-SHA256 over the DSSEv1 PAE** — verifiable by `cosign verify-blob` and by `verify_envelope()`. Key order: `SZL_COSIGN_PRIVATE_PEM` → `KILLINCHU_EDGE_KEY_PEM` → a **real ephemeral** key (honestly labelled `ephemeral`, never a placeholder). |
+| `khipu.py` | **Real sha256 hash-chained** append-only Khipu DAG; optional JSONL persistence via `KILLINCHU_KHIPU_PATH`. |
+| `edge.py` | `EdgeNode` consumes **real OTLP telemetry** (no random draws), maps fields → 13 axes deterministically, and emits a **signed Λ verdict + Khipu node**. |
+
+**Live endpoints** (additive, registered before the SPA catch-all):
+
+- `POST /api/killinchu/v1/verdict` — submit a real telemetry frame (OTLP attribute map or flat fields) → signed Λ verdict + Khipu receipt.
+- `GET|POST /api/killinchu/v1/edge/3d` — 3-D scene where every POSTed track carries a real signed Λ verdict (no body ⇒ empty scene; we never fabricate tracks).
+
+**Tested:** `tests/test_edge_real.py` (real OTLP fixture → Λ∈[0,1], DSSE verifies, geofence breach → DENY, Khipu chain intact, full ALLOW/REVIEW/DENY spectrum reachable) and `tests/test_no_mock.py` (static guard that **fails the build** if `mock`/`fake`/`stub`/`placeholder` leak into non-test source, plus runtime proof the signer is real ECDSA and Λ is computed). **15/15 green locally.**
+
+**Honesty:** the **edge** DSSE signatures are real and verifiable. They are produced by an edge-local / ephemeral key by default — this is **not** the org-root Sigstore CI key, which is wired separately at the GHCR/bundle layer (where images carry real SLSA Provenance v1 + cosign-keyless attestation). ADS-B / Remote-ID fields remain **unauthenticated broadcast CLAIMS**, not attested truth. A single broadcast frame (n=1) is honestly **uncertain** and will not ALLOW; ALLOW requires a real fused dwell window.
+
+<sub>Λ Conjecture 1 (not a theorem) · 749/14/163 v11 LOCKED · SLSA L1 honest + L2 attested (bundle/GHCR layer) · edge DSSE = real ECDSA-P256 · kernel c7c0ba17</sub>

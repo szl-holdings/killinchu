@@ -1,0 +1,49 @@
+{
+  "_description": "Real-shape OTLP/HTTP-JSON log payload of decoded drone broadcast frames (OpenDroneID / ADS-B / MAVLink). Field values are captured-style observations, NOT random mock data. Consumed by killinchu.edge as a connected test fixture.",
+  "resourceLogs": [
+    {
+      "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "killinchu-edge-receiver"}}]},
+      "scopeLogs": [
+        {
+          "scope": {"name": "opendroneid.decoder"},
+          "logRecords": [
+            {
+              "timeUnixNano": "1780512000000000000",
+              "body": {"stringValue": "decoded OpenDroneID basic+location+auth"},
+              "attributes": [
+                {"key": "drone.source", "value": {"stringValue": "OpenDroneID"}},
+                {"key": "drone.track_id", "value": {"stringValue": "ODID-7F3A21"}},
+                {"key": "drone.lat", "value": {"doubleValue": -13.16307}},
+                {"key": "drone.lon", "value": {"doubleValue": -72.54521}},
+                {"key": "drone.alt_m", "value": {"doubleValue": 118.0}},
+                {"key": "drone.speed_mps", "value": {"doubleValue": 14.2}},
+                {"key": "drone.rssi_dbm", "value": {"doubleValue": -58.0}},
+                {"key": "drone.id_authenticated", "value": {"boolValue": true}},
+                {"key": "drone.geofence_violation", "value": {"boolValue": false}},
+                {"key": "drone.timestamp_skew_s", "value": {"doubleValue": 0.4}},
+                {"key": "drone.n_observations", "value": {"intValue": 1024}}
+              ]
+            },
+            {
+              "timeUnixNano": "1780512002000000000",
+              "body": {"stringValue": "decoded ADS-B 1090ES, geofence breach"},
+              "attributes": [
+                {"key": "drone.source", "value": {"stringValue": "ADS-B"}},
+                {"key": "drone.track_id", "value": {"stringValue": "ADSB-A1B2C3"}},
+                {"key": "drone.lat", "value": {"doubleValue": -13.16400}},
+                {"key": "drone.lon", "value": {"doubleValue": -72.54600}},
+                {"key": "drone.alt_m", "value": {"doubleValue": 65.0}},
+                {"key": "drone.speed_mps", "value": {"doubleValue": 31.0}},
+                {"key": "drone.rssi_dbm", "value": {"doubleValue": -82.0}},
+                {"key": "drone.id_authenticated", "value": {"boolValue": false}},
+                {"key": "drone.geofence_violation", "value": {"boolValue": true}},
+                {"key": "drone.timestamp_skew_s", "value": {"doubleValue": 2.1}},
+                {"key": "drone.n_observations", "value": {"intValue": 512}}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
