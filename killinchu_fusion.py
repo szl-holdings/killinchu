@@ -40,7 +40,7 @@ UDS PAIN-POINT ENDPOINTS (every issue UDS faces, real signed responses):
     POST /api/killinchu/uds/v1/airgap/verify-deploy   signed bundle inventory check
     GET  /api/killinchu/uds/v1/sbom/diff/{old}/{new}  package-level SBOM diff
     POST /api/killinchu/uds/v1/pepr/test-admission    Pepr admission (fail-CLOSED)
-    POST /api/killinchu/uds/v1/iron-bank/check-image  Iron Bank hardened check (honest)
+    # iron-bank/check-image REMOVED per Charter §24 (NO Iron Bank in runtime)
     GET  /api/killinchu/uds/v1/stig/scan-report/{img} STIG/SCAP scan report
     GET  /api/killinchu/uds/v1/big-bang/parity        SZL chart vs Big Bang reference
     POST /api/killinchu/uds/v1/jadc2/event            JADC2 C2 event → 4-organ verdict
