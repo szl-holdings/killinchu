@@ -7,7 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: true
 license: apache-2.0
-short_description: "53 drone fingerprints · 13-axis Λ-classify · DSSE-signed verdicts"
+short_description: "53 drone sigs · 13-axis Λ-classify · DSSE verdicts"
 tags:
   - doctrine-v11
   - defense
