@@ -594,6 +594,7 @@ async def lambda_axes(request: Request) -> JSONResponse:
         "declarations": 749,
         "axioms_unique": 14,
         "sorries_total": 163,
+        "kernel_commit": "c7c0ba17",
         "doctrine": DOCTRINE,
     })
 
@@ -1391,6 +1392,203 @@ async def killinchu_adsb_v3(
             "note": "OpenSky unavailable — synthetic demo data", "error": str(_e)[:80],
             "doctrine": "v11", "kernel_commit": "c7c0ba17",
             "flights": demo_flights, "ts": _now})
+
+# ============================================================================
+# ADDITIVE DEEP-C: FAA RID validate + MAVLink geofence + Ken + Khipu v1 aliases
+# + kernel_commit in lambda + v4/inbox POST fix
+# Date: 2026-06-03 | Op: Killinchu Deep Operational C
+# Doctrine v11 LOCKED 749/14/163. c7c0ba17. Λ = Conjecture 1. SLSA L1 honest.
+# MUST be registered BEFORE uvicorn.run() blocking call.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+
+# ── FAA RID Validate (INN-10, PR #27 merged) ─────────────────────────────────
+@app.post("/api/killinchu/v1/faa-rid/validate")
+async def _killinchu_faa_rid_validate(request: Request) -> JSONResponse:
+    """FAA Remote ID session freshness validator — INN-10. Lean: FAARIDSessionValidity (0 sorry)."""
+    import time as _t
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    RID_WINDOW = 30.0  # FAA RID §89.305(a)(3) — 30s freshness window
+    # Accept timestamp_sec (float POSIX) or ISO string
+    ts_raw = body.get("timestamp_sec") or body.get("ts") or body.get("timestamp")
+    if ts_raw is None:
+        return JSONResponse({"valid": False, "error": "missing timestamp_sec field",
+                             "lean_theorem": "FAARIDSessionValidity", "doctrine": "v11"}, status_code=422)
+    try:
+        ts = float(ts_raw)
+    except (ValueError, TypeError):
+        # Try ISO parse
+        from datetime import datetime as _dt
+        try:
+            ts = _dt.fromisoformat(str(ts_raw).replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return JSONResponse({"valid": False, "error": f"unparseable timestamp: {ts_raw!r}",
+                                 "lean_theorem": "FAARIDSessionValidity", "doctrine": "v11"}, status_code=422)
+    age = _t.time() - ts
+    valid = 0.0 <= age <= RID_WINDOW
+    msg = "FAA RID timestamp valid" if valid else f"FAA RID stale: age={age:.1f}s > {RID_WINDOW}s"
+    boundary = abs(age - RID_WINDOW) < 0.5
+    return JSONResponse({
+        "valid": valid,
+        "age_sec": round(age, 2),
+        "freshness_window_sec": RID_WINDOW,
+        "message": msg,
+        "boundary_case": boundary,
+        "lean_theorem": "FAARIDSessionValidity (omega proof, 0 sorry)",
+        "lean_repo": "szl-holdings/lutar-lean@feat/innovations-inn-01-12",
+        "source_file": "faa/rid_validator.py",
+        "section": "FAA RID §89.305(a)(3)",
+        "doctrine": "v11",
+        "kernel_commit": "c7c0ba17",
+        "honesty": "ADS-B/Remote-ID timestamps are unauthenticated broadcast CLAIMS — not attested.",
+    })
+# ── end FAA RID Validate ──────────────────────────────────────────────────────
+
+# ── MAVLink Geofence Admission (INN-09, PR #27 merged) ───────────────────────
+# DC operational geofence [38.8,39.0] × [-77.2,-76.8] (replace per deployment)
+_KILLINCHU_GEOFENCE = {"lat_min": 38.8, "lat_max": 39.0, "lon_min": -77.2, "lon_max": -76.8}
+
+@app.post("/api/killinchu/v1/mavlink/geofence")
+async def _killinchu_mavlink_geofence(request: Request) -> JSONResponse:
+    """MAVLink geofence enforcement — INN-09. Lean: MAVLinkValidateGeofence (partial)."""
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    lat = body.get("lat") or body.get("latitude")
+    lon = body.get("lon") or body.get("longitude")
+    if lat is None or lon is None:
+        return JSONResponse({"inside": None, "error": "provide {lat, lon}",
+                             "lean_theorem": "MAVLinkValidateGeofence", "doctrine": "v11"}, status_code=422)
+    try:
+        lat, lon = float(lat), float(lon)
+    except (ValueError, TypeError):
+        return JSONResponse({"inside": None, "error": "lat/lon must be numeric",
+                             "lean_theorem": "MAVLinkValidateGeofence", "doctrine": "v11"}, status_code=422)
+    gf = _KILLINCHU_GEOFENCE
+    inside = (gf["lat_min"] <= lat <= gf["lat_max"]) and (gf["lon_min"] <= lon <= gf["lon_max"])
+    on_boundary = (abs(lat - gf["lat_min"]) < 0.001 or abs(lat - gf["lat_max"]) < 0.001 or
+                   abs(lon - gf["lon_min"]) < 0.001 or abs(lon - gf["lon_max"]) < 0.001)
+    classification = "INSIDE_GEOFENCE" if inside else "OUTSIDE_GEOFENCE"
+    if on_boundary:
+        classification = "ON_BOUNDARY"
+    action = "DENY" if inside or on_boundary else "ALLOW"
+    return JSONResponse({
+        "lat": lat, "lon": lon,
+        "inside": inside,
+        "on_boundary": on_boundary,
+        "classification": classification,
+        "action": action,
+        "geofence": gf,
+        "geofence_desc": "DC operational zone [38.8,39.0]×[-77.2,-76.8] — replace per deployment",
+        "lean_theorem": "MAVLinkValidateGeofence (rejection proved; Float boundary sorry)",
+        "lean_repo": "szl-holdings/lutar-lean@feat/innovations-inn-01-12",
+        "source_file": "capabilities/mavlink-geofence-admission.ts",
+        "doctrine": "v11",
+        "kernel_commit": "c7c0ba17",
+        "honesty": "INN-09 Lean proof is PARTIAL — rejection theorem proved; Float boundary has open sorry.",
+    })
+# ── end MAVLink Geofence ──────────────────────────────────────────────────────
+
+# ── Khipu v1 path aliases ─────────────────────────────────────────────────────
+@app.get("/api/killinchu/v1/khipu/ledger")
+async def _killinchu_v1_khipu_ledger() -> JSONResponse:
+    """Alias: GET /api/killinchu/v1/khipu/ledger → /api/killinchu/khipu/ledger."""
+    import httpx as _hx_kl
+    try:
+        async with _hx_kl.AsyncClient(timeout=5.0) as _c:
+            _r = await _c.get("http://127.0.0.1:7860/api/killinchu/khipu/ledger")
+            return JSONResponse(_r.json())
+    except Exception as _ex:
+        return JSONResponse({"space": "killinchu", "error": str(_ex),
+                             "doctrine": "v11", "khipu_root": None, "nodes": []})
+
+@app.get("/api/killinchu/v1/khipu/dag")
+async def _killinchu_v1_khipu_dag() -> JSONResponse:
+    """Alias: GET /api/killinchu/v1/khipu/dag → /api/killinchu/khipu/ledger (dag view)."""
+    import httpx as _hx_kd
+    try:
+        async with _hx_kd.AsyncClient(timeout=5.0) as _c:
+            _r = await _c.get("http://127.0.0.1:7860/api/killinchu/khipu/ledger")
+            data = _r.json()
+            data["_dag_view"] = True
+            return JSONResponse(data)
+    except Exception as _ex:
+        return JSONResponse({"space": "killinchu", "error": str(_ex),
+                             "doctrine": "v11", "_dag_view": True, "nodes": []})
+# ── end Khipu v1 aliases ──────────────────────────────────────────────────────
+
+# ── v4/inbox POST fix (additive, bypasses operator_shell_v4 registration issue) ─
+@app.post("/api/killinchu/v4/inbox")
+async def _killinchu_v4_inbox_post(request: Request) -> JSONResponse:
+    """POST telemetry/action into killinchu v4 inbox. Returns DSSE receipt. Doctrine v11."""
+    import hashlib as _hl_inb, uuid as _uuid_inb
+    body: dict = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    protocol = body.get("protocol", "unknown")
+    action = body.get("action", "")
+    raw = body.get("raw", "")
+    payload_sha = _hl_inb.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+    receipt_hash = f"sha256:{payload_sha}"
+    receipt = {
+        "receipt_hash": receipt_hash,
+        "hash": payload_sha,
+        "signature": "PLACEHOLDER — Sigstore CI not yet wired per Doctrine v11",
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "lean_sha": "c7c0ba17",
+    }
+    return JSONResponse({
+        "received": True,
+        "receipt_hash": receipt_hash,
+        "protocol": protocol,
+        "action": action,
+        "decoded": {
+            "message_type": "CLAIM",
+            "protocol": protocol,
+            "note": "Decoded fields are CLAIMS from unauthenticated broadcast — not attested truth.",
+        },
+        "receipt": receipt,
+        "doctrine": "v11",
+        "kernel_commit": "c7c0ba17",
+        "honesty": "Receipt signature is PLACEHOLDER. Sigstore CI not yet wired per Doctrine v11.",
+    })
+# ── end v4/inbox POST fix ─────────────────────────────────────────────────────
+
+# ── SZL Agent Pattern v1 (Ken) — MOVED BEFORE uvicorn.run() ──────────────────
+# Previously dead code (was after uvicorn.run blocking call). Restored here.
+# Doctrine v11 LOCKED 749/14/163. c7c0ba17. ADDITIVE ONLY.
+# ── Note: szl_ken block appears below the uvicorn.run call in the original code
+#    but since the real activation requires loading before the block, we do it here.
+try:
+    import szl_ken as _ken_dc
+    import sys as _sys_dc
+    _kf_dc = "killinchu"
+    _ken_router_dc = _ken_dc.make_ken_router(
+        flagship=_kf_dc,
+        tools_manifest=_ken_dc.get_default_tools(_kf_dc),
+    )
+    app.include_router(_ken_router_dc)
+    print(f"[{_kf_dc}] Deep-C: szl_ken registered: POST /api/{_kf_dc}/v1/agent/loop ✓", file=_sys_dc.stderr)
+    print(f"[{_kf_dc}] Deep-C: szl_ken registered: GET  /api/{_kf_dc}/v1/mcp/tools ✓", file=_sys_dc.stderr)
+except ImportError as _ke_dc:
+    print(f"[ken-dc] szl_ken not available: {_ke_dc!r}", file=__import__("sys").stderr)
+except Exception as _ke_dc:
+    print(f"[ken-dc] registration error (non-fatal): {_ke_dc!r}", file=__import__("sys").stderr)
+# ── end Ken before uvicorn ────────────────────────────────────────────────────
+
+# ============================================================================
+# END: ADDITIVE DEEP-C BLOCK
+# ============================================================================
+
 
 if __name__ == "__main__":
     import uvicorn
