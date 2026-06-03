@@ -1,3 +1,26 @@
+---
+title: "Killinchu — Andean Drone Intelligence"
+emoji: 🦅
+colorFrom: gray
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: true
+license: apache-2.0
+short_description: "Provenanced defense intel · 53-drone mesh · cosign-signed"
+tags:
+  - doctrine-v11
+  - defense
+  - drone-intelligence
+  - szl-holdings
+  - agentic-ai
+  - dsse
+  - governance
+  - provenance
+  - apache-2.0
+  - counter-uas
+---
+
 # killinchu 🦅
 > Andean drone intelligence — a formally-governed counter-UAS rule engine with Λ-gate governance, DSSE Khipu receipts, and real Remote-ID / ADS-B / MAVLink ingest.
 
