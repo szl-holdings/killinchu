@@ -1,91 +1,72 @@
-# Threat Model — STRIDE Analysis
-
-**Service:** killinchu  
-**Version:** v1.0.0  
-**Framework:** STRIDE  
-**Last reviewed:** 2026-06-09  
-**Next review:** 2026-09-09 (quarterly)
-
----
+# Threat Model — killinchu Flagship
+**Doctrine v11 LOCKED 749/14/163 | STRIDE/DREAD | Generated: 2026-06-03**  
+**Review cadence:** Quarterly  
+**Next review:** 2026-09-01
 
 ## Scope
 
-This threat model covers the killinchu service as deployed on HuggingFace Spaces (free-tier Docker container) and GitHub Actions CI/CD pipeline. It does not cover the underlying HuggingFace infrastructure.
+The killinchu HuggingFace Space and its GitHub-hosted source code under `szl-holdings/killinchu`.
 
-**Trust boundaries:**
-1. External internet → HuggingFace Space (public endpoint)
-2. GitHub Actions → GHCR (container registry)
-3. GitHub Actions → GitHub API (deployments, releases)
-4. Operator browser → HuggingFace Space (admin UI)
+## Assets
 
----
+| Asset | Sensitivity |
+|-------|-------------|
+| Doctrine parameters (749/14/163/c7c0ba17) | Critical |
+| DSSE receipt signing keys | High |
+| API endpoint contract | High |
+| HF_TOKEN / GitHub PAT | Critical |
+| User query inputs | Medium |
 
-## STRIDE Analysis
+## Threat Categories (STRIDE)
 
-### S — Spoofing
+### Spoofing
+- **T-01**: Attacker impersonates doctrine endpoint → Return falsified doctrine version
+  - *Mitigation*: DSSE-signed receipts on responses; Doctrine v11 hardcoded in source
+  - *DREAD*: Damage=8, Reproducibility=5, Exploitability=4, Affected=7, Discoverability=6 → **DREAD=6.0**
 
-| Threat | Component | Mitigation | Status |
-|---|---|---|---|
-| Forged commit author | Git history | DCO `Signed-off-by:` on all commits | DONE |
-| Container image tampering | GHCR | Cosign keyless OIDC signing + Rekor transparency log | DONE |
-| Fake release artifacts | GitHub Releases | SBOM attached; SHA256 checksums in release notes | DONE |
+### Tampering
+- **T-02**: Commit that modifies DOCTRINE constant to a non-v11 value
+  - *Mitigation*: Branch protection requires CI pass; doctrine-grep.yml blocks v10/v9 patterns
+  - *DREAD*: D=9, R=4, E=3, A=9, D=5 → **DREAD=6.0**
+- **T-03**: HF Space race condition overwrites correct serve.py
+  - *Mitigation*: Lesson learned — use 5-min wait between same-Space pushes; git pull before commit
+  - *DREAD*: D=7, R=6, E=6, A=8, D=4 → **DREAD=6.2**
 
-### T — Tampering
+### Repudiation
+- **T-04**: Agent denies which commit introduced a doctrine violation
+  - *Mitigation*: DCO trailers on every commit; GitHub audit log; Sigstore transparency log
+  - *DREAD*: D=5, R=5, E=3, A=6, D=4 → **DREAD=4.6**
 
-| Threat | Component | Mitigation | Status |
-|---|---|---|---|
-| Supply-chain action injection | GHA workflows | All `uses:` steps pinned to commit SHA | DONE |
-| Dependency substitution | pip/npm/go | Dependabot weekly; lock files committed | DONE |
-| Branch history rewrite | GitHub repo | Branch protection: no force-push on main | DONE |
-| Dockerfile `COPY . .` wildcard | Container build | Per-file Dockerfile COPY enforced (doctrine requirement) | DONE |
+### Information Disclosure
+- **T-05**: Secrets (HF_TOKEN, PAT) leaked in logs or responses
+  - *Mitigation*: TruffleHog in HF repo; GitHub secret scanning enabled; tokens never logged
+  - *DREAD*: D=9, R=3, E=4, A=8, D=3 → **DREAD=5.4**
 
-### R — Repudiation
+### Denial of Service
+- **T-06**: HF Space overwhelmed by requests → rate limit triggers cold restart
+  - *Mitigation*: HF free-tier has built-in rate limiting; honest disclosure in SLO (cold start ≤ 120s)
+  - *DREAD*: D=5, R=7, E=7, A=7, D=7 → **DREAD=6.6**
 
-| Threat | Component | Mitigation | Status |
-|---|---|---|---|
-| Unverifiable build provenance | CI artifacts | SLSA L1 provenance; GHA run ID in release notes | DONE |
-| Untracked security disclosures | Issue tracker | `SECURITY.md` with 90-day SLA; email audit trail | DONE |
+### Elevation of Privilege
+- **T-07**: GHA workflow with write:packages scope runs attacker-controlled PR
+  - *Mitigation*: Least-privilege GHA permissions (contents:read, security-events:write only for scan jobs)
+  - *DREAD*: D=8, R=3, E=3, A=7, D=3 → **DREAD=4.8**
 
-### I — Information Disclosure
+## Accepted Risks
 
-| Threat | Component | Mitigation | Status |
-|---|---|---|---|
-| Secrets in git history | Repository | Gitleaks + TruffleHog in CI; no `.env` committed | PARTIAL |
-| Long-lived credentials | GitHub Actions | Secrets stored as GHA encrypted secrets; OIDC preferred | PARTIAL |
-| Verbose error responses | API endpoints | All endpoints return 200 or 404; no 405/500 detail leak | DONE |
+| Risk | Reason Accepted |
+|------|-----------------|
+| SLSA L1 (not L2+) | Honest disclosure; keyless Sigstore signing is roadmap (Series-A) |
+| No HSM for DSSE key | Founder decision; key rotation documented; ephemeral Fulcio certs cover builds |
+| HF cold-start unavailability | Free-tier constraint; honest in SLO and HONEST_DISCLOSURE.md |
 
-### D — Denial of Service
+## Mitigations in Place
 
-| Threat | Component | Mitigation | Status |
-|---|---|---|---|
-| HF Space cold-start | Hosting | Free-tier spaces may sleep (48h inactivity) — upgrade to paid tier recommended | OPEN |
-| Rate-limit bypass | API | HuggingFace platform-level rate limiting | EXTERNAL |
+- Doctrine-grep CI blocks SLSA L2/L3 overclaims, Iron Bank claims, FedRAMP claims
+- Branch protection on main (1 reviewer required on PRs)
+- DCO enforcement via dco.yml
+- TruffleHog on HF Space
+- Section 889 compliance verified (5 vendors listed, no prohibited components)
 
-### E — Elevation of Privilege
-
-| Threat | Component | Mitigation | Status |
-|---|---|---|---|
-| GHA token privilege escalation | Workflows | Least-privilege `permissions:` block on all workflows | DONE |
-| CODEOWNERS bypass | GitHub | Branch protection requires CODEOWNERS review | DONE |
-| Doctrine kernel modification | Lean files | DO NOT MODIFY `.lean` files; commit `c7c0ba17` locked | LOCKED |
-
----
-
-## Open Risks (Accepted)
-
-| Risk | Severity | Acceptance Rationale |
-|---|---|---|
-| HF free-tier sleep | High | Upgrade requires payment (founder action); acceptable pre-Warhacker |
-| No Vault integration | Medium | K8s secrets sufficient for current scale; Vault is post-v1.0 |
-| No PagerDuty/Opsgenie | Low | Small team; manual on-call acceptable pre-Warhacker |
-
----
-
-## Sources
-
-- [NIST SP 800-154 — Data-Centric Threat Modeling](https://csrc.nist.gov/publications/detail/sp/800-154/draft)
-- [Anthropic RSP — Threat Modeling](https://www.anthropic.com/responsible-scaling-policy)
-- [OWASP API Security Top 10](https://owasp.org/www-project-api-security/)
-- [STRIDE methodology](https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool-threats)
-
-*Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>*
+**Signed-off-by: Yachay <yachay@szlholdings.ai>**  
+**Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>**
