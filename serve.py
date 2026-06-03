@@ -67,6 +67,31 @@ _OTEL_ENABLED = False
 
 app = FastAPI(title="Killinchu — Andean Drone Intelligence", version="1.0.0")
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (Formulas → Ecosystem echo, Opus 4.8, 2026-06-03, Yachay).
+# killinchu ECHOES a shared subset from the a11oy front door: Welford (online
+# mean/variance z-score anomaly gate for ADS-B/Remote-ID telemetry) + Bloom (FN-free
+# duplicate-track membership fast path). Verbatim-vendored from a11oy.formulas under
+# ./szl_shared_formulas/. register() mounts /api/killinchu/v1/formula/* +
+# /api/killinchu/v1/formulas/index EARLY (before the /{full_path:path} catch-all).
+# HONEST schema {value, citation, lean_theorem}. try/except guarded.
+# HONEST SLSA: killinchu image is signed by the GitHub PRIVATE Fulcio (O=GitHub,Inc),
+# with NO public Rekor entry — so it stays L1 (honest). NOT claimed L2. Fix tracked.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+_killinchu_formulas = None
+_killinchu_formulas_status = "formulas-not-wired"
+try:
+    if "/app" not in sys.path and os.path.isdir("/app/szl_shared_formulas"):
+        sys.path.insert(0, "/app")
+    import killinchu_formula_endpoints as _killinchu_formulas
+    _killinchu_formulas_status = _killinchu_formulas.register(app, ns="killinchu")
+    print(f"[killinchu] thesis-v22 formulas echoed ({_killinchu_formulas_status})", file=sys.stderr)
+except Exception as _killinchu_fx:  # additive: never break the Space
+    _killinchu_formulas_status = f"formulas-not-wired:{_killinchu_fx!r}"
+    print(f"[killinchu] formula echo NOT mounted ({_killinchu_fx!r}); app unaffected", file=sys.stderr)
+
 # ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
 try:
     from vsp_otel.middleware import install as install_vsp; install_vsp(app)
@@ -272,6 +297,15 @@ async def readyz() -> JSONResponse:
 
 @app.get("/api/killinchu/v1/honest")
 async def honest() -> JSONResponse:
+    # ADDITIVE (Formulas → Ecosystem, 2026-06-03): surface echoed formulas (Welford,
+    # Bloom) + HONEST SLSA. killinchu is the ONE organ NOT public-verifiable L2: its
+    # image is signed by the GitHub PRIVATE Fulcio (O=GitHub,Inc, CN=Fulcio Intermediate
+    # l2) with NO public Rekor tlog entry. We therefore HONESTLY keep it at L1 — never
+    # claim L2 where slsa-verifier/public Rekor do not confirm.
+    try:
+        _f = _killinchu_formulas.formulas_summary() if _killinchu_formulas else {"wired": [], "count": 0}
+    except Exception:
+        _f = {"wired": [], "count": 0}
     return JSONResponse({
         "space": "killinchu",
         "doctrine": DOCTRINE,
@@ -281,10 +315,22 @@ async def honest() -> JSONResponse:
         "lambda_status": "Conjecture 1 — NOT a theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "lambda_uniqueness": "Conjecture, not a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "slsa": "L1 (honest)",
+        "slsa_evidence": {
+            "level": "L1", "image_tag": "uds-v0.2.0",
+            "image_digest": "sha256:4465e1aa1842d45423e878485f83865b1eb65b89f299ee5d25fab9fe3d8b80e9",
+            "fulcio_issuer": "GitHub private Fulcio (O=GitHub,Inc, CN=Fulcio Intermediate l2)",
+            "public_rekor_entry": False,
+            "note": "NOT public-verifiable L2 — signed by GitHub PRIVATE Fulcio, no public Rekor tlog entry. The other 4 organs (a11oy, sentra, amaru, rosie) ARE public-verifiable L2. Fix: re-run ghcr-build-push.yml with public Sigstore+Rekor.",
+        },
+        "formulas_wired": [f["name"] for f in _f.get("wired", [])],
+        "formulas_count": _f.get("count", 0),
+        "formulas_status": globals().get("_killinchu_formulas_status", "unknown"),
+        "formulas_index": "/api/killinchu/v1/formulas/index",
+        "formulas_provenance": "thesis_v22.pdf §2 + real Lean theorem/obligation; echoed from a11oy front door (Welford, Bloom)",
         "honest_disclosures": [
             "ADS-B and Remote-ID are unauthenticated broadcast — decoded fields are CLAIMS, not attested truth.",
             "Receipt signatures are PLACEHOLDER — Sigstore CI not yet wired per Doctrine v11.",
-            "SLSA L1 honest — not L2 or L3 as achieved.",
+            "SLSA L1 honest — NOT public-verifiable L2 (GitHub private Fulcio, no public Rekor). The other 4 organs ARE public L2.",
             "Section 889: 5 banned vendors (Huawei, ZTE, Hytera, Hikvision, Dahua).",
         ],
         "receipts": f"DSSE envelopes; signature = {SIGNATURE_PLACEHOLDER}",
