@@ -53,6 +53,41 @@ SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired into 
 KILLINCHU_REDIRECT = "https://szlholdings-killinchu.hf.space"
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (Yachay / Perplexity Computer Agent — Receipt-signing wire):
+# Wire the rule-engine inline receipts (_emit_receipt) to the REAL cosign DSSE
+# path (szl_dsse) instead of stamping a literal placeholder. HONEST behaviour:
+#   * If SZL_COSIGN_PRIVATE_PEM is present in the Space runtime, every receipt
+#     is signed with a genuine ECDSA-P256-SHA256 DSSE signature, verifiable by
+#     `cosign verify-blob --key cosign.pub` and the /khipu/verify endpoint.
+#   * If the secret is ABSENT, we DO NOT fabricate a signature — the receipt
+#     keeps the clearly-labelled placeholder so /honest stays truthful.
+# This is Option 2 from the brief: a long-lived demo keypair is minted once,
+# its PRIVATE half delivered ONLY as the Space secret (never committed), its
+# PUBLIC half published at szl-holdings/.github/cosign.pub (embedded in
+# szl_dsse.COSIGN_PUBLIC_PEM). For prod, Option 1 (cosign keyless OIDC) is the
+# recommended upgrade — see FINAL_REPORT.
+try:
+    import szl_dsse as _szl_dsse  # real cosign DSSE signer
+except Exception:  # pragma: no cover - degrade gracefully, never crash the app
+    _szl_dsse = None
+
+
+def _receipt_signatures(receipt_obj: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    """Return (signatures, signed). Uses the real cosign DSSE key when the
+    SZL_COSIGN_PRIVATE_PEM secret is present; otherwise an HONEST placeholder
+    (never a fabricated signature). Failures degrade to the placeholder."""
+    if _szl_dsse is not None:
+        try:
+            if _szl_dsse.signing_available():
+                env = _szl_dsse.sign_payload(receipt_obj, "application/vnd.szl.receipt+json")
+                sigs = env.get("signatures") or []
+                if sigs:
+                    return sigs, True
+        except Exception:
+            pass
+    return [{"sig": SIGNATURE_PLACEHOLDER, "keyid": "PENDING"}], False
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (OTel instrumentation, Yachay 2026-06-01 / Perplexity Computer Agent):
 # Initialise OTLP/HTTP trace export from env var OTEL_EXPORTER_OTLP_ENDPOINT.
 # Gracefully no-ops if the env var is absent or packages missing.
@@ -186,6 +221,7 @@ def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
         "doctrine": DOCTRINE,
         "ts_utc": datetime.now(timezone.utc).isoformat(),
     }
+    sigs, signed = _receipt_signatures(receipt)
     node: dict[str, Any] = {
         "index": len(_KHIPU_DAG),
         "wire": "F",
@@ -194,8 +230,18 @@ def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
         "parents": parents,
         "dsse": {
             "payloadType": "application/vnd.szl.receipt+json",
-            "signatures": [{"sig": SIGNATURE_PLACEHOLDER, "keyid": "PENDING"}],
+            "signatures": sigs,
+            "signed": signed,
+            "keyid": (sigs[0].get("keyid") if sigs else None),
+            "honesty": (
+                "REAL — ECDSA-P256-SHA256 DSSE over cosign keypair; verify with "
+                "`cosign verify-blob --key cosign.pub` or POST /khipu/verify."
+                if signed else
+                "PLACEHOLDER — SZL_COSIGN_PRIVATE_PEM secret absent; no signature "
+                "fabricated (honest). Set the Space secret to enable real signing."
+            ),
         },
+        "signed": signed,
         "ts_utc": receipt["ts_utc"],
     }
     node["digest"] = _digest_node(receipt, parents)

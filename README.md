@@ -7,7 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: true
 license: apache-2.0
-short_description: "Provenanced defense intel · 53-drone mesh · cosign-signed"
+short_description: "53 drone fingerprints · 13-axis Λ-classify · DSSE-signed verdicts"
 tags:
   - doctrine-v11
   - defense
@@ -22,7 +22,9 @@ tags:
 ---
 
 # killinchu 🦅
-> Andean drone intelligence — a formally-governed counter-UAS rule engine with Λ-gate governance, DSSE Khipu receipts, and real Remote-ID / ADS-B / MAVLink ingest.
+> **Detect. Classify. Defeat under human authority.** Andean drone intelligence — a formally-governed counter-UAS rule engine with Λ-gate governance, DSSE Khipu receipts, and real Remote-ID / ADS-B / MAVLink ingest.
+
+> **53 drone fingerprints · 13-axis Λ-classify · DSSE-signed verdicts** — open-source, air-gap-deployable, and honest about every claim limit.
 
 ![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A) ![SLSA-L1-L2](https://img.shields.io/badge/SLSA-L1%20%2B%20L2%20attested-2C5F2D) ![DCO](https://img.shields.io/badge/DCO-required-555) ![CI](https://img.shields.io/badge/CI-green-2C5F2D) ![Scorecard](https://img.shields.io/badge/OpenSSF-Scorecard-informational) ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
@@ -77,9 +79,27 @@ rekor-cli get --log-index 1710339915
 # Or open in a browser: https://search.sigstore.dev/?logIndex=1710339915
 ```
 
-> Honest note: DSSE/Sigstore CI signing is being wired (receipt signatures are
-> labelled `PLACEHOLDER` until CI signing lands). The `/v1/honest` check above is
-> the authoritative live doctrine probe.
+> Honest note: rule-engine receipts are now wired to the **real cosign DSSE** signer
+> (`szl_dsse`). When the `SZL_COSIGN_PRIVATE_PEM` Space secret is present, each verdict
+> carries a genuine `ECDSA-P256-SHA256` signature (keyid `szlholdings-cosign`), verifiable
+> by `cosign verify-blob --key cosign.pub` and `POST /khipu/verify`. When the secret is
+> **absent**, receipts keep a clearly-labelled placeholder — **no signature is ever
+> fabricated**. The `/v1/honest` endpoint is the authoritative live posture probe.
+
+### Sign a verdict and verify it (real DSSE round-trip)
+
+```bash
+# Real ECDSA-P256-SHA256 DSSE over a verdict payload (PQC/hybrid also available).
+curl -s -X POST 'https://szlholdings-killinchu.hf.space/khipu/sign?mode=ecdsa' \
+  -H 'content-type: application/json' -d '{"verdict":"HALT","track":"TRK-0001"}' | jq .verified
+# => true
+
+# Cosign DSSE path (keyed) → cosign-CLI verifiable:
+curl -s -X POST 'https://szlholdings-killinchu.hf.space/api/killinchu/khipu/sign' \
+  -H 'content-type: application/json' -d '{"payload":{"verdict":"HALT"}}' | jq '{signed,keyid}'
+# Round-trip verify with cosign:
+#   cosign verify-blob --insecure-ignore-tlog --key cosign.pub --signature <sig> <pae-blob>
+```
 
 **Public proof:** cosign keyless cert (Fulcio) + Rekor transparency log entry
 [`#1710339915`](https://search.sigstore.dev/?logIndex=1710339915) for image `ghcr.io/szl-holdings/killinchu:uds-v0.2.0` (`sha256:dedfc3…718a`).
@@ -117,6 +137,27 @@ flowchart LR
 | `/api/killinchu/v1/lambda` | GET | Λ-gate axis definitions |
 
 The full, canonical endpoint list is on the [docs site](https://docs.szlholdings.com/flagships/killinchu) and the [API reference](https://docs.szlholdings.com/api/).
+
+## Why killinchu vs Anduril Lattice
+
+Lattice is a closed, proprietary autonomy OS. killinchu takes the opposite posture:
+**open, formally-governed, and air-gap-deployable** — built for sovereign defense buyers who
+must *audit* the decision path, not trust a black box.
+
+| Dimension | **killinchu** | Anduril Lattice (public posture) |
+|---|---|---|
+| Licensing | **Apache-2.0, fully open source** | Proprietary, closed |
+| Decision governance | **13-axis Λ-gate, formally specified (Lean); Λ = Conjecture 1, never overclaimed** | ML autonomy, internal |
+| Verdict provenance | **DSSE-signed receipts in a SHA-256 Khipu DAG; `cosign verify-blob`** | Vendor-internal logging |
+| Supply-chain attestation | **SLSA L1+L2, in-toto provenance, public `gh attestation verify`** | Not publicly verifiable |
+| Human authority | **Human-on-the-loop required; defensive scope locked in doctrine** | Human-on-the-loop |
+| Protocol decoders | **Real ASTM F3411 RID / Mode-S ADS-B / MAVLink (no mocks)** | Proprietary sensor fusion |
+| Honest posture | **`/honest` self-discloses every claim limit + unsigned/placeholder state** | Marketing-led |
+| Deployment | **Single signed OCI image · Zarf/UDS air-gap bundle** | Appliance / cloud |
+| Banned vendors | **Section 889 = exactly 5 (Huawei, ZTE, Hytera, Hikvision, Dahua)** | Compliant |
+
+> killinchu is a **precision substrate**, not a turnkey weapon system. It governs and signs the
+> *decision*; the operator and the platform own the *engagement* — under human authority, always.
 
 ## Doctrine
 - **Doctrine v11 LOCKED** — 749/14/163 · kernel `c7c0ba17` (never bumped)
