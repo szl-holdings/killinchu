@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
-# Doctrine v10 — 749 declarations · 14 unique axioms · 163 sorries
+# Doctrine v11 — 749 declarations · 14 unique axioms · 163 sorries
 # szl_formulas.py — PORTABLE canonical-formula registry + Codex-Kernel composer.
 # ADDITIVE, self-contained, pure. Inlined from szl-cookbook recipes
 #   canonical-formulas-v1 + codex-kernel-composer-v1 so each HF Space carries one file.
@@ -15,13 +15,13 @@ no hidden state. Each function carries:
   - a TypedDict input / output contract (see the `*_In` / `*_Out` aliases),
   - an epsilon-tolerance check where floating-point equality is asserted,
   - a docstring citing the source theorem (named mathematician),
-  - an explicit PROOF-STATUS tag per Doctrine v10:
+  - an explicit PROOF-STATUS tag per Doctrine v11:
         PROVEN      — discharged in Lean (sorry-free lemma) or trivially exact
         AXIOM       — one of the 14 named Lean axioms
         SORRY       — has an open Lean `sorry` obligation
         CONJECTURE  — stated, not closed (e.g. Lutar Λ-uniqueness)
 
-Doctrine v10 canonical numbers (lutar-lean @ c7c0ba17):
+Doctrine v11 canonical numbers (lutar-lean @ c7c0ba17):
     749 declarations / 14 unique axioms (15 raw, 1 dup) / 163 sorries (112+51).
     A2 = IsHomogeneous (positive homogeneity deg 1: Λ(c*x) = c*Λx).
     A4 = IsBounded     (Λ x ≤ Finset.univ.sup' _ x).
@@ -174,7 +174,7 @@ def pac_bayes_mcallester(empirical_risk: float, kl: float, n: int, delta: float)
 
     THEOREM: McAllester (1999) "PAC-Bayesian Model Averaging", COLT.
     PROOF-STATUS: SORRY in Lean (one of the PACBayes ×4 tracked sorries,
-                  Doctrine v10). Numerically exact here.
+                  Doctrine v11). Numerically exact here.
     """
     if n <= 0:
         raise ValueError("n must be positive")
@@ -274,7 +274,7 @@ def khipu_merkle_root(receipts: List[Receipt]) -> bytes:
 
 
 # ===========================================================================
-# 8. dsse_envelope — DSSE structure with PLACEHOLDER signature (Doctrine v10 honest)
+# 8. dsse_envelope — DSSE structure with PLACEHOLDER signature (Doctrine v11 honest)
 # ===========================================================================
 class DSSE(TypedDict):
     payloadType: str
@@ -287,7 +287,7 @@ def dsse_envelope(payload: bytes, signer: str) -> DSSE:
 
     PAE (Pre-Authentication Encoding) per the DSSE spec is used to bind the
     payloadType + payload before signing. The signature here is an HONEST
-    PLACEHOLDER (sha256 of the PAE, prefixed 'PLACEHOLDER:') — Doctrine v10
+    PLACEHOLDER (sha256 of the PAE, prefixed 'PLACEHOLDER:') — Doctrine v11
     forbids claiming a real Sigstore signature where none is minted.
 
     THEOREM: DSSE spec (secure-systems-lab/dsse); in-toto/SCITT provenance.
@@ -432,7 +432,7 @@ def two_witness_ks18_soundness(w1: bool, w2: bool) -> bool:
     KS-18 witnesses both fire (defence-in-depth; no single witness is trusted).
 
     THEOREM: TwoWitness (anatomy-evolved-v1 lean/TwoWitness.lean).
-    PROOF-STATUS: SORRY in Lean (the TwoWitness ×1 tracked sorry, Doctrine v10).
+    PROOF-STATUS: SORRY in Lean (the TwoWitness ×1 tracked sorry, Doctrine v11).
                   Logical AND is exact.
     """
     return bool(w1) and bool(w2)
@@ -485,7 +485,7 @@ def kitaev_surface_correct(syndrome):
     for the toric/surface stabilizer; exact for weight-≤1 syndromes).
 
     THEOREM: Kitaev (2003) Ann. Phys. 303:2 — fault-tolerant surface code.
-    PROOF-STATUS: AXIOM scaffold (Doctrine v10 QEC: Kitaev surface); weight-≤1
+    PROOF-STATUS: AXIOM scaffold (Doctrine v11 QEC: Kitaev surface); weight-≤1
                   correction is exact.
     """
     s = [int(x) & 1 for x in syndrome]
@@ -577,7 +577,7 @@ REGISTRY = {
     "schur_concave_lambda_two_axis": schur_concave_lambda_two_axis,
 }
 
-# Proof-status index (Doctrine v10 honesty surface).
+# Proof-status index (Doctrine v11 honesty surface).
 PROOF_STATUS = {
     "lambda_aggregate": "PROVEN(A1-A4); uniqueness CONJECTURE",
     "lambda_homogeneous": "AXIOM(A2)",
@@ -625,7 +625,7 @@ codex-kernel-composer-v1 — Replay-grade governed-loop primitive.
 The Codex-Kernel composes canonical formulas (canonical-formulas-v1) into a
 governed loop. Each formula call is wrapped in a HASH-CHAINED receipt that
 links to the previous receipt and carries a DSSE PLACEHOLDER signature
-(Doctrine v10 honest — no real signing key is minted here).
+(Doctrine v11 honest — no real signing key is minted here).
 
 Per the E4 codex-kernel run (12 spans), every step is checked by four
 HARD-STOP validators before its receipt is appended:
@@ -860,5 +860,3 @@ def verify_chain(chain: ReceiptChain, calls: List[FormulaCall]) -> bool:
             break
     lam = lambda_aggregate(good_scalars) if good_scalars else 0.0
     return _approx(lam, chain["lambda_aggregate"])
-
-
