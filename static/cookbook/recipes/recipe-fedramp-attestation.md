@@ -14,7 +14,7 @@ Produce a point-in-time attestation snapshot (SBOM + cosign status + Khipu root 
 2. GET /api/killinchu/v2/uds/bundle-inspect for the SBOM reference + cosign status.
 3. GET /api/killinchu/v1/receipt/ledger for the current Khipu root (chain integrity anchor).
 4. Assemble the snapshot {doctrine:749/14/163, slsa_level, sbom_ref, cosign_status, khipu_root, ts_utc}; sign it via /khipu/sign.
-5. HONESTY: this is an attestation SNAPSHOT, NOT an ATO. FedRAMP/IL-4 ATO is a roadmap item; SLSA is L2 (signed), L3 is the defined target.
+5. HONESTY: this is an attestation SNAPSHOT, NOT an ATO. FedRAMP/IL-4 ATO is a roadmap item; SLSA is L1 honest (NOT L2 or L3 — per Doctrine v11 locked invariant).
 
 ## Live endpoints driven
 - `/provenance`
