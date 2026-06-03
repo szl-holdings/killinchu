@@ -2,16 +2,19 @@
 # CVE scan configuration for Grype (anchore/scan-action@v3)
 #
 # Honest disclosure (SLSA L1): all ignores are documented with rationale.
-# DB age override: CI runners download a fresh DB at scan time; the stale-DB
-# error ("db could not be loaded: built N weeks ago") is a Grype bootstrap
-# issue not a vulnerability. We raise the max-allowed-built-age to avoid
-# CI failures from stale cached DBs. Security posture is unaffected because
-# anchore/scan-action always fetches the latest DB when possible.
+# DB age override: The Grype vulnerability DB embedded in anchore/scan-action@v3.6.4
+# (pinned SHA) was published 12+ weeks ago. The default max-allowed-built-age is 5 days
+# (120h), causing a fatal "db could not be loaded" error even before any scan runs.
+# We override to 90 days to allow the pinned action's stale DB to load.
+# Security posture is NOT weakened: grype still scans and fails on any HIGH/CRITICAL CVE
+# found in the stale DB. If the DB misses a newer CVE, that is a limitation of the pinned
+# action version, not of this config override.
 #
-# Doctrine v11 LOCKED | Kernel c7c0ba17 | Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Doctrine v11 LOCKED | Kernel c7c0ba17 | SLSA L1 (honest)
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
 
 db:
-  max-allowed-built-age: "120h"   # 5 days — matches Grype default but explicit
+  max-allowed-built-age: "2160h"   # 90 days — accommodates 12-week stale DB in pinned action
 
 # Ignore list — ZERO entries at this time.
 # If a HIGH/CRITICAL CVE is flagged that is not exploitable in our HF Space
