@@ -1,0 +1,40 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "subject": [
+    {
+      "name": "Lutar/Innovations/round6/PascalFleetCoverage.lean",
+      "digest": {
+        "sha256": "05bf38eb94497a5d98cb969c017bae57eb0239b215f02c33b61d21a9691b414f"
+      }
+    }
+  ],
+  "predicateType": "https://slsa.dev/provenance/v0.2",
+  "predicate": {
+    "builder": {
+      "id": "https://github.com/szl-holdings/killinchu/.github/workflows/"
+    },
+    "buildType": "https://szlholdings.ai/innovation-instillation/v1",
+    "metadata": {
+      "buildStartedOn": "2026-06-03T07:00:00Z"
+    }
+  },
+  "szl_doctrine": {
+    "version": "v11",
+    "kernel_commit": "c7c0ba17",
+    "declarations": 749,
+    "axioms_unique": 14,
+    "sorries_total": 163,
+    "lambda_uniqueness": "Conjecture 1 \u2014 NOT a theorem",
+    "slsa": "L1 honest",
+    "section_889_vendors": 5
+  },
+  "innovation": {
+    "formula": "PASCAL-FLEET-COVERAGE",
+    "round": 6,
+    "flagship": "killinchu",
+    "lean_theorem": "Lutar.Innovations.Round6.PascalFleetCoverage.pascal_five_three",
+    "plug_in": "killinchu 5-node BFT quorum table: C(5,3)=10 honest quorums",
+    "nonce": "1193d56c93cf9b80038698cec0c9bcd5",
+    "timestamp": "2026-06-03T07:00:00Z"
+  }
+}
