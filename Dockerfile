@@ -38,6 +38,9 @@ RUN pip install --no-cache-dir "slowapi>=0.1.9"
 
 # ADDITIVE (Yachay / Provenance Hardening): cryptography for DSSE+Cosign Khipu signing.
 RUN pip install --no-cache-dir "cryptography>=42.0"
+# ADDITIVE (Formulas real-edge-v2, Opus 4.8, 2026-06-03): numpy is REQUIRED for the real
+# Kalman trajectory smoother in szl_shared_formulas/kalman.py (no pure-Python mock path).
+RUN pip install --no-cache-dir "numpy>=1.26"
 # ADDITIVE (Yachay / PQC): pure-Python ML-DSA-65 (NIST FIPS 204) backend for
 # /khipu/sign?mode={pqc,hybrid}. liboqs (oqs-python) is preferred in prod but is
 # a C lib not always installable; dilithium-py is the pure-Python fallback so
@@ -169,6 +172,18 @@ COPY szl_shared_formulas/__init__.py ./szl_shared_formulas/__init__.py
 COPY szl_shared_formulas/welford.py ./szl_shared_formulas/welford.py
 COPY szl_shared_formulas/bloom_filter.py ./szl_shared_formulas/bloom_filter.py
 COPY killinchu_formula_endpoints.py ./killinchu_formula_endpoints.py
+
+# ADDITIVE (Formulas real-edge-v2, Opus 4.8, 2026-06-03): per-file COPY of the new
+# real-edge formula modules (this Dockerfile NEVER uses `COPY . .`). serve.py imports
+# killinchu_edge_formulas which imports szl_shared_formulas.{pac_bayes,kalman,
+# byzantine_quorum}. Without these COPYs the import fails and /api/killinchu/v1/edge/*
+# fall through to the SPA shell. Real Kalman (numpy), real DSSE ECDSA receipts, no mocks.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY szl_shared_formulas/pac_bayes.py ./szl_shared_formulas/pac_bayes.py
+COPY szl_shared_formulas/kalman.py ./szl_shared_formulas/kalman.py
+COPY szl_shared_formulas/byzantine_quorum.py ./szl_shared_formulas/byzantine_quorum.py
+COPY killinchu_edge_formulas.py ./killinchu_edge_formulas.py
 
 CMD ["python", "serve.py"]
 
