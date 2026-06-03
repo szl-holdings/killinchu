@@ -20,7 +20,7 @@
  },
  "zarf_init": {
   "repository": "ghcr.io/zarf-dev/packages/init",
-  "ref": "v0.76.0"
+  "ref": "v0.77.0"
  },
  "sbom": {
   "format": "CycloneDX / SPDX (published at the uds-v0.3.0 release)",
@@ -50,7 +50,7 @@
   "airgap": [
    "1. Transfer the cosigned tarball to the airgap host (USB drop-drive): killinchu-uds-<ver>.tar.zst (+ .sig + .sigstore.json + .pub)",
    "2. (when signed) cosign verify-blob --key cosign.pub --signature killinchu-uds-<ver>.tar.zst.sig killinchu-uds-<ver>.tar.zst",
-   "3. uds zarf init --confirm   # internal registry + agent (zarf-dev init v0.76.0)",
+   "3. uds zarf init --confirm   # internal registry + agent (zarf-dev init v0.77.0)",
    "4. uds zarf package deploy ./killinchu-uds-<ver>.tar.zst --confirm",
    "5. curl http://killinchu.uds.dev/api/killinchu/healthz   # expect doctrine 749/14/163, 53 drones"
   ],
