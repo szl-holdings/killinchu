@@ -152,5 +152,17 @@ COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY szl_ken.py ./szl_ken.py
 
+# ADDITIVE (Formulas → Ecosystem echo, Opus 4.8, 2026-06-03): per-file COPY of the
+# shared formulas package + endpoint shim (this Dockerfile never uses `COPY . .`).
+# serve.py imports killinchu_formula_endpoints which imports szl_shared_formulas.* —
+# without these COPYs the import fails and /api/killinchu/v1/formula/* fall through.
+# Echoes a11oy front-door formulas: Welford + Bloom. thesis_v22.pdf §2 + real Lean.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY szl_shared_formulas/__init__.py ./szl_shared_formulas/__init__.py
+COPY szl_shared_formulas/welford.py ./szl_shared_formulas/welford.py
+COPY szl_shared_formulas/bloom_filter.py ./szl_shared_formulas/bloom_filter.py
+COPY killinchu_formula_endpoints.py ./killinchu_formula_endpoints.py
+
 CMD ["python", "serve.py"]
 
