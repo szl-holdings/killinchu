@@ -267,11 +267,20 @@ async def readyz() -> JSONResponse:
 @app.get("/api/killinchu/v1/honest")
 async def honest() -> JSONResponse:
     return JSONResponse({
+        "space": "killinchu",
         "doctrine": DOCTRINE,
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
+        "kernel_commit": "c7c0ba17",
         "trust_axes": 13,
+        "lambda_status": "Conjecture 1 — NOT a theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "lambda_uniqueness": "Conjecture, not a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "slsa": "L1 (honest)",
+        "honest_disclosures": [
+            "ADS-B and Remote-ID are unauthenticated broadcast — decoded fields are CLAIMS, not attested truth.",
+            "Receipt signatures are PLACEHOLDER — Sigstore CI not yet wired per Doctrine v11.",
+            "SLSA L1 honest — not L2 or L3 as achieved.",
+            "Section 889: 5 banned vendors (Huawei, ZTE, Hytera, Hikvision, Dahua).",
+        ],
         "receipts": f"DSSE envelopes; signature = {SIGNATURE_PLACEHOLDER}",
         "telemetry_trust": "ADS-B and Remote-ID are unauthenticated broadcast — decoded fields are CLAIMS, not attested truth.",
         "khipu_dag": "in-memory, additive, hash-chained sha256; resets on Space restart.",
@@ -582,6 +591,9 @@ async def lambda_axes(request: Request) -> JSONResponse:
         "lambda": round(L, 6), "lambda_floor": _LAMBDA_FLOOR, "pass": L >= _LAMBDA_FLOOR,
         "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
         "uniqueness": "Conjecture, not a Theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
+        "declarations": 749,
+        "axioms_unique": 14,
+        "sorries_total": 163,
         "doctrine": DOCTRINE,
     })
 
