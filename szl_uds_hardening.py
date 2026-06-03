@@ -181,15 +181,19 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
             return JSONResponse(_sign(data))
         registered.append(base + "/cmmc/delta")  # REMOVED
 
-    # ---- FedRAMP Moderate posture (NIST 800-53, 325 controls) — ADDITIVE (COMPLIANCE PACKETS) ----
-    @app.get(base + "/fedramp/posture")
-    async def uds_fedramp_posture() -> JSONResponse:
-        data = _load("fedramp_posture.json")
-        if data is None:
-            data = {"kind": "uds.fedramp.posture", "available": False,
-                    "honesty": "fedramp_posture.json not found in .compliance/."}
-        return JSONResponse(_sign(data))
-    registered.append(base + "/fedramp/posture")
+    # ---- FedRAMP Moderate posture (NIST 800-53, 325 controls) ----
+    # CHARTER VIOLATION REMOVED: fedramp/posture (NO FedRAMP rule)
+    # Signed-off-by: Yachay <yachay@szlholdings.ai>
+    # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+    if False:  # Charter: NO FedRAMP — route disabled
+        @app.get(base + "/fedramp/posture")
+        async def uds_fedramp_posture() -> JSONResponse:
+            data = _load("fedramp_posture.json")
+            if data is None:
+                data = {"kind": "uds.fedramp.posture", "available": False,
+                        "honesty": "fedramp_posture.json not found in .compliance/."}
+            return JSONResponse(_sign(data))
+    # registered.append(base + "/fedramp/posture")  # REMOVED: charter violation
 
     # ---- Hardening index (manifest of every real artifact) ----
     @app.get(base + "/hardening/index")
