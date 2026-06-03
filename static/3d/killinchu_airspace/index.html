@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>killinchu — Airspace 3D Scope</title>
+<style>
+  body { margin:0; background:#020408; color:#88ccaa; font-family:'Courier New',monospace; overflow:hidden; }
+  #canvas-container { width:100vw; height:100vh; }
+  #hud {
+    position:fixed; top:12px; left:12px; background:rgba(0,0,0,0.85);
+    border:1px solid #1a3322; padding:10px 16px; border-radius:6px;
+    font-size:12px; line-height:1.8; z-index:10; max-width:260px;
+  }
+  #hud h2 { color:#88ccaa; margin:0 0 6px; font-size:14px; letter-spacing:2px; }
+  #threat-list {
+    position:fixed; right:12px; top:12px; width:220px;
+    background:rgba(0,0,0,0.85); border:1px solid #1a3322;
+    border-radius:6px; padding:10px; font-size:10px;
+  }
+  #threat-list h3 { color:#ff4444; font-size:11px; margin:0 0 8px; letter-spacing:1px; }
+  .threat-item { border-bottom:1px solid #0a1a10; padding:3px 0; }
+  .threat-allow { color:#00ff88; }
+  .threat-deny  { color:#ff4444; }
+  .threat-flag  { color:#ffaa00; }
+  #status { position:fixed; bottom:12px; left:12px; font-size:11px; color:#333; }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div id="hud">
+  <h2>🎯 KILLINCHU AIRSPACE</h2>
+  <div style="color:#333;font-size:10px;margin-bottom:8px;">C-UAS · Λ-Classified Threats · Doctrine v11</div>
+  <div>Tracks: <span id="track-count" style="color:#88ccaa">0</span></div>
+  <div>ALLOW: <span id="allow-count" style="color:#00ff88">0</span></div>
+  <div>DENY: <span id="deny-count" style="color:#ff4444">0</span></div>
+  <div>FLAG: <span id="flag-count" style="color:#ffaa00">0</span></div>
+  <div>Geofence: <span id="geofence-status" style="color:#4488ff">ACTIVE</span></div>
+  <hr style="border-color:#0a1a10;margin:6px 0"/>
+  <div style="color:#333;font-size:10px">Λ-axes: 13 (killinchu)</div>
+  <div style="color:#333;font-size:10px">Doctrine: v11 LOCKED</div>
+  <div style="color:#333;font-size:10px">Kernel: c7c0ba17</div>
+</div>
+<div id="threat-list">
+  <h3>⚠ THREAT ASSESSMENT</h3>
+  <div id="threat-items"></div>
+</div>
+<div id="status">Doctrine v11 LOCKED · killinchu/3d/airspace · Three.js r160 (MIT) · ADS-B demo data · © SZL Holdings 2026 · Apache-2.0</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+// killinchu Airspace 3D Scope
+// Source: Three.js r160 (MIT) — https://threejs.org/
+// DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
+// Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+// Doctrine: v11 LOCKED | Λ Conjecture 1 | ADDITIVE ONLY
+// NOTE: Uses OpenSky demo data structure & simulated ADS-B tracks
+
+const KILLINCHU_API = 'https://szlholdings-killinchu.hf.space/api/killinchu/v1/threats/active';
+const DOCTRINE = {v:'v11', kernel:'c7c0ba17', declarations:749, sorries:163, lambda_axes:13};
+
+// Scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x020408);
+scene.fog = new THREE.FogExp2(0x020408, 0.01);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 500);
+camera.position.set(0, 40, 60);
+camera.lookAt(0,0,0);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+// Lights
+scene.add(new THREE.AmbientLight(0x102010, 0.8));
+const pLight = new THREE.PointLight(0x00ff88, 1.0, 150);
+pLight.position.set(0,50,0);
+scene.add(pLight);
+
+// Ground grid (airspace floor)
+const grid = new THREE.GridHelper(120, 30, 0x0a1a10, 0x050d08);
+scene.add(grid);
+
+// Geofence boundary (red cylinder wireframe)
+const fenceGeo = new THREE.CylinderGeometry(25, 25, 20, 32, 1, true);
+const fenceMat = new THREE.MeshBasicMaterial({color:0x882222, wireframe:true, transparent:true, opacity:0.2});
+const fence = new THREE.Mesh(fenceGeo, fenceMat);
+fence.position.y = 10;
+scene.add(fence);
+
+// Geofence ring
+const ringGeo = new THREE.RingGeometry(24.5, 25.5, 64);
+const ringMat = new THREE.MeshBasicMaterial({color:0xff4444, side:THREE.DoubleSide, transparent:true, opacity:0.3});
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.rotation.x = -Math.PI/2;
+ring.position.y = 0.1;
+scene.add(ring);
+
+// Central command marker
+const cmdGeo = new THREE.OctahedronGeometry(1.5, 0);
+const cmdMat = new THREE.MeshPhongMaterial({color:0x00ff88, emissive:0x00aa44, emissiveIntensity:0.5});
+scene.add(new THREE.Mesh(cmdGeo, cmdMat));
+
+// Drone tracks
+const tracks = {};
+const MAX_TRACKS = 40;
+let trackCount = 0, allowCount=0, denyCount=0, flagCount=0;
+
+// Verdict colors
+const VERDICT_COLORS = {
+  ALLOW:  {main:0x00ff88, cone:0x00aa44},
+  DENY:   {main:0xff4444, cone:0x882222},
+  FLAG:   {main:0xffaa00, cone:0xaa6600},
+  UNKNOWN:{main:0x4488ff, cone:0x224488},
+};
+
+function getVerdict(trackData) {
+  const inside = Math.sqrt(trackData.x**2 + trackData.z**2) < 25;
+  const speed = trackData.speed || 0;
+  if(inside && speed > 35) return 'DENY';
+  if(inside && speed > 20) return 'FLAG';
+  if(trackData.rogue) return 'DENY';
+  return 'ALLOW';
+}
+
+function addDroneTrack(trackData) {
+  const id = trackData.id || 'TRK-'+Math.random().toString(36).slice(2,8);
+  if(tracks[id]) {
+    // Update position
+    const t = tracks[id];
+    t.mesh.position.set(trackData.x, trackData.y, trackData.z);
+    t.cone.position.set(trackData.x, trackData.y+2, trackData.z);
+    return;
+  }
+
+  const verdict = getVerdict(trackData);
+  const vc = VERDICT_COLORS[verdict] || VERDICT_COLORS.UNKNOWN;
+
+  // Drone body
+  const geo = new THREE.OctahedronGeometry(0.5, 0);
+  const mat = new THREE.MeshPhongMaterial({
+    color:vc.main, emissive:vc.main, emissiveIntensity:0.4,
+    transparent:true, opacity:0.9
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(trackData.x, trackData.y, trackData.z);
+  scene.add(mesh);
+
+  // Threat cone (pointing down from drone)
+  const coneGeo = new THREE.ConeGeometry(1.5, 4, 8, 1, true);
+  const coneMat = new THREE.MeshBasicMaterial({color:vc.cone, wireframe:true, transparent:true, opacity:0.25});
+  const cone = new THREE.Mesh(coneGeo, coneMat);
+  cone.position.set(trackData.x, trackData.y+2, trackData.z);
+  scene.add(cone);
+
+  // Trail line
+  const trailPts = [new THREE.Vector3(trackData.x, 0, trackData.z), mesh.position.clone()];
+  const trailGeo = new THREE.BufferGeometry().setFromPoints(trailPts);
+  const trailMat = new THREE.LineBasicMaterial({color:vc.main, transparent:true, opacity:0.2});
+  const trail = new THREE.Line(trailGeo, trailMat);
+  scene.add(trail);
+
+  tracks[id] = {mesh, cone, trail, verdict, id};
+  trackCount++;
+  if(verdict==='ALLOW') allowCount++;
+  else if(verdict==='DENY') denyCount++;
+  else if(verdict==='FLAG') flagCount++;
+
+  updateCounters();
+  addThreatItem(id, verdict, trackData);
+}
+
+function updateCounters() {
+  document.getElementById('track-count').textContent = trackCount;
+  document.getElementById('allow-count').textContent = allowCount;
+  document.getElementById('deny-count').textContent = denyCount;
+  document.getElementById('flag-count').textContent = flagCount;
+}
+
+function addThreatItem(id, verdict, data) {
+  const list = document.getElementById('threat-items');
+  const item = document.createElement('div');
+  item.className = 'threat-item threat-'+verdict.toLowerCase();
+  item.textContent = `${verdict} ${id.slice(0,12)} alt:${Math.round(data.y*100)}m`;
+  list.insertBefore(item, list.firstChild);
+  while(list.children.length > 15) list.removeChild(list.lastChild);
+}
+
+// Fetch live threats from killinchu
+async function fetchThreats() {
+  try {
+    const resp = await fetch(KILLINCHU_API);
+    if(resp.ok) {
+      const data = await resp.json();
+      const threats = data.threats || [];
+      threats.forEach((t, i) => {
+        const r = 10 + Math.random()*20;
+        const angle = i * Math.PI * 2 / Math.max(threats.length, 1);
+        addDroneTrack({
+          id: t.track_id || ('T'+i),
+          x: Math.cos(angle)*r,
+          y: 5 + Math.random()*15,
+          z: Math.sin(angle)*r,
+          speed: t.speed_kmh || Math.random()*40,
+          rogue: t.class === 'HOSTILE',
+          type: t.class,
+        });
+      });
+      return;
+    }
+  } catch(e) { /* use simulated */ }
+
+  // Simulate ADS-B-style track
+  const r = Math.random()*30;
+  const angle = Math.random()*Math.PI*2;
+  addDroneTrack({
+    id: 'SIM-'+Math.random().toString(36).slice(2,8),
+    x: Math.cos(angle)*r,
+    y: 3 + Math.random()*20,
+    z: Math.sin(angle)*r,
+    speed: Math.random()*50,
+    rogue: Math.random() > 0.85,
+  });
+}
+
+// Move existing drones
+function animateTracks(dt) {
+  Object.values(tracks).forEach(t => {
+    t.mesh.position.x += (Math.random()-0.5)*0.1;
+    t.mesh.position.z += (Math.random()-0.5)*0.1;
+    t.cone.position.x = t.mesh.position.x;
+    t.cone.position.z = t.mesh.position.z;
+    t.mesh.rotation.y += 0.02;
+    t.cone.rotation.y -= 0.01;
+  });
+}
+
+// Camera orbit
+let camAngle = 0;
+let tick = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  tick += 0.008;
+  camAngle += 0.002;
+  camera.position.x = Math.sin(camAngle) * 65;
+  camera.position.z = Math.cos(camAngle) * 65;
+  camera.position.y = 40 + Math.sin(tick*0.3)*10;
+  camera.lookAt(0,10,0);
+  animateTracks(tick);
+  fence.rotation.y += 0.003;
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+// Initial tracks
+for(let i=0;i<8;i++) setTimeout(fetchThreats, i*300);
+setInterval(fetchThreats, 3000);
+</script>
+</body>
+</html>
