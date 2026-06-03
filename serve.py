@@ -1376,3 +1376,24 @@ except Exception as _ke:
 # ============================================================================
 # END: SZL Agent Pattern v1 ("Ken") — ADDITIVE BLOCK
 # ============================================================================
+
+
+# ============================================================================
+# FRONTIER REGISTRATION — killinchu (2026-06-03T05:00Z)
+# Loads killinchu_frontier_patch.py and inserts routes at position 0.
+# ADDITIVE ONLY. Doctrine v11 LOCKED 749/14/163. Kernel c7c0ba17. SLSA L1.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import killinchu_frontier_patch as _kc_ftr
+    _kc_ftr_status = _kc_ftr.register(app)
+    import sys as _kc_ftr_sys
+    print(f"[killinchu-frontier] registered: {_kc_ftr_status}", file=_kc_ftr_sys.stderr)
+except Exception as _kc_ftr_e:
+    import sys as _kc_ftr_sys, traceback as _kc_ftr_tb
+    print(f"[killinchu-frontier] FAILED: {_kc_ftr_e!r}", file=_kc_ftr_sys.stderr)
+    _kc_ftr_tb.print_exc(file=_kc_ftr_sys.stderr)
+# ============================================================================
+# END: FRONTIER REGISTRATION — killinchu
+# ============================================================================
