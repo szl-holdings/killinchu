@@ -1,1 +1,39 @@
+name: SBOM — CycloneDX via Syft
 
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+  id-token: write
+
+jobs:
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Generate SBOM with Syft (CycloneDX)
+        uses: anchore/sbom-action@55dc4ee22412511ee8c3e6e5b0e24a5b8151ee6c # v0.17.0
+        with:
+          output-file: sbom.cdx.json
+          format: cyclonedx-json
+          artifact-name: sbom.cdx.json
+          upload-artifact: true
+          upload-release-assets: true
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 90
