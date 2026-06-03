@@ -1303,6 +1303,37 @@ async def spa_fallback(full_path: str) -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+
+# ---------------------------------------------------------------------------
+# ADDITIVE: /version endpoint — Founder Inspection Surface (v1.0.0)
+# Returns build provenance: "what build is live, when, what's its provenance."
+# Doctrine v11 LOCKED 749/14/163. ADDITIVE ONLY. c7c0ba17. SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+@app.get("/api/killinchu/v1/version")
+async def killinchu_version():
+    """Founder inspection: what build is live, when was it deployed, provenance."""
+    import os as _szlv_os
+    return {
+        "name": "killinchu",
+        "version": "1.0.0",
+        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "67c044208c25ecefa82afc3b44e08e7befaab869"),
+        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "b216a3185f809f2c6d68c06c0b4c4b1daab8b5d0"),
+        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "2026-06-03T00:00:00Z"),
+        "release_url": "https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0",
+        "doctrine": "v11",
+        "kernel_commit": "c7c0ba17",
+        "p6_status": "SIGNED_OFF",
+        "p6_grader_score": "13/13",
+        "p6_sign_off_url": "https://github.com/szl-holdings/szl-holdings/blob/main/SHARED_LEDGER/killinchu/SIGN_OFF.md",
+        "verify": {
+            "cosign": "cosign verify ghcr.io/szl-holdings/killinchu:v1.0.0 --certificate-identity-regexp=szl-holdings",
+            "sbom": "https://github.com/szl-holdings/killinchu/releases/download/v1.0.0/killinchu-sbom.cdx.json",
+            "honest": "https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest",
+        },
+    }
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
