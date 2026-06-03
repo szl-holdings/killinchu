@@ -244,3 +244,34 @@ Honesty over checklist.
 → Full diagram + wire-status table: **[docs-site / mesh](https://szl-holdings.github.io/docs-site/mesh)**
 
 <sub>Λ Conjecture 1 (not a theorem) · 749/14/163 v11 LOCKED · SLSA L1 honest · Section 889 = 5 vendors</sub>
+
+---
+
+## Real-edge formulas (real-edge-v2)
+
+Killinchu, the edge organ, runs five thesis-v22 formulas at the courier edge — each with a real
+thesis citation and a real Lean theorem/obligation permalinked into `szl-holdings/lutar-lean`.
+No mocks: every endpoint operates on caller-supplied telemetry; the verdict carries a real
+DSSE-v1 ECDSA-P256 receipt.
+
+| Formula | Edge role | Lean theorem (permalink) |
+|---|---|---|
+| **PAC-Bayes (Catoni)** | high-prob. upper bound on verdict risk → honest confidence | [`pacBayesBound_eq_add_slack`](https://github.com/szl-holdings/lutar-lean/blob/abd58d159f1bdb79a017d71a6b94ab160ead8d9d/Lutar/PACBayes.lean#L165) |
+| **Kalman (numpy)** | constant-velocity smoothing of noisy drone telemetry | [`gain_in_unit_interval`](https://github.com/szl-holdings/lutar-lean/blob/f3153a684e7d9b77462d58185bd1eae0aeacd1bc/Lutar/Innovations/round11/FrontierKalmanGain.lean#L72) |
+| **Byzantine quorum** | n≥3f+1 over 5 sensors, tolerate 1 byzantine fault | [`faultyCount` / Conjecture 2](https://github.com/szl-holdings/lutar-lean/blob/abd58d159f1bdb79a017d71a6b94ab160ead8d9d/Lutar/KhipuConsensus.lean#L116) |
+| **Welford** | online variance for streaming Λ / z-score gate | [`welford_mean_exact`](https://github.com/szl-holdings/lutar-lean/blob/f3153a684e7d9b77462d58185bd1eae0aeacd1bc/Lutar/Innovations/round11/FrontierWelfordVariance.lean#L89) |
+| **Bloom filter** | fast threat-signature membership (FN-free) | [`query_after_insert`](https://github.com/szl-holdings/lutar-lean/blob/f3153a684e7d9b77462d58185bd1eae0aeacd1bc/Lutar/Innovations/round11/FrontierBloomCacheBypass.lean#L77) |
+
+**Endpoints**
+- `POST /api/killinchu/v1/edge/verdict` — real telemetry → Λ ∈ [0,1] + DSSE receipt
+- `POST /api/killinchu/v1/edge/track-smooth` — Kalman smoothing of a trajectory
+- `GET  /api/killinchu/v1/edge/quorum-status` — Byzantine quorum on sensor fusion (5 sensors, f=1)
+- `GET  /api/killinchu/v1/formulas/index` — wired formulas + thesis citation + Lean permalink
+
+**Tests** — `tests/test_formulas_real.py` feeds real numpy-generated telemetry and asserts
+Λ ∈ [0,1] and that every DSSE receipt verifies in-process; `tests/test_no_mock.py` greps the
+non-test formula sources for `mock|fake|stub|dummy` and FAILS if found.
+
+<sub>Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem) ·
+SLSA L1 honest (killinchu image signed by GitHub private Fulcio; no public Rekor → NOT claimed L2) ·
+HONESTY OVER CHECKLIST. Signed-off-by: Yachay &lt;yachay@szlholdings.ai&gt; · Co-Authored-By: Perplexity Computer Agent &lt;agent@perplexity.ai&gt;</sub>
