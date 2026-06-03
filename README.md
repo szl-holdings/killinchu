@@ -3,6 +3,10 @@
 
 ![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A) ![SLSA-L1-L2](https://img.shields.io/badge/SLSA-L1%20%2B%20L2%20attested-2C5F2D) ![DCO](https://img.shields.io/badge/DCO-required-555) ![CI](https://img.shields.io/badge/CI-green-2C5F2D) ![Scorecard](https://img.shields.io/badge/OpenSSF-Scorecard-informational) ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
+**749 declarations · 14 axioms · 163 sorries · Doctrine v11 LOCKED · kernel `c7c0ba17`**
+
+[Quickstart](#quickstart) · [Docs](https://docs.szlholdings.com/flagships/killinchu) · [Cookbook](https://github.com/szl-holdings/szl-cookbook) · [Verify](#verify-in-2-minutes) · [Cite](#citation) · [Releases](https://github.com/szl-holdings/killinchu/releases)
+
 ## Live
 - **Space:** https://szlholdings-killinchu.hf.space
 - **Docs:** https://docs.szlholdings.com/flagships/killinchu
@@ -12,6 +16,21 @@
 - **Real protocol decoders (no mocks)** — Remote ID (ASTM F3411-22a), ADS-B (Mode-S 1090ES via pyModeS), MAVLink v1/v2 (pymavlink).
 - **Counter-UAS Λ-gate** — haversine geofence breach check fused with a 13-axis `yuyay_v3` score; decisions emit a DSSE Khipu receipt in a real SHA-256 Merkle DAG.
 - **Honest posture** — broadcast Remote-ID/ADS-B/MAVLink are unauthenticated and spoofable; every decoded field is a *claim*, never ground truth.
+
+## Quickstart
+
+```bash
+pip install "szl-killinchu"                     # PyPI
+# or run the live, signed container:
+docker run --rm -p 7860:7860 ghcr.io/szl-holdings/killinchu:uds-v0.2.0
+```
+```python
+from szl_killinchu import Gate                  # one-liner to first signed verdict
+gate = Gate.from_doctrine("v11")             # loads the LOCKED 749/14/163 posture
+verdict = gate.evaluate(receipt)             # -> signed verdict + receipt id
+```
+
+> Prefer zero-install? Hit the **[live Space](https://szlholdings-killinchu.hf.space)** or run the [Verify](#verify-in-2-minutes) block below — no credentials required.
 
 ## Verify (in 2 minutes)
 
@@ -86,6 +105,18 @@ The full, canonical endpoint list is on the [docs site](https://docs.szlholdings
 
 - **License:** Apache-2.0 (OSS across all SZL Holdings repos).
 - **Concept DOI:** [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276) — cite the archived release on Zenodo.
+
+## Built with / learned from
+
+This repository's structure and documentation conventions were learned from open-source
+publication leaders — we adapted their *patterns*, not their words. Inspired by patterns from
+**Polymathic AI** ([the_well](https://github.com/PolymathicAI/the_well), [walrus](https://github.com/PolymathicAI/walrus)),
+**Anthropic**, **OpenAI** ([whisper](https://github.com/openai/whisper)), **Stripe** (docs craft),
+Google DeepMind ([alphafold3](https://github.com/google-deepmind/alphafold3)),
+Meta FAIR ([segment-anything](https://github.com/facebookresearch/segment-anything)),
+EleutherAI ([lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness)),
+and Hugging Face ([transformers](https://github.com/huggingface/transformers)).
+We are a precision substrate, not a vibes company.
 
 ## Citation
 
