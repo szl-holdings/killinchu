@@ -984,26 +984,30 @@ def _register_uds_endpoints(app, base, registered, _body, _port, _claim=None):
         return JSONResponse(_signed(result))
     registered.append(f"{base}/big-bang/lint")
 
-    @app.get(f"{base}/fedramp/posture")
-    async def uds_fedramp_posture() -> JSONResponse:
-        result = {"kind": "uds.fedramp.posture",
-                  "baseline": "FedRAMP Moderate (NIST SP 800-53 Rev 5)",
-                  "families": [
-                      {"family": "AU (Audit & Accountability)", "status": "supported",
-                       "evidence": "Khipu append-only hash-chained DAG; DSSE-signed receipts"},
-                      {"family": "IA (Identification & Authentication)", "status": "supported",
-                       "evidence": "cosign keyid szlholdings-cosign; ECDSA-P256"},
-                      {"family": "SI (System & Information Integrity)", "status": "supported",
-                       "evidence": "Sentra immune filter; fail-WARNING gates"},
-                      {"family": "CM (Configuration Management)", "status": "partial",
-                       "evidence": "SBOM attestation; Big Bang lint — GitOps reconcile on roadmap"},
-                      {"family": "CA (Assessment & Authorization)", "status": "gap",
-                       "evidence": "No 3PAO assessment / ATO — honest gap"}],
-                  "authorization_status": "NOT FedRAMP authorized (no ATO). Posture mapping only.",
-                  "honesty": ("Self-mapped posture against FedRAMP Moderate. This is NOT a FedRAMP "
-                              "authorization and claims no ATO. Gaps stated honestly.")}
-        return JSONResponse(_signed(result))
-    registered.append(f"{base}/fedramp/posture")
+    # CHARTER VIOLATION REMOVED: fedramp/posture (NO FedRAMP rule)
+    # Signed-off-by: Yachay <yachay@szlholdings.ai>
+    # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+    if False:  # Charter: NO FedRAMP — route disabled
+        @app.get(f"{base}/fedramp/posture")
+        async def uds_fedramp_posture() -> JSONResponse:
+            result = {"kind": "uds.fedramp.posture",
+                      "baseline": "FedRAMP Moderate (NIST SP 800-53 Rev 5)",
+                      "families": [
+                          {"family": "AU (Audit & Accountability)", "status": "supported",
+                           "evidence": "Khipu append-only hash-chained DAG; DSSE-signed receipts"},
+                          {"family": "IA (Identification & Authentication)", "status": "supported",
+                           "evidence": "cosign keyid szlholdings-cosign; ECDSA-P256"},
+                          {"family": "SI (System & Information Integrity)", "status": "supported",
+                           "evidence": "Sentra immune filter; fail-WARNING gates"},
+                          {"family": "CM (Configuration Management)", "status": "partial",
+                           "evidence": "SBOM attestation; Big Bang lint — GitOps reconcile on roadmap"},
+                          {"family": "CA (Assessment & Authorization)", "status": "gap",
+                           "evidence": "No 3PAO assessment / ATO — honest gap"}],
+                      "authorization_status": "NOT FedRAMP authorized (no ATO). Posture mapping only.",
+                      "honesty": ("Self-mapped posture against FedRAMP Moderate. This is NOT a FedRAMP "
+                                  "authorization and claims no ATO. Gaps stated honestly.")}
+            return JSONResponse(_signed(result))
+    # registered.append(f"{base}/fedramp/posture")  # REMOVED: charter violation
 
     @app.get(f"{base}/eu-ai-act/article-12")
     async def uds_eu_ai_act_art12() -> JSONResponse:
