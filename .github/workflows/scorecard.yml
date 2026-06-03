@@ -1,100 +1,37 @@
-name: Scorecard
-
-# FIX (Yachay, empire-reliability 2026-06-01): final root-cause resolution.
-#
-# Chain of diagnosis on this PRIVATE repo:
-#  (1) branch_protection_rule trigger -> startup_failure (removed).
-#  (2) org reusable uploads SARIF to code scanning -> unavailable without GHAS
-#      (made self-contained).
-#  (3) self-contained run reached analysis but the OSSF Scorecard action's
-#      GraphQL queries (ListCommits, branch protection) return
-#      "Resource not accessible by integration" — even with pull-requests:read,
-#      checks:read and repo_token set.
-#
-# ROOT CAUSE: OSSF Scorecard cannot run against a PRIVATE repository using the
-# default GITHUB_TOKEN. It requires either a public repo or a dedicated PAT
-# (SCORECARD_TOKEN) with broad read scopes; several checks (Branch-Protection,
-# etc.) are only meaningful on public repos. Every szl-holdings repo whose
-# Scorecard passes (amaru, sentra, counsel, terra, carlota-jo) is PUBLIC.
-# killinchu is private and has no Scorecard PAT provisioned.
-#
-# Honest resolution (NOT a fake green): the analysis job runs only when the
-# repository is public OR a SCORECARD_TOKEN secret is present. On a private
-# repo without that token it emits a clear notice explaining the precondition
-# and succeeds, instead of failing on a query the token structurally cannot
-# make. When killinchu is made public (or a SCORECARD_TOKEN is added) the real
-# analysis activates automatically with no further edits.
+name: OpenSSF Scorecard supply-chain security
 
 on:
-  schedule:
-    - cron: '41 5 * * 2'
+  branch_protection_rule:
   push:
-    branches: [main]
+    branches: [ main ]
+  schedule:
+    - cron: '30 1 * * 6'  # Weekly Saturday 01:30 UTC
 
-permissions:
-  contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+permissions: read-all
 
 jobs:
-  preflight:
-    name: Scorecard preflight
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    outputs:
-      can-run: ${{ steps.gate.outputs.can-run }}
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-      - name: Determine if Scorecard can run
-        id: gate
-        env:
-          IS_PRIVATE: ${{ github.event.repository.private }}
-          HAS_TOKEN: ${{ secrets.SCORECARD_TOKEN != '' }}
-        run: |
-          if [ "$IS_PRIVATE" != "true" ] || [ "$HAS_TOKEN" = "true" ]; then
-            echo "can-run=true" >> "$GITHUB_OUTPUT"
-            echo "✓ Scorecard can run (public repo or SCORECARD_TOKEN present)."
-          else
-            echo "can-run=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::OSSF Scorecard skipped: this is a PRIVATE repo with no SCORECARD_TOKEN. Scorecard requires a public repo or a PAT; the default GITHUB_TOKEN cannot run its GraphQL checks. Make killinchu public or add a SCORECARD_TOKEN secret to activate the real analysis."
-          fi
-
-  scorecard:
+  analysis:
     name: Scorecard analysis
-    needs: preflight
-    if: needs.preflight.outputs.can-run == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     permissions:
+      security-events: write
+      id-token: write
       contents: read
-      actions: read
-      pull-requests: read
-      checks: read
+
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           persist-credentials: false
-      - name: Run OSSF Scorecard
-        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@0864cf19026789058feabb7e87baa5f140aac736 # v2.3.1
         with:
           results_file: results.sarif
           results_format: sarif
-          repo_token: ${{ secrets.SCORECARD_TOKEN || secrets.GITHUB_TOKEN }}
-          publish_results: false
-      - name: Upload Scorecard SARIF (artifact only)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+          publish_results: true
+
+      - name: Upload Scorecard SARIF results
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          name: scorecard-results
-          path: results.sarif
-          retention-days: 7
-          if-no-files-found: error
+          sarif_file: results.sarif
