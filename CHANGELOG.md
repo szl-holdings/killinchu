@@ -1,36 +1,44 @@
 # Changelog
 
-All notable changes to killinchu are documented here.
-Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to this project will be documented in this file.
 
-## [1.0.0] — 2026-06-03
-
-### Added
-- Initial release — Andean Drone Intelligence counter-UAS rule engine
-- 13-axis Λ governance (Doctrine v11 LOCKED 749/14/163)
-- DSSE-signed receipts on every classification decision
-- /api/killinchu/v1/lambda — 13-axis geometric mean governance
-- /api/killinchu/v1/honest — full honest disclosure endpoint
-- /api/killinchu/v1/iron-bank/parity — returns 404 (no Iron Bank claim)
-- /api/killinchu/v4/inbox + /v4/receipts — operator inbox with wrapped JSON
-- Section 889 compliance: exactly 5 covered vendors listed
-- SLSA L1 honest (no overclaim)
-- RFC 9116 /.well-known/security.txt
-
-### Changed
-- N/A (initial release)
-
-### Fixed
-- N/A (initial release)
-
-### Security
-- kernel_commit locked at c7c0ba17 (Lean 4 formal verification)
-- All iron-bank/check-image stubs removed (405 → 404 per doctrine)
-- No FedRAMP/CMMC/SWFT/Mission Owner claims
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-*Signed-off-by: Yachay <yachay@szlholdings.ai>*  
-*Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>*
+## [Unreleased]
 
+---
+
+## [1.0.0] — 2026-06-09
+
+### Added
+- Doctrine v11 compliance — kernel commit `c7c0ba17` (749 declarations / 14 axioms / 163 sorries)
+- SLSA Build Level 1 provenance — honest declaration, not overclaimed
+- Section 889 attestation — exactly 5 vendors assessed (Huawei, ZTE, Hytera, Hikvision, Dahua)
+- DCO `Signed-off-by:` trailers on all commits per Linux Foundation DCO policy
+- OpenTelemetry `traceparent` W3C header propagated end-to-end
+- `/api/health` endpoint returning structured JSON with `sovereign: true`
+- SBOM (CycloneDX) generated and attached to release
+- Cosign keyless OIDC signing for container images
+- OpenSSF Scorecard GHA workflow
+- SECURITY.md with 90-day responsible disclosure policy
+- SUPPORT.md with issue triage SLAs
+- CODEOWNERS covering all critical paths
+- Dependabot weekly dependency updates
+- Trivy/Grype container vulnerability scanning gate
+- SLO documentation (p50/p95/p99 targets + error budget)
+- Threat model (STRIDE format)
+- CITATION.cff for academic citeability
+
+### Security
+- Section 889 — no covered telecommunications equipment from Huawei, ZTE, Hytera, Hikvision, or Dahua
+- No Iron Bank, FedRAMP, CMMC, or SWFT claims (capability honesty per Anthropic RSP)
+- Λ = Conjecture 1 (never a theorem) — mathematical honesty enforced
+
+### Notes
+- Warhacker June 9, 2026 release
+
+[Unreleased]: https://github.com/szl-holdings/killinchu/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0
