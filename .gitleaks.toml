@@ -37,6 +37,11 @@ regexes = [
 
 # Test fixtures legitimately carry mock key identifiers and stub signatures.
 paths = [
+  # Vendored third-party library: upstream CesiumJS (static/cesium/Cesium.js)
+  # ships a PUBLIC demo Ion.defaultAccessToken JWT in every distribution; it is
+  # not an SZL credential and is overridden at runtime per Cesium's own docs.
+  # We exempt only this vendored path; JWT detection stays active everywhere else.
+  '''static/cesium/.*''',
   '''.*\.test\.ts$''',
   '''.*__tests__/.*''',
   '''.*_test\.py$''',
