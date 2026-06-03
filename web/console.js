@@ -1,192 +1,244 @@
 /* SPDX-License-Identifier: Apache-2.0
- * © 2026 SZL Holdings — killinchu console (Greene premium polish).
- * Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 (NOT a theorem).
- *
- * HONESTY OVER CHECKLIST. Every tile fetches a REAL same-origin endpoint that was
- * verified live on the rosie Space (2026-06-03):
- *   /api/killinchu/v1/lambda      → Λ verdict + trust axes
- *   /api/killinchu/v1/khipu/ledger  → last receipts (chained Khipu DAG)
- *   /api/killinchu/v1/mesh/state  → wires + recent W3C traceparents (live trace tree)
- *   /api/killinchu/v1/mcp/tools   → MCP tool registry (count + names)
- *   /api/killinchu/v1/version     → cosign/SLSA provenance
- * No mocks, no synthetic rows. On failure a panel shows an honest error — never fake data.
- * Sign: Yachay · git trailer: Perplexity Computer Agent.
+ * © 2026 Lutar, Stephen P. — SZL Holdings.  ORCID: 0009-0001-0110-4173
+ * killinchu console.js — binds the premium edge deck to the REAL live verdict
+ * stream (SSE /api/killinchu/v1/stream/verdicts) and the REAL 3D edge scene
+ * (/api/killinchu/v1/edge/3d). Every value rendered is a real signed Λ verdict.
+ * Flight motion is simulator-driven (simulated=true), NOT a connected drone.
+ * Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1 honest. No mocks.
+ * Signed-off-by: Yachay <yachay@szlholdings.ai>
+ * Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
  */
 (function () {
   "use strict";
   var API = "/api/killinchu/v1";
-  var LEDGER_PATH = "/khipu/ledger";
-  var ORGAN = "killinchu";
+  var COL = { DENY: 0xd65151, REVIEW: 0xcda64a, ALLOW: 0x34aaa4 };
+  var COLHEX = { DENY: "#d65151", REVIEW: "#cda64a", ALLOW: "#34aaa4" };
+
   var $ = function (id) { return document.getElementById(id); };
-  var esc = function (s) { return String(s == null ? "" : s).replace(/[<>&]/g, function (c) { return ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]; }); };
-  function getJSON(path) {
-    return fetch(API + path, { headers: { "accept": "application/json" } })
-      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
-  }
-  function fail(el, dot, what, e) {
-    if (dot) dot.className = "dot bad";
-    if (el) el.innerHTML = '<div class="err">' + esc(what) + " unreachable — " + esc(e.message || e) + "<br>(no synthetic fallback; tile stays honest)</div>";
-  }
+  var recent = [];          // last verdicts (most recent first)
+  var tracks = {};          // track_id -> latest record
+  var maxRows = 20;
 
-  /* ───────── theme toggle (default dark, persisted) ───────── */
-  (function theme() {
-    var root = document.documentElement, btn = $("themeToggle");
-    var saved = localStorage.getItem(ORGAN + "-theme");
-    if (saved) root.setAttribute("data-theme", saved);
-    btn.addEventListener("click", function () {
-      var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
-      root.setAttribute("data-theme", next);
-      localStorage.setItem(ORGAN + "-theme", next);
-    });
-  })();
-
-  /* ───────── Λ verdict tile (REAL) ───────── */
-  function loadLambda() {
-    getJSON("/lambda").then(function (d) {
-      $("lamDot").className = "dot ok";
-      var L = Number(d.lambda), floor = Number(d.lambda_floor);
-      var pass = d.pass === true;
-      var axes = (d.axes || []).map(function (a) {
-        return '<span class="axis">' + esc(a.name) + ' <b>' + Number(a.score).toFixed(2) + '</b></span>';
-      }).join("");
-      $("lambdaBody").innerHTML =
-        '<div class="lambda-val">' + (isFinite(L) ? L.toFixed(5) : "—") + '</div>' +
-        '<div class="lambda-meta">floor ' + (isFinite(floor) ? floor.toFixed(2) : "—") +
-        ' · ' + (d.trust_axes || (d.axes || []).length) + ' trust axes · ' + esc(d.uniqueness || "Conjecture 1") + '</div>' +
-        '<span class="verdict-chip ' + (pass ? "pass" : "fail") + '">' + (pass ? "PASS ✓" : "FAIL ✗") + '</span>' +
-        '<div class="axes">' + axes + '</div>';
-    }).catch(function (e) { fail($("lambdaBody"), $("lamDot"), "Λ verdict", e); });
+  /* ── Λ tile ─────────────────────────────────────────── */
+  function lamClass(d) { return d === "ALLOW" ? "allow" : d === "REVIEW" ? "review" : "deny"; }
+  function updateLambda(r) {
+    var v = $("lamVal");
+    v.textContent = r.lambda_value.toFixed(4);
+    v.className = "lambda-val " + lamClass(r.decision);
+    $("lamTrack").textContent = r.track_id + " · " + r.source + (r.simulated ? " · sim" : "");
+    var pill = $("lamPill");
+    pill.textContent = r.decision; pill.className = "verdict-pill " + r.decision;
+    $("lamBar").style.width = (Math.max(0, Math.min(1, r.lambda_value)) * 100).toFixed(1) + "%";
+    $("lamEmp").textContent = (r.lambda_empirical != null ? r.lambda_empirical : r.lambda_value).toFixed(4);
+    $("lamFloor").textContent = (r.certified_floor != null ? r.certified_floor : r.lambda_value).toFixed(4);
+    $("lamN").textContent = r.n_observations;
+    $("lamKhipu").textContent = "#" + r.khipu_index;
+    $("keyid").textContent = r.dsse_keyid || r.key_source || "edge";
   }
 
-  /* ───────── MCP tools count tile (REAL) ───────── */
-  function loadMcp() {
-    getJSON("/mcp/tools").then(function (d) {
-      $("mcpDot").className = "dot ok";
-      var tools = d.tools || [];
-      var names = tools.map(function (t) { return typeof t === "string" ? t : (t.name || "?"); });
-      $("mcpBody").innerHTML =
-        '<div class="metric">' + (d.count != null ? d.count : names.length) + '</div>' +
-        '<div class="metric-sub">governed MCP tools · doctrine ' + esc(d.doctrine || "v11") + '</div>' +
-        '<div class="toolset">' + names.map(function (n) { return '<span class="tool">' + esc(n) + '</span>'; }).join("") + '</div>';
-    }).catch(function (e) { fail($("mcpBody"), $("mcpDot"), "MCP tools", e); });
+  /* ── Verdict stream rows ────────────────────────────── */
+  function renderStream() {
+    var box = $("stream");
+    if (!recent.length) { box.innerHTML = '<div class="empty">Binding to live verdict stream…</div>'; return; }
+    var html = "";
+    for (var i = 0; i < Math.min(recent.length, maxRows); i++) {
+      var r = recent[i];
+      var t = new Date(r.ts);
+      var hh = t.toLocaleTimeString([], { hour12: false });
+      html += '<div class="vrow ' + r.decision + '">' +
+        '<span class="badge"></span>' +
+        '<div class="who">' + esc(r.track_id) +
+          '<small>' + esc(r.source) + ' · ' + hh + ' · n=' + r.n_observations +
+          ' · khipu#' + r.khipu_index + '</small></div>' +
+        '<div class="lam"><span class="b">' + r.lambda_value.toFixed(3) + '</span>' +
+          '<small>' + r.decision + '</small></div>' +
+      '</div>';
+    }
+    box.innerHTML = html;
+    $("streamCount").textContent = recent.length + " signed";
+  }
+  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
+
+  function ingest(r) {
+    recent.unshift(r);
+    if (recent.length > 200) recent.pop();
+    tracks[r.track_id] = r;
+    updateLambda(r);
+    renderStream();
+    updateScene();
   }
 
-  /* ───────── provenance tile (REAL cosign + SLSA) ───────── */
-  function loadProvenance() {
-    getJSON("/version").then(function (d) {
-      $("provDot").className = "dot ok";
-      var rel = d.release_url || ("https://github.com/szl-holdings/" + ORGAN + "/releases/tag/v" + (d.version || "1.0.0"));
-      var verify = (d.verify && d.verify.cosign) || ("cosign verify ghcr.io/szl-holdings/" + ORGAN + " --certificate-identity-regexp=szl-holdings");
-      var sbom = d.verify && d.verify.sbom;
-      $("provBody").innerHTML =
-        '<a href="' + esc(rel) + '" target="_blank" rel="noopener">⬡ release v' + esc(d.version || "1.0.0") + '</a>' +
-        (sbom ? '<a href="' + esc(sbom) + '" target="_blank" rel="noopener">⬡ SBOM (CycloneDX)</a>' : "") +
-        '<a href="https://github.com/szl-holdings/.github/blob/main/cosign.pub" target="_blank" rel="noopener">⬡ cosign.pub</a>' +
-        '<div class="k">git ' + esc(d.git_sha || "?").slice(0, 8) + ' · kernel ' + esc(d.kernel_commit || "c7c0ba17") +
-        ' · ' + esc(d.slsa || "L1 (honest)") + '</div>' +
-        '<div class="k" style="color:var(--text-dim)">cosign verify:<br><code>' + esc(verify) + '</code></div>';
-    }).catch(function (e) { fail($("provBody"), $("provDot"), "Provenance", e); });
+  /* ── 3D edge map (Three.js) ─────────────────────────── */
+  var THREE = window.THREE, renderer, scene, camera, trackMeshes = {}, pathLines = {}, noFly = [];
+  var GRID = 60;          // world half-extent
+  var originLat = -13.53, originLon = -71.97, mPerDeg = 111000;
+
+  function ll2world(lat, lon) {
+    // local tangent-plane projection centred on the sensor (scaled to fill scene)
+    var x = (lon - originLon) * mPerDeg * Math.cos(originLat * Math.PI / 180) / 5.5;
+    var z = (lat - originLat) * mPerDeg / 5.5;
+    return new THREE.Vector3(x, 0, -z);
   }
 
-  /* ───────── last-5 Khipu receipts table (REAL chained DAG) ───────── */
-  function loadLedger() {
-    getJSON(LEDGER_PATH).then(function (d) {
-      $("ledDot").className = "dot ok";
-      var rows = (d.receipts || []).slice(-5).reverse();
-      if (!rows.length) {
-        $("ledgerBody").innerHTML = '<div class="metric-sub">ledger empty — no receipts yet (honest: chain root ' + esc(d.root_hash || "∅").slice(0, 12) + ')</div>';
-        return;
-      }
-      var body = rows.map(function (r) {
-        var t = (r.timestamp_utc || "").substr(11, 8);
-        return '<tr><td>' + r.seq + '</td><td class="rid">' + esc((r.receipt_id || "").slice(0, 12)) + '</td>' +
-          '<td class="act">' + esc(r.action || "?") + '</td><td>' + esc(t) + '</td></tr>';
-      }).join("");
-      $("ledgerBody").innerHTML =
-        '<table><thead><tr><th>seq</th><th>receipt id</th><th>action</th><th>utc</th></tr></thead><tbody>' +
-        body + '</tbody></table>' +
-        '<div class="metric-sub" style="margin-top:12px">chain depth ' + (d.total != null ? d.total : rows.length) +
-        ' · root ' + esc((d.root_hash || "∅").slice(0, 16)) + '…</div>';
-    }).catch(function (e) { fail($("ledgerBody"), $("ledDot"), "Khipu ledger", e); });
-  }
-
-  /* ───────── live trace mesh: 3D mini-viz + traceparent badge (REAL) ───────── */
-  var ORGANS = ["amaru", "sentra", "killinchu", "a11oy", "rosie"];
-  var scene, camera, renderer, nodeMeshes = {}, edges = [], booted = false;
-  function init3D() {
-    if (booted || !window.THREE) return;
-    var host = $("graph3d"); var w = host.clientWidth, h = host.clientHeight || 300;
-    if (!w) { setTimeout(init3D, 200); return; }
-    booted = true;
+  function initScene() {
+    if (!THREE) return;
+    var cv = $("scene");
+    renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(55, w / h, 0.1, 100); camera.position.set(0, 0, 9);
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(w, h); renderer.setPixelRatio(window.devicePixelRatio || 1);
-    host.appendChild(renderer.domElement);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-    var pl = new THREE.PointLight(0xd4a574, 1.2); pl.position.set(5, 5, 8); scene.add(pl);
-    var pos = { amaru: [-4.5, -1, 0], sentra: [-1.5, -1, 0], killinchu: [1.5, -1, 0], a11oy: [4.5, -1, 0], rosie: [0, 2.2, 0] };
-    ORGANS.forEach(function (o) {
-      var geo = new THREE.SphereGeometry(o === "rosie" ? 0.62 : 0.5, 32, 32);
-      var col = o === "rosie" ? 0xd4a574 : 0x8a7fb0;
-      var m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.28 }));
-      m.position.set(pos[o][0], pos[o][1], pos[o][2]); scene.add(m); nodeMeshes[o] = m;
-    });
-    var chain = [["amaru", "sentra"], ["sentra", "killinchu"], ["killinchu", "a11oy"]];
-    ["amaru", "sentra", "killinchu", "a11oy"].forEach(function (o) { chain.push(["rosie", o]); });
-    chain.forEach(function (e) {
-      var a = nodeMeshes[e[0]].position, b = nodeMeshes[e[1]].position;
-      var g = new THREE.BufferGeometry().setFromPoints([a.clone(), b.clone()]);
-      var line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x352a66, transparent: true, opacity: 0.8 }));
-      line.userData = { from: e[0], to: e[1], pulse: 0 }; scene.add(line); edges.push(line);
-    });
-    (function animate() {
-      requestAnimationFrame(animate); scene.rotation.y += 0.0018;
-      edges.forEach(function (e) {
-        if (e.userData.pulse > 0) { e.userData.pulse -= 0.02; e.material.color.setHex(0xb04a30); e.material.opacity = 0.4 + e.userData.pulse * 0.6; }
-        else { e.material.color.setHex(0x352a66); e.material.opacity = 0.8; }
-      });
-      renderer.render(scene, camera);
-    })();
-    window.addEventListener("resize", function () {
-      var W = host.clientWidth, H = host.clientHeight || 300;
-      camera.aspect = W / H; camera.updateProjectionMatrix(); renderer.setSize(W, H);
-    });
-  }
-  function pulse(organ) {
-    edges.forEach(function (e) { if (e.userData.from === organ || e.userData.to === organ) e.userData.pulse = 1.0; });
-  }
-  function loadMesh() {
-    getJSON("/mesh/state").then(function (d) {
-      $("meshDot").className = "dot ok";
-      var traces = d.recent_traces || [];
-      // live traceparent badge ← most recent real W3C id
-      if (traces.length) {
-        var last = traces[traces.length - 1];
-        var badge = $("traceBadge");
-        badge.classList.add("live");
-        $("traceId").textContent = (last.trace_id || "").slice(0, 12) || "—";
-      }
-      // mini trace list (real paths + ids)
-      $("traceList").innerHTML = traces.slice(-6).reverse().map(function (t) {
-        return '<div class="trace-row"><span class="tt">' + esc((t.trace_id || "").slice(0, 8)) +
-          '</span><span class="tp">' + esc(t.direction || "in") + " " + esc(t.path || "") + '</span></div>';
-      }).join("") || '<div class="metric-sub">no recent traces yet</div>';
-      // pulse any organ named in a wire that is LIVE
-      Object.keys(d.wires || {}).forEach(function () {});
-      pulse("rosie");
-    }).catch(function (e) { fail($("traceList"), $("meshDot"), "Trace mesh", e); });
+    scene.fog = new THREE.Fog(0x0a0f1e, 90, 240);
+    camera = new THREE.PerspectiveCamera(46, 1, 0.1, 1000);
+    resize();
+    // lights
+    scene.add(new THREE.AmbientLight(0x6f7c93, 0.7));
+    var key = new THREE.DirectionalLight(0xffe6c4, 0.9); key.position.set(40, 80, 30); scene.add(key);
+    var rim = new THREE.DirectionalLight(0xd65151, 0.35); rim.position.set(-50, 30, -40); scene.add(rim);
+
+    // terrain — Andean ridged plane
+    var geo = new THREE.PlaneGeometry(GRID * 2, GRID * 2, 48, 48);
+    var pos = geo.attributes.position;
+    for (var i = 0; i < pos.count; i++) {
+      var x = pos.getX(i), y = pos.getY(i);
+      var h = Math.sin(x * 0.06) * Math.cos(y * 0.05) * 3.0
+            + Math.sin(x * 0.13 + 1.7) * 1.4 + Math.cos(y * 0.11) * 1.2;
+      pos.setZ(i, h);
+    }
+    geo.computeVertexNormals();
+    var mat = new THREE.MeshStandardMaterial({ color: 0x182234, roughness: 0.95, metalness: 0.0, flatShading: true });
+    var terrain = new THREE.Mesh(geo, mat); terrain.rotation.x = -Math.PI / 2; terrain.position.y = -2; scene.add(terrain);
+    // grid overlay
+    var grid = new THREE.GridHelper(GRID * 2, 28, 0x2e3a52, 0x1b2334); grid.position.y = 0.02; scene.add(grid);
+
+    // sensor marker at origin
+    var sensor = new THREE.Mesh(new THREE.ConeGeometry(1.4, 4, 6),
+      new THREE.MeshStandardMaterial({ color: 0x5cc4bf, emissive: 0x0f726e, emissiveIntensity: 0.5 }));
+    sensor.position.set(0, 2, 0); scene.add(sensor);
+
+    animate();
+    window.addEventListener("resize", resize);
   }
 
-  /* ───────── boot + refresh ───────── */
-  document.addEventListener("DOMContentLoaded", function () {
-    init3D();
-    loadLambda(); loadMcp(); loadProvenance(); loadLedger(); loadMesh();
-    setInterval(loadLambda, 20000);
-    setInterval(loadLedger, 15000);
-    setInterval(loadMesh, 10000);
-  });
-  if (document.readyState !== "loading") {
-    init3D(); loadLambda(); loadMcp(); loadProvenance(); loadLedger(); loadMesh();
+  function resize() {
+    if (!renderer) return;
+    var cv = $("scene"); var w = cv.clientWidth || 600, h = cv.clientHeight || 400;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
   }
+
+  function drawNoFly(poly) {
+    if (!THREE || !scene || !poly || noFly.length) return;
+    var pts = poly.map(function (p) { var v = ll2world(p.lat, p.lon); v.y = 0.3; return v; });
+    pts.push(pts[0].clone());
+    var g = new THREE.BufferGeometry().setFromPoints(pts);
+    var line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xd65151, transparent: true, opacity: 0.85 }));
+    scene.add(line); noFly.push(line);
+    // translucent fill
+    var shape = new THREE.Shape();
+    poly.forEach(function (p, i) { var v = ll2world(p.lat, p.lon); if (i === 0) shape.moveTo(v.x, -v.z); else shape.lineTo(v.x, -v.z); });
+    var fillGeo = new THREE.ShapeGeometry(shape);
+    var fill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({ color: 0xd65151, transparent: true, opacity: 0.10, side: THREE.DoubleSide }));
+    fill.rotation.x = -Math.PI / 2; fill.position.y = 0.25; scene.add(fill); noFly.push(fill);
+  }
+
+  function updateScene() {
+    if (!THREE || !scene) return;
+    Object.keys(tracks).forEach(function (id) {
+      var r = tracks[id];
+      var col = COL[r.decision] || 0x888888;
+      var p = ll2world(r.position.lat, r.position.lon); p.y = 2 + (r.position.alt_m || 0) / 20;
+      var m = trackMeshes[id];
+      if (!m) {
+        var geo = new THREE.SphereGeometry(1.3, 18, 18);
+        m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55 }));
+        var halo = new THREE.Mesh(new THREE.RingGeometry(2, 2.4, 24),
+          new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+        halo.rotation.x = -Math.PI / 2; m.add(halo); m.userData.halo = halo;
+        scene.add(m); trackMeshes[id] = m;
+        pathLines[id] = { pts: [], line: null };
+      }
+      m.position.copy(p);
+      m.material.color.setHex(col); m.material.emissive.setHex(col);
+      m.userData.halo.material.color.setHex(col);
+      // trail
+      var pl = pathLines[id]; pl.pts.push(p.clone()); if (pl.pts.length > 60) pl.pts.shift();
+      if (pl.line) scene.remove(pl.line);
+      if (pl.pts.length > 1) {
+        var g = new THREE.BufferGeometry().setFromPoints(pl.pts);
+        pl.line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.55 }));
+        scene.add(pl.line);
+      }
+    });
+  }
+
+  var camAngle = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    if (!renderer) return;
+    camAngle += 0.0016;
+    var R = 72, H = 50;
+    camera.position.set(Math.sin(camAngle) * R, H, Math.cos(camAngle) * R);
+    camera.lookAt(0, 5, 0);
+    Object.keys(trackMeshes).forEach(function (id) {
+      var h = trackMeshes[id].userData.halo; if (h) h.rotation.z += 0.03;
+    });
+    renderer.render(scene, camera);
+  }
+
+  /* ── Live binding: SSE primary, polling fallback ────── */
+  function setConn(state, text) {
+    var d = $("connDot"); d.className = "dot" + (state === "live" ? " live" : "");
+    $("connText").textContent = text;
+  }
+
+  function bootstrap() {
+    // seed from the 3D endpoint so the deck isn't empty on first paint
+    fetch(API + "/edge/3d").then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.scene) {
+        drawNoFly(d.scene.no_fly_polygon);
+        (d.scene.tracks || []).forEach(function (t) {
+          ingest(normalize(t));
+        });
+      }
+    }).catch(function () {});
+  }
+
+  function normalize(t) {
+    return {
+      ts: t.ts, track_id: t.track_id, source: t.source, simulated: t.simulated,
+      position: t.position || { lat: 0, lon: 0, alt_m: 0 },
+      lambda_value: t.lambda_value, lambda_empirical: t.lambda_empirical,
+      certified_floor: t.certified_floor, decision: t.decision,
+      n_observations: t.n_observations, khipu_index: t.khipu_index,
+      dsse_keyid: t.dsse_keyid, key_source: t.key_source,
+    };
+  }
+
+  function connectSSE() {
+    try {
+      var es = new EventSource(API + "/stream/verdicts");
+      es.addEventListener("open", function () { setConn("live", "live · SSE bound"); });
+      es.addEventListener("verdict", function (ev) {
+        try { ingest(normalize(JSON.parse(ev.data))); } catch (e) {}
+      });
+      es.addEventListener("error", function () {
+        setConn("", "reconnecting…");
+      });
+    } catch (e) { pollFallback(); }
+  }
+
+  function pollFallback() {
+    setConn("live", "live · polling");
+    setInterval(function () {
+      fetch(API + "/edge/3d").then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.scene && d.scene.tracks && d.scene.tracks.length) {
+          ingest(normalize(d.scene.tracks[d.scene.tracks.length - 1]));
+        }
+      }).catch(function () {});
+    }, 1500);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    initScene();
+    bootstrap();
+    if (window.EventSource) connectSSE(); else pollFallback();
+  });
 })();

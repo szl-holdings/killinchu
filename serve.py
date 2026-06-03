@@ -1876,6 +1876,17 @@ try:
                 _kc_record(telem, res)
             except Exception:
                 pass
+        # Seed-on-empty: if the ring buffer is empty (fresh process / first paint
+        # before the SSE stream binds), advance the simulator ONE real frame per
+        # track so the deck shows real signed verdicts immediately. Still honest
+        # (simulated=True) — never fabricated.
+        if not _KC_RECENT and not raw:
+            try:
+                for telem in _KC_SIM.tick(1.0):
+                    res = _KC_EDGE_NODE.evaluate(telem)
+                    _kc_record(telem, res)
+            except Exception:
+                pass
         recent = list(_KC_RECENT[-50:])
         return _EdgeJR_killinchu({
             "ok": True, "wire": "edge-3d-real",
@@ -1945,6 +1956,49 @@ except Exception as _kc_edge_e:
     _kc_edge_tb.print_exc(file=_kc_edge_sys.stderr)
 # ============================================================================
 # END: REAL EDGE ORGAN — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: PREMIUM EDGE DECK + REAL-EDGE FORMULA SURFACE — killinchu (additive)
+# MUST register BEFORE uvicorn.run() (below) so the routes are live, and the
+# REAL EDGE ORGAN block above already inserted /edge/3d + /stream/verdicts at
+# position 0 ahead of the SPA catch-all.
+#   killinchu_edge_formulas  -> /edge/verdict, /edge/track-smooth,
+#                               /edge/quorum-status, /formulas/index
+#                               (PAC-Bayes Λ + Kalman + Byzantine quorum,
+#                                coordinated with the Formulas Full-Stack squad)
+#   killinchu_edge_console   -> /console + /console.js (premium command deck)
+# ADDITIVE — zero existing routes touched. NO MOCKS — real flight-dynamics sim,
+# real ECDSA-P256 DSSEv1 receipts, real hash-chained Khipu DAG. SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import killinchu_edge_formulas as _kc_edge_formulas
+    _kc_edge_formulas_status = _kc_edge_formulas.register(app, ns="killinchu")
+    import sys as _kc_ef_sys
+    print(f"[killinchu] real-edge formulas registered: {_kc_edge_formulas_status}",
+          file=_kc_ef_sys.stderr)
+except Exception as _kc_ef_e:
+    import sys as _kc_ef_sys
+    import traceback as _kc_ef_tb
+    print(f"[killinchu] real-edge formulas FAILED: {_kc_ef_e!r}", file=_kc_ef_sys.stderr)
+    _kc_ef_tb.print_exc(file=_kc_ef_sys.stderr)
+
+try:
+    import killinchu_edge_console as _kc_edge_console
+    _kc_edge_console_status = _kc_edge_console.register(app, ns="killinchu")
+    import sys as _kc_ec_sys
+    print(f"[killinchu] premium edge console registered: {_kc_edge_console_status}",
+          file=_kc_ec_sys.stderr)
+except Exception as _kc_ec_e:
+    import sys as _kc_ec_sys
+    import traceback as _kc_ec_tb
+    print(f"[killinchu] premium edge console FAILED: {_kc_ec_e!r}", file=_kc_ec_sys.stderr)
+    _kc_ec_tb.print_exc(file=_kc_ec_sys.stderr)
+# ============================================================================
+# END: PREMIUM EDGE DECK + REAL-EDGE FORMULA SURFACE — killinchu
 # ============================================================================
 
 

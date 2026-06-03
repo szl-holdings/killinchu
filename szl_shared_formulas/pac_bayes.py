@@ -110,4 +110,4 @@ __all__ = ["bound", "mcallester_slack", "catoni_inverse_kl", "CITATION", "LEAN_T
            "LEAN_PERMALINK"]
 
 # Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem)
-# SLSA L1 honest + L2 attested (public Sigstore+Rekor) where slsa-verifier confirms.
+# SLSA L1 honest (killinchu never claims L2 unless independently verified).

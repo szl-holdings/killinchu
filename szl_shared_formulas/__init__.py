@@ -21,4 +21,4 @@ from . import pac_bayes
 from . import kalman
 from . import byzantine_quorum
 __all__ = ['welford', 'bloom_filter', 'pac_bayes', 'kalman', 'byzantine_quorum']
-# SLSA L1 honest + L2 attested (public Sigstore+Rekor) where slsa-verifier confirms.
+# SLSA L1 honest (killinchu never claims L2 unless independently verified).

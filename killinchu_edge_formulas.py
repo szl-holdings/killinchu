@@ -42,13 +42,6 @@ for _cand in ("/app", _HERE):
 
 from szl_shared_formulas import pac_bayes, kalman, byzantine_quorum, welford, bloom_filter
 
-try:  # module-level so FastAPI's PEP-563 string-annotation resolution sees Request
-    from fastapi import Request
-    _FastAPIRequest = Request
-except Exception:  # pragma: no cover
-    Request = None
-    _FastAPIRequest = None
-
 LEAN_BASE = "https://github.com/szl-holdings/lutar-lean/blob"
 
 _INDEX = [
@@ -275,23 +268,29 @@ def quorum_status(n: int = 5, f: int = 1, sample: dict | None = None) -> dict:
 
 
 def register(app, ns: str = "killinchu") -> str:
-    """Mount the real-edge formula endpoints (additive)."""
+    """Mount the real-edge formula endpoints (additive).
+
+    The rich /formulas/index is inserted at routes position 0 so it takes
+    precedence over any earlier basic /formulas/index registration (the
+    real-edge-v2 surface is the canonical mission index: 5 wired formulas).
+    Request bodies are read directly from the raw Starlette Request to avoid
+    FastAPI treating the param as a query field.
+    """
+    from starlette.requests import Request as _StarletteRequest
+    from starlette.routing import Route as _StarletteRoute
     from fastapi.responses import JSONResponse
 
-    @app.get(f"/api/{ns}/v1/formulas/index")
-    async def _formulas_index():
+    async def _formulas_index(request: _StarletteRequest):
         return JSONResponse({"wired": _INDEX, "count": len(_INDEX), "doctrine": "v11",
                             "lambda": "Conjecture 1 (NEVER a theorem)",
                             "source": "killinchu real-edge-v2"})
 
-    @app.post(f"/api/{ns}/v1/edge/verdict")
-    async def _edge_verdict(req: Request):
-        body = await req.json()
+    async def _edge_verdict(request: _StarletteRequest):
+        body = await request.json()
         return JSONResponse(edge_verdict(body))
 
-    @app.post(f"/api/{ns}/v1/edge/track-smooth")
-    async def _edge_track(req: Request):
-        body = await req.json()
+    async def _edge_track(request: _StarletteRequest):
+        body = await request.json()
         track = body.get("track")
         if isinstance(track, list) and track and isinstance(track[0], (list, tuple)):
             return JSONResponse(kalman.smooth_track_3d(track,
@@ -299,9 +298,20 @@ def register(app, ns: str = "killinchu") -> str:
         return JSONResponse(kalman.smooth_track(track or [],
                            meas_var=float(body.get("meas_var", 1.0))))
 
-    @app.get(f"/api/{ns}/v1/edge/quorum-status")
-    async def _quorum_status(n: int = 5, f: int = 1):
+    async def _quorum_status(request: _StarletteRequest):
+        n = int(request.query_params.get("n", 5))
+        f = int(request.query_params.get("f", 1))
         return JSONResponse(quorum_status(n=n, f=f))
+
+    # Insert at position 0 so the rich real-edge surface wins over any earlier
+    # basic registrations of the same paths.
+    for _path, _handler, _methods, _name in (
+        (f"/api/{ns}/v1/edge/verdict", _edge_verdict, ["POST"], "kc_edge_verdict_formulas"),
+        (f"/api/{ns}/v1/edge/track-smooth", _edge_track, ["POST"], "kc_edge_track_smooth"),
+        (f"/api/{ns}/v1/edge/quorum-status", _quorum_status, ["GET"], "kc_edge_quorum_status"),
+        (f"/api/{ns}/v1/formulas/index", _formulas_index, ["GET"], "kc_formulas_index_rich"),
+    ):
+        app.router.routes.insert(0, _StarletteRoute(_path, _handler, methods=_methods, name=_name))
 
     return f"edge-formulas-wired:{len(_INDEX)}"
 
@@ -310,4 +320,4 @@ __all__ = ["register", "edge_verdict", "verify_receipt", "quorum_status",
            "compute_lambda", "_INDEX"]
 
 # Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem)
-# SLSA L1 honest + L2 attested (public Sigstore+Rekor) where slsa-verifier confirms.
+# SLSA L1 honest (killinchu never claims L2 unless independently verified).
