@@ -246,7 +246,7 @@ async def healthz() -> JSONResponse:
         "trust_axes": 13,
         "lambda_floor": _LAMBDA_FLOOR,
         "lambda_uniqueness": "Conjecture (open CAUCHY_ND sorry + missing symmetry axiom) — NOT a Theorem",
-        "slsa": "L1 (honest; L2 in roadmap via Wire D)",
+        "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
         "receipt_signature": "REAL — ECDSA-P256-SHA256 DSSE; live at /khipu/sign + /api/killinchu/khipu/sign (Wire D shipped)",
         "signing_available": True,
         "numbers": {"declarations": 749, "axioms": 14, "sorries": 163, "putnam_sorries": 51, "baseline_sorries": 112},
@@ -274,11 +274,11 @@ async def honest() -> JSONResponse:
         "trust_axes": 13,
         "lambda_status": "Conjecture 1 — NOT a theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "lambda_uniqueness": "Conjecture, not a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
-        "slsa": "L1 (honest)",
+        "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
         "honest_disclosures": [
             "ADS-B and Remote-ID are unauthenticated broadcast — decoded fields are CLAIMS, not attested truth.",
             "Receipt signatures are PLACEHOLDER — Sigstore CI not yet wired per Doctrine v11.",
-            "SLSA L1 honest — not L2 or L3 as achieved.",
+            "SLSA L1 honest + L2 attested (SLSA Provenance v1, cosign keyless-verified on the GHCR image) — NOT L3.",
             "Section 889: 5 banned vendors (Huawei, ZTE, Hytera, Hikvision, Dahua).",
         ],
         "receipts": f"DSSE envelopes; signature = {SIGNATURE_PLACEHOLDER}",
@@ -1260,7 +1260,7 @@ async def killinchu_api_health() -> JSONResponse:
         "counts": "749/14/163",
         "lean_sha": "c7c0ba17",
         "lambda_status": "Conjecture 1 (NOT a theorem)",
-        "slsa": "L1 (honest)",
+        "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
         "section_889": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
         "no_iron_bank": True,
         "no_cmmc": True,
@@ -1335,7 +1335,7 @@ async def killinchu_doctrine_v3():
     return _JR({
         "flagship": "killinchu", "doctrine": "v11", "kernel_commit": "c7c0ba17",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 (honest)",
+        "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
         "role": "C-UAS / Andean drone classification",
         "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
     })
@@ -1648,7 +1648,7 @@ async def killinchu_doctrine_inline():
     return JSONResponse({
         "flagship": "killinchu", "doctrine": "v11", "kernel_commit": "c7c0ba17",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 (honest)",
+        "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
         "role": "C-UAS / Andean drone classification",
         "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
     })
