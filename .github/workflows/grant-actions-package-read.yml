@@ -1,0 +1,111 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# grant-actions-package-read — alternative to flipping killinchu PUBLIC.
+#
+# WHY THIS EXISTS
+#   ghcr.io/szl-holdings/killinchu is PRIVATE (the only private flagship of 5).
+#   The uds-bundles assembly job runs in a DIFFERENT repo; its ephemeral
+#   GITHUB_TOKEN has no read grant on this private package, so
+#   `zarf package create bundles/szl-killinchu` 403s and the bundle ships 4/5.
+#
+#   This reusable workflow lets the bundle pipeline pull the private killinchu
+#   image WITHOUT changing its visibility, by authenticating with this repo's
+#   pre-provisioned GHCR_TOKEN PAT (read:packages on szl-holdings/killinchu).
+#   Visibility flip remains a FOUNDER-ONLY decision and is NOT done here.
+#
+# HONEST: if GHCR_TOKEN is absent the workflow does not fake success — it emits
+#   a loud ::error:: and exits non-zero so the caller falls back to the honest
+#   4/5 path rather than silently shipping a broken layer.
+#
+# Doctrine v11 LOCKED 749/14/163 at kernel commit c7c0ba17 — not bumped.
+# SLSA L1 honest + L2 attested — never L3. Lambda stays Conjecture 1.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+name: grant-actions-package-read
+
+on:
+  # Callable from szl-holdings/uds-bundles (uds-bundle-publish.yml) so the bundle
+  # job can pull the private killinchu image with a token that actually has read.
+  workflow_call:
+    inputs:
+      image_ref:
+        description: "Fully-qualified killinchu image to verify pullable"
+        required: false
+        type: string
+        default: "ghcr.io/szl-holdings/killinchu:uds-v0.2.0"
+    secrets:
+      GHCR_PULL_TOKEN:
+        description: "PAT/token with read:packages on szl-holdings/killinchu (this repo's GHCR_TOKEN)"
+        required: true
+    outputs:
+      digest:
+        description: "Resolved manifest digest of the killinchu image"
+        value: ${{ jobs.grant-read.outputs.digest }}
+  # Allow standalone verification from this repo too.
+  workflow_dispatch:
+    inputs:
+      image_ref:
+        description: "Fully-qualified killinchu image to verify pullable"
+        required: false
+        default: "ghcr.io/szl-holdings/killinchu:uds-v0.2.0"
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  grant-read:
+    name: Verify private killinchu pullable (no visibility flip)
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.resolve.outputs.digest }}
+    steps:
+      - name: Resolve pull token (loud-fail if missing)
+        id: tok
+        env:
+          # In workflow_call this is the caller-supplied secret; in dispatch it is
+          # this repo's own GHCR_TOKEN. Either MUST have read on the private package.
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN || secrets.GHCR_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GHCR_PULL_TOKEN:-}" ]; then
+            echo "::error::No GHCR pull token available (GHCR_PULL_TOKEN / GHCR_TOKEN unset)."
+            echo "::error::killinchu is PRIVATE; without a read token the bundle CANNOT reach it."
+            echo "::error::Founder option: make the killinchu package public OR grant uds-bundles Actions read (see FOUNDER_RUNBOOK.md)."
+            exit 1
+          fi
+          echo "token-present=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install crane
+        uses: imjasonh/setup-crane@31b88efe9de28ae0ffa220711af4b60be9435f6e # v0.4
+
+      - name: Log in to GHCR with read token (private package, NO visibility change)
+        env:
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN || secrets.GHCR_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "${GHCR_PULL_TOKEN}" | crane auth login ghcr.io \
+            -u "${{ github.actor }}" --password-stdin
+
+      - name: Resolve killinchu manifest digest (proves pull access)
+        id: resolve
+        run: |
+          set -euo pipefail
+          IMG="${{ inputs.image_ref }}"
+          echo "Resolving digest for private image: ${IMG}"
+          DIGEST="$(crane digest "${IMG}")"
+          echo "Resolved: ${IMG}@${DIGEST}"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### grant-actions-package-read"
+            echo "Private killinchu image pulled WITHOUT a visibility flip."
+            echo "- Image: \`${{ inputs.image_ref }}\`"
+            echo "- Digest: \`${{ steps.resolve.outputs.digest }}\`"
+            echo "- Auth: GHCR read token (founder visibility decision untouched)."
+          } >> "$GITHUB_STEP_SUMMARY"
