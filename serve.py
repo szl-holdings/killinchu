@@ -1289,20 +1289,6 @@ except Exception as _drone_e:
     print(f"[killinchu] Drone routes NOT registered: {_drone_e!r}", file=sys.stderr)
     print(_drone_tb.format_exc(), file=sys.stderr)
 
-@app.get("/{full_path:path}")
-async def spa_fallback(full_path: str) -> Response:
-    if full_path.startswith("api/"):
-        return JSONResponse({"error": "not found"}, status_code=404)
-    candidate = (STATIC_DIR / full_path).resolve()
-    try:
-        candidate.relative_to(STATIC_DIR.resolve())
-    except ValueError:
-        return FileResponse(INDEX_HTML, media_type="text/html")
-    if candidate.is_file():
-        return FileResponse(candidate)
-    return FileResponse(INDEX_HTML, media_type="text/html")
-
-
 
 # ---------------------------------------------------------------------------
 # ADDITIVE: /version endpoint — Founder Inspection Surface (v1.0.0)
@@ -1333,6 +1319,78 @@ async def killinchu_version():
             "honest": "https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest",
         },
     }
+
+# ============================================================================
+# ADDITIVE v3: /api/killinchu/v1/doctrine + /api/killinchu/v1/adsb
+# MOVED BEFORE if __name__ == "__main__" to ensure registration before uvicorn.
+# Doctrine v11 LOCKED 749/14/163. c7c0ba17. Λ = Conjecture 1. SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+@app.get("/api/killinchu/v1/doctrine")
+async def killinchu_doctrine_v3():
+    """Doctrine endpoint — inline, registered before uvicorn.run()."""
+    from fastapi.responses import JSONResponse as _JR
+    return _JR({
+        "flagship": "killinchu", "doctrine": "v11", "kernel_commit": "c7c0ba17",
+        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 (honest)",
+        "role": "C-UAS / Andean drone classification",
+        "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
+    })
+
+@app.get("/api/killinchu/v1/adsb")
+async def killinchu_adsb_v3(
+    lat_min: float = 24.0, lat_max: float = 50.0,
+    lon_min: float = -125.0, lon_max: float = -60.0
+):
+    """FRONTIER: Live ADS-B via OpenSky Network (CC-BY-4.0). Registered before uvicorn.run()."""
+    import urllib.request as _ur, json as _j
+    from datetime import datetime, timezone as _tz
+    from fastapi.responses import JSONResponse as _JR
+    opensky_url = (
+        f"https://opensky-network.org/api/states/all?"
+        f"lamin={lat_min}&lamax={lat_max}&lomin={lon_min}&lomax={lon_max}"
+    )
+    _now = datetime.now(_tz.utc).isoformat()
+    try:
+        req = _ur.Request(opensky_url,
+            headers={"User-Agent": "SZL-killinchu/1.0 (C-UAS demo; contact@szlholdings.ai)"})
+        with _ur.urlopen(req, timeout=8) as resp:
+            raw = _j.loads(resp.read())
+        states = raw.get("states", []) or []
+        flights = []
+        for s in (states or [])[:50]:
+            if s and len(s) >= 9:
+                alt = s[7]; vel = s[9]
+                if alt is None: cls = "NO_ALTITUDE"
+                elif alt < 150 and (vel is None or vel < 30): cls = "POTENTIAL_UAS"
+                elif alt < 500: cls = "LOW_ALTITUDE"
+                elif alt < 3000: cls = "MID_ALTITUDE"
+                else: cls = "COMMERCIAL_ALTITUDE"
+                tier = "T1_HIGH" if cls == "POTENTIAL_UAS" else ("T2_MEDIUM" if cls == "LOW_ALTITUDE" else "T3_LOW")
+                flights.append({"icao24": s[0], "callsign": (s[1] or "").strip() or None,
+                    "origin_country": s[2], "longitude": s[5], "latitude": s[6],
+                    "baro_altitude_m": alt, "on_ground": s[8], "velocity_ms": vel,
+                    "szl_class": cls, "szl_threat_tier": tier})
+        return _JR({"flagship": "killinchu", "frontier": "opensky_adsb",
+            "source": "OpenSky Network (CC-BY-4.0)", "doctrine": "v11",
+            "kernel_commit": "c7c0ba17", "lambda": "Conjecture 1 (NOT a theorem)",
+            "total_states": len(states), "flights_returned": len(flights),
+            "flights": flights, "ts": _now})
+    except Exception as _e:
+        demo_flights = [
+            {"icao24": "a00001", "callsign": "DAL123", "origin_country": "United States",
+             "latitude": 40.7, "longitude": -74.0, "baro_altitude_m": 10000,
+             "szl_class": "COMMERCIAL_ALTITUDE", "szl_threat_tier": "T3_LOW"},
+            {"icao24": "a00002", "callsign": None, "origin_country": "United States",
+             "latitude": 37.3, "longitude": -122.0, "baro_altitude_m": 120,
+             "szl_class": "POTENTIAL_UAS", "szl_threat_tier": "T1_HIGH"},
+        ]
+        return _JR({"flagship": "killinchu", "frontier": "opensky_adsb_fallback",
+            "note": "OpenSky unavailable — synthetic demo data", "error": str(_e)[:80],
+            "doctrine": "v11", "kernel_commit": "c7c0ba17",
+            "flights": demo_flights, "ts": _now})
 
 if __name__ == "__main__":
     import uvicorn
@@ -1378,6 +1436,93 @@ except Exception as _ke:
 # ============================================================================
 
 
+
+# ============================================================================
+# ADDITIVE: /api/killinchu/v1/adsb — FRONTIER ADS-B (OpenSky Network CC-BY-4.0)
+# INLINE (before SPA catch-all) — bypasses frontier patch import issues
+# Doctrine v11 LOCKED 749/14/163. c7c0ba17. Λ = Conjecture 1. SLSA L1.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+@app.get("/api/killinchu/v1/doctrine")
+async def killinchu_doctrine_inline():
+    """Doctrine endpoint — inline (before SPA catch-all)."""
+    return JSONResponse({
+        "flagship": "killinchu", "doctrine": "v11", "kernel_commit": "c7c0ba17",
+        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 (honest)",
+        "role": "C-UAS / Andean drone classification",
+        "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
+    })
+
+@app.get("/api/killinchu/v1/adsb")
+async def killinchu_adsb_inline(
+    lat_min: float = 24.0, lat_max: float = 50.0,
+    lon_min: float = -125.0, lon_max: float = -60.0
+):
+    """FRONTIER: Live ADS-B via OpenSky Network (CC-BY-4.0, anonymous)."""
+    import urllib.request as _ur, urllib.error as _ue, json as _j
+    from datetime import datetime, timezone as _tz
+    opensky_url = (
+        f"https://opensky-network.org/api/states/all?"
+        f"lamin={lat_min}&lamax={lat_max}&lomin={lon_min}&lomax={lon_max}"
+    )
+    _now = datetime.now(_tz.utc).isoformat()
+    try:
+        req = _ur.Request(opensky_url,
+            headers={"User-Agent": "SZL-killinchu/1.0 (C-UAS demo; contact@szlholdings.ai)"})
+        with _ur.urlopen(req, timeout=8) as resp:
+            raw = _j.loads(resp.read())
+        states = raw.get("states", []) or []
+        flights = []
+        for s in (states or [])[:50]:
+            if s and len(s) >= 9:
+                alt = s[7]; vel = s[9]
+                if alt is None: cls = "NO_ALTITUDE"
+                elif alt < 150 and (vel is None or vel < 30): cls = "POTENTIAL_UAS"
+                elif alt < 500: cls = "LOW_ALTITUDE"
+                elif alt < 3000: cls = "MID_ALTITUDE"
+                else: cls = "COMMERCIAL_ALTITUDE"
+                tier = "T1_HIGH" if cls == "POTENTIAL_UAS" else ("T2_MEDIUM" if cls == "LOW_ALTITUDE" else "T3_LOW")
+                flights.append({"icao24": s[0], "callsign": (s[1] or "").strip() or None,
+                    "origin_country": s[2], "longitude": s[5], "latitude": s[6],
+                    "baro_altitude_m": alt, "on_ground": s[8], "velocity_ms": vel,
+                    "szl_class": cls, "szl_threat_tier": tier})
+        return JSONResponse({"flagship": "killinchu", "frontier": "opensky_adsb",
+            "source": "OpenSky Network (CC-BY-4.0)", "doctrine": "v11",
+            "kernel_commit": "c7c0ba17", "lambda": "Conjecture 1 (NOT a theorem)",
+            "total_states": len(states), "flights_returned": len(flights),
+            "flights": flights, "ts": _now})
+    except Exception as _e:
+        demo_flights = [
+            {"icao24": "a00001", "callsign": "DAL123", "origin_country": "United States",
+             "latitude": 40.7, "longitude": -74.0, "baro_altitude_m": 10000,
+             "szl_class": "COMMERCIAL_ALTITUDE", "szl_threat_tier": "T3_LOW"},
+            {"icao24": "a00002", "callsign": None, "origin_country": "United States",
+             "latitude": 37.3, "longitude": -122.0, "baro_altitude_m": 120,
+             "szl_class": "POTENTIAL_UAS", "szl_threat_tier": "T1_HIGH"},
+        ]
+        return JSONResponse({"flagship": "killinchu", "frontier": "opensky_adsb_fallback",
+            "note": "OpenSky unavailable — synthetic demo data", "error": str(_e)[:80],
+            "doctrine": "v11", "kernel_commit": "c7c0ba17",
+            "flights": demo_flights, "ts": _now})
+
+
+@app.get("/{full_path:path}")
+async def spa_fallback(full_path: str) -> Response:
+    if full_path.startswith("api/"):
+        return JSONResponse({"error": "not found"}, status_code=404)
+    candidate = (STATIC_DIR / full_path).resolve()
+    try:
+        candidate.relative_to(STATIC_DIR.resolve())
+    except ValueError:
+        return FileResponse(INDEX_HTML, media_type="text/html")
+    if candidate.is_file():
+        return FileResponse(candidate)
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+
 # ============================================================================
 # FRONTIER REGISTRATION — killinchu (2026-06-03T05:00Z)
 # Loads killinchu_frontier_patch.py and inserts routes at position 0.
@@ -1396,4 +1541,39 @@ except Exception as _kc_ftr_e:
     _kc_ftr_tb.print_exc(file=_kc_ftr_sys.stderr)
 # ============================================================================
 # END: FRONTIER REGISTRATION — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: /khipu/dag ALIAS — killinchu (additive, v11 locked)
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    from fastapi.routing import APIRoute as _DagRoute_killinchu
+    from fastapi.responses import JSONResponse as _DagJR_killinchu
+    async def _killinchu_khipu_dag_handler(request):
+        import httpx as _hx
+        try:
+            async with _hx.AsyncClient(timeout=5.0) as _c:
+                _r = await _c.get("http://127.0.0.1:7860/api/killinchu/khipu/ledger")
+                _data = _r.json()
+        except Exception as _ex:
+            _data = {"error": str(_ex)}
+        _data["_dag_alias"] = True
+        return _DagJR_killinchu(_data)
+    _dag_r_killinchu = _DagRoute_killinchu(
+        "/api/killinchu/khipu/dag",
+        _killinchu_khipu_dag_handler,
+        methods=["GET"],
+        name="killinchu_khipu_dag_alias"
+    )
+    app.router.routes.insert(0, _dag_r_killinchu)
+    import sys as _killinchu_dag_sys
+    print("[killinchu] /khipu/dag alias registered at /api/killinchu/khipu/dag", file=_killinchu_dag_sys.stderr)
+except Exception as _killinchu_dag_e:
+    import sys as _killinchu_dag_sys
+    print(f"[killinchu] /khipu/dag alias FAILED: {_killinchu_dag_e!r}", file=_killinchu_dag_sys.stderr)
+# ============================================================================
+# END: /khipu/dag ALIAS — killinchu
 # ============================================================================
