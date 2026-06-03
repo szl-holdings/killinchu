@@ -143,5 +143,14 @@ COPY szl_v4_fleet.py ./szl_v4_fleet.py
 COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
 
 
+# ADDITIVE (SZL Ken Agent Pattern v1, CTO Yachay Convergence Cycle 1, 2026-06-03):
+# Explicit per-file COPY of szl_ken.py (this Dockerfile never uses `COPY . .`).
+# serve.py tries `import szl_ken` at startup; without this COPY the import fails
+# silently and /v1/agent/loop + /v1/mcp/tools return 404 instead of 200.
+# ADDITIVE ONLY — zero existing routes touched. Doctrine v11 LOCKED 749/14/163.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY szl_ken.py ./szl_ken.py
+
 CMD ["python", "serve.py"]
 
