@@ -45,3 +45,6 @@ docker-compose.override.yml
 # Node
 node_modules/
 npm-debug.log*
+# Added by cleanup-hotfix-squad (M4 hygiene)
+*.log
+*.pyc
