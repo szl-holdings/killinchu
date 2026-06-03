@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v10
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 """
 szl_brain — shared per-app BRAIN + UNIFIED LLM ROUTER, deployed identically on
 every SZL Space.  Python port of the canonical TypeScript source-of-truth at
@@ -13,12 +13,12 @@ Two things every Space gets from this one module:
   2. PER-APP BRAIN       — a thesis/formula slice keyed by the Space's anatomy role,
      served at /api/<space>/v1/brain/* and rendered at /brain.
 
-HONESTY (Doctrine v10):
+HONESTY (Doctrine v11):
   - The Λ-receipt `signature` field is a PLACEHOLDER.  Sigstore CI (cosign/DSSE
     keyless) signing is NOT yet wired.  Labeled explicitly everywhere.
   - No model API key is wired into the HF Spaces, so the router returns an HONEST
     STUB for `response`; the tier-selection + Λ-receipt are real, deterministic math.
-  - Canonical numbers are the locked Doctrine v10 set: 749 declarations / 14 unique
+  - Canonical numbers are the locked Doctrine v11 set: 749 declarations / 14 unique
     axioms (15 raw, 1 dup) / 163 sorries (112 baseline + 51 Putnam) @ lutar-lean c7c0ba17.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
-DOCTRINE = "v10"
+DOCTRINE = "v11"
 CANONICAL = {
     "lutar_lean_ref": "lutar-v18.0.0 @ c7c0ba17",
     "declarations": 749,
@@ -45,7 +45,7 @@ CANONICAL = {
     "source": "HONEST_SNAPSHOT from lean_numbers.json @ c7c0ba17 (lean_numbers.py canonical counter)",
 }
 
-SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired (Doctrine v10)"
+SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired (Doctrine v11)"
 
 # ---------------------------------------------------------------------------
 # 5 LLM tiers — founder-locked (ROSIE_FULL_CAPABILITY_BRIEF_2026-05-31_2135.md §2)
@@ -134,7 +134,7 @@ def route(prompt: str, axis_scores: list[float] | None = None, max_tier: int = 4
 # so the slices stay consistent across Spaces and Rosie can mirror ALL of them.
 # ---------------------------------------------------------------------------
 
-# Cortex theorems (amaru). Honest status from Doctrine v10 reconciliation.
+# Cortex theorems (amaru). Honest status from Doctrine v11 reconciliation.
 THEOREMS = {
     "TH1": {"name": "Λ Conjecture (unique 13-axis aggregator)", "status": "CONJECTURE",
             "lean": "Lutar/Uniqueness.lean:120 (lutar_is_geomean, CAUCHY_ND sorry)",
