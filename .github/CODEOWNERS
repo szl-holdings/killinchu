@@ -1,0 +1,9 @@
+# CODEOWNERS — killinchu
+# All changes require review from SZL Holdings core team.
+# Doctrine v11 LOCKED 749/14/163 — DO NOT change lean numbers.
+
+* @szl-holdings/core
+.github/ @szl-holdings/core
+serve.py @szl-holdings/core
+Dockerfile @szl-holdings/core
+
