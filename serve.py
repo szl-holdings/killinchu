@@ -313,6 +313,11 @@ def _digest_node(receipt: dict[str, Any], parents: list[str]) -> str:
 
 
 def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
+    # WHY this exists: every counter-UAS verdict must be signed + chained so that
+    # a downstream audit tool can verify the chain of decisions without trusting
+    # any single node. The Merkle DAG links receipts via SHA-256 parent digests.
+    # Real DSSE signing happens when SZL_COSIGN_PRIVATE_KEY_PEM is set (Space secret);
+    # absent = PLACEHOLDER label (honest — never fabricates a signature).
     parents = [_KHIPU_DAG[-1]["digest"]] if _KHIPU_DAG else []
     receipt = {
         "schema": "szl.killinchu.receipt/v1",
@@ -362,6 +367,11 @@ _LAMBDA_FLOOR = 0.90
 
 
 def _lambda_aggregate(axes: list[float]) -> float:
+    # WHY geometric mean: geometric mean penalizes any single axis being near zero
+    # more harshly than arithmetic mean. A drone with 12/13 axes = 1.0 and 1 axis = 0.01
+    # should NOT pass. Geometric mean enforces all-axes-must-be-adequate.
+    # This is the Λ-Aggregator (Doctrine v11 Conjecture 1 — uniqueness is conjectured,
+    # not proven; see szl_lambda_tripwire.py for thresholds HALT/FLAG/WARN).
     vals = [min(1.0, max(1e-9, float(x))) for x in axes] if axes else [0.9] * 13
     return math.exp(sum(math.log(v) for v in vals) / len(vals))
 

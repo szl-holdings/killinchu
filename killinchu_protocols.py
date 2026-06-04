@@ -12,6 +12,20 @@ Killinchu protocol decoders — REAL parsers, NO MOCKS.
 Honesty (Doctrine v11): malformed/short input returns an explicit error object, never a
 silent pass. ADS-B/Remote-ID are unauthenticated broadcast — decoded fields are *claims*.
 """
+# ---------------------------------------------------------------------------
+# DEVELOPER ORIENTATION (added by Perplexity Computer Agent, 2026-06)
+# Purpose:       Real protocol decoders for drone broadcast signals (NO mocks).
+#                This is killinchu's most important unique module.
+# Key entry pts: remote_id_decode(hexstr) -> dict [OpenDroneID ASTM F3411-22a]
+#                adsb_decode(hexstr) -> dict [ADS-B Mode-S 1090ES via pyModeS]
+#                mavlink_parse(hexstr) -> dict [MAVLink v1/v2 via pymavlink]
+# Related mods:  serve.py (routes these), szl_dsse.py (signing verdicts)
+# Honesty note:  All decoded fields are UNAUTHENTICATED CLAIMS from broadcast.
+#                Drones can spoof Remote-ID. Never claim "verified identity".
+#                pyModeS and pymavlink are optional; absent = honest error dict.
+# Spec refs:     ASTM F3411-22a (Remote ID), ICAO Doc 9684 (ADS-B),
+#                MAVLink v2.0 (https://mavlink.io/en/guide/serialization.html)
+# ---------------------------------------------------------------------------
 from __future__ import annotations
 
 import struct
