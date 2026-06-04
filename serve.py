@@ -435,7 +435,7 @@ async def honest() -> JSONResponse:
             "image_digest": "sha256:4465e1aa1842d45423e878485f83865b1eb65b89f299ee5d25fab9fe3d8b80e9",
             "fulcio_issuer": "GitHub private Fulcio (O=GitHub,Inc, CN=Fulcio Intermediate l2)",
             "public_rekor_entry": False,
-            "note": "NOT public-verifiable L2 — signed by GitHub PRIVATE Fulcio, no public Rekor tlog entry. The other 4 organs (a11oy, sentra, amaru, rosie) ARE public-verifiable L2. Fix: re-run ghcr-build-push.yml with public Sigstore+Rekor.",
+            "note": "SLSA L1 honest (cosign-signed). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed for any organ. Fix: re-run ghcr-build-push.yml with public Sigstore+Rekor.",
         },
         "formulas_wired": [f["name"] for f in _f.get("wired", [])],
         "formulas_count": _f.get("count", 0),
@@ -445,7 +445,7 @@ async def honest() -> JSONResponse:
         "honest_disclosures": [
             "ADS-B and Remote-ID are unauthenticated broadcast — decoded fields are CLAIMS, not attested truth.",
             "Receipt signatures are PLACEHOLDER — Sigstore CI not yet wired per Doctrine v11.",
-            "SLSA L1 honest — NOT public-verifiable L2 (GitHub private Fulcio, no public Rekor). The other 4 organs ARE public L2.",
+            "All organs are SLSA L1 honest (cosign-signed). L2 build-provenance attestation is roadmap; not yet claimed.",
             "Section 889: 5 banned vendors (Huawei, ZTE, Hytera, Hikvision, Dahua).",
         ],
         "receipts": f"DSSE envelopes; signature = {SIGNATURE_PLACEHOLDER}",
@@ -912,7 +912,7 @@ async def vessels_catch(path: str) -> JSONResponse:
 try:
     import szl_provenance as _prov
     _prov_status = _prov.register_provenance(app, "killinchu")
-    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L2): {{_prov_status}}", file=sys.stderr)
+    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L1 honest; L2 roadmap): {{_prov_status}}", file=sys.stderr)
 except Exception as _pe:  # pragma: no cover - defensive, additive-only
     print(f"[killinchu] szl_provenance NOT registered ({{_pe!r}}); existing app unaffected", file=sys.stderr)
 
