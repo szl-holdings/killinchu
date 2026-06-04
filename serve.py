@@ -946,6 +946,41 @@ async def spa_root() -> FileResponse:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# ============================================================================
+# SPA HISTORY FALLBACK — explicit routes for key C-UAS demo paths
+# (2026-06-04, fix: /counter-uas /drones /map returned 404 server-side)
+# These three paths exist in the built React SPA (static/assets/index-D6SPDeFp.js
+# confirms path:"/counter-uas", path:"/drones", path:"/map").
+# The /{full_path:path} catch-all at line ~2145 is correct in code but the HF
+# Space runtime (pySpaces 0.50.2 + Starlette 1.1.0 + FastAPI ~0.111) does not
+# always fall through to it when routes.clear()+extend are used by frontier_patch.
+# Adding explicit GET routes — same pattern as /operator /uds /navy — is the
+# safest additive fix: no existing route is shadowed, each falls back to INDEX_HTML.
+# Registered BEFORE /{full_path:path} catch-all. ADDITIVE ONLY.
+# Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>
+# ============================================================================
+@app.get("/counter-uas")
+async def spa_counter_uas() -> FileResponse:
+    """SPA history fallback — serves index.html for /counter-uas (C-UAS demo page)."""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+@app.get("/drones")
+async def spa_drones() -> FileResponse:
+    """SPA history fallback — serves index.html for /drones."""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+@app.get("/map")
+async def spa_map() -> FileResponse:
+    """SPA history fallback — serves index.html for /map."""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+# ============================================================================
+# END: SPA HISTORY FALLBACK explicit routes
+# ============================================================================
+
+
 # ADDITIVE (UDS HARDENING, Yachay 2026-06-01): DESKTOP-FIRST UDS compliance
 # dashboard for 1280px+ workstation operators (STIG/SCAP, Iron Bank parity, Big
 # Bang chart, Tradewinds, CMMC/NIST/EU-AI-Act). Self-contained static page that
