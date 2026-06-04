@@ -1,0 +1,89 @@
+name: SLSA L2 Container Provenance (verifier-validated)
+
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+# Doctrine v11 LOCKED 749/14/163 · c7c0ba17 · Λ = Conjecture 1 · sovereign-default
+#
+# Killinchu SLSA Build L2 promotion. Builds the killinchu OCI image, pushes it by
+# digest to GHCR, then calls the OFFICIAL slsa-framework/slsa-github-generator
+# container generator to produce a registry-attached `slsa.dev/provenance/v1`
+# DSSE attestation that `slsa-verifier verify-image` validates (exit 0).
+#
+# This is the verifier-honest L2 path: the four prior "L2" organs only carry
+# `actions/attest-build-provenance` provenance (GitHub attestation store), which
+# `slsa-verifier verify-image` cannot discover. The official container generator
+# attaches the provenance as an OCI referrer that slsa-verifier trusts.
+#
+# Verify (canonical proof — what Greene can run):
+#   slsa-verifier verify-image \
+#     ghcr.io/szl-holdings/killinchu@sha256:<digest> \
+#     --source-uri github.com/szl-holdings/killinchu
+#   # exit 0 == PASSED: verified SLSA provenance
+#
+# Doctrine: HONESTY OVER CHECKLIST — L2 is only claimed once verify-image == exit 0.
+# Concepts only — no third-party logos or trademarks.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*', 'uds-v*']
+  workflow_dispatch:
+
+jobs:
+  # 1. Build the killinchu image and push it BY DIGEST to GHCR.
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          push: true
+          # Tag so humans can pull; provenance attaches to the immutable digest.
+          tags: |
+            ghcr.io/szl-holdings/${{ github.event.repository.name }}:slsa-l2
+          labels: |
+            org.opencontainers.image.source=https://github.com/szl-holdings/${{ github.event.repository.name }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Output image name (no tag — generator attaches to digest)
+        id: image
+        run: |
+          echo "image=ghcr.io/szl-holdings/${{ github.event.repository.name }}" >> "$GITHUB_OUTPUT"
+
+  # 2. Official SLSA container generator → registry-attached SLSA provenance v1.
+  #    slsa-verifier verify-image validates this to exit 0.
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read       # detect the GitHub Actions environment
+      id-token: write     # Sigstore keyless signing (Fulcio/OIDC) + Rekor
+      packages: write     # upload the provenance attestation to GHCR
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
+    with:
+      image: ${{ needs.build.outputs.image }}
+      digest: ${{ needs.build.outputs.digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
