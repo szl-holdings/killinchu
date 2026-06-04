@@ -62,7 +62,7 @@ The killinchu HuggingFace Space and its GitHub-hosted source code under `szl-hol
 
 ## Mitigations in Place
 
-- Doctrine-grep CI blocks SLSA overclaims, Iron Bank claims, FedRAMP claims
+- Doctrine-grep CI blocks SLSA overclaims, supply-chain compliance overclaims, FedRAMP claims
 - Branch protection on main (1 reviewer required on PRs)
 - DCO enforcement via dco.yml
 - TruffleHog on HF Space
