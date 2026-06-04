@@ -1,19 +1,25 @@
 # Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
 # Killinchu Service — routes traffic to the killinchu pod on port 7860.
+# Name mirrors uds-package.yaml expose.service: killinchu-svc · selector app: killinchu.
 # The UDS Package CR (uds-package.yaml) exposes this via the Istio gateway.
+# Doctrine v11 LOCKED 749/14/163 · Lambda = Conjecture 1 (NOT a theorem)
+# SLSA L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 apiVersion: v1
 kind: Service
 metadata:
-  name: killinchu
+  name: killinchu-svc
   namespace: killinchu
   labels:
+    app: killinchu
     app.kubernetes.io/name: killinchu
     app.kubernetes.io/part-of: szl-mesh
 spec:
-  # Selector uses the recommended label; pods also carry app: szl-killinchu for UDS operator
+  type: ClusterIP
   selector:
-    app.kubernetes.io/name: killinchu
+    app: killinchu
   ports:
     - name: http
       port: 7860
       targetPort: 7860
+      protocol: TCP

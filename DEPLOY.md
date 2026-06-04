@@ -1,93 +1,124 @@
-# Killinchu Deploy Guide
+# Killinchu — Deploy Runbook ("Just Works in San Diego")
 
-**Image:** `ghcr.io/szl-holdings/killinchu:uds-v0.2.0` (PUBLIC, SLSA L1, cosign-signed)  
-**Repo:** `szl-holdings/killinchu`  
-**Updated:** 2026-06-05  
-**Doctrine:** v11 LOCKED 749/14/163 · SLSA L1 · Λ = Conjecture 1  
-**Signed-off-by:** stephenlutar2-hash \<stephenlutar2@gmail.com\>
+Counter-UAS flagship of the SZL mesh. This runbook takes you from a clean laptop
+to a running, signed killinchu instance — standalone Docker, Zarf package, or the
+full UDS mesh bundle — plus the elite operator console and the kill-move curl.
 
----
-
-## What Killinchu Does
-
-Killinchu is the SZL counter-UAS organ. It:
-
-1. **Decodes drone telemetry** — OpenDroneID (ASTM F3411-22a), ADS-B Mode-S 1090ES, MAVLink
-2. **Scores threats** through the 13-axis Λ-gate geofence + governance model (Conjecture 1, NOT a theorem)
-3. **Signs verdicts** with DSSE Khipu receipts for tamper-evident audit trail
-4. **Emits** drone fleet state, threat tracks, and intercept logs to the mesh
-
-This is the Warhacker "Cannonico" answer: an independent system that monitors AI behavior in real time and backs it up with a permanent, tamper-evident record.
+**Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · Λ = Conjecture 1 (NOT a theorem)**
+**SLSA L1 honest** (cosign-signed images, verifiable via `cosign verify`; L2 = roadmap, not claimed) ·
+**Section 889 = exactly 5 vendors** (Huawei, ZTE, Hytera, Hikvision, Dahua) · **NO Iron Bank / FedRAMP / CMMC**
 
 ---
 
-## Prerequisites
+## 0. Tool versions (pinned — known-good at Warhacker)
 
-- **UDS Core running** (Istio, Pepr, Keycloak) — killinchu deploys into an existing UDS Core cluster
-- **uds-cli v0.32.0** for bundle deploy (recommended)
-- **zarf v0.77.0** for standalone package deploy
-
----
-
-## Deploy — Recommended: Bundle
-
-The recommended way to deploy killinchu is via the **szl-mesh bundle**, which includes all 5 organs in deploy order:
+| Tool      | Version    | Why                                  |
+|-----------|------------|--------------------------------------|
+| uds-cli   | v0.32.0    | mesh bundle deploy                   |
+| Zarf      | v0.77.0    | standalone air-gap package           |
+| cosign    | ≥ v2.2     | image + DSSE signature verification  |
+| Docker    | ≥ 24       | standalone run                       |
+| kubectl   | ≥ 1.28     | inspect the deployed namespace       |
 
 ```bash
-# USB tarball (airgap — Warhacker San Diego):
-uds-cli bundle deploy szl-mesh-v0.4.0.tar.zst --confirm
-
-# OCI pull (internet):
-uds deploy oci://ghcr.io/szl-holdings/szl-mesh:v0.4.0 --confirm
+uds version        # 0.32.0
+zarf version       # 0.77.0
+cosign version     # >= 2.2
 ```
 
-See [uds-bundles DEPLOY.md](https://github.com/szl-holdings/uds-bundles/blob/main/DEPLOY.md) for full bundle instructions.
-
 ---
 
-## Deploy — Standalone (killinchu only)
-
-If you need to deploy killinchu without the full mesh bundle:
+## 1. Fastest path — standalone Docker (no cluster)
 
 ```bash
-# From this repo root (deploy/zarf.yaml + deploy/manifests/ must be present):
-zarf package create deploy/ --confirm
-zarf package deploy zarf-package-killinchu-amd64-uds-v0.2.0.tar.zst --confirm
+docker run --rm -p 7860:7860 ghcr.io/szl-holdings/killinchu:uds-v0.2.0
+# open http://localhost:7860/elite        ← 14-tab elite operator console
 ```
 
-This creates a Zarf package with:
-- `killinchu-runtime` — image + k8s manifests (Namespace, Deployment, Service)
-- `killinchu-drone-surfaces` — drone API routes file
-- `killinchu-peat-node` (optional) — peat-node CRDT mesh sidecar
-
-**Note:** Standalone deploy skips the UDS Package CR registration. SSO and UDS network policy will NOT be auto-provisioned. For full UDS integration, use the bundle path.
+The image is public on GHCR. Nothing to log in to.
 
 ---
 
-## Verify
+## 2. Verify the artifact BEFORE you trust it (2 minutes)
 
 ```bash
-# Health check
-kubectl port-forward -n killinchu deploy/killinchu 7860:7860 &
-curl -sf http://localhost:7860/api/killinchu/healthz && echo "killinchu OK"
-kill %1
-
-# Counter-UAS evaluation test
-curl -X POST http://localhost:7860/api/killinchu/v1/counter-uas/evaluate \
-  -H "Content-Type: application/json" \
-  -d '{"track_id":"4840D6","lat":32.7,"lon":-117.2,"alt_m":120,"speed_ms":15}'
-# Expected: {"track_id":"4840D6","verdict":"MONITOR","receipt_id":"sha256:..."}
-
-# Verify image signature
+# Image signature — cosign keyless OIDC (GitHub Actions issuer)
 cosign verify ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
   --certificate-identity-regexp="^https://github.com/szl-holdings/" \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
-# Expected: Verified OK
+
+# Live doctrine posture on a running instance
+curl -s http://localhost:7860/api/killinchu/v1/honest | jq .kernel_commit   # => "c7c0ba17"
+```
+
+> Honest: rule-engine DSSE receipts are REAL only when the `SZL_COSIGN_PRIVATE_PEM`
+> secret is present. When absent, the API returns an explicit **PLACEHOLDER** envelope
+> — never a fabricated signature.
+
+---
+
+## 3. Zarf package (standalone / air-gap cluster)
+
+```bash
+# Build — pulls images + bundles the 3 K8s manifests in deploy/manifests/
+zarf package create deploy/ --confirm
+# => zarf-package-killinchu-amd64-uds-v0.2.0.tar.zst
+
+# Deploy into the current kube-context
+zarf package deploy zarf-package-killinchu-amd64-uds-v0.2.0.tar.zst --confirm
+
+kubectl -n killinchu get pods,svc
+kubectl -n killinchu port-forward svc/killinchu-svc 7860:7860
+# open http://localhost:7860/elite
+```
+
+The package deploys: `Namespace killinchu` → `Deployment killinchu`
+(image `ghcr.io/szl-holdings/killinchu:uds-v0.2.0`, port 7860,
+`/api/killinchu/healthz` liveness+readiness) → `Service killinchu-svc`
+(ClusterIP :7860, selector `app: killinchu`).
+
+---
+
+## 4. Full UDS mesh bundle (killinchu + sentra + amaru + a11oy + rosie)
+
+```bash
+uds-cli bundle deploy szl-mesh-v0.4.0.tar.zst --confirm
+# applies deploy/uds-package.yaml (UDS Package CR): Istio ingress, SSO,
+# network allow-list, and the killinchu health/fleet-state monitors.
+```
+
+After deploy, killinchu is exposed via the tenant gateway as host `killinchu`
+(port 7860). The borrowed-powers panel in the console reads LIVE mesh state.
+
+---
+
+## 5. The kill-move — one curl, one signed 13-axis Λ-gate verdict
+
+```bash
+curl -s -X POST http://localhost:7860/api/killinchu/v1/counter-uas/evaluate \
+  -H 'content-type: application/json' -d '{
+    "telemetry": {"latitude":32.7157,"longitude":-117.1611,"ground_speed_m_s":22,
+                  "side":"unknown","remote_id_present":false},
+    "geofence":  {"center_lat":32.7157,"center_lon":-117.1611,"radius_m":500},
+    "policy":    {"max_speed_m_s":25,"allow_sides":["friendly"],"require_remote_id":true},
+    "axis_scores":[0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95,0.95]
+  }' | jq '{decision, lambda, lambda_pass, breaches, receipt: .lambda_receipt.index}'
+# => HALT (no remote-id + intruder side) with a DSSE Khipu receipt index.
 ```
 
 ---
 
-## Image Tags
+## 6. Elite console
+
+`GET /elite` (or `/killinchu/elite`) — 14 vertical-specific tabs, each backed by a
+REAL endpoint (no mocks): Live Track Board, Sensor-Fusion, Multi-Track Queue, ROE
+Editor, Engagement Audit, DSSE Receipt Verifier, 13-axis Λ-gate, 3-of-4 BFT Quorum,
+PQC Hybrid Signing, Protocol Decoders, Geofence Editor, Swarm Topology, Threat DB,
+and the **Cross-Flagship Borrowed Powers** panel (`GET /api/killinchu/v1/borrowed-powers`).
+
+---
+
+## 7. Image Tags
 
 | Tag | Status | Notes |
 |-----|--------|-------|
@@ -100,12 +131,14 @@ cosign verify ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
 
 ---
 
-## API Endpoints
+## 8. API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/killinchu/healthz` | GET | Health check |
 | `/api/killinchu/v1/counter-uas/evaluate` | POST | Evaluate a drone track through the Λ-gate |
+| `/api/killinchu/v1/honest` | GET | Live doctrine posture (SLSA L1, Λ Conjecture 1, kernel commit) |
+| `/api/killinchu/v1/borrowed-powers` | GET | Cross-flagship borrowed-powers state |
 | `/api/killinchu/drone/telemetry` | POST | Ingest drone telemetry |
 | `/api/killinchu/drone/intercept` | POST | Log a signed intercept verdict |
 | `/api/killinchu/drone/cued-tracks` | GET | Get current cued threat tracks |
@@ -114,20 +147,27 @@ cosign verify ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
 
 ---
 
-## Troubleshooting
+## 9. Troubleshooting
 
-| Symptom | Fix |
-|---------|-----|
-| `ImagePullBackOff` | Verify Zarf init was run before deploy; image must be in Zarf internal registry |
-| `Connection refused` on healthz | Pod may take 30–60s to start; `kubectl logs -n killinchu deploy/killinchu` for startup errors |
-| `zarf package create` fails with `404` on image | Use `uds-v0.2.0` tag only — `uds-v0.3.1-rc.1` and `v1.0.0-alpha` don't exist |
-| UDS Package CR not reconciled | Run with bundle (not standalone) so UDS operator processes the Package CR |
+| Symptom | Cause / Fix |
+|---|---|
+| `/elite` returns the SPA shell | Module not COPY'd — confirm `killinchu_elite_console.py` in image; it registers BEFORE the SPA catch-all. |
+| PQC sign → `503 ML-DSA backend unavailable` | Expected when `oqs-python`/`dilithium-py` absent. **ecdsa mode still works.** Honest, not a bug. |
+| Receipts show `PLACEHOLDER` | `SZL_COSIGN_PRIVATE_PEM` secret absent. Set it for REAL DSSE; absence is honest, never fabricated. |
+| `ImagePullBackOff` | Verify Zarf init was run before deploy; image must be in Zarf internal registry. |
+| `Connection refused` on healthz | Pod may take 30–60s to start; `kubectl logs -n killinchu deploy/killinchu` for startup errors. |
+| `zarf package create` fails with `404` on image | Use `uds-v0.2.0` tag only — `uds-v0.3.1-rc.1` and `v1.0.0-alpha` don't exist. |
+| UDS Package CR not reconciled | Run with bundle (not standalone) so the UDS operator processes the Package CR. |
 
 ---
 
-## Honesty Doctrine
+## 10. Honesty Doctrine
 
-- SLSA **L1** honest — keyless cosign provenance in Rekor (logIndex 1710339915)
-- Λ = **Conjecture 1** (NEVER a theorem; do not claim theorem status)
-- **No Iron Bank** — not in Iron Bank registry
-- **No FedRAMP / CMMC**
+- SLSA **L1** honest — cosign-signed images, verifiable via `cosign verify`. L2 = roadmap, not claimed.
+- Λ = **Conjecture 1** (NEVER a theorem; do not claim theorem status).
+- DSSE Khipu receipts REAL only when `SZL_COSIGN_PRIVATE_PEM` present; honest **PLACEHOLDER** envelope otherwise.
+- **No Iron Bank** — not in the Iron Bank registry.
+- **No FedRAMP / CMMC**.
+- Section 889 = exactly 5 vendors (Huawei, ZTE, Hytera, Hikvision, Dahua).
+
+Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>

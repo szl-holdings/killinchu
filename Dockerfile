@@ -183,6 +183,9 @@ COPY killinchu_parity.py ./killinchu_parity.py
 # Cannonico bullseye). serve.py imports it via try/except after killinchu_parity;
 # without this COPY the /api/killinchu/v1/cannonico/* routes fall through to the SPA.
 COPY killinchu_cannonico.py ./killinchu_cannonico.py
+# killinchu_elite_console.py: a11oy-elite 14-tab operator console. serve.py imports
+# it via try/except; per-file COPY (this Dockerfile never uses `COPY . .`).
+COPY killinchu_elite_console.py ./killinchu_elite_console.py
 COPY serve.py ./serve.py
 COPY szl_khipu_consensus.py ./szl_khipu_consensus.py
 

@@ -3,27 +3,31 @@
 # Image: ghcr.io/szl-holdings/killinchu:uds-v0.2.0 (PUBLIC, SLSA L1, cosign-signed)
 # Security: STIG-aligned, readOnlyRootFilesystem, runAsNonRoot, capabilities dropped.
 # Zarf rewrites the image ref to the internal registry at deploy time (airgap-safe).
+# Pod carries app: killinchu so killinchu-svc (selector app: killinchu) + the UDS
+# Package CR (expose.selector app: killinchu) both resolve to this pod.
+# Doctrine v11 LOCKED 749/14/163 · Lambda = Conjecture 1 (NOT a theorem)
+# SLSA L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: killinchu
   namespace: killinchu
   labels:
+    app: killinchu
     app.kubernetes.io/name: killinchu
     app.kubernetes.io/part-of: szl-mesh
-    # app: szl-killinchu included for UDS Package selector compatibility
-    app: szl-killinchu
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: killinchu
+      app: killinchu
   template:
     metadata:
       labels:
+        app: killinchu
         app.kubernetes.io/name: killinchu
         app.kubernetes.io/part-of: szl-mesh
-        app: szl-killinchu
         # Istio ambient mode — waypoint proxy injection
         istio.io/rev: default
       annotations:
@@ -46,6 +50,9 @@ spec:
           ports:
             - name: http
               containerPort: 7860
+          env:
+            - name: PORT
+              value: "7860"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
