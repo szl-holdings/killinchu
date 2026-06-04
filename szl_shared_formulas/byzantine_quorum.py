@@ -22,8 +22,6 @@ CITATION: thesis_v22.pdf §2  ·  LEAN: Lutar/KhipuConsensus.lean::faultyCount (
 """
 from __future__ import annotations
 
-from collections import Counter
-
 CITATION = "thesis_v22.pdf §2"
 LEAN_THEOREM = "Lutar/KhipuConsensus.lean::faultyCount (Conjecture 2: khipu_consensus_safety)"
 LEAN_PERMALINK = (

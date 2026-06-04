@@ -15,10 +15,8 @@ Each module carries a real thesis_v22.pdf citation + a real Lean theorem/obligat
 Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem).
 """
 from __future__ import annotations
-from . import welford
-from . import bloom_filter
-from . import pac_bayes
-from . import kalman
-from . import byzantine_quorum
+
+from . import bloom_filter, byzantine_quorum, kalman, pac_bayes, welford
+
 __all__ = ['welford', 'bloom_filter', 'pac_bayes', 'kalman', 'byzantine_quorum']
 # SLSA L1 honest (killinchu never claims L2 unless independently verified).
