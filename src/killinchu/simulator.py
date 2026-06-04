@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 import math
-from random import Random  # seeded class only — honest, reproducible sensor jitter
 import time
 from dataclasses import dataclass, field
+from random import Random  # seeded class only — honest, reproducible sensor jitter
 from typing import Iterator
 
 from .edge import Telemetry
@@ -196,6 +196,16 @@ class TelemetrySimulator:
         self._last = time.monotonic()
 
     def tick(self, dt_s: float | None = None) -> list[Telemetry]:
+        """Advance every drone one step and return their current telemetry.
+
+        Args:
+            dt_s: Seconds to advance. If None, uses wall-clock elapsed since
+                the previous tick, clamped to [0.05, 2.0] s for stability.
+
+        Returns:
+            One :class:`Telemetry` frame per drone in the fleet, computed
+            relative to the configured receiver position.
+        """
         now = time.monotonic()
         if dt_s is None:
             dt_s = max(0.05, min(2.0, now - self._last))

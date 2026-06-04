@@ -8,6 +8,7 @@
 # default (resets on process restart — stated honestly); optionally persisted to
 # a JSONL file when KILLINCHU_KHIPU_PATH is set, so receipts survive restarts.
 from __future__ import annotations
+
 import hashlib
 import json
 import os
@@ -45,12 +46,27 @@ class KhipuDAG:
 
     @property
     def root(self) -> str:
+        """Return the current DAG root hash.
+
+        Returns:
+            The ``node_hash`` of the most recently appended node, or the
+            ``GENESIS`` sentinel when the chain is empty.
+        """
         return self._nodes[-1]["node_hash"] if self._nodes else GENESIS
 
     def __len__(self) -> int:
         return len(self._nodes)
 
     def append(self, envelope: dict[str, Any]) -> dict[str, Any]:
+        """Append a DSSE envelope as a new hash-linked node.
+
+        Args:
+            envelope: The DSSE verdict envelope to anchor.
+
+        Returns:
+            The newly created node dict (index, prev_hash, node_hash, ts,
+            envelope). Thread-safe and, if configured, persisted as JSONL.
+        """
         with self._lock:
             prev = self.root
             ts = datetime.now(timezone.utc).isoformat()
@@ -79,4 +95,9 @@ class KhipuDAG:
         return {"intact": True, "length": len(self._nodes), "root": self.root}
 
     def nodes(self) -> list[dict[str, Any]]:
+        """Return a shallow copy of all chain nodes in append order.
+
+        Returns:
+            A new list of node dicts; mutating it does not affect the DAG.
+        """
         return list(self._nodes)
