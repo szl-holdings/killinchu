@@ -38,7 +38,7 @@ jobs:
           subject-name: ghcr.io/szl-holdings/${{ github.event.repository.name }}
           subject-digest: ${{ steps.build-push.outputs.digest }}
           push-to-registry: true
-      - uses: sigstore/cosign-installer@053f9b74638557590800a301da1ba82351507e2c # v3.8.1
+      - uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
       - name: cosign sign
         env:
           COSIGN_EXPERIMENTAL: "1"
