@@ -459,10 +459,17 @@ async def honest() -> JSONResponse:
 # REAL protocol decoders — NO MOCKS
 # ---------------------------------------------------------------------------
 async def _json_body(request: Request) -> dict:
+    """Parse a JSON body, returning {} on empty / malformed / non-object input.
+
+    A JSON array or scalar parses without raising, so an unguarded ``.get()`` on
+    it would 500. Coercing any non-dict to {} keeps every consumer's bad-input
+    path a clean 4xx (the handler's own missing-field check) instead of a 500.
+    """
     try:
-        return await request.json()
+        body = await request.json()
     except Exception:
         return {}
+    return body if isinstance(body, dict) else {}
 
 
 @app.post("/api/killinchu/v1/remote-id/decode")
@@ -1101,10 +1108,7 @@ try:
         below the floor (0.7) — i.e. possibly a novel airframe — does it consult the
         Rosie-shadow for deeper reasoning. Both the identify result and the Rosie
         reasoning carry Khipu receipts (cross-linked). PASSIVE detection only."""
-        try:
-            body = await request.json()
-        except Exception:
-            body = {}
+        body = await _json_body(request)
         axis_scores = body.get("axis_scores")
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         # Reuse the existing passive classifier via in-process loopback so we do not
@@ -1154,26 +1158,26 @@ try:
 
     @app.post("/api/killinchu/v1/rosie-companion/ponder")
     async def killinchu_rosie_ponder(request: Request) -> JSONResponse:
-        body = await request.json()
+        body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.ponder(body.get("context", body), traceparent=tp).to_dict())
 
     @app.post("/api/killinchu/v1/rosie-companion/synthesize")
     async def killinchu_rosie_synthesize(request: Request) -> JSONResponse:
-        body = await request.json()
+        body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.synthesize(body.get("events", []), traceparent=tp).to_dict())
 
     @app.post("/api/killinchu/v1/rosie-companion/evolve")
     async def killinchu_rosie_evolve(request: Request) -> JSONResponse:
-        body = await request.json()
+        body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.evolve(body.get("strategy", {}),
                             approvers=body.get("approvers", []), traceparent=tp).to_dict())
 
     @app.post("/api/killinchu/v1/rosie-companion/brain-jack")
     async def killinchu_rosie_brain_jack(request: Request) -> JSONResponse:
-        body = await request.json()
+        body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.brain_jack(body.get("query", ""),
                             depth=int(body.get("depth", 1)),
@@ -1638,11 +1642,7 @@ async def killinchu_adsb_v3(
 async def _killinchu_faa_rid_validate(request: Request) -> JSONResponse:
     """FAA Remote ID session freshness validator — INN-10. Lean: FAARIDSessionValidity (0 sorry)."""
     import time as _t
-    body = {}
-    try:
-        body = await request.json()
-    except Exception:
-        pass
+    body = await _json_body(request)
     RID_WINDOW = 30.0  # FAA RID §89.305(a)(3) — 30s freshness window
     # Accept timestamp_sec (float POSIX) or ISO string
     ts_raw = body.get("timestamp_sec") or body.get("ts") or body.get("timestamp")
@@ -1686,11 +1686,7 @@ _KILLINCHU_GEOFENCE = {"lat_min": 38.8, "lat_max": 39.0, "lon_min": -77.2, "lon_
 @app.post("/api/killinchu/v1/mavlink/geofence")
 async def _killinchu_mavlink_geofence(request: Request) -> JSONResponse:
     """MAVLink geofence enforcement — INN-09. Lean: MAVLinkValidateGeofence (partial)."""
-    body = {}
-    try:
-        body = await request.json()
-    except Exception:
-        pass
+    body = await _json_body(request)
     lat = body.get("lat") or body.get("latitude")
     lon = body.get("lon") or body.get("longitude")
     if lat is None or lon is None:
@@ -1759,11 +1755,7 @@ async def _killinchu_v1_khipu_dag() -> JSONResponse:
 async def _killinchu_v4_inbox_post(request: Request) -> JSONResponse:
     """POST telemetry/action into killinchu v4 inbox. Returns DSSE receipt. Doctrine v11."""
     import hashlib as _hl_inb, uuid as _uuid_inb
-    body: dict = {}
-    try:
-        body = await request.json()
-    except Exception:
-        pass
+    body: dict = await _json_body(request)
     protocol = body.get("protocol", "unknown")
     action = body.get("action", "")
     raw = body.get("raw", "")
