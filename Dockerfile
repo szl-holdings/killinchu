@@ -179,6 +179,7 @@ COPY szl_ken.py ./szl_ken.py
 COPY killinchu_frontier_patch.py ./killinchu_frontier_patch.py
 COPY killinchu_drone_routes.py ./killinchu_drone_routes.py
 COPY killinchu_parity.py ./killinchu_parity.py
+COPY serve.py ./serve.py
 COPY szl_khipu_consensus.py ./szl_khipu_consensus.py
 
 # ADDITIVE (Formulas → Ecosystem echo, Opus 4.8, 2026-06-03): per-file COPY of the
