@@ -1,23 +1,38 @@
-# SZL Holdings — Killinchu Zarf package
+# SZL Holdings — Killinchu Zarf package (standalone deploy — NOT the bundle path)
 # Authored by: Operationalize Sweep · Yachay CTO 2026-06-03
 # Doctrine: v11 LOCKED 749/14/163 · Lambda = Conjecture 1 (NOT a theorem)
 # SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
 #
+# ─── STANDALONE DEPLOY (killinchu only, without the full szl-mesh bundle) ───
 # Build:   zarf package create deploy/ --confirm
-# Deploy:  zarf package deploy zarf-package-killinchu-amd64-uds-v0.3.1-rc.1.tar.zst --confirm
+# Deploy:  zarf package deploy zarf-package-killinchu-amd64-uds-v0.2.0.tar.zst --confirm
 #
-# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# ─── BUNDLE DEPLOY (recommended — all 5 organs together) ────────────────────
+# The canonical Warhacker deploy is via the szl-mesh bundle:
+#   uds-cli bundle deploy szl-mesh-v0.4.0.tar.zst --confirm
+# See: https://github.com/szl-holdings/uds-bundles
+#
+# ─── IMAGE ──────────────────────────────────────────────────────────────────
+# ghcr.io/szl-holdings/killinchu:uds-v0.2.0 (PUBLIC, cosign-signed, SLSA L1)
+# Verify: cosign verify ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
+#   --certificate-identity-regexp="^https://github.com/szl-holdings/" \
+#   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+#
+# Note: uds-v0.3.1-rc.1 tag was removed — it never existed on GHCR.
+#       uds-v0.2.0 is the only public, cosign-signed, bundle-ready tag.
+#
+# Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 
 kind: ZarfPackageConfig
 metadata:
   name: killinchu
-  version: uds-v0.3.1-rc.1
+  version: uds-v0.2.0
   description: |
-    Killinchu — Andean Drone Intelligence / Counter-UAS Operator Surface.
-    Formally-verified C-UAS rule engine. Decodes OpenDroneID/ASTM F3411-22a,
-    ADS-B Mode-S 1090ES, MAVLink. Applies 13-axis Lambda-gate geofence + governance.
-    Issues DSSE Khipu receipts. Drone telemetry + intercept + fleet-state surfaces.
+    Killinchu — Andean Counter-UAS / Drone Intelligence operator surface.
+    Decodes OpenDroneID/ASTM F3411-22a, ADS-B Mode-S 1090ES, MAVLink.
+    Applies 13-axis Lambda-gate geofence + governance. Issues DSSE Khipu receipts.
+    Drone telemetry + intercept + fleet-state surfaces.
     Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem).
     SLSA L1 honest. NO Iron Bank.
   url: https://github.com/szl-holdings/killinchu
@@ -27,10 +42,13 @@ metadata:
 components:
   - name: killinchu-runtime
     required: true
-    description: Killinchu C-UAS runtime + drone telemetry surface.
+    description: |
+      Killinchu C-UAS runtime + drone telemetry surface.
+      Image: ghcr.io/szl-holdings/killinchu:uds-v0.2.0 (PUBLIC, cosign-signed SLSA L1).
     images:
-      - ghcr.io/szl-holdings/killinchu:uds-v0.3.1-rc.1
-      - ghcr.io/szl-holdings/killinchu:v1.0.0-alpha
+      # uds-v0.2.0 is the only public, cosign-signed, bundle-ready tag.
+      # uds-v0.3.1-rc.1 was never published to GHCR — removed.
+      - ghcr.io/szl-holdings/killinchu:uds-v0.2.0
     manifests:
       - name: killinchu
         namespace: killinchu
@@ -51,7 +69,9 @@ components:
 
   - name: killinchu-peat-node
     required: false
-    description: peat-node CRDT mesh sidecar for killinchu drone-intel telemetry documents.
+    description: |
+      peat-node CRDT mesh sidecar for killinchu drone-intel telemetry documents.
+      Required: false — bundle deploys without peat-node when CRDT is not needed.
     manifests:
       - name: killinchu-peat
         namespace: killinchu

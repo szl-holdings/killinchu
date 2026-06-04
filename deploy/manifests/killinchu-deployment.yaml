@@ -1,0 +1,72 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# Killinchu Deployment — Counter-UAS operator surface.
+# Image: ghcr.io/szl-holdings/killinchu:uds-v0.2.0 (PUBLIC, SLSA L1, cosign-signed)
+# Security: STIG-aligned, readOnlyRootFilesystem, runAsNonRoot, capabilities dropped.
+# Zarf rewrites the image ref to the internal registry at deploy time (airgap-safe).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: killinchu
+  namespace: killinchu
+  labels:
+    app.kubernetes.io/name: killinchu
+    app.kubernetes.io/part-of: szl-mesh
+    # app: szl-killinchu included for UDS Package selector compatibility
+    app: szl-killinchu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: killinchu
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: killinchu
+        app.kubernetes.io/part-of: szl-mesh
+        app: szl-killinchu
+        # Istio ambient mode — waypoint proxy injection
+        istio.io/rev: default
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "7860"
+        prometheus.io/path: /metrics
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: killinchu
+          # Image is rewritten by Zarf at deploy time to the internal registry.
+          # The external tag uds-v0.2.0 is what was baked into the bundle at CI create time.
+          image: ghcr.io/szl-holdings/killinchu:uds-v0.2.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 7860
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /api/killinchu/healthz
+              port: 7860
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/killinchu/healthz
+              port: 7860
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
