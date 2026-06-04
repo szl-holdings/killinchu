@@ -1493,6 +1493,34 @@ except Exception as _drone_e:
     print(_drone_tb.format_exc(), file=sys.stderr)
 
 
+# ===========================================================================
+# PARITY (2026-06-04, stephenlutar2-hash / Perplexity Computer Agent)
+# Closes counter-UAS parity gaps vs Anduril Lattice, Palantir TITAN,
+# DroneShield DroneSentry-C2, Dedrone DedroneTracker.AI:
+#   GET/POST /api/killinchu/v1/tracks/history        — track timeline ring
+#   POST     /api/killinchu/v1/tracks/ingest         — sensor input ingest
+#   POST     /api/killinchu/v1/tracks/multi-prioritize — ranked threat queue
+#   GET      /api/killinchu/v1/roe/policy            — ROE policy bundle
+#   PUT      /api/killinchu/v1/roe/policy            — operator ROE update
+#   POST     /api/killinchu/v1/roe/evaluate          — per-frame ROE verdict
+#   GET      /api/killinchu/v1/engagements/audit-log — paginated audit log
+#   POST     /api/killinchu/v1/engagements/record    — record engagement
+#   GET      /api/killinchu/v1/sensor-fusion/status  — sensor health/weights
+#   POST     /api/killinchu/v1/sensor-fusion/fuse    — multi-sensor fusion
+# Every ROE decision + engagement is emitted as a DSSE Khipu receipt.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_parity as _parity
+    _parity_status = _parity.register(app, emit_receipt=_emit_receipt, ns="killinchu")
+    print(f"[killinchu] Parity endpoints registered: {_parity_status['registered']}", file=sys.stderr)
+except Exception as _parity_e:
+    import traceback as _parity_tb
+    print(f"[killinchu] Parity endpoints NOT registered: {_parity_e!r}", file=sys.stderr)
+    _parity_tb.print_exc()
+# ── end PARITY ──────────────────────────────────────────────────────────────
+
+
 # ---------------------------------------------------------------------------
 # ADDITIVE: /version endpoint — Founder Inspection Surface (v1.0.0)
 # Returns build provenance: "what build is live, when, what's its provenance."

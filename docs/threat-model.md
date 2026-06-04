@@ -26,7 +26,7 @@ The killinchu HuggingFace Space and its GitHub-hosted source code under `szl-hol
 
 ### Tampering
 - **T-02**: Commit that modifies DOCTRINE constant to a non-v11 value
-  - *Mitigation*: Branch protection requires CI pass; doctrine-grep.yml blocks v10/v9 patterns
+  - *Mitigation*: Branch protection requires CI pass; doctrine-grep.yml blocks stale doctrine patterns
   - *DREAD*: D=9, R=4, E=3, A=9, D=5 → **DREAD=6.0**
 - **T-03**: HF Space race condition overwrites correct serve.py
   - *Mitigation*: Lesson learned — use 5-min wait between same-Space pushes; git pull before commit
@@ -62,7 +62,7 @@ The killinchu HuggingFace Space and its GitHub-hosted source code under `szl-hol
 
 ## Mitigations in Place
 
-- Doctrine-grep CI blocks SLSA L2/L3 overclaims, Iron Bank claims, FedRAMP claims
+- Doctrine-grep CI blocks SLSA overclaims, Iron Bank claims, FedRAMP claims
 - Branch protection on main (1 reviewer required on PRs)
 - DCO enforcement via dco.yml
 - TruffleHog on HF Space
