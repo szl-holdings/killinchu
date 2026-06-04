@@ -26,9 +26,19 @@ Producing workflow run: [26896047715](https://github.com/szl-holdings/killinchu/
 ## Verify (downstream)
 
 ```bash
-# killinchu is a PRIVATE repo: verify with GitHub's native tooling:
-gh attestation verify oci://ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
-  --owner szl-holdings
+# L1 honest: verify the cosign keyless signature on the published image.
+# killinchu is a PRIVATE repo, so the signature/attestation is issued under
+# GitHub's private Fulcio (CN=Fulcio Intermediate l2, O=GitHub, Inc.) with NO
+# public Rekor tlog entry — slsa-verifier against the public Sigstore log
+# cannot confirm it, which is why we honestly stay at L1.
+cosign verify ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
+  --certificate-identity-regexp='^https://github.com/szl-holdings/' \
+  --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
+
+# Or, with authorized access to the private repo, GitHub's native tooling:
+#   gh attestation verify oci://ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
+#     --owner szl-holdings
+# L2 (public-Rekor, downstream-verifiable) is roadmap (Wire D) — not yet earned.
 ```
 
 Verified image digest: `sha256:48bab05a8124943c880b24ecd949e0baeaa1c71d5d02155d087f5e8d4c822606`.
