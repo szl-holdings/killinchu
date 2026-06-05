@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 · SLSA L1 honest
+#
+# DISABLED (stephenlutar2-hash, 2026-06-04): killinchu is honestly SLSA L1.
+# The slsa-framework/slsa-github-generator container generator requires the
+# registry-attached provenance path which needs public Rekor + non-private
+# Fulcio to pass slsa-verifier verify-image. killinchu uses private Fulcio
+# (O=GitHub,Inc), so slsa-verifier cannot confirm this via the public log.
+# Claiming L2 here would be dishonest per Doctrine v11. This workflow is
+# disabled (no triggers) pending Wire D (public Rekor path) upgrade.
+#
+# Verify current L1 attestation:
+#   gh attestation verify oci://ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
+#     --owner szl-holdings
+#
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+
+name: SLSA L2 Container Provenance (verifier-validated)
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Set to "yes" only when Wire D (public Rekor) is live'
+        required: true
+        default: 'no'
+
+jobs:
+  disabled-l2-pending-wire-d:
+    if: ${{ github.event.inputs.force_run == 'yes' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain
+        run: |
+          echo "SLSA L2 path via slsa-github-generator requires public Rekor."
+          echo "killinchu uses private Fulcio (honest SLSA L1). Wire D upgrade required."
+          echo "See .compliance/SLSA_LEVEL.md for the honest status."

@@ -1,0 +1,15 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# Killinchu namespace — isolated per UDS deny-by-default security model.
+# Labels enable Istio injection (managed by UDS Core) and Pepr policy targeting.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: killinchu
+  labels:
+    # Istio injection label — UDS Core Istio Ambient mode uses this
+    istio-injection: enabled
+    # UDS operator label for network policy generation
+    uds.dev/managed-by: uds-operator
+    # Standard k8s labels
+    app.kubernetes.io/name: killinchu
+    app.kubernetes.io/part-of: szl-mesh

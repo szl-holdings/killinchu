@@ -68,7 +68,7 @@
       "szl": "roadmap (chart packaged; Flux wrapper pending)"
     },
     {
-      "feature": "STIG-hardened Iron Bank base image",
+      "feature": "STIG-hardened registry base image (roadmap)",
       "big_bang": true,
       "szl": "Dockerfile.ironbank (creds required)"
     },

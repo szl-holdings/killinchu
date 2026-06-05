@@ -313,6 +313,11 @@ def _digest_node(receipt: dict[str, Any], parents: list[str]) -> str:
 
 
 def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
+    # WHY this exists: every counter-UAS verdict must be signed + chained so that
+    # a downstream audit tool can verify the chain of decisions without trusting
+    # any single node. The Merkle DAG links receipts via SHA-256 parent digests.
+    # Real DSSE signing happens when SZL_COSIGN_PRIVATE_KEY_PEM is set (Space secret);
+    # absent = PLACEHOLDER label (honest — never fabricates a signature).
     parents = [_KHIPU_DAG[-1]["digest"]] if _KHIPU_DAG else []
     receipt = {
         "schema": "szl.killinchu.receipt/v1",
@@ -362,6 +367,11 @@ _LAMBDA_FLOOR = 0.90
 
 
 def _lambda_aggregate(axes: list[float]) -> float:
+    # WHY geometric mean: geometric mean penalizes any single axis being near zero
+    # more harshly than arithmetic mean. A drone with 12/13 axes = 1.0 and 1 axis = 0.01
+    # should NOT pass. Geometric mean enforces all-axes-must-be-adequate.
+    # This is the Λ-Aggregator (Doctrine v11 Conjecture 1 — uniqueness is conjectured,
+    # not proven; see szl_lambda_tripwire.py for thresholds HALT/FLAG/WARN).
     vals = [min(1.0, max(1e-9, float(x))) for x in axes] if axes else [0.9] * 13
     return math.exp(sum(math.log(v) for v in vals) / len(vals))
 
@@ -435,7 +445,7 @@ async def honest() -> JSONResponse:
             "image_digest": "sha256:4465e1aa1842d45423e878485f83865b1eb65b89f299ee5d25fab9fe3d8b80e9",
             "fulcio_issuer": "GitHub private Fulcio (O=GitHub,Inc, CN=Fulcio Intermediate l2)",
             "public_rekor_entry": False,
-            "note": "NOT public-verifiable L2 — signed by GitHub PRIVATE Fulcio, no public Rekor tlog entry. The other 4 organs (a11oy, sentra, amaru, rosie) ARE public-verifiable L2. Fix: re-run ghcr-build-push.yml with public Sigstore+Rekor.",
+            "note": "SLSA L1 honest (cosign-signed). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed for any organ. Fix: re-run ghcr-build-push.yml with public Sigstore+Rekor.",
         },
         "formulas_wired": [f["name"] for f in _f.get("wired", [])],
         "formulas_count": _f.get("count", 0),
@@ -445,7 +455,7 @@ async def honest() -> JSONResponse:
         "honest_disclosures": [
             "ADS-B and Remote-ID are unauthenticated broadcast — decoded fields are CLAIMS, not attested truth.",
             "Receipt signatures are PLACEHOLDER — Sigstore CI not yet wired per Doctrine v11.",
-            "SLSA L1 honest — NOT public-verifiable L2 (GitHub private Fulcio, no public Rekor). The other 4 organs ARE public L2.",
+            "All organs are SLSA L1 honest (cosign-signed). L2 build-provenance attestation is roadmap; not yet claimed.",
             "Section 889: 5 banned vendors (Huawei, ZTE, Hytera, Hikvision, Dahua).",
         ],
         "receipts": f"DSSE envelopes; signature = {SIGNATURE_PLACEHOLDER}",
@@ -459,10 +469,17 @@ async def honest() -> JSONResponse:
 # REAL protocol decoders — NO MOCKS
 # ---------------------------------------------------------------------------
 async def _json_body(request: Request) -> dict:
+    """Parse a JSON body, returning {} on empty / malformed / non-object input.
+
+    A JSON array or scalar parses without raising, so an unguarded ``.get()`` on
+    it would 500. Coercing any non-dict to {} keeps every consumer's bad-input
+    path a clean 4xx (the handler's own missing-field check) instead of a 500.
+    """
     try:
-        return await request.json()
+        body = await request.json()
     except Exception:
         return {}
+    return body if isinstance(body, dict) else {}
 
 
 @app.post("/api/killinchu/v1/remote-id/decode")
@@ -904,7 +921,7 @@ async def vessels_catch(path: str) -> JSONResponse:
 
 # ---------------------------------------------------------------------------
 # ADDITIVE (Yachay / Provenance Hardening): Wire D (W3C traceparent trace
-# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L2 signed provenance).
+# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L1 honest; L2 roadmap Wire D).
 # Registers /api/{space}/wires/D, /khipu/{sign,verify,ledger}, /provenance.
 # Wrapped so a missing dep (cryptography) can NEVER take down the existing app.
 # PLACEHOLDER -> REAL: every receipt now DSSE-signed with szlholdings-cosign.
@@ -912,7 +929,7 @@ async def vessels_catch(path: str) -> JSONResponse:
 try:
     import szl_provenance as _prov
     _prov_status = _prov.register_provenance(app, "killinchu")
-    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L2): {{_prov_status}}", file=sys.stderr)
+    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L1 honest; L2 roadmap): {{_prov_status}}", file=sys.stderr)
 except Exception as _pe:  # pragma: no cover - defensive, additive-only
     print(f"[killinchu] szl_provenance NOT registered ({{_pe!r}}); existing app unaffected", file=sys.stderr)
 
@@ -944,6 +961,41 @@ except Exception as _kg_e:
 @app.get("/")
 async def spa_root() -> FileResponse:
     return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# ============================================================================
+# SPA HISTORY FALLBACK — explicit routes for key C-UAS demo paths
+# (2026-06-04, fix: /counter-uas /drones /map returned 404 server-side)
+# These three paths exist in the built React SPA (static/assets/index-D6SPDeFp.js
+# confirms path:"/counter-uas", path:"/drones", path:"/map").
+# The /{full_path:path} catch-all at line ~2145 is correct in code but the HF
+# Space runtime (pySpaces 0.50.2 + Starlette 1.1.0 + FastAPI ~0.111) does not
+# always fall through to it when routes.clear()+extend are used by frontier_patch.
+# Adding explicit GET routes — same pattern as /operator /uds /navy — is the
+# safest additive fix: no existing route is shadowed, each falls back to INDEX_HTML.
+# Registered BEFORE /{full_path:path} catch-all. ADDITIVE ONLY.
+# Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>
+# ============================================================================
+@app.get("/counter-uas")
+async def spa_counter_uas() -> FileResponse:
+    """SPA history fallback — serves index.html for /counter-uas (C-UAS demo page)."""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+@app.get("/drones")
+async def spa_drones() -> FileResponse:
+    """SPA history fallback — serves index.html for /drones."""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+@app.get("/map")
+async def spa_map() -> FileResponse:
+    """SPA history fallback — serves index.html for /map."""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+# ============================================================================
+# END: SPA HISTORY FALLBACK explicit routes
+# ============================================================================
 
 
 # ADDITIVE (UDS HARDENING, Yachay 2026-06-01): DESKTOP-FIRST UDS compliance
@@ -1066,10 +1118,7 @@ try:
         below the floor (0.7) — i.e. possibly a novel airframe — does it consult the
         Rosie-shadow for deeper reasoning. Both the identify result and the Rosie
         reasoning carry Khipu receipts (cross-linked). PASSIVE detection only."""
-        try:
-            body = await request.json()
-        except Exception:
-            body = {}
+        body = await _json_body(request)
         axis_scores = body.get("axis_scores")
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         # Reuse the existing passive classifier via in-process loopback so we do not
@@ -1119,26 +1168,26 @@ try:
 
     @app.post("/api/killinchu/v1/rosie-companion/ponder")
     async def killinchu_rosie_ponder(request: Request) -> JSONResponse:
-        body = await request.json()
+        body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.ponder(body.get("context", body), traceparent=tp).to_dict())
 
     @app.post("/api/killinchu/v1/rosie-companion/synthesize")
     async def killinchu_rosie_synthesize(request: Request) -> JSONResponse:
-        body = await request.json()
+        body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.synthesize(body.get("events", []), traceparent=tp).to_dict())
 
     @app.post("/api/killinchu/v1/rosie-companion/evolve")
     async def killinchu_rosie_evolve(request: Request) -> JSONResponse:
-        body = await request.json()
+        body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.evolve(body.get("strategy", {}),
                             approvers=body.get("approvers", []), traceparent=tp).to_dict())
 
     @app.post("/api/killinchu/v1/rosie-companion/brain-jack")
     async def killinchu_rosie_brain_jack(request: Request) -> JSONResponse:
-        body = await request.json()
+        body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.brain_jack(body.get("query", ""),
                             depth=int(body.get("depth", 1)),
@@ -1458,6 +1507,54 @@ except Exception as _drone_e:
     print(_drone_tb.format_exc(), file=sys.stderr)
 
 
+# ===========================================================================
+# PARITY (2026-06-04, stephenlutar2-hash / Perplexity Computer Agent)
+# Closes counter-UAS parity gaps vs Anduril Lattice, Palantir TITAN,
+# DroneShield DroneSentry-C2, Dedrone DedroneTracker.AI:
+#   GET/POST /api/killinchu/v1/tracks/history        — track timeline ring
+#   POST     /api/killinchu/v1/tracks/ingest         — sensor input ingest
+#   POST     /api/killinchu/v1/tracks/multi-prioritize — ranked threat queue
+#   GET      /api/killinchu/v1/roe/policy            — ROE policy bundle
+#   PUT      /api/killinchu/v1/roe/policy            — operator ROE update
+#   POST     /api/killinchu/v1/roe/evaluate          — per-frame ROE verdict
+#   GET      /api/killinchu/v1/engagements/audit-log — paginated audit log
+#   POST     /api/killinchu/v1/engagements/record    — record engagement
+#   GET      /api/killinchu/v1/sensor-fusion/status  — sensor health/weights
+#   POST     /api/killinchu/v1/sensor-fusion/fuse    — multi-sensor fusion
+# Every ROE decision + engagement is emitted as a DSSE Khipu receipt.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_parity as _parity
+    _parity_status = _parity.register(app, emit_receipt=_emit_receipt, ns="killinchu")
+    print(f"[killinchu] Parity endpoints registered: {_parity_status['registered']}", file=sys.stderr)
+except Exception as _parity_e:
+    import traceback as _parity_tb
+    print(f"[killinchu] Parity endpoints NOT registered: {_parity_e!r}", file=sys.stderr)
+    _parity_tb.print_exc()
+# ── end PARITY ──────────────────────────────────────────────────────────────
+
+# ===========================================================================
+# CANNONICO — Warhacker bullseye: lost-contact autonomous-drone governance.
+# When a drone loses contact mid-mission it runs alone. This loop governs EVERY
+# autonomous decision against the authorized envelope it carried into the
+# mission, emits a chained DSSE-signed receipt per decision (host _emit_receipt
+# → REAL cosign), and catches the moment a line gets crossed. The result is one
+# continuous, tamper-evident record an auditor verifies when contact resumes.
+# Registered BEFORE the SPA catch-all. ADDITIVE only.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_cannonico as _cannonico
+    _cannonico_status = _cannonico.register(app, emit_receipt=_emit_receipt, ns="killinchu")
+    print(f"[killinchu] Cannonico endpoints registered: {_cannonico_status['registered']}", file=sys.stderr)
+except Exception as _cannonico_e:
+    import traceback as _cannonico_tb
+    print(f"[killinchu] Cannonico endpoints NOT registered: {_cannonico_e!r}", file=sys.stderr)
+    _cannonico_tb.print_exc()
+# ── end CANNONICO ────────────────────────────────────────────────────────────
+
+
 # ---------------------------------------------------------------------------
 # ADDITIVE: /version endpoint — Founder Inspection Surface (v1.0.0)
 # Returns build provenance: "what build is live, when, what's its provenance."
@@ -1575,11 +1672,7 @@ async def killinchu_adsb_v3(
 async def _killinchu_faa_rid_validate(request: Request) -> JSONResponse:
     """FAA Remote ID session freshness validator — INN-10. Lean: FAARIDSessionValidity (0 sorry)."""
     import time as _t
-    body = {}
-    try:
-        body = await request.json()
-    except Exception:
-        pass
+    body = await _json_body(request)
     RID_WINDOW = 30.0  # FAA RID §89.305(a)(3) — 30s freshness window
     # Accept timestamp_sec (float POSIX) or ISO string
     ts_raw = body.get("timestamp_sec") or body.get("ts") or body.get("timestamp")
@@ -1623,11 +1716,7 @@ _KILLINCHU_GEOFENCE = {"lat_min": 38.8, "lat_max": 39.0, "lon_min": -77.2, "lon_
 @app.post("/api/killinchu/v1/mavlink/geofence")
 async def _killinchu_mavlink_geofence(request: Request) -> JSONResponse:
     """MAVLink geofence enforcement — INN-09. Lean: MAVLinkValidateGeofence (partial)."""
-    body = {}
-    try:
-        body = await request.json()
-    except Exception:
-        pass
+    body = await _json_body(request)
     lat = body.get("lat") or body.get("latitude")
     lon = body.get("lon") or body.get("longitude")
     if lat is None or lon is None:
@@ -1696,11 +1785,7 @@ async def _killinchu_v1_khipu_dag() -> JSONResponse:
 async def _killinchu_v4_inbox_post(request: Request) -> JSONResponse:
     """POST telemetry/action into killinchu v4 inbox. Returns DSSE receipt. Doctrine v11."""
     import hashlib as _hl_inb, uuid as _uuid_inb
-    body: dict = {}
-    try:
-        body = await request.json()
-    except Exception:
-        pass
+    body: dict = await _json_body(request)
     protocol = body.get("protocol", "unknown")
     action = body.get("action", "")
     raw = body.get("raw", "")

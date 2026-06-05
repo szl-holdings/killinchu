@@ -17,7 +17,7 @@ mkdir -p "$R/etc" "$R/etc/modprobe.d" "$R/etc/sysctl.d" "$R/etc/security" "$R/et
 # ---- login.defs (password aging, min length, umask, fail delay) ----
 LD="$R/etc/login.defs"
 touch "$LD"
-set_ld(){ key="$1"; val="$2"; if grep -qE "^[[:space:]]*$key[[:space:]]" "$LD"; then sed -i -E "s|^[[:space:]]*$key[[:space:]].*|$key $val|" "$LD"; else echo "$key $val" >> "$LD"; fi; }
+set_ld(){ key="$1"; val="$2"; if grep -qE "^[[:space:]]*${key}[[:space:]]" "$LD"; then sed -i -E "s|^[[:space:]]*${key}[[:space:]].*|$key $val|" "$LD"; else echo "$key $val" >> "$LD"; fi; }
 set_ld PASS_MAX_DAYS 60
 set_ld PASS_MIN_DAYS 1
 set_ld PASS_MIN_LEN 15

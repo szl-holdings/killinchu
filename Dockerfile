@@ -169,6 +169,23 @@ COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY szl_ken.py ./szl_ken.py
 
+# ADDITIVE (Missing modules fix, 2026-06-04, Perplexity Computer Agent):
+# killinchu_frontier_patch.py: registers /api/killinchu/v1/{doctrine,health,adsb} at route 0.
+# killinchu_drone_routes.py: registers /api/killinchu/drone/{telemetry,intercept,cued-tracks,fleet-state}.
+# szl_khipu_consensus.py: Khipu multi-organ consensus (killinchu is aggregator).
+# All three are imported via try/except in serve.py — missing files cause silent warn, not crash.
+# Per-file COPY (this Dockerfile never uses `COPY . .`).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY killinchu_frontier_patch.py ./killinchu_frontier_patch.py
+COPY killinchu_drone_routes.py ./killinchu_drone_routes.py
+COPY killinchu_parity.py ./killinchu_parity.py
+# killinchu_cannonico.py: lost-contact autonomous-drone governance loop (Warhacker
+# Cannonico bullseye). serve.py imports it via try/except after killinchu_parity;
+# without this COPY the /api/killinchu/v1/cannonico/* routes fall through to the SPA.
+COPY killinchu_cannonico.py ./killinchu_cannonico.py
+COPY serve.py ./serve.py
+COPY szl_khipu_consensus.py ./szl_khipu_consensus.py
+
 # ADDITIVE (Formulas → Ecosystem echo, Opus 4.8, 2026-06-03): per-file COPY of the
 # shared formulas package + endpoint shim (this Dockerfile never uses `COPY . .`).
 # serve.py imports killinchu_formula_endpoints which imports szl_shared_formulas.* —

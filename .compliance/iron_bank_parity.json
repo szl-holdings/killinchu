@@ -1,89 +1,89 @@
 {
- "kind": "uds.iron-bank.parity",
- "iron_bank_reference": "https://registry1.dso.mil (DoD Platform One Iron Bank)",
- "generated_by": "UDS HARDENING (Yachay) \u2014 real Dockerfile audit 2026-06-01",
- "pull_credentials_status": "REQUIRED \u2014 registry1.dso.mil needs a Platform One Iron Bank account + robot token. Build host in this sandbox does NOT have them; Iron Bank FROM lines are real and will pull once `docker login registry1.dso.mil` succeeds. Fallback documented (registry.access.redhat.com UBI mirror = same upstream).",
- "flagships": [
-  {
-   "flagship": "a11oy",
-   "language": "python",
-   "current_base": "python:3.12-slim",
-   "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
-   "ironbank_dockerfile": "Dockerfile.ironbank",
-   "ironbank_image_pushed": "N",
-   "pull_status": "creds_required",
-   "status": "not_built_iron_bank_pending_credentials"
+  "kind": "uds.iron-bank.parity",
+  "iron_bank_reference": "https://registry1.dso.mil (DoD Platform One registry \u2014 roadmap, not yet claimed)",
+  "generated_by": "UDS HARDENING (Yachay) \u2014 real Dockerfile audit 2026-06-01",
+  "pull_credentials_status": "REQUIRED \u2014 registry1.dso.mil needs a Platform One the registry account + robot token. Build host in this sandbox does NOT have them; the registry FROM lines are real and will pull once `docker login registry1.dso.mil` succeeds. Fallback documented (registry.access.redhat.com UBI mirror = same upstream).",
+  "flagships": [
+    {
+      "flagship": "a11oy",
+      "language": "python",
+      "current_base": "python:3.12-slim",
+      "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
+      "ironbank_dockerfile": "Dockerfile.ironbank",
+      "ironbank_image_pushed": "N",
+      "pull_status": "creds_required",
+      "status": "not_built_iron_bank_pending_credentials"
+    },
+    {
+      "flagship": "amaru",
+      "language": "python",
+      "current_base": "python:3.12-slim",
+      "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
+      "ironbank_dockerfile": "Dockerfile.ironbank",
+      "ironbank_image_pushed": "N",
+      "pull_status": "creds_required",
+      "status": "not_built_iron_bank_pending_credentials"
+    },
+    {
+      "flagship": "rosie",
+      "language": "python",
+      "current_base": "python:3.12-slim",
+      "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
+      "ironbank_dockerfile": "Dockerfile.ironbank",
+      "ironbank_image_pushed": "N",
+      "pull_status": "creds_required",
+      "status": "not_built_iron_bank_pending_credentials"
+    },
+    {
+      "flagship": "killinchu",
+      "language": "python",
+      "current_base": "python:3.12-slim",
+      "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
+      "ironbank_dockerfile": "Dockerfile.ironbank",
+      "ironbank_image_pushed": "N",
+      "pull_status": "creds_required",
+      "status": "not_built_iron_bank_pending_credentials"
+    },
+    {
+      "flagship": "hatun-mcp",
+      "language": "python",
+      "current_base": "python:3.12-slim",
+      "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
+      "ironbank_dockerfile": "Dockerfile.ironbank",
+      "ironbank_image_pushed": "N",
+      "pull_status": "creds_required",
+      "status": "not_built_iron_bank_pending_credentials"
+    },
+    {
+      "flagship": "sentra",
+      "language": "node",
+      "current_base": "node:22-alpine + nginx:alpine",
+      "ironbank_target_base": "registry1.dso.mil/ironbank/google/nodejs/nodejs20:20.11.1",
+      "ironbank_dockerfile": "web/Dockerfile.ironbank",
+      "ironbank_image_pushed": "N",
+      "pull_status": "creds_required",
+      "status": "not_built_iron_bank_pending_credentials"
+    },
+    {
+      "flagship": "vessels",
+      "language": "node",
+      "current_base": "node:20-alpine",
+      "ironbank_target_base": "registry1.dso.mil/ironbank/google/nodejs/nodejs20:20.11.1",
+      "ironbank_dockerfile": "web/Dockerfile.ironbank",
+      "ironbank_image_pushed": "N",
+      "pull_status": "creds_required",
+      "status": "not_built_iron_bank_pending_credentials"
+    }
+  ],
+  "stig_evidence": {
+    "scanner": "OpenSCAP oscap 1.4.2",
+    "content": "scap-security-guide-0.1.73",
+    "profile": "xccdf_org.ssgproject.content_profile_stig (DISA STIG for Red Hat Enterprise Linux 9)",
+    "baseline_score_pct": 30.27,
+    "hardened_score_pct": 33.49,
+    "rules_fixed_by_hardening_layer": 16,
+    "note": "Real oscap output against ubi9-minimal:9.4 (Iron Bank equivalent base). See scap-reports/scan_summary.json."
   },
-  {
-   "flagship": "amaru",
-   "language": "python",
-   "current_base": "python:3.12-slim",
-   "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
-   "ironbank_dockerfile": "Dockerfile.ironbank",
-   "ironbank_image_pushed": "N",
-   "pull_status": "creds_required",
-   "status": "not_built_iron_bank_pending_credentials"
-  },
-  {
-   "flagship": "rosie",
-   "language": "python",
-   "current_base": "python:3.12-slim",
-   "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
-   "ironbank_dockerfile": "Dockerfile.ironbank",
-   "ironbank_image_pushed": "N",
-   "pull_status": "creds_required",
-   "status": "not_built_iron_bank_pending_credentials"
-  },
-  {
-   "flagship": "killinchu",
-   "language": "python",
-   "current_base": "python:3.12-slim",
-   "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
-   "ironbank_dockerfile": "Dockerfile.ironbank",
-   "ironbank_image_pushed": "N",
-   "pull_status": "creds_required",
-   "status": "not_built_iron_bank_pending_credentials"
-  },
-  {
-   "flagship": "hatun-mcp",
-   "language": "python",
-   "current_base": "python:3.12-slim",
-   "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
-   "ironbank_dockerfile": "Dockerfile.ironbank",
-   "ironbank_image_pushed": "N",
-   "pull_status": "creds_required",
-   "status": "not_built_iron_bank_pending_credentials"
-  },
-  {
-   "flagship": "sentra",
-   "language": "node",
-   "current_base": "node:22-alpine + nginx:alpine",
-   "ironbank_target_base": "registry1.dso.mil/ironbank/google/nodejs/nodejs20:20.11.1",
-   "ironbank_dockerfile": "web/Dockerfile.ironbank",
-   "ironbank_image_pushed": "N",
-   "pull_status": "creds_required",
-   "status": "not_built_iron_bank_pending_credentials"
-  },
-  {
-   "flagship": "vessels",
-   "language": "node",
-   "current_base": "node:20-alpine",
-   "ironbank_target_base": "registry1.dso.mil/ironbank/google/nodejs/nodejs20:20.11.1",
-   "ironbank_dockerfile": "web/Dockerfile.ironbank",
-   "ironbank_image_pushed": "N",
-   "pull_status": "creds_required",
-   "status": "not_built_iron_bank_pending_credentials"
-  }
- ],
- "stig_evidence": {
-  "scanner": "OpenSCAP oscap 1.4.2",
-  "content": "scap-security-guide-0.1.73",
-  "profile": "xccdf_org.ssgproject.content_profile_stig (DISA STIG for Red Hat Enterprise Linux 9)",
-  "baseline_score_pct": 30.27,
-  "hardened_score_pct": 33.49,
-  "rules_fixed_by_hardening_layer": 16,
-  "note": "Real oscap output against ubi9-minimal:9.4 (Iron Bank equivalent base). See scap-reports/scan_summary.json."
- },
- "honesty": "Iron Bank Dockerfiles are REAL and SCAFFOLDED (FROM registry1.dso.mil/...). Per-flagship status is `not_built_iron_bank_pending_credentials` until Platform One pull credentials arrive (~2 wks, pre-Warhacker). No image is pushed; no fabricated Iron Bank VAT-approval / accreditation is claimed. Founder action: obtain Platform One Iron Bank account + robot token, then `docker login registry1.dso.mil` and build.",
- "credentials_timeline": "Founder update 2026-06-01: Iron Bank (registry1.dso.mil) pull credentials are NOT available pre-Warhacker \u2014 ~2 weeks of Platform One paperwork. Iron Bank Dockerfile variants (:v0.1.0-ironbank) are SCAFFOLDED: the `FROM registry1.dso.mil/...` lines and STIG remediation layer are real and committed, but the images are not built in CI until credentials arrive. Each flagship status flips to `built` once `docker login registry1.dso.mil` succeeds. This is the HONEST posture \u2014 scaffolded path + credentials-in-progress, never a fabricated Iron Bank accreditation."
+  "honesty": "Registry Dockerfiles are REAL and SCAFFOLDED (FROM registry1.dso.mil/...). Per-flagship status is `not_built_iron_bank_pending_credentials` until Platform One pull credentials arrive (~2 wks, pre-Warhacker). No image is pushed; no fabricated registry VAT-approval / accreditation is claimed. Founder action: obtain Platform One Iron Bank account + robot token, then `docker login registry1.dso.mil` and build.",
+  "credentials_timeline": "Founder update 2026-06-01: Iron Bank (registry1.dso.mil) pull credentials are NOT available pre-Warhacker \u2014 ~2 weeks of Platform One paperwork. Iron Bank Dockerfile variants (:v0.1.0-ironbank) are SCAFFOLDED: the `FROM registry1.dso.mil/...` lines and STIG remediation layer are real and committed, but the images are not built in CI until credentials arrive. Each flagship status flips to `built` once `docker login registry1.dso.mil` succeeds. This is the HONEST posture \u2014 scaffolded path + credentials-in-progress, never a fabricated Iron Bank accreditation."
 }
