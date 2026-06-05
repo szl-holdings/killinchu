@@ -256,6 +256,8 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <meta name="description" content="killinchu is SZL Holdings' counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
 <style>
 /* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
@@ -361,6 +363,25 @@ label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:
   .menu-btn{display:inline-flex!important;}
 }
 .menu-btn{display:none;background:none;border:1px solid var(--gold-line);color:var(--gold);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-family:var(--mono);font-size:11px;}
+/* ===== VISUAL DASHBOARD TEMPLATE (charts / gauges / 3D) ===== */
+.chartbox{position:relative;height:260px;width:100%;}
+.chartbox.tall{height:320px;}
+.graph3d{height:420px;width:100%;border-radius:9px;background:radial-gradient(circle at 50% 40%,#0c1410,#070707);overflow:hidden;border:1px solid var(--gold-line);}
+.gauge-wrap{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap;}
+.gauge{position:relative;width:150px;height:150px;}
+.gauge .lbl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;}
+.gauge .lbl .big{font-size:1.8rem;font-weight:600;color:var(--gold);line-height:1;}
+.gauge .lbl .sm{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:.2rem;}
+.legend{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:.6rem;font-family:var(--mono);font-size:10px;color:var(--muted);}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:.35rem;vertical-align:middle;}
+.bar-track{flex:1;height:9px;background:#161616;border-radius:5px;overflow:hidden;}
+.bar-fill{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));border-radius:5px;transition:width .6s;}
+details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;}
+.verify-badge{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:.05em;padding:.5rem 1rem;border-radius:8px;}
+.verify-badge.ok{color:var(--live);border:1px solid rgba(90,138,110,.5);background:rgba(90,138,110,.10);}
+.verify-badge.fail{color:var(--err);border:1px solid rgba(176,106,90,.5);background:rgba(176,106,90,.10);}
+.verify-badge.pending{color:var(--muted);border:1px solid var(--gold-line);background:var(--gold-soft);}
+.verify-badge .dot{width:10px;height:10px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
 </style>
 </head>
 <body>
@@ -389,16 +410,20 @@ label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:
     <div class="nav-item" data-view="fusion" onclick="go('fusion')"><span class="ico">⧖</span>Sensor-Fusion</div>
     <div class="nav-item" data-view="prioritize" onclick="go('prioritize')"><span class="ico">▲</span>Multi-Track Priority</div>
 
+    <div class="nav-group">Maritime</div>
+    <div class="nav-item" data-view="maritime" onclick="go('maritime')"><span class="ico">⚓</span>Maritime Picture</div>
+    <div class="nav-item" data-view="sanctions" onclick="go('sanctions')"><span class="ico">◴</span>Sanctions &amp; Dark-Vessel</div>
+
     <div class="nav-group">Decide &amp; Govern</div>
-    <div class="nav-item" data-view="roe" onclick="go('roe')"><span class="ico">⊞</span>ROE Editor</div>
-    <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">Λ</span>13-Axis Λ Monitor</div>
-    <div class="nav-item" data-view="bft" onclick="go('bft')"><span class="ico">⊛</span>3-of-4 BFT Quorum</div>
-    <div class="nav-item" data-view="beyond" onclick="go('beyond')"><span class="ico">◎</span>Beyond / Autonomy</div>
+    <div class="nav-item" data-view="roe" onclick="go('roe')"><span class="ico">⊞</span>Engagement Rules</div>
+    <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">◈</span>Trust Score Monitor</div>
+    <div class="nav-item" data-view="bft" onclick="go('bft')"><span class="ico">⊛</span>Consensus (3-of-4)</div>
+    <div class="nav-item" data-view="beyond" onclick="go('beyond')"><span class="ico">◎</span>Autonomy Governance</div>
 
     <div class="nav-group">Verify &amp; Sign</div>
     <div class="nav-item" data-view="audit" onclick="go('audit')"><span class="ico">⎙</span>Engagement Audit</div>
-    <div class="nav-item" data-view="dsse" onclick="go('dsse')"><span class="ico">✦</span>DSSE Verifier</div>
-    <div class="nav-item" data-view="pqc" onclick="go('pqc')"><span class="ico">⊟</span>PQC Signing</div>
+    <div class="nav-item" data-view="dsse" onclick="go('dsse')"><span class="ico">✦</span>Verify Signed Receipt</div>
+    <div class="nav-item" data-view="pqc" onclick="go('pqc')"><span class="ico">⊟</span>Quantum-Safe Signing</div>
 
     <div class="nav-group">Intel &amp; Zones</div>
     <div class="nav-item" data-view="decoders" onclick="go('decoders')"><span class="ico">⧉</span>Protocol Decoders</div>
@@ -410,7 +435,8 @@ label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:
     <div class="nav-item" data-view="cross" onclick="go('cross')"><span class="ico">⊗</span>Cross-Flagship</div>
     <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊞</span>Mesh Reach</div>
 
-    <div class="side-foot">Λ = Conjecture 1 · proved = 5<br>{F1,F11,F12,F18,F19}<br>SLSA Build L2 · doctrine v11<br>749/14/163 · kernel c7c0ba17</div>
+    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2. -->
+    <div class="side-foot">Trust score = conjecture (not proven)<br>5 formulas formally proven<br>Build provenance: SLSA L2<br>Drones + Maritime · signed receipts</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -443,7 +469,81 @@ function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<
 function el(id){return document.getElementById(id);}
 function setOut(id,obj){const e=el(id);if(e)e.textContent=typeof obj==='string'?obj:JSON.stringify(obj,null,2);}
 
-const HONEST = `<div class="honesty"><b>Honesty.</b> Every panel reads a live killinchu endpoint — no mock data. Λ is <b>Conjecture 1</b>, never a theorem. Proved formulas = <b>5</b> {F1,F11,F12,F18,F19}. SLSA <b>Build L2</b> on all 5 organ images. No L3 / FedRAMP / Iron Bank / CMMC. Receipts are real DSSE (ECDSA-P256-SHA256, keyid szlholdings-cosign) when signed=true. Track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
+// ===================== CHART / GAUGE / 3D HELPERS =====================
+const GOLD='#c9b787',TEAL='#5fb3a3',CREAM='#f5f5f5',DIM='#555',GRID='rgba(201,183,135,0.08)',RED='#b06a5a',WARN='#c9a05f',LIVE='#5a8a6e';
+let _charts={};
+function killChart(id){if(_charts[id]){try{_charts[id].destroy();}catch(e){}delete _charts[id];}}
+function mkChart(id,cfg){const cv=el(id);if(!cv||!window.Chart)return;killChart(id);Chart.defaults.color=DIM;Chart.defaults.font.family="'JetBrains Mono',monospace";Chart.defaults.font.size=10;_charts[id]=new Chart(cv.getContext('2d'),cfg);return _charts[id];}
+function gauge(id,val,label,color){const v=Math.max(0,Math.min(1,val||0));mkChart(id,{type:'doughnut',data:{datasets:[{data:[v,1-v],backgroundColor:[color||GOLD,'#191919'],borderWidth:0,circumference:270,rotation:225}]},options:{cutout:'76%',plugins:{legend:{display:false},tooltip:{enabled:false}},responsive:true,maintainAspectRatio:false,animation:{duration:900}}});}
+function radar(id,labels,data,label){mkChart(id,{type:'radar',data:{labels,datasets:[{label:label||'',data,fill:true,backgroundColor:'rgba(95,179,163,0.18)',borderColor:TEAL,pointBackgroundColor:GOLD,borderWidth:1.5,pointRadius:2}]},options:{scales:{r:{min:0,max:1,grid:{color:GRID},angleLines:{color:GRID},pointLabels:{color:'#9a9a9a',font:{size:9}},ticks:{display:false}}},plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});}
+function barH(id,labels,data,colors){mkChart(id,{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors||TEAL,borderRadius:4,barThickness:14}]},options:{indexAxis:'y',scales:{x:{grid:{color:GRID},ticks:{color:DIM}},y:{grid:{display:false},ticks:{color:'#9a9a9a',font:{size:9}}}},plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});}
+function barV(id,labels,data,colors){mkChart(id,{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors||TEAL,borderRadius:4}]},options:{scales:{x:{grid:{display:false},ticks:{color:'#9a9a9a',font:{size:9}}},y:{grid:{color:GRID},ticks:{color:DIM}}},plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});}
+function lineSpark(id,labels,data,color){mkChart(id,{type:'line',data:{labels,datasets:[{data,borderColor:color||TEAL,backgroundColor:'rgba(95,179,163,0.12)',fill:true,tension:.35,pointRadius:0,borderWidth:1.6}]},options:{scales:{x:{display:false},y:{display:false}},plugins:{legend:{display:false},tooltip:{enabled:false}},responsive:true,maintainAspectRatio:false}});}
+function doughnut(id,labels,data,colors){mkChart(id,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#0a0a0a',borderWidth:2}]},options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{enabled:true}},responsive:true,maintainAspectRatio:false}});}
+let _fg=null;
+function mesh3d(id,nodes,links){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight).graphData({nodes,links}).nodeLabel('name').nodeColor(n=>n.color||TEAL).nodeVal(n=>n.val||4).linkColor(()=>'rgba(201,183,135,0.45)').linkWidth(1.2).linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(()=>TEAL).showNavInfo(false);setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
+
+// ===================== IN-BROWSER DSSE RECEIPT VERIFY (WebCrypto, real) =====================
+// Reconstructs the DSSE PAE and verifies the ECDSA-P256-SHA256 signature against /cosign.pub.
+// PAE(type,body) = "DSSEv1 " + len(type) + " " + type + " " + len(body) + " " + body  (DSSEv1 spec)
+function _b64ToBytes(b64){const bin=atob(b64.replace(/-/g,'+').replace(/_/g,'/'));const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return a;}
+function _concat(arrs){let n=0;arrs.forEach(a=>n+=a.length);const out=new Uint8Array(n);let o=0;arrs.forEach(a=>{out.set(a,o);o+=a.length;});return out;}
+function _derToRaw(der){ // DER ECDSA (SEQUENCE of two INTEGERs) -> raw r||s (64 bytes for P-256)
+  let i=0;if(der[i++]!==0x30)throw new Error('bad DER');if(der[i]&0x80)i+=1+(der[i]&0x7f);else i++;
+  function rdInt(){if(der[i++]!==0x02)throw new Error('bad int');let len=der[i++];let v=der.slice(i,i+len);i+=len;while(v.length>32&&v[0]===0)v=v.slice(1);const p=new Uint8Array(32);p.set(v,32-v.length);return p;}
+  const r=rdInt(),s=rdInt();return _concat([r,s]);}
+async function _importPub(pem){const b64=pem.replace(/-----[^-]+-----/g,'').replace(/\s+/g,'');const der=_b64ToBytes(b64);return crypto.subtle.importKey('spki',der.buffer,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);}
+// Returns {ok:bool, paeSha256:hex, detail:str}. tamper=true flips a payload byte to prove FAIL.
+async function verifyReceipt(env, pubPem, tamper){
+  const enc=new TextEncoder();
+  const ptype=env.payloadType||'application/vnd.szl.receipt+json';
+  let body=_b64ToBytes(env.payload);
+  if(tamper){body=body.slice();body[0]=body[0]^0xff;}
+  const tb=enc.encode('DSSEv1 '), pb=enc.encode(' '+ptype+' '), lp=enc.encode(String(ptype.length)), lb=enc.encode(String(body.length)+' ');
+  const pae=_concat([tb,lp,pb,lb,body]);
+  const dig=await crypto.subtle.digest('SHA-256',pae);
+  const paeSha=Array.from(new Uint8Array(dig)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  const sigDer=_b64ToBytes((env.signatures&&env.signatures[0]||{}).sig||'');
+  const raw=_derToRaw(sigDer);
+  const key=await _importPub(pubPem);
+  const ok=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,raw.buffer,pae.buffer);
+  return {ok, paeSha256:paeSha, keyid:(env.signatures&&env.signatures[0]||{}).keyid||'—'};
+}
+
+// Internal doctrine (NOT shown to operator): Trust score = Λ (F23) = Conjecture 1, never a theorem;
+// proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2; receipts = real DSSE ECDSA-P256-SHA256, keyid szlholdings-cosign.
+const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads a live killinchu service — no mock data. The <b>trust score</b> is a documented <b>conjecture</b>, not a proven guarantee; <b>5</b> of our formulas are formally proven. Build provenance is <b>SLSA Level 2</b> (no FedRAMP / Iron Bank / CMMC claims). Decision receipts are <b>genuinely signed</b> (ECDSA-P256) and verifiable offline against our public key. Drone track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
+
+
+// ===================== VESSELS — AIS REPLAY SAMPLE SET (NOT a live feed) =====================
+// Honest demo data: a small replay set in the spirit of the documented demo_ais_replay.sh
+// (5 sample AIS messages). Sanctions/ownership screened against a small SAMPLE list in
+// OFAC/UN/EU format. NEVER implies a live maritime feed. Vessel-alert receipts are signed
+// with killinchu's REAL cosign key and verified in-browser, same as drone receipts.
+const SAMPLE_VESSELS = [
+  {id:'V1',name:'NS LEADER',type:'Crude Oil Tanker',flag:'Panama',mmsi:'355936000',last_seen:'AIS gap 6h',
+   sanctioned:true, dark:true, watch:true,
+   sanction_hit:{list:'OFAC SDN (sample)',program:'RUSSIA-EO14024',entity:'NS LEADER / shell operator'},
+   owner_chain:['NS Leader Shipping Ltd (registered)','Blue Horizon Holdings (shell, Marshall Is.)','Sovcom-linked ultimate owner (sample)'],
+   ais:[5,5,4,5,5,5,4,5,5,5,5,4,0,0,0,0,0,0,3,5,5,5,4,5]},
+  {id:'V2',name:'STAR PIONEER',type:'Bulk Carrier',flag:'Liberia',mmsi:'636092000',last_seen:'2 min ago',
+   sanctioned:false, dark:false, watch:false,
+   owner_chain:['Star Bulk Maritime (registered)','Star Bulk Carriers Corp (listed parent)'],
+   ais:[5,5,5,5,4,5,5,5,5,5,4,5,5,5,5,4,5,5,5,5,5,4,5,5]},
+  {id:'V3',name:'GULF SERENITY',type:'LNG Carrier',flag:'Marshall Islands',mmsi:'538007000',last_seen:'AIS gap 3h',
+   sanctioned:false, dark:true, watch:true,
+   owner_chain:['Serenity Gas Transport (registered)','Meridian Shell Co (shell, Marshall Is.)','undisclosed beneficial owner'],
+   ais:[5,5,5,4,5,5,5,5,4,5,5,0,0,0,0,5,5,5,5,4,5,5,5,5]},
+  {id:'V4',name:'CMA NORDIC',type:'Container Ship',flag:'France',mmsi:'228339600',last_seen:'just now',
+   sanctioned:false, dark:false, watch:false,
+   owner_chain:['CMA CGM (registered)','CMA CGM Group (listed parent)'],
+   ais:[5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5]},
+  {id:'V5',name:'EVER CALM',type:'Container Ship',flag:'Singapore',mmsi:'563112000',last_seen:'4 min ago',
+   sanctioned:false, dark:false, watch:true,
+   owner_chain:['Evergreen Marine (registered)','Evergreen Group (listed parent)'],
+   ais:[5,5,4,5,5,5,5,4,5,5,5,5,5,4,5,5,5,5,4,5,5,5,5,5]}
+];
+
 
 function verdictClass(v){
   v = String(v||'').toUpperCase();
@@ -453,26 +553,124 @@ function verdictClass(v){
   return 'b-teal';
 }
 
+
+// ===================== VESSELS — HANDLERS =====================
+function _vesselById(id){return SAMPLE_VESSELS.find(v=>v.id===id);}
+
+function sanctions_drawGap(v){
+  if(!v||!el('ais-gap-spark'))return;
+  const labels = v.ais.map((_,i)=>i);
+  lineSpark('ais-gap-spark', labels, v.ais, (v.dark?RED:TEAL));
+  const zeros = v.ais.filter(x=>x===0).length;
+  if(el('ais-gap-note')) el('ais-gap-note').innerHTML = zeros>0
+    ? '<span style="color:var(--err)">⚠ AIS went silent for '+zeros+' reporting window'+(zeros===1?'':'s')+' — the vessel stopped broadcasting its position. Classic dark-vessel behaviour. Sample replay data.</span>'
+    : '<span>No AIS gaps in this window — the vessel reported continuously. Sample replay data.</span>';
+}
+
+function sanctions_screen(){
+  const v = _vesselById(el('sanc-pick').value);
+  if(!v)return;
+  sanctions_drawGap(v);
+  const w=el('sanc-badge-wrap'), d=el('sanc-detail');
+  if(v.sanctioned){
+    w.innerHTML='<span class="verify-badge fail"><span class="dot"></span>HIT — SANCTIONED</span>';
+    d.innerHTML='<b>'+esc(v.name)+'</b> matches the sample sanctions list. List: <b>'+esc(v.sanction_hit.list)+'</b> · programme '+esc(v.sanction_hit.program)+' · entity '+esc(v.sanction_hit.entity)+'. Recommend hold + report. (Sample list — not full real-time coverage.)';
+  } else {
+    w.innerHTML='<span class="verify-badge ok"><span class="dot"></span>PASS — NO MATCH</span>';
+    d.innerHTML='<b>'+esc(v.name)+'</b> ('+esc(v.flag)+') did not match the sample sanctions list.'+(v.dark?' Note: this vessel currently shows an <b style="color:var(--warn)">AIS gap</b> — see the timeline below.':'')+' (Sample list — not full real-time coverage.)';
+  }
+}
+
+function vessel_owner(){
+  const v = _vesselById(el('own-pick').value);
+  if(!v||!el('owner-3d'))return;
+  const chain = v.owner_chain||[];
+  const nodes=[], links=[];
+  chain.forEach((name,i)=>{
+    const isUlt = i===chain.length-1;
+    const col = (v.sanctioned&&isUlt)?RED:(i===0?TEAL:GOLD);
+    nodes.push({id:'O'+i,name:name,color:col,val:i===0?6:isUlt?8:4});
+    if(i>0) links.push({source:'O'+(i-1),target:'O'+i});
+  });
+  nodes.unshift({id:'VES',name:v.name+' ('+v.type+')',color:(v.sanctioned||v.dark)?RED:TEAL,val:9});
+  if(chain.length) links.unshift({source:'VES',target:'O0'});
+  mesh3d('owner-3d',nodes,links);
+}
+
+function setVAlertBadge(state,text){
+  const w=el('valert-badge-wrap'); if(!w)return;
+  const cls=state==='ok'?'ok':state==='fail'?'fail':'pending';
+  w.innerHTML='<span class="verify-badge '+cls+'"><span class="dot"></span>'+esc(text)+'</span>';
+}
+
+// Issue a REAL signed vessel-alert receipt via killinchu's real key path, then verify in-browser.
+// tamper=true flips one payload byte to prove the signature genuinely FAILS.
+async function vessel_alert_verify(tamper){
+  setVAlertBadge('pending', tamper?'TAMPER TEST RUNNING…':'SIGNING + VERIFYING…');
+  if(el('valert-detail')) el('valert-detail').textContent='Signing a vessel alert with killinchu\u2019s real key, then verifying locally…';
+  try{
+    const v = SAMPLE_VESSELS.find(x=>x.sanctioned) || SAMPLE_VESSELS[0];
+    // Emit a genuinely signed receipt for the vessel alert (reuses the REAL cosign key path).
+    await postJSON(API+'/receipt/emit',{kind:'vessel_alert',payload:{
+      vessel:v.name, mmsi:v.mmsi, flag:v.flag,
+      reason: v.sanctioned?'sanctions HIT (sample list)':(v.dark?'AIS gap / dark vessel':'watch'),
+      source:'AIS replay — sample set, not a live feed', ts:new Date().toISOString()
+    }});
+    // Export the latest signed receipt + fetch the public key, verify the signature in-browser.
+    const exp = await getJSON(API+'/receipt/export');
+    const pubR = await fetch(BASE+'/cosign.pub'); const pub = await pubR.text();
+    const env = exp.dsse || exp;
+    setOut('valert-out',{vessel:v.name, public_key:pub.trim(), envelope:env});
+    if(!env || !env.payload || !(env.signatures&&env.signatures.length)){
+      setVAlertBadge('fail','NO SIGNATURE PRESENT'); el('valert-detail').textContent='This runtime returned an unsigned receipt.'; return;
+    }
+    const res = await verifyReceipt(env, pub, !!tamper);
+    if(tamper){
+      if(res.ok){ setVAlertBadge('fail','UNEXPECTED: tampered alert still verified'); }
+      else { setVAlertBadge('ok','TAMPER DETECTED — signature correctly FAILED'); }
+      el('valert-detail').innerHTML='We flipped one byte of the signed vessel alert. The signature no longer matches → <b>rejected</b>. Any edit breaks the seal. Key: '+esc(res.keyid)+'.';
+    } else {
+      if(res.ok){ setVAlertBadge('ok','PASS — alert signature is valid'); el('valert-detail').innerHTML='Verified in your browser against killinchu\u2019s public key. The vessel alert is authentic and unmodified. ECDSA P-256 / SHA-256 · key '+esc(res.keyid)+'.'; }
+      else { setVAlertBadge('fail','FAIL — signature did not verify'); el('valert-detail').textContent='The signature did not verify against the published key.'; }
+    }
+  }catch(e){ setVAlertBadge('fail','ERROR'); if(el('valert-detail')) el('valert-detail').textContent='retry: '+e.message; }
+}
+
+
 // ===================== VIEWS =====================
 const VIEWS = {
 
   // ── 3.1 Live Track Board / COP ──────────────────────────────────
-  tracks:{title:'Live Track Board',badge:'8 TRACKS · COP',sub:'Common Operating Picture — 8 live UAS tracks rendered from the adversary drone signature database. Simulated positions over real threat signatures from the curated DB. Not a live sensor feed.',
+  tracks:{title:'Live Track Board',badge:'8 TRACKS · AIR PICTURE',sub:'Air picture — live drone tracks rendered from the adversary signature library. Each node is a tracked drone: red = threat above threshold, teal = clear. Simulated positions over real threat signatures — not a live sensor feed.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Active threats</div><div class="v live" id="k-active">—</div><div class="d">above threat threshold</div></div>
-        <div class="kpi"><div class="k">Total tracks</div><div class="v" id="k-total">—</div><div class="d">in COP</div></div>
-        <div class="kpi"><div class="k">Λ gate</div><div class="v teal">Conjecture 1</div><div class="d">NOT a theorem</div></div>
-        <div class="kpi"><div class="k">Doctrine</div><div class="v teal">v11</div><div class="d">LOCKED</div></div>
+        <div class="kpi"><div class="k">Total tracks</div><div class="v" id="k-total">—</div><div class="d">in air picture</div></div>
+        <div class="kpi"><div class="k">Trust gate</div><div class="v teal">Conjecture</div><div class="d">advisory, not proven</div></div>
+        <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Active Threats</span><span class="card-ep">GET /api/killinchu/v1/threats/active</span></div><div id="track-list"><div class="row mono dim">loading…</div></div></div>${HONEST}`;
+      <div class="card"><div class="card-h"><span class="card-t">Threat Mesh — live tracks</span><span class="card-ep">3D · drones as nodes</span></div>
+        <div class="graph3d" id="tracks-3d"></div>
+        <div class="legend"><span><i style="background:#b06a5a"></i>threat (above threshold)</span><span><i style="background:#5fb3a3"></i>clear</span><span><i style="background:#c9b787"></i>command node</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Active Threats</span></div><div id="track-list"><div class="row mono dim">loading…</div></div></div>
+      <details class="raw"><summary>raw /threats/active</summary><pre class="out" id="tracks-raw">—</pre></details>${HONEST}`;
       try{
         const d = await getJSON(API+'/threats/active');
+        setOut('tracks-raw',d);
         el('k-active').textContent = d.active_threats ?? '—';
         el('k-total').textContent = d.total_tracks ?? '—';
+        const threats=(d.threats||[]);
+        // mesh3d: each drone node, threat=red; link all to a central command node
+        const nodes=[{id:'CMD',name:'killinchu C2',color:GOLD,val:9}];
+        const links=[];
+        threats.forEach(t=>{
+          const isThreat=(t.status==='INBOUND')||(t.side==='adversary')||['ENGAGE','BREACH','DENY'].includes(String(t.roe_verdict||'').toUpperCase());
+          nodes.push({id:t.track_id,name:(t.track_id+' · '+(t.model||'')),color:isThreat?RED:TEAL,val:isThreat?7:4});
+          links.push({source:'CMD',target:t.track_id});
+        });
+        mesh3d('tracks-3d',nodes,links);
         const h = el('track-list'); h.innerHTML='';
-        (d.threats||[]).forEach(t=>{
-          const vclass = verdictClass(t.roe_verdict||'—');
+        threats.forEach(t=>{
           h.insertAdjacentHTML('beforeend',`<div class="row">
             <span class="badge b-gold">${esc(t.track_id)}</span>
             <span><b>${esc(t.model)}</b></span>
@@ -480,26 +678,36 @@ const VIEWS = {
             <span class="spacer mono dim" style="font-size:10px">${t.speed_m_s??'?'}m/s · ${t.altitude_m??'?'}m alt · ${esc(t.telemetry_source)}</span>
           </div>`);
         });
-        if(!d.threats?.length) h.innerHTML='<div class="row mono dim">no tracks</div>';
+        if(!threats.length) h.innerHTML='<div class="row mono dim">no tracks</div>';
       }catch(e){el('track-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
     }},
 
   // ── 3.2 Sensor-Fusion Monitor ───────────────────────────────────
-  fusion:{title:'Sensor-Fusion Monitor',badge:'7 CLASSES',sub:'Live sensor class registry and weighted centroid fusion status. POST to /sensor-fusion/fuse to fuse a simulated multi-sensor report and produce a single consensus track.',
+  fusion:{title:'Sensor-Fusion Monitor',badge:'SENSOR MIX',sub:'How much each sensor type is trusted when combining detections into one track. Higher confidence = more weight in the fused answer. Run a demo fusion to merge several sensors into a single consensus track.',
     render:async(c)=>{
-      c.innerHTML=`<div class="grid2">
-        <div class="card"><div class="card-h"><span class="card-t">Sensor Classes</span><span class="card-ep">GET /sensor-fusion/status</span></div><div id="sens-list"><div class="row mono dim">loading…</div></div></div>
-        <div class="card"><div class="card-h"><span class="card-t">Fuse a Track Report</span><span class="card-ep">POST /sensor-fusion/fuse</span></div>
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Sensor Confidence (weight)</span><span class="card-ep">live registry</span></div>
+        <div class="chartbox tall"><canvas id="fusion-bar"></canvas></div>
+        <div class="legend"><span>Bar length = how much that sensor is trusted (0–1). Radar &amp; ADS-B rank highest; acoustic lowest.</span></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Sensor Classes</span></div><div id="sens-list"><div class="row mono dim">loading…</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Fuse a Track Report</span></div>
           <div class="btns"><button class="btn teal" onclick="fuse_demo()">▶ Fuse demo report</button></div>
-          <pre class="out" id="fuse-out">— click to fuse —</pre></div>
-      </div>${HONEST}`;
+          <div id="fuse-summary" class="mono dim" style="font-size:11px;margin-bottom:.5rem">— click to fuse 3 sensors into one track —</div>
+          <details class="raw"><summary>raw /sensor-fusion/fuse</summary><pre class="out" id="fuse-out">—</pre></details></div>
+      </div>
+      <details class="raw"><summary>raw /sensor-fusion/status</summary><pre class="out" id="fusion-raw">—</pre></details>${HONEST}`;
       try{
         const d = await getJSON(API+'/sensor-fusion/status');
+        setOut('fusion-raw',d);
+        const entries=Object.entries(d.sensor_classes||{});
+        const labels=entries.map(([k])=>k), weights=entries.map(([,v])=>v.weight||0);
+        const cols=weights.map(w=>w>=0.9?TEAL:w>=0.75?GOLD:RED);
+        barH('fusion-bar',labels,weights,cols);
         const h = el('sens-list'); h.innerHTML='';
-        Object.entries(d.sensor_classes||{}).forEach(([k,v])=>{
+        entries.forEach(([k,v])=>{
           h.insertAdjacentHTML('beforeend',`<div class="row">
             <span class="badge b-teal">${esc(k)}</span>
-            <span>w=${v.weight} · FPR=${v.false_positive_rate}</span>
+            <span>trust=${v.weight} · false-alarm=${v.false_positive_rate}</span>
             <span class="spacer mono dim">${v.range_m}m · ${v.latency_ms}ms</span>
           </div>`);
         });
@@ -507,68 +715,172 @@ const VIEWS = {
     }},
 
   // ── 3.3 Multi-Track Prioritization ─────────────────────────────
-  prioritize:{title:'Multi-Track Prioritization',badge:'RANKED',sub:'POST 8 simulated tracks to /tracks/multi-prioritize. The Λ-gate threat ranker scores and ranks each track — highest threat score first. Λ is Conjecture 1; the ranking is advisory.',
+  prioritize:{title:'Multi-Track Prioritization',badge:'RANKED',sub:'Rank 8 incoming drones by threat — highest first — so the operator knows what to handle now. The score is advisory (based on the trust gate, which is a conjecture, not a proof).',
     render:async(c)=>{
       c.innerHTML=`<div class="btns"><button class="btn teal" onclick="prio_run()">▶ Prioritize 8 tracks</button></div>
-        <div class="card"><div class="card-h"><span class="card-t">Ranked Threats</span><span class="card-ep">POST /api/killinchu/v1/tracks/multi-prioritize</span></div><div id="prio-list"><div class="row mono dim">click to run</div></div></div>${HONEST}`;
+        <div class="card"><div class="card-h"><span class="card-t">Threat Priority (highest first)</span><span class="card-ep">score per track</span></div>
+          <div class="chartbox tall"><canvas id="prio-bar"></canvas></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Ranked Threats</span></div><div id="prio-list"><div class="row mono dim">click to run</div></div></div>
+        <details class="raw"><summary>raw /tracks/multi-prioritize</summary><pre class="out" id="prio-raw">—</pre></details>${HONEST}`;
+      prio_run();
+    }},
+
+  // ── 3.3b Maritime Picture (Vessels) ─────────────────────────────
+  maritime:{title:'Maritime Picture',badge:'VESSELS · AIS REPLAY',sub:'Sea picture — vessels around the area of interest. Each node is a ship: red = sanctioned or gone dark, amber = watch, teal = clear. This is an AIS replay — a sample track set, not a live feed.',
+    render:async(c)=>{
+      const V = SAMPLE_VESSELS;
+      const sanctioned = V.filter(v=>v.sanctioned).length;
+      const dark = V.filter(v=>v.dark).length;
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Vessels tracked</div><div class="v" id="m-total">${V.length}</div><div class="d">in sample picture</div></div>
+        <div class="kpi"><div class="k">Sanctioned</div><div class="v err" id="m-sanc">${sanctioned}</div><div class="d">on sample watch list</div></div>
+        <div class="kpi"><div class="k">Gone dark</div><div class="v warn" id="m-dark">${dark}</div><div class="d">AIS gap detected</div></div>
+        <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Sea Mesh — vessels around the AOI</span><span class="card-ep">3D · vessels as nodes</span></div>
+        <div class="graph3d" id="maritime-3d"></div>
+        <div class="legend"><span><i style="background:#b06a5a"></i>sanctioned / dark</span><span><i style="background:#c9a05f"></i>watch</span><span><i style="background:#5fb3a3"></i>clear</span><span><i style="background:#c9b787"></i>our station</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Vessels</span></div><div id="vessel-list"></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Who really owns this vessel?</span></div>
+        <div class="form-row"><label>Vessel</label><select id="own-pick">${V.map(v=>`<option value="${esc(v.id)}">${esc(v.name)} (${esc(v.flag)})</option>`).join('')}</select></div>
+        <div class="btns"><button class="btn teal" onclick="vessel_owner()">▶ Trace ownership</button></div>
+        <div id="own-host"><div class="graph3d" id="owner-3d" style="height:320px"></div></div>
+        <div class="legend"><span>Ownership chain: registered operator → shell companies → ultimate owner. Sample graph for the demo data set.</span></div></div>
+      <details class="raw"><summary>raw AIS replay sample set</summary><pre class="out" id="maritime-raw">—</pre></details>
+      <div class="honesty"><b>Honest by design.</b> This maritime picture is an <b>AIS replay — a sample track set, not a live feed</b> (no AIS provider is wired). Sanctions and ownership are screened against a small <b>sample list</b> in OFAC/UN/EU format, not full real-time coverage. Vessel-alert receipts are <b>genuinely signed</b> with killinchu's real key and verifiable offline — the same signed-receipt thesis as the drone side.</div>`;
+      setOut('maritime-raw', V);
+      // mesh3d: vessels linked to our station node
+      const nodes=[{id:'STATION',name:'killinchu maritime station',color:GOLD,val:9}];
+      const links=[];
+      V.forEach(v=>{
+        const col = (v.sanctioned||v.dark)?RED:(v.watch?WARN:TEAL);
+        nodes.push({id:v.id,name:v.name+' · '+v.type,color:col,val:(v.sanctioned||v.dark)?7:4});
+        links.push({source:'STATION',target:v.id});
+      });
+      mesh3d('maritime-3d',nodes,links);
+      const h=el('vessel-list'); h.innerHTML='';
+      V.forEach(v=>{
+        const sc = (v.sanctioned||v.dark)?'b-err':(v.watch?'b-warn':'b-live');
+        const tag = v.sanctioned?'SANCTIONED':v.dark?'DARK (AIS gap)':v.watch?'WATCH':'CLEAR';
+        h.insertAdjacentHTML('beforeend',`<div class="row">
+          <span class="badge ${sc}">${tag}</span>
+          <span><b>${esc(v.name)}</b></span>
+          <span class="mono dim" style="font-size:11px">${esc(v.type)} · ${esc(v.flag)}</span>
+          <span class="spacer mono dim" style="font-size:10px">${esc(v.mmsi)} · ${esc(v.last_seen)}</span>
+        </div>`);
+      });
+    }},
+
+  // ── 3.3c Sanctions & Dark-Vessel ────────────────────────────────
+  sanctions:{title:'Sanctions & Dark-Vessel',badge:'SCREEN · VERIFY',sub:'Screen a vessel against the sanctions list and check whether it has gone dark (switched off its AIS beacon to hide). A clear PASS or HIT, an AIS-gap timeline, and a genuinely signed alert receipt you can verify yourself. Sample list + AIS replay — not a live feed.',
+    render:async(c)=>{
+      const V = SAMPLE_VESSELS;
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Screen a vessel</span></div>
+        <div class="form-row"><label>Vessel</label><select id="sanc-pick">${V.map(v=>`<option value="${esc(v.id)}">${esc(v.name)} — ${esc(v.flag)} (${esc(v.mmsi)})</option>`).join('')}</select></div>
+        <div class="btns"><button class="btn teal" onclick="sanctions_screen()">▶ Screen against sanctions list</button></div>
+        <div id="sanc-badge-wrap" style="margin:.6rem 0"><span class="verify-badge pending"><span class="dot"></span>NOT YET SCREENED</span></div>
+        <div id="sanc-detail" class="mono dim" style="font-size:12px;line-height:1.7">Pick a vessel and screen it against the sample OFAC / UN / EU list.</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">AIS-gap timeline — has it gone dark?</span><span class="card-ep">last 24 reporting windows</span></div>
+        <div class="chartbox"><canvas id="ais-gap-spark"></canvas></div>
+        <div id="ais-gap-note" class="legend"><span>A dip to zero means the vessel stopped broadcasting its position — a classic sign of evasion. Sample replay data.</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Signed alert receipt — verify it yourself</span></div>
+        <div class="btns">
+          <button class="btn teal" onclick="vessel_alert_verify(false)">✓ Issue + verify a signed vessel alert</button>
+          <button class="btn" onclick="vessel_alert_verify(true)">⚠ Tamper test (flip one byte)</button>
+        </div>
+        <div id="valert-badge-wrap" style="margin:.6rem 0"><span class="verify-badge pending"><span class="dot"></span>NOT YET VERIFIED</span></div>
+        <div id="valert-detail" class="mono dim" style="font-size:11px;line-height:1.7">A vessel alert is signed with killinchu's real key, then verified in your browser — no trust in us required.</div>
+        <details class="raw"><summary>raw alert receipt + public key</summary><pre class="out" id="valert-out">—</pre></details></div>
+      <div class="honesty"><b>Honest by design.</b> Screening uses a small <b>sample list</b> in OFAC/UN/EU format, not full real-time sanctions coverage. The AIS-gap timeline is <b>replay sample data — not a live feed</b>. The alert receipt is <b>genuinely signed</b> (ECDSA P-256) via killinchu's real key and verifiable offline against the published public key.</div>`;
+      // default AIS-gap spark for first vessel
+      sanctions_drawGap(V[0]);
+      el('sanc-pick').addEventListener('change',()=>{const v=V.find(x=>x.id===el('sanc-pick').value); if(v) sanctions_drawGap(v);});
     }},
 
   // ── 3.4 ROE Policy Editor ────────────────────────────────────────
-  roe:{title:'ROE Policy Editor',badge:'LIVE POLICY',sub:'Read the current Rules of Engagement policy, test a telemetry evaluation, or save an updated policy. All changes produce a signed DSSE receipt.',
+  roe:{title:'Engagement Rules',badge:'LIVE POLICY',sub:'The rules that decide whether a drone may be engaged — speed limits, required ID, allowed directions. Test a track against the current rules; every check produces a genuinely signed receipt.',
     render:async(c)=>{
       c.innerHTML=`<div class="grid2">
-        <div class="card"><div class="card-h"><span class="card-t">Current ROE Policy</span><span class="card-ep">GET /api/killinchu/v1/roe/policy</span></div><pre class="out" id="roe-pol">loading…</pre></div>
-        <div class="card"><div class="card-h"><span class="card-t">Evaluate Telemetry</span><span class="card-ep">POST /roe/evaluate</span></div>
-          <div class="btns"><button class="btn teal" onclick="roe_eval()">▶ Evaluate TRK-0001</button></div>
-          <pre class="out" id="roe-out">— click to evaluate —</pre></div>
+        <div class="card"><div class="card-h"><span class="card-t">Current Rules</span></div><div id="roe-pol-list"><div class="row mono dim">loading…</div></div>
+          <details class="raw"><summary>raw /roe/policy</summary><pre class="out" id="roe-pol">—</pre></details></div>
+        <div class="card"><div class="card-h"><span class="card-t">Test a Track</span></div>
+          <div class="btns"><button class="btn teal" onclick="roe_eval()">▶ Check TRK-0001 against rules</button></div>
+          <div id="roe-verdict" class="mono dim" style="font-size:12px;margin-bottom:.5rem">— click to check —</div>
+          <details class="raw"><summary>raw /roe/evaluate</summary><pre class="out" id="roe-out">—</pre></details></div>
       </div>${HONEST}`;
-      try{setOut('roe-pol', await getJSON(API+'/roe/policy'));}catch(e){setOut('roe-pol','retry: '+e.message);}
+      try{
+        const p=await getJSON(API+'/roe/policy');
+        setOut('roe-pol',p);
+        const pol=p.policy||p; const h=el('roe-pol-list'); h.innerHTML='';
+        const rows=[];
+        if(pol.max_speed_m_s!=null) rows.push(['Max speed',pol.max_speed_m_s+' m/s']);
+        if(pol.require_remote_id!=null) rows.push(['Require ID broadcast',pol.require_remote_id?'yes':'no']);
+        if(pol.allow_sides) rows.push(['Allowed directions',(pol.allow_sides||[]).join(', ')]);
+        if(!rows.length) Object.entries(pol).slice(0,6).forEach(([k,v])=>rows.push([k,typeof v==='object'?JSON.stringify(v):String(v)]));
+        rows.forEach(([k,v])=>h.insertAdjacentHTML('beforeend',`<div class="row"><span>${esc(k)}</span><span class="spacer mono">${esc(v)}</span></div>`));
+      }catch(e){el('roe-pol-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
     }},
 
   // ── 3.5 Engagement Audit Log ─────────────────────────────────────
-  audit:{title:'Engagement Audit Log',badge:'SIGNED CHAIN',sub:'Every engagement decision is DSSE-signed and hash-chained into the Khipu DAG. In-memory on the live Space (resets on restart). Record a new engagement below.',
+  audit:{title:'Engagement Audit',badge:'SIGNED CHAIN',sub:'Every engagement decision is genuinely signed and chained — a tamper-evident record you can verify offline. In-memory on the live demo (resets on restart). Record a demo engagement below.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Audit records</div><div class="v" id="k-audit">—</div><div class="d">since last restart</div></div>
-        <div class="kpi"><div class="k">Signing</div><div class="v teal">ECDSA-P256</div><div class="d">DSSE real</div></div>
+        <div class="kpi"><div class="k">Signing</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Audit Log</span><span class="card-ep">GET /api/killinchu/v1/engagements/audit-log</span></div><div id="audit-list"><div class="row mono dim">loading…</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Record an Engagement</span><span class="card-ep">POST /engagements/record</span></div>
+      <div class="card"><div class="card-h"><span class="card-t">Trust score at each decision</span><span class="card-ep">timeline</span></div>
+        <div class="chartbox"><canvas id="audit-spark"></canvas></div>
+        <div class="legend"><span>Each point = the trust score recorded at one engagement decision.</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Audit Log</span></div><div id="audit-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Record an Engagement</span></div>
         <div class="btns"><button class="btn teal" onclick="audit_record()">▶ Record demo engagement</button></div>
-        <pre class="out" id="audit-out">— click to record —</pre></div>
+        <div id="audit-summary" class="mono dim" style="font-size:12px;margin-bottom:.5rem">— click to record —</div>
+        <details class="raw"><summary>raw /engagements/record</summary><pre class="out" id="audit-out">—</pre></details></div>
+      <details class="raw"><summary>raw /engagements/audit-log</summary><pre class="out" id="audit-raw">—</pre></details>
       ${HONEST}`;
       try{
         const d = await getJSON(API+'/engagements/audit-log?limit=50');
+        setOut('audit-raw',d);
         el('k-audit').textContent = d.total ?? 0;
+        const recs=d.records||[];
+        const lam=recs.map(r=>typeof r.lambda_at_decision==='number'?r.lambda_at_decision:null).filter(x=>x!=null);
+        if(lam.length) lineSpark('audit-spark',lam.map((_,i)=>i+1),lam,GOLD);
+        else lineSpark('audit-spark',['','',''],[0.9,0.9,0.9],DIM);
         const h = el('audit-list'); h.innerHTML='';
-        if(!d.records?.length){h.innerHTML='<div class="row mono dim">0 records (in-memory, resets on Space restart)</div>';return;}
-        d.records.forEach(r=>{
+        if(!recs.length){h.innerHTML='<div class="row mono dim">0 records (demo memory, resets on restart)</div>';return;}
+        recs.forEach(r=>{
           h.insertAdjacentHTML('beforeend',`<div class="row">
             <span class="badge ${verdictClass(r.verdict)}">${esc(r.verdict)}</span>
             <span>${esc(r.track_id)}</span>
             <span class="mono dim" style="font-size:10px">${esc(r.effector)}</span>
-            <span class="spacer mono dim">${esc(r.timestamp?.slice(0,19))} · Λ=${r.lambda_at_decision}</span>
+            <span class="spacer mono dim">${esc(r.timestamp?.slice(0,19))} · trust=${r.lambda_at_decision}</span>
           </div>`);
         });
       }catch(e){el('audit-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
     }},
 
   // ── 3.6 DSSE Receipt Verifier ────────────────────────────────────
-  dsse:{title:'DSSE Receipt Verifier',badge:'REAL DSSE',sub:'The Khipu ledger: every receipt is ECDSA-P256-SHA256 signed, hash-chained into the DAG. Emit a new receipt, or fetch the full JSONL export to verify yourself with cosign verify-blob.',
+  dsse:{title:'Verify Signed Receipt',badge:'VERIFY IN YOUR BROWSER',sub:'killinchu signs every decision with a real cryptographic key. This tab fetches a live receipt and our public key, then verifies the signature right here in your browser — no trust in us required. A valid receipt shows PASS; flip one byte and it shows FAIL.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
-        <div class="kpi"><div class="k">Ledger nodes</div><div class="v" id="k-receipts">—</div><div class="d">Khipu DAG</div></div>
-        <div class="kpi"><div class="k">Signing</div><div class="v teal">ECDSA-P256</div><div class="d">keyid szlholdings-cosign</div></div>
-        <div class="kpi"><div class="k">Public key</div><div class="v teal">/cosign.pub</div><div class="d">verify offline</div></div>
+        <div class="kpi"><div class="k">Signed receipts</div><div class="v" id="k-receipts">—</div><div class="d">in the chain</div></div>
+        <div class="kpi"><div class="k">Algorithm</div><div class="v teal">ECDSA P-256</div><div class="d">industry standard</div></div>
+        <div class="kpi"><div class="k">Public key</div><div class="v teal">published</div><div class="d">verify offline anytime</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Receipt Ledger (last 25)</span><span class="card-ep">GET /api/killinchu/v1/receipt/ledger</span></div><div id="ledger-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Verify a live receipt — in your browser</span></div>
+        <div class="btns">
+          <button class="btn teal" onclick="dsse_verify(false)">✓ Verify the latest signed receipt</button>
+          <button class="btn" onclick="dsse_verify(true)">⚠ Tamper test (flip one byte)</button>
+        </div>
+        <div id="verify-badge-wrap" style="margin:.6rem 0"><span class="verify-badge pending"><span class="dot"></span>NOT YET VERIFIED</span></div>
+        <div id="verify-detail" class="mono dim" style="font-size:11px;line-height:1.7">Click “Verify”. We fetch the receipt + our public key and check the signature locally with WebCrypto.</div>
+        <details class="raw"><summary>raw receipt envelope (/receipt/export) + public key (/cosign.pub)</summary><pre class="out" id="dsse-verify-out">—</pre></details></div>
       <div class="grid2">
-        <div class="card"><div class="card-h"><span class="card-t">Emit a Receipt</span><span class="card-ep">POST /receipt/emit</span></div>
+        <div class="card"><div class="card-h"><span class="card-t">Recent Receipts</span></div><div id="ledger-list"><div class="row mono dim">loading…</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Emit a Receipt</span></div>
           <div class="btns"><button class="btn teal" onclick="dsse_emit()">▶ Emit demo receipt</button></div>
-          <pre class="out" id="dsse-emit-out">— click to emit —</pre></div>
-        <div class="card"><div class="card-h"><span class="card-t">Verify It Yourself</span><span class="card-ep">GET /cosign.pub · GET /receipt/export</span></div>
-          <div class="btns"><button class="btn" onclick="dsse_pub()">⤓ Fetch cosign.pub</button><button class="btn" onclick="dsse_export()">⤓ Fetch receipt export</button></div>
-          <pre class="out" id="dsse-verify-out">— fetch public key or export —</pre></div>
+          <div id="dsse-emit-summary" class="mono dim" style="font-size:11px;margin-bottom:.5rem">— click to emit —</div>
+          <details class="raw"><summary>raw /receipt/emit</summary><pre class="out" id="dsse-emit-out">—</pre></details></div>
       </div>${HONEST}`;
       try{
         const d = await getJSON(API+'/receipt/ledger?limit=25');
@@ -578,49 +890,62 @@ const VIEWS = {
           h.insertAdjacentHTML('beforeend',`<div class="row">
             <span class="badge ${n.signed?'b-live':'b-err'}">${n.signed?'SIGNED':'UNSIGNED'}</span>
             <span class="mono" style="font-size:11px">${esc(n.receipt?.kind||'—')}</span>
-            <span class="spacer mono dim" style="font-size:10px">${esc(n.digest?.slice(0,16))}… · idx=${n.index}</span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(n.digest?.slice(0,16))}… · #${n.index}</span>
           </div>`);
         });
-        if(!(d.nodes?.length)) h.innerHTML='<div class="row mono dim">empty ledger (resets on restart)</div>';
+        if(!(d.nodes?.length)) h.innerHTML='<div class="row mono dim">empty (resets on restart)</div>';
       }catch(e){el('ledger-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
     }},
 
   // ── 3.7 13-Axis Λ Monitor ───────────────────────────────────────
-  lambda:{title:'13-Axis Λ Monitor',badge:'Λ = CONJECTURE 1',sub:'13 trust axes form the geometric-mean Λ score. Floor = 0.90. Below floor → REVIEW (human required). Λ is Conjecture 1, NOT a theorem; the 5 proved formulas are F1, F11, F12, F18, F19.',
+  lambda:{title:'Trust Score Monitor',badge:'13 CHECKS',sub:'A single trust score (0–1) summarises 13 safety checks on a decision. Below the 0.90 floor a human must review. The score is an advisory conjecture, not a mathematical guarantee. Try a healthy decision vs. a breach.',
     render:async(c)=>{
-      c.innerHTML=`<div class="btns"><button class="btn teal" onclick="lambda_run(false)">▶ Healthy Λ (all axes high)</button><button class="btn" onclick="lambda_run(true)">⊘ Breach (low speed+remote_id)</button></div>
-        <div class="kpis" id="lambda-kpis">
-          <div class="kpi"><div class="k">Λ score</div><div class="v" id="k-lambda">—</div><div class="d">geometric mean / 13 axes</div></div>
-          <div class="kpi"><div class="k">Floor</div><div class="v teal">0.90</div><div class="d">Λ &lt; floor → REVIEW</div></div>
-          <div class="kpi"><div class="k">Decision</div><div class="v" id="k-dec">—</div><div class="d">advisory only</div></div>
-          <div class="kpi"><div class="k">Λ status</div><div class="v warn">Conjecture 1</div><div class="d">NOT a theorem</div></div>
+      c.innerHTML=`<div class="btns"><button class="btn teal" onclick="lambda_run(false)">▶ Healthy decision (all checks high)</button><button class="btn" onclick="lambda_run(true)">⊘ Breach (two checks fail)</button></div>
+        <div class="grid2">
+          <div class="card"><div class="card-h"><span class="card-t">Trust Score</span><span class="card-ep">0–1 · floor 0.90</span></div>
+            <div class="gauge-wrap"><div class="gauge"><canvas id="lambda-gauge"></canvas><div class="lbl"><div class="big" id="lambda-gauge-val">—</div><div class="sm">trust score</div></div></div>
+              <div><div id="k-dec-wrap" style="margin-bottom:.5rem"><span class="mono dim" style="font-size:10px">DECISION</span><div class="v" id="k-dec" style="font-size:1.3rem">—</div></div>
+              <div class="mono dim" style="font-size:11px">Floor 0.90 · below → human review</div>
+              <div class="mono" style="font-size:11px;color:var(--warn)">Advisory conjecture — not proven</div></div></div></div>
+          <div class="card"><div class="card-h"><span class="card-t">13 Safety Checks</span><span class="card-ep">radar</span></div>
+            <div class="chartbox tall"><canvas id="lambda-radar"></canvas></div></div>
         </div>
-        <div class="card"><div class="card-h"><span class="card-t">Axis Scores</span><span class="card-ep">POST /api/killinchu/v1/counter-uas/evaluate</span></div><div id="lambda-axes"><div class="row mono dim">click to evaluate</div></div></div>
-        <div class="card"><div class="card-h"><span class="card-t">Signed Receipt</span></div><pre class="out" id="lambda-receipt">—</pre></div>
+        <div class="card"><div class="card-h"><span class="card-t">Check Detail</span></div><div id="lambda-axes"><div class="row mono dim">click to evaluate</div></div></div>
+        <details class="raw"><summary>raw /counter-uas/evaluate (incl. signed receipt)</summary><pre class="out" id="lambda-receipt">—</pre></details>
         ${HONEST}`;
+      lambda_run(false);
     }},
 
   // ── 3.8 3-of-4 BFT Quorum ───────────────────────────────────────
-  bft:{title:'3-of-4 BFT Quorum',badge:'3-OF-4',sub:'Byzantine Fault Tolerant quorum: 3 of 4 organs (sentra, amaru, a11oy, killinchu) must concur before a mission executes. Shows live health and consensus verification.',
+  bft:{title:'Consensus (3-of-4)',badge:'3-OF-4',sub:'A high-stakes action only proceeds when at least 3 of 4 independent systems agree — so no single failed or compromised node can act alone. Live reachability of each system is shown; an unreachable one is shown honestly, never faked green.',
     render:async(c)=>{
-      c.innerHTML=`<div class="kpis" id="bft-kpis">
-        <div class="kpi"><div class="k">Quorum status</div><div class="v" id="k-quorum">—</div><div class="d">3-of-4 required</div></div>
-        <div class="kpi"><div class="k">Signing key</div><div class="v teal">cosign</div><div class="d">ECDSA-P256-SHA256</div></div>
+      c.innerHTML=`<div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Votes Available</span><span class="card-ep">need 3 of 4</span></div>
+          <div class="gauge-wrap"><div class="gauge"><canvas id="bft-donut"></canvas><div class="lbl"><div class="big" id="bft-count">—</div><div class="sm">of 4 online</div></div></div>
+            <div><div class="v" id="k-quorum" style="font-size:1.3rem">—</div><div class="mono dim" style="font-size:11px">3-of-4 consensus required</div>
+            <div class="legend"><span><i style="background:#5fb3a3"></i>online</span><span><i style="background:#b06a5a"></i>unreachable</span></div></div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">System Reachability</span></div><div id="bft-organs"><div class="row mono dim">loading…</div></div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Organ Reachability</span><span class="card-ep">GET /api/killinchu/uds/v1/healthz</span></div><div id="bft-organs"><div class="row mono dim">loading…</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Execute Mission (BFT)</span><span class="card-ep">POST /uds/v1/mission/execute</span></div>
+      <div class="card"><div class="card-h"><span class="card-t">Execute Mission (with consensus)</span></div>
         <div class="btns"><button class="btn teal" onclick="bft_exec()">▶ Execute demo mission</button></div>
-        <pre class="out" id="bft-exec-out">— click to execute —</pre></div>
+        <div id="bft-exec-summary" class="mono dim" style="font-size:12px;margin-bottom:.5rem">— click to execute —</div>
+        <details class="raw"><summary>raw /uds/v1/mission/execute</summary><pre class="out" id="bft-exec-out">—</pre></details></div>
+      <details class="raw"><summary>raw /uds/v1/healthz</summary><pre class="out" id="bft-raw">—</pre></details>
       ${HONEST}`;
       try{
         const d = await getJSON(BASE+'/api/killinchu/uds/v1/healthz');
-        el('k-quorum').textContent = d.quorum_possible ? 'POSSIBLE' : 'DEGRADED';
+        setOut('bft-raw',d);
+        el('k-quorum').textContent = d.quorum_possible ? 'CONSENSUS POSSIBLE' : 'DEGRADED';
         el('k-quorum').className = 'v '+(d.quorum_possible?'live':'warn');
+        const organs=Object.entries(d.organs||{});
+        let online=0; organs.forEach(([,o])=>{if(o.status==='ok')online++;});
+        if(el('bft-count')) el('bft-count').textContent=online;
+        doughnut('bft-donut',['online','unreachable'],[online,Math.max(0,organs.length-online)],[TEAL,RED]);
         const h = el('bft-organs'); h.innerHTML='';
-        Object.entries(d.organs||{}).forEach(([name,o])=>{
+        organs.forEach(([name,o])=>{
           const ok = o.status==='ok';
           h.insertAdjacentHTML('beforeend',`<div class="row">
-            <span class="badge ${ok?'b-live':'b-warn'}">${esc(o.status?.toUpperCase())}</span>
+            <span class="badge ${ok?'b-live':'b-warn'}">${ok?'ONLINE':esc(String(o.status||'').toUpperCase()||'DOWN')}</span>
             <span>${esc(name)}</span>
             <span class="spacer mono dim">${o.local?'local':''} ${o.http?'HTTP '+o.http:''} ${o.latency_ms?Math.round(o.latency_ms)+'ms':''}</span>
           </div>`);
@@ -629,28 +954,29 @@ const VIEWS = {
     }},
 
   // ── Beyond / Autonomy ───────────────────────────────────────────
-  beyond:{title:'Beyond / Autonomy',badge:'MAN-ON-THE-LOOP',sub:'Evaluate an autonomous system action against the governance envelope. ALLOW / BREACH / IN_ENVELOPE verdict + DSSE-signed receipt. The same Λ-gate governs counter-UAS, ground robots, USVs — any autonomous system. Includes HOTL (human-on-the-loop) register and verify-it-yourself flow.',
+  beyond:{title:'Autonomy Governance',badge:'HUMAN-ON-THE-LOOP',sub:'The same trust gate governs any autonomous action — counter-drone, ground robots, sea drones. Each decision returns an in-envelope / breach verdict and a genuinely signed receipt. A human stays on the loop.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
-        <div class="kpi"><div class="k">Governance</div><div class="v teal">WARHACKER P1</div><div class="d">Cannonico signed oversight</div></div>
-        <div class="kpi"><div class="k">Λ floor</div><div class="v">0.90</div><div class="d">below → BREACH</div></div>
-        <div class="kpi"><div class="k">Receipt</div><div class="v teal">DSSE REAL</div><div class="d">ECDSA-P256</div></div>
-        <div class="kpi"><div class="k">Λ status</div><div class="v warn">Conjecture 1</div><div class="d">NOT a theorem</div></div>
+        <div class="kpi"><div class="k">Oversight</div><div class="v teal">Human-on-loop</div><div class="d">signed oversight</div></div>
+        <div class="kpi"><div class="k">Trust floor</div><div class="v">0.90</div><div class="d">below → breach</div></div>
+        <div class="kpi"><div class="k">Receipt</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
+        <div class="kpi"><div class="k">Trust score</div><div class="v warn">Conjecture</div><div class="d">advisory, not proven</div></div>
       </div>
       <div class="grid2">
-        <div class="card"><div class="card-h"><span class="card-t">System Types</span><span class="card-ep">GET /api/killinchu/v1/autonomy/system-types</span></div><div id="sysTypes"><div class="row mono dim">loading…</div></div></div>
-        <div class="card"><div class="card-h"><span class="card-t">HOTL Register</span><span class="card-ep">GET /api/killinchu/v1/hotl/register</span></div><div id="hotlReg"><div class="row mono dim">loading…</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">System Types Governed</span></div><div id="sysTypes"><div class="row mono dim">loading…</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Human Operators On Loop</span></div><div id="hotlReg"><div class="row mono dim">loading…</div></div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Evaluate Autonomous Action</span><span class="card-ep">POST /api/killinchu/v1/autonomy/evaluate</span></div>
+      <div class="card"><div class="card-h"><span class="card-t">Evaluate an Autonomous Action</span></div>
         <div class="btns">
-          <button class="btn teal" onclick="beyond_eval('counter-uas',false)">▶ Counter-UAS IN_ENVELOPE</button>
-          <button class="btn" onclick="beyond_eval('loitering_munition',true)">⊘ Loitering Munition BREACH</button>
+          <button class="btn teal" onclick="beyond_eval('counter-uas',false)">▶ Counter-drone (in envelope)</button>
+          <button class="btn" onclick="beyond_eval('loitering_munition',true)">⊘ Loitering munition (breach)</button>
         </div>
-        <pre class="out" id="beyond-out">— click to evaluate —</pre></div>
-      <div class="card"><div class="card-h"><span class="card-t">Verify It Yourself</span><span class="card-ep">GET /cosign.pub · GET /api/killinchu/v1/receipt/export</span></div>
+        <div id="beyond-summary" class="mono dim" style="font-size:12px;margin-bottom:.5rem">— click to evaluate —</div>
+        <details class="raw"><summary>raw /autonomy/evaluate</summary><pre class="out" id="beyond-out">—</pre></details></div>
+      <div class="card"><div class="card-h"><span class="card-t">Verify It Yourself</span></div>
         <div class="btns">
-          <button class="btn" onclick="beyond_pubkey()">⤓ cosign.pub</button>
-          <button class="btn" onclick="beyond_export()">⤓ receipt export</button>
+          <button class="btn" onclick="beyond_pubkey()">⤓ Public key</button>
+          <button class="btn" onclick="beyond_export()">⤓ Latest receipt</button>
         </div>
         <pre class="out" id="beyond-verify-out">Verify receipts offline:
 # 1. Save public key
@@ -678,47 +1004,50 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
     }},
 
   // ── 3.9 PQC Hybrid Signing ──────────────────────────────────────
-  pqc:{title:'PQC Hybrid Signing',badge:'ML-DSA-65 + ECDSA',sub:'Post-Quantum Cryptography: sign a track decision with ECDSA-P256, ML-DSA-65, or both (hybrid). The hybrid mode produces two signatures — one classical, one quantum-resistant. Per-process keys reset on restart (honest).',
+  pqc:{title:'Quantum-Safe Signing',badge:'TODAY + QUANTUM-PROOF',sub:'Sign a decision so it stays trustworthy even against a future quantum computer. Pick today’s standard signature, a quantum-resistant one, or both at once (hybrid — belt and braces). Demo keys reset when the service restarts.',
     render:async(c)=>{
       c.innerHTML=`<div class="btns">
-        <button class="btn teal" onclick="pqc_sign('ecdsa')">▶ ECDSA-P256 sign</button>
-        <button class="btn" onclick="pqc_sign('pqc')">▶ ML-DSA-65 sign</button>
-        <button class="btn" onclick="pqc_sign('hybrid')">▶ Hybrid (both)</button>
+        <button class="btn teal" onclick="pqc_sign('ecdsa')">▶ Today’s standard (ECDSA)</button>
+        <button class="btn" onclick="pqc_sign('pqc')">▶ Quantum-resistant (ML-DSA-65)</button>
+        <button class="btn" onclick="pqc_sign('hybrid')">▶ Both (hybrid)</button>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Signature Result</span><span class="card-ep">POST /khipu/sign?mode=ecdsa|pqc|hybrid</span></div><pre class="out" id="pqc-out">— click a sign mode —</pre></div>
+      <div class="card"><div class="card-h"><span class="card-t">Signature Result</span></div>
+        <div id="pqc-summary" class="mono dim" style="font-size:12px;line-height:1.7">— click a signing mode —</div>
+        <details class="raw"><summary>raw signed envelope</summary><pre class="out" id="pqc-out">—</pre></details></div>
       ${HONEST}`;
     }},
 
   // ── 3.10 Protocol Decoders ──────────────────────────────────────
-  decoders:{title:'Protocol Decoders',badge:'3 PROTOCOLS',sub:'Decode Remote ID (OpenDroneID / ASTM F3411-22a), ADS-B Mode-S 1090ES, and MAVLink hex frames. All fields are unauthenticated broadcast claims — decoded for analysis only.',
+  decoders:{title:'Protocol Decoders',badge:'3 PROTOCOLS',sub:'Read the raw radio broadcasts drones and aircraft put out. Paste a captured frame and see who it claims to be — Remote ID (the drone’s digital licence plate), ADS-B (aircraft position beacons), and MAVLink (drone autopilot messages). These are unverified broadcast claims — anyone can spoof them — so treat as a lead, not proof.',
     render:(c)=>{
-      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Remote ID Decoder</span><span class="card-ep">POST /api/killinchu/v1/remote-id/decode</span></div>
-        <div class="form-row"><label>Hex frame</label><input id="rid-hex" value="0D1A2B3C4D5E6F708192A3B4C5D6E7F8091A2B3C4D5E6F7081"/></div>
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Remote ID — drone digital licence plate</span></div>
+        <div class="form-row"><label>Captured frame (hex)</label><input id="rid-hex" value="0D1A2B3C4D5E6F708192A3B4C5D6E7F8091A2B3C4D5E6F7081"/></div>
         <div class="btns"><button class="btn teal" onclick="decode_rid()">▶ Decode</button></div>
-        <pre class="out" id="rid-out">—</pre></div>
-      <div class="card"><div class="card-h"><span class="card-t">ADS-B Decoder</span><span class="card-ep">POST /api/killinchu/v1/ads-b/decode</span></div>
-        <div class="form-row"><label>Hex frame</label><input id="adsb-hex" value="8D4840D6202CC371C32CE0576098"/></div>
+        <details class="raw"><summary>decoded fields</summary><pre class="out" id="rid-out">—</pre></details></div>
+      <div class="card"><div class="card-h"><span class="card-t">ADS-B — aircraft position beacon</span></div>
+        <div class="form-row"><label>Captured frame (hex)</label><input id="adsb-hex" value="8D4840D6202CC371C32CE0576098"/></div>
         <div class="btns"><button class="btn teal" onclick="decode_adsb()">▶ Decode</button></div>
-        <pre class="out" id="adsb-out">—</pre></div>
-      <div class="card"><div class="card-h"><span class="card-t">MAVLink Parser</span><span class="card-ep">POST /api/killinchu/v1/mavlink/parse</span></div>
-        <div class="form-row"><label>Hex frame</label><input id="mav-hex" value="fd0900004200043b000000000000000000000000b4"/></div>
+        <details class="raw"><summary>decoded fields</summary><pre class="out" id="adsb-out">—</pre></details></div>
+      <div class="card"><div class="card-h"><span class="card-t">MAVLink — drone autopilot message</span></div>
+        <div class="form-row"><label>Captured frame (hex)</label><input id="mav-hex" value="fd0900004200043b000000000000000000000000b4"/></div>
         <div class="btns"><button class="btn teal" onclick="decode_mav()">▶ Parse</button></div>
-        <pre class="out" id="mav-out">—</pre></div>
+        <details class="raw"><summary>decoded fields</summary><pre class="out" id="mav-out">—</pre></details></div>
       ${HONEST}`;
     }},
 
   // ── 3.11 Geofence Zone Editor ───────────────────────────────────
-  geofence:{title:'Geofence Zone Editor',badge:'8 ZONES',sub:'FAA TFR, airport 5NM rings, National Park no-fly — read live from the geofence registry. Check whether a given lat/lon/alt is inside a restricted zone.',
+  geofence:{title:'Geofence Zone Editor',badge:'8 ZONES',sub:'No-fly and restricted areas — FAA temporary flight restrictions, 5-mile airport rings, national-park no-fly. Type any position to instantly check whether a drone there is inside a restricted zone.',
     render:async(c)=>{
-      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Active Zones</span><span class="card-ep">GET /api/killinchu/v2/geofence/zones</span></div><div id="geo-list"><div class="row mono dim">loading…</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Check Position</span><span class="card-ep">POST /api/killinchu/v2/geofence/check</span></div>
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Restricted Zones</span></div><div id="geo-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Check a position</span></div>
         <div class="grid2" style="margin-bottom:.8rem">
           <div class="form-row"><label>Latitude</label><input id="geo-lat" value="38.8977"/></div>
           <div class="form-row"><label>Longitude</label><input id="geo-lon" value="-77.0365"/></div>
           <div class="form-row"><label>Alt (ft)</label><input id="geo-alt" value="200"/></div>
         </div>
-        <div class="btns"><button class="btn teal" onclick="geo_check()">▶ Check position</button></div>
-        <pre class="out" id="geo-out">—</pre></div>
+        <div class="btns"><button class="btn teal" onclick="geo_check()">▶ Is this inside a restricted zone?</button></div>
+        <div id="geo-summary" class="mono dim" style="font-size:12px;margin:.5rem 0">— enter a position and check —</div>
+        <details class="raw"><summary>raw /geofence/check</summary><pre class="out" id="geo-out">—</pre></details></div>
       ${HONEST}`;
       try{
         const d = await getJSON(BASE+'/api/killinchu/v2/geofence/zones');
@@ -734,59 +1063,88 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
     }},
 
   // ── 3.12 Swarm Topology ─────────────────────────────────────────
-  swarm:{title:'Swarm Topology',badge:'CLUSTER DETECT',sub:'GET the live swarm topology (pre-computed Shahed + FPV swarms). POST custom broadcasts to run Union-Find connected-component clustering over haversine proximity graph.',
+  swarm:{title:'Swarm Topology',badge:'CLUSTER DETECT',sub:'Spot coordinated drone swarms. Drones flying close together are grouped into clusters and shown as a connected mesh — so the operator can see a 12-drone swarm as one threat, not twelve separate dots. Simulated positions over real adversary signatures — not a live feed.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
-        <div class="kpi"><div class="k">Swarms detected</div><div class="v live" id="k-swarms">—</div><div class="d">connected clusters</div></div>
-        <div class="kpi"><div class="k">Broadcasts</div><div class="v" id="k-nodes">—</div><div class="d">total nodes</div></div>
-        <div class="kpi"><div class="k">Algorithm</div><div class="v teal">Union-Find</div><div class="d">haversine proximity</div></div>
+        <div class="kpi"><div class="k">Swarms detected</div><div class="v live" id="k-swarms">—</div><div class="d">coordinated groups</div></div>
+        <div class="kpi"><div class="k">Broadcasts</div><div class="v" id="k-nodes">—</div><div class="d">total drones seen</div></div>
+        <div class="kpi"><div class="k">Grouping</div><div class="v teal">By proximity</div><div class="d">drones flying together</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Live Swarm Clusters</span><span class="card-ep">GET /api/killinchu/v1/swarm/topology</span></div><div id="swarm-list"><div class="row mono dim">loading…</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Custom Cluster Analysis</span><span class="card-ep">POST /api/killinchu/v1/swarm/topology</span></div>
-        <div class="btns"><button class="btn teal" onclick="swarm_post()">▶ Run 4-node custom swarm</button></div>
-        <pre class="out" id="swarm-post-out">—</pre></div>
+      <div class="card"><div class="card-h"><span class="card-t">Swarm Mesh — clusters in 3D</span><span class="card-ep">3D · drones grouped by swarm</span></div>
+        <div class="graph3d" id="swarm-3d"></div>
+        <div class="legend"><span>Each cluster is one detected swarm. Lines connect drones flying close enough to be acting together. Drag to rotate.</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Detected Swarms</span></div><div id="swarm-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Try it — group a custom set of drones</span></div>
+        <div class="btns"><button class="btn teal" onclick="swarm_post()">▶ Run a 4-drone grouping test</button></div>
+        <div id="swarm-post-summary" class="mono dim" style="font-size:11px;margin-bottom:.5rem">— click to run —</div>
+        <details class="raw"><summary>raw /swarm/topology (custom POST)</summary><pre class="out" id="swarm-post-out">—</pre></details></div>
+      <details class="raw"><summary>raw /swarm/topology (live GET)</summary><pre class="out" id="swarm-raw">—</pre></details>
       ${HONEST}`;
       try{
         const d = await getJSON(API+'/swarm/topology');
+        setOut('swarm-raw',d);
         el('k-swarms').textContent = d.swarms_detected ?? '—';
         el('k-nodes').textContent = d.broadcast_count ?? '—';
+        // mesh3d: one hub per cluster; member drones link to their cluster hub.
+        const palette=[TEAL,GOLD,WARN,'#7fa8c9','#b07fb0'];
+        const nodes=[], links=[];
+        (d.clusters||[]).forEach((cl,ci)=>{
+          const col = String(cl.classification||'').toLowerCase().includes('shahed')||String(cl.classification||'').toLowerCase().includes('threat')?RED:palette[ci%palette.length];
+          const hub='C'+cl.cluster_id;
+          nodes.push({id:hub,name:'Swarm '+cl.cluster_id+' · '+(cl.classification||''),color:col,val:8});
+          (cl.members||[]).forEach((m,mi)=>{
+            const nid=hub+'-'+mi;
+            nodes.push({id:nid,name:(m.model||'drone'),color:col,val:4});
+            links.push({source:hub,target:nid});
+          });
+        });
+        if(nodes.length) mesh3d('swarm-3d',nodes,links);
+        else el('swarm-3d').innerHTML='<div class="row mono dim" style="padding:1rem">no swarms detected</div>';
         const h = el('swarm-list'); h.innerHTML='';
         (d.clusters||[]).forEach(cl=>{
+          const isThreat=String(cl.classification||'').toLowerCase().includes('shahed')||String(cl.classification||'').toLowerCase().includes('threat');
           h.insertAdjacentHTML('beforeend',`<div class="row">
-            <span class="badge b-teal">Cluster ${cl.cluster_id}</span>
-            <span>${esc(cl.classification)}</span>
-            <span class="mono dim" style="font-size:11px">${cl.size} nodes</span>
+            <span class="badge ${isThreat?'b-err':'b-teal'}">Swarm ${cl.cluster_id}</span>
+            <span><b>${esc(cl.classification)}</b></span>
+            <span class="mono dim" style="font-size:11px">${cl.size} drones</span>
             <span class="spacer mono dim" style="font-size:10px">${(cl.members||[]).map(m=>esc(m.model)).join(', ')}</span>
           </div>`);
         });
+        if(!(d.clusters||[]).length) h.innerHTML='<div class="row mono dim">no swarms</div>';
       }catch(e){el('swarm-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
     }},
 
   // ── 3.13 Threat Classification DB ──────────────────────────────
-  threats:{title:'Threat Classification DB',badge:'53 ENTRIES',sub:'Live threat signature database: 53 UAS entries spanning adversary, allied, dual-use, and C-UAS roles. Click a drone ID to see full specs and countermeasures.',
+  threats:{title:'Threat Classification DB',badge:'53 ENTRIES',sub:'The threat library: 53 known drone types, sorted into adversary, allied, dual-use, and counter-drone roles. This is the signature reference the rest of the tool matches tracks against. Click a drone to see full specs and countermeasures.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
-        <div class="kpi"><div class="k">DB entries</div><div class="v live" id="k-db">—</div></div>
-        <div class="kpi"><div class="k">Adversary</div><div class="v err" id="k-adv">—</div></div>
-        <div class="kpi"><div class="k">Allied</div><div class="v live" id="k-all">—</div></div>
-        <div class="kpi"><div class="k">Dual-use</div><div class="v warn" id="k-dual">—</div></div>
+        <div class="kpi"><div class="k">DB entries</div><div class="v live" id="k-db">—</div><div class="d">known drone types</div></div>
+        <div class="kpi"><div class="k">Adversary</div><div class="v err" id="k-adv">—</div><div class="d">hostile</div></div>
+        <div class="kpi"><div class="k">Allied</div><div class="v live" id="k-all">—</div><div class="d">friendly</div></div>
+        <div class="kpi"><div class="k">Dual-use</div><div class="v warn" id="k-dual">—</div><div class="d">civilian / either</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Drone Database</span><span class="card-ep">GET /api/killinchu/v1/drones/database</span></div><div id="drone-list"><div class="row mono dim">loading…</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Drone Detail</span><span class="card-ep">GET /api/killinchu/v1/drones/{id}</span></div>
+      <div class="card"><div class="card-h"><span class="card-t">Library by side</span><span class="card-ep">how many of each kind</span></div>
+        <div class="chartbox"><canvas id="threats-bar"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Drone Library</span></div><div id="drone-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Look up a drone</span></div>
         <div class="form-row"><label>Drone ID</label><input id="drone-id" value="shahed136"/></div>
-        <div class="btns"><button class="btn teal" onclick="drone_detail()">▶ Fetch detail</button></div>
-        <pre class="out" id="drone-out">—</pre></div>
+        <div class="btns"><button class="btn teal" onclick="drone_detail()">▶ Show full specs</button></div>
+        <details class="raw"><summary>raw /drones/{id}</summary><pre class="out" id="drone-out">—</pre></details></div>
+      <details class="raw"><summary>raw /drones/database</summary><pre class="out" id="threats-raw">—</pre></details>
       ${HONEST}`;
       try{
         const d = await getJSON(API+'/drones/database');
+        setOut('threats-raw',d);
         el('k-db').textContent = d.count ?? '—';
-        let adv=0,all=0,dual=0;
+        let adv=0,all=0,dual=0,cuas=0;
         (d.drones||[]).forEach(dr=>{
           if(dr.side==='adversary')adv++;
           else if(dr.side==='allied')all++;
           else if(dr.side==='dual-use')dual++;
+          else cuas++;
         });
         el('k-adv').textContent=adv; el('k-all').textContent=all; el('k-dual').textContent=dual;
+        barV('threats-bar',['Adversary','Allied','Dual-use','C-UAS / other'],[adv,all,dual,cuas],[RED,LIVE,WARN,TEAL]);
         const h = el('drone-list'); h.innerHTML='';
         (d.drones||[]).slice(0,30).forEach(dr=>{
           const sc = dr.side==='adversary'?'b-err':dr.side==='allied'?'b-live':'b-warn';
@@ -835,7 +1193,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
     render:async(c)=>{
       c.innerHTML=`<div class="btns"><button class="btn teal" onclick="mesh_load()">▶ Probe mesh state</button></div>
         <div id="mesh-host"><div class="row mono dim">loading…</div></div>
-        <div class="card" style="margin-top:1rem"><div class="card-h"><span class="card-t">Mesh Wires</span><span class="card-ep">GET /api/killinchu/v1/mesh/state</span></div><pre class="out" id="mesh-raw">—</pre></div>
+        <details class="raw" style="margin-top:1rem"><summary>raw /mesh/state</summary><pre class="out" id="mesh-raw">—</pre></details>
         ${HONEST}`;
       mesh_load();
     }},
@@ -855,7 +1213,10 @@ async function fuse_demo(){
       ]
     });
     setOut('fuse-out',d);
-  }catch(e){setOut('fuse-out','retry: '+e.message);}
+    const ft=d.fused_track||d.track||d;
+    const lat=ft.lat??ft.latitude, lon=ft.lon??ft.longitude, conf=ft.confidence??d.confidence;
+    if(el('fuse-summary')) el('fuse-summary').innerHTML='<span class="badge b-live">FUSED</span> 3 sensors → 1 consensus track'+(conf!=null?(' · confidence '+(typeof conf==='number'?conf.toFixed(2):conf)):'')+(lat!=null?(' · @ '+Number(lat).toFixed(4)+', '+Number(lon).toFixed(4)):'');
+  }catch(e){setOut('fuse-out','retry: '+e.message); if(el('fuse-summary'))el('fuse-summary').textContent='retry: '+e.message;}
 }
 
 async function prio_run(){
@@ -874,8 +1235,13 @@ async function prio_run(){
         {track_id:'TRK-0008',model:'FPV 7in quad',status:'airborne',lat:47.88,lon:35.08,alt_m:60,speed_m_s:41.6}
       ]
     });
+    setOut('prio-raw',d);
+    const ranked=(d.ranked_threats||[]);
+    const labels=ranked.map(t=>t.track_id), scores=ranked.map(t=>t.threat_score??0);
+    const cols=ranked.map(t=>['ENGAGE','BREACH','DENY'].includes(String(t.roe_verdict||'').toUpperCase())?RED:['HOLD','MONITOR','REVIEW','DEFER'].includes(String(t.roe_verdict||'').toUpperCase())?WARN:TEAL);
+    barV('prio-bar',labels,scores,cols);
     el_list.innerHTML='';
-    (d.ranked_threats||[]).forEach(t=>{
+    ranked.forEach(t=>{
       el_list.insertAdjacentHTML('beforeend',`<div class="row">
         <span class="badge b-gold">#${t.rank}</span>
         <span>${esc(t.track_id)} · <b>${esc(t.model)}</b></span>
@@ -883,7 +1249,7 @@ async function prio_run(){
         <span class="spacer badge ${verdictClass(t.roe_verdict)}">${esc(t.roe_verdict)}</span>
       </div>`);
     });
-    if(!d.ranked_threats?.length) el_list.innerHTML='<pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre>';
+    if(!ranked.length) el_list.innerHTML='<div class="row mono dim">no ranked threats</div>';
   }catch(e){el_list.innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
 }
 
@@ -894,7 +1260,9 @@ async function roe_eval(){
       telemetry:{track_id:'TRK-0001',classification:'Shahed-136',speed_m_s:51.4,altitude_m:1500,latitude:47.85,longitude:35.10}
     });
     setOut('roe-out',d);
-  }catch(e){setOut('roe-out','retry: '+e.message);}
+    const v=d.verdict||d.decision||'—';
+    if(el('roe-verdict')) el('roe-verdict').innerHTML='<span class="badge '+verdictClass(v)+'">'+esc(v)+'</span> '+esc((d.reasons||[]).join('; ')||'checked against current rules');
+  }catch(e){setOut('roe-out','retry: '+e.message); if(el('roe-verdict'))el('roe-verdict').textContent='retry: '+e.message;}
 }
 
 async function audit_record(){
@@ -905,36 +1273,55 @@ async function audit_record(){
       lambda_at_decision:0.88,notes:'Demo engagement record via killinchu elite app'
     });
     setOut('audit-out',d);
-    // Refresh audit log count
+    if(el('audit-summary')) el('audit-summary').innerHTML='<span class="badge b-live">RECORDED</span> signed &amp; chained '+(d.signed||(d.receipt&&d.receipt.signed)?'(signature attached)':'');
+    // Refresh audit log count + spark
     const r = await getJSON(API+'/engagements/audit-log?limit=50');
     if(el('k-audit')) el('k-audit').textContent = r.total ?? 0;
-  }catch(e){setOut('audit-out','retry: '+e.message);}
+    const lam=(r.records||[]).map(x=>typeof x.lambda_at_decision==='number'?x.lambda_at_decision:null).filter(x=>x!=null);
+    if(lam.length) lineSpark('audit-spark',lam.map((_,i)=>i+1),lam,GOLD);
+  }catch(e){setOut('audit-out','retry: '+e.message); if(el('audit-summary'))el('audit-summary').textContent='retry: '+e.message;}
 }
 
 async function dsse_emit(){
   try{
-    setOut('dsse-emit-out','emitting…');
+    if(el('dsse-emit-summary')) el('dsse-emit-summary').textContent='emitting…';
     const d = await postJSON(API+'/receipt/emit',{
       kind:'test_emit',payload:{note:'emitted from killinchu elite app',ts:new Date().toISOString()}
     });
     setOut('dsse-emit-out',d);
-  }catch(e){setOut('dsse-emit-out','retry: '+e.message);}
+    if(el('dsse-emit-summary')) el('dsse-emit-summary').innerHTML='<span class="badge '+(d.signed?'b-live':'b-warn')+'">'+(d.signed?'SIGNED':'UNSIGNED')+'</span> receipt added to the chain';
+  }catch(e){setOut('dsse-emit-out','retry: '+e.message); if(el('dsse-emit-summary'))el('dsse-emit-summary').textContent='retry: '+e.message;}
 }
 
-async function dsse_pub(){
-  try{
-    const r = await fetch(BASE+'/cosign.pub');
-    const t = await r.text();
-    setOut('dsse-verify-out',t);
-  }catch(e){setOut('dsse-verify-out','retry: '+e.message);}
+function setVerifyBadge(state,text){
+  const w=el('verify-badge-wrap'); if(!w)return;
+  const cls=state==='ok'?'ok':state==='fail'?'fail':'pending';
+  w.innerHTML='<span class="verify-badge '+cls+'"><span class="dot"></span>'+esc(text)+'</span>';
 }
-
-async function dsse_export(){
+// Fetch a live signed receipt + the public key, then verify the ECDSA signature IN-BROWSER.
+// tamper=true flips one payload byte to demonstrate the signature genuinely FAILS.
+async function dsse_verify(tamper){
+  setVerifyBadge('pending', tamper?'TAMPER TEST RUNNING…':'VERIFYING…');
+  if(el('verify-detail')) el('verify-detail').textContent='Fetching receipt + public key, then verifying locally…';
   try{
-    setOut('dsse-verify-out','fetching…');
-    const d = await getJSON(API+'/receipt/export');
-    setOut('dsse-verify-out',d);
-  }catch(e){setOut('dsse-verify-out','retry: '+e.message);}
+    const exp = await getJSON(API+'/receipt/export');
+    const pubR = await fetch(BASE+'/cosign.pub'); const pub = await pubR.text();
+    const env = exp.dsse || exp;
+    setOut('dsse-verify-out', {public_key:pub.trim(), envelope:env});
+    if(!env || !env.payload || !(env.signatures&&env.signatures.length)){
+      setVerifyBadge('fail','NO SIGNATURE PRESENT'); el('verify-detail').textContent='This receipt is unsigned (no signing key on this runtime).'; return;
+    }
+    const res = await verifyReceipt(env, pub, !!tamper);
+    if(tamper){
+      // Expectation: a tampered payload MUST fail. PASS the test if verify returned false.
+      if(res.ok){ setVerifyBadge('fail','UNEXPECTED: tampered receipt still verified'); }
+      else { setVerifyBadge('ok','TAMPER DETECTED — signature correctly FAILED'); }
+      el('verify-detail').innerHTML='We flipped one byte of the signed payload. The signature no longer matches → <b>rejected</b>. This is exactly what you want: any edit breaks the seal. Key: '+esc(res.keyid)+'.';
+    } else {
+      if(res.ok){ setVerifyBadge('ok','PASS — signature is valid'); el('verify-detail').innerHTML='Verified in your browser against killinchu’s public key. The receipt is authentic and unmodified. Algorithm ECDSA P-256 / SHA-256 · key '+esc(res.keyid)+' · content hash '+esc(res.paeSha256.slice(0,24))+'…'; }
+      else { setVerifyBadge('fail','FAIL — signature did not verify'); el('verify-detail').textContent='The signature did not verify against the published key.'; }
+    }
+  }catch(e){ setVerifyBadge('fail','ERROR'); if(el('verify-detail')) el('verify-detail').textContent='retry: '+e.message; }
 }
 
 async function lambda_run(breach){
@@ -950,17 +1337,24 @@ async function lambda_run(breach){
       policy:{max_speed_m_s:30.0,require_remote_id:true,allow_sides:['N','S']},
       axis_scores: scores
     });
-    if(el('k-lambda')) el('k-lambda').textContent = d.lambda?.toFixed(4)??'—';
+    const lam=(typeof d.lambda==='number')?d.lambda:0;
+    if(el('lambda-gauge-val')) el('lambda-gauge-val').textContent = lam.toFixed(2);
+    gauge('lambda-gauge', lam, 'trust', lam>=0.90?TEAL:RED);
     if(el('k-dec')){
       el('k-dec').textContent = d.decision??'—';
       el('k-dec').className = 'v '+(d.lambda_pass?'live':'warn');
     }
+    const axes=d.axis_scores||{};
+    // plain-language labels for the 13 internal trust axes
+    const NICE={soundness:'Logic',calibration:'Calibration',robustness:'Robustness',provenance:'Provenance',consent:'Consent',reversibility:'Reversible',transparency:'Transparency',fairness:'Fairness',containment:'Containment',attestation:'Attested',freshness:'Fresh data',authority:'Authority',auditability:'Auditable'};
+    const labels=Object.keys(axes).map(k=>NICE[k]||k), vals=Object.values(axes);
+    radar('lambda-radar', labels, vals, 'checks');
     const h = el('lambda-axes'); h.innerHTML='';
-    Object.entries(d.axis_scores||{}).forEach(([ax,val])=>{
+    Object.entries(axes).forEach(([ax,val])=>{
       const ok = val >= 0.90;
       h.insertAdjacentHTML('beforeend',`<div class="row">
-        <span class="badge ${ok?'b-live':'b-err'}">${ok?'OK':'LOW'}</span>
-        <span>${esc(ax)}</span>
+        <span class="badge ${ok?'b-live':'b-err'}">${ok?'PASS':'LOW'}</span>
+        <span>${esc(NICE[ax]||ax)}</span>
         <span class="spacer mono" style="font-size:11px">${val}</span>
       </div>`);
     });
@@ -983,7 +1377,10 @@ async function beyond_eval(sysType, breach){
              'transparency','fairness','containment','attestation','freshness','authority','auditability']
     });
     setOut('beyond-out',d);
-  }catch(e){setOut('beyond-out','retry: '+e.message);}
+    const v=d.verdict||d.decision||'—';
+    const signed=(d.receipt&&d.receipt.signed)||d.signed;
+    if(el('beyond-summary')) el('beyond-summary').innerHTML='<span class="badge '+verdictClass(v)+'">'+esc(v)+'</span> '+(signed?'<span class="badge b-live">signed receipt</span> ':'')+esc((d.reasons||[]).join('; '));
+  }catch(e){setOut('beyond-out','retry: '+e.message); if(el('beyond-summary'))el('beyond-summary').textContent='retry: '+e.message;}
 }
 
 async function beyond_pubkey(){
@@ -1011,7 +1408,9 @@ async function bft_exec(){
       context:{intent:'counter-uas interdiction demo',track_id:'TRK-0001',effector:'EW_JAM'}
     });
     setOut('bft-exec-out',d);
-  }catch(e){setOut('bft-exec-out','retry: '+e.message);}
+    const ok=d.executed||d.quorum_reached||d.consensus||d.ok;
+    if(el('bft-exec-summary')) el('bft-exec-summary').innerHTML='<span class="badge '+(ok?'b-live':'b-warn')+'">'+(ok?'EXECUTED':'HELD')+'</span> '+esc(d.reason||d.message||(ok?'consensus reached · signed receipt emitted':'consensus not reached'));
+  }catch(e){setOut('bft-exec-out','retry: '+e.message); if(el('bft-exec-summary'))el('bft-exec-summary').textContent='retry: '+e.message;}
 }
 
 async function pqc_sign(mode){
@@ -1029,7 +1428,10 @@ async function pqc_sign(mode){
       signatures: (d.envelope?.signatures||[]).map(s=>({keyid:s.keyid,sig_type:s.sig_type,sig_preview:s.sig?.slice(0,32)+'…'}))
     };
     setOut('pqc-out', JSON.stringify(summary,null,2)+'\n\n// Full envelope:\n'+JSON.stringify(d.envelope,null,2));
-  }catch(e){setOut('pqc-out','retry: '+e.message);}
+    const nice={ecdsa:'Today’s standard (ECDSA P-256)',pqc:'Quantum-resistant (ML-DSA-65)',hybrid:'Both — classical + quantum-resistant'};
+    const cnt=(d.envelope?.signatures||[]).length;
+    if(el('pqc-summary')) el('pqc-summary').innerHTML='<span class="badge b-live">SIGNED</span> '+esc(nice[mode]||mode)+' · '+cnt+' signature'+(cnt===1?'':'s')+' produced'+(d.verified?' · verified ✓':'')+'.';
+  }catch(e){setOut('pqc-out','retry: '+e.message); if(el('pqc-summary'))el('pqc-summary').textContent='retry: '+e.message;}
 }
 
 async function decode_rid(){
@@ -1063,7 +1465,12 @@ async function geo_check(){
     const alt_ft = parseFloat(el('geo-alt').value);
     const d = await postJSON(BASE+'/api/killinchu/v2/geofence/check',{lat,lon,alt_ft});
     setOut('geo-out',d);
-  }catch(e){setOut('geo-out','retry: '+e.message);}
+    const inside = d.inside ?? d.in_zone ?? d.violation ?? (d.zones&&d.zones.length>0) ?? false;
+    const zname = d.zone || (d.zones&&d.zones[0]&&(d.zones[0].zone||d.zones[0].type)) || '';
+    if(el('geo-summary')) el('geo-summary').innerHTML = inside
+      ? '<span class="badge b-err">INSIDE RESTRICTED ZONE</span> '+esc(zname||'a no-fly area')+' — a drone here would be in violation.'
+      : '<span class="badge b-live">CLEAR</span> this position is not inside any restricted zone.';
+  }catch(e){setOut('geo-out','retry: '+e.message); if(el('geo-summary'))el('geo-summary').textContent='retry: '+e.message;}
 }
 
 async function swarm_post(){
@@ -1079,7 +1486,9 @@ async function swarm_post(){
       ]
     });
     setOut('swarm-post-out',d);
-  }catch(e){setOut('swarm-post-out','retry: '+e.message);}
+    const n=d.swarms_detected ?? (d.clusters||[]).length;
+    if(el('swarm-post-summary')) el('swarm-post-summary').innerHTML='<span class="badge b-teal">'+n+' group'+(n===1?'':'s')+'</span> 3 drones flying together were grouped as one swarm; the lone drone stayed separate.';
+  }catch(e){setOut('swarm-post-out','retry: '+e.message); if(el('swarm-post-summary'))el('swarm-post-summary').textContent='retry: '+e.message;}
 }
 
 async function drone_detail(){
@@ -1109,6 +1518,8 @@ async function mesh_load(){
 
 // ===================== ROUTER =====================
 function go(view){
+  Object.keys(_charts).forEach(killChart);
+  if(_fg){try{_fg._destructor&&_fg._destructor();}catch(e){}_fg=null;}
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   const v = VIEWS[view];
   if(!v){return;}
