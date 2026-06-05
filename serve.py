@@ -313,6 +313,11 @@ def _digest_node(receipt: dict[str, Any], parents: list[str]) -> str:
 
 
 def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
+    # WHY this exists: every counter-UAS verdict must be signed + chained so that
+    # a downstream audit tool can verify the chain of decisions without trusting
+    # any single node. The Merkle DAG links receipts via SHA-256 parent digests.
+    # Real DSSE signing happens when SZL_COSIGN_PRIVATE_KEY_PEM is set (Space secret);
+    # absent = PLACEHOLDER label (honest — never fabricates a signature).
     parents = [_KHIPU_DAG[-1]["digest"]] if _KHIPU_DAG else []
     receipt = {
         "schema": "szl.killinchu.receipt/v1",
@@ -362,6 +367,11 @@ _LAMBDA_FLOOR = 0.90
 
 
 def _lambda_aggregate(axes: list[float]) -> float:
+    # WHY geometric mean: geometric mean penalizes any single axis being near zero
+    # more harshly than arithmetic mean. A drone with 12/13 axes = 1.0 and 1 axis = 0.01
+    # should NOT pass. Geometric mean enforces all-axes-must-be-adequate.
+    # This is the Λ-Aggregator (Doctrine v11 Conjecture 1 — uniqueness is conjectured,
+    # not proven; see szl_lambda_tripwire.py for thresholds HALT/FLAG/WARN).
     vals = [min(1.0, max(1e-9, float(x))) for x in axes] if axes else [0.9] * 13
     return math.exp(sum(math.log(v) for v in vals) / len(vals))
 
@@ -911,7 +921,7 @@ async def vessels_catch(path: str) -> JSONResponse:
 
 # ---------------------------------------------------------------------------
 # ADDITIVE (Yachay / Provenance Hardening): Wire D (W3C traceparent trace
-# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L2 signed provenance).
+# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L1 honest; L2 roadmap Wire D).
 # Registers /api/{space}/wires/D, /khipu/{sign,verify,ledger}, /provenance.
 # Wrapped so a missing dep (cryptography) can NEVER take down the existing app.
 # PLACEHOLDER -> REAL: every receipt now DSSE-signed with szlholdings-cosign.
@@ -1523,6 +1533,26 @@ except Exception as _parity_e:
     print(f"[killinchu] Parity endpoints NOT registered: {_parity_e!r}", file=sys.stderr)
     _parity_tb.print_exc()
 # ── end PARITY ──────────────────────────────────────────────────────────────
+
+# ===========================================================================
+# CANNONICO — Warhacker bullseye: lost-contact autonomous-drone governance.
+# When a drone loses contact mid-mission it runs alone. This loop governs EVERY
+# autonomous decision against the authorized envelope it carried into the
+# mission, emits a chained DSSE-signed receipt per decision (host _emit_receipt
+# → REAL cosign), and catches the moment a line gets crossed. The result is one
+# continuous, tamper-evident record an auditor verifies when contact resumes.
+# Registered BEFORE the SPA catch-all. ADDITIVE only.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_cannonico as _cannonico
+    _cannonico_status = _cannonico.register(app, emit_receipt=_emit_receipt, ns="killinchu")
+    print(f"[killinchu] Cannonico endpoints registered: {_cannonico_status['registered']}", file=sys.stderr)
+except Exception as _cannonico_e:
+    import traceback as _cannonico_tb
+    print(f"[killinchu] Cannonico endpoints NOT registered: {_cannonico_e!r}", file=sys.stderr)
+    _cannonico_tb.print_exc()
+# ── end CANNONICO ────────────────────────────────────────────────────────────
 
 
 # ---------------------------------------------------------------------------

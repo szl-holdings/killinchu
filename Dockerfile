@@ -179,6 +179,10 @@ COPY szl_ken.py ./szl_ken.py
 COPY killinchu_frontier_patch.py ./killinchu_frontier_patch.py
 COPY killinchu_drone_routes.py ./killinchu_drone_routes.py
 COPY killinchu_parity.py ./killinchu_parity.py
+# killinchu_cannonico.py: lost-contact autonomous-drone governance loop (Warhacker
+# Cannonico bullseye). serve.py imports it via try/except after killinchu_parity;
+# without this COPY the /api/killinchu/v1/cannonico/* routes fall through to the SPA.
+COPY killinchu_cannonico.py ./killinchu_cannonico.py
 COPY serve.py ./serve.py
 COPY szl_khipu_consensus.py ./szl_khipu_consensus.py
 
