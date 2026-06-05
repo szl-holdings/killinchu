@@ -914,7 +914,7 @@ async def vessels_catch(path: str) -> JSONResponse:
 
 # ---------------------------------------------------------------------------
 # ADDITIVE (Yachay / Provenance Hardening): Wire D (W3C traceparent trace
-# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L2 signed provenance).
+# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L1 honest; L2 roadmap Wire D).
 # Registers /api/{space}/wires/D, /khipu/{sign,verify,ledger}, /provenance.
 # Wrapped so a missing dep (cryptography) can NEVER take down the existing app.
 # PLACEHOLDER -> REAL: every receipt now DSSE-signed with szlholdings-cosign.
