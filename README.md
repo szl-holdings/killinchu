@@ -42,10 +42,30 @@ ecosystem-stage: "operational"
 
 **HF Space (one-click, no login):** [![Open in Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Open%20in%20Spaces-killinchu-FF9D00?style=flat-square)](https://huggingface.co/spaces/SZLHOLDINGS/killinchu)
 
+- **Primary face — the full application:** https://szlholdings-killinchu.hf.space/elite
 - Space URL: https://szlholdings-killinchu.hf.space
 - Health: `curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
 - Docs: https://docs.szlholdings.com/flagships/killinchu
 - Release: [v1.0.0](https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0)
+
+---
+
+## The application
+
+killinchu is a **full left-nav application** at `/elite` in the unified SZL house style (dark ground, gold `#c9b787` + teal `#5fb3a3`, Space Grotesk + JetBrains Mono), with a **cross-flag switcher** in the top ribbon (a11oy · sentra · amaru · rosie · killinchu).
+
+**Primary app file:** [`killinchu_elite_console.py`](killinchu_elite_console.py) · **served at** `/elite`.
+
+16 working views in the left navigation:
+
+| View | View | View | View |
+|---|---|---|---|
+| Live Track Board | Sensor-Fusion | Multi-Track Priority | ROE Editor |
+| 13-axis Λ | 3-of-4 BFT | Beyond/Autonomy | Engagement Audit |
+| DSSE Verifier | PQC Signing | Protocol Decoders | Geofence |
+| Swarm Topology | Threat Class DB | Cross-Flagship | Mesh |
+
+**Verify-it-yourself surface:** the app publishes its cosign public key at [`/cosign.pub`](https://szlholdings-killinchu.hf.space/cosign.pub) and exports verifiable DSSE receipts at `/api/killinchu/v1/receipt/export` — receipts are **real-DSSE-or-honestly-UNSIGNED**, never silently fabricated.
 
 ---
 
@@ -90,7 +110,7 @@ curl -s -X POST https://szlholdings-killinchu.hf.space/api/killinchu/counter-uas
 # => {"verdict":"CLASSIFY","lambda_score":0.73,"receipt_signed":true}
 
 # 4. Deploy as part of the signed mesh bundle
-uds-cli bundle deploy oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.1 --confirm
+uds-cli bundle deploy oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.0 --confirm
 ```
 
 **Full guide:** [developers/VERIFY.md](https://github.com/szl-holdings/developers/blob/main/VERIFY.md)
@@ -147,7 +167,8 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/killinchu:uds-v0.2.0
 | Real protocol decoders | ✅ — ASTM F3411-22a / pyModeS / pymavlink (no mocks) |
 | Spoofing vulnerability | ⚠️ **Explicit** — broadcast protocols are unauthenticated; every field is a claim, not ground truth |
 | Lean 749/14/163 @ `c7c0ba17` | ✅ |
-| Λ-uniqueness | ⚠️ Conjecture 1 — not a theorem |
+| Proved PURIQ formulas | ✅ Exactly **5** — F1, F11, F12, F18, F19 (Lean 4, zero-sorry); rest Roadmap |
+| Λ-uniqueness | ⚠️ **Conjecture 1** — never a theorem |
 | SLSA L3 | ❌ Not claimed |
 | FedRAMP / CMMC | ❌ Not claimed |
 
@@ -155,4 +176,5 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/killinchu:uds-v0.2.0
 
 <sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA L1 + L2 (provenance attestation verified; L3 not claimed) · Λ = Conjecture 1 · Apache-2.0</sub>
 
-Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>
+Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+
