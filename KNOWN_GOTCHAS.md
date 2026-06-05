@@ -69,11 +69,14 @@ Same as a11oy: avoid in files defining FastAPI routes or Pydantic models.
 
 ---
 
-## 8. SLSA L1 honest — no public Rekor entry
+## 8. SLSA L1 + L2 — verify the attestation, not just the signature
 
-The killinchu GHCR image is signed by the GitHub private Fulcio (no public
-Rekor log entry). This means SLSA L1 (honest). NOT L2. This is tracked as a
-known gap in the README.
+The killinchu GHCR image is cosign-signed and ships a signed SLSA provenance
+attestation. SLSA Build L2 has been independently verified: run
+`cosign verify-attestation --type slsaprovenance` (keyless Fulcio + Rekor,
+strict per-organ identity scoped to `https://github.com/szl-holdings/killinchu/`)
+to get the `slsa.dev/provenance` payload. Plain `cosign verify` only checks the
+image signature (L1) — use `verify-attestation` to confirm L2. L3 is not claimed.
 
 ---
 

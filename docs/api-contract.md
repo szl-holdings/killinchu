@@ -1,5 +1,5 @@
 # API Contract — killinchu v1.0
-**Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest | Version: 1.0.0**  
+**Doctrine v11 LOCKED 749/14/163 | SLSA L1 + L2 | Version: 1.0.0**  
 **Updated:** 2026-06-03
 
 This document is the canonical API contract for the `killinchu` flagship.
@@ -95,7 +95,7 @@ Flagship-specific endpoints (see per-flagship docs below).
 
 ## SLSA Level
 
-**SLSA L1 (honest disclosure).** L2+ requires Sigstore + isolated builders (roadmap for Series-A).
+**SLSA L1 + L2.** The signed SLSA provenance attestation is independently verified via `cosign verify-attestation --type slsaprovenance` (keyless Fulcio + Rekor, strict per-organ identity). L3 (hardened, isolated builder) is not claimed.
 
 ## Section 889 Compliance
 
