@@ -250,415 +250,877 @@ __all__ = ["register"]
 _CONSOLE_HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Killinchu — Elite Counter-UAS Console</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>killinchu — Counter-UAS Governance · SZL Holdings</title>
+<meta name="description" content="killinchu is SZL Holdings' counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
-  :root{
-    --bg:#0a0a0a; --panel:#11131a; --panel2:#161a23; --line:#23282f;
-    --txt:#d7e0ec; --dim:#8590a0; --accent:#5fb3a3; --good:#5fb3a3;
-    --warn:#ffb454; --bad:#ff5d6c; --gold:#c9b787;
-    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:
-      radial-gradient(1200px 700px at 80% -10%, rgba(95,179,163,.06), transparent),
-      radial-gradient(900px 600px at 10% 110%, rgba(201,183,135,.05), transparent),
-      var(--bg);
-    color:var(--txt);font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;font-size:14px}
-  .szl-ribbon{display:flex;align-items:center;gap:10px;height:26px;padding:0 16px;
-    background:#06070b;border-bottom:1px solid var(--gold);font-family:var(--mono);
-    font-size:10.5px;letter-spacing:.5px;color:var(--dim);white-space:nowrap;overflow:hidden}
-  .szl-ribbon b{color:var(--gold);font-weight:700}
-  .szl-ribbon .org{color:var(--accent);font-weight:700}
-  .szl-ribbon .live{margin-left:auto;color:var(--good);font-weight:700}
-  header{display:flex;align-items:center;gap:14px;padding:12px 18px;
-    border-bottom:1px solid var(--line);background:linear-gradient(90deg,#0c0d12,#11131a)}
-  header h1{font-size:16px;margin:0;letter-spacing:.5px}
-  header h1 b{color:var(--gold)}
-  .doctrine{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim);text-align:right;line-height:1.5}
-  .doctrine .l1{color:var(--gold)}
-  .wrap{display:flex;height:calc(100vh - 80px)}
-  nav{width:248px;flex:0 0 248px;border-right:1px solid var(--line);
-    background:var(--panel);overflow-y:auto;padding:8px}
-  nav button{display:block;width:100%;text-align:left;background:transparent;
-    color:var(--txt);border:0;border-radius:8px;padding:9px 11px;margin:2px 0;
-    cursor:pointer;font-size:13px;border-left:3px solid transparent}
-  nav button:hover{background:var(--panel2)}
-  nav button.active{background:var(--panel2);border-left-color:var(--accent);color:#fff}
-  nav button .n{color:var(--dim);font-family:var(--mono);font-size:11px;margin-right:7px}
-  main{flex:1;overflow-y:auto;padding:18px 22px}
-  h2{font-size:18px;margin:0 0 4px}
-  .sub{color:var(--dim);font-size:12px;margin-bottom:14px}
-  .ep{font-family:var(--mono);font-size:11px;color:var(--accent);
-    background:#0a0f17;border:1px solid var(--line);border-radius:6px;
-    padding:3px 7px;display:inline-block;margin:2px 4px 2px 0}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}
-  button.act{background:var(--accent);color:#04101e;border:0;border-radius:8px;
-    padding:8px 14px;font-weight:600;cursor:pointer}
-  button.act:hover{filter:brightness(1.1)}
-  button.ghost{background:transparent;color:var(--txt);border:1px solid var(--line);
-    border-radius:8px;padding:8px 14px;cursor:pointer}
-  input,textarea,select{background:#080c12;color:var(--txt);border:1px solid var(--line);
-    border-radius:7px;padding:7px 9px;font-family:var(--mono);font-size:12px}
-  textarea{width:100%;min-height:88px;resize:vertical}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-    padding:14px 16px;margin:12px 0}
-  pre{background:#05080d;border:1px solid var(--line);border-radius:8px;
-    padding:12px;overflow:auto;font-family:var(--mono);font-size:11.5px;
-    color:#bcd0e6;max-height:520px;white-space:pre-wrap;word-break:break-word}
-  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
-  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
-  th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
-  td.mono,.mono{font-family:var(--mono)}
-  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
-  .p-allow{background:#0d2a1a;color:var(--good)} .p-halt{background:#2c1015;color:var(--bad)}
-  .p-review,.p-suspect{background:#2a230d;color:var(--warn)} .p-engage{background:#2c1015;color:var(--bad)}
-  .honest{font-size:11px;color:var(--dim);border-left:3px solid var(--gold);
-    padding:6px 10px;margin:10px 0;background:#0c0f08}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-  .axis{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-  .axis .v{font-family:var(--mono);font-size:16px;color:var(--good)}
-  .axis .k{font-size:11px;color:var(--dim)}
-  .ok{color:var(--good)} .err{color:var(--bad)} .muted{color:var(--dim)}
-  .bp{border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0;background:var(--panel)}
-  .bp h3{margin:0 0 4px;font-size:14px}
-  .bp .flag{color:var(--gold);font-family:var(--mono);font-size:12px}
-  label{font-size:11px;color:var(--dim);display:block;margin-bottom:3px}
-  /* Mobile: the 248px non-shrinking nav + flex row overflows a 390px viewport.
-     Stack nav above main and let the deck scroll vertically. */
-  @media (max-width:768px){
-    .wrap{flex-direction:column;height:auto}
-    nav{width:auto;flex:0 0 auto;border-right:0;border-bottom:1px solid var(--line);
-        display:flex;flex-wrap:wrap;gap:4px}
-    nav button{width:auto;min-height:40px}
-    main{padding:14px}
-    header{flex-wrap:wrap;gap:8px;padding:10px 14px}
-    table{display:block;overflow-x:auto}
-  }
+/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
+/* Shared by all 5 flagship full-applications. One product family. */
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
+  --gold:#c9b787; --gold-bright:#d6c69a;
+  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+  --teal-line:rgba(95,179,163,0.22);
+  --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --display:'Space Grotesk',Georgia,serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);
+  font-family:var(--display);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+.mono{font-family:var(--mono);}
+a{color:inherit;text-decoration:none;}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:3px;}
+::-webkit-scrollbar{width:9px;height:9px;}::-webkit-scrollbar-thumb{background:#222;border-radius:6px;}
+
+/* ===== TOP BAR + CROSS-FLAG SWITCHER ===== */
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;
+  padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.topbar .sep{color:var(--dim);}
+.topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
+.switcher .lbl{color:var(--dim);margin-right:.35rem;}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
+.flag:hover{color:var(--cream);border-color:var(--gold-line);background:var(--gold-soft);}
+.flag.active{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
+
+/* ===== APP LAYOUT: SIDEBAR + CONTENT ===== */
+.app{display:grid;grid-template-columns:248px 1fr;min-height:calc(100vh - 39px);}
+.side{background:var(--rail);border-right:1px solid var(--gold-line);padding:1.1rem .8rem;overflow-y:auto;}
+.brand{display:flex;align-items:center;gap:.6rem;padding:0 .4rem 1rem;}
+.brand .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--gold),var(--teal));display:grid;place-items:center;color:#0a0a0a;font-weight:700;font-family:var(--mono);}
+.brand .nm{font-weight:600;font-size:1.05rem;}
+.brand .role{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+.nav-group{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:1rem .5rem .4rem;}
+.nav-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;border-radius:7px;cursor:pointer;color:var(--paragraph);font-size:13.5px;transition:.15s;border:1px solid transparent;}
+.nav-item:hover{background:var(--gold-soft);color:var(--cream);}
+.nav-item.active{background:var(--teal-soft);color:var(--teal);border-color:var(--teal-line);}
+.nav-item .ico{width:16px;text-align:center;opacity:.8;font-size:12px;}
+.side-foot{margin-top:1.2rem;padding:.7rem .6rem;border-top:1px solid var(--gold-line);font-family:var(--mono);font-size:9.5px;color:var(--dim);line-height:1.7;}
+
+/* ===== CONTENT ===== */
+.content{padding:1.4rem 1.8rem 3rem;overflow-y:auto;max-height:calc(100vh - 39px);}
+.view-head{display:flex;align-items:flex-end;gap:.8rem;flex-wrap:wrap;margin-bottom:.3rem;}
+.view-title{font-size:1.7rem;font-weight:500;letter-spacing:-.02em;}
+.view-badge{font-family:var(--mono);font-size:10px;color:var(--teal);border:1px solid var(--teal-line);border-radius:5px;padding:.12rem .5rem;background:var(--teal-soft);}
+.view-sub{font-size:13.5px;color:var(--paragraph);line-height:1.6;margin:.4rem 0 1.3rem;max-width:60rem;}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;margin-bottom:1.3rem;}
+.kpi{border:1px solid var(--gold-line);border-radius:9px;background:var(--panel);padding:.85rem 1rem;}
+.kpi .k{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);}
+.kpi .v{font-size:1.55rem;font-weight:500;color:var(--gold);margin-top:.2rem;line-height:1.1;}
+.kpi .v.teal{color:var(--teal);} .kpi .v.live{color:var(--live);} .kpi .v.warn{color:var(--warn);}
+.kpi .d{font-size:11px;color:var(--paragraph);margin-top:.2rem;}
+
+.card{border:1px solid var(--gold-line);border-radius:11px;background:var(--panel);padding:1.2rem 1.3rem;margin-bottom:1rem;}
+.card-h{display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap;}
+.card-t{font-size:1.05rem;font-weight:500;color:var(--cream);}
+.card-ep{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto;}
+.row{display:flex;align-items:center;gap:.6rem;padding:.55rem 0;border-bottom:1px solid rgba(201,183,135,.07);font-size:13px;}
+.row:last-child{border-bottom:none;}
+.row .badge{font-family:var(--mono);font-size:10px;padding:.1rem .45rem;border-radius:5px;}
+.b-live{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
+.b-gold{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
+.b-teal{color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);}
+.b-err{color:var(--err);border:1px solid rgba(176,106,90,.4);background:rgba(176,106,90,.08);}
+.b-warn{color:var(--warn);border:1px solid rgba(201,160,95,.4);background:rgba(201,160,95,.08);}
+.spacer{margin-left:auto;}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;font-size:11.5px;font-weight:500;font-family:var(--mono);
+  border-radius:6px;border:1px solid var(--gold-line);background:transparent;color:var(--gold);cursor:pointer;letter-spacing:.04em;transition:.18s;}
+.btn:hover{background:rgba(201,183,135,.08);border-color:rgba(201,183,135,.35);}
+.btn.teal{color:var(--teal);border-color:var(--teal-line);background:var(--teal-soft);}
+.btns{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;}
+pre.out{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--paragraph);background:var(--panel2);
+  border:1px solid var(--gold-line);border-radius:8px;padding:.9rem 1rem;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:380px;}
+.honesty{margin-top:1.2rem;padding:1rem 1.2rem;border:1px solid var(--gold-line);border-radius:9px;background:var(--gold-soft);font-size:11.5px;color:var(--paragraph);line-height:1.7;}
+.honesty b{color:var(--gold);}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;}
+.muted{color:var(--muted);} .mono.dim{color:var(--dim);}
+input,select,textarea{background:var(--panel2);border:1px solid var(--gold-line);color:var(--cream);border-radius:6px;padding:.4rem .7rem;font-family:var(--mono);font-size:11.5px;width:100%;}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-offset:1px;}
+label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;}
+.form-row{margin-bottom:.8rem;}
+.verdict-ENGAGE,.verdict-ALLOW,.verdict-IN_ENVELOPE{color:var(--live);}
+.verdict-HOLD,.verdict-MONITOR,.verdict-REVIEW,.verdict-DEFER{color:var(--warn);}
+.verdict-BREACH,.verdict-DENY{color:var(--err);}
+
+@media (max-width:820px){
+  .app{grid-template-columns:1fr;}
+  .side{position:fixed;left:0;top:39px;bottom:0;width:240px;transform:translateX(-100%);transition:.2s;z-index:55;}
+  .side.open{transform:none;}
+  .content{max-height:none;}
+  .menu-btn{display:inline-flex!important;}
+}
+.menu-btn{display:none;background:none;border:1px solid var(--gold-line);color:var(--gold);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-family:var(--mono);font-size:11px;}
 </style>
 </head>
 <body>
-<div class="szl-ribbon">
-  <b>SZL HOLDINGS</b> · <span class="org">KILLINCHU</span> · DOCTRINE V11 · LOCKED · REPLAY c7c0ba17 · Λ = CONJECTURE 1
-  <span class="live">● LIVE</span>
+<div class="topbar">
+  <button class="menu-btn" onclick="document.querySelector('.side').classList.toggle('open')">☰</button>
+  <span>SZL HOLDINGS</span><span class="sep">/</span>
+  <span style="color:var(--teal)">KILLINCHU</span><span class="sep">/</span>
+  <span>DOCTRINE V11 · LOCKED</span><span class="sep">/</span>
+  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
+  <nav class="switcher" aria-label="Flagship switcher">
+    <span class="lbl">FLEET</span>
+    <a class="flag" href="https://szlholdings-a11oy.hf.space/console">a11oy</a>
+    <a class="flag" href="https://szlholdings-sentra.hf.space/console">sentra</a>
+    <a class="flag" href="https://szlholdings-amaru.hf.space/operational-core">amaru</a>
+    <a class="flag" href="https://szlholdings-rosie.hf.space/">rosie</a>
+    <a class="flag active" href="https://szlholdings-killinchu.hf.space/elite">killinchu</a>
+  </nav>
 </div>
-<header>
-  <h1><b>KILLINCHU</b> · Elite Counter-UAS Console</h1>
-  <div class="doctrine">
-    Doctrine v11 · 749/14/163 · c7c0ba17<br/>
-    <span class="l1">SLSA L2 (organ, cosign-verified)</span> · Λ = Conjecture 1 (not a theorem)
-  </div>
-</header>
-<div class="wrap">
-  <nav id="nav"></nav>
-  <main id="main"></main>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="mark">K</div><div><div class="nm">killinchu</div><div class="role">counter-uas governance</div></div></div>
+
+    <div class="nav-group">Track &amp; Fuse</div>
+    <div class="nav-item active" data-view="tracks" onclick="go('tracks')"><span class="ico">⊕</span>Live Track Board</div>
+    <div class="nav-item" data-view="fusion" onclick="go('fusion')"><span class="ico">⧖</span>Sensor-Fusion</div>
+    <div class="nav-item" data-view="prioritize" onclick="go('prioritize')"><span class="ico">▲</span>Multi-Track Priority</div>
+
+    <div class="nav-group">Decide &amp; Govern</div>
+    <div class="nav-item" data-view="roe" onclick="go('roe')"><span class="ico">⊞</span>ROE Editor</div>
+    <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">Λ</span>13-Axis Λ Monitor</div>
+    <div class="nav-item" data-view="bft" onclick="go('bft')"><span class="ico">⊛</span>3-of-4 BFT Quorum</div>
+    <div class="nav-item" data-view="beyond" onclick="go('beyond')"><span class="ico">◎</span>Beyond / Autonomy</div>
+
+    <div class="nav-group">Verify &amp; Sign</div>
+    <div class="nav-item" data-view="audit" onclick="go('audit')"><span class="ico">⎙</span>Engagement Audit</div>
+    <div class="nav-item" data-view="dsse" onclick="go('dsse')"><span class="ico">✦</span>DSSE Verifier</div>
+    <div class="nav-item" data-view="pqc" onclick="go('pqc')"><span class="ico">⊟</span>PQC Signing</div>
+
+    <div class="nav-group">Intel &amp; Zones</div>
+    <div class="nav-item" data-view="decoders" onclick="go('decoders')"><span class="ico">⧉</span>Protocol Decoders</div>
+    <div class="nav-item" data-view="geofence" onclick="go('geofence')"><span class="ico">◻</span>Geofence Zones</div>
+    <div class="nav-item" data-view="swarm" onclick="go('swarm')"><span class="ico">⊹</span>Swarm Topology</div>
+    <div class="nav-item" data-view="threats" onclick="go('threats')"><span class="ico">◈</span>Threat Class DB</div>
+
+    <div class="nav-group">Mesh</div>
+    <div class="nav-item" data-view="cross" onclick="go('cross')"><span class="ico">⊗</span>Cross-Flagship</div>
+    <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊞</span>Mesh Reach</div>
+
+    <div class="side-foot">Λ = Conjecture 1 · proved = 5<br>{F1,F11,F12,F18,F19}<br>SLSA Build L2 · doctrine v11<br>749/14/163 · kernel c7c0ba17</div>
+  </aside>
+
+  <main class="content" id="content"><div class="view-sub">loading…</div></main>
 </div>
+
 <script>
-const NS = "__NS__";
-const API = (p) => p.startsWith("/") ? p : "/" + p;
+const BASE = 'https://szlholdings-killinchu.hf.space';
+const API  = BASE + '/api/killinchu/v1';
 
-async function call(method, path, body){
-  const opt = {method, headers:{"Content-Type":"application/json"}};
-  if(body!==undefined) opt.body = JSON.stringify(body);
-  const t0 = performance.now();
-  const r = await fetch(API(path), opt);
-  const ms = (performance.now()-t0).toFixed(0);
-  let j; try{ j = await r.json(); }catch(e){ j = {error:"non-JSON response", status:r.status}; }
-  return {status:r.status, ms, json:j};
+async function getJSON(p){
+  const r = await fetch(p);
+  if(!r.ok) throw new Error('HTTP '+r.status+' '+p);
+  const ct = r.headers.get('content-type')||'';
+  if(ct.includes('text/html')) throw new Error('HTML fallback (route missing)');
+  return r.json();
 }
-function pj(o){ return JSON.stringify(o, null, 2); }
-function pill(v){
-  const c = ({ALLOW:"p-allow",HALT:"p-halt",REVIEW:"p-review",SUSPECT:"p-suspect",ENGAGE:"p-engage"})[(v||"").toUpperCase()]||"p-suspect";
-  return `<span class="pill ${c}">${v||"?"}</span>`;
+async function postJSON(p, b){
+  const r = await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
+  if(!r.ok) throw new Error('HTTP '+r.status+' '+p);
+  const ct = r.headers.get('content-type')||'';
+  if(ct.includes('text/html')) throw new Error('HTML fallback (route missing)');
+  return r.json();
 }
-function honest(t){ return `<div class="honest">${t}</div>`; }
-function ep(s){ return `<span class="ep">${s}</span>`; }
-async function showResult(el, res){
-  el.innerHTML = `<div class="muted" style="font-size:11px;margin-bottom:4px">HTTP ${res.status} · ${res.ms} ms</div><pre>${pj(res.json)}</pre>`;
+async function putJSON(p, b){
+  const r = await fetch(p,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function el(id){return document.getElementById(id);}
+function setOut(id,obj){const e=el(id);if(e)e.textContent=typeof obj==='string'?obj:JSON.stringify(obj,null,2);}
+
+const HONEST = `<div class="honesty"><b>Honesty.</b> Every panel reads a live killinchu endpoint — no mock data. Λ is <b>Conjecture 1</b>, never a theorem. Proved formulas = <b>5</b> {F1,F11,F12,F18,F19}. SLSA <b>Build L2</b> on all 5 organ images. No L3 / FedRAMP / Iron Bank / CMMC. Receipts are real DSSE (ECDSA-P256-SHA256, keyid szlholdings-cosign) when signed=true. Track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
+
+function verdictClass(v){
+  v = String(v||'').toUpperCase();
+  if(['ENGAGE','ALLOW','IN_ENVELOPE'].includes(v)) return 'b-live';
+  if(['HOLD','MONITOR','REVIEW','DEFER'].includes(v)) return 'b-warn';
+  if(['BREACH','DENY'].includes(v)) return 'b-err';
+  return 'b-teal';
 }
 
-/* ---- TAB DEFINITIONS: each renders into #main and wires REAL endpoints ---- */
-const TABS = [
- {id:"cop", n:"01", title:"Live Track Board / COP",
-  sub:"Active threat board + per-track history ring. The 3D battlespace common operating picture.",
-  eps:["GET /api/"+NS+"/v1/threats/active","GET /api/"+NS+"/v1/tracks/history"],
-  render(m){
-    m.innerHTML = head(this) +
-      `<div class="row"><button class="act" id="b1">Load active threats</button>
-       <button class="ghost" id="b2">Load track history</button></div>
-       <div id="board"></div><div id="out"></div>` +
-      honest("Telemetry is an unauthenticated broadcast CLAIM — not attested truth. Track history is in-memory (resets on Space restart).");
-    m.querySelector("#b1").onclick = async ()=>{
-      const r = await call("GET","/api/"+NS+"/v1/threats/active");
-      const t = r.json.threats||[];
-      m.querySelector("#board").innerHTML = t.length ? table(t,["track_id","model","status","latitude","longitude"]) :
-        `<div class="muted">No active threats on the board (honest IDLE).</div>`;
-      showResult(m.querySelector("#out"), r);
+// ===================== VIEWS =====================
+const VIEWS = {
+
+  // ── 3.1 Live Track Board / COP ──────────────────────────────────
+  tracks:{title:'Live Track Board',badge:'8 TRACKS · COP',sub:'Common Operating Picture — 8 live UAS tracks rendered from the adversary drone signature database. Simulated positions over real threat signatures from the curated DB. Not a live sensor feed.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Active threats</div><div class="v live" id="k-active">—</div><div class="d">above threat threshold</div></div>
+        <div class="kpi"><div class="k">Total tracks</div><div class="v" id="k-total">—</div><div class="d">in COP</div></div>
+        <div class="kpi"><div class="k">Λ gate</div><div class="v teal">Conjecture 1</div><div class="d">NOT a theorem</div></div>
+        <div class="kpi"><div class="k">Doctrine</div><div class="v teal">v11</div><div class="d">LOCKED</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Active Threats</span><span class="card-ep">GET /api/killinchu/v1/threats/active</span></div><div id="track-list"><div class="row mono dim">loading…</div></div></div>${HONEST}`;
+      try{
+        const d = await getJSON(API+'/threats/active');
+        el('k-active').textContent = d.active_threats ?? '—';
+        el('k-total').textContent = d.total_tracks ?? '—';
+        const h = el('track-list'); h.innerHTML='';
+        (d.threats||[]).forEach(t=>{
+          const vclass = verdictClass(t.roe_verdict||'—');
+          h.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge b-gold">${esc(t.track_id)}</span>
+            <span><b>${esc(t.model)}</b></span>
+            <span class="mono dim" style="font-size:11px">${esc(t.status)} · ${esc(t.group)}</span>
+            <span class="spacer mono dim" style="font-size:10px">${t.speed_m_s??'?'}m/s · ${t.altitude_m??'?'}m alt · ${esc(t.telemetry_source)}</span>
+          </div>`);
+        });
+        if(!d.threats?.length) h.innerHTML='<div class="row mono dim">no tracks</div>';
+      }catch(e){el('track-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+    }},
+
+  // ── 3.2 Sensor-Fusion Monitor ───────────────────────────────────
+  fusion:{title:'Sensor-Fusion Monitor',badge:'7 CLASSES',sub:'Live sensor class registry and weighted centroid fusion status. POST to /sensor-fusion/fuse to fuse a simulated multi-sensor report and produce a single consensus track.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Sensor Classes</span><span class="card-ep">GET /sensor-fusion/status</span></div><div id="sens-list"><div class="row mono dim">loading…</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Fuse a Track Report</span><span class="card-ep">POST /sensor-fusion/fuse</span></div>
+          <div class="btns"><button class="btn teal" onclick="fuse_demo()">▶ Fuse demo report</button></div>
+          <pre class="out" id="fuse-out">— click to fuse —</pre></div>
+      </div>${HONEST}`;
+      try{
+        const d = await getJSON(API+'/sensor-fusion/status');
+        const h = el('sens-list'); h.innerHTML='';
+        Object.entries(d.sensor_classes||{}).forEach(([k,v])=>{
+          h.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge b-teal">${esc(k)}</span>
+            <span>w=${v.weight} · FPR=${v.false_positive_rate}</span>
+            <span class="spacer mono dim">${v.range_m}m · ${v.latency_ms}ms</span>
+          </div>`);
+        });
+      }catch(e){el('sens-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+    }},
+
+  // ── 3.3 Multi-Track Prioritization ─────────────────────────────
+  prioritize:{title:'Multi-Track Prioritization',badge:'RANKED',sub:'POST 8 simulated tracks to /tracks/multi-prioritize. The Λ-gate threat ranker scores and ranks each track — highest threat score first. Λ is Conjecture 1; the ranking is advisory.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="btns"><button class="btn teal" onclick="prio_run()">▶ Prioritize 8 tracks</button></div>
+        <div class="card"><div class="card-h"><span class="card-t">Ranked Threats</span><span class="card-ep">POST /api/killinchu/v1/tracks/multi-prioritize</span></div><div id="prio-list"><div class="row mono dim">click to run</div></div></div>${HONEST}`;
+    }},
+
+  // ── 3.4 ROE Policy Editor ────────────────────────────────────────
+  roe:{title:'ROE Policy Editor',badge:'LIVE POLICY',sub:'Read the current Rules of Engagement policy, test a telemetry evaluation, or save an updated policy. All changes produce a signed DSSE receipt.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Current ROE Policy</span><span class="card-ep">GET /api/killinchu/v1/roe/policy</span></div><pre class="out" id="roe-pol">loading…</pre></div>
+        <div class="card"><div class="card-h"><span class="card-t">Evaluate Telemetry</span><span class="card-ep">POST /roe/evaluate</span></div>
+          <div class="btns"><button class="btn teal" onclick="roe_eval()">▶ Evaluate TRK-0001</button></div>
+          <pre class="out" id="roe-out">— click to evaluate —</pre></div>
+      </div>${HONEST}`;
+      try{setOut('roe-pol', await getJSON(API+'/roe/policy'));}catch(e){setOut('roe-pol','retry: '+e.message);}
+    }},
+
+  // ── 3.5 Engagement Audit Log ─────────────────────────────────────
+  audit:{title:'Engagement Audit Log',badge:'SIGNED CHAIN',sub:'Every engagement decision is DSSE-signed and hash-chained into the Khipu DAG. In-memory on the live Space (resets on restart). Record a new engagement below.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Audit records</div><div class="v" id="k-audit">—</div><div class="d">since last restart</div></div>
+        <div class="kpi"><div class="k">Signing</div><div class="v teal">ECDSA-P256</div><div class="d">DSSE real</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Audit Log</span><span class="card-ep">GET /api/killinchu/v1/engagements/audit-log</span></div><div id="audit-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Record an Engagement</span><span class="card-ep">POST /engagements/record</span></div>
+        <div class="btns"><button class="btn teal" onclick="audit_record()">▶ Record demo engagement</button></div>
+        <pre class="out" id="audit-out">— click to record —</pre></div>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(API+'/engagements/audit-log?limit=50');
+        el('k-audit').textContent = d.total ?? 0;
+        const h = el('audit-list'); h.innerHTML='';
+        if(!d.records?.length){h.innerHTML='<div class="row mono dim">0 records (in-memory, resets on Space restart)</div>';return;}
+        d.records.forEach(r=>{
+          h.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${verdictClass(r.verdict)}">${esc(r.verdict)}</span>
+            <span>${esc(r.track_id)}</span>
+            <span class="mono dim" style="font-size:10px">${esc(r.effector)}</span>
+            <span class="spacer mono dim">${esc(r.timestamp?.slice(0,19))} · Λ=${r.lambda_at_decision}</span>
+          </div>`);
+        });
+      }catch(e){el('audit-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+    }},
+
+  // ── 3.6 DSSE Receipt Verifier ────────────────────────────────────
+  dsse:{title:'DSSE Receipt Verifier',badge:'REAL DSSE',sub:'The Khipu ledger: every receipt is ECDSA-P256-SHA256 signed, hash-chained into the DAG. Emit a new receipt, or fetch the full JSONL export to verify yourself with cosign verify-blob.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Ledger nodes</div><div class="v" id="k-receipts">—</div><div class="d">Khipu DAG</div></div>
+        <div class="kpi"><div class="k">Signing</div><div class="v teal">ECDSA-P256</div><div class="d">keyid szlholdings-cosign</div></div>
+        <div class="kpi"><div class="k">Public key</div><div class="v teal">/cosign.pub</div><div class="d">verify offline</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Receipt Ledger (last 25)</span><span class="card-ep">GET /api/killinchu/v1/receipt/ledger</span></div><div id="ledger-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Emit a Receipt</span><span class="card-ep">POST /receipt/emit</span></div>
+          <div class="btns"><button class="btn teal" onclick="dsse_emit()">▶ Emit demo receipt</button></div>
+          <pre class="out" id="dsse-emit-out">— click to emit —</pre></div>
+        <div class="card"><div class="card-h"><span class="card-t">Verify It Yourself</span><span class="card-ep">GET /cosign.pub · GET /receipt/export</span></div>
+          <div class="btns"><button class="btn" onclick="dsse_pub()">⤓ Fetch cosign.pub</button><button class="btn" onclick="dsse_export()">⤓ Fetch receipt export</button></div>
+          <pre class="out" id="dsse-verify-out">— fetch public key or export —</pre></div>
+      </div>${HONEST}`;
+      try{
+        const d = await getJSON(API+'/receipt/ledger?limit=25');
+        el('k-receipts').textContent = d.count ?? '—';
+        const h = el('ledger-list'); h.innerHTML='';
+        (d.nodes||[]).slice().reverse().forEach(n=>{
+          h.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${n.signed?'b-live':'b-err'}">${n.signed?'SIGNED':'UNSIGNED'}</span>
+            <span class="mono" style="font-size:11px">${esc(n.receipt?.kind||'—')}</span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(n.digest?.slice(0,16))}… · idx=${n.index}</span>
+          </div>`);
+        });
+        if(!(d.nodes?.length)) h.innerHTML='<div class="row mono dim">empty ledger (resets on restart)</div>';
+      }catch(e){el('ledger-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+    }},
+
+  // ── 3.7 13-Axis Λ Monitor ───────────────────────────────────────
+  lambda:{title:'13-Axis Λ Monitor',badge:'Λ = CONJECTURE 1',sub:'13 trust axes form the geometric-mean Λ score. Floor = 0.90. Below floor → REVIEW (human required). Λ is Conjecture 1, NOT a theorem; the 5 proved formulas are F1, F11, F12, F18, F19.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="btns"><button class="btn teal" onclick="lambda_run(false)">▶ Healthy Λ (all axes high)</button><button class="btn" onclick="lambda_run(true)">⊘ Breach (low speed+remote_id)</button></div>
+        <div class="kpis" id="lambda-kpis">
+          <div class="kpi"><div class="k">Λ score</div><div class="v" id="k-lambda">—</div><div class="d">geometric mean / 13 axes</div></div>
+          <div class="kpi"><div class="k">Floor</div><div class="v teal">0.90</div><div class="d">Λ &lt; floor → REVIEW</div></div>
+          <div class="kpi"><div class="k">Decision</div><div class="v" id="k-dec">—</div><div class="d">advisory only</div></div>
+          <div class="kpi"><div class="k">Λ status</div><div class="v warn">Conjecture 1</div><div class="d">NOT a theorem</div></div>
+        </div>
+        <div class="card"><div class="card-h"><span class="card-t">Axis Scores</span><span class="card-ep">POST /api/killinchu/v1/counter-uas/evaluate</span></div><div id="lambda-axes"><div class="row mono dim">click to evaluate</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Signed Receipt</span></div><pre class="out" id="lambda-receipt">—</pre></div>
+        ${HONEST}`;
+    }},
+
+  // ── 3.8 3-of-4 BFT Quorum ───────────────────────────────────────
+  bft:{title:'3-of-4 BFT Quorum',badge:'3-OF-4',sub:'Byzantine Fault Tolerant quorum: 3 of 4 organs (sentra, amaru, a11oy, killinchu) must concur before a mission executes. Shows live health and consensus verification.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis" id="bft-kpis">
+        <div class="kpi"><div class="k">Quorum status</div><div class="v" id="k-quorum">—</div><div class="d">3-of-4 required</div></div>
+        <div class="kpi"><div class="k">Signing key</div><div class="v teal">cosign</div><div class="d">ECDSA-P256-SHA256</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Organ Reachability</span><span class="card-ep">GET /api/killinchu/uds/v1/healthz</span></div><div id="bft-organs"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Execute Mission (BFT)</span><span class="card-ep">POST /uds/v1/mission/execute</span></div>
+        <div class="btns"><button class="btn teal" onclick="bft_exec()">▶ Execute demo mission</button></div>
+        <pre class="out" id="bft-exec-out">— click to execute —</pre></div>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(BASE+'/api/killinchu/uds/v1/healthz');
+        el('k-quorum').textContent = d.quorum_possible ? 'POSSIBLE' : 'DEGRADED';
+        el('k-quorum').className = 'v '+(d.quorum_possible?'live':'warn');
+        const h = el('bft-organs'); h.innerHTML='';
+        Object.entries(d.organs||{}).forEach(([name,o])=>{
+          const ok = o.status==='ok';
+          h.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${ok?'b-live':'b-warn'}">${esc(o.status?.toUpperCase())}</span>
+            <span>${esc(name)}</span>
+            <span class="spacer mono dim">${o.local?'local':''} ${o.http?'HTTP '+o.http:''} ${o.latency_ms?Math.round(o.latency_ms)+'ms':''}</span>
+          </div>`);
+        });
+      }catch(e){el('bft-organs').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+    }},
+
+  // ── Beyond / Autonomy ───────────────────────────────────────────
+  beyond:{title:'Beyond / Autonomy',badge:'MAN-ON-THE-LOOP',sub:'Evaluate an autonomous system action against the governance envelope. ALLOW / BREACH / IN_ENVELOPE verdict + DSSE-signed receipt. The same Λ-gate governs counter-UAS, ground robots, USVs — any autonomous system. Includes HOTL (human-on-the-loop) register and verify-it-yourself flow.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Governance</div><div class="v teal">WARHACKER P1</div><div class="d">Cannonico signed oversight</div></div>
+        <div class="kpi"><div class="k">Λ floor</div><div class="v">0.90</div><div class="d">below → BREACH</div></div>
+        <div class="kpi"><div class="k">Receipt</div><div class="v teal">DSSE REAL</div><div class="d">ECDSA-P256</div></div>
+        <div class="kpi"><div class="k">Λ status</div><div class="v warn">Conjecture 1</div><div class="d">NOT a theorem</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">System Types</span><span class="card-ep">GET /api/killinchu/v1/autonomy/system-types</span></div><div id="sysTypes"><div class="row mono dim">loading…</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">HOTL Register</span><span class="card-ep">GET /api/killinchu/v1/hotl/register</span></div><div id="hotlReg"><div class="row mono dim">loading…</div></div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Evaluate Autonomous Action</span><span class="card-ep">POST /api/killinchu/v1/autonomy/evaluate</span></div>
+        <div class="btns">
+          <button class="btn teal" onclick="beyond_eval('counter-uas',false)">▶ Counter-UAS IN_ENVELOPE</button>
+          <button class="btn" onclick="beyond_eval('loitering_munition',true)">⊘ Loitering Munition BREACH</button>
+        </div>
+        <pre class="out" id="beyond-out">— click to evaluate —</pre></div>
+      <div class="card"><div class="card-h"><span class="card-t">Verify It Yourself</span><span class="card-ep">GET /cosign.pub · GET /api/killinchu/v1/receipt/export</span></div>
+        <div class="btns">
+          <button class="btn" onclick="beyond_pubkey()">⤓ cosign.pub</button>
+          <button class="btn" onclick="beyond_export()">⤓ receipt export</button>
+        </div>
+        <pre class="out" id="beyond-verify-out">Verify receipts offline:
+# 1. Save public key
+curl -s https://szlholdings-killinchu.hf.space/cosign.pub -o cosign.pub
+# 2. Fetch export
+curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/receipt/export -o receipt.json
+# 3. Verify
+cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
+      ${HONEST}`;
+      // Load system types
+      try{
+        const d = await getJSON(API+'/autonomy/system-types');
+        const h = el('sysTypes'); h.innerHTML='';
+        Object.entries(d.system_types||{}).forEach(([k,v])=>{
+          h.insertAdjacentHTML('beforeend',`<div class="row"><span class="badge b-teal">${esc(k)}</span><span>${esc(v.label)}</span></div>`);
+        });
+      }catch(e){el('sysTypes').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      // Load HOTL register
+      try{
+        const d = await getJSON(API+'/hotl/register');
+        const h = el('hotlReg'); h.innerHTML='';
+        h.insertAdjacentHTML('beforeend',`<div class="row"><span>Active operators</span><span class="spacer badge b-gold">${d.active_count??0}</span></div>`);
+        h.insertAdjacentHTML('beforeend',`<div class="row mono dim" style="font-size:11px">${esc(d.honesty||'')}</div>`);
+      }catch(e){el('hotlReg').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+    }},
+
+  // ── 3.9 PQC Hybrid Signing ──────────────────────────────────────
+  pqc:{title:'PQC Hybrid Signing',badge:'ML-DSA-65 + ECDSA',sub:'Post-Quantum Cryptography: sign a track decision with ECDSA-P256, ML-DSA-65, or both (hybrid). The hybrid mode produces two signatures — one classical, one quantum-resistant. Per-process keys reset on restart (honest).',
+    render:async(c)=>{
+      c.innerHTML=`<div class="btns">
+        <button class="btn teal" onclick="pqc_sign('ecdsa')">▶ ECDSA-P256 sign</button>
+        <button class="btn" onclick="pqc_sign('pqc')">▶ ML-DSA-65 sign</button>
+        <button class="btn" onclick="pqc_sign('hybrid')">▶ Hybrid (both)</button>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Signature Result</span><span class="card-ep">POST /khipu/sign?mode=ecdsa|pqc|hybrid</span></div><pre class="out" id="pqc-out">— click a sign mode —</pre></div>
+      ${HONEST}`;
+    }},
+
+  // ── 3.10 Protocol Decoders ──────────────────────────────────────
+  decoders:{title:'Protocol Decoders',badge:'3 PROTOCOLS',sub:'Decode Remote ID (OpenDroneID / ASTM F3411-22a), ADS-B Mode-S 1090ES, and MAVLink hex frames. All fields are unauthenticated broadcast claims — decoded for analysis only.',
+    render:(c)=>{
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Remote ID Decoder</span><span class="card-ep">POST /api/killinchu/v1/remote-id/decode</span></div>
+        <div class="form-row"><label>Hex frame</label><input id="rid-hex" value="0D1A2B3C4D5E6F708192A3B4C5D6E7F8091A2B3C4D5E6F7081"/></div>
+        <div class="btns"><button class="btn teal" onclick="decode_rid()">▶ Decode</button></div>
+        <pre class="out" id="rid-out">—</pre></div>
+      <div class="card"><div class="card-h"><span class="card-t">ADS-B Decoder</span><span class="card-ep">POST /api/killinchu/v1/ads-b/decode</span></div>
+        <div class="form-row"><label>Hex frame</label><input id="adsb-hex" value="8D4840D6202CC371C32CE0576098"/></div>
+        <div class="btns"><button class="btn teal" onclick="decode_adsb()">▶ Decode</button></div>
+        <pre class="out" id="adsb-out">—</pre></div>
+      <div class="card"><div class="card-h"><span class="card-t">MAVLink Parser</span><span class="card-ep">POST /api/killinchu/v1/mavlink/parse</span></div>
+        <div class="form-row"><label>Hex frame</label><input id="mav-hex" value="fd0900004200043b000000000000000000000000b4"/></div>
+        <div class="btns"><button class="btn teal" onclick="decode_mav()">▶ Parse</button></div>
+        <pre class="out" id="mav-out">—</pre></div>
+      ${HONEST}`;
+    }},
+
+  // ── 3.11 Geofence Zone Editor ───────────────────────────────────
+  geofence:{title:'Geofence Zone Editor',badge:'8 ZONES',sub:'FAA TFR, airport 5NM rings, National Park no-fly — read live from the geofence registry. Check whether a given lat/lon/alt is inside a restricted zone.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Active Zones</span><span class="card-ep">GET /api/killinchu/v2/geofence/zones</span></div><div id="geo-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Check Position</span><span class="card-ep">POST /api/killinchu/v2/geofence/check</span></div>
+        <div class="grid2" style="margin-bottom:.8rem">
+          <div class="form-row"><label>Latitude</label><input id="geo-lat" value="38.8977"/></div>
+          <div class="form-row"><label>Longitude</label><input id="geo-lon" value="-77.0365"/></div>
+          <div class="form-row"><label>Alt (ft)</label><input id="geo-alt" value="200"/></div>
+        </div>
+        <div class="btns"><button class="btn teal" onclick="geo_check()">▶ Check position</button></div>
+        <pre class="out" id="geo-out">—</pre></div>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(BASE+'/api/killinchu/v2/geofence/zones');
+        const h = el('geo-list'); h.innerHTML='';
+        (d.zones||[]).forEach(z=>{
+          h.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge b-err">${esc(z.type)}</span>
+            <span>${esc(z.zone)}</span>
+            <span class="spacer mono dim">${z.lat?.toFixed(4)}, ${z.lon?.toFixed(4)} · ${z.radius_nm??'?'}nm</span>
+          </div>`);
+        });
+      }catch(e){el('geo-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+    }},
+
+  // ── 3.12 Swarm Topology ─────────────────────────────────────────
+  swarm:{title:'Swarm Topology',badge:'CLUSTER DETECT',sub:'GET the live swarm topology (pre-computed Shahed + FPV swarms). POST custom broadcasts to run Union-Find connected-component clustering over haversine proximity graph.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Swarms detected</div><div class="v live" id="k-swarms">—</div><div class="d">connected clusters</div></div>
+        <div class="kpi"><div class="k">Broadcasts</div><div class="v" id="k-nodes">—</div><div class="d">total nodes</div></div>
+        <div class="kpi"><div class="k">Algorithm</div><div class="v teal">Union-Find</div><div class="d">haversine proximity</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Live Swarm Clusters</span><span class="card-ep">GET /api/killinchu/v1/swarm/topology</span></div><div id="swarm-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Custom Cluster Analysis</span><span class="card-ep">POST /api/killinchu/v1/swarm/topology</span></div>
+        <div class="btns"><button class="btn teal" onclick="swarm_post()">▶ Run 4-node custom swarm</button></div>
+        <pre class="out" id="swarm-post-out">—</pre></div>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(API+'/swarm/topology');
+        el('k-swarms').textContent = d.swarms_detected ?? '—';
+        el('k-nodes').textContent = d.broadcast_count ?? '—';
+        const h = el('swarm-list'); h.innerHTML='';
+        (d.clusters||[]).forEach(cl=>{
+          h.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge b-teal">Cluster ${cl.cluster_id}</span>
+            <span>${esc(cl.classification)}</span>
+            <span class="mono dim" style="font-size:11px">${cl.size} nodes</span>
+            <span class="spacer mono dim" style="font-size:10px">${(cl.members||[]).map(m=>esc(m.model)).join(', ')}</span>
+          </div>`);
+        });
+      }catch(e){el('swarm-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+    }},
+
+  // ── 3.13 Threat Classification DB ──────────────────────────────
+  threats:{title:'Threat Classification DB',badge:'53 ENTRIES',sub:'Live threat signature database: 53 UAS entries spanning adversary, allied, dual-use, and C-UAS roles. Click a drone ID to see full specs and countermeasures.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">DB entries</div><div class="v live" id="k-db">—</div></div>
+        <div class="kpi"><div class="k">Adversary</div><div class="v err" id="k-adv">—</div></div>
+        <div class="kpi"><div class="k">Allied</div><div class="v live" id="k-all">—</div></div>
+        <div class="kpi"><div class="k">Dual-use</div><div class="v warn" id="k-dual">—</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Drone Database</span><span class="card-ep">GET /api/killinchu/v1/drones/database</span></div><div id="drone-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Drone Detail</span><span class="card-ep">GET /api/killinchu/v1/drones/{id}</span></div>
+        <div class="form-row"><label>Drone ID</label><input id="drone-id" value="shahed136"/></div>
+        <div class="btns"><button class="btn teal" onclick="drone_detail()">▶ Fetch detail</button></div>
+        <pre class="out" id="drone-out">—</pre></div>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(API+'/drones/database');
+        el('k-db').textContent = d.count ?? '—';
+        let adv=0,all=0,dual=0;
+        (d.drones||[]).forEach(dr=>{
+          if(dr.side==='adversary')adv++;
+          else if(dr.side==='allied')all++;
+          else if(dr.side==='dual-use')dual++;
+        });
+        el('k-adv').textContent=adv; el('k-all').textContent=all; el('k-dual').textContent=dual;
+        const h = el('drone-list'); h.innerHTML='';
+        (d.drones||[]).slice(0,30).forEach(dr=>{
+          const sc = dr.side==='adversary'?'b-err':dr.side==='allied'?'b-live':'b-warn';
+          h.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${sc}">${esc(dr.side)}</span>
+            <span><b>${esc(dr.model)}</b></span>
+            <span class="mono dim" style="font-size:11px">${esc(dr.group)}</span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(dr.country)} · ${esc(dr.role)}</span>
+          </div>`);
+        });
+        if(d.count>30) h.insertAdjacentHTML('beforeend',`<div class="row mono dim">…${d.count-30} more entries in DB</div>`);
+      }catch(e){el('drone-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+    }},
+
+  // ── 3.14 Cross-Flagship ─────────────────────────────────────────
+  cross:{title:'Cross-Flagship Borrowed Powers',badge:'4 ORGANS',sub:'killinchu borrows capabilities from each SZL flagship: DSSE receipt substrate from a11oy, immune gates from sentra, reasoning cortex from amaru, HITL operator surface from rosie. Real live data.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Borrowed Powers</span><span class="card-ep">GET /api/killinchu/v1/borrowed-powers</span></div><div id="bp-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">vs. the Field</span></div>
+        <div class="row"><span class="badge b-err">Anduril</span><span>Lattice C2 + Sentry/Anvil/Roadrunner — detect, track, defeat ($20B+ contracts)</span><span class="spacer badge b-warn">no signed receipt</span></div>
+        <div class="row"><span class="badge b-err">Dedrone/Axon</span><span>RF+radar+video multi-sensor, ~300 drone signatures, forensic reports</span><span class="spacer badge b-warn">no signed receipt</span></div>
+        <div class="row"><span class="badge b-err">DZYNE</span><span>Dronebuster 4 jammer, DTI 7+km detection, 2500+ units in 50+ countries</span><span class="spacer badge b-warn">no signed receipt</span></div>
+        <div class="row"><span class="badge b-err">Fortem</span><span>SkyDome TrueView radar + DroneHunter autonomous interceptor, ~5000 captures</span><span class="spacer badge b-warn">no signed receipt</span></div>
+        <div class="row"><span class="badge b-live">killinchu</span><span>Governance middleware: signed per-engagement receipt, Λ-gate, BFT quorum, man-on-the-loop — on top of existing C-UAS systems</span><span class="spacer badge b-teal">our twist</span></div>
+        <div class="honesty" style="margin-top:.8rem"><b>Honest gap.</b> killinchu has no sensors, no effectors, no deployed hardware. It only adds value plugged into an existing C-UAS system. The four leaders above are production-deployed at scale; killinchu is software governance middleware. Our one defensible differentiator: <b>cryptographically signed, tamper-evident receipt per autonomous engagement decision</b> — independently verifiable, replayable without our infrastructure. None of the four leaders ship this.</div>
+      </div>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(API+'/borrowed-powers');
+        const h = el('bp-list'); h.innerHTML='';
+        (d.borrowed_powers||[]).forEach(p=>{
+          h.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge b-teal">${esc(p.flagship)}</span>
+            <span><b>${esc(p.role)}</b></span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(p.borrowed_anatomy)}</span>
+          </div>`);
+          (p.live_endpoints||[]).forEach(ep=>{
+            h.insertAdjacentHTML('beforeend',`<div class="row" style="padding-left:1.5rem"><span class="badge b-live" style="font-size:9px">EP</span><span class="mono dim" style="font-size:11px">${esc(ep)}</span></div>`);
+          });
+        });
+      }catch(e){el('bp-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+    }},
+
+  // ── Mesh Reach ──────────────────────────────────────────────────
+  mesh:{title:'Mesh Reach',badge:'5 ORGANS',sub:'Live per-organ reachability: killinchu probes the SZL mesh state and borrowed-powers wires. An unreachable organ is shown honestly — never faked green.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="btns"><button class="btn teal" onclick="mesh_load()">▶ Probe mesh state</button></div>
+        <div id="mesh-host"><div class="row mono dim">loading…</div></div>
+        <div class="card" style="margin-top:1rem"><div class="card-h"><span class="card-t">Mesh Wires</span><span class="card-ep">GET /api/killinchu/v1/mesh/state</span></div><pre class="out" id="mesh-raw">—</pre></div>
+        ${HONEST}`;
+      mesh_load();
+    }},
+};
+
+// ===================== HANDLERS =====================
+
+async function fuse_demo(){
+  try{
+    setOut('fuse-out','fusing…');
+    const d = await postJSON(API+'/sensor-fusion/fuse',{
+      track_id:'TRK-DEMO-01',
+      sensor_reports:[
+        {sensor_id:'RF-01',sensor_class:'RF_DETECT',lat:47.85,lon:35.10,alt_m:1500,speed_m_s:51.4,confidence:0.88},
+        {sensor_id:'RADAR-01',sensor_class:'RADAR',lat:47.851,lon:35.101,alt_m:1498,speed_m_s:51.2,confidence:0.95},
+        {sensor_id:'EO-01',sensor_class:'EO_IR',lat:47.849,lon:35.099,alt_m:1502,speed_m_s:51.5,confidence:0.82}
+      ]
+    });
+    setOut('fuse-out',d);
+  }catch(e){setOut('fuse-out','retry: '+e.message);}
+}
+
+async function prio_run(){
+  const el_list = el('prio-list');
+  el_list.innerHTML='<div class="row mono dim">running…</div>';
+  try{
+    const d = await postJSON(API+'/tracks/multi-prioritize',{
+      tracks:[
+        {track_id:'TRK-0001',model:'Shahed-136',status:'airborne',lat:47.85,lon:35.10,alt_m:1500,speed_m_s:51.4},
+        {track_id:'TRK-0002',model:'Shahed-136',status:'airborne',lat:47.86,lon:35.12,alt_m:1450,speed_m_s:50.0},
+        {track_id:'TRK-0003',model:'Lancet-3',status:'airborne',lat:47.40,lon:36.20,alt_m:800,speed_m_s:30.5},
+        {track_id:'TRK-0004',model:'Orlan-10',status:'airborne',lat:48.10,lon:37.50,alt_m:3000,speed_m_s:41.6},
+        {track_id:'TRK-0005',model:'Bayraktar TB2',status:'airborne',lat:47.10,lon:35.80,alt_m:6000,speed_m_s:61.7},
+        {track_id:'TRK-0006',model:'DJI Mavic 3',status:'airborne',lat:47.91,lon:35.05,alt_m:120,speed_m_s:15.0},
+        {track_id:'TRK-0007',model:'Wing Loong II',status:'airborne',lat:46.50,lon:34.20,alt_m:8000,speed_m_s:102.7},
+        {track_id:'TRK-0008',model:'FPV 7in quad',status:'airborne',lat:47.88,lon:35.08,alt_m:60,speed_m_s:41.6}
+      ]
+    });
+    el_list.innerHTML='';
+    (d.ranked_threats||[]).forEach(t=>{
+      el_list.insertAdjacentHTML('beforeend',`<div class="row">
+        <span class="badge b-gold">#${t.rank}</span>
+        <span>${esc(t.track_id)} · <b>${esc(t.model)}</b></span>
+        <span class="mono dim" style="font-size:11px">score=${t.threat_score?.toFixed(1)??'?'}</span>
+        <span class="spacer badge ${verdictClass(t.roe_verdict)}">${esc(t.roe_verdict)}</span>
+      </div>`);
+    });
+    if(!d.ranked_threats?.length) el_list.innerHTML='<pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre>';
+  }catch(e){el_list.innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+}
+
+async function roe_eval(){
+  try{
+    setOut('roe-out','evaluating…');
+    const d = await postJSON(API+'/roe/evaluate',{
+      telemetry:{track_id:'TRK-0001',classification:'Shahed-136',speed_m_s:51.4,altitude_m:1500,latitude:47.85,longitude:35.10}
+    });
+    setOut('roe-out',d);
+  }catch(e){setOut('roe-out','retry: '+e.message);}
+}
+
+async function audit_record(){
+  try{
+    setOut('audit-out','recording…');
+    const d = await postJSON(API+'/engagements/record',{
+      track_id:'TRK-0001',verdict:'HOLD',effector:'EW_JAM',operator_id:'OP-DEMO',
+      lambda_at_decision:0.88,notes:'Demo engagement record via killinchu elite app'
+    });
+    setOut('audit-out',d);
+    // Refresh audit log count
+    const r = await getJSON(API+'/engagements/audit-log?limit=50');
+    if(el('k-audit')) el('k-audit').textContent = r.total ?? 0;
+  }catch(e){setOut('audit-out','retry: '+e.message);}
+}
+
+async function dsse_emit(){
+  try{
+    setOut('dsse-emit-out','emitting…');
+    const d = await postJSON(API+'/receipt/emit',{
+      kind:'test_emit',payload:{note:'emitted from killinchu elite app',ts:new Date().toISOString()}
+    });
+    setOut('dsse-emit-out',d);
+  }catch(e){setOut('dsse-emit-out','retry: '+e.message);}
+}
+
+async function dsse_pub(){
+  try{
+    const r = await fetch(BASE+'/cosign.pub');
+    const t = await r.text();
+    setOut('dsse-verify-out',t);
+  }catch(e){setOut('dsse-verify-out','retry: '+e.message);}
+}
+
+async function dsse_export(){
+  try{
+    setOut('dsse-verify-out','fetching…');
+    const d = await getJSON(API+'/receipt/export');
+    setOut('dsse-verify-out',d);
+  }catch(e){setOut('dsse-verify-out','retry: '+e.message);}
+}
+
+async function lambda_run(breach){
+  const axesOk = {soundness:0.93,calibration:0.91,robustness:0.94,provenance:0.90,
+    consent:0.92,reversibility:0.91,transparency:0.93,fairness:0.90,
+    containment:0.95,attestation:0.92,freshness:0.94,authority:0.91,auditability:0.93};
+  const axesBreach = {...axesOk, soundness:0.0, calibration:0.0};
+  const scores = Object.values(breach?axesBreach:axesOk);
+  try{
+    const d = await postJSON(API+'/counter-uas/evaluate',{
+      telemetry:{latitude:47.85,longitude:35.10,ground_speed_m_s:breach?51.4:25.0,side:'N',remote_id_present:!breach},
+      geofence:{center_lat:47.0,center_lon:35.0,radius_m:50000},
+      policy:{max_speed_m_s:30.0,require_remote_id:true,allow_sides:['N','S']},
+      axis_scores: scores
+    });
+    if(el('k-lambda')) el('k-lambda').textContent = d.lambda?.toFixed(4)??'—';
+    if(el('k-dec')){
+      el('k-dec').textContent = d.decision??'—';
+      el('k-dec').className = 'v '+(d.lambda_pass?'live':'warn');
+    }
+    const h = el('lambda-axes'); h.innerHTML='';
+    Object.entries(d.axis_scores||{}).forEach(([ax,val])=>{
+      const ok = val >= 0.90;
+      h.insertAdjacentHTML('beforeend',`<div class="row">
+        <span class="badge ${ok?'b-live':'b-err'}">${ok?'OK':'LOW'}</span>
+        <span>${esc(ax)}</span>
+        <span class="spacer mono" style="font-size:11px">${val}</span>
+      </div>`);
+    });
+    setOut('lambda-receipt', d.lambda_receipt||d);
+  }catch(e){
+    if(el('lambda-axes')) el('lambda-axes').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';
+  }
+}
+
+async function beyond_eval(sysType, breach){
+  try{
+    setOut('beyond-out','evaluating…');
+    const axes = breach
+      ? [0.0, 0.0, 0.94, 0.90, 0.92, 0.91, 0.93, 0.90, 0.95, 0.92, 0.94, 0.91, 0.93]
+      : [0.93, 0.91, 0.94, 0.90, 0.92, 0.91, 0.93, 0.90, 0.95, 0.92, 0.94, 0.91, 0.93];
+    const d = await postJSON(API+'/autonomy/evaluate',{
+      system_type: sysType,
+      context:{track_id:'TRK-0001',threat_score:breach?0.95:0.3},
+      axes: ['soundness','calibration','robustness','provenance','consent','reversibility',
+             'transparency','fairness','containment','attestation','freshness','authority','auditability']
+    });
+    setOut('beyond-out',d);
+  }catch(e){setOut('beyond-out','retry: '+e.message);}
+}
+
+async function beyond_pubkey(){
+  try{
+    const r = await fetch(BASE+'/cosign.pub');
+    const t = await r.text();
+    setOut('beyond-verify-out',t);
+  }catch(e){setOut('beyond-verify-out','retry: '+e.message);}
+}
+
+async function beyond_export(){
+  try{
+    setOut('beyond-verify-out','fetching…');
+    const d = await getJSON(API+'/receipt/export');
+    setOut('beyond-verify-out',d);
+  }catch(e){setOut('beyond-verify-out','retry: '+e.message);}
+}
+
+async function bft_exec(){
+  try{
+    setOut('bft-exec-out','executing…');
+    const hash = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const d = await postJSON(BASE+'/api/killinchu/uds/v1/mission/execute',{
+      action_hash: hash,
+      context:{intent:'counter-uas interdiction demo',track_id:'TRK-0001',effector:'EW_JAM'}
+    });
+    setOut('bft-exec-out',d);
+  }catch(e){setOut('bft-exec-out','retry: '+e.message);}
+}
+
+async function pqc_sign(mode){
+  try{
+    setOut('pqc-out','signing…');
+    const d = await postJSON(BASE+'/khipu/sign?mode='+mode,{
+      payload:{track_id:'TRK-0001',decision:'HOLD',ts:new Date().toISOString()}
+    });
+    // Summarize for display
+    const summary = {
+      mode: d.mode,
+      sig_types: d.sig_types,
+      verified: d.verified,
+      disclosure: d.disclosure,
+      signatures: (d.envelope?.signatures||[]).map(s=>({keyid:s.keyid,sig_type:s.sig_type,sig_preview:s.sig?.slice(0,32)+'…'}))
     };
-    m.querySelector("#b2").onclick = async ()=> showResult(m.querySelector("#out"), await call("GET","/api/"+NS+"/v1/tracks/history?limit=50"));
-  }},
-
- {id:"fusion", n:"02", title:"Sensor-Fusion Monitor",
-  sub:"Per-sensor-class weights/health + live multi-sensor weighted-centroid fusion with a DSSE receipt.",
-  eps:["GET /api/"+NS+"/v1/sensor-fusion/status","POST /api/"+NS+"/v1/sensor-fusion/fuse"],
-  render(m){
-    const demo = {track_id:"TRK-SHAHED-001",sensor_reports:[
-      {sensor_id:"RADAR-SW-1",sensor_class:"RADAR",lat:47.851,lon:35.102,alt_m:1500,speed_m_s:51.4,confidence:0.95},
-      {sensor_id:"RF-1",sensor_class:"RF_DETECT",lat:47.8509,lon:35.1019,alt_m:1499,speed_m_s:51.3,confidence:0.88},
-      {sensor_id:"EOIR-1",sensor_class:"EO_IR",lat:47.8511,lon:35.1021,alt_m:1500,speed_m_s:51.5,confidence:0.82}]};
-    m.innerHTML = head(this) +
-      `<div class="row"><button class="act" id="b1">Sensor status</button>
-       <button class="act" id="b2">Fuse 3 sensors (demo)</button></div>
-       <label>Fusion request body</label><textarea id="body">${pj(demo)}</textarea>
-       <div id="out"></div>` +
-      honest("Weighted centroid is a first-order fusion. Kalman trajectory smoothing is at POST /api/"+NS+"/v1/edge/track-smooth.");
-    m.querySelector("#b1").onclick = async ()=> showResult(m.querySelector("#out"), await call("GET","/api/"+NS+"/v1/sensor-fusion/status"));
-    m.querySelector("#b2").onclick = async ()=> showResult(m.querySelector("#out"), await call("POST","/api/"+NS+"/v1/sensor-fusion/fuse", JSON.parse(m.querySelector("#body").value)));
-  }},
-
- {id:"queue", n:"03", title:"Multi-Track Threat Prioritization",
-  sub:"Ranked engagement queue: classification(40%)+speed(25%)+altitude(20%)+proximity(15%). Each ranking is receipted.",
-  eps:["POST /api/"+NS+"/v1/tracks/multi-prioritize"],
-  render(m){
-    const demo = {tracks:[
-      {track_id:"TRK-001",model:"FPV Quad",status:"STRIKE-RUN",lat:47.85,lon:35.10,alt_m:60,speed_m_s:38},
-      {track_id:"TRK-002",model:"Shahed-136",status:"INBOUND",lat:47.86,lon:35.12,alt_m:1500,speed_m_s:51},
-      {track_id:"TRK-003",model:"Orlan-10",status:"ISR",lat:47.90,lon:35.20,alt_m:3000,speed_m_s:30}]};
-    m.innerHTML = head(this) +
-      `<label>Tracks</label><textarea id="body">${pj(demo)}</textarea>
-       <div class="row"><button class="act" id="b1">Prioritize</button></div>
-       <div id="rank"></div><div id="out"></div>`;
-    m.querySelector("#b1").onclick = async ()=>{
-      const r = await call("POST","/api/"+NS+"/v1/tracks/multi-prioritize", JSON.parse(m.querySelector("#body").value));
-      const rows = (r.json.ranked_threats||[]).map(x=>({rank:x.rank,track_id:x.track_id,model:x.model,status:x.status,threat_score:x.threat_score,roe:x.roe_verdict}));
-      m.querySelector("#rank").innerHTML = rows.length ? table(rows,["rank","track_id","model","status","threat_score","roe"]) : "";
-      showResult(m.querySelector("#out"), r);
-    };
-  }},
-
- {id:"roe", n:"04", title:"ROE Policy Editor + Per-frame Evaluate",
-  sub:"sentra's policy-immune-response, applied as Rules-of-Engagement. Edit policy (receipted) + evaluate a frame.",
-  eps:["GET /api/"+NS+"/v1/roe/policy","PUT /api/"+NS+"/v1/roe/policy","POST /api/"+NS+"/v1/roe/evaluate"],
-  render(m){
-    const evalDemo = {telemetry:{track_id:"TRK-002",classification:"HOSTILE",speed_m_s:110,altitude_m:1500,latitude:47.86,longitude:35.12}};
-    m.innerHTML = head(this) +
-      `<div class="row"><button class="act" id="b1">Load policy</button>
-       <button class="ghost" id="b2">Bump max_speed_m_s → 140 (PUT)</button></div>
-       <div id="pol"></div>
-       <div class="card"><label>Evaluate a telemetry frame</label>
-       <textarea id="body">${pj(evalDemo)}</textarea>
-       <div class="row"><button class="act" id="b3">Evaluate</button></div></div>
-       <div id="out"></div>` +
-      honest("ROE policy is in-memory (resets on Space restart). Verdict ENGAGE/REVIEW above Λ floor requires HOTL confirmation.");
-    m.querySelector("#b1").onclick = async ()=>{ const r=await call("GET","/api/"+NS+"/v1/roe/policy"); m.querySelector("#pol").innerHTML=`<pre>${pj(r.json.policy||r.json)}</pre>`; };
-    m.querySelector("#b2").onclick = async ()=> showResult(m.querySelector("#out"), await call("PUT","/api/"+NS+"/v1/roe/policy",{updated_by:"elite-console",rules:{max_speed_m_s:140}}));
-    m.querySelector("#b3").onclick = async ()=>{ const r=await call("POST","/api/"+NS+"/v1/roe/evaluate", JSON.parse(m.querySelector("#body").value)); showResult(m.querySelector("#out"), r); };
-  }},
-
- {id:"audit", n:"05", title:"Engagement Audit Log",
-  sub:"Paginated, filterable audit log. Record an engagement → immutable DSSE-receipted entry.",
-  eps:["GET /api/"+NS+"/v1/engagements/audit-log","POST /api/"+NS+"/v1/engagements/record"],
-  render(m){
-    const rec = {track_id:"TRK-002",verdict:"ENGAGE",effector:"EW_JAM",operator_id:"OP-KESTREL-1",lambda_at_decision:0.924,notes:"demo from elite console"};
-    m.innerHTML = head(this) +
-      `<div class="row"><button class="act" id="b1">Load audit log</button>
-       <input id="vf" placeholder="filter verdict (e.g. ENGAGE)" />
-       <button class="ghost" id="b1b">Filter</button></div>
-       <div class="card"><label>Record an engagement</label><textarea id="body">${pj(rec)}</textarea>
-       <div class="row"><button class="act" id="b2">Record</button></div></div>
-       <div id="out"></div>` +
-      honest("Audit log is in-memory (deque maxlen=5000). Each record is cryptographically verifiable via /khipu/verify.");
-    m.querySelector("#b1").onclick = async ()=> showResult(m.querySelector("#out"), await call("GET","/api/"+NS+"/v1/engagements/audit-log?limit=50"));
-    m.querySelector("#b1b").onclick = async ()=>{ const v=m.querySelector("#vf").value.trim(); showResult(m.querySelector("#out"), await call("GET","/api/"+NS+"/v1/engagements/audit-log?limit=50"+(v?("&verdict="+encodeURIComponent(v)):""))); };
-    m.querySelector("#b2").onclick = async ()=> showResult(m.querySelector("#out"), await call("POST","/api/"+NS+"/v1/engagements/record", JSON.parse(m.querySelector("#body").value)));
-  }},
-
- {id:"receipt", n:"06", title:"DSSE Receipt Verifier",
-  sub:"a11oy's receipt substrate. Inspect the Khipu DAG ledger + emit a new signed receipt.",
-  eps:["GET /api/"+NS+"/v1/receipt/ledger","POST /api/"+NS+"/v1/receipt/emit"],
-  render(m){
-    m.innerHTML = head(this) +
-      `<div class="row"><button class="act" id="b1">Load receipt ledger</button>
-       <button class="ghost" id="b2">Emit a test receipt</button></div>
-       <div id="out"></div>` +
-      honest("DSSE is REAL ECDSA-P256-SHA256 when SZL_COSIGN_PRIVATE_PEM is set; else an honest PLACEHOLDER (never fabricated).");
-    m.querySelector("#b1").onclick = async ()=> showResult(m.querySelector("#out"), await call("GET","/api/"+NS+"/v1/receipt/ledger?limit=25"));
-    m.querySelector("#b2").onclick = async ()=> showResult(m.querySelector("#out"), await call("POST","/api/"+NS+"/v1/receipt/emit",{kind:"elite_console_test",payload:{from:"elite-console"}}));
-  }},
-
- {id:"lambda", n:"07", title:"13-axis Λ-gate Monitor",
-  sub:"amaru's reasoning cortex. Every interdiction must clear Λ ≥ 0.90 (geometric mean of 13 trust axes).",
-  eps:["POST /api/"+NS+"/v1/counter-uas/evaluate"],
-  render(m){
-    const demo = {telemetry:{latitude:47.85,longitude:35.10,ground_speed_m_s:51.4,side:"HOSTILE",remote_id_present:false},
-      geofence:{center_lat:47.85,center_lon:35.10,radius_m:1000},
-      policy:{max_speed_m_s:40,require_remote_id:true,allow_sides:["FRIENDLY"]}};
-    m.innerHTML = head(this) +
-      `<label>Evaluate request</label><textarea id="body">${pj(demo)}</textarea>
-       <div class="row"><button class="act" id="b1">Evaluate Λ-gate</button></div>
-       <div id="dec"></div><div class="grid" id="axes"></div><div id="out"></div>` +
-      honest("Λ = Conjecture 1 — NOT a theorem (open CAUCHY_ND sorry + missing symmetry axiom). Decision is advisory.");
-    m.querySelector("#b1").onclick = async ()=>{
-      const r = await call("POST","/api/"+NS+"/v1/counter-uas/evaluate", JSON.parse(m.querySelector("#body").value));
-      const j = r.json;
-      m.querySelector("#dec").innerHTML = `<div class="card">Decision ${pill(j.decision)} &nbsp; Λ=<b class="mono">${j.lambda}</b> (floor ${j.lambda_floor}, pass=${j.lambda_pass}) &nbsp;<span class="muted">breaches: ${(j.breaches||[]).length}</span></div>`;
-      m.querySelector("#axes").innerHTML = Object.entries(j.axis_scores||{}).map(([k,v])=>`<div class="axis"><div class="v">${v}</div><div class="k">${k}</div></div>`).join("");
-      showResult(m.querySelector("#out"), r);
-    };
-  }},
-
- {id:"quorum", n:"08", title:"3-of-4 BFT Quorum Console",
-  sub:"Cross-organ Khipu consensus (Sentra/Amaru/a11oy/Killinchu). ≥3 valid DSSE 'allow' sigs = canonical. Tolerates f=1.",
-  eps:["GET /api/"+NS+"/uds/v1/healthz","POST /api/"+NS+"/uds/v1/mission/execute","POST /api/"+NS+"/uds/v1/consensus/verify"],
-  render(m){
-    const mission = {action_hash:"a1b2c3d4e5f6"+"00".repeat(10), context:{intent:"interdict",track_id:"TRK-002",effector:"EW_JAM"}};
-    m.innerHTML = head(this) +
-      `<div class="row"><button class="act" id="b1">Organ health</button>
-       <button class="act" id="b2">Run 3-of-4 mission</button>
-       <button class="ghost" id="b3">Verify last receipt</button></div>
-       <label>Mission body</label><textarea id="body">${pj(mission)}</textarea>
-       <div id="out"></div>` +
-      honest("Consensus is REAL ECDSA-DSSE over the same action_hash; ≥3-of-4 = canonical, &lt;3 = REJECT (fail-closed). Pubkeys embedded — no network call.");
-    let last=null;
-    m.querySelector("#b1").onclick = async ()=> showResult(m.querySelector("#out"), await call("GET","/api/"+NS+"/uds/v1/healthz"));
-    m.querySelector("#b2").onclick = async ()=>{ const r=await call("POST","/api/"+NS+"/uds/v1/mission/execute", JSON.parse(m.querySelector("#body").value)); last=r.json; showResult(m.querySelector("#out"), r); };
-    m.querySelector("#b3").onclick = async ()=>{ if(!last){m.querySelector("#out").innerHTML='<div class="muted">Run a mission first.</div>';return;} showResult(m.querySelector("#out"), await call("POST","/api/"+NS+"/uds/v1/consensus/verify", last)); };
-  }},
-
- {id:"pqc", n:"09", title:"PQC Hybrid Signing Panel",
-  sub:"Post-quantum readiness: sign with ECDSA-P256, ML-DSA-65 (FIPS 204), or both (hybrid).",
-  eps:["POST /khipu/sign?mode=ecdsa","POST /khipu/sign?mode=pqc","POST /khipu/sign?mode=hybrid"],
-  render(m){
-    m.innerHTML = head(this) +
-      `<div class="row">
-        <label style="margin:0">mode</label>
-        <select id="mode"><option value="ecdsa">ecdsa (always available)</option><option value="hybrid">hybrid (ECDSA+ML-DSA-65)</option><option value="pqc">pqc (ML-DSA-65)</option></select>
-        <button class="act" id="b1">Sign payload</button></div>
-       <label>Payload</label><textarea id="body">${pj({payload:{track_id:"TRK-002",decision:"ENGAGE"}})}</textarea>
-       <div id="out"></div>` +
-      honest("ecdsa mode always available. hybrid/pqc require the ML-DSA-65 backend (oqs-python or dilithium-py) — when absent the API returns an HONEST 503 ('ML-DSA backend unavailable; ECDSA mode still available'), never a fabricated PQC signature.");
-    m.querySelector("#b1").onclick = async ()=>{ const mode=m.querySelector("#mode").value; showResult(m.querySelector("#out"), await call("POST","/khipu/sign?mode="+mode, JSON.parse(m.querySelector("#body").value))); };
-  }},
-
- {id:"proto", n:"10", title:"Protocol Decoders",
-  sub:"Remote-ID (OpenDroneID/ASTM F3411), ADS-B Mode-S 1090ES (pyModeS), MAVLink v1/v2 (pymavlink).",
-  eps:["POST /api/"+NS+"/v1/remote-id/decode","POST /api/"+NS+"/v1/ads-b/decode","POST /api/"+NS+"/v1/mavlink/parse"],
-  render(m){
-    m.innerHTML = head(this) +
-      `<div class="card"><label>ADS-B Mode-S hex (real pyModeS decode)</label>
-        <input id="adsb" size="40" value="8D4840D6202CC371C32CE0576098" />
-        <button class="act" id="b1">Decode ADS-B</button></div>
-       <div class="card"><label>Remote-ID frame (hex bytes)</label>
-        <input id="rid" size="40" value="0d00112233445566778899aabbccddeeff00112233445566" />
-        <button class="act" id="b2">Decode Remote-ID</button></div>
-       <div class="card"><label>MAVLink frame (hex)</label>
-        <input id="mav" size="40" value="fe0900010100000000000203000403d014" />
-        <button class="act" id="b3">Parse MAVLink</button></div>
-       <div id="out"></div>` +
-      honest("Decoded fields are CLAIMS from an unauthenticated broadcast — NOT attested truth. ADS-B/Remote-ID can be spoofed.");
-    m.querySelector("#b1").onclick = async ()=> showResult(m.querySelector("#out"), await call("POST","/api/"+NS+"/v1/ads-b/decode",{hex:m.querySelector("#adsb").value.trim()}));
-    m.querySelector("#b2").onclick = async ()=> showResult(m.querySelector("#out"), await call("POST","/api/"+NS+"/v1/remote-id/decode",{hex:m.querySelector("#rid").value.trim()}));
-    m.querySelector("#b3").onclick = async ()=> showResult(m.querySelector("#out"), await call("POST","/api/"+NS+"/v1/mavlink/parse",{hex:m.querySelector("#mav").value.trim()}));
-  }},
-
- {id:"geo", n:"11", title:"Geofence Zone Editor",
-  sub:"Protected/exclusion zones (FAA + AOR). Check a position against the active zone set.",
-  eps:["GET /api/"+NS+"/v2/geofence/zones","POST /api/"+NS+"/v2/geofence/check"],
-  render(m){
-    m.innerHTML = head(this) +
-      `<div class="row"><button class="act" id="b1">Load zones</button></div>
-       <div class="card"><label>Check a position</label>
-        <div class="row"><input id="lat" value="47.85" placeholder="lat"/><input id="lon" value="35.10" placeholder="lon"/><input id="alt" value="120" placeholder="alt_ft"/>
-        <button class="act" id="b2">Check</button></div></div>
-       <div id="out"></div>` +
-      honest("Geofence data is a static snapshot (see legal_disclaimer_url in the response). Verify against live FAA data before any real op.");
-    m.querySelector("#b1").onclick = async ()=> showResult(m.querySelector("#out"), await call("GET","/api/"+NS+"/v2/geofence/zones"));
-    m.querySelector("#b2").onclick = async ()=> showResult(m.querySelector("#out"), await call("POST","/api/"+NS+"/v2/geofence/check",{lat:parseFloat(m.querySelector("#lat").value),lon:parseFloat(m.querySelector("#lon").value),alt_ft:parseFloat(m.querySelector("#alt").value)}));
-  }},
-
- {id:"swarm", n:"12", title:"Swarm Topology View",
-  sub:"Remote-ID broadcasts → connected-component clusters (real Union-Find) by proximity threshold.",
-  eps:["GET/POST /api/"+NS+"/v1/swarm/topology"],
-  render(m){
-    const demo = {threshold_m:300, broadcasts:[
-      {id:"D1",lat:47.8500,lon:35.1000},{id:"D2",lat:47.8501,lon:35.1002},{id:"D3",lat:47.8502,lon:35.1003},
-      {id:"D4",lat:47.9000,lon:35.2000},{id:"D5",lat:47.9001,lon:35.2002}]};
-    m.innerHTML = head(this) +
-      `<label>Broadcasts</label><textarea id="body">${pj(demo)}</textarea>
-       <div class="row"><button class="act" id="b1">Compute topology</button>
-        <button class="ghost" id="b2">GET (default sample)</button></div>
-       <div id="out"></div>`;
-    m.querySelector("#b1").onclick = async ()=> showResult(m.querySelector("#out"), await call("POST","/api/"+NS+"/v1/swarm/topology", JSON.parse(m.querySelector("#body").value)));
-    m.querySelector("#b2").onclick = async ()=> showResult(m.querySelector("#out"), await call("GET","/api/"+NS+"/v1/swarm/topology"));
-  }},
-
- {id:"db", n:"13", title:"Threat Classification DB",
-  sub:"Curated real-world drone systems (Group 1-5, ISR/strike/loitering). Lattice/Dedrone-class library.",
-  eps:["GET /api/"+NS+"/v1/drones/database","GET /api/"+NS+"/v1/drones/{id}"],
-  render(m){
-    m.innerHTML = head(this) +
-      `<div class="row"><button class="act" id="b1">Load database</button>
-        <input id="did" placeholder="drone id (e.g. shahed-136)"/><button class="ghost" id="b2">Lookup by id</button></div>
-       <div id="tbl"></div><div id="out"></div>`;
-    m.querySelector("#b1").onclick = async ()=>{
-      const r = await call("GET","/api/"+NS+"/v1/drones/database");
-      const d = r.json.drones||[];
-      m.querySelector("#tbl").innerHTML = `<div class="muted" style="font-size:11px">count: ${r.json.count ?? d.length}</div>` +
-        (d.length ? table(d.slice(0,60),["id","model","manufacturer","role","threat_level"]) : "");
-      showResult(m.querySelector("#out"), r);
-    };
-    m.querySelector("#b2").onclick = async ()=>{ const id=m.querySelector("#did").value.trim(); if(!id)return; showResult(m.querySelector("#out"), await call("GET","/api/"+NS+"/v1/drones/"+encodeURIComponent(id))); };
-  }},
-
- {id:"borrowed", n:"14", title:"Cross-Flagship Borrowed Powers",
-  sub:"How killinchu takes the formulas & anatomy from each flagship — wired as LIVE local endpoints.",
-  eps:["GET /api/"+NS+"/v1/borrowed-powers","GET /api/"+NS+"/v1/mesh/state"],
-  render(m){
-    m.innerHTML = head(this) +
-      `<div class="row"><button class="act" id="b1">Load borrowed powers</button>
-       <button class="ghost" id="b2">Mesh state</button></div>
-       <div id="cards"></div><div id="out"></div>`;
-    m.querySelector("#b1").onclick = async ()=>{
-      const r = await call("GET","/api/"+NS+"/v1/borrowed-powers");
-      const bp = r.json.borrowed_powers||[];
-      m.querySelector("#cards").innerHTML =
-        `<div class="card"><b>${r.json.thesis||""}</b><div class="muted" style="margin-top:6px">Signing: ${r.json.signing?.honesty||""}</div></div>` +
-        bp.map(b=>`<div class="bp"><h3>${(b.flagship||"").toUpperCase()} <span class="muted">— ${b.role}</span></h3>
-          <div class="flag">borrowed: ${b.borrowed_anatomy}</div>
-          <div style="margin:6px 0">${b.how_applied}</div>
-          <div>${(b.live_endpoints||[]).map(e=>ep(e)).join("")}</div></div>`).join("");
-      showResult(m.querySelector("#out"), r);
-    };
-    m.querySelector("#b2").onclick = async ()=> showResult(m.querySelector("#out"), await call("GET","/api/"+NS+"/v1/mesh/state"));
-  }},
-];
-
-function head(t){
-  return `<h2>${t.title}</h2><div class="sub">${t.sub}</div><div>${(t.eps||[]).map(ep).join("")}</div>`;
-}
-function table(rows, cols){
-  const c = cols || Object.keys(rows[0]||{});
-  return `<table><thead><tr>${c.map(k=>`<th>${k}</th>`).join("")}</tr></thead><tbody>` +
-    rows.map(r=>`<tr>${c.map(k=>`<td class="mono">${r[k]===undefined||r[k]===null?'<span class="muted">—</span>':(""+r[k])}</td>`).join("")}</tr>`).join("") +
-    `</tbody></table>`;
+    setOut('pqc-out', JSON.stringify(summary,null,2)+'\n\n// Full envelope:\n'+JSON.stringify(d.envelope,null,2));
+  }catch(e){setOut('pqc-out','retry: '+e.message);}
 }
 
-const nav = document.getElementById("nav");
-const main = document.getElementById("main");
-TABS.forEach((t,i)=>{
-  const b = document.createElement("button");
-  b.innerHTML = `<span class="n">${t.n}</span>${t.title}`;
-  b.onclick = ()=>{ document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active")); b.classList.add("active"); t.render(main); location.hash = t.id; };
-  nav.appendChild(b);
-  t._btn = b;
-});
-function openInitial(){
-  const h = (location.hash||"").replace("#","");
-  const t = TABS.find(x=>x.id===h) || TABS[0];
-  t._btn.click();
+async function decode_rid(){
+  try{
+    const hex = el('rid-hex').value.trim();
+    const d = await postJSON(API+'/remote-id/decode',{hex});
+    setOut('rid-out',d);
+  }catch(e){setOut('rid-out','retry: '+e.message);}
 }
-openInitial();
+
+async function decode_adsb(){
+  try{
+    const hex = el('adsb-hex').value.trim();
+    const d = await postJSON(API+'/ads-b/decode',{hex});
+    setOut('adsb-out',d);
+  }catch(e){setOut('adsb-out','retry: '+e.message);}
+}
+
+async function decode_mav(){
+  try{
+    const hex = el('mav-hex').value.trim();
+    const d = await postJSON(API+'/mavlink/parse',{hex});
+    setOut('mav-out',d);
+  }catch(e){setOut('mav-out','retry: '+e.message);}
+}
+
+async function geo_check(){
+  try{
+    const lat = parseFloat(el('geo-lat').value);
+    const lon = parseFloat(el('geo-lon').value);
+    const alt_ft = parseFloat(el('geo-alt').value);
+    const d = await postJSON(BASE+'/api/killinchu/v2/geofence/check',{lat,lon,alt_ft});
+    setOut('geo-out',d);
+  }catch(e){setOut('geo-out','retry: '+e.message);}
+}
+
+async function swarm_post(){
+  try{
+    setOut('swarm-post-out','clustering…');
+    const d = await postJSON(API+'/swarm/topology',{
+      threshold_m:500,
+      broadcasts:[
+        {id:'alpha-1',lat:47.85,lon:35.10},
+        {id:'alpha-2',lat:47.853,lon:35.10},
+        {id:'alpha-3',lat:47.856,lon:35.10},
+        {id:'lone-wolf',lat:48.50,lon:36.80}
+      ]
+    });
+    setOut('swarm-post-out',d);
+  }catch(e){setOut('swarm-post-out','retry: '+e.message);}
+}
+
+async function drone_detail(){
+  const id = el('drone-id').value.trim();
+  try{setOut('drone-out',await getJSON(API+'/drones/'+id));}
+  catch(e){setOut('drone-out','retry: '+e.message);}
+}
+
+async function mesh_load(){
+  const h = el('mesh-host');
+  try{
+    const d = await getJSON(API+'/mesh/state');
+    h.innerHTML='';
+    setOut('mesh-raw',d);
+    (d.mesh_organs||[]).forEach(name=>{
+      const wire = d.wires?.[name]||d.wires?.D||'?';
+      const up = wire==='live';
+      h.insertAdjacentHTML('beforeend',`<div class="row">
+        <span class="badge ${up?'b-live':'b-warn'}">${up?'LIVE':esc(wire).toUpperCase()}</span>
+        <span>${esc(name)}</span>
+        <span class="spacer mono dim">${esc('https://szlholdings-'+name+'.hf.space')}</span>
+      </div>`);
+    });
+    if(!d.mesh_organs?.length) h.innerHTML='<pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre>';
+  }catch(e){h.innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+}
+
+// ===================== ROUTER =====================
+function go(view){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
+  const v = VIEWS[view];
+  if(!v){return;}
+  const c = el('content');
+  c.innerHTML=`<div class="view-head"><h1 class="view-title">${esc(v.title)}</h1><span class="view-badge">${esc(v.badge)}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
+  v.render(el('vbody'));
+  if(history.replaceState) history.replaceState(null,'','#'+view);
+  if(window.innerWidth<=820) document.querySelector('.side').classList.remove('open');
+}
+
+const start = (location.hash||'#tracks').slice(1);
+go(VIEWS[start]?start:'tracks');
 </script>
 </body>
 </html>
