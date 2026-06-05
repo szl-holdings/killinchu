@@ -765,6 +765,69 @@ async def receipt_ledger(limit: int = 100) -> JSONResponse:
     })
 
 
+# ===========================================================================
+# VERIFY-IT-YOURSELF (Warhacker on-stage moment, 2026-06-05). Serves the EXACT
+# public key that signs killinchu receipts (szl_dsse.COSIGN_PUBLIC_PEM, keyid
+# szlholdings-cosign) as a raw PEM at /cosign.pub, so a judge can verify a
+# receipt OFFLINE with `cosign verify-blob --key cosign.pub`. Registered BEFORE
+# the /{full_path:path} catch-all. ZERO BANDAID — same key the signer uses.
+# ===========================================================================
+@app.get("/cosign.pub")
+async def cosign_pub() -> Response:
+    """Raw PEM public key (keyid szlholdings-cosign) that signs killinchu receipts.
+    Verify offline:  cosign verify-blob --key cosign.pub --signature sig.b64 payload.json"""
+    pem = None
+    if _szl_dsse is not None:
+        pem = getattr(_szl_dsse, "COSIGN_PUBLIC_PEM", None)
+    if not pem:
+        return Response(content="public key unavailable in this runtime\n",
+                        media_type="text/plain", status_code=503)
+    return Response(content=pem if pem.endswith("\n") else pem + "\n",
+                    media_type="application/x-pem-file")
+
+
+@app.get("/api/killinchu/v1/receipt/export")
+async def receipt_export(index: int = -1) -> JSONResponse:
+    """Export ONE signed receipt + step-by-step offline verify instructions.
+
+    The on-stage 'verify it yourself' artifact: gives the judge the DSSE
+    envelope, the public-key URL, and the exact two commands to verify the
+    signature with cosign — no trust in killinchu's infrastructure required.
+    """
+    if not _KHIPU_DAG:
+        return JSONResponse({"ok": False, "error": "no receipts yet — run a /beyond demo first"},
+                            status_code=404)
+    try:
+        node = _KHIPU_DAG[index]
+    except IndexError:
+        node = _KHIPU_DAG[-1]
+    dsse = node.get("dsse") or {}
+    sigs = dsse.get("signatures") or []
+    signed = bool(sigs and sigs[0].get("keyid") not in (None, "PENDING"))
+    return JSONResponse({
+        "ok": True,
+        "node_index": node.get("node_index"),
+        "node_digest": node.get("node_digest"),
+        "khipu_root": _khipu_root(),
+        "dsse": dsse,
+        "signed": signed,
+        "keyid": (sigs[0].get("keyid") if sigs else None),
+        "public_key_url": "https://szlholdings-killinchu.hf.space/cosign.pub",
+        "verify_offline": [
+            "# 1. Save the public key",
+            "curl -s https://szlholdings-killinchu.hf.space/cosign.pub -o cosign.pub",
+            "# 2. Save this DSSE envelope's payload + signature, then:",
+            "cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin",
+            "# OR verify the whole DAG via the live endpoint:",
+            "curl -s -X POST https://szlholdings-killinchu.hf.space/khipu/verify -H 'Content-Type: application/json' -d @receipt.json",
+        ],
+        "honesty": ("REAL ECDSA-P256-SHA256 DSSE when signed=true (keyid szlholdings-cosign); "
+                    "an honest UNSIGNED placeholder otherwise. The public key is the same one "
+                    "published at szl-holdings/.github/cosign.pub — verify without trusting us."),
+        "doctrine": DOCTRINE,
+    })
+
+
 @app.get("/api/killinchu/v1/lambda")
 async def lambda_axes(request: Request) -> JSONResponse:
     axes = [0.93, 0.91, 0.94, 0.9, 0.92, 0.91, 0.93, 0.9, 0.95, 0.92, 0.94, 0.91, 0.93]
