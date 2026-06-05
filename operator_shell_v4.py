@@ -315,6 +315,8 @@ def register(app, organ: str, web_dir: str | None = None) -> dict[str, Any]:
             body = await req.json()
         except Exception:
             pass
+        if not isinstance(body, dict):
+            body = {}
         protocol = body.get("protocol", "unknown")
         raw = body.get("raw", "")
         ts_in = body.get("ts", _dtp.now(_tzp.utc).isoformat())
@@ -361,7 +363,12 @@ def register(app, organ: str, web_dir: str | None = None) -> dict[str, Any]:
 
     @app.post(f"{p}/command")
     async def _command(req: Request):
-        body = await req.json()
+        try:
+            body = await req.json()
+        except Exception:
+            return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "body must be a JSON object"}, status_code=400)
         return JSONResponse(_handle_command(organ, body.get("command", ""), body.get("args", {})))
 
     @app.get(f"{p}/receipts")
