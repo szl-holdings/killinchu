@@ -48,7 +48,9 @@ components:
     images:
       # uds-v0.2.0 is the only public, cosign-signed, bundle-ready tag.
       # uds-v0.3.1-rc.1 and v1.0.0-alpha were never published to GHCR — removed.
-      - ghcr.io/szl-holdings/killinchu:uds-v0.2.0
+      # cosign-verified digest pin (Fulcio+Rekor, subject szl-holdings/killinchu
+      # ghcr-build-push.yml@refs/heads/main). Tag kept for readability.
+      - ghcr.io/szl-holdings/killinchu:uds-v0.2.0@sha256:a89660872e690fe520f6d94e90c86e9d16eaa913b0b454cb1c93ace6b193288f
     manifests:
       - name: killinchu
         namespace: killinchu
