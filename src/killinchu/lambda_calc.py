@@ -21,6 +21,7 @@
 #   We invert the binary-KL bound to an additive penalty kl_inv() and subtract it
 #   from the empirical trust to obtain a *certified-floor* Λ.
 from __future__ import annotations
+
 import math
 from dataclasses import dataclass, field
 from typing import Sequence
@@ -104,6 +105,13 @@ def pac_bayes_penalty(n: int, kl_qp: float, delta: float = 0.05) -> float:
 
 @dataclass
 class LambdaVerdict:
+    """Result of a single Λ (trust) computation for one drone track.
+
+    Holds both the raw empirical geometric-mean trust and the PAC-Bayes
+    certified lower floor, plus the resulting ALLOW/REVIEW/DENY decision.
+    Λ is doctrine ``Conjecture 1`` — explicitly NOT a theorem.
+    """
+
     lambda_value: float          # certified-floor Λ in [0,1]
     lambda_empirical: float      # raw weighted geo-mean (pre-PAC-Bayes)
     pac_bayes_penalty: float     # complexity term (nats)
@@ -116,6 +124,13 @@ class LambdaVerdict:
     lambda_status: str = "Conjecture 1 — NOT a theorem (open CAUCHY_ND sorry)"
 
     def to_dict(self) -> dict:
+        """Serialize the verdict to a rounded, JSON-ready dict.
+
+        Returns:
+            A dict of the rounded Λ fields plus the configured ``lambda_floor``
+            and the honest ``lambda_status`` (Conjecture 1) labels, suitable
+            for embedding in a DSSE envelope or API response.
+        """
         return {
             "lambda_value": round(self.lambda_value, 6),
             "lambda_empirical": round(self.lambda_empirical, 6),

@@ -13,13 +13,13 @@
 # CLAIMS, not attested truth.  We score the *evidence quality* of those claims and
 # say so on every verdict.
 from __future__ import annotations
-import math
+
 from dataclasses import dataclass
 from typing import Any, Iterable
 
-from .lambda_calc import compute_lambda, AXIS_NAMES
-from .dsse import sign_verdict, key_source
+from .dsse import key_source, sign_verdict
 from .khipu import KhipuDAG
+from .lambda_calc import compute_lambda
 
 
 @dataclass
@@ -99,6 +99,20 @@ class EdgeNode:
 
     def evaluate(self, telem: Telemetry, kl_qp: float = 0.5,
                  delta: float = 0.05) -> dict[str, Any]:
+        """Score one telemetry frame and emit a signed, khipu-anchored Λ verdict.
+
+        Args:
+            telem: Decoded drone telemetry (ADS-B / Remote-ID). Treated as
+                unauthenticated CLAIMS, not attested truth.
+            kl_qp: KL divergence between proposal and prior used by the
+                PAC-Bayes Λ bound (default 0.5).
+            delta: Confidence parameter for the Λ bound (default 0.05 = 95%).
+
+        Returns:
+            A dict with the Λ ``verdict`` (incl. track_id, source, honest
+            telemetry-trust caveat), its ``dsse`` envelope, and the appended
+            khipu node so the decision is independently verifiable.
+        """
         axes = telemetry_to_axes(telem)
         # n_observations: a single raw broadcast frame is n=1; a receiver fusing a
         # dwell window passes the real fused count via telem.n_observations.

@@ -12,6 +12,7 @@
 #      `ephemeral` so consumers know it is node-scoped, not the org root.
 # We NEVER emit a placeholder/fake signature.
 from __future__ import annotations
+
 import base64
 import hashlib
 import json
@@ -19,9 +20,9 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.exceptions import InvalidSignature
 
 PAYLOAD_TYPE = "application/vnd.szl.killinchu.verdict+json"
 
@@ -50,6 +51,12 @@ def _load_private_key() -> tuple[ec.EllipticCurvePrivateKey, str]:
 
 
 def public_key_pem() -> str:
+    """Return the signing key's public half as a PEM SubjectPublicKeyInfo string.
+
+    Returns:
+        PEM-encoded P-256 public key matching the active DSSE signing key.
+        Verifiers use this to check ``sign_verdict`` signatures.
+    """
     priv, _ = _load_private_key()
     return priv.public_key().public_bytes(
         serialization.Encoding.PEM,
@@ -58,11 +65,27 @@ def public_key_pem() -> str:
 
 
 def key_source() -> str:
+    """Report where the active signing key came from.
+
+    Returns:
+        A provenance label such as ``"mounted"`` or ``"ephemeral"`` so that
+        callers can honestly disclose whether signatures chain to a managed
+        key or a freshly generated per-process one.
+    """
     _load_private_key()
     return _KEY_SOURCE
 
 
 def canonical_json(obj: Any) -> bytes:
+    """Serialize ``obj`` to deterministic, canonical JSON bytes.
+
+    Args:
+        obj: Any JSON-serializable object (typically a verdict dict).
+
+    Returns:
+        UTF-8 bytes with sorted keys and no insignificant whitespace, so the
+        same logical payload always hashes and signs identically.
+    """
     return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 

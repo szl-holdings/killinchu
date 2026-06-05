@@ -8,12 +8,20 @@
 # SLSA L1 honest. Edge DSSE = real ECDSA-P256 over the cosign env-var key
 # fallback (org > node-edge > ephemeral), verifiable by cosign verify-blob.
 # We never claim L2 unless independently verified.
-from .lambda_calc import compute_lambda, lambda_aggregate, pac_bayes_penalty, LambdaVerdict
-from .dsse import sign_verdict, verify_envelope, public_key_pem, key_source
-from .khipu import KhipuDAG
+from .dsse import key_source, public_key_pem, sign_verdict, verify_envelope
 from .edge import EdgeNode, Telemetry, telemetry_to_axes
+from .khipu import KhipuDAG
+from .lambda_calc import (
+    LambdaVerdict,
+    compute_lambda,
+    lambda_aggregate,
+    pac_bayes_penalty,
+)
 from .simulator import (
-    TelemetrySimulator, DroneProfile, default_fleet, NO_FLY_POLYGON,
+    NO_FLY_POLYGON,
+    DroneProfile,
+    TelemetrySimulator,
+    default_fleet,
 )
 
 __all__ = [
