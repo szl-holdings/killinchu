@@ -775,21 +775,30 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <title>Killinchu — Beyond-Cannonico Autonomy-Governance Proofs</title>
 <style>
   :root{
-    --bg:#06080d; --panel:#0d1119; --panel2:#11161f; --line:#1d2531;
-    --txt:#d7e0ec; --dim:#7e8a9c; --accent:#5fb0ff; --good:#3fd07a;
-    --warn:#ffb454; --bad:#ff5d6c; --gold:#e7c46b;
+    --bg:#0a0a0a; --panel:#11131a; --panel2:#161a23; --line:#23282f;
+    --txt:#d7e0ec; --dim:#8590a0; --accent:#5fb3a3; --good:#5fb3a3;
+    --warn:#ffb454; --bad:#ff5d6c; --gold:#c9b787;
     --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--txt);
-    font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;font-size:14px}
+  body{margin:0;background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(95,179,163,.06), transparent),
+      radial-gradient(900px 600px at 10% 110%, rgba(201,183,135,.05), transparent),
+      var(--bg);
+    color:var(--txt);font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;font-size:14px}
+  .szl-ribbon{display:flex;align-items:center;gap:10px;height:26px;padding:0 16px;
+    background:#06070b;border-bottom:1px solid var(--gold);font-family:var(--mono);
+    font-size:10.5px;letter-spacing:.5px;color:var(--dim);white-space:nowrap;overflow:hidden}
+  .szl-ribbon b{color:var(--gold);font-weight:700}
+  .szl-ribbon .org{color:var(--accent);font-weight:700}
+  .szl-ribbon .live{margin-left:auto;color:var(--good);font-weight:700}
   header{display:flex;align-items:center;gap:14px;padding:12px 18px;
-    border-bottom:1px solid var(--line);background:linear-gradient(90deg,#0a0e15,#0d1119)}
+    border-bottom:1px solid var(--line);background:linear-gradient(90deg,#0c0d12,#11131a)}
   header h1{font-size:16px;margin:0;letter-spacing:.5px}
-  header h1 b{color:var(--accent)}
+  header h1 b{color:var(--gold)}
   .doctrine{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim);text-align:right;line-height:1.5}
   .doctrine .l1{color:var(--gold)}
-  .wrap{display:flex;height:calc(100vh - 54px)}
+  .wrap{display:flex;height:calc(100vh - 80px)}
   nav{width:268px;flex:0 0 268px;border-right:1px solid var(--line);
     background:var(--panel);overflow-y:auto;padding:8px}
   nav button{display:block;width:100%;text-align:left;background:transparent;
@@ -839,11 +848,15 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 </style>
 </head>
 <body>
+<div class="szl-ribbon">
+  <b>SZL HOLDINGS</b> · <span class="org">KILLINCHU</span> · DOCTRINE V11 · LOCKED · REPLAY c7c0ba17 · Λ = CONJECTURE 1
+  <span class="live">● LIVE</span>
+</div>
 <header>
   <h1><b>KILLINCHU</b> · Beyond-Cannonico — Autonomy-Governance, Generalized</h1>
   <div class="doctrine">
     Doctrine v11 · 749/14/163 · c7c0ba17<br/>
-    <span class="l1">SLSA L1 honest</span> · Λ = Conjecture 1 (not a theorem)
+    <span class="l1">SLSA L2 (organ, cosign-verified)</span> · Λ = Conjecture 1 (not a theorem)
   </div>
 </header>
 <div class="wrap">
