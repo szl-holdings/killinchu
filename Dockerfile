@@ -186,6 +186,11 @@ COPY killinchu_cannonico.py ./killinchu_cannonico.py
 # killinchu_elite_console.py: a11oy-elite 14-tab operator console. serve.py imports
 # it via try/except; per-file COPY (this Dockerfile never uses `COPY . .`).
 COPY killinchu_elite_console.py ./killinchu_elite_console.py
+# killinchu_beyond.py: Beyond-Cannonico proof console — autonomy-governance
+# generalized beyond one drone (autonomy envelope · 3-of-4 swarm quorum · HOTL
+# override register). serve.py imports it via try/except; without this COPY the
+# /api/killinchu/v1/{autonomy,swarm,hotl}/* routes fall through to the SPA.
+COPY killinchu_beyond.py ./killinchu_beyond.py
 COPY serve.py ./serve.py
 COPY szl_khipu_consensus.py ./szl_khipu_consensus.py
 
