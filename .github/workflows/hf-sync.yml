@@ -94,3 +94,54 @@ jobs:
           )
           print("HF commit:", commit.oid, "->", space)
           PYEOF
+
+      # ADDITIVE (Live-ops close-out, 2026-06-05): the README-only sync above
+      # CANNOT make a new route live. Proven drift: the killinchu Space lacked
+      # killinchu_elite_console.py + killinchu_cannonico.py (both 404 on the Space)
+      # and the Space serve.py/Dockerfile never registered/COPY'd them — so /elite,
+      # /api/killinchu/v1/borrowed-powers, and /api/killinchu/v1/cannonico/* are 404
+      # LIVE. GitHub main serve.py registers both (lines ~1548 + ~1559) and the
+      # GitHub Dockerfile COPYs both. GitHub serve.py is also strictly newer than
+      # the Space copy (it carries the #54 _json_body hardening that coerces non-dict
+      # bodies to {} so bad input is a clean 4xx, and the honest "SLSA L1; L2 roadmap"
+      # label instead of the Space's stale L2 over-claim). Mirror GitHub main's
+      # serve.py + Dockerfile + the two modules to the Space. ADDITIVE ONLY.
+      # PARENT must factory-rebuild after this runs (no HF creds here).
+      # Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem).
+      - name: Mirror elite-console + cannonico app files + serve.py + Dockerfile to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_ID: SZLHOLDINGS/killinchu
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::HF_TOKEN secret is not set — cannot mirror app files to the Space."
+            echo "::error::Founder action required: add repo secret HF_TOKEN (HF write token, org write to SZLHOLDINGS)."
+            exit 1
+          fi
+          python3 <<'PYEOF'
+          import os
+          from huggingface_hub import HfApi, CommitOperationAdd
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          space = os.environ["SPACE_ID"]
+          files = ["serve.py", "Dockerfile",
+                   "killinchu_elite_console.py", "killinchu_cannonico.py"]
+          ops = []
+          for f in files:
+              with open(f, "rb") as fh:
+                  ops.append(CommitOperationAdd(path_in_repo=f, path_or_fileobj=fh.read()))
+              print("Queued:", f)
+          commit = api.create_commit(
+              repo_id=space, repo_type="space", operations=ops,
+              commit_message="feat(elite+cannonico): mirror serve.py + Dockerfile + modules so /elite and /cannonico go live",
+              commit_description=(
+                  "Live-ops close-out: README-only sync could not deliver the elite\n"
+                  "console (#51) or the cannonico loop (#52). Mirrors GitHub main's\n"
+                  "serve.py (registers both; carries the #54 bad-input hardening),\n"
+                  "Dockerfile (per-file COPY of both modules), and the two modules.\n"
+                  "Factory-rebuild after this commit.\n\n"
+                  "Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"),
+          )
+          print("HF commit:", commit.oid, "->", space)
+          PYEOF
