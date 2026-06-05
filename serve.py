@@ -1555,6 +1555,26 @@ except Exception as _cannonico_e:
 # ── end CANNONICO ────────────────────────────────────────────────────────────
 
 
+# ===========================================================================
+# ADDITIVE: killinchu "a11oy-elite" console — 14 REAL endpoint-backed tabs +
+# cross-flagship borrowed-powers panel. Mounted BEFORE the SPA catch-all so
+# /elite resolves locally. NO mocks: every tab fetches a live backend endpoint.
+#   GET  /elite  and  /killinchu/elite        — 14-tab vanilla-JS command deck
+#   GET  /api/killinchu/v1/borrowed-powers     — live cross-flagship aggregator
+# Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 · SLSA L1 honest.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_elite_console as _elite
+    _elite_status = _elite.register(app, ns="killinchu", emit_receipt=_emit_receipt)
+    print(f"[killinchu] Elite console registered: {_elite_status['registered']} ({_elite_status['tabs']} tabs)", file=sys.stderr)
+except Exception as _elite_e:
+    import traceback as _elite_tb
+    print(f"[killinchu] Elite console NOT registered: {_elite_e!r}", file=sys.stderr)
+    _elite_tb.print_exc()
+# ── end ELITE ────────────────────────────────────────────────────────────────
+
+
 # ---------------------------------------------------------------------------
 # ADDITIVE: /version endpoint — Founder Inspection Surface (v1.0.0)
 # Returns build provenance: "what build is live, when, what's its provenance."

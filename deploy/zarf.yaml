@@ -47,7 +47,7 @@ components:
       Image: ghcr.io/szl-holdings/killinchu:uds-v0.2.0 (PUBLIC, cosign-signed SLSA L1).
     images:
       # uds-v0.2.0 is the only public, cosign-signed, bundle-ready tag.
-      # uds-v0.3.1-rc.1 was never published to GHCR — removed.
+      # uds-v0.3.1-rc.1 and v1.0.0-alpha were never published to GHCR — removed.
       - ghcr.io/szl-holdings/killinchu:uds-v0.2.0
     manifests:
       - name: killinchu

@@ -1,6 +1,9 @@
 # Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
 # Killinchu namespace — isolated per UDS deny-by-default security model.
 # Labels enable Istio injection (managed by UDS Core) and Pepr policy targeting.
+# Doctrine v11 LOCKED 749/14/163 · Lambda = Conjecture 1 (NOT a theorem)
+# SLSA L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -13,3 +16,7 @@ metadata:
     # Standard k8s labels
     app.kubernetes.io/name: killinchu
     app.kubernetes.io/part-of: szl-mesh
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/lambda-status: "Conjecture 1 — NOT a theorem"
+    szl.io/slsa-level: "L1"
