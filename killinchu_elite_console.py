@@ -316,6 +316,17 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
   .bp h3{margin:0 0 4px;font-size:14px}
   .bp .flag{color:var(--gold);font-family:var(--mono);font-size:12px}
   label{font-size:11px;color:var(--dim);display:block;margin-bottom:3px}
+  /* Mobile: the 248px non-shrinking nav + flex row overflows a 390px viewport.
+     Stack nav above main and let the deck scroll vertically. */
+  @media (max-width:768px){
+    .wrap{flex-direction:column;height:auto}
+    nav{width:auto;flex:0 0 auto;border-right:0;border-bottom:1px solid var(--line);
+        display:flex;flex-wrap:wrap;gap:4px}
+    nav button{width:auto;min-height:40px}
+    main{padding:14px}
+    header{flex-wrap:wrap;gap:8px;padding:10px 14px}
+    table{display:block;overflow-x:auto}
+  }
 </style>
 </head>
 <body>
