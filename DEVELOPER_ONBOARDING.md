@@ -1,6 +1,6 @@
 # killinchu — Developer Onboarding
 
-> **Doctrine v11 LOCKED** · 749 declarations · 14 axioms · 163 sorries · Λ = Conjecture 1 · SLSA L1 honest
+> **Doctrine v11 LOCKED** · 749 declarations · 14 axioms · 163 sorries · Λ = Conjecture 1 · SLSA L1 + L2
 
 killinchu (Quechua: kestrel/hawk) is the SZL counter-UAS drone intelligence organ.
 
@@ -126,7 +126,7 @@ Space: `SZLHOLDINGS/killinchu` (https://szlholdings-killinchu.hf.space).
 
 ## 8. Doctrine constants (LOCKED)
 
-749/14/163 · `c7c0ba17` · Λ = Conjecture 1 · SLSA L1 honest.
+749/14/163 · `c7c0ba17` · Λ = Conjecture 1 · SLSA L1 + L2.
 
 ---
 

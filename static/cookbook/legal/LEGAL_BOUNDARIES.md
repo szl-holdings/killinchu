@@ -85,4 +85,4 @@ Every step emits a Khipu receipt.
 
 © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Apache-2.0 ·
 Doctrine v11 · *Hatun-Willay*. Λ is a Conjecture, not a Theorem. Receipt signatures are
-PLACEHOLDER (SLSA L1 honest; SLSA-Drone-L3 is the defined target, not yet attained).
+PLACEHOLDER (SLSA L1 + L2; SLSA-Drone-L3 is the defined target, not yet attained).

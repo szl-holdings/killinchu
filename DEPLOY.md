@@ -5,7 +5,7 @@ to a running, signed killinchu instance — standalone Docker, Zarf package, or 
 full UDS mesh bundle — plus the elite operator console and the kill-move curl.
 
 **Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · Λ = Conjecture 1 (NOT a theorem)**
-**SLSA L1 honest** (cosign-signed images, verifiable via `cosign verify`; L2 = roadmap, not claimed) ·
+**SLSA L1 + L2** (cosign-signed images; signed SLSA provenance attestation verified via `cosign verify-attestation --type slsaprovenance`; L3 not claimed) ·
 **Section 889 = exactly 5 vendors** (Huawei, ZTE, Hytera, Hikvision, Dahua) · **NO Iron Bank / FedRAMP / CMMC**
 
 ---
@@ -82,7 +82,7 @@ The package deploys: `Namespace killinchu` → `Deployment killinchu`
 ## 4. Full UDS mesh bundle (killinchu + sentra + amaru + a11oy + rosie)
 
 ```bash
-uds-cli bundle deploy szl-mesh-v0.4.0.tar.zst --confirm
+uds-cli bundle deploy oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.1 --confirm
 # applies deploy/uds-package.yaml (UDS Package CR): Istio ingress, SSO,
 # network allow-list, and the killinchu health/fleet-state monitors.
 ```
@@ -163,7 +163,7 @@ and the **Cross-Flagship Borrowed Powers** panel (`GET /api/killinchu/v1/borrowe
 
 ## 10. Honesty Doctrine
 
-- SLSA **L1** honest — cosign-signed images, verifiable via `cosign verify`. L2 = roadmap, not claimed.
+- SLSA **L1 + L2** — cosign-signed images; signed SLSA provenance attestation verified via `cosign verify-attestation --type slsaprovenance` (keyless Fulcio + Rekor, strict per-organ identity). L3 not claimed.
 - Λ = **Conjecture 1** (NEVER a theorem; do not claim theorem status).
 - DSSE Khipu receipts REAL only when `SZL_COSIGN_PRIVATE_PEM` present; honest **PLACEHOLDER** envelope otherwise.
 - **No Iron Bank** — not in the Iron Bank registry.

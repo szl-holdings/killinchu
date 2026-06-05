@@ -56,7 +56,7 @@ The killinchu HuggingFace Space and its GitHub-hosted source code under `szl-hol
 
 | Risk | Reason Accepted |
 |------|-----------------|
-| SLSA L1 (not L2+) | Honest disclosure; keyless Sigstore signing is roadmap (Series-A) |
+| SLSA L1 + L2 (not L3) | SLSA Build L2 provenance attestation independently verified via `cosign verify-attestation --type slsaprovenance` (keyless Fulcio + Rekor); L3 hardened/isolated builder not claimed |
 | No HSM for DSSE key | Founder decision; key rotation documented; ephemeral Fulcio certs cover builds |
 | HF cold-start unavailability | Free-tier constraint; honest in SLO and HONEST_DISCLOSURE.md |
 
