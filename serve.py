@@ -1575,6 +1575,31 @@ except Exception as _elite_e:
 # ── end ELITE ────────────────────────────────────────────────────────────────
 
 
+# ===========================================================================
+# ADDITIVE: killinchu "Beyond-Cannonico" proof console — the autonomy-governance
+# pattern generalized BEYOND a single counter-drone. Three REAL endpoint-backed
+# proof tabs, mounted BEFORE the SPA catch-all so they resolve locally:
+#   POST /api/killinchu/v1/autonomy/evaluate    — generalized envelope (any system)
+#   POST /api/killinchu/v1/swarm/quorum         — real 3-of-4 BFT multi-agent
+#   POST /api/killinchu/v1/hotl/recommend        — AI signed recommendation
+#   POST /api/killinchu/v1/hotl/override         — human override BOUND to it
+#   GET  /api/killinchu/v1/hotl/register         — bound recommendation→override log
+#   GET  /beyond  and  /killinchu/beyond         — 3-tab proof console
+# Reuses _emit_receipt (Khipu DAG + REAL cosign DSSE) + szl_khipu_consensus.
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 · SLSA L1 honest. NO mocks.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_beyond as _beyond
+    _beyond_status = _beyond.register(app, emit_receipt=_emit_receipt, ns="killinchu")
+    print(f"[killinchu] Beyond-Cannonico proofs registered: {_beyond_status['registered']} ({_beyond_status['tabs']} tabs)", file=sys.stderr)
+except Exception as _beyond_e:
+    import traceback as _beyond_tb
+    print(f"[killinchu] Beyond-Cannonico proofs NOT registered: {_beyond_e!r}", file=sys.stderr)
+    _beyond_tb.print_exc()
+# ── end BEYOND ─────────────────────────────────────────────────────────────────
+
+
 # ---------------------------------------------------------------------------
 # ADDITIVE: /version endpoint — Founder Inspection Surface (v1.0.0)
 # Returns build provenance: "what build is live, when, what's its provenance."
