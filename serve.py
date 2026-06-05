@@ -1530,6 +1530,26 @@ except Exception as _parity_e:
     _parity_tb.print_exc()
 # ── end PARITY ──────────────────────────────────────────────────────────────
 
+# ===========================================================================
+# CANNONICO — Warhacker bullseye: lost-contact autonomous-drone governance.
+# When a drone loses contact mid-mission it runs alone. This loop governs EVERY
+# autonomous decision against the authorized envelope it carried into the
+# mission, emits a chained DSSE-signed receipt per decision (host _emit_receipt
+# → REAL cosign), and catches the moment a line gets crossed. The result is one
+# continuous, tamper-evident record an auditor verifies when contact resumes.
+# Registered BEFORE the SPA catch-all. ADDITIVE only.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_cannonico as _cannonico
+    _cannonico_status = _cannonico.register(app, emit_receipt=_emit_receipt, ns="killinchu")
+    print(f"[killinchu] Cannonico endpoints registered: {_cannonico_status['registered']}", file=sys.stderr)
+except Exception as _cannonico_e:
+    import traceback as _cannonico_tb
+    print(f"[killinchu] Cannonico endpoints NOT registered: {_cannonico_e!r}", file=sys.stderr)
+    _cannonico_tb.print_exc()
+# ── end CANNONICO ────────────────────────────────────────────────────────────
+
 
 # ---------------------------------------------------------------------------
 # ADDITIVE: /version endpoint — Founder Inspection Surface (v1.0.0)
