@@ -3176,8 +3176,12 @@ async function deploy_load(){
     var organs=(ms.mesh_organs||['killinchu']);
     setTxt('dp-n',organs.length);
     setHTML('dp-list','');
+    // Field-facing labels: the signed bundle is composed of these component images.
+    // We label by field role rather than internal codenames (codenames are not user-facing).
+    var LBL={killinchu:'field-surface command image',a11oy:'governance / provenance image',amaru:'sensor-fusion image',sentra:'observability image',rosie:'edge-agent image'};
     organs.forEach(function(o){
-      addHTML('dp-list','<div class="row"><span class="badge b-live">L2</span><span>'+esc(o)+' \u00b7 organ image'+(o==='killinchu'?' \u00b7 this field surface':'')+'</span><span class="spacer mono dim">.att + .sig</span></div>');
+      var label=LBL[o]||(esc(o)+' \u00b7 component image');
+      addHTML('dp-list','<div class="row"><span class="badge b-live">L2</span><span>'+label+(o==='killinchu'?' \u00b7 this field surface':'')+'</span><span class="spacer mono dim">.att + .sig</span></div>');
     });
     setTxt('dp-ag','ready');
     setOut('dp-cmds',
