@@ -52,7 +52,7 @@ ecosystem-stage: "operational"
 
 ## The application
 
-killinchu is a **full left-nav application** at `/elite` in the unified SZL house style (dark ground, gold `#c9b787` + teal `#5fb3a3`, Space Grotesk + JetBrains Mono), with a **cross-flag switcher** in the top ribbon (a11oy · sentra · amaru · rosie · killinchu).
+killinchu is a **full left-nav application** at `/elite` in the unified SZL house style (dark ground, gold `#c9b787` + teal `#5fb3a3`, Space Grotesk + JetBrains Mono), with a **product switcher** in the top ribbon between the two live SZL products (a11oy · killinchu).
 
 **Primary app file:** [`killinchu_elite_console.py`](killinchu_elite_console.py) · **served at** `/elite`.
 
@@ -71,7 +71,7 @@ killinchu is a **full left-nav application** at `/elite` in the unified SZL hous
 
 ## What it does
 
-**killinchu is the counter-UAS edge organ.** It runs where the mission happens — detecting, classifying, and evaluating hostile UAS tracks at machine speed, signing every interdiction decision with a DSSE Khipu receipt, and surfacing the result to a human operator (rosie) before any action propagates.
+**killinchu is the counter-UAS edge tool of the SZL drones & vessels product.** It runs where the mission happens — detecting, classifying, and evaluating hostile UAS tracks at machine speed, signing every interdiction decision with a DSSE Khipu receipt, and surfacing the result to a **human operator** before any action propagates.
 
 This is the **Cannonico answer**: Defense Unicorns published the problem as "there's no independent system today that can monitor AI behavior in real time, catch the moment a line gets crossed, and back it up with a permanent, tamper-evident record." killinchu is that system — deployed in one signed UDS command.
 
@@ -127,8 +127,8 @@ graph TD
     DEC --> FP[53 drone fingerprints\nclassification]
     FP --> GATE[13-axis Λ-gate\nyuyay_v3\nhaversine geofence]
     GATE --> VRD[DSSE Khipu receipt\nP-256 signed\nMerkle DAG node]
-    VRD --> ROE[sentra ROE check\n/roe/policy\nsigned deny/allow]
-    ROE --> ROSIE[rosie console\nhuman-on-the-loop\nconfirm + authorize]
+    VRD --> ROE[ROE policy check\n/roe/policy\nsigned deny/allow]
+    ROE --> OP[Operator console\nhuman-on-the-loop\nconfirm + authorize]
     VRD --> A11[a11oy Khipu DAG\nreceipts.in = receipts.out]
 ```
 
@@ -141,7 +141,7 @@ graph TD
 | UAS track classification | ✅ | ✅ 53 fingerprints, 13-axis | — |
 | Protocol decoders | ✅ (proprietary) | ✅ **open-source** (ASTM/ADS-B/MAVLink) | Open, auditable |
 | Signed verdicts per interdiction | — | ✅ **DSSE receipt per decision** | Each block is a verifiable artifact |
-| Human-on-the-loop gate | ✅ | ✅ rosie confirmation | — |
+| Human-on-the-loop gate | ✅ | ✅ operator confirmation | — |
 | Supply-chain provenance | — | ✅ **cosign-signed + SLSA L2 attested** | — |
 | Air-gap deployment | ✅ | ✅ **UDS bundle** | Open-source |
 | BFT receipt quorum | — | ✅ | — |
