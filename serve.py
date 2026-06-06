@@ -1137,6 +1137,25 @@ async def navy_surface() -> FileResponse:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# ADDITIVE (Landing front door, 2026-06-06, Perplexity Computer Agent): the
+# killinchu marketing LANDING page (static/landing.html) — shared a11oy house
+# style, orbital field-command hero, live KPIs, offline-verify story. The CTA
+# "Enter the Field Console" links to /elite (registered by killinchu_elite_console).
+# Served via EXPLICIT routes because the SPA /{full_path:path} catch-all is
+# shadowed for *.html by an earlier JSON-404 handler (same reason /uds.html etc.
+# use explicit routes). Registered BEFORE the catch-all so it resolves LOCALLY.
+# ADDITIVE — does NOT touch killinchu_elite_console.py or any existing route.
+# Doctrine v11 LOCKED 749/14/163 unchanged.
+@app.get("/landing")
+@app.get("/landing.html")
+@app.get("/killinchu/landing")
+async def killinchu_landing() -> FileResponse:
+    _page = STATIC_DIR / "landing.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 # ===========================================================================
 # FULL UDS INJECTION (ADDITIVE, Yachay / Perplexity Computer Agent, 2026-06-02):
 # Six real /uds/* subpages — /uds/sbom, /uds/sigstore, /uds/cmmc, /uds/889,
@@ -1656,6 +1675,25 @@ except Exception as _elite_e:
     print(f"[killinchu] Elite console NOT registered: {_elite_e!r}", file=sys.stderr)
     _elite_tb.print_exc()
 # ── end ELITE ────────────────────────────────────────────────────────────────
+
+# ===========================================================================
+# ADDITIVE: FLEET (Vessels) commercial-fleet surface (GAP-1 + GAP-2).
+# Serves the REAL platform seed-data/vessels/* datasets VERBATIM as static JSON
+# endpoints under /api/killinchu/v1/fleet/*, plus the vessels-vertical "Voyage
+# Risk Exchange" governed-decision loop (signals->forecast->evidence->recommendation
+# ->brief), ported verbatim as pure functions. Datasets are clearly-labelled SAMPLE
+# data, NOT a live AIS / class-society feed. Mounted BEFORE the SPA catch-all.
+# Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L2. NO mocks.
+# ===========================================================================
+try:
+    import killinchu_fleet_vessels as _fleet
+    _fleet_status = _fleet.register(app)
+    print(f"[killinchu] FLEET vessels registered: {_fleet_status.get('registered_count')} routes", file=sys.stderr)
+except Exception as _fleet_e:
+    import traceback as _fleet_tb
+    print(f"[killinchu] FLEET vessels NOT registered: {_fleet_e!r}", file=sys.stderr)
+    _fleet_tb.print_exc()
+# ── end FLEET ────────────────────────────────────────────────────────────────
 
 
 # ===========================================================================
@@ -2423,4 +2461,134 @@ except Exception as _killinchu_dag_e:
     print(f"[killinchu] /khipu/dag alias FAILED: {_killinchu_dag_e!r}", file=_killinchu_dag_sys.stderr)
 # ============================================================================
 # END: /khipu/dag ALIAS — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# FLEET (Vessels) FRONT-INSERT — runs LAST, after killinchu_frontier_patch's
+# routes.clear()+extend, so the FLEET routes are guaranteed to sit AHEAD of the
+# /{full_path:path} SPA catch-all (which 404s anything under api/). The earlier
+# include_router at ~line 1689 is harmless; this re-inserts the same routes at
+# position 0 to win precedence on the HF runtime. ADDITIVE ONLY. NO mocks.
+# ============================================================================
+try:
+    import sys as _fleet2_sys
+    from fastapi.routing import APIRoute as _Fleet2Route
+    from fastapi.responses import JSONResponse as _Fleet2JR
+    import killinchu_fleet_vessels as _fleet2
+    _fleet2_data = _fleet2._load()
+    _FLEET2_LABEL = _fleet2.HONESTY_LABEL
+    _fleet2_base = "/api/killinchu/v1/fleet"
+
+    def _fleet2_make(key):
+        async def _h() -> _Fleet2JR:
+            return _Fleet2JR({"data": _fleet2_data.get(key, []),
+                              "honesty": _FLEET2_LABEL, "source_key": key})
+        return _h
+
+    async def _fleet2_all() -> _Fleet2JR:
+        return _Fleet2JR({"datasets": _fleet2_data,
+            "counts": {k: (len(v) if isinstance(v, list) else None)
+                       for k, v in _fleet2_data.items()},
+            "honesty": _FLEET2_LABEL,
+            "source": "github.com/szl-holdings/platform seed-data/vessels/*"})
+
+    async def _fleet2_voyage() -> _Fleet2JR:
+        return _Fleet2JR(_fleet2.voyage_risk_loop())
+
+    _fleet2_specs = [
+        ("/vessels", _fleet2_make("vessels"), "fleet_vessels"),
+        ("/forecast-modules", _fleet2_make("forecast-modules"), "fleet_forecast_modules"),
+        ("/predictive-maintenance", _fleet2_make("predictive-maintenance"), "fleet_predictive_maintenance"),
+        ("/compliance-certificates", _fleet2_make("compliance-certificates"), "fleet_compliance_certificates"),
+        ("/port-state-deficiencies", _fleet2_make("port-state-deficiencies"), "fleet_port_state_deficiencies"),
+        ("/ai-briefings", _fleet2_make("ai-briefings"), "fleet_ai_briefings"),
+        ("/event-logs", _fleet2_make("event-logs"), "fleet_event_logs"),
+        ("/fleets", _fleet2_make("fleets"), "fleet_fleets"),
+        ("/maintenance-logs", _fleet2_make("maintenance-logs"), "fleet_maintenance_logs"),
+        ("/shipment-records", _fleet2_make("shipment-records"), "fleet_shipment_records"),
+        ("/all", _fleet2_all, "fleet_all"),
+        ("/voyage-risk", _fleet2_voyage, "fleet_voyage_risk"),
+    ]
+    _fleet2_names = {n for _, _, n in _fleet2_specs}
+    # Drop any prior copies (from the early include_router) to avoid duplicates.
+    app.router.routes[:] = [r for r in app.router.routes
+                            if getattr(r, "name", "") not in _fleet2_names]
+    _fleet2_new = [_Fleet2Route(f"{_fleet2_base}{p}", h, methods=["GET"], name=n)
+                   for p, h, n in _fleet2_specs]
+    for _r in reversed(_fleet2_new):
+        app.router.routes.insert(0, _r)
+    print(f"[killinchu] FLEET front-insert OK: {len(_fleet2_new)} routes ahead of catch-all",
+          file=_fleet2_sys.stderr)
+except Exception as _fleet2_e:
+    import sys as _fleet2_sys, traceback as _fleet2_tb
+    print(f"[killinchu] FLEET front-insert FAILED: {_fleet2_e!r}", file=_fleet2_sys.stderr)
+    _fleet2_tb.print_exc(file=_fleet2_sys.stderr)
+# ============================================================================
+# END: FLEET (Vessels) FRONT-INSERT
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: GOVERNED AGENT LOOP — killinchu (2026-06-06, ADDITIVE, v11 locked)
+# Wires the OPERATIONAL RAG -> tool-call -> policy/trust gate -> signed-receipt
+# loop end-to-end + the canonical LIVE MCP (GET/POST /mcp/) + consumer UI
+# (/ask-and-act). Uses killinchu's REAL persistent cosign signer (szl_dsse) so
+# receipts are genuinely ECDSA-P256-SHA256 signed and verifiable offline with
+# `cosign verify-blob --key cosign.pub`. Routes are inserted at position 0 so
+# they beat the SPA /{full_path:path} catch-all. NEVER crashes the app.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_agentic_loop as _szl_loop
+    import sys as _kloop_sys
+
+    def _killinchu_loop_sign(payload_obj):
+        """Sign a decision payload with the persistent cosign DSSE key. If the
+        signing key secret is not present in this runtime, returns an honestly
+        UNSIGNED envelope (no fabricated signature)."""
+        try:
+            env = _szl_dsse.sign_payload(payload_obj, "application/vnd.szl.receipt+json")
+            # normalize: ensure the keys the loop module expects are present
+            env.setdefault("signed", bool(env.get("signatures")))
+            return env
+        except Exception as _se:
+            return {"signed": False, "signatures": [],
+                    "payloadType": "application/vnd.szl.receipt+json",
+                    "honesty": "UNSIGNED — signer raised: %s" % type(_se).__name__}
+
+    def _killinchu_loop_verify(env):
+        """Re-verify a DSSE envelope against the SZLHOLDINGS cosign.pub via
+        szl_dsse.verify_envelope. Maps to the loop module's expected verdict."""
+        try:
+            v = _szl_dsse.verify_envelope(env)
+            return {"signature_valid": bool(v.get("verified")),
+                    "detail": (v.get("reason") or
+                               "ECDSA-P256-SHA256 over DSSE PAE verified against "
+                               "SZLHOLDINGS cosign.pub (persistent key).")}
+        except Exception as _ve:
+            return {"signature_valid": False,
+                    "detail": "signature check failed: %s" % type(_ve).__name__}
+
+    def _killinchu_loop_pubpem():
+        try:
+            return _szl_dsse.COSIGN_PUBLIC_PEM
+        except Exception:
+            return ""
+
+    _kloop_status = _szl_loop.register(
+        app, "killinchu",
+        _killinchu_loop_sign,
+        verify_fn=_killinchu_loop_verify,
+        pub_pem_fn=_killinchu_loop_pubpem,
+        signer_label="persistent cosign ECDSA-P256-SHA256 (verifiable offline vs /cosign.pub)",
+    )
+    print(f"[killinchu] governed agent loop registered: {_kloop_status}", file=_kloop_sys.stderr)
+except Exception as _kloop_e:
+    import sys as _kloop_sys, traceback as _kloop_tb
+    print(f"[killinchu] governed agent loop FAILED (non-fatal): {_kloop_e!r}", file=_kloop_sys.stderr)
+    _kloop_tb.print_exc(file=_kloop_sys.stderr)
+# ============================================================================
+# END: GOVERNED AGENT LOOP — killinchu
 # ============================================================================

@@ -186,6 +186,17 @@ COPY killinchu_cannonico.py ./killinchu_cannonico.py
 # killinchu_elite_console.py: a11oy-elite 14-tab operator console. serve.py imports
 # it via try/except; per-file COPY (this Dockerfile never uses `COPY . .`).
 COPY killinchu_elite_console.py ./killinchu_elite_console.py
+# ADDITIVE (FLEET vessels/drones, GAP-1+GAP-2): per-file COPY of the FLEET (Vessels)
+# module + its embedded verbatim platform seed-data. serve.py imports
+# killinchu_fleet_vessels and front-inserts its 12 routes under /api/killinchu/v1/fleet/*
+# (vessels, forecast-modules, predictive-maintenance, compliance-certificates,
+# port-state-deficiencies, ai-briefings, event-logs, fleets, maintenance-logs,
+# shipment-records, all, voyage-risk); without these COPYs the import fails and every
+# fleet route falls through to the SPA catch-all (404). This Dockerfile never uses
+# `COPY . .` — every file is explicit. fleet_vessels_data.json carries all 10 datasets
+# embedded verbatim, so the 4 new endpoints need no new COPY line. Cache-bust: full-vessels-2026-06-06
+COPY killinchu_fleet_vessels.py ./killinchu_fleet_vessels.py
+COPY fleet_vessels_data.json ./fleet_vessels_data.json
 # killinchu_beyond.py: Beyond-Cannonico proof console — autonomy-governance
 # generalized beyond one drone (autonomy envelope · 3-of-4 swarm quorum · HOTL
 # override register). serve.py imports it via try/except; without this COPY the
@@ -231,6 +242,14 @@ COPY src/killinchu/edge.py ./src/killinchu/edge.py
 COPY src/killinchu/simulator.py ./src/killinchu/simulator.py
 COPY web/console.html ./web/console.html
 COPY web/console.js ./web/console.js
+
+# ADDITIVE (Governed Agent Loop, 2026-06-06): the operational RAG -> tool-call ->
+# policy/trust gate -> signed-receipt loop + canonical live MCP + consumer UI.
+# This Dockerfile NEVER uses `COPY . .` — every file is explicit. Without this
+# line `import szl_agentic_loop` fails silently and /mcp/, /ask-and-act 404.
+# Receipts are signed with the persistent cosign ECDSA-P256-SHA256 key (szl_dsse).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY szl_agentic_loop.py ./szl_agentic_loop.py
 
 CMD ["python", "serve.py"]
 
