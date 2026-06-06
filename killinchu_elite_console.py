@@ -2120,6 +2120,8 @@ async function organism_load(){
 // (verify cost is independent of total chain depth). Two-sided audit guarantee (W7-6, Doob
 // two-sided envelope, axiom-free): auditing EARLY or LATE cannot change the verdict.
 async function chain_load(){
+  // Ledger count fires in parallel up-front so it never waits behind the heavy 3D chain render.
+  orgGet('provenance','/api/a11oy/v1/ledger').then(led=>setTxt('ch-led',led.count??(led.receipts||[]).length)).catch(()=>setTxt('ch-led','—'));
   try{const cl=await orgGet('provenance','/api/a11oy/v2/command-log');const rcs=(cl.receipts||[]).slice(-60);
     setTxt('ch-depth',cl.depth??rcs.length);setTxt('ch-ver',cl.chain_verified?'verified':'—');
     const nodes=[],links=[];rcs.forEach((r,i)=>{const id=String(r.hash||r.seq||i);nodes.push({id,name:'#'+(r.seq??i)+' · '+esc(scrubText(String(r.command||r.kind||''))).slice(0,28)+' · '+id.slice(0,10),color:i===rcs.length-1?GOLD:TEAL,val:i===0?9:4});
@@ -2129,8 +2131,7 @@ async function chain_load(){
     setTxt('ch-cap','genesis hash '+esc(String(cl.genesis_hash||'').slice(0,16))+'… → head '+esc(String(cl.final_hash||'').slice(0,16))+'… · '+(cl.chain_verified?'chain VERIFIED':'unverified'));
     const tail=el('ch-tail');if(tail){tail.innerHTML='';rcs.slice().reverse().forEach(r=>tail.insertAdjacentHTML('beforeend',`<div class="frow"><span class="ts">#${esc(r.seq??'')}</span><span class="id">${esc(String(r.hash||'').slice(0,12))}</span><span class="txt">${esc(scrubText(String(r.command||r.kind||'')))}</span></div>`));}
     setOut('ch-raw',cl);
-  }catch(e){const h=el('ch-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';setOut('ch-raw','retry: '+e.message);}
-  try{const led=await orgGet('provenance','/api/a11oy/v1/ledger');setTxt('ch-led',led.count??(led.receipts||[]).length);}catch(e){setTxt('ch-led','—');}}
+  }catch(e){const h=el('ch-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';setOut('ch-raw','retry: '+e.message);}}
 
 // Global Pulse — live USGS earthquakes on a globe, arcs → a11oy US hub
 async function pulse_load(){
@@ -3386,13 +3387,13 @@ async function deploy_verify(tamper){
 var _WB_FORMULA={
   cannonico:{title:'P1 \u00b7 Cannonico non-interference',f:'P3 non-interference (axiom-free core) + P1 receipt-completeness',chip:['PROVEN','#5fb3a3'],guarantee:'Untrusted, poisoned sensor/comms input is recorded but provably cannot flip the engagement gate verdict.',tab:'autonomyov',
     run:async()=>{ return await postJSON(API+'/counter-uas/evaluate',{telemetry:{latitude:47.85,longitude:35.10,ground_speed_m_s:51.4,side:'N',remote_id_present:false},geofence:{center_lat:47.0,center_lon:35.0,radius_m:50000},policy:{max_speed_m_s:30.0,require_remote_id:true,allow_sides:['N','S']}}); }},
-  airgap:{title:'P2 \u00b7 Air-gap deploy posture',f:'W5-4 forgery-detection + P5 tamper-evidence (axiom-gated)',chip:['AXIOM-GATED','#c9b787'],guarantee:'Decision made offline from in-image policy + local hash-chained ledger; bundle is cosign-signed.',tab:'deploy',
+  airgap:{title:'P2 \u00b7 Tychee air-gap deploy posture',f:'W5-4 forgery-detection + P5 tamper-evidence (axiom-gated)',chip:['AXIOM-GATED','#c9b787'],guarantee:'Tychee: decision made offline from in-image policy + local hash-chained ledger; bundle is cosign-signed.',tab:'deploy',
     run:async()=>{ return await postJSON(API+'/receipt/emit',{op:'warhacker/airgap',payload:{air_gapped:true}}); }},
-  autonomy:{title:'P4 \u00b7 Mission feasibility / readiness',f:'P1 receipt-completeness + DSSE signing',chip:['PROVEN','#5fb3a3'],guarantee:'Autonomy envelope check records a tamper-evident, genuinely-signed receipt.',tab:'modelatlas',
+  autonomy:{title:'P4 \u00b7 HANGAR2APPS mission feasibility / readiness',f:'P1 receipt-completeness + DSSE signing',chip:['PROVEN','#5fb3a3'],guarantee:'HANGAR2APPS: autonomy/deployment-readiness envelope check records a tamper-evident, genuinely-signed receipt.',tab:'modelatlas',
     run:async()=>{ return await postJSON(API+'/autonomy/evaluate',{system_type:'loitering_munition',context:{}}); }},
-  darkvessel:{title:'P8 \u00b7 Dark-vessel / counter-UAS threat',f:'W7-4 conformal calibration (never 100% certainty)',chip:['CALIBRATED','#c9a05f'],guarantee:'Anomaly triaged through reasoning to a calibrated, auditable verdict.',tab:'darkgraph',
+  darkvessel:{title:'P8 \u00b7 Cyber-RTS dark-vessel / counter-UAS anomaly triage',f:'W7-4 conformal calibration (never 100% certainty)',chip:['CALIBRATED','#c9a05f'],guarantee:'Cyber-RTS: anomaly triaged through reasoning to a calibrated, auditable verdict.',tab:'darkgraph',
     run:async()=>{ return await postJSON(API+'/counter-uas/evaluate',{telemetry:{latitude:47.86,longitude:35.12,ground_speed_m_s:50.0,side:'N',remote_id_present:false},geofence:{center_lat:47.0,center_lon:35.0,radius_m:50000},policy:{max_speed_m_s:30.0,require_remote_id:true,allow_sides:['N','S']}}); }},
-  edge:{title:'P7 \u00b7 Edge / sovereign offline',f:'F-G5 bounded-termination + sovereign offline (P5 axiom-gated)',chip:['PROVEN','#5fb3a3'],guarantee:'Edge decision coordinated and linked into the live receipt chain; runs offline.',tab:'fieldnet',
+  edge:{title:'P7 \u00b7 Raven edge / sovereign offline AI mesh',f:'F-G5 bounded-termination + sovereign offline (P5 axiom-gated)',chip:['PROVEN','#5fb3a3'],guarantee:'Raven: edge AI-mesh decision coordinated and linked into the live receipt chain; runs offline.',tab:'fieldnet',
     run:async()=>{ return await postJSON(API+'/receipt/emit',{op:'warhacker/edge',payload:{edge:true,sovereign:true}}); }}
 };
 function warboard_init(){ setHTML('wb-cards','<div class="row mono dim">Click \u201cLaunch all 5 field demos\u201d \u2014 each runs in-image and records a genuinely-signed receipt of the decision.</div>'); }
