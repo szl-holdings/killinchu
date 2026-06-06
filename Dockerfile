@@ -268,5 +268,24 @@ COPY szl_agentic_loop.py ./szl_agentic_loop.py
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 COPY killinchu_ops_control.py ./killinchu_ops_control.py
 
+# ---------------------------------------------------------------------------
+# OPEN-WEIGHT ALLOY MODEL LAYER (model-integration squad, 2026-06-06; PORTED from a11oy)
+# Same open-weight alloy forged into a11oy, ported to killinchu. Per-file COPY
+# (this Dockerfile NEVER uses `COPY . .`). Without these, `import szl_alloy_models`
+# fails silently and /api/killinchu/v1/alloy/* 404.
+#   * szl_alloy_models.py : roster + C20/W7-5 router + W5-3/W7-4 conformal +
+#     C10-C12 consensus + governed suggest (honest tower-side label; output never faked).
+#   * szl_llm_registry.py : the LLM registry the alloy roster UNIFIES into (one roster).
+# OPEN-WEIGHT only, NO closed weights, NO keys; weights NOT redistributed.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY szl_llm_registry.py ./szl_llm_registry.py
+COPY szl_alloy_models.py ./szl_alloy_models.py
+
 CMD ["python", "serve.py"]
 
+
+# Build cache-bust 2026-06-06T09:10Z (model-integration squad): PORTED OPEN-WEIGHT ALLOY
+# MODEL LAYER from a11oy -> COPY szl_alloy_models.py + szl_llm_registry.py; serve.py
+# registers alloy under /api/killinchu/v1/alloy/* (C20/W7-5 router, W5-3/W7-4 conformal,
+# C10-C12 consensus; DeepSeek-Coder-V2 CODE_PRIMARY; honest tower-side; never faked).

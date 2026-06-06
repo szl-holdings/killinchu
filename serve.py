@@ -2588,6 +2588,53 @@ except Exception as _kloop_e:
 
 
 # ============================================================================
+# BEGIN: OPEN-WEIGHT ALLOY MODEL LAYER — killinchu (2026-06-06, ADDITIVE; PORTED from a11oy)
+# Model-integration squad (Opus 4.8). Same open-weight alloy forged into a11oy,
+# ported to killinchu. Strongest OPEN-WEIGHT coding models (DeepSeek-Coder-V2
+# CODE_PRIMARY, Qwen2.5-Coder, Llama-3.3; Codestral flagged NON-COMMERCIAL/excluded),
+# BOUND by proven formulas: C20/W7-5 router, W5-3/W7-4 conformal (never 100%),
+# C10-C12 Byzantine consensus; every call -> REAL signed receipt via killinchu's
+# persistent cosign signer (_killinchu_loop_sign). UNIFY-not-fork: extends
+# szl_llm_registry.MODEL_REGISTRY. Open weights only; weights NOT redistributed; NO
+# closed weights; NO AGI; lambda=Conjecture 1. No local GGUF here -> honest tower-side
+# label (output NEVER faked). Routes inserted at position 0 so they beat the SPA
+# /{full_path:path} catch-all. try/except guarded — can never crash the app.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+_ALLOY_DIAG_K = {"status": "not-run"}
+try:
+    from starlette.routing import Route as _AlloyDiagRouteK
+    from starlette.responses import JSONResponse as _AlloyDiagJSONK
+    async def _killinchu_alloy_diag_route(request):
+        return _AlloyDiagJSONK(_ALLOY_DIAG_K)
+    for _adpk in ("/api/killinchu/v1/alloy/_diag", "/v1/alloy/_diag"):
+        app.router.routes.insert(0, _AlloyDiagRouteK(_adpk, _killinchu_alloy_diag_route,
+                                                     methods=["GET"], name="killinchu_alloy_diag_%s" % _adpk.count('/')))
+except Exception:
+    pass
+
+try:
+    import szl_alloy_models as _szl_alloy_k
+    import sys as _alloy_sys_k
+    _alloy_status_k = _szl_alloy_k.register(app, "killinchu", _killinchu_loop_sign)
+    try:
+        _alloy_unify_k = _szl_alloy_k.unify_into_registry()
+    except Exception as _uek:
+        _alloy_unify_k = {"unified": False, "error": repr(_uek)}
+    print(f"[killinchu] open-weight alloy model layer registered: {_alloy_status_k}; unify={_alloy_unify_k}", file=_alloy_sys_k.stderr)
+    _ALLOY_DIAG_K = {"status": "ok", "registered": _alloy_status_k, "unify": _alloy_unify_k}
+except Exception as _alloy_ek:
+    import sys as _alloy_sys_k, traceback as _alloy_tb_k
+    print(f"[killinchu] open-weight alloy model layer FAILED (non-fatal): {_alloy_ek!r}", file=_alloy_sys_k.stderr)
+    _alloy_tb_k.print_exc(file=_alloy_sys_k.stderr)
+    _ALLOY_DIAG_K = {"status": "FAILED", "error": repr(_alloy_ek), "traceback": _alloy_tb_k.format_exc()}
+# ============================================================================
+# END: OPEN-WEIGHT ALLOY MODEL LAYER — killinchu
+# ============================================================================
+
+
+# ============================================================================
 # BEGIN: OPERATIONAL CONTROL SURFACES — killinchu (2026-06-06, ADDITIVE)
 # Makes VESSELS and DRONES genuinely operational: select a track -> issue a
 # governed command -> it runs through the deny-by-default policy/kernel gate ->
