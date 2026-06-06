@@ -256,6 +256,14 @@ COPY web/console.js ./web/console.js
 # Receipts are signed with the persistent cosign ECDSA-P256-SHA256 key (szl_dsse).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 COPY szl_agentic_loop.py ./szl_agentic_loop.py
+
+# Formula-wiring module (ADDITIVE 2026-06-06): registers the kernel-verified theorem
+# mechanisms as live executable checks + the /api/<ns>/v1/formulas/* endpoints
+# (selftest, proof-summary). BYTE-IDENTICAL across a11oy + killinchu (single source of
+# truth). This Dockerfile NEVER uses `COPY . .` -- without this line
+# `import szl_formula_wiring` fails silently and the formula endpoints 404.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY szl_formula_wiring.py ./szl_formula_wiring.py
 # a11oy Code engine (PORTED 2026-06-06): governed coder (chat/code/research),
 # C20/W7-5 router, W5-3/W7-4 conformal, real sandbox, per-run-GENESIS receipts.
 # Imports szl_llm_registry (COPY'd below) for the OPEN-WEIGHT roster.
