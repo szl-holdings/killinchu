@@ -2588,6 +2588,36 @@ except Exception as _kloop_e:
 
 
 # ============================================================================
+# BEGIN: FORMULA-WIRING SURFACE — killinchu (2026-06-06, ADDITIVE, surgical)
+# Wires ALL ~80 kernel-verified theorems to REAL, executed mechanisms (shared,
+# byte-identical szl_formula_wiring across a11oy + killinchu). Adds:
+#   GET  /api/killinchu/v1/formulas/selftest        (runs every mechanism live)
+#   GET  /api/killinchu/v1/formulas/proof-summary   (single-source proof+capability map)
+#   POST /api/killinchu/v1/formulas/conformal | routing-envelope | consensus-quorum
+#   POST /api/killinchu/v1/formulas/verify-receipts
+# Routes inserted at position 0 so they beat the SPA /{full_path:path} catch-all.
+# try/except guarded (non-fatal). The loop (szl_agentic_loop) already imports
+# these mechanisms and calls them inside every governed run (formula_proof).
+# The proof-summary endpoint is byte-identical to a11oy's — single source of
+# truth so the two renderers CANNOT diverge.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_formula_wiring as _szl_fw
+    import sys as _kfw_sys
+    _kfw_status = _szl_fw.register(app, "killinchu")
+    print(f"[killinchu] formula-wiring surface registered: {_kfw_status}", file=_kfw_sys.stderr)
+except Exception as _kfw_e:
+    import sys as _kfw_sys, traceback as _kfw_tb
+    print(f"[killinchu] formula-wiring FAILED (non-fatal): {_kfw_e!r}", file=_kfw_sys.stderr)
+    _kfw_tb.print_exc(file=_kfw_sys.stderr)
+# ============================================================================
+# END: FORMULA-WIRING SURFACE — killinchu
+# ============================================================================
+
+
+# ============================================================================
 # BEGIN: a11oy CODE — governed agentic coder (PORTED to killinchu, 2026-06-06)
 # Three governed modes (chat / run-code-in-sandbox / research). Every turn flows
 # through the proven P1-P6 loop and emits a per-run-GENESIS hash-chained, cosign-
