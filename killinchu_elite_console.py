@@ -2863,6 +2863,9 @@ function dvh_anomaly(scored){
 if(!window._tailTimers) window._tailTimers=[];
 if(!window._liveTimers) window._liveTimers=window._tailTimers;
 var FR_FLOOR=0.90; // signed/health floor (Λ floor, advisory)
+// liveDot: small pulsing teal dot for live card headers (killinchu has @keyframes pulse + --live).
+if(typeof window.liveDot!=='function'){ window.liveDot=function(){ return '<span class="livedot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--live,#5a8a6e);box-shadow:0 0 8px #5a8a6e;animation:pulse 1.6s infinite;margin-right:6px;vertical-align:middle"></span>'; }; }
+var liveDot=window.liveDot;
 
 /* ---------- shared small helpers (frontier-local, non-clobbering) ---------- */
 function _fr_badge(txt,kind){var c=kind==='deny'?'b-err':(kind==='gold'?'b-gold':'b-live');return '<span class="badge '+c+'">'+esc(txt)+'</span>';}
