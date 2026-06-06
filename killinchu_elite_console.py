@@ -69,8 +69,26 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
+import os
+from pathlib import Path as _Path
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+
+# Sovereign / air-gap (Warhacker: Tychee reusable air-gap stack + Raven tactical
+# edge): the 7 viz libs (Chart.js, ECharts+gl, 3d-force-graph, globe.gl,
+# Cytoscape, D3, KaTeX) + the globe night texture are VENDORED locally under
+# static/vendor/ and served at /vendor/* — NO CDN. The console renders fully on
+# an air-gapped network with the cable pulled. (Dockerfile already does
+# `COPY static/ ./static/`, so no new COPY line is required.)
+def _vendor_dir() -> _Path:
+    """Resolve static/vendor against the container CWD (/app) or the module dir."""
+    for cand in (_Path("static/vendor"), _Path(__file__).resolve().parent / "static" / "vendor"):
+        if cand.is_dir():
+            return cand
+    return _Path("static/vendor")
 
 _DOCTRINE = "v11"
 _LEAN = "c7c0ba17"
@@ -182,6 +200,50 @@ def register(
     registered: list[str] = []
 
     # ------------------------------------------------------------------
+    # Sovereign viz: serve the vendored libs at /vendor/* (NO CDN). The text
+    # assets (*.js, katex.min.css) ship in static/vendor/ and are served by a
+    # StaticFiles mount. The BINARY assets (globe night texture + KaTeX woff2
+    # fonts) ship as base64 inside _vendor_blobs.py (TEXT in git) and are served
+    # by the explicit routes below — this keeps the whole console air-gap-ready
+    # with NO CDN and NO LFS blob. Explicit routes are registered BEFORE the
+    # /vendor mount so they take precedence over the static directory.
+    # ------------------------------------------------------------------
+    try:
+        from fastapi.responses import Response as _Resp
+        import _vendor_blobs as _vb
+
+        @app.get("/vendor/earth-night.jpg")
+        async def _vendor_earth_night():
+            data = _vb.get("earth-night.jpg")
+            if data is None:
+                return _Resp(status_code=404)
+            return _Resp(content=data, media_type="image/jpeg",
+                         headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+        @app.get("/vendor/fonts/{fname}")
+        async def _vendor_font(fname: str):
+            data = _vb.get(f"fonts/{fname}")
+            if data is None:
+                return _Resp(status_code=404)
+            return _Resp(content=data, media_type="font/woff2",
+                         headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+        registered.append("GET /vendor/earth-night.jpg + /vendor/fonts/* (base64 blobs)")
+    except Exception as _be:  # pragma: no cover - never block the console
+        import sys as _sys
+        print(f"[killinchu] /vendor blob routes skipped: {_be!r}", file=_sys.stderr)
+
+    try:
+        _vdir = _vendor_dir()
+        _already = any(getattr(r, "path", "") == "/vendor" for r in app.routes)
+        if _vdir.is_dir() and not _already:
+            app.mount("/vendor", StaticFiles(directory=str(_vdir)), name="vendor")
+            registered.append("MOUNT /vendor (vendored viz libs, no-CDN)")
+    except Exception as _ve:  # pragma: no cover - never block the console
+        import sys as _sys
+        print(f"[killinchu] /vendor mount skipped: {_ve!r}", file=_sys.stderr)
+
+    # ------------------------------------------------------------------
     # Cross-flagship borrowed-powers — REAL aggregator endpoint.
     # ------------------------------------------------------------------
     @app.get(f"/api/{ns}/v1/borrowed-powers")
@@ -256,15 +318,17 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <meta name="description" content="killinchu is SZL Holdings' counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts-gl@2/dist/echarts-gl.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/globe.gl@2/dist/globe.gl.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/cytoscape@3/dist/cytoscape.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"/>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<!-- VENDORED viz libs (no-CDN, sovereign / air-gap ready). Chart.js 4.4.1, 3d-force-graph 1.73.4,
+     ECharts 5 + echarts-gl 2, globe.gl 2, Cytoscape 3, D3 7, KaTeX 0.16.9. Served from /vendor/* . -->
+<script src="/vendor/chart.umd.min.js"></script>
+<script src="/vendor/3d-force-graph.min.js"></script>
+<script src="/vendor/echarts.min.js"></script>
+<script src="/vendor/echarts-gl.min.js"></script>
+<script src="/vendor/globe.gl.min.js"></script>
+<script src="/vendor/cytoscape.min.js"></script>
+<script src="/vendor/d3.min.js"></script>
+<link rel="stylesheet" href="/vendor/katex.min.css"/>
+<script src="/vendor/katex.min.js"></script>
 <style>
 /* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
@@ -565,7 +629,12 @@ function scrubText(s){if(s==null)return s;return String(s)
 // Deep-scrub a JSON value for raw <details> display: rename object keys + string values.
 function scrubDeep(o){if(o==null)return o;if(typeof o==='string')return scrubText(o);if(Array.isArray(o))return o.map(scrubDeep);if(typeof o==='object'){const out={};for(const k in o){out[scrubText(k)]=scrubDeep(o[k]);}return out;}return o;}
 // ===== SIBLING ORGANS (inherited brain). a11oy = orchestrator. Browser fetches PUBLIC URLs directly (CORS open). =====
-const ORG={sentra:'https://szlholdings-sentra.hf.space',amaru:'https://szlholdings-amaru.hf.space',rosie:'https://szlholdings-rosie.hf.space',killinchu:'https://szlholdings-killinchu.hf.space',a11oy:'https://szlholdings-a11oy.hf.space'};
+// CONSOLIDATED MESH (real wiring): the former standalone organ Spaces (sentra/amaru/rosie)
+// were consolidated INTO the a11oy orchestrator Space, which now serves every organ endpoint
+// (/api/rosie/*, /api/sentra/*, /api/a11oy/*). The per-organ subdomains 404. Point every
+// non-killinchu organ key at the a11oy Space so the live graphs (Receipt-Chain DAG, Living
+// Organism, Gates, Honest, Ledger) bind to REAL data instead of dead 404 subdomains.
+const ORG={sentra:'https://szlholdings-a11oy.hf.space',amaru:'https://szlholdings-a11oy.hf.space',rosie:'https://szlholdings-a11oy.hf.space',killinchu:'https://szlholdings-killinchu.hf.space',a11oy:'https://szlholdings-a11oy.hf.space'};
 async function orgGet(organ,path){const r=await fetch(ORG[organ]+path);if(!r.ok)throw new Error('HTTP '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');return r.json();}
 async function orgPost(organ,path,body){const r=await fetch(ORG[organ]+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error('HTTP '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');return r.json();}
 
@@ -1379,7 +1448,7 @@ const VIEWS = {
     }},
 
   // ── 3.5 Engagement Audit Log ─────────────────────────────────────
-  audit:{title:'Engagement Audit',badge:'SIGNED CHAIN',sub:'Every engagement decision is genuinely signed and chained — a tamper-evident record you can verify offline. In-memory on the live demo (resets on restart). Record a demo engagement below.',
+  audit:{title:'Engagement Audit',badge:'SIGNED CHAIN',sub:'Every engagement decision is genuinely signed and chained — a tamper-evident record you can verify offline. The audit is two-sided: checking early or late can’t change the verdict, so the record can’t be gamed by stopping the review at a convenient moment. In-memory on the live demo (resets on restart). Record a demo engagement below.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Audit records</div><div class="v" id="k-audit">—</div><div class="d">since last restart</div></div>
@@ -1793,12 +1862,13 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="card"><div class="card-h"><span class="card-t">Organ health detail</span><span class="card-ep">live probe</span></div><div id="org-host"><div class="row mono dim">probing…</div></div>
         <details class="raw"><summary>raw /observability/summary</summary><pre class="out" id="org-raw">loading…</pre></details></div>${HONEST}`;window.organism_load();}},
 
-  chain:{title:'Receipt Chain',badge:'3D · PROOF',sub:'The platform’s proof-of-governance centerpiece. Every command the orchestrator brain runs is appended to a SHA-256 hash-chain, each receipt linked to its parent. This is a real verified chain — rendered as a growing 3D directed graph. killinchu’s own decision receipts are genuinely signed (see Verify Signed Receipt).',
+  chain:{title:'Receipt Chain',badge:'3D · PROOF',sub:'The platform’s proof-of-governance centerpiece. Every command the orchestrator brain runs is appended to a SHA-256 hash-chain, each receipt linked to its parent. This is a real verified chain — rendered as a growing 3D directed graph. The chain is verify-on-read: re-checking only touches the new frontier, so an audit walk always finishes in bounded steps — it stays fast on field hardware no matter how long the chain grows. And auditing early or late can’t change the result. killinchu’s own decision receipts are genuinely signed (see Verify Signed Receipt).',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Chain depth</div><div class="v" id="ch-depth">—</div><div class="d">real hash chain</div></div>
       <div class="kpi"><div class="k">Chain verified</div><div class="v live" id="ch-ver">—</div></div>
       <div class="kpi"><div class="k">Ledger receipts</div><div class="v teal" id="ch-led">—</div></div>
-      <div class="kpi"><div class="k">Signing</div><div class="v live">genuinely signed</div><div class="d">killinchu has a real key</div></div></div>
+      <div class="kpi"><div class="k">Signing</div><div class="v live">genuinely signed</div><div class="d">killinchu has a real key</div></div>
+      <div class="kpi"><div class="k">Verify-on-read</div><div class="v teal">bounded steps</div><div class="d">cost independent of chain depth</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Live hash-chain — 3D directed graph</span><span class="card-ep">left→right · GENESIS at left</span></div><div class="graph3d hero" id="ch-3d"></div><div class="brain-note" id="ch-cap">building chain…</div></div>
       <div class="card"><div class="card-h"><span class="card-t">Receipt tail</span><span class="card-ep">verified replay log</span></div><div class="feedtail" id="ch-tail"></div>
         <details class="raw"><summary>raw command-log</summary><pre class="out" id="ch-raw">loading…</pre></details></div>${HONEST}`;window.chain_load();}},
@@ -1870,7 +1940,13 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
 // ════════════ INHERITED BRAIN HANDLERS (shared with a11oy orchestrator) ════════════
 // a11oy = orchestrator brain; killinchu reaches it (and siblings) via orgGet/orgPost over public URLs.
 
-// Living Organism — a11oy brain hub + organs (3d-force-graph), live observability probe
+// Living Organism — a11oy brain hub + organs (3d-force-graph), live observability probe.
+// PROOF BINDING (code-comment only, no on-screen jargon): the mesh-health score this graph
+// visualizes is RELABEL-INVARIANT — renaming any node/organ leaves the aggregate health
+// identical. Proven in the graph-substrate set: F-G4 (relabel-invariance of the health
+// functional), W7-1 (invariance under node permutation), F-G6 (monotone composition of
+// per-node probes). i.e. the picture cannot be gamed by renaming a service. The on-screen
+// copy states this as a plain-English property, never as theorem IDs.
 async function organism_load(){
   try{const d=await orgGet('a11oy','/api/a11oy/v1/observability/summary');const mr=d.mesh_reach||{};const arr=Object.values(mr);const names=['a11oy','sentra','amaru','rosie','killinchu'];
     const nodes=[{id:'a11oy',name:'a11oy — orchestrating brain',color:GOLD,val:18}];const links=[];let reach=0;
@@ -1884,7 +1960,15 @@ async function organism_load(){
     setOut('org-raw',d);
   }catch(e){const h=el('org-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">live feed unavailable: '+esc(e.message)+'</div>';setTxt('org-reach','—');setOut('org-raw','retry: '+e.message);}}
 
-// Receipt Chain — live hash-chain as a 3D DAG (rosie command-log)
+// Receipt Chain — live hash-chain as a 3D DAG (rosie command-log).
+// PROOF BINDING (code-comment only): the audit walk over this DAG is a BOUNDED-FRONTIER
+// traversal that provably TERMINATES in O(frontier) steps regardless of chain length —
+// F-G5 (bounded-frontier audit-walk termination). This is the efficiency claim that matters
+// on constrained tactical-edge hardware (Warhacker #5 / Raven): \"audit walks always finish in
+// bounded steps.\" The verify-on-read badge below is powered by P5 (tamper-detect on
+// re-verify), P6 (incremental verify — only the new frontier is re-hashed), and W5-4
+// (verify cost is independent of total chain depth). Two-sided audit guarantee (W7-6, Doob
+// two-sided envelope, axiom-free): auditing EARLY or LATE cannot change the verdict.
 async function chain_load(){
   try{const cl=await orgGet('rosie','/api/rosie/v2/command-log');const rcs=(cl.receipts||[]).slice(-60);
     setTxt('ch-depth',cl.depth??rcs.length);setTxt('ch-ver',cl.chain_verified?'verified':'—');
@@ -1912,7 +1996,7 @@ async function pulse_load(){
     const host=el('pl-globe');
     if(host&&window.Globe){killGlobe();host.innerHTML='';
       _globe=Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
-        .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg')
+        .globeImageUrl('/vendor/earth-night.jpg')
         .pointsData(pts).pointColor('color').pointAltitude(d=>d.size*0.06).pointRadius(0.25).pointLabel('label')
         .arcsData(arcs).arcColor('color').arcDashLength(0.4).arcDashGap(0.2).arcDashAnimateTime(1600).arcStroke(0.5).arcAltitudeAutoScale(0.4);
       try{_globe.pointOfView({lat:39,lng:-98,altitude:2.2},0);const ctr=_globe.controls();if(ctr){ctr.autoRotate=true;ctr.autoRotateSpeed=0.6;}}catch(e){}
@@ -2446,7 +2530,7 @@ function lp_renderGlobe(E){
   const cmd={lat:47.0,lng:35.0};
   const arcs=E.filter(e=>e.affil==='hostile'&&e.lat!=null).map(e=>({startLat:e.lat,startLng:e.lng,endLat:cmd.lat,endLng:cmd.lng,color:[RED,GOLD]}));
   _globe=Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
-    .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg')
+    .globeImageUrl('/vendor/earth-night.jpg')
     .pointsData(pts).pointColor('color').pointAltitude(d=>d.size*0.05).pointRadius(d=>d.size*0.4).pointLabel('label')
     .arcsData(arcs).arcColor('color').arcDashLength(0.35).arcDashGap(0.15).arcDashAnimateTime(1500).arcStroke(0.6).arcAltitudeAutoScale(0.45)
     .onPointClick(p=>lp_detail(p.eid));

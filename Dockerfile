@@ -186,6 +186,12 @@ COPY killinchu_cannonico.py ./killinchu_cannonico.py
 # killinchu_elite_console.py: a11oy-elite 14-tab operator console. serve.py imports
 # it via try/except; per-file COPY (this Dockerfile never uses `COPY . .`).
 COPY killinchu_elite_console.py ./killinchu_elite_console.py
+# ADDITIVE (sovereign/air-gap viz, no-CDN): base64 of the binary vendored assets
+# (globe earth-night texture + 20 KaTeX woff2 fonts) shipped as TEXT. The elite
+# console imports `_vendor_blobs` and serves them at /vendor/earth-night.jpg and
+# /vendor/fonts/*; without this COPY the import fails and those routes 404 (the
+# *.js/*.css libs come from `COPY static/ ./static/`). Per-file COPY (no `COPY . .`).
+COPY _vendor_blobs.py ./_vendor_blobs.py
 # ADDITIVE (FLEET vessels/drones, GAP-1+GAP-2): per-file COPY of the FLEET (Vessels)
 # module + its embedded verbatim platform seed-data. serve.py imports
 # killinchu_fleet_vessels and front-inserts its 12 routes under /api/killinchu/v1/fleet/*
