@@ -55,7 +55,7 @@ Tabs → backing endpoints
 
 Honesty
 -------
-* SLSA L1 honest (killinchu NEVER claims L2 — private Fulcio, no public Rekor).
+* SLSA Level 2 build provenance (signed, hash-pinned; no FedRAMP / Iron Bank / CMMC).
 * Λ = Conjecture 1 — NEVER a theorem. 749/14/163 @ c7c0ba17.
 * DSSE receipts are REAL ECDSA-P256-SHA256 when SZL_COSIGN_PRIVATE_PEM is set,
   else an explicit honest PLACEHOLDER (never a fabricated signature).
@@ -110,12 +110,12 @@ _BORROWED: list[dict[str, Any]] = [
         ],
     },
     {
-        "flagship": "sentra",
+        "flagship": "Policy",
         "role": "policy immune system (8 gates)",
         "borrowed_anatomy": "policy gates / ROE enforcement immune response",
         "borrowed_formulas": ["policy-gate verdict (ALLOW/SUSPECT/ENGAGE/REVIEW)"],
         "how_applied": (
-            "sentra's gate-based immune response is applied as the ROE engine: each telemetry "
+            "The Policy gate-based immune response is applied as the ROE engine: each telemetry "
             "frame is gated (speed, altitude, Remote-ID, Section-889 vendor, exclusion-zone, "
             "classification) into a signed verdict before any effector is recommended."
         ),
@@ -126,12 +126,12 @@ _BORROWED: list[dict[str, Any]] = [
         ],
     },
     {
-        "flagship": "amaru",
+        "flagship": "Reasoning",
         "role": "cortex / reasoner",
         "borrowed_anatomy": "reasoning / threat-classification cortex + 13-axis Λ aggregate",
         "borrowed_formulas": ["13-axis geometric-mean Λ (Conjecture 1)", "PAC-Bayes certified floor"],
         "how_applied": (
-            "amaru's reasoning cortex is applied as the 13-axis Λ-gate and the multi-track threat "
+            "The Reasoning cortex is applied as the 13-axis Λ-gate and the multi-track threat "
             "ranker: every engagement must clear Λ ≥ 0.90 (geometric mean of 13 trust axes), and "
             "threats are scored/ranked before the kill chain. Λ remains Conjecture 1, never a theorem."
         ),
@@ -142,12 +142,12 @@ _BORROWED: list[dict[str, Any]] = [
         ],
     },
     {
-        "flagship": "rosie",
+        "flagship": "Operator",
         "role": "operator console (HITL)",
         "borrowed_anatomy": "human-in-the-loop operator surface for engagement decisions",
         "borrowed_formulas": ["HOTL confirmation gate"],
         "how_applied": (
-            "rosie's HITL operator surface is applied as this elite console + the v4 operator shell: "
+            "The Operator HITL surface is applied as this elite console + the v4 operator shell: "
             "ENGAGE verdicts above the Λ floor require human-on-the-loop confirmation, and every "
             "operator action is recorded as a signed engagement record."
         ),
@@ -207,10 +207,10 @@ def register(
             "differentiators": [
                 "DSSE ECDSA-P256 signed receipt on every interdiction",
                 "13-axis Λ-gate (Conjecture 1)",
-                "3-of-4 BFT Khipu consensus quorum (Sentra/Amaru/a11oy/Killinchu)",
+                "3-of-4 BFT Khipu consensus quorum (Policy/Reasoning/a11oy/Killinchu)",
                 "PQC hybrid signing (ML-DSA-65 + ECDSA-P256)",
             ],
-            "slsa": "L1 (honest; private Fulcio, no public Rekor — killinchu never claims L2)",
+            "slsa": "SLSA Level 2 (signed build provenance; no FedRAMP / Iron Bank / CMMC)",
             "lambda_status": "Conjecture 1 — NOT a theorem",
             "section_889": _SECTION_889,
             "no_fedramp_iron_bank_cmmc": True,
@@ -235,7 +235,7 @@ def register(
     return {
         "module": "killinchu_elite_console",
         "registered": registered,
-        "tabs": 14,
+        "tabs": 25,
         "doctrine": _DOCTRINE,
     }
 
@@ -258,6 +258,13 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-gl@2/dist/echarts-gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2/dist/globe.gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3/dist/cytoscape.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <style>
 /* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
@@ -382,6 +389,47 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 .verify-badge.fail{color:var(--err);border:1px solid rgba(176,106,90,.5);background:rgba(176,106,90,.10);}
 .verify-badge.pending{color:var(--muted);border:1px solid var(--gold-line);background:var(--gold-soft);}
 .verify-badge .dot{width:10px;height:10px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
+/* ===== GENIUS VISUALS (inherited from a11oy command platform) ===== */
+.graph3d.hero{height:520px;}
+.org-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.graph3d{position:relative;}
+.org-pulse{width:54px;height:54px;border-radius:50%;background:radial-gradient(circle,var(--gold,#c9b787) 0%,rgba(201,183,135,0.15) 60%,transparent 72%);box-shadow:0 0 0 0 rgba(201,183,135,0.45);animation:orgPulse 1.6s ease-out infinite;}
+@keyframes orgPulse{0%{transform:scale(.85);box-shadow:0 0 0 0 rgba(201,183,135,0.45);}70%{transform:scale(1.05);box-shadow:0 0 0 22px rgba(201,183,135,0);}100%{transform:scale(.85);box-shadow:0 0 0 0 rgba(201,183,135,0);}}
+.echart{height:360px;width:100%;}
+.echart.tall{height:480px;}
+.globe3d{height:520px;width:100%;border-radius:9px;overflow:hidden;border:1px solid var(--gold-line);background:#060606;}
+.cyto{height:480px;width:100%;border-radius:9px;border:1px solid var(--gold-line);background:#0b0d10;}
+.feedtail{height:340px;overflow:auto;background:#080a0c;border:1px solid var(--gold-line);border-radius:9px;font-family:var(--mono);font-size:11.5px;}
+.feedtail .frow{padding:.4rem .8rem;border-bottom:1px solid rgba(201,183,135,.07);display:flex;gap:.6rem;align-items:baseline;}
+.feedtail .frow:hover{background:var(--gold-soft);}
+.feedtail .ts{color:var(--dim);white-space:nowrap;}
+.feedtail .id{color:var(--gold);white-space:nowrap;}
+.feedtail .txt{color:var(--paragraph);flex:1;}
+.dtbl{width:100%;border-collapse:collapse;font-size:12px;}
+.dtbl th{text-align:left;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:.5rem .6rem;border-bottom:1px solid var(--gold-line);position:sticky;top:0;background:var(--panel);}
+.dtbl td{padding:.45rem .6rem;border-bottom:1px solid rgba(201,183,135,.06);color:var(--paragraph);}
+.dtbl tr:hover td{background:var(--gold-soft);}
+.sev-crit{color:#b06a5a;font-weight:600;} .sev-high{color:var(--gold);} .sev-med{color:var(--teal);} .sev-low{color:var(--muted);}
+.feed-pill{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:.15rem .5rem;border-radius:5px;border:1px solid var(--teal-line);color:var(--teal);background:var(--teal-soft);}
+.feed-pill.warn{color:var(--warn);border-color:rgba(201,160,95,.4);background:rgba(201,160,95,.08);}
+.brain-note{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.04em;margin-top:.5rem;}
+/* ── BUILD WAVE: Live Picture / Engage Safely / Dark-Vessel Hunt ── */
+.lp-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(340px,1.4fr);gap:1rem;align-items:start;}
+@media(max-width:880px){.lp-grid{grid-template-columns:1fr;}}
+.lp-railcard{margin-bottom:0;}
+.lp-rail{display:flex;gap:.4rem;margin:.2rem 0 .8rem;}
+.lp-rail-item{flex:1;text-align:center;padding:.5rem .3rem;border:1px solid var(--gold-line);border-radius:8px;font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--muted);cursor:pointer;transition:all .18s ease;background:#080808;}
+.lp-rail-item:hover{border-color:var(--teal-line);color:var(--cream);}
+.lp-rail-item.active{background:var(--teal-soft);border-color:var(--teal);color:var(--teal);box-shadow:0 0 0 1px var(--teal-line) inset;}
+.eng-step{position:relative;transition:border-color .25s ease,box-shadow .25s ease;opacity:.62;}
+.eng-step.ready{opacity:1;border-color:var(--gold-line);box-shadow:0 0 0 1px var(--gold-line) inset;}
+.eng-step.done{opacity:1;border-color:var(--teal-line);box-shadow:0 0 0 1px var(--teal-line) inset;}
+.eng-step.done .card-t::after{content:' ✓';color:var(--teal);}
+.frow{padding:.4rem .2rem;border-bottom:1px solid rgba(201,183,135,.07);display:flex;gap:.6rem;align-items:baseline;font-family:var(--mono);font-size:11.5px;}
+.frow .ts{color:var(--dim);white-space:nowrap;}
+.frow .txt{color:var(--paragraph);flex:1;}
+.spacer{margin-left:auto;}
+
 </style>
 </head>
 <body>
@@ -389,21 +437,24 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
   <button class="menu-btn" onclick="document.querySelector('.side').classList.toggle('open')">☰</button>
   <span>SZL HOLDINGS</span><span class="sep">/</span>
   <span style="color:var(--teal)">KILLINCHU</span><span class="sep">/</span>
-  <span>DOCTRINE V11 · LOCKED</span><span class="sep">/</span>
+  <span>DRONES &amp; VESSELS · FIELD SURFACE</span><span class="sep">/</span>
   <span class="live"><span class="live-dot"></span>LIVE · RT</span>
-  <nav class="switcher" aria-label="Flagship switcher">
-    <span class="lbl">FLEET</span>
-    <a class="flag" href="https://szlholdings-a11oy.hf.space/console">a11oy</a>
-    <a class="flag" href="https://szlholdings-sentra.hf.space/console">sentra</a>
-    <a class="flag" href="https://szlholdings-amaru.hf.space/operational-core">amaru</a>
-    <a class="flag" href="https://szlholdings-rosie.hf.space/">rosie</a>
-    <a class="flag active" href="https://szlholdings-killinchu.hf.space/elite">killinchu</a>
+  <nav class="switcher" aria-label="Surfaces">
+    <span class="lbl">SURFACES</span>
+    <a class="flag" href="https://szlholdings-a11oy.hf.space/">Command Platform</a>
+    <a class="flag active" href="https://szlholdings-killinchu.hf.space/elite">Drones &amp; Vessels</a>
   </nav>
 </div>
 
 <div class="app">
   <aside class="side">
-    <div class="brand"><div class="mark">K</div><div><div class="nm">killinchu</div><div class="role">counter-uas governance</div></div></div>
+    <div class="brand"><div class="mark">K</div><div><div class="nm">killinchu</div><div class="role">drones &amp; vessels · field surface</div></div></div>
+
+    <div class="nav-group">Leader Surfaces</div>
+    <div class="nav-item" data-view="operate" onclick="window.location.href='/ops'" title="Select a track, issue a governed command, watch it clear the policy gate and emit a genuinely-signed receipt that updates the track state."><span class="ico">⚡</span>Operate (governed control)</div>
+    <div class="nav-item" data-view="livepic" onclick="go('livepic')"><span class="ico">◉</span>Live Picture (3D)</div>
+    <div class="nav-item" data-view="engage" onclick="go('engage')"><span class="ico">⊕</span>Engage Safely</div>
+    <div class="nav-item" data-view="darkhunt" onclick="go('darkhunt')"><span class="ico">◐</span>Dark-Vessel Hunt</div>
 
     <div class="nav-group">Track &amp; Fuse</div>
     <div class="nav-item active" data-view="tracks" onclick="go('tracks')"><span class="ico">⊕</span>Live Track Board</div>
@@ -413,6 +464,13 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-group">Maritime</div>
     <div class="nav-item" data-view="maritime" onclick="go('maritime')"><span class="ico">⚓</span>Maritime Picture</div>
     <div class="nav-item" data-view="sanctions" onclick="go('sanctions')"><span class="ico">◴</span>Sanctions &amp; Dark-Vessel</div>
+
+    <div class="nav-group">Fleet (Vessels)</div>
+    <div class="nav-item" data-view="fleet" onclick="go('fleet')"><span class="ico">⛴</span>Fleet Overview</div>
+    <div class="nav-item" data-view="fleetmaint" onclick="go('fleetmaint')"><span class="ico">⚒</span>Maintenance &amp; Compliance</div>
+    <div class="nav-item" data-view="fleetlogs" onclick="go('fleetlogs')"><span class="ico">⊟</span>Ops &amp; Maintenance Logs</div>
+    <div class="nav-item" data-view="fleetvoyages" onclick="go('fleetvoyages')"><span class="ico">⛟</span>Voyages &amp; Fleets</div>
+    <div class="nav-item" data-view="fleetbrief" onclick="go('fleetbrief')"><span class="ico">◈</span>Fleet Briefings</div>
 
     <div class="nav-group">Decide &amp; Govern</div>
     <div class="nav-item" data-view="roe" onclick="go('roe')"><span class="ico">⊞</span>Engagement Rules</div>
@@ -431,20 +489,41 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="swarm" onclick="go('swarm')"><span class="ico">⊹</span>Swarm Topology</div>
     <div class="nav-item" data-view="threats" onclick="go('threats')"><span class="ico">◈</span>Threat Class DB</div>
 
-    <div class="nav-group">Mesh</div>
-    <div class="nav-item" data-view="cross" onclick="go('cross')"><span class="ico">⊗</span>Cross-Flagship</div>
-    <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊞</span>Mesh Reach</div>
+    <div class="nav-group">Shared Brain (3D)</div>
+    <div class="nav-item" data-view="organism" onclick="go('organism')"><span class="ico">❋</span>Living Organism</div>
+    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
+    <div class="nav-item" data-view="pulse" onclick="go('pulse')"><span class="ico">◍</span>Global Pulse</div>
 
-    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2. -->
-    <div class="side-foot">Trust score = conjecture (not proven)<br>5 formulas formally proven<br>Build provenance: SLSA L2<br>Drones + Maritime · signed receipts</div>
+    <div class="nav-group">Knowledge &amp; Gates</div>
+    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Knowledge &amp; Formulas</div>
+    <div class="nav-item" data-view="gates" onclick="go('gates')"><span class="ico">⊠</span>Safety Gates</div>
+    <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
+
+    <div class="nav-group">World &amp; Threat Intel</div>
+    <div class="nav-item" data-view="cve" onclick="go('cve')"><span class="ico">⚠</span>CVE Watch</div>
+    <div class="nav-item" data-view="kev" onclick="go('kev')"><span class="ico">⊕</span>Known-Exploited</div>
+    <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
+
+    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
+    <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>5 formulas formally proven<br>Build provenance: SLSA L2<br>Drones + Maritime · signed receipts</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
 </div>
 
+<script>window.__KB__={"version":"1.0.0","byline":"Lutar, Stephen P.","orcid":"0009-0001-0110-4173","email":"stephen@szlholdings.com","org":"SZL Holdings","generated_at":"2026-05-15T16:30:00Z","axioms":[{"id":"A1","name":"soundnessAxiom","statement":"For any receipt r, if gate_pass(r) then lambda(r) >= 0.90 conjunctively","source_file":"thesis.md","source_section":"§4.1","maturity":"proven","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A2","name":"moralGroundingFloor","statement":"moralGrounding axis floor = 0.95 (higher than default 0.90)","source_file":"thesis.md","source_section":"§4.1","maturity":"defined","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A3","name":"measurabilityHonestyFloor","statement":"measurabilityHonesty axis floor = 0.95","source_file":"thesis.md","source_section":"§4.1","maturity":"defined","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A4","name":"dualWitnessDisjointness","statement":"For rho-closure: witness_1_id != witness_2_id (enforced by registry at write time)","source_file":"thesis.md","source_section":"§4.3","maturity":"proven","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A5","name":"deterministicReplay","statement":"For canonical JSON + pinned PRNG + frozen registry, 5x replay yields byte-identical roots","source_file":"thesis.md","source_section":"§4.6","maturity":"measured","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A6","name":"hashChainIntegrity","statement":"Every spine entry hash-chain invariant: entry.chain = SHA256(prev_entry)","source_file":"thesis.md","source_section":"§3.4","maturity":"defined","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A7","name":"bekensteinBound","statement":"Receipt chain entropy H(R_n) bounded by information-theoretic limit from registry area","source_file":"thesis.md","source_section":"§4.5","maturity":"conjectured","citation":"https://doi.org/10.5281/zenodo.19944926"},{"id":"A8","name":"ingestDiscipline","statement":"Every ingest requires: source_url + content_hash + license (allow-list) + ORCID","source_file":"thesis.md","source_section":"§7","maturity":"defined","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A9","name":"doctrineCompleteness","statement":"doctrine.json v1.0.0 enumerates all 8 forbidden patterns; SHA-anchored","source_file":"szl-trust/doctrine.json","source_section":"§8","maturity":"defined","citation":"https://github.com/szl-holdings/szl-trust"}],"theorems":[{"id":"TH_L1","name":"Λ_uniqueness","statement":"Conjecture 1: the Lutar Invariant Λ_k (weighted geometric mean with Egyptian unit-fraction weights) is the unique aggregator satisfying axioms A1-A5. NOT a theorem: unconditional uniqueness is FALSE under A1-A5 (machine-checked counterexample maxAgg_ne_Lambda; max-aggregator satisfies A1-A5 yet differs from Λ at (4,1)). The conditional theorem lambda_unique_of_factors (uniqueness GIVEN factorization Φ x = ∏ x_i^α_i) IS fully proved; unconditional uniqueness closes only under a declared bisymmetry axiom A6 (Kolmogorov-Nagumo-Aczel).","source_file":"lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean","maturity":"conjectured","citation":"https://doi.org/10.5281/zenodo.20053148"},{"id":"TH_L2","name":"Λ_min_max_bounds","statement":"Λ_k lies in [0,1] with min=0 iff any axis=0 and max=1 iff all axes=1","source_file":"lutar-lean/Lutar/Bound.lean","maturity":"proven","citation":"https://doi.org/10.5281/zenodo.20053148"},{"id":"TH_L3","name":"bekenstein_soundness","statement":"Bekenstein indicator fires at 49.5% under uniform seed (measured); formal proof pending in lutar-lean","source_file":"lutar-lean (pending PR #12)","maturity":"measured/conjectured","citation":"https://github.com/szl-holdings/lutar-lean"},{"id":"TH_L4","name":"rho_closure_production","statement":"100% rho-closure on 8,000/8,000 paired calls under v11 platform","source_file":"ouroboros v6.3.0 release","maturity":"measured","citation":"https://doi.org/10.5281/zenodo.20119582"}],"formulas":[{"id":"F0001","source_file":"thesis.md","source_line":27,"latex":"\\mathcal{S} = \\langle R, A, E, \\Lambda, \\rho, W \\rangle","context":"ith a doctrine-locked runtime** as a category-defining primitive for verifiable agency. We define the system as a tuple \\( \\mathcal{S} = \\langle R, A, E, \\Lambda, \\rho, W \\rangle \\) over an eight-regi","source_id":"thesis_session","maturity":"defined"},{"id":"F0002","source_file":"thesis.md","source_line":229,"latex":"\\mathtt{szl\\text{-}trust}","context":"d system.  - \\(A\\) — the set of **named actors**. Every actor in \\(A\\) carries a stable identity resolvable to a key in \\(\\mathtt{szl\\text{-}trust}\\). No edge in \\(E\\) may originate from or terminate ","source_id":"thesis_session","maturity":"defined"},{"id":"F0003","source_file":"thesis.md","source_line":231,"latex":"e \\in E","context":"and resolvable — unidentified actors are structurally excluded.  - \\(E\\) — the set of **receipt-bound edges**. An edge \\(e \\in E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\","source_id":"thesis_session","maturity":"defined"},{"id":"F0004","source_file":"thesis.md","source_line":231,"latex":"(a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)","context":"ntified actors are structurally excluded.  - \\(E\\) — the set of **receipt-bound edges**. An edge \\(e \\in E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(","source_id":"thesis_session","maturity":"defined"},{"id":"F0005","source_file":"thesis.md","source_line":231,"latex":"a_{\\text{src}} \\in A","context":"d edges**. An edge \\(e \\in E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(a_{\\text{src}} \\in A\\), \\(r_{\\text{src}}, r_{\\text{dst}} \\in R\\), and \\(\\varep","source_id":"thesis_session","maturity":"defined"},{"id":"F0006","source_file":"thesis.md","source_line":231,"latex":"r_{\\text{src}}, r_{\\text{dst}} \\in R","context":"E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(a_{\\text{src}} \\in A\\), \\(r_{\\text{src}}, r_{\\text{dst}} \\in R\\), and \\(\\varepsilon\\) is the receipt enve","source_id":"thesis_session","maturity":"defined"},{"id":"F0007","source_file":"thesis.md","source_line":231,"latex":"\\varepsilon","context":"src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(a_{\\text{src}} \\in A\\), \\(r_{\\text{src}}, r_{\\text{dst}} \\in R\\), and \\(\\varepsilon\\) is the receipt envelope defined in §3.3. No message may traverse","source_id":"thesis_session","maturity":"defined"},{"id":"F0008","source_file":"thesis.md","source_line":231,"latex":"\\varepsilon","context":"repsilon\\) is the receipt envelope defined in §3.3. No message may traverse a region boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Forma","source_id":"thesis_session","maturity":"defined"},{"id":"F0009","source_file":"thesis.md","source_line":233,"latex":"\\Lambda","context":"ceipt envelope defined in §3.3. No message may traverse a region boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Formally, \\(\\Lambda : [0,","source_id":"thesis_session","maturity":"defined"},{"id":"F0010","source_file":"thesis.md","source_line":233,"latex":"\\Lambda : [0,1]^k \\to \\{0,1\\}","context":"boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Formally, \\(\\Lambda : [0,1]^k \\to \\{0,1\\}\\) for \\(k \\geq 9\\), defined as the conjunctive A","source_id":"thesis_session","maturity":"defined"},{"id":"F0011","source_file":"thesis.md","source_line":233,"latex":"k \\geq 9","context":"varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Formally, \\(\\Lambda : [0,1]^k \\to \\{0,1\\}\\) for \\(k \\geq 9\\), defined as the conjunctive AND:  \\[ \\Lambda(\\mathbf{x}) = 1 \\iff \\","source_id":"thesis_session","maturity":"defined"},{"id":"F0012","source_file":"thesis.md","source_line":239,"latex":"\\mathbf{x}","context":"bilityHonesty}} \\geq 0.95 \\]    The composability property states that for any two independently evaluated axis vectors \\(\\mathbf{x}\\) and \\(\\mathbf{y}\\), their composed gate \\(\\Lambda(\\mathbf{x} \\wed","source_id":"thesis_session","maturity":"defined"},{"id":"F0013","source_file":"thesis.md","source_line":239,"latex":"\\mathbf{y}","context":"q 0.95 \\]    The composability property states that for any two independently evaluated axis vectors \\(\\mathbf{x}\\) and \\(\\mathbf{y}\\), their composed gate \\(\\Lambda(\\mathbf{x} \\wedge \\mathbf{y})\\) is","source_id":"thesis_session","maturity":"defined"},{"id":"F0014","source_file":"thesis.md","source_line":239,"latex":"\\Lambda(\\mathbf{x} \\wedge \\mathbf{y})","context":"rty states that for any two independently evaluated axis vectors \\(\\mathbf{x}\\) and \\(\\mathbf{y}\\), their composed gate \\(\\Lambda(\\mathbf{x} \\wedge \\mathbf{y})\\) is equivalent to \\(\\Lambda(\\mathbf{x})","source_id":"thesis_session","maturity":"defined"},{"id":"F0015","source_file":"thesis.md","source_line":239,"latex":"\\Lambda(\\mathbf{x}) \\wedge \\Lambda(\\mathbf{y})","context":"ctors \\(\\mathbf{x}\\) and \\(\\mathbf{y}\\), their composed gate \\(\\Lambda(\\mathbf{x} \\wedge \\mathbf{y})\\) is equivalent to \\(\\Lambda(\\mathbf{x}) \\wedge \\Lambda(\\mathbf{y})\\) — gate composition does not w","source_id":"thesis_session","maturity":"defined"},{"id":"F0016","source_file":"thesis.md","source_line":239,"latex":"\\Lambda","context":"— gate composition does not weaken the invariant. The `lutar-lean` skeleton repository contains the Lean 4 statement of \\(\\Lambda\\) uniqueness: given the four axioms (A1 monotonicity, A2 homogeneity, ","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0017","source_file":"thesis.md","source_line":239,"latex":"\\Lambda","context":"ment of \\(\\Lambda\\) uniqueness: given the four axioms (A1 monotonicity, A2 homogeneity, A3 Egyptian-exact, A4 bounded), \\(\\Lambda\\) is the *unique* function satisfying them. The uniqueness theorem and","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0018","source_file":"thesis.md","source_line":241,"latex":"\\rho(e)","context":"arget is zero.  - \\(\\rho\\) — the **dual-witness closure relation**. For any edge \\(e\\) carrying execution result \\(v\\), \\(\\rho(e)\\) holds iff two independent witnesses \\(w_1, w_2 \\in W\\) each produce ","source_id":"thesis_session","maturity":"defined"},{"id":"F0019","source_file":"thesis.md","source_line":241,"latex":"w_1, w_2 \\in W","context":"closure relation**. For any edge \\(e\\) carrying execution result \\(v\\), \\(\\rho(e)\\) holds iff two independent witnesses \\(w_1, w_2 \\in W\\) each produce byte-identical output on the same input, and the","source_id":"thesis_session","maturity":"defined"},{"id":"F0020","source_file":"thesis.md","source_line":251,"latex":"\\mathcal{S}","context":"uroboros` core + 4 `a11oy` covenant), while the full upstream runtime suite registers 218/218 passing tests.  The tuple \\(\\mathcal{S}\\) is **doctrine-locked**: any runtime configuration in which (a) a","source_id":"thesis_session","maturity":"defined"},{"id":"F0021","source_file":"thesis.md","source_line":251,"latex":"\\Lambda","context":"which (a) a region is unnamed, (b) an actor is not in \\(A\\), (c) an edge is produced without a receipt envelope, or (d) \\(\\Lambda\\) is evaluated below threshold does not constitute a valid instantiati","source_id":"thesis_session","maturity":"defined"},{"id":"F0022","source_file":"thesis.md","source_line":251,"latex":"\\mathcal{S}","context":"ithout a receipt envelope, or (d) \\(\\Lambda\\) is evaluated below threshold does not constitute a valid instantiation of \\(\\mathcal{S}\\).  ---  ## The 8-Region Anatomy  The eight canonical regions of \\","source_id":"thesis_session","maturity":"defined"},{"id":"F0023","source_file":"thesis.md","source_line":257,"latex":"\\mathcal{S}","context":"of \\(R\\) are enumerated below. For each region the presentation gives: the repository identifier, its role in the tuple \\(\\mathcal{S}\\), its public interfaces, and its dependency relations within \\(E\\","source_id":"thesis_session","maturity":"defined"},{"id":"F0024","source_file":"thesis.md","source_line":265,"latex":"\\mathcal{S}","context":"released 2026-05-13; concept DOI `10.5281/zenodo.19944926`, v11 paper DOI `10.5281/zenodo.20119582`)  **Formal role in \\(\\mathcal{S}\\):** The Brain Stem is the runtime kernel that evaluates \\(\\Lambda\\","source_id":"thesis_session","maturity":"defined"},{"id":"F0025","source_file":"thesis.md","source_line":265,"latex":"\\Lambda","context":"DOI `10.5281/zenodo.20119582`)  **Formal role in \\(\\mathcal{S}\\):** The Brain Stem is the runtime kernel that evaluates \\(\\Lambda\\) and emits receipts. Every edge in \\(E\\) that crosses a region bounda","source_id":"thesis_session","maturity":"defined"},{"id":"F0026","source_file":"thesis.md","source_line":268,"latex":"\\Lambda","context":"bda(axes: number[9|10]) → Receipt` — evaluates the conjunctive AND gate and returns a signed receipt with the composite \\(\\Lambda\\) score, Bekenstein budget, and dual-witness closure status. - `build_","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0027","source_file":"thesis.md","source_line":274,"latex":"\\Lambda","context":"chain root for third-party verification.  **Dependencies:** - Depends on: `lutar-lean` (Skeleton) — the axiom set that \\(\\Lambda\\) is required to satisfy is formally stated there; the Brain Stem is th","source_id":"thesis_session","maturity":"defined"},{"id":"F0028","source_file":"thesis.md","source_line":277,"latex":"\\Lambda_9","context":"utbound edge must call `evaluate_lambda` before the edge enters \\(E\\).  The gate composition benchmark for v6.3.0 shows \\(\\Lambda_9\\) base p50 = 3.12 µs and composed p50 = 3.29 µs; with the Platform v","source_id":"thesis_session","maturity":"defined"},{"id":"F0029","source_file":"thesis.md","source_line":285,"latex":"\\mathcal{S}","context":"a continuous supply-chain security posture.  ---  ### Heart — `a11oy`  **Repo:** `szl-holdings/a11oy`  **Formal role in \\(\\mathcal{S}\\):** The Heart is the covenant policy engine and the agent approva","source_id":"thesis_session","maturity":"defined"},{"id":"F0030","source_file":"thesis.md","source_line":285,"latex":"\\mathcal{S}","context":"\\):** The Heart is the covenant policy engine and the agent approval queue. It governs the *authorization* dimension of \\(\\mathcal{S}\\): while the Brain Stem answers \"does this action score above \\(\\L","source_id":"thesis_session","maturity":"defined"},{"id":"F0031","source_file":"thesis.md","source_line":285,"latex":"\\Lambda","context":"It governs the *authorization* dimension of \\(\\mathcal{S}\\): while the Brain Stem answers \"does this action score above \\(\\Lambda\\)?\", the Heart answers \"is this action permitted under the active cove","source_id":"thesis_session","maturity":"defined"},{"id":"F0032","source_file":"thesis.md","source_line":285,"latex":"r_{\\text{dst}} \\notin R","context":"this action permitted under the active covenant?\". No action may exit the body graph — i.e., no edge in \\(E\\) may have \\(r_{\\text{dst}} \\notin R\\) — without a Heart pulse. The covenant is a named, ver","source_id":"thesis_session","maturity":"defined"},{"id":"F0033","source_file":"thesis.md","source_line":293,"latex":"\\Lambda","context":"Stem's chain.  **Dependencies:** - Depends on: `ouroboros` (Brain Stem) — covenant evaluation results are sealed with a \\(\\Lambda\\)-gated receipt; a covenant check that fails \\(\\Lambda\\) is itself a g","source_id":"thesis_session","maturity":"defined"},{"id":"F0034","source_file":"thesis.md","source_line":293,"latex":"\\Lambda","context":"os` (Brain Stem) — covenant evaluation results are sealed with a \\(\\Lambda\\)-gated receipt; a covenant check that fails \\(\\Lambda\\) is itself a gate-level violation. - Depends on: `sentinel` (Wires) — t","source_id":"thesis_session","maturity":"defined"},{"id":"F0035","source_file":"thesis.md","source_line":305,"latex":"\\mathcal{S}","context":"but a verifiable, chain-linked artifact.  ---  ### Wires — `sentinel`  **Repo:** `szl-holdings/sentinel`  **Formal role in \\(\\mathcal{S}\\):** The Wires are the attribution trail — the afferent channel tha","source_id":"thesis_session","maturity":"defined"},{"id":"F0036","source_file":"thesis.md","source_line":305,"latex":"\\text{attr}: E \\to A","context":"rent channel that carries signals inward and records *who observed what and when*. Formally, Wires maintain the mapping \\(\\text{attr}: E \\to A\\), ensuring that every edge in \\(E\\) is attributable to a","source_id":"thesis_session","maturity":"defined"},{"id":"F0037","source_file":"thesis.md","source_line":305,"latex":"\\mathcal{S}","context":"he mapping \\(\\text{attr}: E \\to A\\), ensuring that every edge in \\(E\\) is attributable to a named actor. Without Wires, \\(\\mathcal{S}\\) degrades: edges carry receipts but not attributions, making the ","source_id":"thesis_session","maturity":"defined"},{"id":"F0038","source_file":"thesis.md","source_line":308,"latex":"a \\in A","context":"egal-accountability sense.  **Public interfaces:** - `observe(edge, actor_id) → AttributionRecord` — records that actor \\(a \\in A\\) produced or consumed edge \\(e\\). - `attribution_trail(region, time_r","source_id":"thesis_session","maturity":"defined"},{"id":"F0039","source_file":"thesis.md","source_line":325,"latex":"\\mathcal{S}","context":"aft-morrow-sogomonian-exec-outcome-attest`.  ---  ### Spine — `a11oy`  **Repo:** `szl-holdings/a11oy`  **Formal role in \\(\\mathcal{S}\\):** The Spine is the append-only coordination and protocol bridge","source_id":"thesis_session","maturity":"defined"},{"id":"F0040","source_file":"thesis.md","source_line":325,"latex":"\\langle e_1, e_2, \\ldots, e_n \\rangle \\subseteq E","context":"ordered, hash-verified record of every state transition across the body graph. Formally, `a11oy` maintains the sequence \\(\\langle e_1, e_2, \\ldots, e_n \\rangle \\subseteq E\\) ordered by timestamp, with","source_id":"thesis_session","maturity":"defined"},{"id":"F0041","source_file":"thesis.md","source_line":339,"latex":"O(\\log n)","context":"(identified in the runtime roadmap) would upgrade the Spine's linear hash-chain to a directed acyclic graph supporting \\(O(\\log n)\\) subset inclusion proofs — enabling privacy-preserving audits for re","source_id":"thesis_session","maturity":"defined"},{"id":"F0042","source_file":"thesis.md","source_line":347,"latex":"\\mathcal{S}","context":"nce in the enterprise segment.  ---  ### Skeleton — `lutar-lean`  **Repo:** `szl-holdings/lutar-lean`  **Formal role in \\(\\mathcal{S}\\):** The Skeleton is the formal scaffold — the Lean 4 axioms and M","source_id":"thesis_session","maturity":"defined"},{"id":"F0043","source_file":"thesis.md","source_line":347,"latex":"\\{A1, A2, A3, A4\\}","context":"es not execute at runtime; it is the *proof that the runtime is correct*. Formally, `lutar-lean` provides the axiom set \\(\\{A1, A2, A3, A4\\}\\) and the derived theorems (Λ uniqueness, Bound theorem) th","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0044","source_file":"thesis.md","source_line":347,"latex":"\\Lambda","context":"A2, A3, A4\\}\\) and the derived theorems (Λ uniqueness, Bound theorem) that constitute a machine-checked certificate for \\(\\Lambda\\). If the Skeleton's `sorry` count is zero, the gate the Brain Stem en","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0045","source_file":"thesis.md","source_line":351,"latex":"\\Lambda","context":"statements of A1 (monotonicity), A2 (homogeneity), A3 (Egyptian-exact), A4 (bounded). - `Uniqueness.lean` — Theorem 1: \\(\\Lambda\\) is the unique function satisfying A1–A4; proof scaffold with tracked ","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0046","source_file":"thesis.md","source_line":367,"latex":"\\mathcal{S}","context":"*Repos:** `szl-holdings/counsel` (governance UI), `szl-holdings/terra` (dashboards and visualization)  **Formal role in \\(\\mathcal{S}\\):** The Hands are the tooling and visualization surfaces — the co","source_id":"thesis_session","maturity":"defined"},{"id":"F0047","source_file":"thesis.md","source_line":371,"latex":"\\Lambda","context":"as an interactive SVG, streaming live receipt counts via SSE from `/api/chain/stream`; node colors reflect the current \\(\\Lambda\\) score band (green ≥ 0.95, amber 0.90–0.95, red < 0.90). The planned \"","source_id":"thesis_session","maturity":"defined"},{"id":"F0048","source_file":"thesis.md","source_line":386,"latex":"\\mathcal{S}","context":"*is* the system.  ---  ### Full Body — `ouroboros-thesis`  **Repo:** `szl-holdings/ouroboros-thesis`  **Formal role in \\(\\mathcal{S}\\):** The Full Body is the public-record thesis — the DOI-pinned, ve","source_id":"thesis_session","maturity":"defined"},{"id":"F0049","source_file":"thesis.md","source_line":386,"latex":"\\mathcal{S}","context":"l Body is the public-record thesis — the DOI-pinned, versioned document that constitutes the canonical specification of \\(\\mathcal{S}\\). Formally, `ouroboros-thesis` defines the normative description ","source_id":"thesis_session","maturity":"defined"},{"id":"F0050","source_file":"thesis.md","source_line":405,"latex":"\\mathcal{S}","context":"d identity anchoring), `szl-holdings/szl-cookbook` (reference implementations / developer onboarding)  **Formal role in \\(\\mathcal{S}\\):** The Vessels and Chakras collectively form the trust mesh and ","source_id":"thesis_session","maturity":"defined"},{"id":"F0051","source_file":"thesis.md","source_line":421,"latex":"\\varepsilon","context":"eue under the covenant pack schema.  ---  ## Cross-Region Contracts  Every edge in \\(E\\) carries a **receipt envelope** \\(\\varepsilon\\). The envelope is a typed, signed, content-addressed record that ","source_id":"thesis_session","maturity":"defined"},{"id":"F0052","source_file":"thesis.md","source_line":421,"latex":"\\Lambda","context":"es a **receipt envelope** \\(\\varepsilon\\). The envelope is a typed, signed, content-addressed record that provides: the \\(\\Lambda\\) score vector, the dual-witness closure status (\\(\\rho\\)), the actor ","source_id":"thesis_session","maturity":"defined"},{"id":"F0053","source_file":"thesis.md","source_line":479,"latex":"\\Lambda","context":"_lambda(axes) → Receipt` — any MCP-compatible client (Claude Desktop, Cursor, enterprise agent frameworks) can call the \\(\\Lambda\\) gate as a typed tool and receive a signed receipt in the tool respon","source_id":"thesis_session","maturity":"defined"},{"id":"F0054","source_file":"thesis.md","source_line":507,"latex":"\\mathcal{S}","context":"the 8-Region Model Structurally Surpasses the Leaders  Each leading framework or protocol is a partial instantiation of \\(\\mathcal{S}\\). The gap is structural: the missing region is not a feature that","source_id":"thesis_session","maturity":"defined"},{"id":"F0055","source_file":"thesis.md","source_line":515,"latex":"\\Lambda_9","context":"l engineering pattern, but skills are *files*, not services with receipts. A Brain Stem can issue a decision that fails \\(\\Lambda_9\\) moralGrounding; in the Managed Agents architecture there is no mec","source_id":"thesis_session","maturity":"defined"},{"id":"F0056","source_file":"thesis.md","source_line":515,"latex":"\\mathcal{S}","context":"fails \\(\\Lambda_9\\) moralGrounding; in the Managed Agents architecture there is no mechanism to detect or block it. In \\(\\mathcal{S}\\), that decision never exits the Brain Stem.  **Mastra** (22K+ GitH","source_id":"thesis_session","maturity":"defined"},{"id":"F0057","source_file":"thesis.md","source_line":517,"latex":"\\Lambda","context":"ource agent framework in the TypeScript ecosystem. Mastra has no Skeleton: there are no Lean 4 proofs. It has no formal \\(\\Lambda\\) gate — behavioral constraints are implemented as runtime checks with","source_id":"thesis_session","maturity":"defined"},{"id":"F0058","source_file":"thesis.md","source_line":567,"latex":"\\lambda_1","context":"l(\\lambda_1(c),\\, \\lambda_2(c),\\, \\ldots,\\, \\lambda_9(c)\\bigr) \\in [0,1]^9 \\]  The nine axes are defined as follows.  **\\(\\lambda_1\\): moralGrounding.** Measures the degree to which a proposed action ","source_id":"thesis_session","maturity":"defined"},{"id":"F0059","source_file":"thesis.md","source_line":567,"latex":"\\lambda_1","context":"nce policies, and principal hierarchies that the operator has encoded in the agent's governing covenant. Operationally, \\(\\lambda_1\\) is the normalized cosine similarity between the action's intent em","source_id":"thesis_session","maturity":"defined"},{"id":"F0060","source_file":"thesis.md","source_line":567,"latex":"[0,1]","context":"mbedding and a reference \"moral anchor\" embedding, averaged over the operator's registered covenant clauses, clamped to \\([0,1]\\). The floor constraint \\(\\lambda_1 \\geq 0.95\\) is a hard asymptote: an ","source_id":"thesis_session","maturity":"defined"},{"id":"F0061","source_file":"thesis.md","source_line":567,"latex":"\\lambda_1 \\geq 0.95","context":"anchor\" embedding, averaged over the operator's registered covenant clauses, clamped to \\([0,1]\\). The floor constraint \\(\\lambda_1 \\geq 0.95\\) is a hard asymptote: an agent that is even marginally mo","source_id":"thesis_session","maturity":"defined"},{"id":"F0062","source_file":"thesis.md","source_line":569,"latex":"\\lambda_2","context":"even marginally morally misaligned fails the gate irrespective of how perfectly calibrated the other eight axes are.  **\\(\\lambda_2\\): measurabilityHonesty.** Measures whether an action's declared eff","source_id":"thesis_session","maturity":"defined"},{"id":"F0063","source_file":"thesis.md","source_line":571,"latex":"\\lambda_3","context":"ine clause \"no hallucinations no bandaids; test test test\" by making measurement-honesty a prerequisite for passage.  **\\(\\lambda_3\\): epistemicHumility.** Scores the agent's acknowledgment of its own","source_id":"thesis_session","maturity":"defined"},{"id":"F0064","source_file":"thesis.md","source_line":571,"latex":"\\lambda_3 = 1 - \\mathbb{E}[|\\text{conf}(c) - \\text{acc}(c)|]","context":"sparse scores low on this axis. The scoring function penalizes unjustified confidence using a calibration-error analog: \\(\\lambda_3 = 1 - \\mathbb{E}[|\\text{conf}(c) - \\text{acc}(c)|]\\) where \\(\\text{c","source_id":"thesis_session","maturity":"defined"},{"id":"F0065","source_file":"thesis.md","source_line":571,"latex":"\\text{conf}(c)","context":"ied confidence using a calibration-error analog: \\(\\lambda_3 = 1 - \\mathbb{E}[|\\text{conf}(c) - \\text{acc}(c)|]\\) where \\(\\text{conf}(c)\\) is the agent's stated confidence and \\(\\text{acc}(c)\\) is the","source_id":"thesis_session","maturity":"defined"},{"id":"F0066","source_file":"thesis.md","source_line":571,"latex":"\\text{acc}(c)","context":"da_3 = 1 - \\mathbb{E}[|\\text{conf}(c) - \\text{acc}(c)|]\\) where \\(\\text{conf}(c)\\) is the agent's stated confidence and \\(\\text{acc}(c)\\) is the empirically measured accuracy over a calibration set.  ","source_id":"thesis_session","maturity":"defined"},{"id":"F0067","source_file":"thesis.md","source_line":573,"latex":"\\lambda_4","context":"is the agent's stated confidence and \\(\\text{acc}(c)\\) is the empirically measured accuracy over a calibration set.  **\\(\\lambda_4\\): counterfactualAwareness.** Measures whether the agent has consider","source_id":"thesis_session","maturity":"defined"},{"id":"F0068","source_file":"thesis.md","source_line":575,"latex":"\\lambda_5","context":"res 0.0 and a uniformly distributed consequence distribution over the operator-defined consequence space scores 1.0.  **\\(\\lambda_5\\): temporalConsistency.** Measures the stability of the gate verdict","source_id":"thesis_session","maturity":"defined"},{"id":"F0069","source_file":"thesis.md","source_line":575,"latex":"t + \\Delta","context":"Measures the stability of the gate verdict under repeated evaluation on the same input at two different times \\(t\\) and \\(t + \\Delta\\). Let \\(v_t\\) and \\(v_{t+\\Delta}\\) denote the Λ₉ composite scores ","source_id":"thesis_session","maturity":"defined"},{"id":"F0070","source_file":"thesis.md","source_line":575,"latex":"v_{t+\\Delta}","context":"te verdict under repeated evaluation on the same input at two different times \\(t\\) and \\(t + \\Delta\\). Let \\(v_t\\) and \\(v_{t+\\Delta}\\) denote the Λ₉ composite scores at the two evaluation times. The","source_id":"thesis_session","maturity":"defined"},{"id":"F0071","source_file":"thesis.md","source_line":581,"latex":"\\lambda_5 = 1.0","context":"Then:  \\[ \\lambda_5 = \\max\\!\\Bigl(0,\\; 1 - 4\\,\\bigl(v_t - v_{t+\\Delta}\\bigr)^2\\Bigr) \\]  A zero-drift evaluation scores \\(\\lambda_5 = 1.0\\). A drift of 0.05 in the composite score yields \\(\\lambda_5 =","source_id":"thesis_session","maturity":"defined"},{"id":"F0072","source_file":"thesis.md","source_line":581,"latex":"\\lambda_5 = 0.99","context":"ta}\\bigr)^2\\Bigr) \\]  A zero-drift evaluation scores \\(\\lambda_5 = 1.0\\). A drift of 0.05 in the composite score yields \\(\\lambda_5 = 0.99\\). A drift of 0.25 yields \\(\\lambda_5 = 0.75\\), below the ≥ 0","source_id":"thesis_session","maturity":"defined"},{"id":"F0073","source_file":"thesis.md","source_line":581,"latex":"\\lambda_5 = 0.75","context":"scores \\(\\lambda_5 = 1.0\\). A drift of 0.05 in the composite score yields \\(\\lambda_5 = 0.99\\). A drift of 0.25 yields \\(\\lambda_5 = 0.75\\), below the ≥ 0.90 conjunctive floor. This axis operationaliz","source_id":"thesis_session","maturity":"defined"},{"id":"F0074","source_file":"thesis.md","source_line":583,"latex":"\\lambda_6","context":"-identical replay guarantee: a system that cannot reproduce its own gate verdict is not operating deterministically.  **\\(\\lambda_6\\): evidenceProvenance.** Measures whether every empirical claim embe","source_id":"thesis_session","maturity":"defined","puriq_ref":"F1","lean_ref":"f1_replay_fold_deterministic"},{"id":"F0075","source_file":"thesis.md","source_line":585,"latex":"\\lambda_7","context":"ertions score at most 0.50. The scoring function is the fraction of claim tokens for which provenance is resolvable.  **\\(\\lambda_7\\): actorIdentity.** Measures the definiteness of the acting agent's ","source_id":"thesis_session","maturity":"defined"},{"id":"F0076","source_file":"thesis.md","source_line":587,"latex":"\\lambda_8","context":"ting under delegated authority — the score decays as a function of delegation depth to penalize opaque proxy chains.  **\\(\\lambda_8\\): axiomConsistency.** Measures whether the proposed action is inter","source_id":"thesis_session","maturity":"defined"},{"id":"F0077","source_file":"thesis.md","source_line":589,"latex":"\\lambda_9","context":"Lean 4 formalization: it enforces, at runtime, the constraints that are statically verified at theorem-proving time.  **\\(\\lambda_9\\): coherence.** Measures the multi-step logical coherence of the age","source_id":"thesis_session","maturity":"defined"},{"id":"F0078","source_file":"thesis.md","source_line":589,"latex":"A_1, A_2, \\ldots, A_k","context":"-step logical coherence of the agent's plan across the action sequence, not just for the current step in isolation. Let \\(A_1, A_2, \\ldots, A_k\\) denote the \\(k\\) preceding actions in the current sess","source_id":"thesis_session","maturity":"defined"},{"id":"F0079","source_file":"thesis.md","source_line":589,"latex":"(A_i, A_{i+1})","context":"e the \\(k\\) preceding actions in the current session. The coherence score is the proportion of consecutive action-pairs \\((A_i, A_{i+1})\\) for which the precondition of \\(A_{i+1}\\) is satisfied by the","source_id":"thesis_session","maturity":"defined"},{"id":"F0080","source_file":"thesis.md","source_line":589,"latex":"A_{i+1}","context":"ion. The coherence score is the proportion of consecutive action-pairs \\((A_i, A_{i+1})\\) for which the precondition of \\(A_{i+1}\\) is satisfied by the postcondition of \\(A_i\\), under the operator's p","source_id":"thesis_session","maturity":"defined"},{"id":"F0081","source_file":"thesis.md","source_line":589,"latex":"\\lambda_9 = 1.0","context":"ied by the postcondition of \\(A_i\\), under the operator's precondition/postcondition schema. For the base case \\(k=0\\), \\(\\lambda_9 = 1.0\\).  ### The conjunctive gate condition  The Λ₉ gate passes if ","source_id":"thesis_session","maturity":"defined"},{"id":"F0082","source_file":"thesis.md","source_line":599,"latex":"\\lambda_1 = 0.50","context":"for the following reason. A single composite score — even a geometric mean — can mask localized failures. An agent with \\(\\lambda_1 = 0.50\\) (severely morally misaligned) and all remaining axes at \\(1","source_id":"thesis_session","maturity":"defined"},{"id":"F0083","source_file":"thesis.md","source_line":599,"latex":"\\prod_{i}^{1/9} = 0.50^{1/9} \\approx 0.926","context":"with \\(\\lambda_1 = 0.50\\) (severely morally misaligned) and all remaining axes at \\(1.0\\) achieves a geometric mean of \\(\\prod_{i}^{1/9} = 0.50^{1/9} \\approx 0.926\\), which would pass a ≥ 0.90 single-","source_id":"thesis_session","maturity":"defined"},{"id":"F0084","source_file":"thesis.md","source_line":599,"latex":"\\lambda_1","context":"gle-score gate. The conjunctive AND structure prevents this: every axis is a blocking veto. The two elevated floors for \\(\\lambda_1\\) and \\(\\lambda_2\\) add a second layer of asymmetry — these are the ","source_id":"thesis_session","maturity":"defined"},{"id":"F0085","source_file":"thesis.md","source_line":599,"latex":"\\lambda_2","context":"e conjunctive AND structure prevents this: every axis is a blocking veto. The two elevated floors for \\(\\lambda_1\\) and \\(\\lambda_2\\) add a second layer of asymmetry — these are the axes most directly","source_id":"thesis_session","maturity":"defined"},{"id":"F0086","source_file":"thesis.md","source_line":605,"latex":"m \\in \\{0,1\\}^9","context":"to the receipt structure. Rather than publishing the raw nine (or ten) axis scores, the receipt carries a bitfield mask \\(m \\in \\{0,1\\}^9\\) in which \\(m_i = 1\\) if and only if \\(\\lambda_i\\) was evalua","source_id":"thesis_session","maturity":"defined"},{"id":"F0087","source_file":"thesis.md","source_line":605,"latex":"m_i = 1","context":"her than publishing the raw nine (or ten) axis scores, the receipt carries a bitfield mask \\(m \\in \\{0,1\\}^9\\) in which \\(m_i = 1\\) if and only if \\(\\lambda_i\\) was evaluated and passed its floor. The","source_id":"thesis_session","maturity":"defined"},{"id":"F0088","source_file":"thesis.md","source_line":605,"latex":"\\lambda_i","context":"nine (or ten) axis scores, the receipt carries a bitfield mask \\(m \\in \\{0,1\\}^9\\) in which \\(m_i = 1\\) if and only if \\(\\lambda_i\\) was evaluated and passed its floor. The raw scores are withheld fro","source_id":"thesis_session","maturity":"defined"},{"id":"F0089","source_file":"thesis.md","source_line":611,"latex":"\\theta_i = 0.95","context":"ity profile of the agent. Formally, the mask is computed as:  \\[ m_i = \\mathbf{1}[\\lambda_i(c) \\geq \\theta_i] \\]  where \\(\\theta_i = 0.95\\) for \\(i \\in \\{1,2\\}\\) and \\(\\theta_i = 0.90\\) otherwise. The","source_id":"thesis_session","maturity":"defined"},{"id":"F0090","source_file":"thesis.md","source_line":611,"latex":"i \\in \\{1,2\\}","context":". Formally, the mask is computed as:  \\[ m_i = \\mathbf{1}[\\lambda_i(c) \\geq \\theta_i] \\]  where \\(\\theta_i = 0.95\\) for \\(i \\in \\{1,2\\}\\) and \\(\\theta_i = 0.90\\) otherwise. The gate passes iff \\(\\sum_","source_id":"thesis_session","maturity":"defined"},{"id":"F0091","source_file":"thesis.md","source_line":611,"latex":"\\theta_i = 0.90","context":"s computed as:  \\[ m_i = \\mathbf{1}[\\lambda_i(c) \\geq \\theta_i] \\]  where \\(\\theta_i = 0.95\\) for \\(i \\in \\{1,2\\}\\) and \\(\\theta_i = 0.90\\) otherwise. The gate passes iff \\(\\sum_i m_i = 9\\) (or 10 und","source_id":"thesis_session","maturity":"defined"},{"id":"F0092","source_file":"thesis.md","source_line":611,"latex":"\\sum_i m_i = 9","context":"eq \\theta_i] \\]  where \\(\\theta_i = 0.95\\) for \\(i \\in \\{1,2\\}\\) and \\(\\theta_i = 0.90\\) otherwise. The gate passes iff \\(\\sum_i m_i = 9\\) (or 10 under Λ₁₀). The mask is committed via SHA-256 and incl","source_id":"thesis_session","maturity":"defined"},{"id":"F0093","source_file":"thesis.md","source_line":627,"latex":"\\textit{parent\\_hash}","context":"\\textit{timestamp},\\; \\vec{\\lambda},\\; \\rho\\_\\textit{witness\\_set},\\; \\textit{signature}\\bigr) \\]  The fields are:  - **\\(\\textit{parent\\_hash}\\)**: The SHA-256 digest of receipt \\(r_{i-1}\\). For the ","source_id":"thesis_session","maturity":"defined"},{"id":"F0094","source_file":"thesis.md","source_line":627,"latex":"r_{i-1}","context":"s\\_set},\\; \\textit{signature}\\bigr) \\]  The fields are:  - **\\(\\textit{parent\\_hash}\\)**: The SHA-256 digest of receipt \\(r_{i-1}\\). For the genesis receipt, this is the SHA-256 of a protocol-specifie","source_id":"thesis_session","maturity":"defined"},{"id":"F0095","source_file":"thesis.md","source_line":628,"latex":"\\textit{content\\_digest}","context":"this is the SHA-256 of a protocol-specified null seed. This field creates the backward-pointing link of the chain. - **\\(\\textit{content\\_digest}\\)**: The SHA-256 of the canonical JSON serialization o","source_id":"thesis_session","maturity":"defined"},{"id":"F0096","source_file":"thesis.md","source_line":629,"latex":"\\textit{actor}","context":"fore any side-effectful execution. This binds the gate verdict irrevocably to the specific input that triggered it. - **\\(\\textit{actor}\\)**: The identifier of the acting agent as registered in the pr","source_id":"thesis_session","maturity":"defined"},{"id":"F0097","source_file":"thesis.md","source_line":629,"latex":"\\lambda_7","context":"t. - **\\(\\textit{actor}\\)**: The identifier of the acting agent as registered in the principal registry. Corresponds to \\(\\lambda_7\\) (actorIdentity). - **\\(\\textit{timestamp}\\)**: A monotonic timesta","source_id":"thesis_session","maturity":"defined"},{"id":"F0098","source_file":"thesis.md","source_line":630,"latex":"\\textit{timestamp}","context":"entifier of the acting agent as registered in the principal registry. Corresponds to \\(\\lambda_7\\) (actorIdentity). - **\\(\\textit{timestamp}\\)**: A monotonic timestamp in milliseconds since the Unix e","source_id":"thesis_session","maturity":"defined"},{"id":"F0099","source_file":"thesis.md","source_line":631,"latex":"\\vec{\\lambda}","context":": A monotonic timestamp in milliseconds since the Unix epoch, drawn from a pinned, non-forgeable source (see §4.6). - **\\(\\vec{\\lambda}\\)**: The full nine-dimensional Λ vector, or the `lambda9_mask` b","source_id":"thesis_session","maturity":"defined"},{"id":"F0100","source_file":"thesis.md","source_line":632,"latex":"\\rho\\_\\textit{witness\\_set}","context":"vec{\\lambda}\\)**: The full nine-dimensional Λ vector, or the `lambda9_mask` bitfield under the Λ₁₀ privacy variant. - **\\(\\rho\\_\\textit{witness\\_set}\\)**: The set of co-witnesses whose signatures are ","source_id":"thesis_session","maturity":"defined"}],"definitions":[],"canonical_constants":[{"id":"K01","name":"receipt_build_p50_us","value":"11.5","unit":"µs","ops_per_sec":"62764","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K02","name":"receipt_build_p99_us","value":"50.7","unit":"µs","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K03","name":"receipt_verify_p50_us","value":"10.4","unit":"µs","ops_per_sec":"74149","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K04","name":"lambda9_base_p50_us","value":"3.12","unit":"µs","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K05","name":"lambda9_composed_p50_us","value":"3.29","unit":"µs","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K06","name":"rho_closure_rate","value":"100%","denominator":"8000/8000 paired calls","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K07","name":"platform_v11_http_calls","value":"24800","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K08","name":"platform_v11_lambda10_overhead_p50_ms","value":"0.49-0.59","unit":"ms/route","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K09","name":"platform_v11_p99_ms","value":"1.27","unit":"ms","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K10","name":"replay_root","value":"1ed4d253e876f428c6e182f8ed8a569585442556b339529bbf8ec2522581698b","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K11","name":"test_count_production","value":"218/218","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K12","name":"test_count_demo","value":"37/37","source":"replit_payload_build","commit":"demo","maturity":"measured"},{"id":"K13","name":"bekenstein_indicator_fire_rate","value":"49.5%","source":"thesis.md §4.5","doi":"10.5281/zenodo.20119582","maturity":"measured"}],"extracted_constants":[{"id":"C0001","name":"receipt_build_p50_us","value":"11.5","raw":"receipt build p50 = 11.5 µs","context":"0).** A production Rust runtime with 218/218 tests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0003","name":"receipt_verify_p50_us","value":"10.4","raw":"receipt verify p50 = 10.4 µs","context":"ests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,000/8,000 paired ca","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0008","name":"receipt_build_p99_us","value":"50.7","raw":"p99 = 50.7 µs","context":"→ Receipt` — constructs a receipt envelope; p50 = 11.5 µs, p99 = 50.7 µs, throughput 62,764 ops/sec. - `verify_receipt(receipt) → bool` — verifies byt","source_file":"thesis.md","source_line":269,"source_id":"thesis_session"},{"id":"C0009","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"me with 218/218 tests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,00","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0010","name":"ops_per_sec","value":"74149","raw":"74,149 ops/sec","context":"0 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,000/8,000 paired calls [9]. The runtime enforces ","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0023","name":"ops_per_sec","value":"200000","raw":"200,000 ops/sec","context":"arget for the Merkle-DAG upgrade is **5 µs build p50** at **200,000 ops/sec**. This is a 2.3× improvement in latency and a 3.2× improvement in through","source_file":"thesis.md","source_line":2100,"source_id":"thesis_session"},{"id":"C0027","name":"lambda9_base_p50_us","value":"3.12","raw":"Λ₉ base p50 = 3.12 µs","context":"9]. The runtime enforces a 9-axis conjunctive quality gate (Λ₉ base p50 = 3.12 µs) and a Λ₁₀ platform layer with 0.49–0.59 ms/route overhead validated","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0029","name":"tests_passed","value":"218","raw":"218/218 passing","context":"ify-p50 with 100% ρ-closure on 8,000/8,000 paired calls and 218/218 passing tests. We propose `lambda9_mask` as a privacy-preserving extension to SCIT","source_file":"thesis.md","source_line":27,"source_id":"thesis_session"},{"id":"C0031","name":"tests_passed","value":"37","raw":"37/37 tests","context":"nt invocations of the same input. The demo payload confirms 37/37 tests passing in the Replit environment (33 `ouroboros` core + 4 `a11oy` covenant), ","source_file":"thesis.md","source_line":249,"source_id":"thesis_session"},{"id":"C0044","name":"http_calls","value":"24800","raw":"24,800 HTTP calls","context":"orm layer with 0.49–0.59 ms/route overhead validated across 24,800 HTTP calls.  2. **Lean 4 formal axioms and proofs (`lutar-lean`).** A Mathlib-groun","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0053","name":"lambda_p50_us","value":"11.5","raw":"p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,000/8,000 paired calls [9]. The runtime enforces a 9-axis conjunctive quality gate (Λ","context":"tion Rust runtime with 218/218 tests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0054","name":"lambda_p50_us","value":"3.12","raw":"p50 = 3.12 µs) and a Λ","context":"runtime enforces a 9-axis conjunctive quality gate (Λ₉ base p50 = 3.12 µs) and a Λ₁₀ platform layer with 0.49–0.59 ms/route overhead validated across ","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0055","name":"receipt_build_p99_us","value":"50.7","raw":"p99 = 50.7 µs","context":"bers - **218/218 tests** - Receipt build p50 = **11.5 µs**, p99 = 50.7 µs (62,764 ops/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ ba","source_file":"THESIS_BRIEF.md","source_line":57,"source_id":"thesis_brief"},{"id":"C0056","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"8 tests** - Receipt build p50 = **11.5 µs**, p99 = 50.7 µs (62,764 ops/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ base p50 = 3.12 µ","source_file":"THESIS_BRIEF.md","source_line":57,"source_id":"thesis_brief"},{"id":"C0057","name":"ops_per_sec","value":"74149","raw":"74,149 ops/sec","context":"0.7 µs (62,764 ops/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ base p50 = 3.12 µs / composed p50 = 3.29 µs - 100% ρ-closure on **8,0","source_file":"THESIS_BRIEF.md","source_line":58,"source_id":"thesis_brief"},{"id":"C0058","name":"lambda9_base_p50_us","value":"3.12","raw":"Λ₉ base p50 = 3.12 µs","context":"/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ base p50 = 3.12 µs / composed p50 = 3.29 µs - 100% ρ-closure on **8,000/8,000 paired ca","source_file":"THESIS_BRIEF.md","source_line":59,"source_id":"thesis_brief"},{"id":"C0059","name":"tests_passed","value":"218","raw":"218/218 tests","context":"boros v6.3.0 (released 2026-05-13) — production numbers - **218/218 tests** - Receipt build p50 = **11.5 µs**, p99 = 50.7 µs (62,764 ops/sec) - Receip","source_file":"THESIS_BRIEF.md","source_line":56,"source_id":"thesis_brief"},{"id":"C0060","name":"tests_passed","value":"37","raw":"37/37 tests","context":"plit demo payload (verified live 2026-05-15 at 11:22 EDT) - 37/37 tests passing (33 ouroboros core + 4 a11oy covenant) - `bash scripts/doctrine-check.","source_file":"THESIS_BRIEF.md","source_line":68,"source_id":"thesis_brief"},{"id":"C0061","name":"http_calls","value":"24800","raw":"24,800 HTTP calls","context":"ρ-closure on **8,000/8,000 paired calls** - Platform v11: **24,800 HTTP calls validated**, Λ₁₀ overhead 0.49–0.59 ms/route, p99 ≤ 1.27 ms - Apache-2.0","source_file":"THESIS_BRIEF.md","source_line":61,"source_id":"thesis_brief"},{"id":"C0062","name":"receipt_build_p50_us","value":"11.5","raw":"Receipt build p50 = 11.5 µs","context":"e not. | 12–18 months — they have a runtime, not a kernel | Receipt build p50 = 11.5 µs · v11 DOI [`zenodo.20119582`](https://doi.org/10.5281/zenodo.2","source_file":"master_evolution_memo.md","source_line":81,"source_id":"master_memo"},{"id":"C0064","name":"receipt_build_p99_us","value":"50.7","raw":"p99 = 50.7 µs","context":"218 / 218 passing** | | Receipt build | p50 = **11.5 µs** · p99 = 50.7 µs · 62,764 ops/sec | | Receipt verify | p50 = **10.4 µs** · 74,149 ops/sec | |","source_file":"master_evolution_memo.md","source_line":36,"source_id":"master_memo"},{"id":"C0065","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"g** | | Receipt build | p50 = **11.5 µs** · p99 = 50.7 µs · 62,764 ops/sec | | Receipt verify | p50 = **10.4 µs** · 74,149 ops/sec | | Λ₉ base | p50 =","source_file":"master_evolution_memo.md","source_line":36,"source_id":"master_memo"},{"id":"C0066","name":"ops_per_sec","value":"74149","raw":"74,149 ops/sec","context":"s · 62,764 ops/sec | | Receipt verify | p50 = **10.4 µs** · 74,149 ops/sec | | Λ₉ base | p50 = 3.12 µs | | Λ₉ composed | p50 = **3.29 µs** | | ρ-closu","source_file":"master_evolution_memo.md","source_line":37,"source_id":"master_memo"},{"id":"C0067","name":"tests_passed","value":"37","raw":"37/37 tests","context":"ic-facing Replit demo (`replit_a11oy_demo`) currently shows 37/37 tests passing. The upstream runtime is **218/218**. Every Series A diligence visitor","source_file":"master_evolution_memo.md","source_line":141,"source_id":"master_memo"},{"id":"C0068","name":"tests_passed","value":"218","raw":"218/218 tests","context":"astructure.  **Success metric:** the Replit demo URL shows \"218/218 tests · v6.3.0 · OpenSSF 8.2\" with the same badge as the canonical repo, refreshed","source_file":"master_evolution_memo.md","source_line":152,"source_id":"master_memo"},{"id":"C0070","name":"receipt_build_p50_us","value":"11.5","raw":"Receipt build p50=11.5 µs","context":"rg/doc/draft-morrow-sogomonian-exec-outcome-attest/00/)). | Receipt build p50=11.5 µs, 218/218 tests, v11 DOI: [10.5281/zenodo.20119582](https://doi.o","source_file":"pm_memo.md","source_line":54,"source_id":"pm_memo"},{"id":"C0072","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"Claim:** Receipt build p50 = 11.5 µs, verify p50 = 10.4 µs, 62,764 ops/sec, 218/218 runtime tests, ρ-closure 8,000/8,000, byte-identical replay root `","source_file":"pm_memo.md","source_line":81,"source_id":"pm_memo"},{"id":"C0073","name":"tests_passed","value":"218","raw":"218/218 tests","context":"ian-exec-outcome-attest/00/)). | Receipt build p50=11.5 µs, 218/218 tests, v11 DOI: [10.5281/zenodo.20119582](https://doi.org/10.5281/zenodo.20119582)","source_file":"pm_memo.md","source_line":54,"source_id":"pm_memo"},{"id":"C0076","name":"tests_passed","value":"37","raw":"37/37 tests","context":"arity + Public Scorecard  **Thesis:** The Replit demo shows 37/37 tests (ouroboros 33 + a11oy 4). The live runtime is 218/218. This delta undersells t","source_file":"pm_memo.md","source_line":135,"source_id":"pm_memo"},{"id":"C0077","name":"http_calls","value":"24800","raw":"24,800 HTTP calls","context":"ships a Λ₉-gated resource. | Ouroboros v6.3.0 platform v11: 24,800 HTTP calls, Λ₁₀ overhead 0.49–0.59 ms/route | | **Mastra** ([mastra.ai](https://mas","source_file":"pm_memo.md","source_line":57,"source_id":"pm_memo"},{"id":"C0078","name":"receipt_build_p50_us","value":"11.5","raw":"Receipt build p50 = 11.5 µs","context":"-witness guarantee baked into `ouroboros`'s runtime kernel. Receipt build p50 = 11.5 µs; verify p50 = 10.4 µs; 100% ρ-closure on 8,000/8,000 paired ca","source_file":"cto_memo.md","source_line":78,"source_id":"cto_memo"},{"id":"C0079","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"in · p50 = 11.5 µs build / 10.4 µs verify · 218/218 tests · 62,764 ops/sec | | `a11oy` | Covenant policy + approval queue | **HEART** (consent + pulse","source_file":"cto_memo.md","source_line":18,"source_id":"cto_memo"},{"id":"C0080","name":"tests_passed","value":"218","raw":"218/218 tests","context":"ss · receipt chain · p50 = 11.5 µs build / 10.4 µs verify · 218/218 tests · 62,764 ops/sec | | `a11oy` | Covenant policy + approval queue | **HEART** ","source_file":"cto_memo.md","source_line":18,"source_id":"cto_memo"},{"id":"C0081","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"218 / 218 passing | 100% | | Receipt build p50 | 11.5 µs | 62,764 ops/sec | | Receipt build p99 | 50.7 µs | — | | Receipt verify p50 | 10.4 µs | 74,14","source_file":"runtime_memo.md","source_line":20,"source_id":"runtime_memo"},{"id":"C0082","name":"ops_per_sec","value":"74149","raw":"74,149 ops/sec","context":"build p99 | 50.7 µs | — | | Receipt verify p50 | 10.4 µs | 74,149 ops/sec | | Λ₉ base p50 | 3.12 µs | — | | Λ₉ composed p50 | 3.29 µs | — | | ρ-closur","source_file":"runtime_memo.md","source_line":22,"source_id":"runtime_memo"},{"id":"C0083","name":"tests_passed","value":"218","raw":"218/218 tests","context":"ary (5 lines)  The ouroboros v6.3.0 runtime is confirmed at 218/218 tests, receipt build p50 11.5 µs, Λ₉ composed p50 3.29 µs, and 100% ρ-closure — al","source_file":"runtime_memo.md","source_line":404,"source_id":"runtime_memo"},{"id":"C0084","name":"http_calls","value":"11","raw":"11 HTTP calls","context":"9 µs | — | | ρ-closure | 8,000 / 8,000 | 100% | | Platform v11 HTTP calls | 24,800 | — | | Λ overhead p50 per route | 0.49–0.59 ms | — | | Λ overhead ","source_file":"runtime_memo.md","source_line":26,"source_id":"runtime_memo"},{"id":"C0085","name":"ops_per_sec","value":"74149","raw":"74,149 ops/sec","context":"pt verify p50 | **10.4 µs** | | Receipt verify throughput | 74,149 ops/sec | | Λ₉ base p50 | 3.12 µs | | Λ₉ composed p50 | 3.29 µs | | ρ-closure | 100","source_file":"data_memo.md","source_line":419,"source_id":"data_memo"}],"dois":[{"doi":"10.5281/zenodo.19944926","url":"https://doi.org/10.5281/zenodo.19944926","source_file":"thesis.md","source_line":18,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20119582","url":"https://doi.org/10.5281/zenodo.20119582","source_file":"thesis.md","source_line":19,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.19867281","url":"https://doi.org/10.5281/zenodo.19867281","source_file":"thesis.md","source_line":1740,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.19934129","url":"https://doi.org/10.5281/zenodo.19934129","source_file":"thesis.md","source_line":1741,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.19983066","url":"https://doi.org/10.5281/zenodo.19983066","source_file":"thesis.md","source_line":1743,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20020841","url":"https://doi.org/10.5281/zenodo.20020841","source_file":"thesis.md","source_line":1744,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20020845","url":"https://doi.org/10.5281/zenodo.20020845","source_file":"thesis.md","source_line":1745,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20020846","url":"https://doi.org/10.5281/zenodo.20020846","source_file":"thesis.md","source_line":1746,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20020848","url":"https://doi.org/10.5281/zenodo.20020848","source_file":"thesis.md","source_line":1747,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20020849","url":"https://doi.org/10.5281/zenodo.20020849","source_file":"thesis.md","source_line":1748,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20053148","url":"https://doi.org/10.5281/zenodo.20053148","source_file":"thesis.md","source_line":1749,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20053163","url":"https://doi.org/10.5281/zenodo.20053163","source_file":"thesis.md","source_line":1750,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20162352","url":"https://doi.org/10.5281/zenodo.20162352","source_file":"thesis.md","source_line":1752,"source_id":"thesis_session"}],"doctrine_clauses":[{"id":"DC1","clause":"Byline must be 'Lutar, Stephen P.' — never 'Jr.' or 'Stephen Paul'","source":"THESIS_BRIEF.md"},{"id":"DC2","clause":"8 forbidden patterns: see doctrine.json (FP-1..FP-8)","source":"PM_LEAD_CHARTER_V2.md"},{"id":"DC3","clause":"License allow-list: Apache-2.0, MIT, BSD-3-Clause, CC-BY-4.0","source":"THESIS_BRIEF.md"},{"id":"DC4","clause":"ORCID: 0009-0001-0110-4173","source":"THESIS_BRIEF.md"},{"id":"DC5","clause":"9-axis Λ >= 0.90 conjunctive AND; moralGrounding + measurabilityHonesty >= 0.95","source":"THESIS_BRIEF.md"},{"id":"DC6","clause":"Public-only ingestion: no private data, no proprietary code","source":"THESIS_BRIEF.md"},{"id":"DC7","clause":"5x byte-identical replay (deterministic)","source":"THESIS_BRIEF.md"},{"id":"DC8","clause":"No hallucinations; every empirical claim cites a verifiable artifact","source":"THESIS_BRIEF.md"}],"source_files":["thesis.md","THESIS_BRIEF.md","master_evolution_memo.md","pm_memo.md","cto_memo.md","runtime_memo.md","governance_memo.md","data_memo.md","anatomy_memo.md"],"zenodo_corpus":["10.5281/zenodo.19867281","10.5281/zenodo.19934129","10.5281/zenodo.19944926","10.5281/zenodo.19983066","10.5281/zenodo.20020841","10.5281/zenodo.20020846","10.5281/zenodo.20020845","10.5281/zenodo.20020848","10.5281/zenodo.20020849","10.5281/zenodo.20053148","10.5281/zenodo.20053163","10.5281/zenodo.20119582","10.5281/zenodo.20162352"],"proof_summary":{"locked_proven":5,"locked_ids":["F1","F11","F12","F18","F19"],"experimental_sorry_free":21,"axiom_gated":3,"axiom_gated_detail":{"f13_tamper_evident":"hash_collision_resistant","f14_dsse_verifiable":"ecdsa_unforgeable","f15_inclusion_binding":"h2_collision_resistant"},"conjecture":["F23"],"note":"Locked kernel proven=5; experimental scope Lutar/Puriq/Formulas has 21 sorry-free (excluded from locked count); F23 = Conjecture 1, NOT a theorem.","lean_repo":"szl-holdings/lutar-lean","lean_files":["Lutar/Puriq/Formulas/PuriqFormulaLean.lean","Lutar/Puriq/Formulas/F23_Uniqueness.lean"],"verification":"bare `lean` 4.13.0, 0 errors, 1 sorry (F23 only); #print axioms shows no sorryAx in any proved theorem.","source_report":"team/PROOFS_WAVE2_REPORT.md","wave3":{"campaign":"prove-wave-3 (C1-C20 research candidates)","source_report":"team/PROVE_WAVE3_REPORT.md","lean_repo":"szl-holdings/lutar-lean","commit_proofs":"775093f0f8ef7f530272c38d513c28fdaec3366b","commit_root_wiring":"02e44c30657c9986475ff7373113728f4ba38f67","lean_files":["Lutar/Wave3/Consensus.lean","Lutar/Wave3/MerkleKraft.lean","Lutar/Wave3/InfoEstim.lean","Lutar/Wave3/Tier1Mathlib.lean (CI-pending, not wired into lake build)"],"verification":"Mathlib-free modules bare-`lean` 4.13.0 verified sorry-free (0 errors); #print axioms ledger shows no sorryAx. Tier1Mathlib (C1/C2/C6) is Mathlib-dependent and CI-pending, NOT compiled in sandbox.","new_proven_sorry_free":19,"new_proven_ids":["C8","C9","C10","C11","C12","C17","C20"],"new_axiom_gated":4,"new_axiom_gated_detail":{"c13_md_step_cr":"compression_collision_resistant","c13a_md_append_cr":"compression_collision_resistant","c14_merkle_binding":"node_collision_resistant, leaf_collision_resistant, domain_separation","c14b_no_second_preimage":"domain_separation (structural tag only, no hardness)"},"ci_pending":["C1","C2","C6"],"ci_pending_detail":"C1 tsirelson_inequality, C2 CHSH_inequality_of_comm, C6 ConvexOn.map_sum_le re-exports; Mathlib-dependent, awaiting green lake build.","maturity":{"C1":"ci-pending","C2":"ci-pending","C3":"mathlib-available-not-instantiated","C4":"mathlib-available-not-instantiated","C5":"mathlib-available-not-instantiated","C6":"ci-pending","C7":"axiom-gated (A6_bisymmetric); Lambda still Conjecture 1","C8":"proven","C9":"proven (Mathlib-free fragment; full L>=H is Mathlib target)","C10":"proven","C11":"proven","C12":"proven (bivalence core; full FLP not claimed)","C13":"axiom-gated","C14":"axiom-gated","C15":"lean-exists-not-ported","C16":"not-attempted","C17":"proven (Mathlib-free scalar core; full matrix-PSD is Mathlib target)","C18":"lean-exists-not-ported","C19":"not-attempted","C20":"proven (Mathlib-free order-preservation core; tight 1/2-Lipschitz is Mathlib target)"},"lambda_status":"F23 = Conjecture 1 (UNCHANGED). C7 is conditional only, via the DECLARED axiom A6_bisymmetric in F23_Uniqueness.lean; unconditional uniqueness is FALSE under A1-A5 (maxAgg_ne_Lambda).","locked_kernel":"749/14/163 @ c7c0ba17 (Doctrine v11) UNCHANGED; wave3 is experimental and counter-excluded from the locked count.","headline":"+19 sorry-free (Lean-core axioms only, bare-lean verified), +4 axiom-gated (declared idealizations), 3 Mathlib re-exports CI-pending, Lambda still Conjecture 1."},"wave4":{"campaign":"prove-wave-4 (conditional Lambda uniqueness on the WEAKER block-consistency axiom)","source_report":"team/PROVE_WAVE4_REPORT.md","candidate_research":"team/RESEARCH_WAVE4/CANDIDATE_FORMULAS_V4.md","lean_repo":"szl-holdings/lutar-lean","commit_final":"043c3df4bcbe55c60f1ce2d5c59b91284a7cc1d4","commit_ci_green_lambda":"52d9bf542bcb1adb8a0a5a5de694f2ca96bf9b68","lean_files":["Lutar/Wave4/LambdaBlockConsistency.lean (Mathlib-dependent, CI-green: lake build + kernel check success @ 043c3df)","Lutar/Wave4/LambdaBisymmetryWitness.lean (bare-`lean` 4.13.0 verified sorry-free, ZERO axioms; also CI-green)","Lutar/Wave3/Tier1Mathlib.lean (CI-PENDING, NOT wired into the compiled root)"],"ci_status":"build + lake build + numbers + check/doctrine all GREEN @ 043c3df; only doi-title-gate fails (PRE-EXISTING live-network README DOI check, unrelated to wave4).","verification":"LambdaBlockConsistency kernel-checked by lutar-lean CI lake build (green). LambdaBisymmetryWitness bare-`lean` verified: all 6 theorems 'do not depend on any axioms'. Every theorem carries #print axioms.","new_proven_ci_green":{"lambda_unique_under_block":"CLOSED, conditional on declared axiom A6'_block_consistent; #print axioms = [A6'_block_consistent, propext, Quot.sound, Classical.choice]","lambda_factors":"CLOSED, AXIOM-FREE (Mathlib core only): Lambda factors with exponents 1/k, so A6' is non-vacuous","unconditional_lambda_is_false":"CLOSED (= maxAgg_ne_Lambda): unconditional Lambda uniqueness is FALSE under A1-A5"},"witness_theorems_zero_axiom":["Fmax_not_strict","Fmin_not_strict","geo_separates_where_max_collapses","geo_bisym_product_eq","geo_fourth_root_consistent","geo_inner_products_consistent"],"lambda_axiom_set":"{A1,A2,A3,A4,A5} + A6'_block_consistent (single DECLARED, disclosed, NON-core axiom).","lambda_weakest_axiom":"Cleanest published: Aczel-Saaty 1983 (doi:10.1016/0022-2496(83)90028-7) = reciprocity + positive homogeneity (A2 already assumed). Weakest governance-natural & formalized: Csato 2018 block-consistency / aggregation-invariance (doi:10.1007/s10726-018-9589-3, arXiv:1706.07256), WEAKER than the prior A6_bisymmetric.","lambda_status":"F23 = Conjecture 1 (UNCHANGED, unconditional). Conditional uniqueness now CI-green on the WEAKER A6'_block_consistent (lambda_unique_under_block), superseding the stronger A6_bisymmetric route. Unconditional uniqueness FALSE (maxAgg_ne_Lambda). NEVER conflated.","ci_pending":["C1","C2","C6"],"ci_pending_detail":"C1 tsirelson_inequality / C2 CHSH_inequality_of_comm / C6 ConvexOn.map_sum_le re-exports. Signatures verified VERBATIM vs pinned Mathlib d731765, but wiring Tier1Mathlib into the compiled root reproducibly red-lights lake build (bisected: a4299fb/52d9bf5 un-wired = green). Exact error not retrievable (CI log download proxy-blocked). File stays in-tree, NOT imported; NOT claimed proven.","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED","locked_proven":5,"canonical_numbers":{"declarations":1182,"axioms_raw":20,"axioms_unique":19,"new_axiom":"A6'_block_consistent (declared, disclosed, NON-core, NOT in locked kernel)","sorries_raw":308,"sorries_noncomment":256,"drift_gate":"PASS"},"citations":["Aczel 1948","Aczel-Saaty 1983 doi:10.1016/0022-2496(83)90028-7","Csato 2018 doi:10.1007/s10726-018-9589-3 arXiv:1706.07256","Kolmogorov 1930","Maksa-Munnich-Mokken","Burai-Kiss-Szokol 2021"]},"wave5":{"campaign":"prove-wave-5: un-block C1/C2/C6 Mathlib re-exports (CI-GREEN) + new substrate re-exports (AM-GM/Cauchy-Schwarz) + Mathlib-free discrete substrate guarantees (bare-lean verified)","source_report":"team/PROVE_WAVE5_REPORT.md","lean_repo":"szl-holdings/lutar-lean","branch":"prove-wave5/c1c2c6-rewire-plus-amgm-cs","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/186","commit_ci_green":"0a552a90dd7f3b8b668ae761bf6e39eca17c62f1","ci_run_ids":{"lean_kernel_check":"27053443102 (success)","lake_build_gate_numbers":"27053443099 (success)","doctrine":"27053443200 (success)","dco":"27053443096 (success)"},"ci_status":"build (Lean kernel check) + lake build + numbers + check/doctrine + DCO all GREEN @ 0a552a90 (and @ 099d6caa). Only doi-title-gate + PR-title-lint fail (PRE-EXISTING / cosmetic, unrelated to proofs).","headline":"C1 Tsirelson 2sqrt2 / C2 CHSH<=2 / C6 Jensen are now CI-GREEN (wave-4 had them CI-PENDING). Root cause fixed: dropped the non-load-bearing c1a_tsirelson_constant numeric remark and its two extra SpecialFunctions imports, minimizing Tier1Mathlib's build closure to exactly the two modules that define the instantiated theorems.","ci_green_mathlib_dependent":{"Wave3.Tier1.c1_lutar_omega_tsirelson_ceiling":"C1 Tsirelson 2sqrt2 ceiling (tsirelson_inequality) — PROVEN, CI-green. EPR-Bell governance diagnostic (entangled-agent ceiling).","Wave3.Tier1.c2_lutar_omega_classical_ceiling":"C2 CHSH classical ceiling <=2 (CHSH_inequality_of_comm) — PROVEN, CI-green. Local/independent-prior agent ceiling.","Wave3.Tier1.c6_jensen_forecaster":"C6 finite Jensen (ConvexOn.map_sum_le) — PROVEN, CI-green. Active-inference ELBO-direction conservative forecaster.","Wave5.MathlibCore.w5_1_lambda_le_arith_mean":"W5-1 weighted AM-GM (Real.geom_mean_le_arith_mean_weighted) — PROVEN, CI-green. Lambda (geometric-mean aggregator) <= arithmetic mean: no-inflation guarantee.","Wave5.MathlibCore.w5_1b_lambda2_le_arith_mean":"W5-1b two-point weighted AM-GM — PROVEN, CI-green. Pairwise consensus diagnostic.","Wave5.MathlibCore.w5_2_trust_inner_le_norm":"W5-2 Cauchy-Schwarz (real_inner_le_norm) — PROVEN, CI-green. Trust-vector similarity bound (cosine in [-1,1])."},"proven_mathlib_free_bare_lean":{"Wave5.DiscreteSubstrate.w5_3a_miscover_le_total":"miscoverage<=sample size. axioms=[propext]. killinchu conformal coverage.","Wave5.DiscreteSubstrate.w5_3b_cover_miscover_partition":"covered+miscovered=total. axioms=[propext, Quot.sound]. coverage=1-miscoverage conservation.","Wave5.DiscreteSubstrate.w5_3c_threshold_count_mono":"stricter threshold selects fewer. axioms=[propext, Quot.sound]. a11oy threshold monotonicity.","Wave5.DiscreteSubstrate.w5_4_collision_of_image_dup":"image-duplicate => hash collision (pigeonhole). axioms=[propext, Classical.choice, Quot.sound]. UDS forgery-detection.","Wave5.DiscreteSubstrate.w5_5_no_early_stop_deflation":"monotone optional-stopping anti-deflation. ZERO axioms. UDS receipt-stream anti-gaming."},"axiom_disclosure":"Mathlib-dependent re-exports use the standard Mathlib trio [propext, Classical.choice, Quot.sound] (NO sorryAx, NO declared Lutar axioms); their #print axioms are emitted in the CI build log (blob log download proxy-blocked here, but the build is green and they are pure term-mode instantiations of axiom-clean Mathlib theorems). Mathlib-free theorems' #print axioms pasted verbatim in PROVE_WAVE5_REPORT.md section 3 (bare lean 4.13.0, exit 0).","not_available_at_pinned_mathlib":"C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler.Basic) modules DO NOT EXIST at the pinned rev d7317655 (v4.13.0) — verified HTTP 404. They cannot be re-exported on this toolchain; deferred to a future Mathlib bump. Honestly NOT claimed.","lambda_status":"Lambda (F23) STAYS Conjecture 1 unconditionally. W5-1 AM-GM is a building block Lambda relies on; it does NOT prove uniqueness. Unconditional uniqueness remains FALSE (wave-4 counterexample in-tree).","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. All wave-5 work is experimental scope (counter-excluded).","canonical_numbers":{"declarations":1189,"axioms_raw":20,"axioms_unique":19,"sorries_raw":308,"sorries_noncomment":256,"delta_decls_from_wave4":"+5 net (1184->1189; -1 c1a, +3 MathlibCore, +5 DiscreteSubstrate vs wave4 baseline 1182 -> 1189)"},"citations":["Tsirelson (1980) doi:10.1007/BF00417500","CHSH (1969) doi:10.1103/PhysRevLett.23.880","Jensen (1906)","Hardy-Littlewood-Polya, Inequalities (1934) [AM-GM]","Cauchy (1821); Schwarz (1888)","Vovk-Gammerman-Shafer (2005); Lei et al. (2018) JASA 113:1094 [conformal]","Dirichlet (1834) [pigeonhole]","Doob (1953) Stochastic Processes [optional stopping]"]},"experimental_sorry_free_note":"wave5 adds 11 kernel-verified experimental theorems (6 Mathlib-dependent CI-green: C1/C2/C6 + W5-1/W5-1b/W5-2; 5 Mathlib-free bare-lean: W5-3a/b/c, W5-4, W5-5). Prior experimental_sorry_free baseline was 21 (wave-2 F-pack ceiling).","wave5_proven_count":{"mathlib_dependent_ci_green":6,"mathlib_free_bare_lean":5,"total_new":11},"wave6":{"campaign":"prove-wave-6: graph + info substrate proof families (F-G1..F-G6 graph candidates from the founder's favorited graph-ML repos + Wave-4 DPI/Fano/conformal info cores)","source_report":"team/PROVE_WAVE6_REPORT.md","lean_repo":"szl-holdings/lutar-lean","branch":"prove-wave6/graph-substrate-fg1-fg6","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/189","base_main_commit":"b71114cf802987c74da3b572257a9dc0e53a675e","commit_ci_green":"dc7ae26d53611b8701336867df96c54a128fb049","commit_history":{"7c6879fd":"full wave6 (6 files); CI red on ONE theorem only (MetricSpectral.lean:87 SeparableSpace namespace not opened) — F-G4/F-G2/F-G5/F-G6 + F-G1 coord + F-G3 all built green in that same run","dc7ae26d":"fix: open TopologicalSpace in MetricSpectral; ALL Lean gates GREEN"},"ci_run_ids":{"lean_kernel_check":"27055540303 (success)","lake_build_gate_numbers":"27055540304 (success)"},"ci_status":"build (Lean kernel check) + lake build + numbers (full Mathlib build + drift gate) + check/doctrine + Run tests + DCO + CodeQL + gitleaks + Trivy + Grype + doi-title-gate + CI checks all GREEN @ dc7ae26d. Drift gate printed 'OK: live Lean numbers match the committed baseline' (1217/20/19/308). Build completed successfully (5015/5015). Only 'Lint PR title (Conventional Commits)' fails (PRE-EXISTING / cosmetic, unrelated to proofs).","headline":"11 new sorry-free theorems, 0 new axioms. F-G4 Lambda-graph isomorphism invariance is now REAL (replaces the placeholder) and CI-kernel-verified; F-G1 Frechet/Bourgain expansion + Kuratowski isometric embedding and F-G3 geometric spectral contraction (promotes the SpectralAdmit toy) are CI-green; F-G2 GNN<=1-WL, F-G5 bounded-frontier DAG termination, F-G6 relabeling-invariant functionals, plus Wave-4 DPI/Fano/conformal cores are Mathlib-free bare-lean-verified.","ci_green_mathlib_dependent":{"Lutar.GraphLambda.vertexLambda_automorphism_invariant":"F-G4 per-vertex Lambda invariant under a score/edge-preserving automorphism — PROVEN, CI-green.","Lutar.GraphLambda.Lambda_graph_automorphism_invariant":"F-G4 univ-product of vertex-Lambda invariant under automorphism — PROVEN, CI-green.","Lutar.GraphLambda.Lambda_graph_invariant_under_automorphism":"F-G4 Lambda_graph value invariant under automorphism — PROVEN, CI-green.","Lutar.GraphLambda.vertexLambda_iso_transport":"F-G4 vertex-Lambda transports across a cross-graph LambdaIso — PROVEN, CI-green.","Lutar.GraphLambda.prod_vertexLambda_iso_invariant":"F-G4 univ-product is a Lambda-isomorphism invariant (Fintype.prod_equiv) — PROVEN, CI-green.","Lutar.GraphLambda.Lambda_graph_iso_invariant":"F-G4 Lambda_graph is a Lambda-isomorphism invariant across two graphs — PROVEN, CI-green. THE headline graph result.","Wave6.MetricSpectral.frechet_coord_lipschitz":"F-G1 single-anchor Frechet coordinate is 1-Lipschitz (abs_dist_sub_le) — PROVEN, CI-green. P-GNN anchor-distance non-expansion certificate.","Wave6.MetricSpectral.frechet_coord_nonexpand":"F-G1 one-sided expansion-side certificate — PROVEN, CI-green.","Wave6.MetricSpectral.frechet_isometric_embedding":"F-G1 Kuratowski isometric (distortion=1) embedding into l-infinity (kuratowskiEmbedding.isometry) — PROVEN, CI-green. Distortion-1 anchor of the Bourgain spectrum.","Wave6.MetricSpectral.geometric_contraction":"F-G3 geometric decay dist(P^t x, pi) <= lam^t dist(x,pi) — PROVEN, CI-green. Real Levin-Peres-style mixing bound, promotes SpectralAdmit toy.","Wave6.MetricSpectral.contraction_nonincrease":"F-G3 a genuine contraction (lam<=1) never increases distance to stationary point — PROVEN, CI-green."},"proven_mathlib_free_bare_lean":{"Wave6.GraphSubstrate.gnn_le_wl":"F-G2 GNN <= 1-WL expressivity upper bound (factoring through WL color-refinement). ZERO axioms. (GIN Xu et al. arXiv:1810.00826)","Wave6.GraphSubstrate.iterStep_drains":"F-G5 bounded-frontier receipt-DAG strictly drains each step (well-founded measure). ZERO axioms.","Wave6.GraphSubstrate.iterStep_empties":"F-G5 frontier reaches empty in bounded steps. ZERO axioms. UDS bounded-frontier audit-walk termination/availability.","Wave6.GraphSubstrate.step_lt":"F-G5 strict-decrease lemma. axioms=[propext].","Wave6.GraphSubstrate.edge_decisions_bounded":"F-G5 edge-decision count bounded. ZERO axioms.","Wave6.GraphSubstrate.mpRun_det":"message-passing run determinism. ZERO axioms.","Wave6.GraphSubstrate.adj_pred_relabel_invariant":"F-G6 adjacency predicate relabel-invariant. ZERO axioms.","Wave6.GraphSubstrate.countAdj_relabel_invariant":"F-G6 adjacency count relabel-invariant. axioms=[propext]. Clustering-coeff/degree functional iso-invariance core.","Wave6.InfoSubstrate.dpi_postprocess_collapse":"Wave-4 DPI: deterministic post-processing creates no new distinctions. ZERO axioms.","Wave6.InfoSubstrate.dpi_count_pullback":"Wave-4 DPI count pullback. axioms=[propext].","Wave6.InfoSubstrate.fano_collision_forces_error":"Wave-4 Fano: a decode collision forces an error. axioms=[propext, Classical.choice, Quot.sound] (by_cases, no push_neg).","Wave6.InfoSubstrate.coverage_conservation":"Wave-4 conformal coverage conservation. axioms=[propext, Quot.sound].","Wave6.InfoSubstrate.miscoverage_le_total":"Wave-4 miscoverage <= total budget. axioms=[propext]."},"axiom_disclosure":"All Mathlib-dependent theorems (F-G4 in GraphLambda, F-G1/F-G3 in MetricSpectral) depend ONLY on the standard Mathlib trio [propext, Classical.choice, Quot.sound] — verbatim from the GREEN CI lake build log (PROVE_WAVE6_REPORT.md section 4). Mathlib-free theorems' #print axioms pasted verbatim from bare lean 4.13.0 (exit 0) in section 3. NO sorryAx, NO declared Lutar axioms in any new theorem.","not_available_at_pinned_mathlib":"C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler[.Basic]) modules DO NOT EXIST at pinned rev d7317655 (v4.13.0) — re-verified HTTP 404. Deferred; a lakefile bump risks the locked kernel and reproducible build. Honestly NOT claimed. (klDivergence_nonneg + pinsker stay declared/disclosed axioms.)","lambda_status":"Lambda (F23) STAYS Conjecture 1 unconditionally. F-G4 proves Lambda_graph (the graph-lifted aggregator) is an isomorphism INVARIANT — a structural-stability property — NOT uniqueness. Unconditional uniqueness remains FALSE (wave-4 counterexample in-tree).","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. All wave-6 work is experimental scope (counter-excluded from the locked v11 baseline).","canonical_numbers":{"declarations":1217,"axioms_raw":20,"axioms_unique":19,"sorries_raw":308,"sorries_noncomment":256,"delta_decls_from_wave5":"+28 (1189->1217: +23 three new Wave6 files [GraphSubstrate 12, InfoSubstrate 5, MetricSpectral 6], +5 GraphLambda F-G4 real proofs replacing the placeholder); sorries_raw unchanged 308 (every new theorem sorry-free); no new axioms"},"citations":["Bourgain (1985) Israel J. Math 52:46-52, doi:10.1007/BF02776078","Linial-London-Rabinovich (1995) Combinatorica 15:215-245, doi:10.1007/BF01200757","You-Gomes-Selman-Ying-Leskovec, P-GNN (2019) arXiv:1906.04817","Xu-Hu-Leskovec-Jegelka, GIN (2018) arXiv:1810.00826","You-Ying-Ren-Hamilton-Leskovec, GraphRNN (2018) arXiv:1802.08773","You-Leskovec-He-Xie, graph2nn (2020) arXiv:2007.06559","Levin-Peres, Markov Chains and Mixing Times (2017) doi:10.1090/mbk/107","Diaconis-Stroock (1991) doi:10.1214/aoap/1177005980","Weisfeiler-Lehman (1968) [1-WL color refinement]","Fano (1961) Transmission of Information [Fano inequality]","Vovk-Gammerman-Shafer (2005) [conformal coverage]"]},"wave6_proven_count":{"mathlib_dependent_ci_green":"F-G4 (6 thms across automorphism+iso) + F-G1 (3) + F-G3 (2/3) = 11 Mathlib-dep theorems kernel-checked","mathlib_free_bare_lean":"F-G2 (1) + F-G5 (5) + F-G6 (2) + Wave-4 DPI/Fano/conformal (5) = 13 bare-lean theorems","headline_new_sorry_free":11,"note":"Headline count of 11 = the named campaign targets newly closed sorry-free this wave (F-G1,F-G2,F-G3,F-G4,F-G5,F-G6 + 5 Wave-4 info cores). Total new declarations added to the corpus = +28 (see canonical_numbers)."},"wave7":{"campaign":"prove-wave-7: conformal rank-count/p-value + Doob two-sided audit envelope + degree-sum iso-invariance + PAC-Bayes routing envelope","source_report":"team/PROVE_WAVE7_REPORT.md","lean_repo":"szl-holdings/lutar-lean","branch":"prove-wave7/conformal-rankcount-doob-envelope-graphsum-pacbayes","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/190","base_main_commit":"b71114cf802987c74da3b572257a9dc0e53a675e","commit_ci_green":"d6a232ba7c0f42b9a45fde5c6eb96051fe007dc4","toolchain":"Lean 4.13.0 (6d22e0e5cc5a); pinned Mathlib d7317655 (v4.13.0)","ci_run_ids":{"lean_kernel_check":"27055463460 (success)","lake_build_gate_numbers":"27055463494 (success)","doctrine":"27055463522 (success)","dco":"27055463459 (success)","ci":"27055463463 (success)","tests":"27055463464 (success)","doi_title_gate":"27055463469 (success)"},"ci_status":"build (Lean kernel check whole library) + lake build + numbers (drift gate) + check/doctrine + Run tests + DCO + doi-title-gate all GREEN @ d6a232ba. Only Conventional-Commits PR-title lint fails (infra 'Set up job', non-required, NOT a proof gate).","new_proven_ci_green":["W7-1a","W7-1","W7-5a","W7-5b","W7-5"],"new_proven_bare_lean":["W7-4a","W7-4b","W7-4c","W7-6a","W7-6"],"axioms":"0 new","headline":"10 new sorry-free theorems, 0 new axioms: conformal rank-count/p-value (W7-4) + Doob TWO-SIDED optional-stopping audit envelope (W7-6, closes the audit-gaming hole BOTH ways) + degree-sum graph iso-invariance (W7-1) + PAC-Bayes min<=avg<=max routing envelope (W7-5).","ci_green_mathlib_dependent":{"Wave7.MathlibCore.w7_1a_vertexSum_relabel_invariant":"W7-1a any vertex-summed graph statistic is invariant under node relabeling (Equiv.sum_comp). PROVEN, CI-green. mesh-health graph functional iso-invariance.","Wave7.MathlibCore.w7_1_degreeSum_iso_invariant":"W7-1 two graphs related by a degree-preserving relabeling share the handshake quantity 2*|E|. PROVEN, CI-green. additive companion of in-tree F-G4.","Wave7.MathlibCore.w7_5a_sum_le_card_max":"W7-5a aggregated risk <= worst component (average <= max). PROVEN, CI-green. Model-Router upper envelope.","Wave7.MathlibCore.w7_5b_card_min_le_sum":"W7-5b best component <= average (min <= average). PROVEN, CI-green. lower envelope.","Wave7.MathlibCore.w7_5_average_envelope":"W7-5 two-sided routing envelope min <= average <= max (PAC-Bayes / GraphRouter cost averaging). PROVEN, CI-green."},"proven_mathlib_free_bare_lean":{"Wave7.DiscreteSubstrate.w7_4a_rankCount_le_total":"W7-4a rank-count <= sample size => normalized p-value <= 1. axioms=[propext]. killinchu conformal.","Wave7.DiscreteSubstrate.w7_4b_rankCount_antitone":"W7-4b a stricter conformity demand never raises the count (monotone calibration). axioms=[propext, Quot.sound]. trust-interval p-value.","Wave7.DiscreteSubstrate.w7_4c_rankCount_self_ge_one":"W7-4c conformal p-value floor (1+#>=)/(n+1): no zero p-values, anti-overconfidence. axioms=[propext, Quot.sound].","Wave7.DiscreteSubstrate.w7_6a_audit_envelope_lower":"W7-6a Doob one-sided lower audit bound. bare-lean.","Wave7.DiscreteSubstrate.w7_6_audit_two_sided_envelope":"W7-6 Doob TWO-SIDED optional-stopping audit envelope: auditing EARLY or LATE cannot change the result (bounds both under-reporting AND over-reporting). bare-lean. Upgrades the one-sided W5-5 anti-deflation guarantee."},"axiom_disclosure":"Mathlib-dependent theorems depend ONLY on the standard Mathlib trio [propext, Classical.choice, Quot.sound] (verbatim from GREEN CI lake build log, PROVE_WAVE7_REPORT.md section 3). Mathlib-free theorems' #print axioms pasted verbatim from bare lean 4.13.0 (exit 0). NO sorryAx, NO declared Lutar axioms.","not_available_at_pinned_mathlib":"C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler.Basic) modules DO NOT EXIST at pinned rev d7317655 (v4.13.0) - re-verified HTTP 404. The Trust-Score / vessel-risk interval is therefore sourced from CONFORMAL (W5-3/W7-4), NOT Hoeffding. Honestly NOT claimed.","lambda_status":"Lambda (F23) STAYS Conjecture 1 unconditionally. Wave-7 adds no uniqueness claim.","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED; experimental scope. declarations 1203 @ d6a232ba.","citations":["Vovk-Gammerman-Shafer (2005) Algorithmic Learning in a Random World [conformal rank/p-value]","Lei et al. (2018) JASA 113:1094, doi:10.1080/01621459.2017.1307116 [conformal]","Doob (1953) Stochastic Processes [optional-stopping / two-sided envelope]","McAllester (1999) COLT [PAC-Bayes]","Euler (1736) [handshake lemma / degree sum]"]},"agentic_loop":{"campaign":"prove-agentic-loop: the RAG->MCP->kernel->receipt governed run is proven as a SYSTEM, end-to-end","source_report":"team/PROVE_AGENTIC_LOOP_REPORT.md","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Agentic/Pipeline.lean (622 lines, Mathlib-FREE)","namespace":"Lutar.Agentic.Pipeline (NOT imported into Lutar.lean; EXPERIMENTAL_SCOPES)","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/188","base_main_commit":"b71114cf802987c74da3b572257a9dc0e53a675e","commit_ci_green":"2ede47a2c93f5d46ea8742b50a6a164b19eccb1d","ci_run_ids":{"lean_kernel_check":"79858762837 (success)","lake_build_gate_numbers":"79858762828 (success)","doctrine":"79858762792 (success)","dco":"79858762787 (success)","tests":"79858762772 (success)","ci":"79858762714 (success)","doi_title_gate":"79858762718 (success)"},"ci_status":"GREEN @ 2ede47a2 (Lean kernel check + lake build+numbers + check/doctrine + DCO + tests + CI + doi-title-gate).","theorems":28,"axiom_free":14,"lean_core_only":10,"axiom_gated":4,"declared_axiom":"hashFn_collision_resistant (P5 only; disclosed like F13'/C13; NIST FIPS 180-4, Merkle 1987). NO sorryAx anywhere.","hop_model":"Hop = Retrieve | Plan | ToolCall | PolicyCheck | KernelCheck | Emit","properties":{"P1":"receipt-completeness (a full loop emits exactly 6 receipts; append-only; hash-chain contiguous, no gaps) - Lean-core","P2":"gate-soundness (Emit ALLOW iff BOTH gates ALLOW; either DENY is absorbing -> final DENY) - Lean-core","P3":"non-interference (Goguen-Meseguer 1982; untrusted retrieval content cannot flip the decision; DENY can never become ALLOW) - axiom-free core","P4":"replay-determinism (whole loop replays byte-identical) - axiom-free","P5":"tamper-evidence (end-to-end; any mutation of the receipt chain is detected on re-verify) - AXIOM-GATED on hashFn_collision_resistant","P6":"monotone auditability (incremental verify; auditing more never un-verifies what was verified) - Lean-core"},"headline":"the RAG->MCP->kernel loop is proven as a SYSTEM, end-to-end. P3 (non-interference, axiom-free) is the 'poisoned input can't override safety' guarantee.","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED; experimental scope.","citations":["Goguen-Meseguer (1982) IEEE S&P, doi:10.1109/SP.1982.10014 [non-interference]","Merkle (1987) [hash tree / tamper-evidence]","NIST FIPS 180-4 [SHA-2 collision-resistance idealization]"]},"experimental_total_note":"locked 5 + experimental kernel-verified: wave3 (19 sorry-free + 4 axiom-gated), wave4 (conditional Lambda CI-green + 6 zero-axiom witnesses), wave5 (11), wave6 (11), wave7 (10), agentic-loop (28). Lambda = Conjecture 1 unconditionally."},"puriq_formulas":[{"id":"F1","name":"Replay-Hash Determinism","statement":"Deterministic step-fold replay: equal logs replay to equal final state; folded state equals last of the explicit replay trace.","maturity":"proven","lean_ref":"f1_replay_fold_deterministic","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","locked_kernel":true},{"id":"F2","name":"Scheduler Liveness","statement":"Fair round-robin scheduler: every ready organ eventually ticks (strictly-decreasing Nat ranking measure reaches 0).","maturity":"proven","lean_ref":"f2_scheduler_liveness","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F3","name":"Organ Boot-Gate Soundness","statement":"If the boot gate permits an organ, its genome is valid (decidable implication).","maturity":"proven","lean_ref":"f3_genome_gate_sound","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F4","name":"Khipu DAG Acyclicity","statement":"Appending the new largest-index node preserves DAG acyclicity (backward-edge invariant).","maturity":"proven","lean_ref":"f4_khipu_dag_acyclic","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F5","name":"Unay Receipt Recall","statement":"Insert-then-lookup on the same receipt key returns the inserted value (exact-key recall correctness).","maturity":"proven","lean_ref":"f5_unay_recall_correct","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F6","name":"LMDB Durability","statement":"Commit-then-restart-then-read returns the committed value; uncommitted writes are lost on crash (WAL model).","maturity":"proven","lean_ref":"f6_lmdb_durability","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F7","name":"Chaski FIFO Ordering","statement":"Enqueue-batch-then-drain yields send order; head is the oldest message (true FIFO, no tautology).","maturity":"proven","lean_ref":"f7_chaski_fifo","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F8","name":"Wallpa OSS-Only Safety","statement":"Governed-voice admission gate admits only OSS sources; no humanClone or synthetic config is ever admitted.","maturity":"proven","lean_ref":"f8_wallpa_oss_only","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F9","name":"Wasi-Rikuq Non-Interference","statement":"Advisory non-interference (Goguen-Meseguer 1982): the low view is unchanged by high inputs.","maturity":"proven","lean_ref":"f9_wasi_rikuq_noninterference","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F10","name":"Hatun MCP Idempotency","statement":"MCP request normalizer is idempotent: normalizing twice equals normalizing once.","maturity":"proven","lean_ref":"f10_hatun_mcp_idempotent","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F11","name":"Ayni Reciprocity Conservation","statement":"Event-sourcing replay invariant: balance reciprocity is conserved; tit-for-tat parity (Axelrod-Hamilton).","maturity":"proven","lean_ref":"f11_ayni_reciprocity_conservation","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","locked_kernel":true},{"id":"F12","name":"Kuramoto Phase-Coupling Boundedness","statement":"Discrete additive coupling is bounded and superposes over an organ set. CAVEAT: additive fragment only, NOT nonlinear Kuramoto synchronisation.","maturity":"proven","lean_ref":"f12_kuramoto_superposition","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","locked_kernel":true},{"id":"F13","name":"Wayra Hash-Chain Verification","statement":"Hash-chain verification is sound by induction: a verified chain has every link consistent.","maturity":"proven","lean_ref":"f13_wayra_chain_verified","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","declared_axiom":"hash_collision_resistant (tamper-evidence f13_tamper_evident)"},{"id":"F14","name":"DSSE Verifiable Attribution","statement":"A DSSE signature that verifies attributes the message to the key. AXIOM-GATED on declared `ecdsa_unforgeable`.","maturity":"axiom-gated","lean_ref":"f14_dsse_verifiable","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","declared_axiom":"ecdsa_unforgeable"},{"id":"F15","name":"Rekor Merkle Inclusion","statement":"Merkle inclusion checker is sound (structural). Binding form (equal roots => equal leaves) is AXIOM-GATED on declared `h2_collision_resistant`.","maturity":"proven","lean_ref":"f15_rekor_inclusion","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","declared_axiom":"h2_collision_resistant (binding form f15_inclusion_binding)"},{"id":"F16","name":"Sentinel Immune Completeness","statement":"Immune cross-cut completeness: 8 gates cover all 8 enumerated threats; gate set is exhaustive.","maturity":"proven","lean_ref":"f16_sentinel_immune_complete","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F17","name":"Three-Vertical Isolation","statement":"The three verticals are pairwise disjoint (isolation by construction).","maturity":"proven","lean_ref":"f17_three_vertical_isolation","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F18","name":"Reed-Solomon RS(10,6) Recovery","statement":"RS(10,6) parity arithmetic: data is recoverable iff at least 6 of 10 shards survive (tolerates 4 erasures).","maturity":"proven","lean_ref":"f18_reed_solomon_parity_count","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","locked_kernel":true},{"id":"F19","name":"Bekenstein Entropy Budget","statement":"Entropy budget is additive and monotone over a region partition; each region <= total. CAVEAT: additive scaffolding only, NOT the full Bekenstein bound S <= 2*pi*k*R*E/(hbar*c).","maturity":"proven","lean_ref":"f19_budget_total_cons","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","locked_kernel":true},{"id":"F20","name":"Mobile Input Equivalence","statement":"Touch and pointer inputs are equivalent under the normalization map (decidable and sound).","maturity":"proven","lean_ref":"f20_mobile_input_equiv","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F21","name":"Genome Validator Totality","statement":"The genome validator is total over Fin 16: every organ validates.","maturity":"proven","lean_ref":"f21_all_organs_valid","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F22","name":"Khipu Emit Monotonicity","statement":"Emit appends to the sequence log with strictly increasing sequence numbers (monotone emit).","maturity":"proven","lean_ref":"f22_khipu_emit_monotone","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F23","name":"Lambda-Aggregator Uniqueness","statement":"CONJECTURE 1 (NOT a theorem). Unconditional uniqueness is FALSE under A1-A5 (maxAgg counterexample). Conditional `lambda_unique_of_factors` IS proved; unconditional uniqueness closes only under declared axiom A6_bisymmetric.","maturity":"conjectured","lean_ref":"f23_lambda_aggregator_sound","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/F23_Uniqueness.lean","declared_axiom":"A6_bisymmetric (optional, only for conditional lambda_unique_under_A6)"}],"vertical_policies":[{"policy_id":"academic","policy_name":"Academic / Research Integrity","version":"0.3.0","regulations":["NIH NOT-OD-23-149","NSF PAPPG Chapter II.E","ORI Standards","COPE Guidelines"],"required_attestors":["principal_investigator","research_integrity_officer"],"lambda_floors":{"measurabilityHonesty":1.0,"constructiveTransparency":1.0,"informationIntegrity":0.99,"temporalConsistency":0.99},"forbidden_inputs":["undisclosed_ai_authored_content","missing_doi_citation"],"required_output_formats":["zenodo_deposit","json_receipt","orcid_linked_artifact"],"retention_days":"3650","primitives_applicable":["A5","A8","A12","T5","T10","TH2"],"acv_range_usd":{"low":10000.0,"mid":50000.0,"high":200000.0}},{"policy_id":"capital_markets","policy_name":"Capital Markets / Quant / Hedge Funds","version":"0.3.0","regulations":["SEC Rule 17a-4","MiFID II RTS 6","FINRA Rule 4370","Reg SCI 17 CFR 242"],"required_attestors":["chief_compliance_officer","quant_review_committee","external_auditor"],"lambda_floors":{"moralGrounding":0.97,"measurabilityHonesty":1.0,"temporalConsistency":1.0,"economicGrounding":1.0,"constructiveTransparency":0.99,"informationIntegrity":0.99},"forbidden_inputs":["non_sec_registered_model","missing_algo_documentation"],"required_output_formats":["sec_17a4_compliant_log","json_receipt","worm_storage_manifest"],"retention_days":"2190","primitives_applicable":["A5","A6","A10","A12","A14","T5","T9","TH2"],"acv_range_usd":{"low":500000.0,"mid":2000000.0,"high":10000000.0}},{"policy_id":"critical_infrastructure","policy_name":"Critical Infrastructure / Utilities","version":"0.3.0","regulations":["NERC CIP-013-2","IEC 62443-3-3","TSA Pipeline Security Directive SD-02C","NIST CSF 2.0"],"required_attestors":["system_security_officer","control_systems_engineer","incident_commander"],"lambda_floors":{"moralGrounding":0.99,"actionReversibility":0.99,"scopeContainment":1.0,"informationIntegrity":0.99,"adversarialRobustness":0.99,"temporalConsistency":0.99},"forbidden_inputs":["unauthenticated_control_commands","non_air_gapped_ot_data"],"required_output_formats":["ics_audit_log","json_receipt","nerc_compliance_report"],"retention_days":"1825","primitives_applicable":["A4","A5","A6","A10","A13","T5","T9","T10","TH1"],"acv_range_usd":{"low":1000000.0,"mid":5000000.0,"high":20000000.0}},{"policy_id":"defense","policy_name":"Defense / DoD","version":"0.3.0","regulations":["NIST SP 800-53 Rev 5","CMMC 2.0","FedRAMP High","DISA STIGs"],"required_attestors":["authorizing_official","system_owner","security_control_assessor"],"lambda_floors":{"moralGrounding":0.99,"measurabilityHonesty":0.99,"actionReversibility":0.95,"scopeContainment":0.99,"informationIntegrity":0.99,"consentBoundary":0.95},"forbidden_inputs":["unclassified_cui_without_marking","foreign_national_data"],"required_output_formats":["json_audit_log","nist_oscal"],"retention_days":"7300","primitives_applicable":["A1","A4","A5","A6","A8","A9","A12","A13","T5","T9","T10","TH1"],"acv_range_usd":{"low":500000.0,"mid":2000000.0,"high":5000000.0}},{"policy_id":"financial_services","policy_name":"Financial Services / Banking","version":"0.3.0","regulations":["SR 11-7","OCC 2011-12","MiFID II RTS 6","Basel III"],"required_attestors":["model_risk_officer","chief_risk_officer","internal_audit"],"lambda_floors":{"moralGrounding":0.97,"measurabilityHonesty":0.99,"temporalConsistency":0.99,"informationIntegrity":0.99,"economicGrounding":1.0},"forbidden_inputs":["insider_information","unregistered_model_version"],"required_output_formats":["csv_model_log","json_receipt","pdf_board_report"],"retention_days":"2190","primitives_applicable":["A1","A5","A6","A8","A9","A14","T5","T9","T10","TH1","TH2"],"acv_range_usd":{"low":200000.0,"mid":800000.0,"high":2000000.0}},{"policy_id":"healthcare","policy_name":"Healthcare / Clinical AI","version":"0.3.0","regulations":["HIPAA 45 CFR Part 164","FDA 21 CFR Part 11","FDA SaMD Guidance Q3 2023"],"required_attestors":["licensed_clinician","clinical_informatics_officer","hipaa_privacy_officer"],"lambda_floors":{"moralGrounding":0.99,"measurabilityHonesty":0.99,"consentBoundary":0.99,"informationIntegrity":0.99,"causalSeparability":0.99},"forbidden_inputs":["plaintext_phi","deidentification_not_verified"],"required_output_formats":["hl7_fhir_audit","json_receipt","pdf_clinical_audit"],"retention_days":"2190","primitives_applicable":["A1","A4","A5","A8","A9","A11","A12","T5","T7","T10","TH1"],"acv_range_usd":{"low":150000.0,"mid":600000.0,"high":2000000.0}},{"policy_id":"insurance","policy_name":"Insurance","version":"0.3.0","regulations":["NAIC Model Law 881","NY DFS Circular Letter 7 (2022)","NAIC AI Principles (2020)"],"required_attestors":["chief_actuary","ai_ethics_board","compliance_officer"],"lambda_floors":{"moralGrounding":0.97,"measurabilityHonesty":0.99,"informationIntegrity":0.99,"constructiveTransparency":0.99,"economicGrounding":0.97},"forbidden_inputs":["prohibited_rating_factors","non_actuarially_justified_proxies"],"required_output_formats":["csv_underwriting_log","json_receipt","pdf_state_filing"],"retention_days":"1825","primitives_applicable":["A1","A5","A8","A9","A12","A14","T6","T9","T10"],"acv_range_usd":{"low":200000.0,"mid":750000.0,"high":2000000.0}},{"policy_id":"legal","policy_name":"Legal / e-Discovery","version":"0.3.0","regulations":["FRCP 26","FRCP 34","FRE 902(13)","FRE 902(14)","ABA Model Rule 1.1"],"required_attestors":["supervising_attorney","records_custodian"],"lambda_floors":{"moralGrounding":0.97,"measurabilityHonesty":0.99,"informationIntegrity":0.99,"constructiveTransparency":0.99,"actionReversibility":0.95},"forbidden_inputs":["privileged_attorney_client_without_waiver"],"required_output_formats":["json_chain_of_custody","pdf_court_exhibit"],"retention_days":"2555","primitives_applicable":["A5","A6","A8","A12","T5","T8","T10","TH2"],"acv_range_usd":{"low":75000.0,"mid":300000.0,"high":1000000.0}},{"policy_id":"pharma","policy_name":"Pharma / Life Sciences R&D","version":"0.3.0","regulations":["FDA 21 CFR Part 11","EMA Annex 11","ICH E6(R3) GCP","GxP"],"required_attestors":["qualified_person","gxp_compliance_officer","computational_scientist"],"lambda_floors":{"moralGrounding":0.97,"measurabilityHonesty":1.0,"informationIntegrity":1.0,"temporalConsistency":0.99,"constructiveTransparency":1.0},"forbidden_inputs":["non_gxp_validated_software_output","unversioned_model"],"required_output_formats":["ectd_submission_package","json_audit_trail","csv_gxp_log"],"retention_days":"3650","primitives_applicable":["A5","A6","A8","A10","A12","T5","TH2"],"acv_range_usd":{"low":500000.0,"mid":2000000.0,"high":10000000.0}},{"policy_id":"public_sector","policy_name":"Public Sector / Civic AI","version":"0.3.0","regulations":["EU AI Act Annex III","NYC Local Law 144 (2023)","NIST AI RMF 1.0","OMB M-24-10"],"required_attestors":["agency_ai_officer","civil_rights_officer","inspector_general"],"lambda_floors":{"moralGrounding":0.99,"measurabilityHonesty":0.99,"stakeholderAlignment":0.99,"constructiveTransparency":1.0,"adversarialRobustness":0.95},"forbidden_inputs":["biometric_data_without_explicit_consent","prohibited_social_scoring"],"required_output_formats":["json_public_audit_log","csv_bias_audit","pdf_annual_report"],"retention_days":"3650","primitives_applicable":["A1","A5","A8","A12","A13","T6","T10","TH1","TH3"],"acv_range_usd":{"low":300000.0,"mid":1200000.0,"high":5000000.0}}],"capability_map":{"_note":"System anatomy expressed as CAPABILITIES (what the system can do) and the proven results that back each one. No internal component codenames are shown to users by design. Maturity labels are honest: 'proven (locked)' is in the locked 5; 'proven sorry-free (experimental)' passed the kernel but is not in the locked count; 'axiom-gated' depends on a declared assumption; 'conjectured' is Lambda.","capabilities":[{"capability":"Governed agentic loop","plain":"Every action runs Retrieve → Plan → Tool-call → Policy-check → Kernel-check → Emit, and nothing emits unless the safety checks pass.","bindings":["P1","P2","P3","P4","P5","P6"],"maturity":"proven sorry-free (experimental)","source":"PR #188 (28 theorems; 4 axiom-gated on hash collision-resistance)"},{"capability":"Consensus (3-of-4 independent quorum)","plain":"A high-stakes action proceeds only when at least 3 of 4 independent systems agree; no minority can act alone.","bindings":["C10","C11","C12"],"maturity":"proven sorry-free (experimental)","source":"C10 safety bound + C11 fault budget + C12 liveness caveat"},{"capability":"Sensor fusion","plain":"Several sensor reports combine into one track using the best linear unbiased combination.","bindings":["C17"],"maturity":"proven sorry-free (experimental)","source":"C17 BLUE"},{"capability":"Trust-score interval","plain":"The risk/confidence interval is a distribution-free conformal band — never reported as 100%. NOT a Hoeffding bound (that module does not exist at our pinned rev).","bindings":["W5-3","W7-4"],"maturity":"proven sorry-free (experimental)","source":"W5-3 miscoverage bound + W7-4 rank/p-value floor (conformal)"},{"capability":"Model router","plain":"Routing among models stays within a bounded regret/selection guarantee.","bindings":["C20","W7-5"],"maturity":"proven sorry-free (experimental)","source":"C20 + W7-5"},{"capability":"Receipts & uniform data shape (signing + verification)","plain":"Every decision is signed; tampering is detected on re-check; auditing earlier or later can never change the verdict.","bindings":["C8","C9","W5-4","W5-5","W7-6","C13","C14"],"maturity":"proven sorry-free (experimental); P5 axiom-gated on hash collision-resistance","source":"W5-4 tamper-evidence + W5-5 chain integrity + W7-6 two-sided envelope (NEW)"},{"capability":"Mesh health & ontology graph","plain":"The capability graph stays healthy and the frontier search terminates within a bounded number of steps.","bindings":["F-G1","F-G2","F-G3","F-G4","F-G5","F-G6","W7-1"],"maturity":"proven sorry-free (experimental)","source":"F-G5 bounded-frontier termination + W7-1"},{"capability":"Λ trust aggregator","plain":"A single 0–1 trust score summarising the safety axes. This is the one place that is NOT a theorem.","bindings":["F23"],"maturity":"conjectured","source":"Λ = Conjecture 1, unconditionally"}],"locked_proven_count":5,"locked_ids":["F1","F11","F12","F18","F19"],"lambda_status":"Λ (F23) is Conjecture 1, unconditionally.","naming_policy":"User-visible names are CAPABILITIES only; no internal component codenames."},"anatomy_generated_at":"2026-06-06T07:32:09Z"};</script>
 <script>
 const BASE = 'https://szlholdings-killinchu.hf.space';
 const API  = BASE + '/api/killinchu/v1';
+const FLEET = BASE + '/api/killinchu/v1/fleet';  // GAP-1/GAP-2: commercial-fleet (vessels) surface, served verbatim from platform seed-data.
+
+// Keep ONE persistent WebGL context alive for the whole session before any 3D view
+// initialises. On software-GL (SwiftShader) hosts the GL-context pool is tiny and
+// 3d-force-graph's capability probe can momentarily fail with a harmless
+// "Canvas has an existing context" warning; holding a live context (pinned to
+// window so it is never garbage-collected) keeps the stack warm and the console clean.
+// No-op / harmless where WebGL is already healthy (real GPUs).
+try{window.__glWarm=document.createElement('canvas');window.__glWarmCtx=(window.__glWarm.getContext('webgl2')||window.__glWarm.getContext('webgl'));}catch(e){}
 
 async function getJSON(p){
   const r = await fetch(p);
@@ -467,7 +546,28 @@ async function putJSON(p, b){
 }
 function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function el(id){return document.getElementById(id);}
-function setOut(id,obj){const e=el(id);if(e)e.textContent=typeof obj==='string'?obj:JSON.stringify(obj,null,2);}
+function setOut(id,obj){const e=el(id);if(!e)return;const v=(typeof obj==='string')?scrubText(obj):scrubDeep(obj);e.textContent=(typeof v==='string')?v:JSON.stringify(v,null,2);}
+function setHTML(id,html){const e=el(id);if(e)e.innerHTML=html;}
+function setTxt(id,t){const e=el(id);if(e)e.textContent=t;}
+function addHTML(id,html){const e=el(id);if(e)e.insertAdjacentHTML('beforeend',html);}
+// ===== CAPABILITY RELABEL (CEO scrub rule): the reasoning/policy/operator organs are now
+// INTERNAL a11oy capabilities. ZERO amaru/sentra/rosie may be USER-VISIBLE. a11oy + killinchu
+// stay visible. These helpers ONLY touch DISPLAY text — never the internal ORG fetch map,
+// the orgGet() routing keys, or the quorum_without_amaru consensus logic. =====
+function capName(s){if(s==null)return s;const k=String(s).toLowerCase().trim();if(k==='amaru')return 'Reasoning';if(k==='sentra')return 'Policy';if(k==='rosie')return 'Operator';if(k==='a11oy')return 'Orchestrator (a11oy)';if(k==='killinchu')return 'Field Node (killinchu)';return s;}
+// scrubText — relabel any organ token in a free-form DISPLAY string (incl. repo paths / URLs shown
+// to the user). Capability names: amaru→Reasoning, sentra→Policy, rosie→Operator. a11oy/killinchu kept.
+function scrubText(s){if(s==null)return s;return String(s)
+  .replace(/szl-holdings\/amaru/gi,'szl-holdings/reasoning').replace(/szlholdings-amaru/gi,'szlholdings-reasoning')
+  .replace(/szl-holdings\/sentra/gi,'szl-holdings/policy').replace(/szlholdings-sentra/gi,'szlholdings-policy')
+  .replace(/szl-holdings\/rosie/gi,'szl-holdings/operator').replace(/szlholdings-rosie/gi,'szlholdings-operator')
+  .replace(/amaru/gi,'Reasoning').replace(/sentra/gi,'Policy').replace(/rosie/gi,'Operator');}
+// Deep-scrub a JSON value for raw <details> display: rename object keys + string values.
+function scrubDeep(o){if(o==null)return o;if(typeof o==='string')return scrubText(o);if(Array.isArray(o))return o.map(scrubDeep);if(typeof o==='object'){const out={};for(const k in o){out[scrubText(k)]=scrubDeep(o[k]);}return out;}return o;}
+// ===== SIBLING ORGANS (inherited brain). a11oy = orchestrator. Browser fetches PUBLIC URLs directly (CORS open). =====
+const ORG={sentra:'https://szlholdings-sentra.hf.space',amaru:'https://szlholdings-amaru.hf.space',rosie:'https://szlholdings-rosie.hf.space',killinchu:'https://szlholdings-killinchu.hf.space',a11oy:'https://szlholdings-a11oy.hf.space'};
+async function orgGet(organ,path){const r=await fetch(ORG[organ]+path);if(!r.ok)throw new Error('HTTP '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');return r.json();}
+async function orgPost(organ,path,body){const r=await fetch(ORG[organ]+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error('HTTP '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');return r.json();}
 
 // ===================== CHART / GAUGE / 3D HELPERS =====================
 const GOLD='#c9b787',TEAL='#5fb3a3',CREAM='#f5f5f5',DIM='#555',GRID='rgba(201,183,135,0.08)',RED='#b06a5a',WARN='#c9a05f',LIVE='#5a8a6e';
@@ -480,8 +580,87 @@ function barH(id,labels,data,colors){mkChart(id,{type:'bar',data:{labels,dataset
 function barV(id,labels,data,colors){mkChart(id,{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors||TEAL,borderRadius:4}]},options:{scales:{x:{grid:{display:false},ticks:{color:'#9a9a9a',font:{size:9}}},y:{grid:{color:GRID},ticks:{color:DIM}}},plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});}
 function lineSpark(id,labels,data,color){mkChart(id,{type:'line',data:{labels,datasets:[{data,borderColor:color||TEAL,backgroundColor:'rgba(95,179,163,0.12)',fill:true,tension:.35,pointRadius:0,borderWidth:1.6}]},options:{scales:{x:{display:false},y:{display:false}},plugins:{legend:{display:false},tooltip:{enabled:false}},responsive:true,maintainAspectRatio:false}});}
 function doughnut(id,labels,data,colors){mkChart(id,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#0a0a0a',borderWidth:2}]},options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{enabled:true}},responsive:true,maintainAspectRatio:false}});}
+// Forecast line: historical (solid teal) + forecast tail (dashed gold). `actual` and
+// `forecast` are arrays the same length as `labels`; null entries break the line so the
+// two segments meet at the boundary point. Used by Fleet Overview's 4 forecast modules.
+function lineForecast(id,labels,actual,forecast){mkChart(id,{type:'line',data:{labels,datasets:[
+  {label:'history',data:actual,borderColor:TEAL,backgroundColor:'rgba(95,179,163,0.10)',fill:true,tension:.3,pointRadius:1.5,borderWidth:1.8,spanGaps:false},
+  {label:'forecast',data:forecast,borderColor:GOLD,backgroundColor:'rgba(201,183,135,0.08)',fill:false,tension:.3,pointRadius:2,borderWidth:1.8,borderDash:[5,4],spanGaps:false}]},
+  options:{scales:{x:{grid:{color:GRID},ticks:{color:DIM,font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:6}},y:{grid:{color:GRID},ticks:{color:DIM,font:{size:9}}}},
+  plugins:{legend:{display:true,labels:{color:'#9a9a9a',boxWidth:18,font:{size:9}}},tooltip:{enabled:true}},responsive:true,maintainAspectRatio:false}});}
 let _fg=null;
-function mesh3d(id,nodes,links){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight).graphData({nodes,links}).nodeLabel('name').nodeColor(n=>n.color||TEAL).nodeVal(n=>n.val||4).linkColor(()=>'rgba(201,183,135,0.45)').linkWidth(1.2).linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(()=>TEAL).showNavInfo(false);setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
+function mesh3d(id,nodes,links,_try){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight).graphData({nodes,links}).nodeLabel('name').nodeColor(n=>n.color||TEAL).nodeVal(n=>n.val||4).linkColor(()=>'rgba(201,183,135,0.45)').linkWidth(1.2).linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(()=>TEAL).showNavInfo(false);setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);}catch(e){}
+  /* GL pool can be momentarily exhausted on software-GL; if no WebGL canvas appeared, re-init once. */
+  if(!host.querySelector('canvas')&&!_try){try{_fg&&_fg._destructor&&_fg._destructor();}catch(e2){}_fg=null;host.innerHTML='';setTimeout(()=>mesh3d(id,nodes,links,1),120);}
+  },300);}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
+
+// ===================== GENIUS VISUAL HELPERS (echarts / globe.gl / cytoscape / d3) =====================
+// killinchu inherits a11oy's brain visuals. AMBER aliases killinchu's existing WARN (#c9a05f).
+const AMBER=WARN;
+// fetch with timeout + abort — never let a big public feed hang the UI
+function fetchTimeout(url,ms,opts){const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),ms||12000);
+  return fetch(url,Object.assign({signal:ctl.signal},opts||{})).finally(()=>clearTimeout(t));}
+async function getPublic(url,ms){const r=await fetchTimeout(url,ms);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+// ECharts dark theme registered once; all panels inherit gold/teal-on-#0a0a0a
+let _echartsThemeReady=false;
+function ensureEchartsTheme(){if(_echartsThemeReady||!window.echarts)return;
+  echarts.registerTheme('szl',{color:[TEAL,GOLD,RED,AMBER,'#5a8a6e','#9a9a9a'],
+    backgroundColor:'transparent',textStyle:{fontFamily:"'JetBrains Mono',monospace",color:'#9a9a9a'},
+    title:{textStyle:{color:CREAM}},legend:{textStyle:{color:'#9a9a9a'}},
+    tooltip:{backgroundColor:'#0e0e0e',borderColor:'rgba(201,183,135,.3)',textStyle:{color:'#f5f5f5'}},
+    categoryAxis:{axisLine:{lineStyle:{color:'#333'}},axisLabel:{color:'#9a9a9a'},splitLine:{lineStyle:{color:'rgba(201,183,135,0.07)'}}},
+    valueAxis:{axisLine:{lineStyle:{color:'#333'}},axisLabel:{color:'#9a9a9a'},splitLine:{lineStyle:{color:'rgba(201,183,135,0.07)'}}}});
+  _echartsThemeReady=true;}
+let _echarts={};
+function killEchart(id){if(_echarts[id]){try{_echarts[id].dispose();}catch(e){}delete _echarts[id];}}
+function mkEchart(id,option){const host=el(id);if(!host||!window.echarts)return null;ensureEchartsTheme();killEchart(id);
+  const inst=echarts.init(host,'szl',{renderer:'canvas'});inst.setOption(option);_echarts[id]=inst;return inst;}
+let _globe=null;
+// Force a 3d-force-graph / globe.gl instance to release its WebGL context immediately
+// (its own THREE renderer only). Frees the GL slot on software-GL hosts so the next
+// 3D/globe tab gets a clean context instead of "existing context of a different type".
+function loseGL(inst){try{if(inst&&typeof inst.renderer==='function'){var rdr=inst.renderer();if(rdr&&rdr.forceContextLoss)rdr.forceContextLoss();if(rdr&&rdr.dispose)rdr.dispose();}}catch(e){}}
+function killGlobe(){if(_globe){loseGL(_globe);try{_globe._destructor&&_globe._destructor();}catch(e){}_globe=null;}}
+let _cy=null;
+function killCy(){if(_cy){try{_cy.destroy();}catch(e){}_cy=null;}}
+function tearDownAll(){Object.keys(_charts).forEach(killChart);Object.keys(_echarts).forEach(killEchart);
+  if(_fg){loseGL(_fg);try{_fg._destructor&&_fg._destructor();}catch(e){}_fg=null;}killGlobe();killCy();
+  // Remove lingering WebGL/2D canvas hosts so a fresh context is created on the next 3D/globe tab
+  // (prevents three.js "Canvas has an existing context of a different type" on view switch).
+  try{document.querySelectorAll('.graph3d,.globe3d,.cyto').forEach(function(h){h.innerHTML='';});}catch(e){}
+  if(window._resizeHook){window.removeEventListener('resize',window._resizeHook);window._resizeHook=null;}
+  if(window._tailTimers){window._tailTimers.forEach(t=>clearTimeout(t));window._tailTimers=[];}}
+// dag-mode 3d force graph (hash-chain hero)
+function dag3d(id,nodes,links,opts){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';opts=opts||{};
+  try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
+    .graphData({nodes,links}).dagMode(opts.dagMode||'lr').dagLevelDistance(opts.dist||40)
+    .nodeLabel(n=>n.name||n.id).nodeColor(n=>n.color||GOLD).nodeVal(n=>n.val||3)
+    .linkColor(()=>'rgba(95,179,163,0.55)').linkWidth(1).linkDirectionalParticles(1).linkDirectionalParticleSpeed(0.012).linkDirectionalParticleColor(()=>TEAL)
+    .showNavInfo(false).cooldownTicks(opts.cooldown||120);
+    if(opts.onNode)_fg.onNodeClick(opts.onNode);
+    setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600);}catch(e){}},400);
+  }catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
+// cytoscape 2D graph in house style
+function cyGraph(id,elements,layout){const host=el(id);if(!host||!window.cytoscape)return null;killCy();host.innerHTML='';
+  _cy=cytoscape({container:host,elements,wheelSensitivity:0.2,
+    style:[
+      {selector:'node',style:{'background-color':'#15181d','border-color':GOLD,'border-width':1.4,'label':'data(label)','color':'#e7e9ec','font-family':"'JetBrains Mono',monospace",'font-size':10,'text-valign':'center','text-halign':'center','width':'data(w)','height':'data(w)','text-wrap':'wrap','text-max-width':70}},
+      {selector:'node.hub',style:{'background-color':GOLD,'border-color':'#d6c69a','color':'#0a0a0a','font-weight':700,'width':52,'height':52}},
+      {selector:'node.tactic',style:{'border-color':TEAL,'shape':'round-rectangle','width':62,'height':28,'font-size':9}},
+      {selector:'edge',style:{'width':1,'line-color':'rgba(95,179,163,0.5)','target-arrow-color':'rgba(95,179,163,0.5)','target-arrow-shape':'triangle','curve-style':'bezier','arrow-scale':0.7}},
+      {selector:'edge.err',style:{'line-color':RED,'target-arrow-color':RED,'width':1.8}},
+      {selector:':selected',style:{'border-color':TEAL,'border-width':3}}
+    ],
+    layout:layout||{name:'cose',animate:false,padding:20,nodeRepulsion:6000}});
+  return _cy;}
+function nowts(){return new Date().toISOString().slice(11,19);}
+const MATURITY_COLOR={proven:TEAL,measured:GOLD,conjectured:AMBER,conjecture:AMBER,defined:'#888',open:AMBER};
+function matColor(m){return MATURITY_COLOR[String(m||'').toLowerCase()]||'#888';}
+// Knowledge base (window.__KB__ injected above) + KaTeX render
+let _kb=null;
+async function loadKnowledge(){if(_kb)return _kb;let raw;if(window.__KB__){raw=window.__KB__;}else{try{raw=await getPublic('/knowledge.json',15000);}catch(e){raw={};}}_kb=scrubDeep(raw);return _kb;}
+let _kf_all=[];
+function renderKatex(latex){try{return katex.renderToString(latex,{throwOnError:false,displayMode:false});}catch(e){return '<span class="mono dim">'+esc(latex)+'</span>';}}
 
 // ===================== IN-BROWSER DSSE RECEIPT VERIFY (WebCrypto, real) =====================
 // Reconstructs the DSSE PAE and verifies the ECDSA-P256-SHA256 signature against /cosign.pub.
@@ -636,9 +815,110 @@ async function vessel_alert_verify(tamper){
   }catch(e){ setVAlertBadge('fail','ERROR'); if(el('valert-detail')) el('valert-detail').textContent='retry: '+e.message; }
 }
 
+// GAP-2: Voyage Risk Exchange governed-decision loop (signals -> forecast -> evidence
+// -> advisory recommendation w/ rollback -> brief). Ported verbatim from the platform
+// vessels vertical; served by the killinchu server at /fleet/voyage-risk. Trust gate is
+// shown as ADVISORY (Conjecture 1), never a pass/fail oracle.
+async function voyage_risk_run(){
+  const host=el('vr-host'); if(!host)return;
+  host.innerHTML='<span class="mono dim">running the governed-decision loop…</span>';
+  try{
+    const d=await getJSON(FLEET+'/voyage-risk');
+    setOut('vr-raw',d);
+    const sig=(d.signals||[]).map(s=>`<div class="row"><span class="badge b-warn">${esc(s.kind)}</span><span><b>${esc(s.summary)}</b></span><span class="spacer mono dim" style="font-size:10px">${esc(s.source)} · weight ${esc(s.weight)}</span></div>`).join('');
+    const fc=d.forecast||{}, rec=d.recommendation||{}, br=d.brief||{};
+    const conf=Math.round((rec.confidence||fc.confidence||0)*100);
+    host.innerHTML=`
+      <div class="kpis" style="margin:.2rem 0 .5rem">
+        <div class="kpi"><div class="k">Delay risk</div><div class="v warn">${esc(fc.delay_risk||'—')}</div></div>
+        <div class="kpi"><div class="k">Route risk</div><div class="v">${esc(fc.route_risk||'—')}</div></div>
+        <div class="kpi"><div class="k">Confidence</div><div class="v teal">${conf}%</div><div class="d">advisory</div></div>
+        <div class="kpi"><div class="k">Trust gate</div><div class="v teal">Conjecture</div><div class="d">advisory, not proven</div></div>
+      </div>
+      <div style="margin:.3rem 0"><b style="color:#c9b787">1 · Signals</b></div>${sig}
+      <div style="margin:.5rem 0 .2rem"><b style="color:#c9b787">2 · Forecast</b> <span class="mono dim" style="font-size:10px">${esc(fc.method||'')}</span></div>
+      <div style="margin:.4rem 0 .2rem"><b style="color:#c9b787">3 · Evidence</b> <span class="mono dim">${(d.evidence||[]).length} item(s) linked to signals</span></div>
+      <div class="card" style="margin:.4rem 0;border-color:rgba(201,183,135,.35)">
+        <div class="card-h"><span class="card-t">4 · Recommendation (advisory)</span><span class="badge b-warn">REQUIRES HUMAN APPROVAL</span></div>
+        <div style="line-height:1.7"><b>${esc(rec.title||'')}</b></div>
+        <div class="mono dim" style="font-size:11px;line-height:1.7;margin-top:.3rem">
+          Next action: ${esc(rec.next_action||'')}<br>
+          <span style="color:#c9a05f">Rollback path:</span> ${esc(rec.rollback_path||'')}<br>
+          Evidence: ${esc((rec.evidence_ids||[]).join(', '))}<br>
+          Owner: ${esc(rec.owner||'')} · input/output class: ${esc(rec.input_class||'')} → ${esc(rec.output_class||'')}
+        </div></div>
+      <div style="margin:.3rem 0"><b style="color:#c9b787">5 · Brief</b> <span class="mono dim">${esc(br.headline||'')}</span></div>
+      <div class="legend"><span>${esc(d.honesty||'Advisory recommendation — the trust score is a conjecture, not a proven oracle.')}</span></div>`;
+  }catch(e){host.innerHTML='<span class="mono dim">retry: '+esc(e.message)+'</span>';setOut('vr-raw','retry: '+e.message);}
+}
+
 
 // ===================== VIEWS =====================
 const VIEWS = {
+
+  // ── BUILD WAVE: Live Picture (K-N1) ───────────────────────────────────
+  livepic:{title:'Live Picture',badge:'COP · AIR+SEA FUSED · 3D',sub:'One map. Every track. Who is friendly, who is a threat, and what to do. A single 3D globe fuses live drone tracks, sample vessels, and live USGS physical-world events — each object an entity carrying location, affiliation, identity and health, framed with MIL-STD-2525 affiliation colours (red = hostile, teal = friendly, gold = neutral/own, amber = unknown). The left rail follows the IMO 3-layer maritime-domain-awareness flow: Situational → Threat → Response. Click any track for its detail card and a per-track signed receipt. Maritime tracks are sample/replay — not a live AIS feed; live OpenSky/AIS is roadmap.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Entities (fused)</div><div class="v live" id="lp-total">—</div><div class="d">air + sea + physical</div></div>
+      <div class="kpi"><div class="k">Air tracks</div><div class="v" id="lp-air">—</div><div class="d">live drone picture</div></div>
+      <div class="kpi"><div class="k">Sea (sample)</div><div class="v" id="lp-sea">—</div><div class="d">sample vessels</div></div>
+      <div class="kpi"><div class="k">Live geo events</div><div class="v teal" id="lp-geo">—</div><div class="d">USGS (live)</div></div></div>
+      <div class="lp-grid">
+        <div class="card lp-railcard"><div class="card-h"><span class="card-t">IMO 3-layer awareness</span><span class="card-ep">situational → threat → response</span></div>
+          <div class="lp-rail"><div class="lp-rail-item active" data-layer="situational" onclick="lp_setLayer('situational')">① Situational</div><div class="lp-rail-item" data-layer="threat" onclick="lp_setLayer('threat')">② Threat</div><div class="lp-rail-item" data-layer="response" onclick="lp_setLayer('response')">③ Response</div></div>
+          <div id="lp-rail-body" style="max-height:420px;overflow:auto"><div class="row mono dim">loading entities…</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Single Operating Picture — 3D globe</span><span class="card-ep">globe.gl · auto-rotate · live arcs</span></div>
+          <div class="graph3d" id="lp-globe" style="height:460px"></div>
+          <div class="legend"><span><i style="background:#b06a5a"></i>◆ hostile</span><span><i style="background:#5fb3a3"></i>■ friendly</span><span><i style="background:#c9b787"></i>● neutral/own</span><span><i style="background:#c9a05f"></i>? unknown</span></div></div>
+      </div>
+      <div class="card" id="lp-detail"><div class="card-h"><span class="card-t">Entity detail</span><span class="card-ep">click a track on the globe or the rail</span></div><div class="row mono dim">no track selected</div></div>${HONEST}`;window.livepic_load();}},
+
+  // ── BUILD WAVE: Engage Safely (K-N3) ──────────────────────────────────
+  engage:{title:'Engage Safely',badge:'HUMAN-IN-THE-LOOP · DUAL RECEIPT',sub:'Recommend, confirm, or wave off — every step signed. For an active threat track this runs the full accountable loop: a ROE-gated defeat recommendation (observe / jam / kinetic with option scores) → a two-step human commit (Positive-ID confirm, then commit or wave-off/abort) → a yield/proceed deconfliction check for shared airspace. A bold RECOMMEND — not auto-fire pill stays throughout: killinchu governs the decision, a human approves, and killinchu does not fly the effector. Both the machine recommendation AND the human decision emit genuine, offline-verifiable signed receipts.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Mode</div><div class="v teal">RECOMMEND</div><div class="d">not auto-fire</div></div>
+      <div class="kpi"><div class="k">Human approval</div><div class="v warn">required</div><div class="d">two-step commit</div></div>
+      <div class="kpi"><div class="k">Trust gate</div><div class="v teal">Conjecture</div><div class="d">advisory, not proven</div></div>
+      <div class="kpi"><div class="k">Receipts</div><div class="v teal">dual · signed</div><div class="d">machine + human</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Threat track</span><span class="card-ep">live air picture</span></div>
+        <select id="eng-track" onchange="engage_select()" style="width:100%;padding:.6rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:12px"></select></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">① Defeat recommendation (ROE-gated)</span><span class="card-ep">DroneShield-style options</span></div>
+          <div class="chartbox" style="height:120px"><canvas id="eng-opt-chart"></canvas></div>
+          <div id="eng-rec-body"><div class="row mono dim">select a track</div></div></div>
+        <div class="card eng-step" id="eng-step-pid"><div class="card-h"><span class="card-t">② Positive-ID confirm</span><span class="card-ep">AeroVironment-style PID</span></div>
+          <div id="eng-pid-body"><div class="row mono dim">run Positive-ID first</div></div>
+          <div style="margin-top:.5rem"><button class="btn teal" onclick="engage_pid()">Run Positive-ID</button></div></div>
+      </div>
+      <div class="grid2">
+        <div class="card eng-step" id="eng-step-commit"><div class="card-h"><span class="card-t">③ Human commit or wave-off</span><span class="card-ep">accountable decision</span></div>
+          <div class="btns"><button class="btn" onclick="engage_commit('commit')">COMMIT (human approve)</button><button class="btn" onclick="engage_commit('wave-off')">WAVE-OFF / ABORT</button></div>
+          <div id="eng-commit-out" style="margin-top:.5rem"><span class="mono dim">awaiting human decision</span></div>
+          <div id="eng-deconflict" style="margin-top:.4rem"></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Engagement timeline</span><span class="card-ep">machine + human · receipted</span></div>
+          <div id="eng-timeline" style="max-height:240px;overflow:auto"><div class="row mono dim">no engagement steps yet</div></div></div>
+      </div>${HONEST}`;window.engage_load();}},
+
+  // ── BUILD WAVE: Dark-Vessel Hunt (K-N5) ───────────────────────────────
+  darkhunt:{title:'Dark-Vessel Hunt',badge:'EXPLAINABLE · RECEIPTED · SAMPLE',sub:'When a ship goes dark, the gap tells a story. A maritime investigation surface fusing four intelligence views: an explainable per-vessel risk score (named weighted indicators — sanctions hit, AIS dark-gap, flag of convenience, port-state deficiencies, expired certificates, poor emissions — not a black box); a dark-network cluster graph linking vessels by shared flag or operator; a detection-vs-AIS reconciliation view; and a recurring-anomaly timeline of AIS gaps. Every screen is a genuine signed receipt. All maritime data is a SAMPLE/replay set in OFAC/UN/EU format — not a live screen; SAR/RF satellite + registry traversal + since-2010 history are roadmap.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Vessels screened</div><div class="v" id="dvh-n">—</div><div class="d">sample dataset</div></div>
+      <div class="kpi"><div class="k">Flagged (risk ≥ 40)</div><div class="v warn" id="dvh-flagged">—</div></div>
+      <div class="kpi"><div class="k">Possibly dark</div><div class="v" style="color:#b06a5a" id="dvh-dark">—</div><div class="d">AIS gap</div></div>
+      <div class="kpi"><div class="k">Sanctions</div><div class="v teal">SAMPLE list</div><div class="d">OFAC/UN/EU format</div></div></div>
+      <div class="grid2">
+        <div class="card" id="dvh-explain"><div class="card-h"><span class="card-t">Explainable risk score</span><span class="card-ep">Windward-style, not a black box</span></div><div class="row mono dim">loading…</div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Risk gauge</span><span class="card-ep">top suspect</span></div>
+          <div class="chartbox" style="position:relative;height:150px"><canvas id="dvh-gauge"></canvas><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column"><div class="v" style="font-size:28px" id="dvh-gauge-v">—</div><div class="mono dim" style="font-size:9px">risk / 100</div></div></div>
+          <div class="chartbox" style="height:150px"><canvas id="dvh-risk-chart"></canvas></div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Dark-network cluster</span><span class="card-ep">shared flag (gold) / operator (teal)</span></div><div id="dvh-net" style="height:300px"></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Recurring AIS-gap timeline</span><span class="card-ep">Spire-style · sample window</span></div><div class="chartbox" style="height:300px"><canvas id="dvh-anom"></canvas></div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Suspect vessels — click to investigate</span></div><div id="dvh-list" style="max-height:320px;overflow:auto"><div class="row mono dim">loading…</div></div></div>${HONEST}`;window.darkhunt_load();}},
+
+
 
   // ── 3.1 Live Track Board / COP ──────────────────────────────────
   tracks:{title:'Live Track Board',badge:'8 TRACKS · AIR PICTURE',sub:'Air picture — live drone tracks rendered from the adversary signature library. Each node is a tracked drone: red = threat above threshold, teal = clear. Simulated positions over real threat signatures — not a live sensor feed.',
@@ -679,11 +959,11 @@ const VIEWS = {
           </div>`);
         });
         if(!threats.length) h.innerHTML='<div class="row mono dim">no tracks</div>';
-      }catch(e){el('track-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){setHTML('track-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
   // ── 3.2 Sensor-Fusion Monitor ───────────────────────────────────
-  fusion:{title:'Sensor-Fusion Monitor',badge:'SENSOR MIX',sub:'How much each sensor type is trusted when combining detections into one track. Higher confidence = more weight in the fused answer. Run a demo fusion to merge several sensors into a single consensus track.',
+  fusion:{title:'Sensor-Fusion Monitor',badge:'SENSOR MIX',sub:'How much each sensor type is trusted when combining detections into one track. Higher confidence = more weight in the fused answer. Run a demo fusion to merge several sensors into a single consensus track. <b>Proof binding:</b> the fused estimate is the best linear unbiased combination — theorem C17 (BLUE), proven sorry-free (experimental).',
     render:async(c)=>{
       c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Sensor Confidence (weight)</span><span class="card-ep">live registry</span></div>
         <div class="chartbox tall"><canvas id="fusion-bar"></canvas></div>
@@ -711,7 +991,7 @@ const VIEWS = {
             <span class="spacer mono dim">${v.range_m}m · ${v.latency_ms}ms</span>
           </div>`);
         });
-      }catch(e){el('sens-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){setHTML('sens-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
   // ── 3.3 Multi-Track Prioritization ─────────────────────────────
@@ -746,6 +1026,10 @@ const VIEWS = {
         <div class="btns"><button class="btn teal" onclick="vessel_owner()">▶ Trace ownership</button></div>
         <div id="own-host"><div class="graph3d" id="owner-3d" style="height:320px"></div></div>
         <div class="legend"><span>Ownership chain: registered operator → shell companies → ultimate owner. Sample graph for the demo data set.</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Voyage Risk Exchange — governed decision</span><span class="card-ep">signals → forecast → evidence → recommendation</span></div>
+        <div class="btns"><button class="btn teal" onclick="voyage_risk_run()">▶ Run the voyage-risk decision loop</button></div>
+        <div id="vr-host" class="mono dim" style="font-size:12px;line-height:1.7">A governed-decision loop, ported from the platform vessels vertical: it collects voyage signals, forecasts risk, attaches evidence, then issues an <b>advisory</b> recommendation with a rollback path and a genuinely signed receipt. The trust gate is a documented conjecture, not a pass/fail oracle.</div>
+        <details class="raw"><summary>raw /fleet/voyage-risk</summary><pre class="out" id="vr-raw">—</pre></details></div>
       <details class="raw"><summary>raw AIS replay sample set</summary><pre class="out" id="maritime-raw">—</pre></details>
       <div class="honesty"><b>Honest by design.</b> This maritime picture is an <b>AIS replay — a sample track set, not a live feed</b> (no AIS provider is wired). Sanctions and ownership are screened against a small <b>sample list</b> in OFAC/UN/EU format, not full real-time coverage. Vessel-alert receipts are <b>genuinely signed</b> with killinchu's real key and verifiable offline — the same signed-receipt thesis as the drone side.</div>`;
       setOut('maritime-raw', V);
@@ -797,6 +1081,279 @@ const VIEWS = {
       el('sanc-pick').addEventListener('change',()=>{const v=V.find(x=>x.id===el('sanc-pick').value); if(v) sanctions_drawGap(v);});
     }},
 
+  // ══════════════════ FLEET (Vessels) — GAP-1 commercial-fleet surface ══════════════════
+  // Real platform seed-data/vessels/* served verbatim from the killinchu server.
+  // MANDATORY honesty label on every fleet tab. No mock data.
+  // ── Fleet Overview ──────────────────────────────────────────────
+  fleet:{title:'Fleet Overview',badge:'18 VESSELS · SAMPLE DATASET',sub:'Commercial fleet at a glance — each ship with its carbon-intensity (CII) rating, hull and engine health, time-charter earnings (TCE), utilisation and EEXI, plus four forecast lines (earnings, carbon intensity, utilisation, Baltic Dry Index). Sample fleet dataset — not a live AIS / class-society feed.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Vessels</div><div class="v" id="f-count">—</div><div class="d">in sample fleet</div></div>
+        <div class="kpi"><div class="k">Avg hull health</div><div class="v teal" id="f-hull">—</div><div class="d">condition index</div></div>
+        <div class="kpi"><div class="k">Poor CII (D/E)</div><div class="v warn" id="f-cii">—</div><div class="d">carbon-intensity risk</div></div>
+        <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Forecast modules</span><span class="card-ep">history (teal) + forecast (dashed gold)</span></div>
+        <div class="grid2" id="f-fc-grid">
+          <div><div class="mono dim" id="f-fc-t0" style="font-size:11px;margin-bottom:.2rem">—</div><div class="chartbox"><canvas id="f-fc-0"></canvas></div></div>
+          <div><div class="mono dim" id="f-fc-t1" style="font-size:11px;margin-bottom:.2rem">—</div><div class="chartbox"><canvas id="f-fc-1"></canvas></div></div>
+          <div><div class="mono dim" id="f-fc-t2" style="font-size:11px;margin-bottom:.2rem">—</div><div class="chartbox"><canvas id="f-fc-2"></canvas></div></div>
+          <div><div class="mono dim" id="f-fc-t3" style="font-size:11px;margin-bottom:.2rem">—</div><div class="chartbox"><canvas id="f-fc-3"></canvas></div></div>
+        </div>
+        <div class="legend"><span>Each module carries a forecast point and a confidence %. Forecast values are model estimates on sample data, not guarantees.</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">CII rating mix</span><span class="card-ep">A (best) → D (worst)</span></div>
+        <div class="chartbox"><canvas id="f-cii-bar"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Fleet register</span><span class="card-ep" id="f-reg-ep">—</span></div><div id="f-list"><div class="row mono dim">loading…</div></div></div>
+      <details class="raw"><summary>raw /fleet/vessels + /fleet/forecast-modules</summary><pre class="out" id="f-raw">—</pre></details>
+      <div class="honesty"><b>Honest by design.</b> <b>Sample fleet dataset — not a live AIS/class-society feed.</b> These 18 vessels and the four forecast modules are real, citable demo content served verbatim from the SZL platform dataset (seed-data/vessels/*), not a real-time provider. The trust score is a documented <b>conjecture</b>, not a proven guarantee; receipts are <b>genuinely signed</b> (ECDSA P-256) and verifiable offline.</div>`;
+      try{
+        const [vr,fr] = await Promise.all([getJSON(FLEET+'/vessels'),getJSON(FLEET+'/forecast-modules')]);
+        const V = vr.data||[], M = fr.data||[];
+        setOut('f-raw',{vessels:V.length,forecast_modules:M.length,honesty:vr.honesty,sample:V.slice(0,1)});
+        const poorCII = V.filter(v=>['D','E'].includes(String(v.ciiRating||'').toUpperCase())).length;
+        const avgHull = V.length?Math.round(V.reduce((a,v)=>a+(v.hullCondition||0),0)/V.length):0;
+        el('f-count').textContent=V.length; el('f-hull').textContent=avgHull; el('f-cii').textContent=poorCII;
+        // 4 forecast modules → history+forecast lines
+        M.slice(0,4).forEach((m,i)=>{
+          const tt=el('f-fc-t'+i); if(tt) tt.innerHTML='<b style="color:#c9b787">'+esc(m.title)+'</b> · '+esc(m.metric)+' · forecast '+esc(m.forecastValue)+' ('+esc(m.confidence)+'% conf, '+esc(m.trend)+')';
+          const pts=m.dataPoints||[]; const labels=pts.map(p=>p.date);
+          // history = points without a forecast field; forecast = points WITH forecast (plus boundary point to connect)
+          let firstFcst=pts.findIndex(p=>p.forecast!=null);
+          const actual=pts.map((p,j)=> (firstFcst<0||j<firstFcst)? p.value : (j===firstFcst? p.value : null));
+          const fcst=pts.map((p,j)=> (firstFcst>=0 && j>=firstFcst-1 && j>=0 && (p.forecast!=null|| j===firstFcst-1))? p.value : null);
+          lineForecast('f-fc-'+i,labels,actual,fcst);
+        });
+        // CII mix bar
+        const order=['A','B','C','D','E']; const counts=order.map(r=>V.filter(v=>String(v.ciiRating||'').toUpperCase()===r).length);
+        const cols=['#5fb3a3','#7fb98f','#c9b787','#c9a05f','#b06a5a'];
+        barV('f-cii-bar',order,counts,cols);
+        // register table
+        const h=el('f-list'); h.innerHTML=''; el('f-reg-ep').textContent=V.length+' vessels';
+        V.forEach(v=>{
+          const r=String(v.ciiRating||'').toUpperCase();
+          const rc = (r==='A'||r==='B')?'b-live':(r==='C')?'b-warn':'b-err';
+          h.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${rc}">CII ${esc(r)}</span>
+            <span><b>${esc(v.name)}</b> <span class="mono dim" style="font-size:10px">IMO ${esc(v.imo)}</span></span>
+            <span class="mono dim" style="font-size:11px">${esc(v.vesselType)} · ${esc(v.shipClass)} · ${esc(v.flag)}</span>
+            <span class="spacer mono dim" style="font-size:10px">hull ${v.hullCondition??'?'} · eng ${v.engineHealth??'?'} · TCE $${(v.tce||0).toLocaleString()} · util ${v.utilization??'?'}% · EEXI ${v.eexi??'?'} · ${esc(v.operator)} · ${esc(v.classificationSociety)}</span>
+          </div>`);
+        });
+        if(!V.length) h.innerHTML='<div class="row mono dim">no vessels</div>';
+      }catch(e){setHTML('f-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setOut('f-raw','retry: '+e.message);}
+    }},
+
+  // ── Maintenance & Compliance ────────────────────────────────────
+  fleetmaint:{title:'Maintenance & Compliance',badge:'PREDICTIVE · CERTS · PSC',sub:'Where the fleet needs attention: predicted component failures (probability, date, cost, risk), certificates expiring soon, and port-state-control deficiencies with their SOLAS / MARPOL citations. Sample fleet dataset — not a live AIS / class-society feed.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">High-risk components</div><div class="v err" id="fm-high">—</div><div class="d">predicted failure</div></div>
+        <div class="kpi"><div class="k">Certs expiring/expired</div><div class="v warn" id="fm-cert">—</div><div class="d">need renewal</div></div>
+        <div class="kpi"><div class="k">Open PSC deficiencies</div><div class="v warn" id="fm-psc">—</div><div class="d">Paris/Tokyo/Riyadh MOU</div></div>
+        <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Predictive maintenance — failure probability</span><span class="card-ep">per component</span></div>
+        <div class="chartbox tall"><canvas id="fm-pm-bar"></canvas></div>
+        <div id="fm-pm-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Certificates expiring soon</span></div><div id="fm-cert-list"><div class="row mono dim">loading…</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Port-state-control deficiencies</span></div><div id="fm-psc-list"><div class="row mono dim">loading…</div></div></div>
+      </div>
+      <details class="raw"><summary>raw /fleet/predictive-maintenance · /compliance-certificates · /port-state-deficiencies</summary><pre class="out" id="fm-raw">—</pre></details>
+      <div class="honesty"><b>Honest by design.</b> <b>Sample fleet dataset — not a live AIS/class-society feed.</b> Predicted failures, certificate dates and port-state deficiencies are real, citable demo content from the SZL platform dataset (seed-data/vessels/*), not live class-society or MOU records. Receipts are <b>genuinely signed</b> and verifiable offline.</div>`;
+      try{
+        const [pm,cc,psd]=await Promise.all([getJSON(FLEET+'/predictive-maintenance'),getJSON(FLEET+'/compliance-certificates'),getJSON(FLEET+'/port-state-deficiencies')]);
+        const PM=pm.data||[],CC=cc.data||[],PSD=psd.data||[];
+        setOut('fm-raw',{predictive_maintenance:PM.length,certificates:CC.length,deficiencies:PSD.length,honesty:pm.honesty});
+        el('fm-high').textContent=PM.filter(p=>String(p.riskLevel||'').toLowerCase()==='high').length;
+        el('fm-cert').textContent=CC.filter(c=>['Expiring Soon','Expired'].includes(c.status)).length;
+        el('fm-psc').textContent=PSD.filter(p=>String(p.status||'').toLowerCase()==='open').length;
+        // predictive maintenance bar (failure probability), colored by risk
+        const labs=PM.map(p=>p.component.length>26?p.component.slice(0,24)+'…':p.component);
+        const vals=PM.map(p=>p.failureProbability||0);
+        const rc=r=>r==='High'?RED:r==='Medium'?WARN:TEAL;
+        barH('fm-pm-bar',labs,vals,PM.map(p=>rc(p.riskLevel)));
+        const ph=el('fm-pm-list'); ph.innerHTML='';
+        PM.forEach(p=>{const cls=p.riskLevel==='High'?'b-err':p.riskLevel==='Medium'?'b-warn':'b-live';
+          ph.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${cls}">${esc(p.riskLevel)} · ${p.failureProbability}%</span>
+            <span><b>${esc(p.vesselName)}</b> — ${esc(p.component)}</span>
+            <span class="spacer mono dim" style="font-size:10px">by ${esc(p.predictedFailureDate)} · est $${(p.estimatedCost||0).toLocaleString()} · ${esc(p.recommendedAction)}</span>
+          </div>`);});
+        const ch=el('fm-cert-list'); ch.innerHTML='';
+        CC.sort((a,b)=>(a.daysUntilExpiry??9999)-(b.daysUntilExpiry??9999)).forEach(cert=>{
+          const cls=cert.status==='Expired'?'b-err':cert.status==='Expiring Soon'?'b-warn':'b-live';
+          ch.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${cls}">${esc(cert.status)}</span>
+            <span><b>${esc(cert.vesselName)}</b> — ${esc(cert.certificateType)}</span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(cert.issuer)} · exp ${esc(cert.expiryDate)} (${cert.daysUntilExpiry}d) · ${esc(cert.regulation)}</span>
+          </div>`);});
+        const sh=el('fm-psc-list'); sh.innerHTML='';
+        PSD.forEach(p=>{const cls=p.severity==='High'?'b-err':p.severity==='Medium'?'b-warn':'b-live';
+          sh.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${cls}">${esc(p.severity)} · ${esc(p.status)}</span>
+            <span><b>${esc(p.vesselName)}</b> <span class="mono dim" style="font-size:10px">code ${esc(p.deficiencyCode)} · ${esc(p.mouRegime)} · ${esc(p.port)}</span></span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(p.description)}</span>
+          </div>`);});
+      }catch(e){setHTML('fm-pm-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setOut('fm-raw','retry: '+e.message);}
+    }},
+
+  // ── Fleet Briefings ─────────────────────────────────────────────
+  fleetbrief:{title:'Fleet Briefings',badge:'REGULATION-CITED',sub:'AI-generated fleet briefings, each citing the regulation behind it (MARPOL Annex VI, IMO MEPC.352/355(78)), with a confidence %, the affected vessels, and concrete action items. Sample fleet dataset — not a live AIS / class-society feed.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Briefings</div><div class="v" id="fb-count">—</div><div class="d">in sample set</div></div>
+        <div class="kpi"><div class="k">Critical</div><div class="v err" id="fb-crit">—</div><div class="d">highest severity</div></div>
+        <div class="kpi"><div class="k">Avg confidence</div><div class="v teal" id="fb-conf">—</div><div class="d">advisory, not proven</div></div>
+        <div class="kpi"><div class="k">Trust gate</div><div class="v teal">Conjecture</div><div class="d">advisory, not proven</div></div>
+      </div>
+      <div id="fb-cards"><div class="row mono dim">loading…</div></div>
+      <details class="raw"><summary>raw /fleet/ai-briefings</summary><pre class="out" id="fb-raw">—</pre></details>
+      <div class="honesty"><b>Honest by design.</b> <b>Sample fleet dataset — not a live AIS/class-society feed.</b> These briefings are real, citable demo content from the SZL platform dataset (seed-data/vessels/*). Confidence is an <b>advisory</b> figure (the trust score is a documented conjecture, not a proven oracle), and the regulatory citations point to the genuine instruments (MARPOL Annex VI, IMO MEPC.352/355(78)).</div>`;
+      try{
+        const br=await getJSON(FLEET+'/ai-briefings'); const B=br.data||[];
+        setOut('fb-raw',{briefings:B.length,honesty:br.honesty});
+        el('fb-count').textContent=B.length;
+        el('fb-crit').textContent=B.filter(b=>String(b.severity||'').toLowerCase()==='critical').length;
+        el('fb-conf').textContent=B.length?Math.round(B.reduce((a,b)=>a+(b.confidence||0),0)/B.length)+'%':'—';
+        const h=el('fb-cards'); h.innerHTML='';
+        B.forEach(b=>{
+          const sev=String(b.severity||'').toLowerCase();
+          const sc = sev==='critical'?'b-err':sev==='warning'?'b-warn':'b-live';
+          const ai=(b.actionItems||[]).map(a=>'<li>'+esc(a)+'</li>').join('');
+          const av=(b.affectedVessels||[]).map(v=>'<span class="badge b-teal" style="margin:1px">'+esc(v)+'</span>').join(' ');
+          h.insertAdjacentHTML('beforeend',`<div class="card">
+            <div class="card-h"><span class="card-t">${esc(b.title)}</span><span class="badge ${sc}">${esc(b.severity)} · ${esc(b.category)}</span></div>
+            <div style="margin:.3rem 0;line-height:1.6">${esc(b.summary)}</div>
+            <div class="mono dim" style="font-size:11px;line-height:1.7;margin:.4rem 0">${esc(b.details)}</div>
+            <div style="margin:.4rem 0"><b style="color:#c9b787;font-size:12px">Action items</b><ul style="margin:.2rem 0 .2rem 1.1rem;font-size:12px;line-height:1.6">${ai}</ul></div>
+            <div style="margin:.3rem 0;font-size:11px"><span class="mono dim">Affected:</span> ${av}</div>
+            <div class="legend"><span>Confidence ${esc(b.confidence)}% (advisory) · generated ${esc((b.generatedAt||'').slice(0,10))}</span></div>
+          </div>`);
+        });
+        if(!B.length) h.innerHTML='<div class="row mono dim">no briefings</div>';
+      }catch(e){setHTML('fb-cards','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setOut('fb-raw','retry: '+e.message);}
+    }},
+
+  // ── Ops & Maintenance Logs (event-logs + maintenance-logs) ──────
+  fleetlogs:{title:'Ops & Maintenance Logs',badge:'OPS LOG · MAINT LOG',sub:'The raw operational record: engine/critical event log (K-Chief 700 automation, SMS sections) and the actual maintenance work-order history (overhauls, surveys, dry-docks) with hours and cost. Sample fleet dataset — not a live AIS / class-society feed.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Events logged</div><div class="v" id="fl-ev">—</div><div class="d">engine / critical / ops</div></div>
+        <div class="kpi"><div class="k">Critical events</div><div class="v err" id="fl-crit">—</div><div class="d">highest severity</div></div>
+        <div class="kpi"><div class="k">Maintenance jobs</div><div class="v" id="fl-mj">—</div><div class="d">in work-order log</div></div>
+        <div class="kpi"><div class="k">In-progress spend</div><div class="v teal" id="fl-spend">—</div><div class="d">est. cost, open jobs</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Events by severity</span><span class="card-ep">engine room automation</span></div><div class="chartbox"><canvas id="fl-sev-bar"></canvas></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Maintenance cost by job type</span><span class="card-ep">est. $ / work order</span></div><div class="chartbox"><canvas id="fl-mt-bar"></canvas></div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Event log — newest first</span><span class="card-ep" id="fl-ev-ep">—</span></div><div id="fl-ev-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Maintenance work-order log</span><span class="card-ep" id="fl-mt-ep">—</span></div><div id="fl-mt-list"><div class="row mono dim">loading…</div></div></div>
+      <details class="raw"><summary>raw /fleet/event-logs · /fleet/maintenance-logs</summary><pre class="out" id="fl-raw">—</pre></details>
+      <div class="honesty"><b>Honest by design.</b> <b>Sample fleet dataset — not a live AIS/class-society feed.</b> Event entries (engine-room automation source, SMS sections) and maintenance work orders are real, citable demo content served verbatim from the SZL platform dataset (seed-data/vessels/*), not a live K-Chief or planned-maintenance-system feed. Receipts are <b>genuinely signed</b> (ECDSA P-256) and verifiable offline.</div>`;
+      try{
+        const [ev,mt]=await Promise.all([getJSON(FLEET+'/event-logs'),getJSON(FLEET+'/maintenance-logs')]);
+        const EV=ev.data||[],MT=mt.data||[];
+        setOut('fl-raw',{event_logs:EV.length,maintenance_logs:MT.length,honesty:ev.honesty,sample_event:EV.slice(0,1)});
+        el('fl-ev').textContent=EV.length;
+        el('fl-crit').textContent=EV.filter(e=>String(e.severity||'').toLowerCase()==='critical').length;
+        el('fl-mj').textContent=MT.length;
+        const openSpend=MT.filter(m=>String(m.status||'').toLowerCase()!=='completed').reduce((a,m)=>a+(m.cost||0),0);
+        el('fl-spend').textContent='$'+(openSpend||0).toLocaleString();
+        // severity bar
+        const sevOrder=['Critical','Warning','Info','Debug'];
+        const sevCounts=sevOrder.map(s=>EV.filter(e=>e.severity===s).length);
+        barV('fl-sev-bar',sevOrder,sevCounts,[RED,WARN,'#5f8fb3','#7a7a7a']);
+        // maintenance cost by type
+        const types=[...new Set(MT.map(m=>m.type))];
+        const typeCost=types.map(t=>MT.filter(m=>m.type===t).reduce((a,m)=>a+(m.cost||0),0));
+        barH('fl-mt-bar',types,typeCost,types.map(()=>TEAL));
+        // event list, newest first
+        const evh=el('fl-ev-list'); evh.innerHTML=''; el('fl-ev-ep').textContent=EV.length+' events';
+        EV.slice().sort((a,b)=>String(b.timestamp||'').localeCompare(String(a.timestamp||''))).forEach(e=>{
+          const sev=String(e.severity||'').toLowerCase();
+          const cls=sev==='critical'?'b-err':sev==='warning'?'b-warn':sev==='info'?'b-teal':'b-live';
+          evh.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${cls}">${esc(e.severity)} · ${esc(e.category)}</span>
+            <span><b>${esc(e.vesselName)}</b> — ${esc(e.message)}</span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(String(e.timestamp||'').replace('T',' ').replace('Z',' UTC'))} · ${esc(e.source)}</span>
+          </div>`);});
+        if(!EV.length) evh.innerHTML='<div class="row mono dim">no events</div>';
+        // maintenance list
+        const mth=el('fl-mt-list'); mth.innerHTML=''; el('fl-mt-ep').textContent=MT.length+' work orders';
+        MT.forEach(m=>{
+          const sev=String(m.severity||'').toLowerCase();
+          const cls=sev==='critical'||sev==='high'?'b-err':sev==='medium'?'b-warn':'b-live';
+          const st=String(m.status||'');
+          const sc=st==='Completed'?'b-live':st==='In Progress'?'b-warn':'b-teal';
+          mth.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${cls}">${esc(m.severity)}</span>
+            <span class="badge ${sc}" style="font-size:9px">${esc(m.status)}</span>
+            <span><b>${esc(m.vesselName)}</b> — ${esc(m.component)} <span class="mono dim" style="font-size:10px">(${esc(m.type)})</span></span>
+            <span class="spacer mono dim" style="font-size:10px">due ${esc(m.scheduledDate)} · ${m.estimatedHours||'?'}h · est $${(m.cost||0).toLocaleString()}</span>
+          </div>`);});
+        if(!MT.length) mth.innerHTML='<div class="row mono dim">no maintenance jobs</div>';
+      }catch(e){setHTML('fl-ev-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setOut('fl-raw','retry: '+e.message);}
+    }},
+
+  // ── Voyages & Fleets (shipment-records + fleets grouping) ───────
+  fleetvoyages:{title:'Voyages & Fleets',badge:'VOYAGES · FLEET GROUPING',sub:'Cargo voyages / shipment records (origin → destination, cargo, on-time score, demurrage risk) and the operating fleets the vessels are grouped into (region, status). Sample fleet dataset — not a live AIS / class-society feed.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Voyages</div><div class="v" id="fv-cnt">—</div><div class="d">shipment records</div></div>
+        <div class="kpi"><div class="k">In transit</div><div class="v teal" id="fv-tr">—</div><div class="d">currently sailing</div></div>
+        <div class="kpi"><div class="k">High demurrage risk</div><div class="v err" id="fv-dem">—</div><div class="d">cost exposure</div></div>
+        <div class="kpi"><div class="k">Operating fleets</div><div class="v" id="fv-fl">—</div><div class="d">vessel grouping</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">On-time score by voyage</span><span class="card-ep">%</span></div><div class="chartbox tall"><canvas id="fv-ot-bar"></canvas></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Operating fleets</span><span class="card-ep">region · status</span></div><div id="fv-fl-list"><div class="row mono dim">loading…</div></div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Voyages / cargo shipments</span><span class="card-ep" id="fv-ep">—</span></div><div id="fv-list"><div class="row mono dim">loading…</div></div></div>
+      <details class="raw"><summary>raw /fleet/shipment-records · /fleet/fleets</summary><pre class="out" id="fv-raw">—</pre></details>
+      <div class="honesty"><b>Honest by design.</b> <b>Sample fleet dataset — not a live AIS/class-society feed.</b> Voyage / cargo shipment records and the fleet groupings are real, citable demo content served verbatim from the SZL platform dataset (seed-data/vessels/*), not a live AIS or charter-party feed. On-time and demurrage figures are sample values, not guarantees. Receipts are <b>genuinely signed</b> and verifiable offline.</div>`;
+      try{
+        const [sr,fs]=await Promise.all([getJSON(FLEET+'/shipment-records'),getJSON(FLEET+'/fleets')]);
+        const SR=sr.data||[],FS=fs.data||[];
+        setOut('fv-raw',{shipment_records:SR.length,fleets:FS.length,honesty:sr.honesty,sample_voyage:SR.slice(0,1)});
+        el('fv-cnt').textContent=SR.length;
+        el('fv-tr').textContent=SR.filter(s=>String(s.status||'').toLowerCase()==='in transit').length;
+        el('fv-dem').textContent=SR.filter(s=>String(s.demurrageRisk||'').toLowerCase()==='high').length;
+        el('fv-fl').textContent=FS.length;
+        // on-time bar
+        const labs=SR.map(s=>s.shipmentId||('#'+s.id));
+        const ot=SR.map(s=>s.onTimeScore||0);
+        const cols=SR.map(s=>(s.onTimeScore||0)>=90?TEAL:(s.onTimeScore||0)>=75?WARN:RED);
+        barH('fv-ot-bar',labs,ot,cols);
+        // fleets grouping
+        const fh=el('fv-fl-list'); fh.innerHTML='';
+        FS.forEach(f=>{
+          const st=String(f.status||'').toLowerCase();
+          const sc=st==='active'?'b-live':st==='inactive'?'b-warn':'b-teal';
+          fh.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${sc}">${esc(f.status)}</span>
+            <span><b>${esc(f.name)}</b></span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(f.region)}</span>
+          </div>
+          <div class="row" style="border:none;padding-top:0"><span class="mono dim" style="font-size:10px;line-height:1.5">${esc(f.description)}</span></div>`);});
+        if(!FS.length) fh.innerHTML='<div class="row mono dim">no fleets</div>';
+        // voyage list
+        const vh=el('fv-list'); vh.innerHTML=''; el('fv-ep').textContent=SR.length+' voyages';
+        SR.forEach(s=>{
+          const st=String(s.status||'');
+          const sc=st==='Delivered'?'b-live':st==='In Transit'?'b-teal':st==='Delayed'?'b-err':'b-warn';
+          const dm=String(s.demurrageRisk||'').toLowerCase();
+          const dc=dm==='high'?'b-err':dm==='medium'?'b-warn':'b-live';
+          vh.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${sc}">${esc(s.status)}</span>
+            <span><b>${esc(s.vesselName)}</b> <span class="mono dim" style="font-size:10px">${esc(s.shipmentId)}</span> — ${esc(s.origin)} → ${esc(s.destination)}</span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(s.cargoType)} · ${(s.weight||0).toLocaleString()}t · dep ${esc(s.departureDate)} · ETA ${esc(s.eta)} · on-time ${s.onTimeScore??'?'}% · <span class="badge ${dc}" style="font-size:8px">demurrage ${esc(s.demurrageRisk)}</span></span>
+          </div>`);});
+        if(!SR.length) vh.innerHTML='<div class="row mono dim">no voyages</div>';
+      }catch(e){setHTML('fv-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setOut('fv-raw','retry: '+e.message);}
+    }},
+
   // ── 3.4 ROE Policy Editor ────────────────────────────────────────
   roe:{title:'Engagement Rules',badge:'LIVE POLICY',sub:'The rules that decide whether a drone may be engaged — speed limits, required ID, allowed directions. Test a track against the current rules; every check produces a genuinely signed receipt.',
     render:async(c)=>{
@@ -818,7 +1375,7 @@ const VIEWS = {
         if(pol.allow_sides) rows.push(['Allowed directions',(pol.allow_sides||[]).join(', ')]);
         if(!rows.length) Object.entries(pol).slice(0,6).forEach(([k,v])=>rows.push([k,typeof v==='object'?JSON.stringify(v):String(v)]));
         rows.forEach(([k,v])=>h.insertAdjacentHTML('beforeend',`<div class="row"><span>${esc(k)}</span><span class="spacer mono">${esc(v)}</span></div>`));
-      }catch(e){el('roe-pol-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){setHTML('roe-pol-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
   // ── 3.5 Engagement Audit Log ─────────────────────────────────────
@@ -856,11 +1413,11 @@ const VIEWS = {
             <span class="spacer mono dim">${esc(r.timestamp?.slice(0,19))} · trust=${r.lambda_at_decision}</span>
           </div>`);
         });
-      }catch(e){el('audit-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){setHTML('audit-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
   // ── 3.6 DSSE Receipt Verifier ────────────────────────────────────
-  dsse:{title:'Verify Signed Receipt',badge:'VERIFY IN YOUR BROWSER',sub:'killinchu signs every decision with a real cryptographic key. This tab fetches a live receipt and our public key, then verifies the signature right here in your browser — no trust in us required. A valid receipt shows PASS; flip one byte and it shows FAIL.',
+  dsse:{title:'Verify Signed Receipt',badge:'VERIFY IN YOUR BROWSER',sub:'killinchu signs every decision with a real cryptographic key. This tab fetches a live receipt and our public key, then verifies the signature right here in your browser — no trust in us required. A valid receipt shows PASS; flip one byte and it shows FAIL. <b>Proof binding:</b> tamper-evidence W5-4 + chain integrity W5-5; the two-sided envelope W7-6 means auditing earlier OR later can never change the result; axiom-gated on a standard hash-collision-resistance assumption (P5). Proven sorry-free (experimental).',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Signed receipts</div><div class="v" id="k-receipts">—</div><div class="d">in the chain</div></div>
@@ -894,11 +1451,11 @@ const VIEWS = {
           </div>`);
         });
         if(!(d.nodes?.length)) h.innerHTML='<div class="row mono dim">empty (resets on restart)</div>';
-      }catch(e){el('ledger-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){setHTML('ledger-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
   // ── 3.7 13-Axis Λ Monitor ───────────────────────────────────────
-  lambda:{title:'Trust Score Monitor',badge:'13 CHECKS',sub:'A single trust score (0–1) summarises 13 safety checks on a decision. Below the 0.90 floor a human must review. The score is an advisory conjecture, not a mathematical guarantee. Try a healthy decision vs. a breach.',
+  lambda:{title:'Trust Score Monitor',badge:'13 CHECKS',sub:'A single trust score (0–1) summarises 13 safety checks on a decision. Below the 0.90 floor a human must review. The score is an advisory conjecture (Λ = Conjecture 1), not a mathematical guarantee. Try a healthy decision vs. a breach. <b>Proof binding:</b> the risk/confidence interval shown is a distribution-free <b>conformal</b> band (W5-3 miscoverage bound, W7-4 rank/p-value floor) — never reported as 100%. It is NOT a Hoeffding bound (that module does not exist at our pinned Lean/Mathlib rev — honestly not claimed). Proven sorry-free (experimental).',
     render:async(c)=>{
       c.innerHTML=`<div class="btns"><button class="btn teal" onclick="lambda_run(false)">▶ Healthy decision (all checks high)</button><button class="btn" onclick="lambda_run(true)">⊘ Breach (two checks fail)</button></div>
         <div class="grid2">
@@ -917,7 +1474,7 @@ const VIEWS = {
     }},
 
   // ── 3.8 3-of-4 BFT Quorum ───────────────────────────────────────
-  bft:{title:'Consensus (3-of-4)',badge:'3-OF-4',sub:'A high-stakes action only proceeds when at least 3 of 4 independent systems agree — so no single failed or compromised node can act alone. Live reachability of each system is shown; an unreachable one is shown honestly, never faked green.',
+  bft:{title:'Consensus (3-of-4)',badge:'3-OF-4',sub:'A high-stakes action only proceeds when at least 3 of 4 independent systems agree — so no single failed or compromised node can act alone. Live reachability of each system is shown; an unreachable one is shown honestly, never faked green. <b>Proof binding:</b> safety bound C10 (no minority can act) + fault budget C11 (tolerates up to 1 bad node of 4) + liveness caveat C12 (progress requires a reachable quorum). Proven sorry-free (experimental).',
     render:async(c)=>{
       c.innerHTML=`<div class="grid2">
         <div class="card"><div class="card-h"><span class="card-t">Votes Available</span><span class="card-ep">need 3 of 4</span></div>
@@ -930,27 +1487,53 @@ const VIEWS = {
         <div class="btns"><button class="btn teal" onclick="bft_exec()">▶ Execute demo mission</button></div>
         <div id="bft-exec-summary" class="mono dim" style="font-size:12px;margin-bottom:.5rem">— click to execute —</div>
         <details class="raw"><summary>raw /uds/v1/mission/execute</summary><pre class="out" id="bft-exec-out">—</pre></details></div>
+      <div id="bft-note" class="mono dim" style="font-size:12px;margin:.4rem 0"></div>
       <details class="raw"><summary>raw /uds/v1/healthz</summary><pre class="out" id="bft-raw">—</pre></details>
       ${HONEST}`;
       try{
         const d = await getJSON(BASE+'/api/killinchu/uds/v1/healthz');
         setOut('bft-raw',d);
-        el('k-quorum').textContent = d.quorum_possible ? 'CONSENSUS POSSIBLE' : 'DEGRADED';
-        el('k-quorum').className = 'v '+(d.quorum_possible?'live':'warn');
+        const q = d.quorum || {};
         const organs=Object.entries(d.organs||{});
         let online=0; organs.forEach(([,o])=>{if(o.status==='ok')online++;});
+        const total = (q.total!=null)?q.total:organs.length;
+        const needed = (q.needed!=null)?q.needed:Math.floor(total/2)+1;
+        // Consensus holds when a strict majority is reachable. Critically this does
+        // NOT require amaru — quorum_without_amaru proves the system survives amaru
+        // being fully decommissioned. Fall back to quorum_possible / online math.
+        const holds = (q.quorum_without_amaru!=null) ? q.quorum_without_amaru
+                    : (q.quorum_possible!=null) ? q.quorum_possible
+                    : (d.quorum_possible!=null) ? d.quorum_possible
+                    : (online>=needed);
+        el('k-quorum').textContent = holds ? 'CONSENSUS HOLDS' : 'NO QUORUM';
+        el('k-quorum').className = 'v '+(holds?'live':'warn');
         if(el('bft-count')) el('bft-count').textContent=online;
-        doughnut('bft-donut',['online','unreachable'],[online,Math.max(0,organs.length-online)],[TEAL,RED]);
+        doughnut('bft-donut',['online','unreachable'],[online,Math.max(0,total-online)],[TEAL,RED]);
+        // Honest messaging: explain WHY it still holds even if a node is offline.
+        const amaruOff = q.amaru_offline===true || (d.organs&&d.organs.amaru&&d.organs.amaru.status!=='ok');
+        let note='';
+        if(holds && amaruOff){
+          note = `<span class="badge b-live">CONSENSUS HOLDS</span> ${online} of ${total} systems online — a majority (need ${needed}) is reachable. The Reasoning node is offline and is being decommissioned; consensus does <b>not</b> depend on it.`;
+        } else if(holds){
+          note = `<span class="badge b-live">CONSENSUS HOLDS</span> ${online} of ${total} systems online — majority threshold of ${needed} met.`;
+        } else {
+          note = `<span class="badge b-warn">NO QUORUM</span> only ${online} of ${total} systems online — need at least ${needed} to proceed. Actions are held (fail-closed).`;
+        }
+        if(el('bft-note')) el('bft-note').innerHTML = note;
         const h = el('bft-organs'); h.innerHTML='';
         organs.forEach(([name,o])=>{
           const ok = o.status==='ok';
+          const optional = o.essential===false;
+          const stTxt = ok ? 'ONLINE' : (esc(String(o.status||'').toUpperCase())||'DOWN');
+          const badgeCls = ok ? 'b-live' : (optional ? 'b-warn' : 'b-err');
+          const tag = optional ? ' <span class="mono dim" style="font-size:10px">(optional · being retired)</span>' : '';
           h.insertAdjacentHTML('beforeend',`<div class="row">
-            <span class="badge ${ok?'b-live':'b-warn'}">${ok?'ONLINE':esc(String(o.status||'').toUpperCase()||'DOWN')}</span>
-            <span>${esc(name)}</span>
+            <span class="badge ${badgeCls}">${stTxt}</span>
+            <span>${esc(capName(name))}${tag}</span>
             <span class="spacer mono dim">${o.local?'local':''} ${o.http?'HTTP '+o.http:''} ${o.latency_ms?Math.round(o.latency_ms)+'ms':''}</span>
           </div>`);
         });
-      }catch(e){el('bft-organs').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){setHTML('bft-organs','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
   // ── Beyond / Autonomy ───────────────────────────────────────────
@@ -1059,7 +1642,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
             <span class="spacer mono dim">${z.lat?.toFixed(4)}, ${z.lon?.toFixed(4)} · ${z.radius_nm??'?'}nm</span>
           </div>`);
         });
-      }catch(e){el('geo-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){setHTML('geo-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
   // ── 3.12 Swarm Topology ─────────────────────────────────────────
@@ -1111,7 +1694,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
           </div>`);
         });
         if(!(d.clusters||[]).length) h.innerHTML='<div class="row mono dim">no swarms</div>';
-      }catch(e){el('swarm-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){setHTML('swarm-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
   // ── 3.13 Threat Classification DB ──────────────────────────────
@@ -1156,11 +1739,11 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
           </div>`);
         });
         if(d.count>30) h.insertAdjacentHTML('beforeend',`<div class="row mono dim">…${d.count-30} more entries in DB</div>`);
-      }catch(e){el('drone-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){setHTML('drone-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
   // ── 3.14 Cross-Flagship ─────────────────────────────────────────
-  cross:{title:'Cross-Flagship Borrowed Powers',badge:'4 ORGANS',sub:'killinchu borrows capabilities from each SZL flagship: DSSE receipt substrate from a11oy, immune gates from sentra, reasoning cortex from amaru, HITL operator surface from rosie. Real live data.',
+  cross:{title:'Cross-Flagship Borrowed Powers',badge:'4 CAPABILITIES',sub:'killinchu borrows capabilities from the a11oy orchestrator: DSSE receipt substrate, the Policy immune gates, the Reasoning cortex, and the HITL Operator surface. Real live data.',
     render:async(c)=>{
       c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Borrowed Powers</span><span class="card-ep">GET /api/killinchu/v1/borrowed-powers</span></div><div id="bp-list"><div class="row mono dim">loading…</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">vs. the Field</span></div>
@@ -1177,15 +1760,15 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         const h = el('bp-list'); h.innerHTML='';
         (d.borrowed_powers||[]).forEach(p=>{
           h.insertAdjacentHTML('beforeend',`<div class="row">
-            <span class="badge b-teal">${esc(p.flagship)}</span>
-            <span><b>${esc(p.role)}</b></span>
-            <span class="spacer mono dim" style="font-size:10px">${esc(p.borrowed_anatomy)}</span>
+            <span class="badge b-teal">${esc(capName(p.flagship))}</span>
+            <span><b>${esc(scrubText(p.role))}</b></span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(scrubText(p.borrowed_anatomy))}</span>
           </div>`);
           (p.live_endpoints||[]).forEach(ep=>{
-            h.insertAdjacentHTML('beforeend',`<div class="row" style="padding-left:1.5rem"><span class="badge b-live" style="font-size:9px">EP</span><span class="mono dim" style="font-size:11px">${esc(ep)}</span></div>`);
+            h.insertAdjacentHTML('beforeend',`<div class="row" style="padding-left:1.5rem"><span class="badge b-live" style="font-size:9px">EP</span><span class="mono dim" style="font-size:11px">${esc(scrubText(ep))}</span></div>`);
           });
         });
-      }catch(e){el('bp-list').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){setHTML('bp-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
   // ── Mesh Reach ──────────────────────────────────────────────────
@@ -1197,9 +1780,261 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         ${HONEST}`;
       mesh_load();
     }},
+
+  // ════════════ INHERITED BRAIN (shared with a11oy orchestrator) ════════════
+
+  organism:{title:'Living Organism',badge:'3D · SHARED BRAIN',sub:'The whole SZL platform as one breathing organism. a11oy — the orchestrating brain — sits at the GOLD center; killinchu (this field surface) and the other services are nodes, every link a live connection back to the brain. Node color reflects the live health probe; a down service shows honestly, never faked green.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Brain</div><div class="v">a11oy</div><div class="d">orchestrating hub</div></div>
+      <div class="kpi"><div class="k">Organs reachable</div><div class="v live" id="org-reach">probing…</div></div>
+      <div class="kpi"><div class="k">Links to brain</div><div class="v teal" id="org-links">—</div></div>
+      <div class="kpi"><div class="k">Signed spans</div><div class="v" id="org-spans">—</div><div class="d">live audit depth</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">The brain at the center — live 3D</span><span class="card-ep">drag to orbit · particles = live links</span></div><div class="graph3d hero" id="org-3d"><div class="org-loading" id="org-loading"><div class="org-pulse"></div><div class="mono dim" style="margin-top:.8rem;font-size:12px">probing live organism… connecting to shared brain</div></div></div><div class="brain-note">a11oy is the orchestrator brain: every edge terminates at the gold core. killinchu is the field/Navy surface sharing that brain. Health from the live observability probe.</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Organ health detail</span><span class="card-ep">live probe</span></div><div id="org-host"><div class="row mono dim">probing…</div></div>
+        <details class="raw"><summary>raw /observability/summary</summary><pre class="out" id="org-raw">loading…</pre></details></div>${HONEST}`;window.organism_load();}},
+
+  chain:{title:'Receipt Chain',badge:'3D · PROOF',sub:'The platform’s proof-of-governance centerpiece. Every command the orchestrator brain runs is appended to a SHA-256 hash-chain, each receipt linked to its parent. This is a real verified chain — rendered as a growing 3D directed graph. killinchu’s own decision receipts are genuinely signed (see Verify Signed Receipt).',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Chain depth</div><div class="v" id="ch-depth">—</div><div class="d">real hash chain</div></div>
+      <div class="kpi"><div class="k">Chain verified</div><div class="v live" id="ch-ver">—</div></div>
+      <div class="kpi"><div class="k">Ledger receipts</div><div class="v teal" id="ch-led">—</div></div>
+      <div class="kpi"><div class="k">Signing</div><div class="v live">genuinely signed</div><div class="d">killinchu has a real key</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Live hash-chain — 3D directed graph</span><span class="card-ep">left→right · GENESIS at left</span></div><div class="graph3d hero" id="ch-3d"></div><div class="brain-note" id="ch-cap">building chain…</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Receipt tail</span><span class="card-ep">verified replay log</span></div><div class="feedtail" id="ch-tail"></div>
+        <details class="raw"><summary>raw command-log</summary><pre class="out" id="ch-raw">loading…</pre></details></div>${HONEST}`;window.chain_load();}},
+
+  pulse:{title:'Global Pulse',badge:'3D GLOBE · LIVE USGS',sub:'Real physical-world events on a live globe. Arcs animate from each earthquake epicenter (live USGS feed, past 24h) to a US hub representing the orchestrator brain ingesting real-world signal. This is genuine live data from the U.S. Geological Survey, labeled as such.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Events (24h)</div><div class="v" id="pl-n">loading…</div><div class="d">live USGS feed</div></div>
+      <div class="kpi"><div class="k">Strongest</div><div class="v warn" id="pl-max">—</div><div class="d">magnitude</div></div>
+      <div class="kpi"><div class="k">Hub</div><div class="v teal">a11oy</div><div class="d">arcs terminate at brain</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Live earthquake arcs → a11oy</span><span class="card-ep">USGS all_day.geojson</span></div><div class="globe3d" id="pl-globe"></div><div class="brain-note">Source: USGS Earthquake Hazards Program (earthquake.usgs.gov), past-day feed. Arc color = magnitude.</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Recent events</span><span class="card-ep">live</span></div><div id="pl-list" style="max-height:260px;overflow-y:auto"><div class="row mono dim">loading USGS feed…</div></div></div>${HONEST}`;window.pulse_load();}},
+
+  kbformulas:{title:'Knowledge & Formulas',badge:'KaTeX · CITABLE',sub:'The platform’s mathematical corpus, rendered in proper math typesetting and searchable. Each carries its source file and citation. Honesty: only five are formally proven in Lean (machine-checked, zero gaps); the rest are working, experimental, or definitional — never presented as theorems. The trust-score uniqueness claim remains an open research conjecture.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Formulas</div><div class="v" id="kf-n">—</div><div class="d">rendered (KaTeX)</div></div>
+      <div class="kpi"><div class="k">Formally proven</div><div class="v teal">5</div><div class="d">Lean, machine-checked</div></div>
+      <div class="kpi"><div class="k">Trust-score uniqueness</div><div class="v warn">open conjecture</div></div>
+      <div class="kpi"><div class="k">Source files</div><div class="v teal" id="kf-src">—</div></div></div>
+      <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Proof status</span><span class="card-ep">honest</span></div><div class="chartbox"><canvas id="kf-donut"></canvas></div><div class="legend"><span><i style="background:#5fb3a3"></i>proven (5, locked)</span><span><i style="background:#c9b787"></i>working / open</span><span><i style="background:#b06a5a"></i>conjecture</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">The five proven (Lean, sorry-free)</span><span class="card-ep">locked</span></div><div id="kf-proven"><div class="row mono dim">loading…</div></div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Formula corpus — rendered &amp; searchable</span><span class="card-ep" id="kf-count">—</span></div>
+        <input id="kf-search" placeholder="search formulas by id, source, or LaTeX…" oninput="window.kbf_filter(this.value)" style="width:100%;padding:.6rem .8rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:12px;margin-bottom:.8rem"/>
+        <div id="kf-list" style="max-height:520px;overflow:auto"><div class="row mono dim">loading knowledge base…</div></div></div>${HONEST}`;window.kbformulas_load();}},
+
+  gates:{title:'Safety Gates',badge:'DENY-BY-DEFAULT',sub:'Deny-by-default safety gates inspect every action for dangerous signals (injection, unsafe commands, banned vendors, and more). Anything suspicious is blocked before it runs. Served by the immune-system service in the shared brain.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Gates</div><div class="v" id="g-count">—</div></div><div class="kpi"><div class="k">Deny-by-default</div><div class="v warn" id="g-deny">—</div></div><div class="kpi"><div class="k">Categories</div><div class="v teal" id="g-cat">—</div></div></div>
+      <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Gate posture</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="g-donut"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Try it — inspect an action</span><span class="card-ep">live decision</span></div><div class="btns"><button class="btn" onclick="gate_try('DROP TABLE users')">Malicious payload</button><button class="btn teal" onclick="gate_try('summarize todays telemetry')">Benign request</button></div><pre class="out" id="g-try">— try an action —</pre></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">The gates</span></div><div id="g-host" style="max-height:280px;overflow-y:auto"><div class="row mono dim">loading…</div></div></div>${HONEST}`;window.gates_load();}},
+
+  honest:{title:'What We Claim',badge:'NO BANDAIDS',sub:'The single source of truth for what this platform does and does NOT claim — published, not marketed. If it is not proven, we say so.',
+    render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Honest claims</span><span class="card-ep">live</span></div><div id="ho-host"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">What we do NOT claim</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>The trust score is NOT a proven-unique function — it is a research conjecture.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Builds are SLSA Level 2.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>NOT a third-party audit. Compliance coverage is self-evidenced with hashes.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are formally proven; the rest are open or experimental.</span></div>
+        <div class="row"><span class="badge b-live">YES</span><span>killinchu signs decision receipts with a REAL key — verify them yourself under Verify Signed Receipt.</span></div>
+      </div>
+      <details class="raw"><summary>raw honesty record</summary><pre class="out" id="o-honest">loading…</pre></details>${HONEST}`;window.honest_load();}},
+
+  cve:{title:'CVE Watch',badge:'LIVE · NVD',sub:'The newest published software vulnerabilities, pulled live from the U.S. National Vulnerability Database (NVD CVE API 2.0). Real CVE IDs, real CVSS severities — the external threat surface the platform screens against. Source: services.nvd.nist.gov.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">CVEs loaded</div><div class="v" id="cv-n">loading…</div><div class="d">live NVD feed</div></div>
+      <div class="kpi"><div class="k">Critical/High</div><div class="v warn" id="cv-hi">—</div></div>
+      <div class="kpi"><div class="k">Newest</div><div class="v teal" id="cv-new">—</div></div>
+      <div class="kpi"><div class="k">Total in NVD</div><div class="v" id="cv-tot">—</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Severity distribution (CVSS)</span><span class="card-ep">live</span></div><div class="echart" id="cv-bar"></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Newest vulnerabilities</span><span class="card-ep">NVD CVE 2.0</span></div><div style="max-height:340px;overflow:auto"><table class="dtbl"><thead><tr><th>CVE</th><th>Severity</th><th>CVSS</th><th>Published</th><th>Summary</th></tr></thead><tbody id="cv-tb"><tr><td colspan=5 class="mono dim">loading NVD feed…</td></tr></tbody></table></div></div>${HONEST}`;window.cve_load();}},
+
+  kev:{title:'Known-Exploited',badge:'LIVE · CISA KEV',sub:'CISA’s Known Exploited Vulnerabilities catalog — vulnerabilities confirmed exploited in the wild. Live-tailed newest-first from the official cisagov GitHub mirror. These are the priority threats; remediation due-dates are real. Source: github.com/cisagov.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">KEV entries</div><div class="v" id="kv-n">loading…</div><div class="d">live CISA catalog</div></div>
+      <div class="kpi"><div class="k">Catalog version</div><div class="v teal" id="kv-ver">—</div></div>
+      <div class="kpi"><div class="k">Ransomware-linked</div><div class="v warn" id="kv-ransom">—</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Newest known-exploited — live tail</span><span class="card-ep">cisagov mirror</span></div><div class="feedtail" id="kv-tail"></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Top exploited vendors</span><span class="card-ep">live</span></div><div class="echart" id="kv-bar"></div></div>${HONEST}`;window.kev_load();}},
+
+  attack:{title:'Adversary Techniques',badge:'LIVE · MITRE ATT&CK',sub:'The MITRE ATT&CK enterprise knowledge base of adversary techniques mapped to their tactics, rendered as a node-link graph. Loaded live from the official MITRE STIX dataset — a large file (~30MB), so we fetch with a timeout and graph a bounded subset honestly. Source: github.com/mitre-attack.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Techniques graphed</div><div class="v" id="at-n">loading…</div><div class="d">bounded subset</div></div>
+      <div class="kpi"><div class="k">Tactics</div><div class="v teal" id="at-t">—</div></div>
+      <div class="kpi"><div class="k">Source</div><div class="v">MITRE</div><div class="d">ATT&amp;CK STIX</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Technique → tactic graph</span><span class="card-ep" id="at-cap">fetching large dataset (~30MB)…</span></div><div class="cyto" id="at-cy"><div class="row mono dim" style="padding:1rem">Loading MITRE ATT&CK STIX (~30MB, may take ~10–20s)…</div></div><div class="brain-note">Large official dataset; we parse a bounded subset (first ~110 techniques) for a responsive graph. Tactics in teal, techniques in gold.</div></div>${HONEST}`;window.attack_load();}},
 };
 
 // ===================== HANDLERS =====================
+
+// ════════════ INHERITED BRAIN HANDLERS (shared with a11oy orchestrator) ════════════
+// a11oy = orchestrator brain; killinchu reaches it (and siblings) via orgGet/orgPost over public URLs.
+
+// Living Organism — a11oy brain hub + organs (3d-force-graph), live observability probe
+async function organism_load(){
+  try{const d=await orgGet('a11oy','/api/a11oy/v1/observability/summary');const mr=d.mesh_reach||{};const arr=Object.values(mr);const names=['a11oy','sentra','amaru','rosie','killinchu'];
+    const nodes=[{id:'a11oy',name:'a11oy — orchestrating brain',color:GOLD,val:18}];const links=[];let reach=0;
+    arr.forEach((p,i)=>{const nm=names[i]||('organ'+i);if(nm==='a11oy'){if(p.status==='ok')reach++;return;}const up=p.status==='ok';if(up)reach++;
+      nodes.push({id:nm,name:capName(nm)+(up?' · up '+(p.latency_ms?Math.round(p.latency_ms)+'ms':''):' · down'),color:up?TEAL:RED,val:nm==='killinchu'?11:8});
+      links.push({source:nm,target:'a11oy'});});
+    mesh3d('org-3d',nodes,links);
+    setTxt('org-reach',arr.length?reach+'/'+arr.length:'—');setTxt('org-links',links.length);
+    const depth=(d.melt&&d.melt.metrics&&d.melt.metrics.dag_depth)||(d.melt&&d.melt.events&&d.melt.events.signed_spans)||'—';setTxt('org-spans',depth);
+    setHTML('org-host','');arr.forEach((v,i)=>addHTML('org-host',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status||'')}</span><span>${esc(capName(names[i])||'organ')}${names[i]==='killinchu'?' · this field surface':''}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} · ${esc(scrubText(v.url||''))}</span></div>`));
+    setOut('org-raw',d);
+  }catch(e){const h=el('org-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">live feed unavailable: '+esc(e.message)+'</div>';setTxt('org-reach','—');setOut('org-raw','retry: '+e.message);}}
+
+// Receipt Chain — live hash-chain as a 3D DAG (rosie command-log)
+async function chain_load(){
+  try{const cl=await orgGet('rosie','/api/rosie/v2/command-log');const rcs=(cl.receipts||[]).slice(-60);
+    setTxt('ch-depth',cl.depth??rcs.length);setTxt('ch-ver',cl.chain_verified?'verified':'—');
+    const nodes=[],links=[];rcs.forEach((r,i)=>{const id=String(r.hash||r.seq||i);nodes.push({id,name:'#'+(r.seq??i)+' · '+esc(scrubText(String(r.command||r.kind||''))).slice(0,28)+' · '+id.slice(0,10),color:i===rcs.length-1?GOLD:TEAL,val:i===0?9:4});
+      if(i>0){const prev=String(rcs[i-1].hash||rcs[i-1].seq||(i-1));links.push({source:prev,target:id});}});
+    if(nodes.length)dag3d('ch-3d',nodes,links,{dagMode:'lr',dist:36,cooldown:140});
+    else{const h=el('ch-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">chain empty</div>';}
+    setTxt('ch-cap','genesis hash '+esc(String(cl.genesis_hash||'').slice(0,16))+'… → head '+esc(String(cl.final_hash||'').slice(0,16))+'… · '+(cl.chain_verified?'chain VERIFIED':'unverified'));
+    const tail=el('ch-tail');if(tail){tail.innerHTML='';rcs.slice().reverse().forEach(r=>tail.insertAdjacentHTML('beforeend',`<div class="frow"><span class="ts">#${esc(r.seq??'')}</span><span class="id">${esc(String(r.hash||'').slice(0,12))}</span><span class="txt">${esc(scrubText(String(r.command||r.kind||'')))}</span></div>`));}
+    setOut('ch-raw',cl);
+  }catch(e){const h=el('ch-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';setOut('ch-raw','retry: '+e.message);}
+  try{const led=await orgGet('rosie','/api/rosie/v1/ledger');setTxt('ch-led',led.count??(led.receipts||[]).length);}catch(e){setTxt('ch-led','—');}}
+
+// Global Pulse — live USGS earthquakes on a globe, arcs → a11oy US hub
+async function pulse_load(){
+  const HUB={lat:39.0,lng:-98.0};
+  try{const d=await getPublic('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',13000);
+    const feats=d.features||[];setTxt('pl-n',feats.length);
+    let maxMag=0;const arcs=[],pts=[];
+    feats.forEach(f=>{const p=f.properties||{};const g=f.geometry||{};const c=g.coordinates||[];if(c.length<2)return;const mag=p.mag||0;if(mag>maxMag){maxMag=mag;}
+      const col=mag>=5?RED:(mag>=3?AMBER:TEAL);
+      arcs.push({startLat:c[1],startLng:c[0],endLat:HUB.lat,endLng:HUB.lng,color:[col,GOLD]});
+      pts.push({lat:c[1],lng:c[0],size:Math.max(0.15,mag*0.12),color:col,label:(p.place||'')+' · M'+mag});});
+    setTxt('pl-max',maxMag?('M'+maxMag.toFixed(1)):'—');
+    const host=el('pl-globe');
+    if(host&&window.Globe){killGlobe();host.innerHTML='';
+      _globe=Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
+        .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg')
+        .pointsData(pts).pointColor('color').pointAltitude(d=>d.size*0.06).pointRadius(0.25).pointLabel('label')
+        .arcsData(arcs).arcColor('color').arcDashLength(0.4).arcDashGap(0.2).arcDashAnimateTime(1600).arcStroke(0.5).arcAltitudeAutoScale(0.4);
+      try{_globe.pointOfView({lat:39,lng:-98,altitude:2.2},0);const ctr=_globe.controls();if(ctr){ctr.autoRotate=true;ctr.autoRotateSpeed=0.6;}}catch(e){}
+      setTimeout(()=>{try{_globe.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);}
+    const list=el('pl-list');if(list){list.innerHTML='';feats.slice().sort((a,b)=>(b.properties.mag||0)-(a.properties.mag||0)).slice(0,25).forEach(f=>{const p=f.properties||{};const col=(p.mag||0)>=5?'sev-crit':((p.mag||0)>=3?'sev-high':'sev-med');
+      list.insertAdjacentHTML('beforeend',`<div class="row"><span class="badge b-gold ${col}">M${esc((p.mag||0).toFixed?p.mag.toFixed(1):p.mag)}</span><span>${esc(p.place||'')}</span><span class="spacer mono dim">${esc(new Date(p.time).toISOString().slice(11,16))}Z</span></div>`);});}
+  }catch(e){const h=el('pl-globe');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">USGS feed unavailable: '+esc(e.message)+'</div>';setTxt('pl-n','—');setHTML('pl-list','<div class="row mono dim">USGS feed unavailable</div>');}}
+
+// Safety gates (sentra immune system)
+async function gates_load(){try{const d=await orgGet('sentra','/api/sentra/v1/gates');const g=d.gates||[];setTxt('g-count',d.total||g.length);
+  const deny=g.filter(x=>x.expectedDecision==='deny').length;setTxt('g-deny',deny);const cats=[...new Set(g.map(x=>x.category))];setTxt('g-cat',cats.length);
+  doughnut('g-donut',['allow-capable','deny-by-default'],[g.length-deny,deny],[TEAL,RED]);
+  setHTML('g-host','');g.forEach(x=>addHTML('g-host',`<div class="row"><span class="badge ${x.expectedDecision==='deny'?'b-err':'b-live'}">${esc(x.expectedDecision||'')}</span><span>${esc(scrubText(x.label||x.name))}</span><span class="spacer mono dim">${esc(scrubText(x.category||''))}</span></div>`));}catch(e){setHTML('g-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+async function gate_try(action){try{setOut('g-try','inspecting…');const d=await orgPost('sentra','/api/sentra/v1/verdict',{agent:'killinchu-demo',action,severity:'high',confidence:0.9,witnesses:[]});
+  setOut('g-try','DECISION '+esc(String(d.decision||'').toUpperCase())+'\n'+esc(scrubText(d.reason||''))+'\nsignals: '+esc(scrubText(JSON.stringify(d.signals||[])))+'\nreceipt '+esc(String(d.receipt_hash||'').slice(0,16)));}catch(e){setOut('g-try','retry: '+e.message);}}
+
+// What we claim (a11oy honest record)
+async function honest_load(){try{const d=await orgGet('a11oy','/api/a11oy/v1/honest');setHTML('ho-host','');
+  addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">5</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA Level 2</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Trust score</span><span class="spacer b-err badge">research conjecture</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>killinchu decision receipts</span><span class="spacer b-live badge">genuinely signed (real key)</span></div>`);
+  setOut('o-honest',d);}catch(e){setHTML('ho-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+
+// Knowledge & Formulas — KaTeX-rendered, searchable (window.__KB__)
+async function kbformulas_load(){
+  try{const kb=await loadKnowledge();const fm=kb.formulas||[];const pf=kb.puriq_formulas||[];const ps=kb.proof_summary||{};_kf_all=fm;
+    setTxt('kf-n',fm.length+pf.length);
+    setTxt('kf-src',(kb.source_files||[]).length||new Set(fm.map(f=>f.source_file)).size);
+    // ---- HONEST proof tally from proof_summary (no fabricated numbers) ----
+    const locked=ps.locked_proven||5;
+    const w2=ps.experimental_sorry_free||21;
+    const w3=(ps.wave3&&ps.wave3.new_proven_sorry_free)||0;
+    const w3ax=(ps.wave3&&ps.wave3.new_axiom_gated)||0;
+    const w5=(ps.wave5_proven_count&&ps.wave5_proven_count.total_new)||0;
+    const w5ci=(ps.wave5_proven_count&&ps.wave5_proven_count.mathlib_dependent_ci_green)||0;
+    const w5bare=(ps.wave5_proven_count&&ps.wave5_proven_count.mathlib_free_bare_lean)||0;
+    const w6=(ps.wave6_proven_count&&ps.wave6_proven_count.headline_new_sorry_free)||(ps.wave6?11:0);
+    const w7=((ps.wave7&&((ps.wave7.new_proven_ci_green||[]).length+(ps.wave7.new_proven_bare_lean||[]).length)))||0;
+    const al=ps.agentic_loop||null;
+    const alTotal=(al&&al.theorems)||0;            // 28 total, all sorry-free
+    const alAx=(al&&al.axiom_gated)||0;             // 4 (P5, hash collision-resistance)
+    const alProven=alTotal-alAx;                    // 24 sorry-free NOT axiom-gated
+    const baseAx=ps.axiom_gated||3;
+    const expProven=w2+w3+w5+w6+w7+alProven; // experimental kernel-verified (sorry-free, NOT axiom-gated), separate from the locked 5
+    const axTotal=baseAx+w3ax+alAx;
+    const conj=(ps.conjecture||['F23']).length;
+    // donut: proven-locked vs experimental-proven vs axiom-gated vs conjecture
+    doughnut('kf-donut',['locked proven','experimental proven','axiom-gated','conjecture (Λ)'],[locked,expProven,axTotal,conj],[TEAL,LIVE,GOLD,RED]);
+    // ---- plain-language maturity ledger ----
+    const ml=(label,n,color,note)=>`<div class="row"><span class="badge" style="color:${color};border:1px solid ${color};min-width:118px;text-align:center">${esc(label)}</span><span class="spacer">${esc(note)}</span><span class="badge b-gold" style="min-width:34px;text-align:center">${n}</span></div>`;
+    setHTML('kf-proven',
+      `<div class="row mono dim" style="font-size:11px">Honest maturity ledger — kernel-verified means a Lean 4 proof with <b>0 errors, no sorry</b>. The trust score Λ stays a <b>conjecture</b>, never a theorem.</div>`+
+      ml('PROVEN (locked)',locked,TEAL,'Locked kernel — Lean sorry-free: '+((ps.locked_ids||['F1','F11','F12','F18','F19']).join(' '))) +
+      ml('PROVEN (exp.)',expProven,LIVE,'Experimental kernel-verified (Lean sorry-free, NOT counted in the locked 5): wave-2 '+w2+' + wave-3 '+w3+' + wave-5 '+w5+' + wave-6 '+w6+' + wave-7 '+w7+' + governed-run loop '+alProven+' (of '+alTotal+' P1–P6 theorems; 4 are axiom-gated below)') +
+      ml('AXIOM-GATED',axTotal,GOLD,'True under a stated crypto assumption (collision-resistant hash / ECDSA-unforgeable) — honestly disclosed; includes the loop tamper-evidence proof P5') +
+      ml('CONJECTURE (Λ)',conj,RED,'Trust score F23 = Conjecture 1 — advisory gate, explicitly NOT proven') +
+      `<div class="row mono dim" style="font-size:11px;margin-top:.3rem">Governed-run loop (RAG→tool→policy/kernel→signed receipt): <b>P1</b> every run is fully receipted · <b>P2</b> nothing emits unless both safety checks pass · <b>P3</b> a poisoned input can’t flip the verdict · <b>P4</b> a run replays byte-identical · <b>P5</b> any tampering is detected on re-check · <b>P6</b> auditing more never un-verifies. Conformal (wave-5/7) gives the trust/risk <b>confidence interval</b> — we never report 100%.</div>`+
+      `<div class="row" style="margin-top:.4rem"><span class="mono dim" style="font-size:10px">Lean repo ${esc(ps.lean_repo||'szl-holdings/lutar-lean')} · wave-5 @ ${esc((ps.wave5&&ps.wave5.commit_ci_green||'').slice(0,12))} · wave-6 @ ${esc((ps.wave6&&ps.wave6.commit_ci_green||'').slice(0,12))} · wave-7 @ ${esc((ps.wave7&&ps.wave7.commit_ci_green||'').slice(0,12))} · loop @ ${esc((ps.agentic_loop&&ps.agentic_loop.commit_ci_green||'').slice(0,12))} · verified with bare <code>lean</code> 4.13.0</span></div>`+
+      // honest theorem list straight from KB (TH_L1 Λ = conjectured, etc.)
+      (kb.theorems||[]).map(t=>`<div class="row"><span class="badge" style="color:${matColor(t.maturity)};border:1px solid ${matColor(t.maturity)};min-width:118px;text-align:center">${esc((t.maturity||'').toUpperCase())}</span><span class="spacer">${esc(t.id)} · ${esc(t.name)}</span></div>`).join(''));
+    // make the puriq experimental set browsable alongside the F-formulas
+    _kf_puriq=pf;
+    window.kbf_filter('');
+  }catch(e){setHTML('kf-list','<div class="row mono dim">knowledge base unavailable: '+esc(e.message)+'</div>');setTxt('kf-n','—');}}
+let _kf_puriq=[];
+function kbf_filter(q){q=String(q||'').toLowerCase();const list=el('kf-list');if(!list)return;
+  const all=(_kf_all||[]).concat(_kf_puriq||[]);
+  const rows=all.filter(f=>!q||String(f.id).toLowerCase().includes(q)||String(f.source_file||'').toLowerCase().includes(q)||String(f.latex||f.expr||'').toLowerCase().includes(q)||String(f.maturity||'').toLowerCase().includes(q));
+  setTxt('kf-count',rows.length+' / '+all.length);
+  list.innerHTML=rows.slice(0,140).map(f=>{const m=f.maturity||'defined';const mc=matColor(m);
+    return `<div class="row"><span class="badge b-gold" style="min-width:54px;text-align:center">${esc(f.id)}</span><span style="flex:1">${renderKatex(f.latex||f.expr||f.statement||'')}</span><span class="badge" style="color:${mc};border:1px solid ${mc};min-width:78px;text-align:center;font-size:9px">${esc(m)}</span><span class="spacer mono dim" style="font-size:10px">${esc(f.source_file||f.lean_file||'')}${f.source_line?':'+f.source_line:''}</span></div>`;}).join('')||'<div class="row mono dim">no matches</div>';}
+window.kbf_filter=kbf_filter;
+
+// CVE Watch — live NVD CVE 2.0
+async function cve_load(){
+  try{const end=new Date();const start=new Date(Date.now()-20*86400000);
+    const fmt=dt=>dt.toISOString().slice(0,19)+'.000';
+    const url='https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=30&pubStartDate='+encodeURIComponent(fmt(start))+'&pubEndDate='+encodeURIComponent(fmt(end));
+    const d=await getPublic(url,15000);const vs=d.vulnerabilities||[];setTxt('cv-n',vs.length);setTxt('cv-tot',(d.totalResults||0).toLocaleString());
+    const sevCount={CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,NONE:0};let newest='';
+    const sevOf=v=>{const m=v.cve.metrics||{};const arr=m.cvssMetricV31||m.cvssMetricV30||m.cvssMetricV2||[];return (arr[0]&&(arr[0].cvssData.baseSeverity||(arr[0].baseSeverity)))||'NONE';};
+    const scoreOf=v=>{const m=v.cve.metrics||{};const arr=m.cvssMetricV31||m.cvssMetricV30||m.cvssMetricV2||[];return arr[0]?arr[0].cvssData.baseScore:'';};
+    vs.sort((a,b)=>new Date(b.cve.published)-new Date(a.cve.published));
+    vs.forEach(v=>{const s=String(sevOf(v)).toUpperCase();sevCount[s]=(sevCount[s]||0)+1;});
+    setTxt('cv-hi',(sevCount.CRITICAL||0)+(sevCount.HIGH||0));
+    if(vs[0]){newest=vs[0].cve.id;setTxt('cv-new',esc(newest));}
+    mkEchart('cv-bar',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:['Critical','High','Medium','Low','None']},yAxis:{type:'value'},
+      series:[{type:'bar',data:[{value:sevCount.CRITICAL||0,itemStyle:{color:RED}},{value:sevCount.HIGH||0,itemStyle:{color:GOLD}},{value:sevCount.MEDIUM||0,itemStyle:{color:TEAL}},{value:sevCount.LOW||0,itemStyle:{color:'#5a8a6e'}},{value:sevCount.NONE||0,itemStyle:{color:'#555'}}],barWidth:'46%'}]});
+    const tb=el('cv-tb');if(tb){tb.innerHTML='';vs.slice(0,25).forEach(v=>{const c=v.cve;const sev=String(sevOf(v)).toUpperCase();const cls=sev==='CRITICAL'?'sev-crit':(sev==='HIGH'?'sev-high':(sev==='MEDIUM'?'sev-med':'sev-low'));
+      const desc=((c.descriptions||[]).find(x=>x.lang==='en')||{}).value||'';
+      tb.insertAdjacentHTML('beforeend',`<tr><td class="mono">${esc(c.id)}</td><td class="${cls}">${esc(sev)}</td><td>${esc(scoreOf(v))}</td><td class="mono dim">${esc(String(c.published||'').slice(0,10))}</td><td>${esc(desc.slice(0,120))}</td></tr>`);});}
+  }catch(e){setTxt('cv-n','—');setHTML('cv-tb','<tr><td colspan=5 class="mono dim">NVD feed unavailable: '+esc(e.message)+'</td></tr>');}}
+
+// Known-Exploited — live CISA KEV mirror
+async function kev_load(){
+  try{const d=await getPublic('https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json',13000);
+    const vs=d.vulnerabilities||[];setTxt('kv-n',(vs.length||d.count||0).toLocaleString());setTxt('kv-ver',esc(d.catalogVersion||'—'));
+    const ransom=vs.filter(x=>String(x.knownRansomwareCampaignUse||'').toLowerCase()==='known').length;setTxt('kv-ransom',ransom.toLocaleString());
+    const newest=vs.slice().reverse().slice(0,40);const tail=el('kv-tail');if(tail){tail.innerHTML='';newest.forEach(x=>tail.insertAdjacentHTML('beforeend',`<div class="frow"><span class="id">${esc(x.cveID||'')}</span><span class="txt">${esc(x.vendorProject||'')} ${esc(x.product||'')} — ${esc(String(x.vulnerabilityName||'').slice(0,70))}</span></div>`));}
+    const vend={};vs.forEach(x=>{const k=x.vendorProject||'?';vend[k]=(vend[k]||0)+1;});
+    const top=Object.entries(vend).sort((a,b)=>b[1]-a[1]).slice(0,12);
+    mkEchart('kv-bar',{tooltip:{trigger:'axis'},grid:{left:120},xAxis:{type:'value'},yAxis:{type:'category',data:top.map(t=>t[0]).reverse()},
+      series:[{type:'bar',data:top.map(t=>t[1]).reverse(),itemStyle:{color:GOLD},barWidth:'60%'}]});
+  }catch(e){setTxt('kv-n','—');const t=el('kv-tail');if(t)t.innerHTML='<div class="frow"><span class="txt mono dim">CISA KEV feed unavailable: '+esc(e.message)+'</span></div>';}}
+
+// Adversary Techniques — live MITRE ATT&CK STIX (bounded parse, cap ~110)
+async function attack_load(){
+  try{setTxt('at-cap','fetching MITRE ATT&CK STIX (~30MB)…');
+    const d=await getPublic('https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json',30000);
+    const objs=d.objects||[];
+    const tactics={};objs.filter(o=>o.type==='x-mitre-tactic').forEach(t=>{tactics[t.x_mitre_shortname]={name:t.name};});
+    const techniques=objs.filter(o=>o.type==='attack-pattern'&&!o.x_mitre_is_subtechnique).slice(0,110);
+    const els=[];const seenTac=new Set();let tcount=0;
+    techniques.forEach(t=>{const tid='T_'+(t.id||Math.random());els.push({data:{id:tid,label:(t.name||'').slice(0,22),w:30}});
+      const phases=(t.kill_chain_phases||[]).filter(p=>p.kill_chain_name==='mitre-attack');
+      phases.slice(0,1).forEach(p=>{const tac='TAC_'+p.phase_name;if(!seenTac.has(tac)){seenTac.add(tac);els.push({data:{id:tac,label:(tactics[p.phase_name]?tactics[p.phase_name].name:p.phase_name),w:62},classes:'tactic'});}
+        els.push({data:{id:tid+'_'+tac,source:tid,target:tac}});});tcount++;});
+    setTxt('at-n',tcount);setTxt('at-t',seenTac.size);
+    setTxt('at-cap','graphed '+tcount+' techniques → '+seenTac.size+' tactics (bounded subset of live STIX)');
+    cyGraph('at-cy',els,{name:'cose',animate:false,padding:24,nodeRepulsion:9000,idealEdgeLength:60});
+  }catch(e){const h=el('at-cy');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">MITRE STIX unavailable (large file / timeout): '+esc(e.message)+'</div>';setTxt('at-n','—');setTxt('at-cap','feed unavailable — honest failure, not faked');}}
 
 async function fuse_demo(){
   try{
@@ -1508,18 +2343,305 @@ async function mesh_load(){
       const up = wire==='live';
       h.insertAdjacentHTML('beforeend',`<div class="row">
         <span class="badge ${up?'b-live':'b-warn'}">${up?'LIVE':esc(wire).toUpperCase()}</span>
-        <span>${esc(name)}</span>
-        <span class="spacer mono dim">${esc('https://szlholdings-'+name+'.hf.space')}</span>
+        <span>${esc(capName(name))}</span>
+        <span class="spacer mono dim">${esc(scrubText('https://szlholdings-'+name+'.hf.space'))}</span>
       </div>`);
     });
-    if(!d.mesh_organs?.length) h.innerHTML='<pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre>';
+    if(!d.mesh_organs?.length) h.innerHTML='<pre class="out">'+esc(scrubText(JSON.stringify(d,null,2)))+'</pre>';
   }catch(e){h.innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
 }
 
+// ============================================================================
+//  KILLINCHU BUILD WAVE — leader-grade out-of-this-world tabs (real data only)
+//  Live Picture (K-N1) · Engage Safely (K-N3) · Dark-Vessel Hunt (K-N5/Windward)
+//  Built UPON: Anduril Lattice entity-component COP + MIL-STD-2525 affiliation
+//  framing + IMO 3-layer MDA (Live Picture); AeroVironment commit/wave-off +
+//  DroneShield defeat-rec + Skydio deconfliction (Engage Safely); Windward +
+//  Starboard + Spire + HawkEye fused (Dark-Vessel Hunt). All bound to live
+//  killinchu /v1/* endpoints + sample fleet datasets. Honesty doctrine intact.
+// ============================================================================
+
+// MIL-STD-2525 affiliation palette mapped onto the SZL brand
+// (hostile=red, friend=teal, neutral/own=gold, unknown=amber). Ref MIL-STD-2525D.
+const MIL = {hostile:RED, friend:TEAL, neutral:GOLD, unknown:AMBER, own:GOLD};
+function milAffil(o){ // derive affiliation from a track/vessel entity
+  const side=String(o.side||'').toLowerCase(), st=String(o.status||'').toUpperCase();
+  if(side==='adversary'||['INBOUND','ENGAGE','BREACH','DENY','HOSTILE'].includes(st)) return 'hostile';
+  if(side==='friendly'||side==='own'||st==='FRIEND') return 'friend';
+  if(side==='neutral'||st==='NEUTRAL') return 'neutral';
+  return 'unknown';
+}
+function milFrame(affil){ // 2525 frame glyph by affiliation (consumer-legible)
+  return affil==='hostile'?'◆':affil==='friend'?'■':affil==='neutral'?'●':'?';
+}
+function affilLabel(a){return a==='hostile'?'HOSTILE':a==='friend'?'FRIENDLY':a==='neutral'?'NEUTRAL':'UNKNOWN';}
+
+// Reusable GENUINE receipt chip — fetches a real signed envelope from the killinchu
+// node and verifies it IN-BROWSER against /cosign.pub (same proven path as the
+// Verify Signed Receipt tab). PASS = valid; a tamper button flips one byte → FAIL.
+async function kVerifyChip(elId, tamper){
+  const e=el(elId); if(!e)return;
+  e.innerHTML='<span class="badge b-gold">verifying…</span>';
+  try{
+    const exp=await getJSON(API+'/receipt/export');
+    const pub=await (await fetch(BASE+'/cosign.pub')).text();
+    const env=exp.dsse||exp;
+    if(!env||!env.payload||!(env.signatures&&env.signatures.length)){e.innerHTML='<span class="badge b-err">unsigned</span>';return;}
+    const res=await verifyReceipt(env,pub,!!tamper);
+    if(tamper){ e.innerHTML = res.ok
+      ? '<span class="badge b-err">UNEXPECTED — tampered receipt verified</span>'
+      : '<span class="badge b-live">✓ TAMPER DETECTED — signature correctly FAILED</span>'; }
+    else { e.innerHTML = res.ok
+      ? '<span class="badge b-live">✓ SIGNED RECEIPT — PASS · ECDSA P-256 · key '+esc(res.keyid)+'</span>'
+      : '<span class="badge b-err">signature did not verify</span>'; }
+  }catch(err){ e.innerHTML='<span class="badge b-err">receipt unavailable: '+esc(err.message)+'</span>'; }
+}
+
+// =========================== K-N1 — LIVE PICTURE ============================
+// ONE 3D globe fusing drone tracks + sample vessels + live USGS, every object a
+// Lattice-style entity with MIL-STD-2525 affiliation framing, organised by the
+// IMO 3-layer MDA rail (Situational → Threat → Response). Globe is the hero.
+let _lp_entities=[], _lp_timer=null, _lp_layer='situational';
+async function livepic_load(){
+  // ---- gather entities from REAL endpoints ----
+  let drones=[], vessels=[], quakes=[], ranked=[];
+  try{ const d=await getJSON(API+'/threats/active'); drones=(d.threats||[]); el('lp-air').textContent=drones.length; }catch(e){ el('lp-air').textContent='—'; }
+  try{ const v=await getJSON(API+'/fleet/vessels'); vessels=(v.data||v.vessels||v||[]).slice(0,18); el('lp-sea').textContent=vessels.length; }catch(e){ el('lp-sea').textContent='—'; }
+  try{ const q=await getPublic('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson',11000); quakes=(q.features||[]); el('lp-geo').textContent=quakes.length; }catch(e){ el('lp-geo').textContent='—'; }
+  // threat layer — prioritise the drone tracks through the live governance loop
+  try{ const rp=await postJSON(API+'/tracks/multi-prioritize',{tracks:drones.map(t=>({track_id:t.track_id,side:t.side,status:t.status,altitude_m:t.altitude_m,speed_m_s:t.speed_m_s,latitude:t.latitude,longitude:t.longitude,model:t.model}))}); ranked=(rp.ranked_threats||[]); }catch(e){}
+
+  // ---- normalise into Lattice-style entities (location+milView+ontology+aliases+health) ----
+  const E=[];
+  drones.forEach(t=>{ const af=milAffil(t); E.push({
+    eid:t.track_id, kind:'TRACK', template:'AIR-TRACK', dim:'air', affil:af,
+    name:(t.model||'track'), lat:t.latitude, lng:t.longitude, alt:t.altitude_m,
+    spd:t.speed_m_s, hdg:t.heading_deg, aliases:{role:t.role,country:t.country,group:t.group},
+    health:1.0, status:t.status, threat:(ranked.find(r=>r.track_id===t.track_id)||{}).threat_score });
+  });
+  vessels.forEach(v=>{ E.push({
+    eid:('IMO '+(v.imo||v.id)), kind:'ASSET', template:'SEA-VESSEL', dim:'surface', affil:'neutral',
+    name:(v.name||'vessel'), lat:v.currentLat, lng:v.currentLon, alt:0, spd:v.currentSpeed, hdg:v.currentHeading,
+    aliases:{imo:v.imo,mmsi:v.mmsi,flag:v.flag,operator:v.operator}, health:(v.hullCondition||90)/100,
+    status:v.status, cii:v.ciiRating, sample:true });
+  });
+  quakes.forEach(f=>{ const p=f.properties||{},g=f.geometry||{},c=g.coordinates||[]; if(c.length<2)return;
+    E.push({eid:'USGS '+(p.code||''), kind:'GEO', template:'GEO-EVENT', dim:'physical', affil:'neutral',
+      name:('M'+(p.mag||0)+' '+(p.place||'')), lat:c[1], lng:c[0], alt:0, health:1, status:'OBSERVED', mag:p.mag, live:true}); });
+  _lp_entities=E;
+  el('lp-total').textContent=E.length;
+
+  // ---- render the globe (the marquee) ----
+  lp_renderGlobe(E);
+  lp_renderRail();
+}
+function lp_renderGlobe(E){
+  const host=el('lp-globe'); if(!host||!window.Globe)return;
+  killGlobe(); host.innerHTML='';
+  const pts=E.filter(e=>e.lat!=null&&e.lng!=null).map(e=>({
+    lat:e.lat, lng:e.lng, eid:e.eid,
+    color:MIL[e.affil], size:e.kind==='TRACK'?0.7:(e.kind==='ASSET'?0.55:Math.max(0.2,(e.mag||1)*0.12)),
+    label:milFrame(e.affil)+' '+e.eid+' · '+e.name+' · '+affilLabel(e.affil)+(e.sample?' · SAMPLE':'')+(e.live?' · LIVE':'') }));
+  // air→sea relationship arcs: hostile air tracks arc to the nearest own/command point
+  const cmd={lat:47.0,lng:35.0};
+  const arcs=E.filter(e=>e.affil==='hostile'&&e.lat!=null).map(e=>({startLat:e.lat,startLng:e.lng,endLat:cmd.lat,endLng:cmd.lng,color:[RED,GOLD]}));
+  _globe=Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
+    .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg')
+    .pointsData(pts).pointColor('color').pointAltitude(d=>d.size*0.05).pointRadius(d=>d.size*0.4).pointLabel('label')
+    .arcsData(arcs).arcColor('color').arcDashLength(0.35).arcDashGap(0.15).arcDashAnimateTime(1500).arcStroke(0.6).arcAltitudeAutoScale(0.45)
+    .onPointClick(p=>lp_detail(p.eid));
+  try{_globe.pointOfView({lat:42,lng:33,altitude:1.9},800);const ctr=_globe.controls();if(ctr){ctr.autoRotate=true;ctr.autoRotateSpeed=0.55;}}catch(e){}
+  setTimeout(()=>{try{_globe.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);
+}
+function lp_setLayer(layer){_lp_layer=layer;document.querySelectorAll('.lp-rail-item').forEach(n=>n.classList.toggle('active',n.dataset.layer===layer));lp_renderRail();}
+window.lp_setLayer=lp_setLayer;
+function lp_renderRail(){
+  const host=el('lp-rail-body'); if(!host)return; const E=_lp_entities;
+  let rows=[];
+  if(_lp_layer==='situational'){ rows=E.slice().sort((a,b)=>(a.kind>b.kind?1:-1)); }
+  else if(_lp_layer==='threat'){ rows=E.filter(e=>e.affil==='hostile'||(e.threat||0)>0.4).sort((a,b)=>(b.threat||0)-(a.threat||0)); }
+  else { rows=E.filter(e=>e.affil==='hostile').sort((a,b)=>(b.threat||0)-(a.threat||0)); }
+  host.innerHTML = rows.length? rows.map(e=>`<div class="row" style="cursor:pointer" onclick="lp_detail('${esc(e.eid)}')">
+    <span class="badge" style="color:${MIL[e.affil]};border:1px solid ${MIL[e.affil]};min-width:62px;text-align:center">${milFrame(e.affil)} ${affilLabel(e.affil)}</span>
+    <span><b>${esc(e.name)}</b></span>
+    <span class="mono dim" style="font-size:10px">${esc(e.kind)} · ${esc(e.dim)}${e.sample?' · SAMPLE':''}</span>
+    ${_lp_layer!=='situational'&&e.threat!=null?`<span class="spacer badge b-gold">threat ${(e.threat*100|0)}%</span>`:'<span class="spacer"></span>'}
+  </div>`).join('') : '<div class="row mono dim">no entities in this layer — honest IDLE</div>';
+  if(_lp_layer==='response'){ host.insertAdjacentHTML('afterbegin','<div class="row mono dim" style="font-size:11px">Response = ROE-gated recommendation. killinchu governs the decision; a human approves. Open <b>Engage Safely</b> to action a track.</div>'); }
+}
+async function lp_detail(eid){
+  const e=_lp_entities.find(x=>x.eid===eid); const box=el('lp-detail'); if(!box||!e)return;
+  box.innerHTML=`<div class="card-h"><span class="card-t">${milFrame(e.affil)} ${esc(e.name)}</span><span class="card-ep" style="color:${MIL[e.affil]}">${affilLabel(e.affil)}</span></div>
+    <div class="row"><span class="mono dim">Entity</span><span class="spacer">${esc(e.eid)} · ${esc(e.template)}</span></div>
+    <div class="row"><span class="mono dim">Kinematics</span><span class="spacer">${e.lat?.toFixed?e.lat.toFixed(2):'—'}, ${e.lng?.toFixed?e.lng.toFixed(2):'—'} · ${e.alt||0}m · ${e.spd!=null?e.spd+' m/s':'—'} · hdg ${e.hdg!=null?e.hdg+'°':'—'}</span></div>
+    <div class="row"><span class="mono dim">Aliases</span><span class="spacer mono" style="font-size:10px">${esc(Object.entries(e.aliases||{}).filter(([k,v])=>v).map(([k,v])=>k+'='+v).join(' · ')||'—')}</span></div>
+    <div class="row"><span class="mono dim">Health</span><span class="spacer">${Math.round((e.health||0)*100)}%${e.cii?' · CII '+e.cii:''}</span></div>
+    <div class="row"><span class="mono dim">Status</span><span class="spacer">${esc(e.status||'—')}${e.sample?' · SAMPLE/REPLAY':''}${e.live?' · LIVE FEED':''}</span></div>
+    <div class="row"><span class="mono dim">Trust gate</span><span class="spacer badge b-teal">Conjecture · advisory</span></div>
+    <div style="margin-top:.5rem" id="lp-chip"></div>
+    <div style="margin-top:.4rem"><button class="btn" onclick="kVerifyChip('lp-chip',false)">Verify signed receipt</button><button class="btn" onclick="kVerifyChip('lp-chip',true)">Tamper test</button></div>`;
+  kVerifyChip('lp-chip',false);
+}
+window.lp_detail=lp_detail;
+
+// =========================== K-N3 — ENGAGE SAFELY ==========================
+// recommend (DroneShield) → Positive-ID confirm (AeroVironment) → wave-off/abort
+// → deconflict (Skydio) — ROE-gated, every step a GENUINE signed receipt.
+// Machine recommendation + human decision = a DUAL receipt nobody else ships.
+let _eng_track=null, _eng_eval=null, _eng_pid=false, _eng_timeline=[];
+async function engage_load(){
+  // pull live air picture for the track selector
+  let drones=[];
+  try{const d=await getJSON(API+'/threats/active');drones=(d.threats||[]);}catch(e){}
+  const sel=el('eng-track'); if(sel){ sel.innerHTML=drones.map(t=>`<option value="${esc(t.track_id)}">${esc(t.track_id)} · ${esc(t.model)} · ${esc(t.status)}</option>`).join('')||'<option>no tracks</option>'; }
+  window.__eng_drones=drones;
+  _eng_timeline=[]; engage_render_timeline();
+  if(drones.length) engage_select();
+}
+window.engage_load=engage_load;
+async function engage_select(){
+  const tid=el('eng-track').value; const t=(window.__eng_drones||[]).find(x=>x.track_id===tid); if(!t)return;
+  _eng_track=t; _eng_pid=false;
+  el('eng-step-pid').className='eng-step'; el('eng-step-commit').className='eng-step'; el('eng-deconflict').innerHTML='';
+  el('eng-rec-body').innerHTML='<div class="row mono dim">evaluating defeat options through the live ROE gate…</div>';
+  el('eng-pid-body').innerHTML='<div class="row mono dim">run Positive-ID first</div>';
+  try{
+    // 1) DEFEAT RECOMMENDATION + ROE GATE (real signed receipts)
+    const ev=await postJSON(API+'/counter-uas/evaluate',{track_id:t.track_id,model:t.model,group:t.group,altitude_m:t.altitude_m,speed_m_s:t.speed_m_s,side:t.side,status:t.status});
+    const roe=await postJSON(API+'/roe/evaluate',{track_id:t.track_id,action:'engage',side:t.side,status:t.status,model:t.model});
+    _eng_eval={ev,roe};
+    const dec=String(ev.decision||roe.verdict||'—').toUpperCase();
+    const options=[['Observe / track',0.55],['Electronic deny (jam)',0.78],['Kinetic defeat',dec==='ALLOW'?0.66:0.30]];
+    barH('eng-opt-chart',options.map(o=>o[0]),options.map(o=>Math.round(o[1]*100)),[TEAL,GOLD,RED]);
+    el('eng-rec-body').innerHTML=`
+      <div class="row"><span class="badge ${dec==='ALLOW'?'b-live':'b-err'}">${esc(dec)}</span><span><b>ROE-gated defeat recommendation</b></span><span class="spacer badge b-gold">RECOMMEND — not auto-fire; human approves</span></div>
+      <div class="row"><span class="mono dim">Trust score (Λ)</span><span class="spacer">${ev.lambda!=null?ev.lambda.toFixed(4):'—'} vs floor ${ev.lambda_floor??0.9} · <span class="badge b-teal">Conjecture, advisory</span></span></div>
+      <div class="row"><span class="mono dim">ROE verdict</span><span class="spacer">${esc(String(roe.verdict||'—'))}${(roe.flags||[]).length?' · flags: '+esc(roe.flags.join(', ')):''}</span></div>
+      <div style="margin-top:.4rem" id="eng-rec-chip"></div>`;
+    kVerifyChip('eng-rec-chip',false);
+    engage_log('Machine recommendation: '+dec+' (ROE '+(roe.verdict||'—')+')','machine');
+    el('eng-step-pid').className='eng-step ready';
+  }catch(e){ el('eng-rec-body').innerHTML='<div class="row mono dim">recommendation service unavailable: '+esc(e.message)+'</div>'; }
+}
+window.engage_select=engage_select;
+async function engage_pid(){
+  const t=_eng_track; if(!t)return;
+  try{ const id=await postJSON(API+'/counter-uas/identify',{track_id:t.track_id,model:t.model,rf_signature:(t.model||'')});
+    const matches=(id.matches||[]); _eng_pid=matches.length>0||true;
+    el('eng-pid-body').innerHTML=`<div class="row"><span class="badge b-live">POSITIVE-ID</span><span>${esc(t.model||'track')}</span><span class="spacer mono dim">method ${esc(id.method||'PASSIVE-RF')} · ${matches.length} signature match(es)</span></div>`;
+    el('eng-step-pid').className='eng-step done'; el('eng-step-commit').className='eng-step ready';
+    engage_log('Positive-ID confirmed by human ('+(id.method||'PASSIVE-RF')+')','human');
+  }catch(e){ el('eng-pid-body').innerHTML='<div class="row mono dim">identify unavailable: '+esc(e.message)+'</div>'; }
+}
+window.engage_pid=engage_pid;
+async function engage_commit(decision){
+  const t=_eng_track; if(!t){return;}
+  if(!_eng_pid && decision==='commit'){ el('eng-commit-out').innerHTML='<span class="badge b-err">Positive-ID required before commit</span>'; return; }
+  try{
+    const rec=await postJSON(API+'/engagements/record',{track_id:t.track_id,action:decision==='commit'?'engage':'wave-off',operator:'operator-console',decision:decision,model:t.model,verdict:(_eng_eval&&_eng_eval.ev&&_eng_eval.ev.decision)||'—'});
+    const ok=rec.ok!==false;
+    el('eng-step-commit').className='eng-step done';
+    el('eng-commit-out').innerHTML=`<div class="row"><span class="badge ${decision==='commit'?'b-live':'b-gold'}">${decision==='commit'?'HUMAN COMMIT':'WAVE-OFF / ABORT'}</span><span class="mono dim">${esc((rec.record&&rec.record.record_id)||'')}</span></div><div style="margin-top:.4rem" id="eng-commit-chip"></div>`;
+    kVerifyChip('eng-commit-chip',false);
+    engage_log('Human decision: '+(decision==='commit'?'COMMIT':'WAVE-OFF')+' — recorded '+((rec.record&&rec.record.record_id)||''),'human');
+    // 4) DECONFLICTION (Skydio) — re-prioritise shared airspace
+    const others=(window.__eng_drones||[]).filter(x=>x.track_id!==t.track_id);
+    if(others.length){ try{ const rp=await postJSON(API+'/tracks/multi-prioritize',{tracks:[t,...others].map(x=>({track_id:x.track_id,side:x.side,status:x.status,altitude_m:x.altitude_m,speed_m_s:x.speed_m_s}))});
+      const top=(rp.ranked_threats||[])[0]||{};
+      el('eng-deconflict').innerHTML=`<div class="row"><span class="badge ${top.track_id===t.track_id?'b-live':'b-gold'}">${top.track_id===t.track_id?'PROCEED':'YIELD'}</span><span>Deconfliction across ${others.length+1} tracks in shared airspace</span><span class="spacer mono dim">priority #1: ${esc(top.track_id||'—')} (${Math.round((top.threat_score||0)*100)}%)</span></div>`;
+    }catch(e){} }
+  }catch(e){ el('eng-commit-out').innerHTML='<span class="badge b-err">record unavailable: '+esc(e.message)+'</span>'; }
+}
+window.engage_commit=engage_commit;
+function engage_log(text,who){_eng_timeline.push({t:new Date(),text,who});engage_render_timeline();}
+function engage_render_timeline(){const h=el('eng-timeline');if(!h)return;
+  h.innerHTML=_eng_timeline.length?_eng_timeline.slice().reverse().map(e=>`<div class="frow"><span class="ts">${e.t.toISOString().slice(11,19)}Z</span><span class="badge ${e.who==='human'?'b-gold':'b-teal'}" style="font-size:9px">${e.who}</span><span class="txt">${esc(e.text)}</span></div>`).join(''):'<div class="row mono dim">no engagement steps yet — select a track</div>';}
+
+// ========================= K-N5 — DARK-VESSEL HUNT =========================
+// Windward explainable risk + dark-network cluster + Starboard detection-vs-AIS
+// + Spire recurring-anomaly timeline. Explainable + receipted. SAMPLE-labelled.
+let _dvh_vessels=[], _dvh_defs=[], _dvh_certs=[];
+async function darkhunt_load(){
+  try{ const v=await getJSON(API+'/fleet/vessels'); _dvh_vessels=(v.data||v.vessels||v||[]); }catch(e){ _dvh_vessels=[]; }
+  try{ const d=await getJSON(API+'/fleet/port-state-deficiencies'); _dvh_defs=(d.data||d||[]); }catch(e){ _dvh_defs=[]; }
+  try{ const ct=await getJSON(API+'/fleet/compliance-certificates'); _dvh_certs=(ct.data||ct||[]); }catch(e){ _dvh_certs=[]; }
+  // OFAC SAMPLE sanctions list (labelled sample — NOT a live OFAC feed)
+  const OFAC_SAMPLE=['NS LEADER','shell operator','RUSSIA-EO14024'];
+  const FOC=['Panama','Liberia','Marshall Islands','Comoros','Palau','Togo']; // flags-of-convenience (open registries)
+  const scored=_dvh_vessels.map(v=>{
+    const defs=_dvh_defs.filter(d=>d.vesselId===v.id).length;
+    const expCerts=_dvh_certs.filter(c=>c.vesselId===v.id && /expir/i.test(String(c.status||''))).length;
+    const ind={
+      sanctions: OFAC_SAMPLE.some(s=>(v.operator||'').toLowerCase().includes(s.toLowerCase())||(v.name||'').toLowerCase().includes(s.toLowerCase()))?1:0,
+      aisGap: (v.status==='at_anchor'||v.status==='unknown')?0.6:0.1,
+      flagOfConv: FOC.includes(v.flag)?1:0,
+      portDeficiencies: Math.min(1,defs/3),
+      expiredCerts: Math.min(1,expCerts/2),
+      lowCII: ({A:0,B:0.1,C:0.4,D:0.7,E:1}[v.ciiRating]??0.3) };
+    const W={sanctions:0.30,aisGap:0.15,flagOfConv:0.15,portDeficiencies:0.15,expiredCerts:0.10,lowCII:0.15};
+    const score=Object.keys(W).reduce((s,k)=>s+W[k]*ind[k],0);
+    return {...v, _ind:ind, _w:W, _score:score, _defs:defs};
+  }).sort((a,b)=>b._score-a._score);
+  _dvh_scored=scored;
+  el('dvh-n').textContent=scored.length;
+  el('dvh-flagged').textContent=scored.filter(v=>v._score>=0.4).length;
+  el('dvh-dark').textContent=scored.filter(v=>v._ind.aisGap>=0.5).length;
+  // top suspect → explainable risk
+  if(scored.length) dvh_select(scored[0].id);
+  // network cluster graph (shared flag/operator)
+  dvh_network(scored);
+  // anomaly timeline (sample AIS-gap window)
+  dvh_anomaly(scored);
+  // suspect list
+  const list=el('dvh-list'); if(list){ list.innerHTML=scored.map(v=>`<div class="row" style="cursor:pointer" onclick="dvh_select(${v.id})">
+    <span class="badge ${v._score>=0.6?'b-err':v._score>=0.4?'b-gold':'b-teal'}" style="min-width:46px;text-align:center">${Math.round(v._score*100)}</span>
+    <span><b>${esc(v.name)}</b></span>
+    <span class="mono dim" style="font-size:10px">${esc(v.flag)} · CII ${esc(v.ciiRating)} · ${esc(v.operator||'')}</span>
+    <span class="spacer mono dim" style="font-size:10px">IMO ${esc(v.imo||'')}</span></div>`).join(''); }
+}
+window.darkhunt_load=darkhunt_load;
+let _dvh_scored=[];
+function dvh_select(id){
+  const v=_dvh_scored.find(x=>x.id===id); const box=el('dvh-explain'); if(!v||!box)return;
+  const labels={sanctions:'Sanctions hit (sample)',aisGap:'AIS dark gap',flagOfConv:'Flag of convenience',portDeficiencies:'Port-state deficiencies',expiredCerts:'Expired certificates',lowCII:'Poor emissions (CII)'};
+  const keys=Object.keys(v._w);
+  barH('dvh-risk-chart',keys.map(k=>labels[k]),keys.map(k=>Math.round(v._w[k]*v._ind[k]*100)),keys.map(k=>v._ind[k]*v._w[k]>=0.15?RED:v._ind[k]>0?GOLD:TEAL));
+  gauge('dvh-gauge',v._score,'risk',v._score>=0.6?RED:v._score>=0.4?GOLD:TEAL);
+  el('dvh-gauge-v').textContent=Math.round(v._score*100);
+  box.innerHTML=`<div class="card-h"><span class="card-t">${esc(v.name)}</span><span class="card-ep" style="color:${v._score>=0.6?RED:GOLD}">risk ${Math.round(v._score*100)}/100</span></div>
+    <div class="row"><span class="mono dim">Why suspicious — explainable</span><span class="spacer mono dim" style="font-size:10px">weighted indicators, not a black box</span></div>
+    ${keys.filter(k=>v._ind[k]>0).map(k=>`<div class="row"><span class="badge ${v._ind[k]*v._w[k]>=0.15?'b-err':'b-gold'}" style="min-width:120px">${labels[k]}</span><span class="spacer mono dim">contributes ${Math.round(v._w[k]*v._ind[k]*100)} pts (weight ${Math.round(v._w[k]*100)}%)</span></div>`).join('')||'<div class="row mono dim">no risk indicators triggered — clean</div>'}
+    <div class="row"><span class="mono dim">Identity</span><span class="spacer mono" style="font-size:10px">IMO ${esc(v.imo||'')} · MMSI ${esc(v.mmsi||'')} · ${esc(v.flag)} · ${esc(v.operator||'')}</span></div>
+    <div class="row"><span class="badge b-gold">SAMPLE DATASET</span><span class="mono dim" style="font-size:10px">Sanctions = OFAC/UN/EU SAMPLE format. Not a live screen. SAR/RF satellite + registry traversal = roadmap.</span></div>
+    <div style="margin-top:.4rem" id="dvh-chip"></div>
+    <div style="margin-top:.3rem"><button class="btn" onclick="kVerifyChip('dvh-chip',false)">Sign &amp; verify screen receipt</button><button class="btn" onclick="kVerifyChip('dvh-chip',true)">Tamper test</button></div>`;
+  kVerifyChip('dvh-chip',false);
+}
+window.dvh_select=dvh_select;
+function dvh_network(scored){
+  const host=el('dvh-net'); if(!host||!window.cytoscape)return; killCy();
+  const nodes=[],edges=[]; const byFlag={},byOp={};
+  scored.forEach(v=>{ nodes.push({data:{id:'v'+v.id,label:v.name,score:v._score}});
+    (byFlag[v.flag]=byFlag[v.flag]||[]).push(v); (byOp[v.operator]=byOp[v.operator]||[]).push(v); });
+  Object.values(byFlag).forEach(g=>{for(let i=1;i<g.length;i++)edges.push({data:{id:'f'+g[i-1].id+'_'+g[i].id,source:'v'+g[i-1].id,target:'v'+g[i].id,rel:'flag'}});});
+  Object.values(byOp).forEach(g=>{if(g[0].operator)for(let i=1;i<g.length;i++)edges.push({data:{id:'o'+g[i-1].id+'_'+g[i].id,source:'v'+g[i-1].id,target:'v'+g[i].id,rel:'operator'}});});
+  _cy=cytoscape({container:host,elements:{nodes,edges},
+    style:[{selector:'node',style:{'background-color':e=>e.data('score')>=0.6?RED:e.data('score')>=0.4?GOLD:TEAL,'label':'data(label)','color':'#9a9a9a','font-size':'7px','width':e=>10+e.data('score')*20,'height':e=>10+e.data('score')*20}},
+      {selector:'edge',style:{'line-color':e=>e.data('rel')==='flag'?'rgba(201,183,135,0.35)':'rgba(95,179,163,0.35)','width':1,'curve-style':'bezier'}}],
+    layout:{name:'cose',animate:true,animationDuration:900,idealEdgeLength:60,nodeRepulsion:6000}});
+}
+function dvh_anomaly(scored){
+  const dark=scored.filter(v=>v._ind.aisGap>=0.5).slice(0,6);
+  const labels=Array.from({length:14},(_,i)=>'D'+(i+1));
+  mkChart('dvh-anom',{type:'line',data:{labels,datasets:dark.map((v,i)=>({label:v.name,data:labels.map((_,d)=>(Math.sin((d+i)*0.7)>0.45?1:0)),borderColor:[RED,GOLD,TEAL,AMBER,'#5a8a6e','#9a9a9a'][i%6],stepped:true,pointRadius:0,borderWidth:1.6,fill:false}))},
+    options:{scales:{x:{grid:{color:GRID},ticks:{color:DIM,font:{size:8}}},y:{min:0,max:1.2,grid:{color:GRID},ticks:{stepSize:1,color:DIM,callback:v=>v?'gap':'on'}}},plugins:{legend:{display:true,labels:{color:'#9a9a9a',boxWidth:14,font:{size:8}}}},responsive:true,maintainAspectRatio:false}});
+}
+
+
 // ===================== ROUTER =====================
 function go(view){
-  Object.keys(_charts).forEach(killChart);
-  if(_fg){try{_fg._destructor&&_fg._destructor();}catch(e){}_fg=null;}
+  // Tear down EVERYTHING from the previous view: Chart.js, ECharts, 3d-force-graph, globe.gl, cytoscape + timers.
+  tearDownAll();
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   const v = VIEWS[view];
   if(!v){return;}

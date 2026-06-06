@@ -251,5 +251,16 @@ COPY web/console.js ./web/console.js
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 COPY szl_agentic_loop.py ./szl_agentic_loop.py
 
+# ADDITIVE (Operational Control Surfaces, 2026-06-06): makes VESSELS and DRONES
+# genuinely operational — select a track -> issue a governed command -> deny-by-
+# default policy/kernel gate -> genuinely cosign-signed receipt -> track STATE
+# updates. Every control action is wrapped in the governed-run loop (P1-P6) so
+# 'operate' = 'governed + receipted'. Self-contained operator UI at /ops + /control.
+# This Dockerfile NEVER uses `COPY . .` — every file is explicit. Without this line
+# `import killinchu_ops_control` fails silently and /ops + /api/killinchu/v1/ops/* 404.
+# Receipts are signed with the persistent cosign ECDSA-P256-SHA256 key (szl_dsse).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY killinchu_ops_control.py ./killinchu_ops_control.py
+
 CMD ["python", "serve.py"]
 

@@ -2277,13 +2277,6 @@ except Exception as _kc_ec_e:
 # ============================================================================
 
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", "7860"))
-    print(f"[killinchu] Andean Drone Intelligence on :{port} — Doctrine v11 — SPA at /", file=sys.stderr)
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
-
-
 # ============================================================================
 # ADDITIVE: SZL Agent Pattern v1 ("Ken") — AUTO-REGISTERED
 # Date: 2026-06-03 | By: Ecosystem Agentic Uplift Team
@@ -2592,3 +2585,45 @@ except Exception as _kloop_e:
 # ============================================================================
 # END: GOVERNED AGENT LOOP — killinchu
 # ============================================================================
+
+
+# ============================================================================
+# BEGIN: OPERATIONAL CONTROL SURFACES — killinchu (2026-06-06, ADDITIVE)
+# Makes VESSELS and DRONES genuinely operational: select a track -> issue a
+# governed command -> it runs through the deny-by-default policy/kernel gate ->
+# emits a genuinely cosign-signed receipt -> the track STATE updates (not a
+# static display). Every control action is wrapped in the governed-run loop
+# (P1-P6) so 'operate' = 'governed + receipted'. Self-contained operator UI at
+# /ops and /control. Routes inserted at position 0 so they beat the SPA
+# /{full_path:path} catch-all. NEVER crashes the app. Sample/replay state is
+# labeled honestly (not a live AIS/C-UAS feed); the control actions are real.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import killinchu_ops_control as _kc_ops
+    import sys as _kops_sys
+    _kops_status = _kc_ops.register(app, "killinchu")
+    print(f"[killinchu] operational control surfaces registered: {_kops_status}", file=_kops_sys.stderr)
+except Exception as _kops_e:
+    import sys as _kops_sys, traceback as _kops_tb
+    print(f"[killinchu] operational control surfaces FAILED (non-fatal): {_kops_e!r}", file=_kops_sys.stderr)
+    _kops_tb.print_exc(file=_kops_sys.stderr)
+# ============================================================================
+# END: OPERATIONAL CONTROL SURFACES — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# ENTRYPOINT — MUST be the LAST top-level block. uvicorn.run() blocks forever,
+# so every route registration above (SPA catch-all, frontier patch, dag alias,
+# FLEET front-insert, governed agent loop) MUST be registered before this runs.
+# Relocated 2026-06-06 to fix governed-loop + catch-all 404 (was dead code after
+# a blocking uvicorn.run mid-file).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ============================================================================
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", "7860"))
+    print(f"[killinchu] Andean Drone Intelligence on :{port} — Doctrine v11 — SPA at /", file=sys.stderr)
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
