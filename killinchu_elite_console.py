@@ -789,23 +789,28 @@ const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads 
 // with killinchu's REAL cosign key and verified in-browser, same as drone receipts.
 const SAMPLE_VESSELS = [
   {id:'V1',name:'NS LEADER',type:'Crude Oil Tanker',flag:'Panama',mmsi:'355936000',last_seen:'AIS gap 6h',
+   lat:45.30, lon:36.50, course:118, speed_kn:0.4,
    sanctioned:true, dark:true, watch:true,
    sanction_hit:{list:'OFAC SDN (sample)',program:'RUSSIA-EO14024',entity:'NS LEADER / shell operator'},
    owner_chain:['NS Leader Shipping Ltd (registered)','Blue Horizon Holdings (shell, Marshall Is.)','Sovcom-linked ultimate owner (sample)'],
    ais:[5,5,4,5,5,5,4,5,5,5,5,4,0,0,0,0,0,0,3,5,5,5,4,5]},
   {id:'V2',name:'STAR PIONEER',type:'Bulk Carrier',flag:'Liberia',mmsi:'636092000',last_seen:'2 min ago',
+   lat:46.10, lon:35.20, course:204, speed_kn:12.6,
    sanctioned:false, dark:false, watch:false,
    owner_chain:['Star Bulk Maritime (registered)','Star Bulk Carriers Corp (listed parent)'],
    ais:[5,5,5,5,4,5,5,5,5,5,4,5,5,5,5,4,5,5,5,5,5,4,5,5]},
   {id:'V3',name:'GULF SERENITY',type:'LNG Carrier',flag:'Marshall Islands',mmsi:'538007000',last_seen:'AIS gap 3h',
+   lat:44.20, lon:37.80, course:268, speed_kn:1.1,
    sanctioned:false, dark:true, watch:true,
    owner_chain:['Serenity Gas Transport (registered)','Meridian Shell Co (shell, Marshall Is.)','undisclosed beneficial owner'],
    ais:[5,5,5,4,5,5,5,5,4,5,5,0,0,0,0,5,5,5,5,4,5,5,5,5]},
   {id:'V4',name:'CMA NORDIC',type:'Container Ship',flag:'France',mmsi:'228339600',last_seen:'just now',
+   lat:43.50, lon:34.10, course:92, speed_kn:18.2,
    sanctioned:false, dark:false, watch:false,
    owner_chain:['CMA CGM (registered)','CMA CGM Group (listed parent)'],
    ais:[5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5]},
   {id:'V5',name:'EVER CALM',type:'Container Ship',flag:'Singapore',mmsi:'563112000',last_seen:'4 min ago',
+   lat:46.80, lon:33.60, course:148, speed_kn:15.0,
    sanctioned:false, dark:false, watch:true,
    owner_chain:['Evergreen Marine (registered)','Evergreen Group (listed parent)'],
    ais:[5,5,4,5,5,5,5,4,5,5,5,5,5,4,5,5,5,5,4,5,5,5,5,5]}
@@ -1009,7 +1014,7 @@ const VIEWS = {
 
 
   // ── 3.1 Live Track Board / COP ──────────────────────────────────
-  tracks:{title:'Live Track Board',badge:'8 TRACKS · AIR PICTURE',sub:'Air picture — live drone tracks rendered from the adversary signature library. Each node is a tracked drone: red = threat above threshold, teal = clear. Simulated positions over real threat signatures — not a live sensor feed.',
+  tracks:{title:'Live Track Board',badge:'AIR/SURFACE PICTURE · TACTICAL PLOT',sub:'Air picture — a 2D tactical plot (lat/lon, heading vectors) plus a sortable radar-track table from the live /threats/active feed. Click a track to select it on the plot and run a governed ROE evaluation that returns a genuinely-signed receipt. Simulated positions over real adversary signatures — not a live sensor feed.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Active threats</div><div class="v live" id="k-active">—</div><div class="d">above threat threshold</div></div>
@@ -1017,37 +1022,24 @@ const VIEWS = {
         <div class="kpi"><div class="k">Trust gate</div><div class="v teal">Conjecture</div><div class="d">advisory, not proven</div></div>
         <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Threat Mesh — live tracks</span><span class="card-ep">3D · drones as nodes</span></div>
-        <div class="graph3d" id="tracks-3d"></div>
-        <div class="legend"><span><i style="background:#b06a5a"></i>threat (above threshold)</span><span><i style="background:#5fb3a3"></i>clear</span><span><i style="background:#c9b787"></i>command node</span></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Active Threats</span></div><div id="track-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Tactical Plot — lat/lon · heading vectors</span><span class="card-ep">2D air picture · click a point to select</span></div>
+        <div class="chartbox" id="tracks-plot" style="height:440px"></div>
+        <div class="legend"><span><i style="background:#b06a5a"></i>threat (inbound / adversary)</span><span><i style="background:#c9a05f"></i>ISR / patrol</span><span><i style="background:#5fb3a3"></i>clear</span><span><i style="background:#c9b787"></i>killinchu C2 station</span><span>arrow = heading · ring = selected</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Radar Track Table</span><span class="card-ep">click a header to sort · click a row to select &amp; evaluate</span></div>
+        <div style="max-height:340px;overflow:auto"><table class="dtbl"><thead><tr>
+          <th style="cursor:pointer" onclick="window.tracks_sort('track_id')">track</th>
+          <th style="cursor:pointer" onclick="window.tracks_sort('model')">model</th>
+          <th style="cursor:pointer" onclick="window.tracks_sort('side')">side</th>
+          <th style="cursor:pointer" onclick="window.tracks_sort('status')">status</th>
+          <th style="cursor:pointer" onclick="window.tracks_sort('range_km')">range km ▾</th>
+          <th style="cursor:pointer" onclick="window.tracks_sort('bearing_deg')">bearing°</th>
+          <th style="cursor:pointer" onclick="window.tracks_sort('altitude_m')">alt m</th>
+          <th style="cursor:pointer" onclick="window.tracks_sort('speed_m_s')">m/s</th>
+          <th>ROE</th></tr></thead>
+          <tbody id="tracks-tb"><tr><td colspan="9" class="mono dim">reading live /threats/active…</td></tr></tbody></table></div></div>
+      <div class="card" id="track-detail"><div class="row mono dim">Select a track (click a plot point or a table row, then “evaluate”) to screen it against current ROE — the verdict, flags, recommended effector and a genuinely-signed receipt land here. Λ is advisory (Conjecture 1), not a pass/fail oracle.</div></div>
       <details class="raw"><summary>raw /threats/active</summary><pre class="out" id="tracks-raw">—</pre></details>${HONEST}`;
-      try{
-        const d = await getJSON(API+'/threats/active');
-        setOut('tracks-raw',d);
-        el('k-active').textContent = d.active_threats ?? '—';
-        el('k-total').textContent = d.total_tracks ?? '—';
-        const threats=(d.threats||[]);
-        // mesh3d: each drone node, threat=red; link all to a central command node
-        const nodes=[{id:'CMD',name:'killinchu C2',color:GOLD,val:9}];
-        const links=[];
-        threats.forEach(t=>{
-          const isThreat=(t.status==='INBOUND')||(t.side==='adversary')||['ENGAGE','BREACH','DENY'].includes(String(t.roe_verdict||'').toUpperCase());
-          nodes.push({id:t.track_id,name:(t.track_id+' · '+(t.model||'')),color:isThreat?RED:TEAL,val:isThreat?7:4});
-          links.push({source:'CMD',target:t.track_id});
-        });
-        mesh3d('tracks-3d',nodes,links);
-        const h = el('track-list'); h.innerHTML='';
-        threats.forEach(t=>{
-          h.insertAdjacentHTML('beforeend',`<div class="row">
-            <span class="badge b-gold">${esc(t.track_id)}</span>
-            <span><b>${esc(t.model)}</b></span>
-            <span class="mono dim" style="font-size:11px">${esc(t.status)} · ${esc(t.group)}</span>
-            <span class="spacer mono dim" style="font-size:10px">${t.speed_m_s??'?'}m/s · ${t.altitude_m??'?'}m alt · ${esc(t.telemetry_source)}</span>
-          </div>`);
-        });
-        if(!threats.length) h.innerHTML='<div class="row mono dim">no tracks</div>';
-      }catch(e){setHTML('track-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
+      window.tracks_load();
     }},
 
   // ── 3.2 Sensor-Fusion Monitor ───────────────────────────────────
@@ -1094,7 +1086,7 @@ const VIEWS = {
     }},
 
   // ── 3.3b Maritime Picture (Vessels) ─────────────────────────────
-  maritime:{title:'Maritime Picture',badge:'VESSELS · AIS REPLAY',sub:'Sea picture — vessels around the area of interest. Each node is a ship: red = sanctioned or gone dark, amber = watch, teal = clear. This is an AIS replay — a sample track set, not a live feed.',
+  maritime:{title:'Maritime Picture',badge:'VESSELS · GEO GLOBE · AIS REPLAY',sub:'Sea picture — vessel positions on a 3D geo-globe with replay tracks arcing to the killinchu maritime station. Red = sanctioned or gone dark, amber = watch, teal = clear. Click a vessel point for its risk card. This is an AIS <b>replay (sample track set), not a live AIS feed</b> — no AIS provider is wired.',
     render:async(c)=>{
       const V = SAMPLE_VESSELS;
       const sanctioned = V.filter(v=>v.sanctioned).length;
@@ -1105,9 +1097,10 @@ const VIEWS = {
         <div class="kpi"><div class="k">Gone dark</div><div class="v warn" id="m-dark">${dark}</div><div class="d">AIS gap detected</div></div>
         <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Sea Mesh — vessels around the AOI</span><span class="card-ep">3D · vessels as nodes</span></div>
-        <div class="graph3d" id="maritime-3d"></div>
-        <div class="legend"><span><i style="background:#b06a5a"></i>sanctioned / dark</span><span><i style="background:#c9a05f"></i>watch</span><span><i style="background:#5fb3a3"></i>clear</span><span><i style="background:#c9b787"></i>our station</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Geo Globe — vessels around the AOI</span><span class="card-ep">globe.gl · AIS replay (not live) · click a vessel</span></div>
+        <div class="graph3d" id="maritime-globe"></div>
+        <div class="legend"><span><i style="background:#b06a5a"></i>sanctioned / dark</span><span><i style="background:#c9a05f"></i>watch</span><span><i style="background:#5fb3a3"></i>clear</span><span><i style="background:#c9b787"></i>our station</span><span>arc = replay track to station · ring = AIS dark-gap</span></div></div>
+      <div class="card" id="vessel-risk-card"><div class="row mono dim">Click a vessel on the globe (or a row below) for its risk card — sanctions, AIS dark-gap, flag and ownership. Sample/replay screening in OFAC/UN/EU format, not live coverage.</div></div>
       <div class="card"><div class="card-h"><span class="card-t">Vessels</span></div><div id="vessel-list"></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Who really owns this vessel?</span></div>
         <div class="form-row"><label>Vessel</label><select id="own-pick">${V.map(v=>`<option value="${esc(v.id)}">${esc(v.name)} (${esc(v.flag)})</option>`).join('')}</select></div>
@@ -1121,20 +1114,12 @@ const VIEWS = {
       <details class="raw"><summary>raw AIS replay sample set</summary><pre class="out" id="maritime-raw">—</pre></details>
       <div class="honesty"><b>Honest by design.</b> This maritime picture is an <b>AIS replay — a sample track set, not a live feed</b> (no AIS provider is wired). Sanctions and ownership are screened against a small <b>sample list</b> in OFAC/UN/EU format, not full real-time coverage. Vessel-alert receipts are <b>genuinely signed</b> with killinchu's real key and verifiable offline — the same signed-receipt thesis as the drone side.</div>`;
       setOut('maritime-raw', V);
-      // mesh3d: vessels linked to our station node
-      const nodes=[{id:'STATION',name:'killinchu maritime station',color:GOLD,val:9}];
-      const links=[];
-      V.forEach(v=>{
-        const col = (v.sanctioned||v.dark)?RED:(v.watch?WARN:TEAL);
-        nodes.push({id:v.id,name:v.name+' · '+v.type,color:col,val:(v.sanctioned||v.dark)?7:4});
-        links.push({source:'STATION',target:v.id});
-      });
-      mesh3d('maritime-3d',nodes,links);
+      window.maritime_globe();
       const h=el('vessel-list'); h.innerHTML='';
       V.forEach(v=>{
         const sc = (v.sanctioned||v.dark)?'b-err':(v.watch?'b-warn':'b-live');
         const tag = v.sanctioned?'SANCTIONED':v.dark?'DARK (AIS gap)':v.watch?'WATCH':'CLEAR';
-        h.insertAdjacentHTML('beforeend',`<div class="row">
+        h.insertAdjacentHTML('beforeend',`<div class="row" style="cursor:pointer" onclick="window.maritime_risk('${esc(v.id)}')">
           <span class="badge ${sc}">${tag}</span>
           <span><b>${esc(v.name)}</b></span>
           <span class="mono dim" style="font-size:11px">${esc(v.type)} · ${esc(v.flag)}</span>
@@ -1734,16 +1719,16 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
     }},
 
   // ── 3.12 Swarm Topology ─────────────────────────────────────────
-  swarm:{title:'Swarm Topology',badge:'CLUSTER DETECT',sub:'Spot coordinated drone swarms. Drones flying close together are grouped into clusters and shown as a connected mesh — so the operator can see a 12-drone swarm as one threat, not twelve separate dots. Simulated positions over real adversary signatures — not a live feed.',
+  swarm:{title:'Swarm Topology',badge:'FORMATION GEOMETRY · COMMS LINKS',sub:'Spot coordinated drone swarms. This is a <b>formation diagram</b> — each drone is plotted at its real broadcast lat/lon, comms links drawn between drones inside the proximity threshold, with the leader (formation anchor) ringed and followers tied to it. So the operator sees a 12-drone swarm as one structured threat, not twelve separate dots. Remote-ID positions are unauthenticated broadcast claims; clustering is geometric only.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Swarms detected</div><div class="v live" id="k-swarms">—</div><div class="d">coordinated groups</div></div>
         <div class="kpi"><div class="k">Broadcasts</div><div class="v" id="k-nodes">—</div><div class="d">total drones seen</div></div>
         <div class="kpi"><div class="k">Grouping</div><div class="v teal">By proximity</div><div class="d">drones flying together</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Swarm Mesh — clusters in 3D</span><span class="card-ep">3D · drones grouped by swarm</span></div>
-        <div class="graph3d" id="swarm-3d"></div>
-        <div class="legend"><span>Each cluster is one detected swarm. Lines connect drones flying close enough to be acting together. Drag to rotate.</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Formation Geometry — leader / follower &amp; comms links</span><span class="card-ep">drones at real lat/lon · edges = proximity comms</span></div>
+        <div class="chartbox" id="swarm-formation" style="height:460px"></div>
+        <div class="legend"><span><i style="background:#c9b787"></i>leader (formation anchor)</span><span><i style="background:#b06a5a"></i>follower (threat swarm)</span><span><i style="background:#5fb3a3"></i>follower (benign cluster)</span><span>solid line = comms link within proximity threshold · dashed = leader→follower tie</span></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Detected Swarms</span></div><div id="swarm-list"><div class="row mono dim">loading…</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Try it — group a custom set of drones</span></div>
         <div class="btns"><button class="btn teal" onclick="swarm_post()">▶ Run a 4-drone grouping test</button></div>
@@ -1756,21 +1741,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         setOut('swarm-raw',d);
         el('k-swarms').textContent = d.swarms_detected ?? '—';
         el('k-nodes').textContent = d.broadcast_count ?? '—';
-        // mesh3d: one hub per cluster; member drones link to their cluster hub.
-        const palette=[TEAL,GOLD,WARN,'#7fa8c9','#b07fb0'];
-        const nodes=[], links=[];
-        (d.clusters||[]).forEach((cl,ci)=>{
-          const col = String(cl.classification||'').toLowerCase().includes('shahed')||String(cl.classification||'').toLowerCase().includes('threat')?RED:palette[ci%palette.length];
-          const hub='C'+cl.cluster_id;
-          nodes.push({id:hub,name:'Swarm '+cl.cluster_id+' · '+(cl.classification||''),color:col,val:8});
-          (cl.members||[]).forEach((m,mi)=>{
-            const nid=hub+'-'+mi;
-            nodes.push({id:nid,name:(m.model||'drone'),color:col,val:4});
-            links.push({source:hub,target:nid});
-          });
-        });
-        if(nodes.length) mesh3d('swarm-3d',nodes,links);
-        else el('swarm-3d').innerHTML='<div class="row mono dim" style="padding:1rem">no swarms detected</div>';
+        window.swarm_formation(d);
         const h = el('swarm-list'); h.innerHTML='';
         (d.clusters||[]).forEach(cl=>{
           const isThreat=String(cl.classification||'').toLowerCase().includes('shahed')||String(cl.classification||'').toLowerCase().includes('threat');
@@ -3319,6 +3290,259 @@ async function darkgraph_evaluate(id){
       '<div class="row mono dim">Screened deny-by-default by ROE. Confidence is conformal-calibrated (W7-4) \u2014 never 100% certainty. Source corpus is in-image (no external fetch).</div>');
   }catch(e){ _fr_err('tg-detail',e); }
 }
+
+/* ====================================================================
+   DISTINCT HERO VIZ HANDLERS (3VIZ fix) — additive.
+   tracks  -> 2D tactical lat/lon plot (ECharts) + sortable radar table + ROE-signed receipt
+   maritime-> globe.gl geo globe with vessel points + AIS-replay arcs + risk card
+   swarm   -> formation geometry diagram (ECharts) leader/follower + comms links
+   Each reads its real endpoint (/threats/active, SAMPLE_VESSELS, /swarm/topology),
+   has loading/empty/error states, and signs a real receipt where applicable.
+   ==================================================================== */
+
+/* ---- Live Track Board: tactical plot + sortable track table ---- */
+// killinchu C2 station anchor (Group-of-Soviet-era AOI sample; matches drone seed lat/lon spread).
+var TRK_HUB={lat:47.6,lon:36.0,name:'killinchu C2'};
+function _trk_haversine(lat1,lon1,lat2,lon2){
+  var R=6371,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function _trk_bearing(lat1,lon1,lat2,lon2){
+  var y=Math.sin((lon2-lon1)*Math.PI/180)*Math.cos(lat2*Math.PI/180);
+  var x=Math.cos(lat1*Math.PI/180)*Math.sin(lat2*Math.PI/180)-Math.sin(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.cos((lon2-lon1)*Math.PI/180);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+function _trk_isThreat(t){return (t.status==='INBOUND')||(t.side==='adversary')||['ENGAGE','BREACH','DENY'].includes(String(t.roe_verdict||'').toUpperCase());}
+function _trk_color(t){
+  if(_trk_isThreat(t))return RED;
+  var st=String(t.status||'').toUpperCase();
+  if(st==='ISR'||st==='PATROL'||st==='LOITERING')return WARN;
+  return TEAL;
+}
+async function tracks_load(){
+  var tb=el('tracks-tb'); if(tb) tb.innerHTML='<tr><td colspan="9" class="mono dim">reading live /threats/active\u2026</td></tr>';
+  try{
+    var d=await getJSON(API+'/threats/active');
+    setOut('tracks-raw',d);
+    setTxt('k-active',d.active_threats!=null?d.active_threats:'\u2014');
+    setTxt('k-total',d.total_tracks!=null?d.total_tracks:'\u2014');
+    var threats=(d.threats||[]).map(function(t){
+      t.range_km=(t.latitude!=null&&t.longitude!=null)?Math.round(_trk_haversine(TRK_HUB.lat,TRK_HUB.lon,t.latitude,t.longitude)*10)/10:null;
+      t.bearing_deg=(t.latitude!=null&&t.longitude!=null)?Math.round(_trk_bearing(TRK_HUB.lat,TRK_HUB.lon,t.latitude,t.longitude)):null;
+      return t;
+    });
+    window._trkData=threats;
+    window._trkSort={key:'range_km',dir:1};
+    window._trkSel=null;
+    window._trkById={}; threats.forEach(function(t){window._trkById[t.track_id]=t;});
+    if(!threats.length){
+      if(tb) tb.innerHTML='<tr><td colspan="9" class="mono dim">no active tracks (honest empty state)</td></tr>';
+      var hp=el('tracks-plot'); if(hp) hp.innerHTML='<div class="row mono dim" style="padding:1rem">no tracks to plot</div>';
+      return;
+    }
+    tracks_plot();
+    tracks_render();
+  }catch(e){
+    if(el('tracks-tb')) el('tracks-tb').innerHTML='<tr><td colspan="9" class="mono dim">live service retry: '+esc(e&&e.message||e)+'</td></tr>';
+    if(el('tracks-plot')) el('tracks-plot').innerHTML='<div class="row mono dim" style="padding:1rem">live /threats/active unavailable: '+esc(e&&e.message||e)+'</div>';
+  }
+}
+function tracks_plot(){
+  var threats=(window._trkData||[]); var sel=window._trkSel;
+  // scatter points keyed by lat/lon; heading vector as a short line from each point.
+  var pts=threats.filter(function(t){return t.latitude!=null&&t.longitude!=null;}).map(function(t){
+    return {value:[t.longitude,t.latitude],_id:t.track_id,_t:t,
+      itemStyle:{color:_trk_color(t),borderColor:(sel===t.track_id)?'#fff':'transparent',borderWidth:(sel===t.track_id)?3:0},
+      symbolSize:(sel===t.track_id)?22:(_trk_isThreat(t)?15:11)};
+  });
+  // heading vectors as line segments (lon/lat -> projected short vector)
+  var vecs=[];
+  threats.forEach(function(t){
+    if(t.latitude==null||t.longitude==null||t.heading_deg==null)return;
+    var hd=t.heading_deg*Math.PI/180, L=0.18;
+    var dLat=Math.cos(hd)*L, dLon=Math.sin(hd)*L/Math.cos(t.latitude*Math.PI/180);
+    vecs.push([{coord:[t.longitude,t.latitude]},{coord:[t.longitude+dLon,t.latitude+dLat]}]);
+  });
+  var opt={
+    grid:{left:54,right:24,top:18,bottom:40},
+    tooltip:{trigger:'item',formatter:function(p){var t=(p.data&&p.data._t)||{};return t.track_id?('<b>'+esc(t.track_id)+'</b><br/>'+esc(t.model||'')+'<br/>'+esc(t.status||'')+' \u00b7 '+(t.range_km!=null?t.range_km+'km':'')+' \u00b7 brg '+(t.bearing_deg!=null?t.bearing_deg+'\u00b0':'')):'';}},
+    xAxis:{type:'value',name:'lon',nameLocation:'middle',nameGap:24,scale:true,axisLabel:{formatter:'{value}\u00b0'}},
+    yAxis:{type:'value',name:'lat',scale:true,axisLabel:{formatter:'{value}\u00b0'}},
+    series:[
+      {type:'lines',coordinateSystem:'cartesian2d',data:vecs,lineStyle:{color:'#888',width:1,opacity:0.55,curveness:0},silent:true,symbol:['none','arrow'],symbolSize:6},
+      {type:'scatter',coordinateSystem:'cartesian2d',data:pts,
+        emphasis:{focus:'self'}},
+      {type:'scatter',coordinateSystem:'cartesian2d',data:[{value:[TRK_HUB.lon,TRK_HUB.lat],itemStyle:{color:GOLD},symbol:'diamond',symbolSize:18,_t:{track_id:'',model:'killinchu C2 station'}}],silent:false}
+    ]
+  };
+  var inst=mkEchart('tracks-plot',opt);
+  if(inst){ inst.off('click'); inst.on('click',function(p){ if(p.data&&p.data._id){ tracks_select(p.data._id,true); } }); }
+}
+function tracks_sort(key){
+  var s=window._trkSort||{key:'range_km',dir:1};
+  if(s.key===key){s.dir=-s.dir;}else{s.key=key;s.dir=(key==='range_km'||key==='altitude_m'||key==='speed_m_s')?-1:1;}
+  window._trkSort=s; tracks_render();
+}
+function tracks_render(){
+  var rows=(window._trkData||[]).slice(); var s=window._trkSort||{key:'range_km',dir:1};
+  rows.sort(function(a,b){
+    var av=a[s.key],bv=b[s.key];
+    if(typeof av==='number'||typeof bv==='number'){av=av==null?Infinity:av;bv=bv==null?Infinity:bv;return av<bv?-s.dir:(av>bv?s.dir:0);}
+    av=String(av||'').toLowerCase();bv=String(bv||'').toLowerCase();return av<bv?-s.dir:(av>bv?s.dir:0);
+  });
+  var tb=el('tracks-tb'); if(!tb)return;
+  if(!rows.length){tb.innerHTML='<tr><td colspan="9" class="mono dim">no active tracks (honest empty state)</td></tr>';return;}
+  tb.innerHTML=rows.map(function(t){
+    var thr=_trk_isThreat(t); var col=_trk_color(t); var seld=(window._trkSel===t.track_id);
+    var badge='<span class="badge" style="color:'+col+';border:1px solid '+col+'">'+esc(t.track_id)+'</span>';
+    return '<tr style="cursor:pointer'+(seld?';background:rgba(255,255,255,.06)':(thr?';background:rgba(176,106,90,.06)':''))+'" onclick="window.tracks_select(\''+esc(t.track_id)+'\',true)">'+
+      '<td>'+badge+'</td>'+
+      '<td class="mono">'+esc(t.model||'')+'</td>'+
+      '<td>'+esc(t.side||'')+'</td>'+
+      '<td class="mono dim">'+esc(t.status||'')+'</td>'+
+      '<td class="mono">'+esc(t.range_km!=null?t.range_km:'\u2014')+'</td>'+
+      '<td class="mono dim">'+esc(t.bearing_deg!=null?t.bearing_deg:'\u2014')+'</td>'+
+      '<td class="mono dim">'+esc(t.altitude_m!=null?t.altitude_m:'\u2014')+'</td>'+
+      '<td class="mono dim">'+esc(t.speed_m_s!=null?t.speed_m_s:'\u2014')+'</td>'+
+      '<td><button onclick="event.stopPropagation();window.tracks_evaluate(\''+esc(t.track_id)+'\')" style="background:var(--teal);border:none;color:#0a0a0a;border-radius:6px;padding:.25rem .6rem;cursor:pointer;font-weight:600;font-size:11px">evaluate</button></td></tr>';
+  }).join('');
+}
+function tracks_select(id,scroll){
+  window._trkSel=id; tracks_plot(); tracks_render();
+  var t=(window._trkById||{})[id];
+  if(t){ var box=el('track-detail'); if(box){ box.innerHTML='<div class="row mono dim">Selected <b>'+esc(id)+'</b> \u00b7 '+esc(t.model||'')+' \u2014 click \u201cevaluate\u201d to screen against current ROE and sign a receipt.</div>'; } }
+}
+/* governed operator action: screen this live track against ROE -> genuinely-signed receipt. */
+async function tracks_evaluate(id){
+  var t=(window._trkById||{})[id]; if(!t)return;
+  window._trkSel=id; tracks_plot(); tracks_render();
+  var box=el('track-detail'); if(box) box.innerHTML='<div class="row mono dim">screening '+esc(id)+' ('+esc(t.model||'')+') against current ROE/policy\u2026</div>';
+  try{
+    var r=await postJSON(API+'/roe/evaluate',{telemetry:{track_id:t.track_id,classification:(t.model||t.role||'class'),speed_m_s:(t.speed_m_s!=null?t.speed_m_s:50),altitude_m:(t.altitude_m!=null?t.altitude_m:1000),latitude:(t.latitude!=null?t.latitude:47.0),longitude:(t.longitude!=null?t.longitude:35.0)}});
+    var v=String(r.verdict||r.decision||'\u2014').toUpperCase();
+    var rc=(r.roe_receipt||r.lambda_receipt||{}); var dsse=(rc.dsse||{});
+    var allow=(v==='ALLOW'||v==='CLEAR');
+    var flags=(r.flags||[]).map(function(f){return '<div class="row"><span class="badge b-err">flag</span><span class="mono dim">'+esc(f)+'</span></div>';}).join('');
+    var reasons=(r.reasons||[]).map(function(x){return '<div class="row"><span>\u2192</span><span class="spacer mono dim">'+esc(x)+'</span></div>';}).join('');
+    setHTML('track-detail','<div class="card-h"><span class="card-t">'+esc(t.track_id)+' \u00b7 '+esc(t.model||'')+'</span><span class="card-ep">'+esc(t.side||'')+' \u00b7 '+esc(t.country||'')+'</span></div>'+
+      '<div class="row"><span>ROE verdict</span><span class="spacer">'+_fr_badge(v,allow?'live':'deny')+'</span></div>'+
+      '<div class="row"><span>Track</span><span class="spacer mono dim">'+esc(t.status||'')+' \u00b7 '+esc(t.group||'')+' \u00b7 '+(t.range_km!=null?t.range_km+'km':'')+' \u00b7 brg '+(t.bearing_deg!=null?t.bearing_deg+'\u00b0':'')+' \u00b7 '+(t.altitude_m!=null?t.altitude_m+'m':'')+' \u00b7 '+(t.speed_m_s!=null?t.speed_m_s+'m/s':'')+'</span></div>'+
+      '<div class="row"><span>Recommended effector</span><span class="spacer mono dim">'+esc(r.effector_rec||'\u2014 (none / HOTL)')+'</span></div>'+
+      flags+reasons+
+      '<div class="row"><span>Signed receipt</span><span class="spacer mono dim">'+esc(String(rc.digest||'\u2014').slice(0,18))+(dsse.signed?' \u00b7 '+_fr_chip('SIGNED ('+esc(dsse.keyid||'cosign')+')','#5fb3a3'):' \u00b7 unsigned')+'</span></div>'+
+      '<div class="row mono dim">\u039b is advisory (Conjecture 1), screened deny-by-default by ROE. Telemetry source: '+esc(t.telemetry_source||'simulated track over real signature')+' \u2014 not a live sensor feed.</div>');
+  }catch(e){ _fr_err('track-detail',e); }
+}
+
+/* ---- Maritime Picture: globe.gl geo globe + AIS-replay arcs + risk card ---- */
+var MAR_HUB={lat:46.0,lon:30.5,name:'killinchu maritime station'};
+function maritime_globe(){
+  var host=el('maritime-globe'); if(!host)return;
+  if(!window.Globe){ host.innerHTML='<div class="row mono dim" style="padding:1rem">globe library unavailable</div>'; return; }
+  var V=SAMPLE_VESSELS;
+  killGlobe(); host.innerHTML='';
+  var pts=V.map(function(v){
+    var col=(v.sanctioned||v.dark)?RED:(v.watch?WARN:TEAL);
+    return {lat:v.lat,lng:v.lon,color:col,size:(v.sanctioned||v.dark)?0.9:0.55,_id:v.id,
+      label:v.name+' \u00b7 '+v.type+' \u00b7 '+v.flag+(v.dark?' \u00b7 AIS DARK':'')+(v.sanctioned?' \u00b7 SANCTIONED':'')};
+  });
+  pts.push({lat:MAR_HUB.lat,lng:MAR_HUB.lon,color:GOLD,size:1.1,_id:'STATION',label:MAR_HUB.name});
+  // replay tracks: arc from each vessel to the station (sample/replay, not live AIS)
+  var arcs=V.map(function(v){
+    var col=(v.sanctioned||v.dark)?RED:(v.watch?WARN:TEAL);
+    return {startLat:v.lat,startLng:v.lon,endLat:MAR_HUB.lat,endLng:MAR_HUB.lon,color:[col,GOLD]};
+  });
+  // dark-gap rings on vessels that have gone dark
+  var rings=V.filter(function(v){return v.dark;}).map(function(v){return {lat:v.lat,lng:v.lon,color:RED};});
+  try{
+    _globe=Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
+      .globeImageUrl('/vendor/earth-night.jpg')
+      .pointsData(pts).pointColor('color').pointAltitude(function(d){return d.size*0.05;}).pointRadius(0.32).pointLabel('label')
+      .arcsData(arcs).arcColor('color').arcDashLength(0.4).arcDashGap(0.2).arcDashAnimateTime(1800).arcStroke(0.5).arcAltitudeAutoScale(0.35)
+      .ringsData(rings).ringColor(function(){return function(t){return 'rgba(176,106,90,'+(1-t)+')';};}).ringMaxRadius(2.2).ringPropagationSpeed(1.2).ringRepeatPeriod(900);
+    _globe.onPointClick(function(p){ if(p&&p._id&&p._id!=='STATION'){ maritime_risk(p._id); } });
+    try{_globe.pointOfView({lat:45.5,lng:34.0,altitude:1.6},0);var ctr=_globe.controls();if(ctr){ctr.autoRotate=true;ctr.autoRotateSpeed=0.45;}}catch(e){}
+    setTimeout(function(){try{_globe.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);
+  }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">globe init: '+esc(e.message)+'</div>'; }
+}
+function maritime_risk(id){
+  var v=_vesselById(id); var box=el('vessel-risk-card'); if(!v||!box)return;
+  var tag=v.sanctioned?'SANCTIONED':v.dark?'DARK (AIS gap)':v.watch?'WATCH':'CLEAR';
+  var sc=(v.sanctioned||v.dark)?'b-err':(v.watch?'b-warn':'b-live');
+  // explainable risk indicators (named, not a black box)
+  var ind=[];
+  if(v.sanctioned)ind.push(['Sanctions hit',(v.sanction_hit?(v.sanction_hit.list+' \u00b7 '+v.sanction_hit.program):'OFAC/UN/EU sample list'),'b-err']);
+  if(v.dark)ind.push(['AIS dark-gap',v.last_seen,'b-err']);
+  var foc=['Panama','Liberia','Marshall Islands'];
+  if(foc.indexOf(v.flag)>=0)ind.push(['Flag of convenience',v.flag,'b-warn']);
+  if(v.watch&&!v.sanctioned&&!v.dark)ind.push(['On watch list','elevated screening','b-warn']);
+  if(!ind.length)ind.push(['No adverse indicators','clear on sample screen','b-live']);
+  var owner=(v.owner_chain||[]).map(function(o,i){return '<div class="row"><span class="mono dim">'+(i+1)+'.</span><span class="spacer">'+esc(o)+'</span></div>';}).join('');
+  var gaps=(v.ais||[]).filter(function(x){return x===0;}).length;
+  box.innerHTML='<div class="card-h"><span class="card-t">'+esc(v.name)+' <span class="badge '+sc+'">'+tag+'</span></span><span class="card-ep">'+esc(v.type)+' \u00b7 '+esc(v.flag)+' \u00b7 MMSI '+esc(v.mmsi)+'</span></div>'+
+    '<div class="row"><span>Position (replay)</span><span class="spacer mono dim">'+v.lat.toFixed(2)+'\u00b0, '+v.lon.toFixed(2)+'\u00b0 \u00b7 '+(v.speed_kn!=null?v.speed_kn+'kn':'')+' \u00b7 crs '+(v.course!=null?v.course+'\u00b0':'')+'</span></div>'+
+    '<div class="row"><span>AIS coverage</span><span class="spacer mono dim">'+(v.ais?(v.ais.length-gaps)+'/'+v.ais.length+' epochs reported \u00b7 '+gaps+' dark':'\u2014')+'</span></div>'+
+    ind.map(function(x){return '<div class="row"><span class="badge '+x[2]+'">'+esc(x[0])+'</span><span class="spacer mono dim">'+esc(x[1])+'</span></div>';}).join('')+
+    '<div class="row mono dim" style="margin-top:.4rem">Beneficial-ownership chain (sample):</div>'+owner+
+    '<div class="row mono dim">Explainable risk indicators (named weights), not a black box. <b>Sample/replay screening</b> in OFAC/UN/EU format \u2014 not live AIS coverage. Use the Sanctions tab to screen + sign a genuine alert receipt.</div>';
+}
+
+/* ---- Swarm Topology: formation geometry diagram (leader/follower + comms links) ---- */
+function swarm_formation(d){
+  var host=el('swarm-formation'); if(!host)return;
+  var clusters=(d&&d.clusters)||[]; var edges=(d&&d.edges)||[];
+  if(!clusters.length){ host.innerHTML='<div class="row mono dim" style="padding:1rem">no swarms detected (honest empty state)</div>'; killEchart('swarm-formation'); return; }
+  var palette=[TEAL,'#7fa8c9','#b07fb0','#5a8a6e'];
+  // build member index for positions (real broadcast lat/lon = formation geometry)
+  var byId={}; var nodes=[]; var leaderOf={};
+  clusters.forEach(function(cl,ci){
+    var isThreat=String(cl.classification||'').toLowerCase().includes('shahed')||String(cl.classification||'').toLowerCase().includes('threat')||(cl.classification==='SWARM');
+    var folCol=isThreat?RED:(palette[ci%palette.length]);
+    (cl.members||[]).forEach(function(m,mi){
+      var leader=(mi===0);
+      byId[m.id]={cluster:cl.cluster_id,leader:leader};
+      if(leader)leaderOf[cl.cluster_id]=m.id;
+      nodes.push({
+        name:m.id,
+        value:[m.longitude,m.latitude],
+        symbolSize:leader?26:(cl.size>1?16:13),
+        itemStyle:{color:leader?GOLD:folCol,borderColor:leader?'#fff':'transparent',borderWidth:leader?2:0},
+        label:{show:cl.size>1&&leader,position:'top',formatter:'Swarm '+cl.cluster_id,color:'#9a9a9a',fontSize:9},
+        _m:m,_cl:cl,_leader:leader
+      });
+    });
+  });
+  // comms links (real /swarm/topology edges within proximity threshold)
+  var commsLinks=edges.map(function(e){
+    return {source:e.a,target:e.b,lineStyle:{color:'rgba(95,179,163,0.55)',width:1.4,curveness:0,type:'solid'},_dist:e.dist_m};
+  });
+  // leader -> follower ties (dashed) so structure reads as formation, not random mesh
+  var ties=[];
+  clusters.forEach(function(cl){
+    if(cl.size<=1)return; var ld=leaderOf[cl.cluster_id];
+    (cl.members||[]).forEach(function(m){ if(m.id!==ld) ties.push({source:ld,target:m.id,lineStyle:{color:'rgba(201,183,135,0.35)',width:1,type:'dashed',curveness:0.05}}); });
+  });
+  var opt={
+    grid:{left:54,right:24,top:18,bottom:40},
+    tooltip:{trigger:'item',formatter:function(p){if(p.dataType==='edge'){return p.data._dist?('comms link \u00b7 '+Math.round(p.data._dist)+' m'):'leader\u2192follower';}var m=(p.data&&p.data._m)||{};var cl=(p.data&&p.data._cl)||{};return '<b>'+esc(m.id||'')+'</b><br/>'+esc(m.model||'')+'<br/>Swarm '+esc(cl.cluster_id)+' \u00b7 '+esc(cl.classification||'')+(p.data._leader?'<br/>LEADER (anchor)':'<br/>follower');}},
+    xAxis:{type:'value',name:'lon',nameLocation:'middle',nameGap:24,scale:true,axisLabel:{formatter:'{value}\u00b0'}},
+    yAxis:{type:'value',name:'lat',scale:true,axisLabel:{formatter:'{value}\u00b0'}},
+    series:[{
+      type:'graph',coordinateSystem:'cartesian2d',
+      data:nodes,
+      links:commsLinks.concat(ties),
+      edgeSymbol:['none','none'],
+      emphasis:{focus:'adjacency'},
+      lineStyle:{opacity:0.8}
+    }]
+  };
+  mkEchart('swarm-formation',opt);
+}
+window.tracks_load=tracks_load;window.tracks_sort=tracks_sort;window.tracks_render=tracks_render;window.tracks_select=tracks_select;window.tracks_evaluate=tracks_evaluate;window.tracks_plot=tracks_plot;
+window.maritime_globe=maritime_globe;window.maritime_risk=maritime_risk;
+window.swarm_formation=swarm_formation;
+
 
 /* ============================== 6) DEPLOY POSTURE =========================
    Leader pattern: Defense Unicorns UDS deploy-posture (PATTERN ONLY; uds-core is
