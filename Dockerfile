@@ -256,6 +256,11 @@ COPY web/console.js ./web/console.js
 # Receipts are signed with the persistent cosign ECDSA-P256-SHA256 key (szl_dsse).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 COPY szl_agentic_loop.py ./szl_agentic_loop.py
+# a11oy Code engine (PORTED 2026-06-06): governed coder (chat/code/research),
+# C20/W7-5 router, W5-3/W7-4 conformal, real sandbox, per-run-GENESIS receipts.
+# Imports szl_llm_registry (COPY'd below) for the OPEN-WEIGHT roster.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY a11oy_code_engine.py ./a11oy_code_engine.py
 
 # ADDITIVE (Operational Control Surfaces, 2026-06-06): makes VESSELS and DRONES
 # genuinely operational — select a track -> issue a governed command -> deny-by-

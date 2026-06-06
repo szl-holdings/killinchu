@@ -2588,6 +2588,40 @@ except Exception as _kloop_e:
 
 
 # ============================================================================
+# BEGIN: a11oy CODE — governed agentic coder (PORTED to killinchu, 2026-06-06)
+# Three governed modes (chat / run-code-in-sandbox / research). Every turn flows
+# through the proven P1-P6 loop and emits a per-run-GENESIS hash-chained, cosign-
+# signed receipt (reuses killinchu's REAL persistent signer _killinchu_loop_sign).
+# Router: C20 stable softmax + W7-5 PAC-Bayes envelope. Confidence: W5-3/W7-4
+# conformal (never 100%). Consensus: C10-C12. Halts: F-G5 bounded-frontier.
+# OPEN-WEIGHT models ONLY (closed APIs filtered out per doctrine); NO weights
+# redistributed; NO AGI; lambda=Conjecture 1. Real restricted-subprocess sandbox
+# (no network, CPU/mem/time/fsize rlimits). Routes inserted at position 0 so they
+# beat the SPA /{full_path:path} catch-all. try/except guarded — never crashes app.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_code_engine as _kc_code
+    import sys as _kc_code_sys
+    # Reuse the loop's REAL persistent cosign signer/verifier (defined above).
+    _kc_code_status = _kc_code.register(
+        app, "killinchu",
+        _killinchu_loop_sign,
+        verify_fn=_killinchu_loop_verify,
+        signer_label="persistent cosign ECDSA-P256-SHA256 (verifiable offline vs /cosign.pub)",
+    )
+    print(f"[killinchu] a11oy Code engine registered: {_kc_code_status}", file=_kc_code_sys.stderr)
+except Exception as _kc_code_e:
+    import sys as _kc_code_sys, traceback as _kc_code_tb
+    print(f"[killinchu] a11oy Code engine FAILED (non-fatal): {_kc_code_e!r}", file=_kc_code_sys.stderr)
+    _kc_code_tb.print_exc(file=_kc_code_sys.stderr)
+# ============================================================================
+# END: a11oy CODE — killinchu
+# ============================================================================
+
+
+# ============================================================================
 # BEGIN: OPEN-WEIGHT ALLOY MODEL LAYER — killinchu (2026-06-06, ADDITIVE; PORTED from a11oy)
 # Model-integration squad (Opus 4.8). Same open-weight alloy forged into a11oy,
 # ported to killinchu. Strongest OPEN-WEIGHT coding models (DeepSeek-Coder-V2
