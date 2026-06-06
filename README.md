@@ -32,7 +32,8 @@ ecosystem-stage: "operational"
 [![CI](https://github.com/szl-holdings/killinchu/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/killinchu/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 
-**749 declarations · 14 axioms · 163 sorries · Doctrine v11 LOCKED · kernel `c7c0ba17`**
+**LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
+**Proof posture (two-tier):** 5 locked-proven `{F1, F11, F12, F18, F19}` + **~36 experimental** theorems CI-green on main `@7885fd9` (Lean v4.18.0 · 1304 decls / 22 axioms — NOT in the locked count).
 
 [Live demo](#live) · [What it does](#what-it-does) · [Verify](#verify-it-yourself) · [Architecture](#architecture) · [Parity vs. leaders](#parity-vs-leaders) · [Honest status](#honest-status)
 
@@ -56,7 +57,7 @@ killinchu is a **full left-nav application** at `/elite` in the unified SZL hous
 
 **Primary app file:** [`killinchu_elite_console.py`](killinchu_elite_console.py) · **served at** `/elite`.
 
-16 working views in the left navigation:
+**44 views** in the left navigation, plus **7 maritime/drone live demos** and a **live 3D health twin** (real-time WebGL organism view). Representative views:
 
 | View | View | View | View |
 |---|---|---|---|
@@ -64,6 +65,10 @@ killinchu is a **full left-nav application** at `/elite` in the unified SZL hous
 | 13-axis Λ | 3-of-4 BFT | Beyond/Autonomy | Engagement Audit |
 | DSSE Verifier | PQC Signing | Protocol Decoders | Geofence |
 | Swarm Topology | Threat Class DB | Cross-Flagship | Mesh |
+| Maritime Track | Vessel Fusion | Drone Demo Suite | **3D Health Twin** |
+
+- **7 maritime/drone demos** — scripted live scenarios (interdiction, swarm, vessel track, geofence breach, BFT quorum, ROE deny, receipt replay).
+- **Live 3D health twin** — real-time WebGL rendering of the killinchu organism, organs pulsing with live receipt/formula flow.
 
 **Verify-it-yourself surface:** the app publishes its cosign public key at [`/cosign.pub`](https://szlholdings-killinchu.hf.space/cosign.pub) and exports verifiable DSSE receipts at `/api/killinchu/v1/receipt/export` — receipts are **real-DSSE-or-honestly-UNSIGNED**, never silently fabricated.
 
@@ -167,7 +172,8 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/killinchu:uds-v0.2.0
 | Real protocol decoders | ✅ — ASTM F3411-22a / pyModeS / pymavlink (no mocks) |
 | Spoofing vulnerability | ⚠️ **Explicit** — broadcast protocols are unauthenticated; every field is a claim, not ground truth |
 | Lean 749/14/163 @ `c7c0ba17` | ✅ |
-| Proved PURIQ formulas | ✅ Exactly **5** — F1, F11, F12, F18, F19 (Lean 4, zero-sorry); rest Roadmap |
+| Locked-proven PURIQ formulas | ✅ Exactly **5** — F1, F11, F12, F18, F19 (Lean 4, depend on **no** axioms; machine-enforced `locked_count_five`) |
+| Experimental theorems (main `@7885fd9`) | ✅ **~36** CI-green, kernel-verified (waves 5/6/7/8 + agentic P1–P6 + Λ Set α/δ + coder + airtight Λ). **NOT** in the locked count. Key: B1 Byzantine n=3f+1, M2 tamper-evidence (`#print axioms = [propext]` only) |
 | Λ-uniqueness | ⚠️ **Conjecture 1** — never a theorem |
 | SLSA L3 | ❌ Not claimed |
 | FedRAMP / CMMC | ❌ Not claimed |
