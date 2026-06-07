@@ -2032,53 +2032,61 @@ async def killinchu_adsb_v3(
     lat_min: float = 24.0, lat_max: float = 50.0,
     lon_min: float = -125.0, lon_max: float = -60.0
 ):
-    """FRONTIER: Live ADS-B via OpenSky Network (CC-BY-4.0). Registered before uvicorn.run()."""
-    import urllib.request as _ur, json as _j
+    """FRONTIER: Live ADS-B via adsb.lol military feed (no auth, ODbL).
+
+    FIX 2026-06-07 (Yachay CTO + Opus 4.8): OpenSky is DEAD for us (now OAuth2-only,
+    refuses non-institutional use). REPLACED with adsb.lol/v2/mil through the resilient
+    cached killinchu_live_feeds._fetch_air (fallback chain adsb.fi -> airplanes.live).
+    HONESTY DOCTRINE: NO fabricated tracks. On total upstream failure this returns the
+    last-good cached snapshot labelled live=false, or an honest empty set — never synthetic
+    'demo' aircraft. Field shape preserved for the existing livepic/maritime tabs.
+    """
     from datetime import datetime, timezone as _tz
     from fastapi.responses import JSONResponse as _JR
-    opensky_url = (
-        f"https://opensky-network.org/api/states/all?"
-        f"lamin={lat_min}&lamax={lat_max}&lomin={lon_min}&lomax={lon_max}"
-    )
     _now = datetime.now(_tz.utc).isoformat()
     try:
-        req = _ur.Request(opensky_url,
-            headers={"User-Agent": "SZL-killinchu/1.0 (C-UAS demo; contact@szlholdings.ai)"})
-        with _ur.urlopen(req, timeout=8) as resp:
-            raw = _j.loads(resp.read())
-        states = raw.get("states", []) or []
+        import killinchu_live_feeds as _klf
+        payload = _klf.get_feed("air")  # cached, honestly-labelled live|cached
+        data = payload.get("data") or {}
+        ac = data.get("aircraft") or []
+        live = (payload.get("mode") == "live")
         flights = []
-        for s in (states or [])[:50]:
-            if s and len(s) >= 9:
-                alt = s[7]; vel = s[9]
-                if alt is None: cls = "NO_ALTITUDE"
-                elif alt < 150 and (vel is None or vel < 30): cls = "POTENTIAL_UAS"
-                elif alt < 500: cls = "LOW_ALTITUDE"
-                elif alt < 3000: cls = "MID_ALTITUDE"
-                else: cls = "COMMERCIAL_ALTITUDE"
-                tier = "T1_HIGH" if cls == "POTENTIAL_UAS" else ("T2_MEDIUM" if cls == "LOW_ALTITUDE" else "T3_LOW")
-                flights.append({"icao24": s[0], "callsign": (s[1] or "").strip() or None,
-                    "origin_country": s[2], "longitude": s[5], "latitude": s[6],
-                    "baro_altitude_m": alt, "on_ground": s[8], "velocity_ms": vel,
-                    "szl_class": cls, "szl_threat_tier": tier})
-        return _JR({"flagship": "killinchu", "frontier": "opensky_adsb",
-            "source": "OpenSky Network (CC-BY-4.0)", "doctrine": "v11",
-            "kernel_commit": "c7c0ba17", "lambda": "Conjecture 1 (NOT a theorem)",
-            "total_states": len(states), "flights_returned": len(flights),
-            "flights": flights, "ts": _now})
-    except Exception as _e:
-        demo_flights = [
-            {"icao24": "a00001", "callsign": "DAL123", "origin_country": "United States",
-             "latitude": 40.7, "longitude": -74.0, "baro_altitude_m": 10000,
-             "szl_class": "COMMERCIAL_ALTITUDE", "szl_threat_tier": "T3_LOW"},
-            {"icao24": "a00002", "callsign": None, "origin_country": "United States",
-             "latitude": 37.3, "longitude": -122.0, "baro_altitude_m": 120,
-             "szl_class": "POTENTIAL_UAS", "szl_threat_tier": "T1_HIGH"},
-        ]
-        return _JR({"flagship": "killinchu", "frontier": "opensky_adsb_fallback",
-            "note": "OpenSky unavailable — synthetic demo data", "error": str(_e)[:80],
+        for a in ac:
+            lat = a.get("lat"); lon = a.get("lon")
+            if lat is None or lon is None:
+                continue
+            altb = a.get("alt_baro")
+            alt = None if altb in (None, "ground") else (0 if altb == "ground" else altb)
+            vel = a.get("gs")
+            if alt is None: cls = "NO_ALTITUDE"
+            elif isinstance(alt, (int, float)) and alt < 150 and (vel is None or vel < 30): cls = "POTENTIAL_UAS"
+            elif isinstance(alt, (int, float)) and alt < 500: cls = "LOW_ALTITUDE"
+            elif isinstance(alt, (int, float)) and alt < 3000: cls = "MID_ALTITUDE"
+            else: cls = "COMMERCIAL_ALTITUDE"
+            tier = "T1_HIGH" if cls == "POTENTIAL_UAS" else ("T2_MEDIUM" if cls == "LOW_ALTITUDE" else "T3_LOW")
+            flights.append({"icao24": a.get("hex"), "callsign": a.get("flight"),
+                "origin_country": None, "longitude": lon, "latitude": lat,
+                "baro_altitude_m": alt, "on_ground": (altb == "ground"),
+                "velocity_ms": vel, "track_deg": a.get("track"), "type": a.get("type"),
+                "szl_class": cls, "szl_threat_tier": tier})
+        return _JR({"flagship": "killinchu",
+            "frontier": "adsblol_adsb" if live else "adsblol_adsb_cached",
+            "source": "adsb.lol community ADS-B (military, ODbL)",
+            "source_url": data.get("endpoint") or "https://api.adsb.lol/v2/mil",
+            "attribution": data.get("attribution") or "Data: adsb.lol (ODbL)",
+            "live": live, "mode": payload.get("mode"),
+            "fetched_at": payload.get("fetched_at"),
             "doctrine": "v11", "kernel_commit": "c7c0ba17",
-            "flights": demo_flights, "ts": _now})
+            "lambda": "Conjecture 1 (NOT a theorem)",
+            "total_states": data.get("total", len(ac)), "flights_returned": len(flights),
+            "flights": flights, "ts": payload.get("fetched_at") or _now})
+    except Exception as _e:
+        # HONEST failure — NO fabricated tracks. Empty set, clearly labelled not-live.
+        return _JR({"flagship": "killinchu", "frontier": "adsblol_adsb_unavailable",
+            "source": "adsb.lol community ADS-B (military, ODbL)",
+            "note": "upstream ADS-B unavailable and no cached snapshot — no fabricated data",
+            "error": str(_e)[:120], "live": False, "doctrine": "v11",
+            "kernel_commit": "c7c0ba17", "flights": [], "flights_returned": 0, "ts": _now})
 
 # ============================================================================
 # ADDITIVE DEEP-C: FAA RID validate + MAVLink geofence + Ken + Khipu v1 aliases
