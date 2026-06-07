@@ -1401,25 +1401,25 @@ try:
     _KILLINCHU_SHADOW = _rc.RosieShadow("killinchu")
     _IDENTIFY_CONF_FLOOR = 0.7
 
-    @app.get("/api/killinchu/v1/rosie-companion")
-    async def killinchu_rosie_companion_info() -> JSONResponse:
+    @app.get("/api/killinchu/v1/companion")
+    async def killinchu_companion_info() -> JSONResponse:
         return JSONResponse({
             "wire": "I", "flagship": "killinchu", "organ": "drone",
-            "rosie_endpoint": _KILLINCHU_SHADOW.jack_url,
+            "deep_reasoning_endpoint": _KILLINCHU_SHADOW.jack_url,
             "ops": ["ponder", "synthesize", "evolve", "brain_jack"],
-            "low_confidence_rule": f"counter-uas identify consults Rosie when top confidence < {_IDENTIFY_CONF_FLOOR}",
-            "low_confidence_endpoint": "/api/killinchu/v1/identify/with-rosie",
+            "low_confidence_rule": f"counter-uas identify consults the deep-reasoning tier when top confidence < {_IDENTIFY_CONF_FLOOR}",
+            "low_confidence_endpoint": "/api/killinchu/v1/identify/with-deep-reasoning",
             "doctrine": "v11",
-            "honesty": "Rosie is co-pilot, not pilot. killinchu + 2-person Yuyay gate decide. WE SENSE, WE EVIDENCE (passive).",
+            "honesty": "The deep-reasoning tier is co-pilot, not pilot. killinchu + 2-person Yuyay gate decide. WE SENSE, WE EVIDENCE (passive).",
         })
 
-    @app.post("/api/killinchu/v1/identify/with-rosie")
-    async def killinchu_identify_with_rosie(request: Request) -> JSONResponse:
-        """Counter-UAS identify with optional Rosie low-confidence consult. Runs the
-        existing passive signature classifier; ONLY when the top match confidence is
-        below the floor (0.7) — i.e. possibly a novel airframe — does it consult the
-        Rosie-shadow for deeper reasoning. Both the identify result and the Rosie
-        reasoning carry Khipu receipts (cross-linked). PASSIVE detection only."""
+    @app.post("/api/killinchu/v1/identify/with-deep-reasoning")
+    async def killinchu_identify_with_deep_reasoning(request: Request) -> JSONResponse:
+        """Counter-UAS identify with optional deep-reasoning-tier low-confidence consult.
+        Runs the existing passive signature classifier; ONLY when the top match
+        confidence is below the floor (0.7) — i.e. possibly a novel airframe — does it
+        consult the deep-reasoning tier. Both the identify result and the deep-reasoning
+        output carry Khipu receipts (cross-linked). PASSIVE detection only."""
         body = await _json_body(request)
         axis_scores = body.get("axis_scores")
         tp = getattr(getattr(request, "state", None), "traceparent", None)
@@ -1446,58 +1446,58 @@ try:
         }
         if top_conf >= _IDENTIFY_CONF_FLOOR:
             out.update({
-                "rosie_consulted": False,
-                "note": f"Top confidence {top_conf} >= floor {_IDENTIFY_CONF_FLOOR}; classifier confident. Rosie not consulted.",
+                "deep_reasoning_consulted": False,
+                "note": f"Top confidence {top_conf} >= floor {_IDENTIFY_CONF_FLOOR}; classifier confident. Deep-reasoning tier not consulted.",
             })
             return JSONResponse(out)
-        # LOW CONFIDENCE — consult Rosie for novel-airframe reasoning.
+        # LOW CONFIDENCE — consult the deep-reasoning tier for novel-airframe reasoning.
         sig = (body.get("rf_signature") or body.get("acoustic") or body.get("image_label") or "")
         q = (f"LOW-CONFIDENCE IDENTIFY (top={top_conf} < {_IDENTIFY_CONF_FLOOR}). Reason about "
              f"this possibly-novel airframe signature (passive, no active emission): {str(sig)[:400]}")
         r = _KILLINCHU_SHADOW.brain_jack(q, depth=int(body.get("depth", 1)),
                                          axis_scores=axis_scores, traceparent=tp)
         out.update({
-            "rosie_consulted": True,
-            "rosie_assessment": r.text,
-            "rosie_lambda": r.lambda_signal,
-            "rosie_receipt": r.rosie_receipt,
+            "deep_reasoning_consulted": True,
+            "deep_reasoning_assessment": r.text,
+            "deep_reasoning_lambda": r.lambda_signal,
+            "deep_reasoning_receipt": r.rosie_receipt,
             "cross_link": r.cross_link,
-            "rosie_stub": r.stub,
-            "note": (f"Top confidence {top_conf} < floor {_IDENTIFY_CONF_FLOOR} -> Rosie consulted for "
-                     "novel-airframe reasoning. Rosie is advisory; killinchu + 2-person Yuyay gate decide."),
+            "deep_reasoning_stub": r.stub,
+            "note": (f"Top confidence {top_conf} < floor {_IDENTIFY_CONF_FLOOR} -> deep-reasoning tier consulted for "
+                     "novel-airframe reasoning. Advisory only; killinchu + 2-person Yuyay gate decide."),
         })
         return JSONResponse(out)
 
-    @app.post("/api/killinchu/v1/rosie-companion/ponder")
-    async def killinchu_rosie_ponder(request: Request) -> JSONResponse:
+    @app.post("/api/killinchu/v1/companion/ponder")
+    async def killinchu_companion_ponder(request: Request) -> JSONResponse:
         body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.ponder(body.get("context", body), traceparent=tp).to_dict())
 
-    @app.post("/api/killinchu/v1/rosie-companion/synthesize")
-    async def killinchu_rosie_synthesize(request: Request) -> JSONResponse:
+    @app.post("/api/killinchu/v1/companion/synthesize")
+    async def killinchu_companion_synthesize(request: Request) -> JSONResponse:
         body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.synthesize(body.get("events", []), traceparent=tp).to_dict())
 
-    @app.post("/api/killinchu/v1/rosie-companion/evolve")
-    async def killinchu_rosie_evolve(request: Request) -> JSONResponse:
+    @app.post("/api/killinchu/v1/companion/evolve")
+    async def killinchu_companion_evolve(request: Request) -> JSONResponse:
         body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.evolve(body.get("strategy", {}),
                             approvers=body.get("approvers", []), traceparent=tp).to_dict())
 
-    @app.post("/api/killinchu/v1/rosie-companion/brain-jack")
-    async def killinchu_rosie_brain_jack(request: Request) -> JSONResponse:
+    @app.post("/api/killinchu/v1/companion/brain-jack")
+    async def killinchu_companion_brain_jack(request: Request) -> JSONResponse:
         body = await _json_body(request)
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         return JSONResponse(_KILLINCHU_SHADOW.brain_jack(body.get("query", ""),
                             depth=int(body.get("depth", 1)),
                             axis_scores=body.get("axis_scores"), traceparent=tp).to_dict())
 
-    print("[killinchu] Wire I rosie-companion registered (identify/with-rosie conf<0.7 consult)", file=sys.stderr)
+    print("[killinchu] Wire I companion (deep-reasoning tier) registered (identify/with-deep-reasoning conf<0.7 consult)", file=sys.stderr)
 except Exception as _rc_e:
-    print(f"[killinchu] Wire I rosie-companion NOT registered: {_rc_e!r}", file=sys.stderr)
+    print(f"[killinchu] Wire I companion NOT registered: {_rc_e!r}", file=sys.stderr)
 
 # ===========================================================================
 # UNAY + Khipu-LMDB v2 organs (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
@@ -1780,7 +1780,7 @@ async def _kc_pr_brain_route():
 
 @app.get("/api/killinchu/v1/llm/tiers")
 async def _kc_pr_llm_tiers():
-    """7-tier LLM router catalog — parity with a11oy/sentra/amaru/rosie. Doctrine v11."""
+    """7-tier LLM router catalog — parity across the mesh tiers. Doctrine v11."""
     if _KC_BRAIN_OK:
         return JSONResponse({
             "count": len(_kc_pr_brain.TIERS),
@@ -2591,57 +2591,11 @@ async def killinchu_doctrine_inline():
         "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
     })
 
-@app.get("/api/killinchu/v1/adsb")
-async def killinchu_adsb_inline(
-    lat_min: float = 24.0, lat_max: float = 50.0,
-    lon_min: float = -125.0, lon_max: float = -60.0
-):
-    """FRONTIER: Live ADS-B via OpenSky Network (CC-BY-4.0, anonymous)."""
-    import urllib.request as _ur, urllib.error as _ue, json as _j
-    from datetime import datetime, timezone as _tz
-    opensky_url = (
-        f"https://opensky-network.org/api/states/all?"
-        f"lamin={lat_min}&lamax={lat_max}&lomin={lon_min}&lomax={lon_max}"
-    )
-    _now = datetime.now(_tz.utc).isoformat()
-    try:
-        req = _ur.Request(opensky_url,
-            headers={"User-Agent": "SZL-killinchu/1.0 (C-UAS demo; contact@szlholdings.ai)"})
-        with _ur.urlopen(req, timeout=8) as resp:
-            raw = _j.loads(resp.read())
-        states = raw.get("states", []) or []
-        flights = []
-        for s in (states or [])[:50]:
-            if s and len(s) >= 9:
-                alt = s[7]; vel = s[9]
-                if alt is None: cls = "NO_ALTITUDE"
-                elif alt < 150 and (vel is None or vel < 30): cls = "POTENTIAL_UAS"
-                elif alt < 500: cls = "LOW_ALTITUDE"
-                elif alt < 3000: cls = "MID_ALTITUDE"
-                else: cls = "COMMERCIAL_ALTITUDE"
-                tier = "T1_HIGH" if cls == "POTENTIAL_UAS" else ("T2_MEDIUM" if cls == "LOW_ALTITUDE" else "T3_LOW")
-                flights.append({"icao24": s[0], "callsign": (s[1] or "").strip() or None,
-                    "origin_country": s[2], "longitude": s[5], "latitude": s[6],
-                    "baro_altitude_m": alt, "on_ground": s[8], "velocity_ms": vel,
-                    "szl_class": cls, "szl_threat_tier": tier})
-        return JSONResponse({"flagship": "killinchu", "frontier": "opensky_adsb",
-            "source": "OpenSky Network (CC-BY-4.0)", "doctrine": "v11",
-            "kernel_commit": "c7c0ba17", "lambda": "Conjecture 1 (NOT a theorem)",
-            "total_states": len(states), "flights_returned": len(flights),
-            "flights": flights, "ts": _now})
-    except Exception as _e:
-        demo_flights = [
-            {"icao24": "a00001", "callsign": "DAL123", "origin_country": "United States",
-             "latitude": 40.7, "longitude": -74.0, "baro_altitude_m": 10000,
-             "szl_class": "COMMERCIAL_ALTITUDE", "szl_threat_tier": "T3_LOW"},
-            {"icao24": "a00002", "callsign": None, "origin_country": "United States",
-             "latitude": 37.3, "longitude": -122.0, "baro_altitude_m": 120,
-             "szl_class": "POTENTIAL_UAS", "szl_threat_tier": "T1_HIGH"},
-        ]
-        return JSONResponse({"flagship": "killinchu", "frontier": "opensky_adsb_fallback",
-            "note": "OpenSky unavailable — synthetic demo data", "error": str(_e)[:80],
-            "doctrine": "v11", "kernel_commit": "c7c0ba17",
-            "flights": demo_flights, "ts": _now})
+# NOTE: a second /api/killinchu/v1/adsb definition (killinchu_adsb_inline) was removed
+# here on 2026-06-07 — it duplicated killinchu_adsb_v3 (registered earlier, which wins
+# in FastAPI route matching) and was dead code. The live OpenSky ADS-B surface is served
+# by killinchu_adsb_v3 above (frontier='opensky_adsb' live, 'opensky_adsb_fallback' on
+# outage — the elite Live-Picture air layer keys off that label to stay honest).
 
 
 @app.get("/{full_path:path}")
