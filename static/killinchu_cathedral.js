@@ -14,7 +14,7 @@ const KILLINCHU = {
   plain:'Counter-UAS drone & vessel intelligence at the tactical edge — the deployed field node of the substrate. Live: /healthz.',
   functions:['maritime + drone C2 — vessels CONSOLIDATED into killinchu (/elite fleet group)','OpenDroneID / ASTM F3411 · ADS-B Mode-S 1090ES · MAVLink v1/v2 decoders','counter-UAS A-gate + 13-axis edge Λ verdict · tactical routing · threat ranking · adaptive sampling','/wave910: 6 wave 9/10 edge formula cards · Q2 Gershgorin spectral bound','signed Khipu receipts (ECDSA-P256 DSSE when signed)'],
   proof:['Edge verdict bound by proven formulas: C20/W7-5 router, W5-3/W7-4 conformal (never 100%)','Same doctrine lock 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 · Trust Gate = Conjecture · SLSA L1 honest / L2 roadmap'],
-  url:'/operator'
+  url:'/elite'
 };
 const A11OY = {
   id:'a11oy', title:'a11oy — Command Platform (the substrate)',
