@@ -5194,20 +5194,13 @@ var _WB_FORMULA={
   edge:{title:'P7 \u00b7 Raven edge / sovereign offline AI mesh',f:'F-G5 bounded-termination + sovereign offline (P5 axiom-gated)',chip:['PROVEN','#5fb3a3'],guarantee:'Raven: edge AI-mesh decision coordinated and linked into the live receipt chain; runs offline.',tab:'fieldnet',
     run:async()=>{ return await postJSON(API+'/receipt/emit',{op:'warhacker/edge',payload:{edge:true,sovereign:true}}); }}
 };
-function warboard_init(){ setHTML('wb-cards','<div class="row mono dim">Click \u201cLaunch all 5 field demos\u201d \u2014 each runs in-image and records a genuinely-signed receipt of the decision.</div>'); }
-async function warboard_all(mode){
-  // 25-DEMO FIX (2026-06-08): render ALL 25 individual maritime/drone demos as
-  // individually-launchable cards driven by the LIVE index (no hardcoded key list).
-  // Each card calls /api/killinchu/v1/warhacker/launch/{key} and shows the gate
-  // verdict, advisory Lambda (Conjecture 1), governing formula, and signed receipt.
-  mode = (mode==='tamper')?'tamper':'nominal';
-  setHTML('wb-cards','<div class="row mono dim">loading the 25-demo index\u2026</div>');
-  var demos=[];
-  try{ var idx=await getJSON('/api/killinchu/v1/warhacker/index'); demos=idx.demos||[]; }
-  catch(e){ setHTML('wb-cards','<div class="row mono dim">index retry: '+esc(e&&e.message||e)+'</div>'); return; }
-  setTxt('wb-n', demos.length);
-  setTxt('wb-ok','0 / '+demos.length);
-  // build a responsive grid of 25 cards first (so each is visible immediately)
+// 25-DEMO FIX (2026-06-08): on view-load, render ALL 25 individual maritime/drone
+// demos as individually-launchable cards driven by the LIVE index (no hardcoded
+// key list, no "click launch-all first" requirement). Each card shows the gate
+// verdict, advisory Lambda (Conjecture 1), governing formula and signed receipt
+// once launched, and is individually launchable via its own Launch button.
+var _WB_DEMOS=[];
+function _wb_build_grid(demos, mode){
   var grid='<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.6rem" id="wb-grid">';
   demos.forEach(function(m){
     var rr=String(m.real_or_roadmap||''); var rrReal=/REAL TODAY/i.test(rr);
@@ -5219,7 +5212,29 @@ async function warboard_all(mode){
       '<div class="wb-out mono" style="font-size:8.5px;color:#7a7a7a">not run yet</div></div>';
   });
   grid+='</div>';
-  setHTML('wb-cards',grid);
+  return grid;
+}
+async function warboard_init(){
+  setHTML('wb-cards','<div class="row mono dim">loading the 25-demo index\u2026</div>');
+  try{ var idx=await getJSON('/api/killinchu/v1/warhacker/index'); _WB_DEMOS=idx.demos||[]; }
+  catch(e){ setHTML('wb-cards','<div class="row mono dim">index retry: '+esc(e&&e.message||e)+' \u2014 click a Launch-all button to retry</div>'); return; }
+  setTxt('wb-n', _WB_DEMOS.length);
+  setTxt('wb-ok','0 / '+_WB_DEMOS.length);
+  // render all 25 cards immediately (each individually launchable, none auto-run)
+  setHTML('wb-cards', _wb_build_grid(_WB_DEMOS, 'nominal'));
+}
+async function warboard_all(mode){
+  mode = (mode==='tamper')?'tamper':'nominal';
+  var demos=_WB_DEMOS;
+  if(!demos.length){
+    setHTML('wb-cards','<div class="row mono dim">loading the 25-demo index\u2026</div>');
+    try{ var idx=await getJSON('/api/killinchu/v1/warhacker/index'); demos=idx.demos||[]; _WB_DEMOS=demos; }
+    catch(e){ setHTML('wb-cards','<div class="row mono dim">index retry: '+esc(e&&e.message||e)+'</div>'); return; }
+  }
+  setTxt('wb-n', demos.length);
+  setTxt('wb-ok','0 / '+demos.length);
+  // (re)build the grid with the chosen mode so every Launch button reflects it
+  setHTML('wb-cards', _wb_build_grid(demos, mode));
   // launch all sequentially
   var ok=0, signed=0, tc=0, tt=0;
   for(var i=0;i<demos.length;i++){
