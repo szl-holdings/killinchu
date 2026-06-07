@@ -160,6 +160,45 @@ except Exception as _killinchu_edge_fx:  # additive: never break the Space
     _killinchu_edge_status = f"edge-formulas-not-wired:{_killinchu_edge_fx!r}"
     print(f"[killinchu] real-edge formulas NOT mounted ({_killinchu_edge_fx!r}); app unaffected", file=sys.stderr)
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (Live Feeds, 2026-06-06, deep-upgrade). REAL LIVE data proxies wired
+# EARLY (before the /{full_path:path} catch-all) so the GET routes win:
+#   GET /api/killinchu/v1/ais/live    Digitraffic FI AIS (live) + CPA/TCPA + conformal Λ
+#   GET /api/killinchu/v1/air/live    adsb.lol military ADS-B (live) + boids/WEZ inputs
+#   GET /api/killinchu/v1/feeds/status reachability + snapshot honesty
+# CORS-safe (server-side), on-disk snapshot fallback, label=live|replay|unavailable.
+# NO fabricated data: unavailable returns empty arrays honestly.
+# ---------------------------------------------------------------------------
+_killinchu_live_feeds = None
+_killinchu_live_status = "live-feeds-not-wired"
+try:
+    import killinchu_live_feeds as _killinchu_live_feeds
+    _killinchu_live_status = _killinchu_live_feeds.register(app, ns="killinchu")
+    print(f"[killinchu] live feeds wired ({_killinchu_live_status})", file=sys.stderr)
+except Exception as _klf_e:  # additive: never break the Space
+    _killinchu_live_status = f"live-feeds-not-wired:{_klf_e!r}"
+    print(f"[killinchu] live feeds NOT mounted ({_klf_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (Anatomy engine, 2026-06-06, founder directive). The SZL Agent Body
+# anatomy as the SHARED HONEST ENGINE. Ties killinchu's governed command ->
+# YUYAY 13-axis conjunctive gate -> RUWAY+SENTRA -> Λ-signed YAWAR receipt ->
+# R0513 read-only audit -> span lineage -> HATUN sovereign seal to a human.
+#   GET  /api/killinchu/v1/organism/anatomy    organ map + 13-axis floors
+#   POST /api/killinchu/v1/organism/pipeline    run a proposal (PASS + tamper-FAIL)
+#   GET  /api/killinchu/v1/organism/yawar       append-only receipt-bus tail
+# Registered EARLY (before the /{full_path:path} catch-all). Real cosign signing.
+# ---------------------------------------------------------------------------
+_killinchu_anatomy = None
+_killinchu_anatomy_status = "anatomy-not-wired"
+try:
+    import killinchu_anatomy as _killinchu_anatomy
+    _killinchu_anatomy_status = _killinchu_anatomy.register(app, ns="killinchu")
+    print(f"[killinchu] anatomy engine wired ({_killinchu_anatomy_status})", file=sys.stderr)
+except Exception as _kan_e:  # additive: never break the Space
+    _killinchu_anatomy_status = f"anatomy-not-wired:{_kan_e!r}"
+    print(f"[killinchu] anatomy engine NOT mounted ({_kan_e!r}); app unaffected", file=sys.stderr)
+
 _killinchu_formulas = None
 _killinchu_formulas_status = "formulas-not-wired"
 try:
@@ -171,6 +210,103 @@ try:
 except Exception as _killinchu_fx:  # additive: never break the Space
     _killinchu_formulas_status = f"formulas-not-wired:{_killinchu_fx!r}"
     print(f"[killinchu] formula echo NOT mounted ({_killinchu_fx!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (MINED ops upgrades, 2026-06-07). Four operational/efficiency surfaces
+# whose PATTERNS were mined from PERMISSIVE OSS (fashion thinking: adopt pattern +
+# code WITH NOTICE, then evolve clean-room — NO upstream code copied):
+#   POST /api/killinchu/v1/mined/scicompute      al-jshen/compute (MIT) — fusion/orbital math
+#   POST /api/killinchu/v1/mined/edge-estimator   gpu-bartender (MIT) — edge VRAM feasibility
+#   POST /api/killinchu/v1/mined/swarm-resilience MLRC-deep-thinking (MIT) — perturbation recovery
+#   POST /api/killinchu/v1/mined/telemetry-press  kvpress (Apache-2.0) — priority telemetry retention
+#   GET  /api/killinchu/v1/mined/index            manifest
+# Pure-stdlib, additive, register(app, ns)-style. Registered EARLY (before the
+# /{full_path:path} catch-all). Λ stays Conjecture 1; no fabricated data.
+# ---------------------------------------------------------------------------
+_killinchu_mined = None
+_killinchu_mined_status = "mined-ops-not-wired"
+_killinchu_mined_tb = ""
+try:
+    import killinchu_mined_ops as _killinchu_mined
+    _killinchu_mined_status = _killinchu_mined.register(app, ns="killinchu")
+    print(f"[killinchu] mined ops wired ({_killinchu_mined_status})", file=sys.stderr)
+except Exception as _kmo_e:  # additive: never break the Space
+    import traceback as _kmo_tb
+    _killinchu_mined_tb = _kmo_tb.format_exc()
+    _killinchu_mined_status = f"mined-ops-not-wired:{_kmo_e!r}"
+    print(f"[killinchu] mined ops NOT mounted ({_kmo_e!r}); app unaffected", file=sys.stderr)
+    print(_killinchu_mined_tb, file=sys.stderr)
+
+@app.get("/api/killinchu/v1/mined/_diag")
+async def _killinchu_mined_diag():
+    from fastapi.responses import JSONResponse as _JR
+    return _JR({"status": _killinchu_mined_status, "traceback": _killinchu_mined_tb})
+
+# ---------------------------------------------------------------------------
+# RE-SWEEP wave-2 ops (ADDITIVE, Yachay): tactical maritime routing (A*/NBA* +
+# visibility-graph obstacle avoidance), iterative vessel threat ranking, and
+# adaptive sensor sampling + peak detect. Patterns mined from permissive MIT
+# sources (anvaka/ngraph.path, rowanwins/visibility-graph, ft2023/IRanker-demo,
+# al-jshen/adaptive) WITH NOTICE, reimplemented clean-room (pure-stdlib).
+#   POST /api/killinchu/v1/resweep/route           A*/NBA* + obstacle avoidance
+#   POST /api/killinchu/v1/resweep/threat-rank     iterative vessel ranking
+#   POST /api/killinchu/v1/resweep/adaptive-sample adaptive sampling + peaks
+#   GET  /api/killinchu/v1/resweep/index           manifest
+# Registered EARLY (before the catch-all). Λ stays Conjecture 1; no fabricated data.
+# ---------------------------------------------------------------------------
+_killinchu_resweep = None
+_killinchu_resweep_status = "resweep-ops-not-wired"
+_killinchu_resweep_tb = ""
+try:
+    import killinchu_resweep_ops as _killinchu_resweep
+    _killinchu_resweep_status = _killinchu_resweep.register(app, ns="killinchu")
+    print(f"[killinchu] resweep ops wired ({_killinchu_resweep_status})", file=sys.stderr)
+except Exception as _krs_e:  # additive: never break the Space
+    import traceback as _krs_tb
+    _killinchu_resweep_tb = _krs_tb.format_exc()
+    _killinchu_resweep_status = f"resweep-ops-not-wired:{_krs_e!r}"
+    print(f"[killinchu] resweep ops NOT mounted ({_krs_e!r}); app unaffected", file=sys.stderr)
+    print(_killinchu_resweep_tb, file=sys.stderr)
+
+@app.get("/api/killinchu/v1/resweep/_diag")
+async def _killinchu_resweep_diag():
+    from fastapi.responses import JSONResponse as _JR
+    return _JR({"status": _killinchu_resweep_status, "traceback": _killinchu_resweep_tb})
+
+# ---------------------------------------------------------------------------
+# WAVE9 + WAVE10 EXPERIMENTAL theorems wired to real work (ADDITIVE, 2026-06-08):
+# six killinchu-targeted theorem families PROVEN on lutar-lean main (Wave9 PR #199
+# merged @ 66735bf; Wave10 PR #200) as EXPERIMENTAL · CI-green — kernel-verified,
+# NOT locked. Pure-stdlib, register(app, ns)-style; registered EARLY (before the
+# /{full_path:path} catch-all). Each endpoint EXECUTES the theorem on real inputs:
+#   POST /api/killinchu/v1/wave910/stl-robustness          RA-1 two-sided Donzé–Maler
+#   POST /api/killinchu/v1/wave910/covariance-intersection OE-2 PSD convex closure
+#   POST /api/killinchu/v1/wave910/gershgorin              MA1 spectral nonsingularity
+#   POST /api/killinchu/v1/wave910/mesh-resilience         MR-1 + L-Menger cut/path
+#   POST /api/killinchu/v1/wave910/audit-receipts          CP-1 Merkle + AU-1 replay
+#   POST /api/killinchu/v1/wave910/quorum-consensus        C1 BDB + CN-1 quorum
+#   GET  /api/killinchu/v1/wave910/index                   manifest (id/name/chip/axioms)
+#   GET  /api/killinchu/v1/wave910/selftest                run all on in-image demo data
+# locked-proven stays EXACTLY 5 {F1,F11,F12,F18,F19}; Λ stays Conjecture 1; no fabricated data.
+# ---------------------------------------------------------------------------
+_killinchu_wave910 = None
+_killinchu_wave910_status = "wave910-not-wired"
+_killinchu_wave910_tb = ""
+try:
+    import killinchu_wave910 as _killinchu_wave910
+    _killinchu_wave910_status = _killinchu_wave910.register(app, ns="killinchu")
+    print(f"[killinchu] wave9/10 theorems wired ({_killinchu_wave910_status})", file=sys.stderr)
+except Exception as _kw910_e:  # additive: never break the Space
+    import traceback as _kw910_tb
+    _killinchu_wave910_tb = _kw910_tb.format_exc()
+    _killinchu_wave910_status = f"wave910-not-wired:{_kw910_e!r}"
+    print(f"[killinchu] wave9/10 NOT mounted ({_kw910_e!r}); app unaffected", file=sys.stderr)
+    print(_killinchu_wave910_tb, file=sys.stderr)
+
+@app.get("/api/killinchu/v1/wave910/_diag")
+async def _killinchu_wave910_diag():
+    from fastapi.responses import JSONResponse as _JR
+    return _JR({"status": _killinchu_wave910_status, "traceback": _killinchu_wave910_tb})
 
 # ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
 try:
@@ -396,6 +532,7 @@ async def healthz() -> JSONResponse:
         "base_path": "/",
         "doctrine": DOCTRINE,
         "declarations": 749,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "axioms": 14,
         "axioms_raw": 15,
         "sorries": 163,
@@ -405,7 +542,7 @@ async def healthz() -> JSONResponse:
         "slsa": "L1 (honest; L2 in roadmap via Wire D)",
         "receipt_signature": "REAL — ECDSA-P256-SHA256 DSSE; live at /khipu/sign + /api/killinchu/khipu/sign (Wire D shipped)",
         "signing_available": True,
-        "numbers": {"declarations": 749, "axioms": 14, "sorries": 163, "putnam_sorries": 51, "baseline_sorries": 112},
+        "numbers": {"declarations": 749, "axioms": 14, "sorries": 163, "putnam_sorries": 51, "baseline_sorries": 112, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
         "drones_in_database": len(_DRONES),
         "khipu_root": _khipu_root(),
         "khipu_nodes": len(_KHIPU_DAG),
@@ -435,6 +572,7 @@ async def honest() -> JSONResponse:
         "space": "killinchu",
         "doctrine": DOCTRINE,
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "trust_axes": 13,
         "lambda_status": "Conjecture 1 — NOT a theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
@@ -859,6 +997,7 @@ async def lambda_axes(request: Request) -> JSONResponse:
         "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
         "uniqueness": "Conjecture, not a Theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "declarations": 749,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "axioms_unique": 14,
         "sorries_total": 163,
         "kernel_commit": "c7c0ba17",
@@ -980,6 +1119,7 @@ async def vessels_healthz_alias() -> JSONResponse:
         "redirect": KILLINCHU_REDIRECT,
         "killinchu_healthz": "/api/killinchu/healthz",
         "declarations": 749, "axioms": 14, "sorries": 163, "hatun_willay": True,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
     })
 
 
@@ -1041,8 +1181,60 @@ try:
 except Exception as _kg_e:
     print(f"[killinchu] v2 genius endpoints NOT registered: {_kg_e!r}", file=sys.stderr)
 
+# ---------------------------------------------------------------------------
+# Killinchu maritime/drone WARHACKER demo suite (7 demos, ADDITIVE, 2026-06-06).
+# spoofed-ais, dark-vessel, geofence-incursion, collision-cpa, swarm-hijack,
+# tampered-command, roe-violation. Each demo is mode-aware (nominal != tamper),
+# returns real computed values (CPA km, TCPA s, rho), a real DSSE/cosign receipt
+# (UNIQUE per run), and a signed Merkle/Khipu chain that BREAKS on tamper.
+# Registered BEFORE the /{full_path:path} catch-all so /api/killinchu/v1/
+# warhacker/launch/{key} resolves LOCALLY. Uses the REAL szl_dsse cosign signer.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_warhacker_demos as _kc_wh
+
+    def _kc_wh_sign(_obj):
+        if _szl_dsse is None:
+            return {"signed": False}
+        return _szl_dsse.sign_payload(_obj, "application/vnd.szl.receipt+json")
+
+    _kc_wh_status = _kc_wh.register(app, sign_fn=_kc_wh_sign, ns="killinchu")
+    print(f"[killinchu] Warhacker demo suite registered: {_kc_wh_status}", file=sys.stderr)
+except Exception as _kc_wh_e:
+    print(f"[killinchu] Warhacker demo suite NOT registered: {_kc_wh_e!r}", file=sys.stderr)
+
 @app.get("/")
 async def spa_root() -> FileResponse:
+    """FRONT DOOR: cathedral-style sovereign 3D hero (killinchu field node tethered
+    to the a11oy substrate, live edge Λ, current updates) matching the org card.
+    The full working operator is one click in at /operator. Falls back to SPA index."""
+    hero = Path("/app/cathedral.html")
+    if hero.is_file():
+        return FileResponse(hero, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# === ADDITIVE: cathedral front-door hero assets (sovereign, vendored, NO CDN) ===
+# ES-module Three.js r160 (MIT) vendored under /app/static/vendor3d (already COPYed
+# by `COPY static/ ./static/`). Explicit routes BEFORE the SPA catch-all.
+_KC_HERO_VENDOR = Path("/app/static/vendor3d")
+
+@app.get("/hero/killinchu_cathedral.js")
+async def _kc_hero_app_js() -> FileResponse:
+    f = Path("/app/static/killinchu_cathedral.js")
+    if f.is_file():
+        return FileResponse(str(f), media_type="application/javascript; charset=utf-8")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+@app.get("/hero/vendor3d/{fname}")
+async def _kc_hero_vendor(fname: str) -> FileResponse:
+    if fname not in {"three.module.min.js", "OrbitControls.js", "THREE_LICENSE.txt"}:
+        return FileResponse(INDEX_HTML, media_type="text/html")
+    f = _KC_HERO_VENDOR / fname
+    if f.is_file():
+        ct = "text/plain; charset=utf-8" if fname.endswith(".txt") else "application/javascript; charset=utf-8"
+        return FileResponse(str(f), media_type=ct,
+                            headers={"Cache-Control": "public, max-age=31536000, immutable"})
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
@@ -1440,6 +1632,24 @@ except Exception as _d3d_e:
     print(f"[killinchu] Drone 3D Health v4 NOT registered: {_d3d_e!r}\n{_d3d_tb.format_exc()}", file=sys.stderr)
 
 
+# ---------------------------------------------------------------------------
+# HEALTH TWIN (flagship, ADDITIVE 2026-06-06, Yachay / Perplexity Computer Agent).
+# Live 3D vessel/drone health twin backend: /api/killinchu/v1/twin/{platforms,state,_self}.
+# Computes per-subsystem health from real-ish signals using OUR formulas: conformal
+# anomaly band (W5-3/W7-4 — NOT Hoeffding), Λ geometric-mean trust aggregate
+# (Conjecture 1), and the YUYAY 13-axis conjunctive gate (killinchu_anatomy). Reuses
+# the live Digitraffic AIS feed (no auth) from killinchu_live_feeds. try/except-guarded;
+# NEVER crashes the host app. Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_health_twin as _twin
+    _twin_info = _twin.register(app, "killinchu", emit_receipt=_emit_receipt)
+    print(f"[killinchu] Health Twin registered: {_twin_info['registered_count']} routes", file=sys.stderr)
+except Exception as _twin_e:
+    import traceback as _twin_tb
+    print(f"[killinchu] Health Twin NOT registered: {_twin_e!r}\n{_twin_tb.format_exc()}", file=sys.stderr)
+
+
 # ── Investor /demo route (ADDITIVE, 2026-06-02, Yachay / Perplexity Computer Agent) ──
 # 90-second narrated, animated investor walkthrough at GET /demo (+ /killinchu/demo).
 # Inline HTML (no CDN, no key). Registered BEFORE the /{full_path:path} catch-all so it
@@ -1513,6 +1723,39 @@ try:
 except Exception:
     _KC_WIRE_OK = False
 
+# Doctrine-safe display-name map for mesh organs — mirrors the console's capName()
+# sanitizer so the raw /mesh/state API never leaks internal codenames
+# (amaru/sentra/rosie). NO user-visible codenames doctrine.
+_KC_MESH_DISPLAY = {
+    "amaru": "Reasoning",
+    "sentra": "Policy",
+    "rosie": "Operator",
+    "a11oy": "Orchestrator (a11oy)",
+    "killinchu": "Field Node (killinchu)",
+}
+
+def _kc_mesh_sanitize(payload):
+    """Map any internal organ codename in a mesh-state payload to its
+    doctrine-safe display name. Applied to BOTH the live szl_wire result and
+    the honest stub so the raw API surface never exposes amaru/sentra/rosie."""
+    try:
+        if not isinstance(payload, dict):
+            return payload
+        organs = payload.get("mesh_organs")
+        if isinstance(organs, list):
+            payload["mesh_organs"] = [
+                _KC_MESH_DISPLAY.get(str(o).lower().strip(), o) for o in organs
+            ]
+        wires = payload.get("wires")
+        if isinstance(wires, dict):
+            payload["wires"] = {
+                _KC_MESH_DISPLAY.get(str(k).lower().strip(), k): v
+                for k, v in wires.items()
+            }
+    except Exception:
+        return payload
+    return payload
+
 @app.get("/api/killinchu/v1/brain")
 async def _kc_pr_brain_route():
     """Unified brain payload — killinchu drone-intel role. Doctrine v11 LOCKED."""
@@ -1521,6 +1764,7 @@ async def _kc_pr_brain_route():
     return JSONResponse({
         "space": "killinchu", "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "role": "Drone Intelligence / sovereign sensing",
         "lambda_floor": 0.90,
         "honesty": "szl_brain unavailable in this build; honest stub returned.",
@@ -1549,16 +1793,18 @@ async def _kc_pr_llm_tiers():
 
 @app.get("/api/killinchu/v1/mesh/state")
 async def _kc_pr_mesh_state():
-    """Mesh wire status — parity with a11oy/sentra/amaru/rosie. Doctrine v11."""
+    """Mesh wire status. Doctrine v11. Organ names are sanitized to doctrine-safe
+    display names (no user-visible internal codenames)."""
     if _KC_WIRE_OK:
-        return JSONResponse(_kc_pr_wire.mesh_status())
-    return JSONResponse({
+        return JSONResponse(_kc_mesh_sanitize(_kc_pr_wire.mesh_status()))
+    return JSONResponse(_kc_mesh_sanitize({
         "wires": {"D": "live", "E": "live", "F": "live", "G": "live"},
         "mesh_organs": ["a11oy", "amaru", "sentra", "killinchu", "rosie"],
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "honesty": "szl_wire unavailable; honest stub mesh state returned.",
-    })
+    }))
 
 print("[killinchu] PARITY BLOCK registered: operator_shell_v4 + /api/killinchu/v1/{brain,llm/tiers,mesh/state}", file=sys.stderr)
 # ===========================================================================
@@ -1576,7 +1822,9 @@ async def killinchu_api_health() -> JSONResponse:
         "service": "killinchu",
         "doctrine": "v11",
         "counts": "749/14/163",
+        "counts_experimental": "1304/22",
         "lean_sha": "c7c0ba17",
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
         "slsa": "L1 (honest)",
         "section_889": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
@@ -1765,6 +2013,7 @@ async def killinchu_doctrine_v3():
     return _JR({
         "flagship": "killinchu", "doctrine": "v11", "kernel_commit": "c7c0ba17",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 (honest)",
         "role": "C-UAS / Andean drone classification",
         "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
@@ -2328,6 +2577,7 @@ async def killinchu_doctrine_inline():
     return JSONResponse({
         "flagship": "killinchu", "doctrine": "v11", "kernel_commit": "c7c0ba17",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 (honest)",
         "role": "C-UAS / Andean drone classification",
         "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
