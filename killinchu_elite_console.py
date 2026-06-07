@@ -1359,6 +1359,7 @@ const VIEWS = {
         <div class="form-row"><label>Signal values (comma-sep)</label><input id="w-stl-vals" value="0.4, 0.9, 0.2, 1.1, 0.05"/></div>
         <div class="form-row"><label>Threshold</label><input id="w-stl-thr" value="0.0"/></div>
         <div class="btns"><button class="btn teal" onclick="w910_stl('always')">▶ ρ for ALWAYS (G)</button><button class="btn" onclick="w910_stl('eventually')">▶ ρ for EVENTUALLY (F)</button></div>
+        <div id="w-stl-chart" style="height:260px"></div>
         <details class="raw"><summary>raw result</summary><pre class="out" id="w-stl-out">—</pre></details></div>
       ${w910theorem({id:'RA-1',name:'STL Robustness — two-sided Donzé–Maler',
         plain:'Runtime monitor soundness: a satisfied trace guarantees ρ≥0, and a strictly-positive ρ guarantees satisfaction. The margin tells operators how close they are to violating a maritime/drone C2 rule.',
@@ -1453,6 +1454,7 @@ const VIEWS = {
         <div class="form-row"><label>d deceitful</label><input id="w-q-d" value="0"/></div>
         <div class="form-row"><label>q benign-faulty</label><input id="w-q-q" value="0"/></div>
         <div class="btns"><button class="btn teal" onclick="w910_quorum()">▶ Check BDB threshold + quorum intersection</button></div>
+        <div id="w-q-chart" style="height:260px"></div>
         <details class="raw"><summary>raw result</summary><pre class="out" id="w-q-out">—</pre></details></div>
       ${w910theorem({id:'C1 + CN-1',name:'Basilic Byzantine-BDB threshold + Quorum-Intersection',
         plain:'A sharp fault threshold n>3t+d+2q (fewer nodes than n>3t for the same safety) plus a guarantee that overlapping quorums cannot both decide differently.',
@@ -1581,7 +1583,7 @@ const VIEWS = {
       ${HONEST}`;adaptsample_run();}},
 
   // ── BUILD WAVE: Live Picture (K-N1) ───────────────────────────────────
-  livepic:{title:'Live Picture',badge:'COP · AIR+SEA FUSED · deck.gl',sub:'One map. Every track. Who is friendly, who is a threat, and what to do. A single fused <b>deck.gl</b> operating picture (ScatterplotLayer entities + PathLayer hostile-intent trails, no base-map tiles — sovereign, 0 off-origin) combines live drone tracks, sample vessels, and live USGS physical-world events — each object an entity carrying location, affiliation, identity and health, framed with MIL-STD-2525 affiliation colours (red = hostile, teal = friendly, gold = neutral/own, amber = unknown). The left rail follows the IMO 3-layer maritime-domain-awareness flow: Situational → Threat → Response. Click any track for its detail card and a per-track signed receipt. Maritime tracks are sample/replay — not a live AIS feed; live OpenSky/AIS is roadmap.',
+  livepic:{title:'Live Picture',badge:'COP · AIR+SEA FUSED · deck.gl',sub:'One map. Every track. Who is friendly, who is a threat, and what to do. A single fused <b>deck.gl</b> operating picture (ScatterplotLayer entities + PathLayer hostile-intent trails, no base-map tiles — sovereign, 0 off-origin) combines the drone threat picture, <b>live OpenSky ADS-B aircraft</b> (real positions, server-side fetch, labelled live), sample vessels, and <b>live USGS</b> physical-world events — each object an entity carrying location, affiliation, identity and health, framed with MIL-STD-2525 affiliation colours (red = hostile, teal = friendly, gold = neutral/own, amber = unknown). The left rail follows the IMO 3-layer maritime-domain-awareness flow: Situational → Threat → Response. Click any track for its detail card and a per-track signed receipt. Air picture is <b>LIVE · OpenSky Network</b> with honest fallback to sample; maritime tracks remain <b>sample/replay</b> (the dedicated Maritime tab carries the live Digitraffic AIS feed).',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Entities (fused)</div><div class="v live" id="lp-total">—</div><div class="d">air + sea + physical</div></div>
       <div class="kpi"><div class="k">Air tracks</div><div class="v" id="lp-air">—</div><div class="d">live drone picture</div></div>
@@ -1756,7 +1758,7 @@ const VIEWS = {
     }},
 
   // ── 3.3b Maritime Picture (Vessels) ─────────────────────────────
-  maritime:{title:'Maritime Picture',badge:'WEZ THREAT RINGS · deck.gl · AIS REPLAY',sub:'Sea picture — each vessel carries concentric <b>weapon-engagement-zone (WEZ) threat rings</b> on a deck.gl map (geodesic rings via haversine offset). ROE-gate colours the rings <b>hot</b> (red) for sanctioned / AIS-dark contacts and <b>cold</b> (teal) for clear ones; track lines run to the killinchu maritime station. Red = sanctioned or gone dark, amber = watch, teal = clear. Click a vessel point for its risk card. This is an AIS <b>replay (sample track set), not a live AIS feed</b> — no AIS provider is wired.',
+  maritime:{title:'Maritime Picture',badge:'WEZ THREAT RINGS · deck.gl · LIVE AIS',sub:'Sea picture — each vessel carries concentric <b>weapon-engagement-zone (WEZ) threat rings</b> on a deck.gl map (geodesic rings via haversine offset). ROE-gate colours the rings <b>hot</b> (red) for sanctioned / AIS-dark contacts and <b>cold</b> (teal) for clear ones; track lines run to the killinchu maritime station. Red = sanctioned or gone dark, amber = watch, teal = clear. Click a vessel point for its risk card. Live vessel positions are pulled server-side from <b>Digitraffic Finland AIS</b> (no auth, CORS-safe) and labelled <code>LIVE · source · timestamp</code>; if the feed is unreachable the picture falls back to a clearly-labelled <b>SAMPLE/replay</b> track set. Sanctions/ownership screening always runs against a sample OFAC/UN/EU list (no live sanctions feed is wired).',
     render:async(c)=>{
       const V = SAMPLE_VESSELS;
       const sanctioned = V.filter(v=>v.sanctioned).length;
@@ -1767,7 +1769,7 @@ const VIEWS = {
         <div class="kpi"><div class="k">Gone dark</div><div class="v warn" id="m-dark">${dark}</div><div class="d">AIS gap detected</div></div>
         <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">WEZ threat rings — vessels around the AOI</span><span class="card-ep">deck.gl PolygonLayer · AIS replay (not live) · click a vessel</span></div>
+      <div class="card"><div class="card-h"><span class="card-t">WEZ threat rings — vessels around the AOI</span><span class="card-ep" id="m-srclabel">deck.gl PolygonLayer · resolving AIS feed… · click a vessel</span></div>
         <div class="graph3d" id="maritime-globe" style="position:relative"></div>
         <div class="legend"><span><i style="background:#b06a5a"></i>hot ring: sanctioned / dark</span><span><i style="background:#c9a05f"></i>warm: watch</span><span><i style="background:#5fb3a3"></i>cold: clear</span><span><i style="background:#c9b787"></i>our station</span><span>concentric rings = 12 / 24 / 40 nm WEZ · line = track to station</span></div></div>
       <div class="card" id="vessel-risk-card"><div class="row mono dim">Click a vessel on the globe (or a row below) for its risk card — sanctions, AIS dark-gap, flag and ownership. Sample/replay screening in OFAC/UN/EU format, not live coverage.</div></div>
@@ -1782,7 +1784,7 @@ const VIEWS = {
         <div id="vr-host" class="mono dim" style="font-size:12px;line-height:1.7">A governed-decision loop, ported from the platform vessels vertical: it collects voyage signals, forecasts risk, attaches evidence, then issues an <b>advisory</b> recommendation with a rollback path and a genuinely signed receipt. The trust gate is a documented conjecture, not a pass/fail oracle.</div>
         <details class="raw"><summary>raw /fleet/voyage-risk</summary><pre class="out" id="vr-raw">—</pre></details></div>
       <details class="raw"><summary>raw AIS replay sample set</summary><pre class="out" id="maritime-raw">—</pre></details>
-      <div class="honesty"><b>Honest by design.</b> This maritime picture is an <b>AIS replay — a sample track set, not a live feed</b> (no AIS provider is wired). Sanctions and ownership are screened against a small <b>sample list</b> in OFAC/UN/EU format, not full real-time coverage. Vessel-alert receipts are <b>genuinely signed</b> with killinchu's real key and verifiable offline — the same signed-receipt thesis as the drone side.</div>`;
+      <div class="honesty"><b>Honest by design.</b> Vessel positions are pulled <b>live from Digitraffic Finland AIS</b> (no auth, server-side/CORS-safe, cached briefly, labelled <code>LIVE · source · timestamp</code>); if the feed is unreachable the picture falls back to a clearly-labelled <b>SAMPLE/replay</b> track set — never fabricated. <b>Global AIS (AISStream.io) needs an API key</b> — wired as a roadmap placeholder, not active. Sanctions and ownership are screened against a small <b>sample list</b> in OFAC/UN/EU format, not full real-time coverage (no live sanctions feed). Vessel-alert receipts are <b>genuinely signed</b> with killinchu's real key and verifiable offline — the same signed-receipt thesis as the drone side.</div>`;
       setOut('maritime-raw', V);
       window.maritime_globe();
       const h=el('vessel-list'); h.innerHTML='';
@@ -3973,8 +3975,12 @@ async function kVerifyChip(elId, tamper){
 let _lp_entities=[], _lp_timer=null, _lp_layer='situational';
 async function livepic_load(){
   // ---- gather entities from REAL endpoints ----
-  let drones=[], vessels=[], quakes=[], ranked=[];
-  try{ const d=await getJSON(API+'/threats/active'); drones=(d.threats||[]); el('lp-air').textContent=drones.length; }catch(e){ el('lp-air').textContent='—'; }
+  let drones=[], vessels=[], quakes=[], ranked=[], airlive=[], airliveMode=false, airliveIso=null;
+  try{ const d=await getJSON(API+'/threats/active'); drones=(d.threats||[]); }catch(e){}
+  // LIVE air picture: OpenSky Network ADS-B (server-side, CORS-safe). Real aircraft positions.
+  try{ const a=await getJSON(API+'/adsb'); airlive=(a.flights||[]).filter(f=>f.latitude!=null&&f.longitude!=null); airliveMode=(a.frontier==='opensky_adsb'); airliveIso=a.ts||null; }catch(e){}
+  { const ae=el('lp-air'); if(ae){ ae.textContent=(drones.length+airlive.length);
+      const dd=ae.nextElementSibling; if(dd) dd.innerHTML=(airliveMode&&airlive.length)?('<b style="color:#5fb3a3">LIVE</b> OpenSky '+airlive.length+' + '+drones.length+' tracks'):('drone picture + air ('+(airliveMode?'live':'sample')+')'); } }
   try{ const v=await getJSON(API+'/fleet/vessels'); vessels=(v.data||v.vessels||v||[]).slice(0,18); el('lp-sea').textContent=vessels.length; }catch(e){ el('lp-sea').textContent='—'; }
   try{ const q=await getProxy('usgs_hour','',11000); quakes=(q.features||[]); el('lp-geo').textContent=quakes.length; }catch(e){ el('lp-geo').textContent='—'; }
   // threat layer — prioritise the drone tracks through the live governance loop
@@ -3988,6 +3994,15 @@ async function livepic_load(){
     spd:t.speed_m_s, hdg:t.heading_deg, aliases:{role:t.role,country:t.country,group:t.group},
     health:1.0, status:t.status, threat:(ranked.find(r=>r.track_id===t.track_id)||{}).threat_score });
   });
+  // LIVE OpenSky aircraft — real ADS-B contacts (affiliation unknown until classified)
+  airlive.forEach(f=>{ E.push({
+    eid:('ICAO '+(f.icao24||'?')), kind:'TRACK', template:'AIR-LIVE', dim:'air',
+    affil:(f.szl_threat_tier==='T1_HIGH'?'unknown':'neutral'),
+    name:((f.callsign||'').trim()||('ICAO '+(f.icao24||'?'))), lat:f.latitude, lng:f.longitude,
+    alt:f.baro_altitude_m, spd:f.velocity_ms, hdg:null,
+    aliases:{origin:f.origin_country,szl_class:f.szl_class,icao24:f.icao24}, health:1.0,
+    status:(f.szl_class||'AIRBORNE'), live:true, source:'OpenSky Network (CC-BY-4.0)' });
+  });
   vessels.forEach(v=>{ E.push({
     eid:('IMO '+(v.imo||v.id)), kind:'ASSET', template:'SEA-VESSEL', dim:'surface', affil:'neutral',
     name:(v.name||'vessel'), lat:v.currentLat, lng:v.currentLon, alt:0, spd:v.currentSpeed, hdg:v.currentHeading,
@@ -3999,6 +4014,9 @@ async function livepic_load(){
       name:('M'+(p.mag||0)+' '+(p.place||'')), lat:c[1], lng:c[0], alt:0, health:1, status:'OBSERVED', mag:p.mag, live:true}); });
   _lp_entities=E;
   el('lp-total').textContent=E.length;
+  // honest source line on the fused-map card header
+  try{ var cap=document.querySelector('#lp-globe').closest('.card').querySelector('.card-ep');
+    if(cap){ cap.innerHTML='deck.gl · '+(airliveMode?('<b style="color:#5fb3a3">LIVE</b> OpenSky air + '):'sample air + ')+'sample sea + <b style="color:#5fb3a3">LIVE</b> USGS geo'; } }catch(e){}
 
   // ---- render the globe (the marquee) ----
   lp_renderGlobe(E);
@@ -4956,6 +4974,7 @@ async function tracks_evaluate(id){
 
 /* ---- Maritime Picture: globe.gl geo globe + AIS-replay arcs + risk card ---- */
 var MAR_HUB={lat:46.0,lon:30.5,name:'killinchu maritime station'};
+var MAR_HUB_ACTIVE=MAR_HUB;
 // Geodesic ring polygon around (lat,lon) at radius_nm — haversine offset, 48 segments.
 function _wezRing(lat,lon,radius_nm,segs){
   segs=segs||48; var R=3440.065; var d=radius_nm/R; var lat1=lat*Math.PI/180, lon1=lon*Math.PI/180; var ring=[];
@@ -4968,19 +4987,49 @@ function _wezRing(lat,lon,radius_nm,segs){
 // MARITIME: deck.gl WEZ (weapon-engagement-zone) threat-ring scene. Concentric geodesic
 // rings per platform; ROE-gate colours rings hot (red) for sanctioned/dark, cold (gray)
 // for clear. Distinct viz from globe.gl (pulse) + the 3D twin. Sovereign: no base-map tiles.
-function maritime_globe(){
+async function maritime_globe(){
   var host=el('maritime-globe'); if(!host)return;
   if(!window.deck||!window.deck.Deck){ host.innerHTML='<div class="row mono dim" style="padding:1rem">deck.gl unavailable</div>'; return; }
-  var V=SAMPLE_VESSELS;
   // hot = sanctioned/dark (ROE: weapons-eligible ring), warm = watch, cold = clear
   function rgb(v){ return (v.sanctioned||v.dark)?[176,106,90]:(v.watch?[201,160,95]:[95,179,163]); }
+  // --- LIVE: server-side Digitraffic FI AIS proxy (CORS-safe, cached, honest fallback) ---
+  var V=SAMPLE_VESSELS, liveMode=false, liveIso=null, liveSrc='Digitraffic Finland AIS', hub=MAR_HUB;
+  try{
+    var aj=await getJSON('/api/killinchu/v1/ais/live?limit=40');
+    var vs=((aj&&aj.data)||{}).vessels||[];
+    if(aj && (aj.mode==='live') && vs.length){
+      liveMode=true; liveIso=aj.iso||aj.fetched||null; if(aj.source) liveSrc=aj.source;
+      // centre the WEZ picture on the live fleet centroid (Gulf of Finland)
+      var clat=0,clon=0,nn=0; vs.forEach(function(v){ if(v.lat!=null&&v.lon!=null){clat+=v.lat;clon+=v.lon;nn++;} });
+      if(nn){ hub={name:'killinchu maritime station (live AOI)',lat:clat/nn,lon:clon/nn}; }
+      // map live AIS records into the vessel-card shape; sanctions data is NOT live -> clear
+      V=vs.filter(function(v){return v.lat!=null&&v.lon!=null;}).map(function(v,i){
+        var navStopped=(v.navStat===1||v.navStat===5); // anchored/moored != dark; flag low SOG as watch only
+        return {id:'ais-'+(v.mmsi||i),name:(v.name&&String(v.name).trim())||('MMSI '+(v.mmsi||'?')),type:'AIS contact',
+          flag:'\u2014',mmsi:String(v.mmsi||'\u2014'),lat:v.lat,lon:v.lon,speed_kn:(v.sog!=null?Math.round(v.sog*10)/10:null),
+          course:(v.cog!=null?Math.round(v.cog):null),sanctioned:false,dark:false,
+          watch:(v.sog!=null&&v.sog<0.3&&!navStopped),last_seen:liveIso||'live',
+          owner_chain:['Live AIS broadcast \u2014 ownership not screened from a sample list (live picture)'],ais:[],_live:true};
+      });
+    }
+  }catch(e){ liveMode=false; }
+  MAR_HUB_ACTIVE = hub;
+  var srcEl=el('m-srclabel');
+  if(srcEl){ srcEl.innerHTML = liveMode
+    ? ('<b style="color:#5fb3a3">LIVE</b> \u00b7 '+esc(liveSrc)+' \u00b7 '+esc(liveIso||(new Date().toISOString()))+' \u00b7 '+V.length+' vessels \u00b7 click a vessel')
+    : ('<b style="color:#c9a05f">SAMPLE/replay</b> \u00b7 Digitraffic AIS unreachable \u2014 labelled sample track set \u00b7 click a vessel'); }
+  var tEl=el('m-total'); if(tEl){ tEl.textContent=V.length; var dEl0=tEl.nextElementSibling; if(dEl0) dEl0.textContent = liveMode?'live AIS contacts':'in sample picture'; }
+  if(liveMode){ var sEl=el('m-sanc'); if(sEl){sEl.textContent='0';sEl.nextElementSibling.textContent='no live sanctions feed';} var dEl=el('m-dark'); if(dEl){dEl.textContent='0';dEl.nextElementSibling.textContent='all live-broadcasting';} setOut('maritime-raw', V); }
   var ringPolys=[]; V.forEach(function(v){ var c=rgb(v); var hot=(v.sanctioned||v.dark);
     [12,24,40].forEach(function(rad,k){ ringPolys.push({polygon:[_wezRing(v.lat,v.lon,rad)],color:c,_w:hot?2.2:1.2,_a:hot?(70-k*16):(34-k*8),_id:v.id}); }); });
   var vesselPts=V.map(function(v){ return {position:[v.lon,v.lat],color:rgb(v),_id:v.id,radius:(v.sanctioned||v.dark)?9:6,
-    name:v.name+' \u00b7 '+v.type+' \u00b7 '+v.flag+(v.dark?' \u00b7 AIS DARK':'')+(v.sanctioned?' \u00b7 SANCTIONED':'')}; });
-  vesselPts.push({position:[MAR_HUB.lon,MAR_HUB.lat],color:[201,183,135],_id:'STATION',radius:11,name:MAR_HUB.name});
-  // DCPA track lines from each vessel to the station (sample/replay)
-  var tracks=V.map(function(v){ var c=rgb(v); return {path:[[v.lon,v.lat],[MAR_HUB.lon,MAR_HUB.lat]],color:c,_id:v.id}; });
+    name:v.name+' \u00b7 '+v.type+' \u00b7 '+v.flag+(v.dark?' \u00b7 AIS DARK':'')+(v.sanctioned?' \u00b7 SANCTIONED':'')+(v._live?' \u00b7 LIVE':'')}; });
+  vesselPts.push({position:[hub.lon,hub.lat],color:[201,183,135],_id:'STATION',radius:11,name:hub.name});
+  // track lines from each vessel to the station
+  var tracks=V.map(function(v){ var c=rgb(v); return {path:[[v.lon,v.lat],[hub.lon,hub.lat]],color:c,_id:v.id}; });
+  // keep live vessels addressable by maritime_risk()
+  window._MARITIME_VIEW = V;
+  var _cam = liveMode ? {longitude:hub.lon,latitude:hub.lat,zoom:7.0,pitch:0,bearing:0} : {longitude:33.0,latitude:45.6,zoom:5.1,pitch:0,bearing:0};
   var layers=[
     new deck.PolygonLayer({id:'wez-rings',data:ringPolys,getPolygon:function(d){return d.polygon;},stroked:true,filled:true,
       getLineColor:function(d){return d.color.concat([200]);},getFillColor:function(d){return d.color.concat([d._a]);},getLineWidth:function(d){return d._w;},lineWidthUnits:'pixels',pickable:true}),
@@ -4988,10 +5037,10 @@ function maritime_globe(){
     new deck.ScatterplotLayer({id:'vessels',data:vesselPts,getPosition:function(d){return d.position;},getFillColor:function(d){return d.color;},getRadius:function(d){return d.radius;},radiusUnits:'pixels',stroked:true,getLineColor:[10,10,10],lineWidthMinPixels:1,pickable:true,
       onClick:function(info){ if(info&&info.object&&info.object._id&&info.object._id!=='STATION'){ maritime_risk(info.object._id); } }})
   ];
-  deckScene('maritime-globe',layers,{longitude:33.0,latitude:45.6,zoom:5.1,pitch:0,bearing:0});
+  deckScene('maritime-globe',layers,_cam);
 }
 function maritime_risk(id){
-  var v=_vesselById(id); var box=el('vessel-risk-card'); if(!v||!box)return;
+  var v=(window._MARITIME_VIEW&&window._MARITIME_VIEW.find(function(x){return x.id===id;}))||_vesselById(id); var box=el('vessel-risk-card'); if(!v||!box)return;
   var tag=v.sanctioned?'SANCTIONED':v.dark?'DARK (AIS gap)':v.watch?'WATCH':'CLEAR';
   var sc=(v.sanctioned||v.dark)?'b-err':(v.watch?'b-warn':'b-live');
   // explainable risk indicators (named, not a black box)
@@ -5456,6 +5505,19 @@ async function w910_stl(op){
     setTxt('w-stl-bnd',_yn(d.on_boundary_rho_zero));
     setTxt('w-stl-ok',_yn(d.all_bounds_hold));
     setHTML('w-stl-out',esc(JSON.stringify(d,null,2)));
+    /* plot the signal trace vs threshold; mark the critical sample driving ρ (reuse thr const) */
+    var sig=raw.map(function(v,i){return [i,v];});
+    var diffs=raw.map(function(v){return v-thr;});
+    var critIdx=0; if((op||'always')==='always'){var mn=Infinity;diffs.forEach(function(dv,i){if(dv<mn){mn=dv;critIdx=i;}});}
+      else {var mx=-Infinity;diffs.forEach(function(dv,i){if(dv>mx){mx=dv;critIdx=i;}});}
+    mkEchart('w-stl-chart',{tooltip:{trigger:'axis'},legend:{bottom:0,data:['signal','threshold']},grid:{left:42,right:18,top:14,bottom:34},
+      xAxis:{type:'value',name:'sample',minInterval:1},yAxis:{type:'value',name:'value',scale:true},
+      series:[
+        {name:'threshold',type:'line',data:raw.map(function(_,i){return [i,thr];}),symbol:'none',lineStyle:{color:'#c9a05f',type:'dashed',width:1.4}},
+        {name:'signal',type:'line',data:sig,smooth:false,symbol:'circle',symbolSize:7,lineStyle:{color:'#5fb3a3',width:2},itemStyle:{color:'#5fb3a3'},
+         markPoint:{symbolSize:46,data:[{name:'\u03c1-critical',coord:[critIdx,raw[critIdx]],value:'\u03c1='+((d.rho!=null)?d.rho.toFixed(3):''),itemStyle:{color:(d.sat?'#5fb3a3':'#b06a5a')}}]},
+         markArea:{itemStyle:{color:(d.sat?'rgba(95,179,163,.08)':'rgba(176,106,90,.10)')},data:[[{yAxis:thr},{yAxis:raw[critIdx]}]]}}
+      ]});
   }catch(e){setHTML('w-stl-out','error: '+esc(e.message));}
 }
 async function w910_ci(){
@@ -5544,6 +5606,17 @@ async function w910_quorum(){
     setTxt('w-q-int',_yn(qi.two_quorums_intersect));
     setTxt('w-q-uniq',_yn(qi.unique_decision));
     setHTML('w-q-out',esc(JSON.stringify(d,null,2)));
+    /* bar: actual n vs required BDB threshold 3t+d+2q (safe iff n > threshold) */
+    var nn=(isNaN(n)?4:n), thr=(bdb.threshold_3t_plus_d_plus_2q!=null)?bdb.threshold_3t_plus_d_plus_2q:0;
+    var safe=!!bdb.safe;
+    mkEchart('w-q-chart',{tooltip:{trigger:'axis'},grid:{left:46,right:18,top:18,bottom:30},
+      xAxis:{type:'category',data:['nodes n','BDB threshold (3t+d+2q)']},yAxis:{type:'value',name:'count',minInterval:1},
+      series:[{type:'bar',barWidth:'46%',data:[
+        {value:nn,itemStyle:{color:(safe?'#5fb3a3':'#b06a5a')}},
+        {value:thr,itemStyle:{color:'#c9a05f'}}],
+        label:{show:true,position:'top',color:'#cfcfcf',formatter:'{c}'},
+        markLine:{silent:true,symbol:'none',lineStyle:{color:(safe?'#5fb3a3':'#b06a5a'),type:'dashed'},
+          data:[{yAxis:thr+0.5,name:(safe?'SAFE: n>thr':'UNSAFE: n\u2264thr')}],label:{formatter:(safe?'safe boundary':'unsafe'),color:'#9a9a9a'}}}]});
   }catch(e){setHTML('w-q-out','error: '+esc(e.message));}
 }
 window.w910_stl=w910_stl; window.w910_ci=w910_ci; window.w910_gg=w910_gg;
