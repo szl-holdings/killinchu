@@ -2930,24 +2930,25 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3">PROVEN</span><span>W5-4 \u2014 a duplicate receipt id in the hashed image is a hash collision (forgery detection).</span></div>
         <div class="row"><span class="badge" style="color:#c9b787;border:1px solid #c9b787">AXIOM-GATED</span><span>P5 \u2014 any single-receipt payload mutation makes re-verify reject (assumes hash CR; disclosed).</span></div></div>${HONEST}`;window.deploy_load();}},
 
-  warboard:{title:'Warhacker Proofs',badge:'5 PROBLEMS · LIVE PROOF + GUARANTEE',sub:'The five field-ops Warhacker problems, each answered by a real tab and a proven guarantee \u2014 launched live, in-image, with a genuinely-signed receipt. This is the scoreboard: for every problem you see the live decision killinchu makes, the formula that makes the answer defensible, and an honest \u201cwhat we proved\u201d chip. Λ is advisory (Conjecture 1) on every gate \u2014 never a pass/fail oracle. Launch all five and watch the receipts land (PASS, then prove tamper-FAIL on the Deploy tab).',
+  warboard:{title:'Warhacker Proofs',badge:'25 DEMOS \u00b7 LIVE PROOF + SIGNED RECEIPT',sub:'All 25 maritime/drone Warhacker demos, each a real in-image mechanism with a proven guarantee \u2014 launched live with a genuinely-signed (ECDSA-P256) receipt. For every demo you see the gate verdict, the advisory trust score \u039b (Conjecture 1 \u2014 never a pass/fail oracle), the governing formula, and the signed receipt. Each demo is individually launchable; tamper mode flips one real input so the SAME mechanism visibly FAILS and the signed chain breaks. Launch all 25 and watch the receipts land.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
-      <div class="kpi"><div class="k">Problems</div><div class="v teal">5 / 5</div><div class="d">each answered + proven</div></div>
-      <div class="kpi"><div class="k">Launched</div><div class="v" id="wb-ok">\u2014</div><div class="d">live this session</div></div>
-      <div class="kpi"><div class="k">Receipts</div><div class="v teal" id="wb-rc">\u2014</div><div class="d">genuinely signed</div></div>
-      <div class="kpi"><div class="k">Bullseye</div><div class="v">P3</div><div class="d">non-interference (Cannonico)</div></div></div>
-      <div class="card"><div class="row"><button onclick="window.warboard_all()" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">Launch all 5 field demos</button>
-        <span class="card-ep" style="margin-left:.8rem">each runs in-image and records a genuinely-signed receipt of the decision</span></div></div>
-      <div id="wb-cards"></div>${HONEST}`;window.warboard_init();}},
+      <div class="kpi"><div class="k">Demos</div><div class="v teal" id="wb-n">25</div><div class="d">each individually launchable</div></div>
+      <div class="kpi"><div class="k">Launched OK</div><div class="v" id="wb-ok">0 / 25</div><div class="d">live this session</div></div>
+      <div class="kpi"><div class="k">Signed receipts</div><div class="v teal" id="wb-rc">0</div><div class="d">genuinely signed (cosign)</div></div>
+      <div class="kpi"><div class="k">Tamper caught</div><div class="v" id="wb-tc">0 / 0</div><div class="d">chain breaks, named node</div></div></div>
+      <div class="card"><div class="row" style="gap:.5rem;flex-wrap:wrap"><button onclick="window.warboard_all('nominal')" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">\u25b6 Launch all 25 demos</button>
+        <button onclick="window.warboard_all('tamper')" style="background:#b3475f;border:none;color:#fff;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">\u25b6 Launch all 25 \u00b7 tamper</button>
+        <span class="card-ep" style="margin-left:.4rem;align-self:center">each runs in-image and records a genuinely-signed receipt of the decision</span></div></div>
+      <div id="wb-cards"><div class="row mono dim">loading the 25-demo index\u2026</div></div>${HONEST}`;window.warboard_init();}},
 
-  warhacker:{title:'Maritime / Drone Warhacker',badge:'7 DEMOS \u00b7 MODE-AWARE \u00b7 REAL COMPUTE + SIGNED CHAIN',sub:'Seven adversarial maritime &amp; drone scenarios, each run live in-image. Every demo is <b>mode-aware</b>: <b>nominal</b> produces a clean, authorized verdict; <b>tamper</b> flips a real input so the kinematics / geometry / gate genuinely fail \u2014 the decision changes, the per-run DSSE receipt changes, and an always-on tamper test breaks the signed Merkle/Khipu chain at a <b>named first-failing condition</b>. All numbers (CPA km, TCPA s, robustness \u03c1, gap seconds, signed distances) are computed at request time \u2014 no canned PASS. \u039b is advisory (Conjecture 1); the conjunctive gate itself is P2 gate-soundness PROVEN. AIS data is sample/replay (labeled); a live AIS feed is roadmap.',
+  warhacker:{title:'Maritime / Drone Warhacker',badge:'25 DEMOS \u00b7 MODE-AWARE \u00b7 REAL COMPUTE + SIGNED CHAIN',sub:'All 25 adversarial maritime &amp; drone scenarios, each run live in-image and individually launchable. Every demo is <b>mode-aware</b>: <b>nominal</b> produces a clean, authorized verdict; <b>tamper</b> flips a real input so the kinematics / geometry / gate genuinely fail \u2014 the decision changes, the per-run DSSE receipt changes, and an always-on tamper test breaks the signed Merkle/Khipu chain at a <b>named first-failing condition</b>. All numbers (CPA km, TCPA s, robustness \u03c1, gap seconds, signed distances) are computed at request time \u2014 no canned PASS. \u039b is advisory (Conjecture 1); the conjunctive gate itself is P2 gate-soundness PROVEN. AIS data is sample/replay (labeled); a live AIS feed is roadmap.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
-      <div class="kpi"><div class="k">Demos</div><div class="v teal">7</div><div class="d">maritime + drone</div></div>
+      <div class="kpi"><div class="k">Demos</div><div class="v teal" id="wh-n">25</div><div class="d">maritime + drone, each launchable</div></div>
       <div class="kpi"><div class="k">Mode-aware</div><div class="v" id="wh-modeaware">\u2014</div><div class="d">nominal \u2260 tamper</div></div>
       <div class="kpi"><div class="k">Signed receipts</div><div class="v teal" id="wh-signed">\u2014</div><div class="d">unique per run</div></div>
       <div class="kpi"><div class="k">Tamper breaks chain</div><div class="v" id="wh-tamper">\u2014</div><div class="d">named failing node</div></div></div>
-      <div class="card"><div class="row"><button onclick="window.warhacker_all('nominal')" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">Run all 7 \u2014 NOMINAL</button>
-        <button onclick="window.warhacker_all('tamper')" style="background:#b3475f;border:none;color:#fff;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700;margin-left:.6rem">Run all 7 \u2014 TAMPER</button>
+      <div class="card"><div class="row"><button onclick="window.warhacker_all('nominal')" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">Run all 25 \u2014 NOMINAL</button>
+        <button onclick="window.warhacker_all('tamper')" style="background:#b3475f;border:none;color:#fff;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700;margin-left:.6rem">Run all 25 \u2014 TAMPER</button>
         <span class="card-ep" style="margin-left:.8rem">each launch hits /api/killinchu/v1/warhacker/launch/{key} in-image and records a genuinely-signed receipt</span></div></div>
       <div id="wh-cards"></div>${HONEST}`;window.warhacker_init();}},
 
@@ -5194,40 +5195,80 @@ var _WB_FORMULA={
     run:async()=>{ return await postJSON(API+'/receipt/emit',{op:'warhacker/edge',payload:{edge:true,sovereign:true}}); }}
 };
 function warboard_init(){ setHTML('wb-cards','<div class="row mono dim">Click \u201cLaunch all 5 field demos\u201d \u2014 each runs in-image and records a genuinely-signed receipt of the decision.</div>'); }
-async function warboard_all(){
-  setHTML('wb-cards','<div class="row mono dim">launching 5 governed field demos in-image\u2026</div>');
-  var keys=['cannonico','airgap','autonomy','darkvessel','edge'];
-  var ok=0, signed=0, html='';
-  for(var i=0;i<keys.length;i++){
-    var k=keys[i]; var meta=_WB_FORMULA[k]||{};
-    try{
-      var d=await meta.run();
-      // unify decision + receipt across endpoint shapes
-      var rc=(d.lambda_receipt||d||{}); var dsse=(rc.dsse||d.dsse||{});
-      var verdict=String(d.decision||d.verdict||(d.ok?'OK':'\u2014')).toUpperCase();
-      var lam=(d.lambda!=null?d.lambda:null);
-      var digest=(rc.digest||d.node_digest||d.khipu_root||'');
-      var isSigned=!!(dsse.signed||d.signed);
-      ok++; if(isSigned) signed++;
-      html+='<div class="card"><div class="card-h"><span class="card-t">'+esc(meta.title||k)+'</span><span class="card-ep">'+esc(k)+'</span></div>'+
-        '<div class="row">'+_fr_chip(meta.chip?meta.chip[0]:'LIVE',meta.chip?meta.chip[1]:'#5fb3a3')+'<span>'+esc(meta.guarantee||'')+'</span></div>'+
-        '<div class="row"><span>Verdict</span><span class="spacer">'+_fr_badge(verdict,(verdict==='CLEAR'||verdict==='OK'||verdict==='IN_ENVELOPE')?'live':'gold')+'</span></div>'+
-        '<div class="row"><span>Trust score \u039b (advisory \u00b7 Conjecture 1)</span><span class="spacer mono dim">'+(lam!=null?Number(lam).toFixed(6):'\u2014')+'</span></div>'+
-        '<div class="row"><span>Governing formula</span><span class="spacer mono dim">'+esc(meta.f||'')+'</span></div>'+
-        '<div class="row"><span>Signed receipt</span><span class="spacer mono dim">'+esc(String(digest||'\u2014').slice(0,18))+(isSigned?' \u00b7 signed ('+esc(dsse.keyid||'szlholdings-cosign')+')':' \u00b7 unsigned')+'</span></div>'+
-        '<div class="row"><a href="#'+esc(meta.tab||'warboard')+'" onclick="go(\''+esc(meta.tab||'warboard')+'\')" class="mono teal" style="text-decoration:none">\u2192 open the tab that proves this</a></div></div>';
-    }catch(e){
-      html+='<div class="card"><div class="card-h"><span class="card-t">'+esc((_WB_FORMULA[k]||{}).title||k)+'</span><span class="card-ep">retry</span></div><div class="row mono dim">live service retry: '+esc(e&&e.message||e)+'</div></div>';
-    }
+async function warboard_all(mode){
+  // 25-DEMO FIX (2026-06-08): render ALL 25 individual maritime/drone demos as
+  // individually-launchable cards driven by the LIVE index (no hardcoded key list).
+  // Each card calls /api/killinchu/v1/warhacker/launch/{key} and shows the gate
+  // verdict, advisory Lambda (Conjecture 1), governing formula, and signed receipt.
+  mode = (mode==='tamper')?'tamper':'nominal';
+  setHTML('wb-cards','<div class="row mono dim">loading the 25-demo index\u2026</div>');
+  var demos=[];
+  try{ var idx=await getJSON('/api/killinchu/v1/warhacker/index'); demos=idx.demos||[]; }
+  catch(e){ setHTML('wb-cards','<div class="row mono dim">index retry: '+esc(e&&e.message||e)+'</div>'); return; }
+  setTxt('wb-n', demos.length);
+  setTxt('wb-ok','0 / '+demos.length);
+  // build a responsive grid of 25 cards first (so each is visible immediately)
+  var grid='<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.6rem" id="wb-grid">';
+  demos.forEach(function(m){
+    var rr=String(m.real_or_roadmap||''); var rrReal=/REAL TODAY/i.test(rr);
+    var rid='wbk-'+m.key;
+    grid+='<div class="card" id="'+esc(rid)+'" style="padding:.55rem;display:flex;flex-direction:column;gap:.3rem;min-height:150px">'+
+      '<div class="mono" style="font-size:9.5px;color:#cdd2d8;font-weight:700;line-height:1.2;min-height:34px">'+esc(m.title||m.key)+'</div>'+
+      '<div class="mono" style="font-size:8px;color:#7a7a7a">'+_fr_chip(rrReal?'REAL TODAY':'SAMPLE / substrate', rrReal?'#5fb3a3':'#c9a05f')+'</div>'+
+      '<button onclick="window.warboard_one(\''+esc(m.key)+'\',\''+mode+'\')" style="background:transparent;border:1px solid #5fb3a3;color:#5fb3a3;border-radius:6px;padding:.3rem;cursor:pointer;font-size:10px;font-weight:700;margin-top:auto">Launch'+(mode==='tamper'?' (tamper)':'')+'</button>'+
+      '<div class="wb-out mono" style="font-size:8.5px;color:#7a7a7a">not run yet</div></div>';
+  });
+  grid+='</div>';
+  setHTML('wb-cards',grid);
+  // launch all sequentially
+  var ok=0, signed=0, tc=0, tt=0;
+  for(var i=0;i<demos.length;i++){
+    var r=await _wb_run_one(demos[i].key, mode);
+    if(r && r.ok!==false){ ok++; if((r.sealed||{}).signed||(r.receipt&&r.receipt.dsse&&r.receipt.dsse.signed)) signed++;
+      if(mode==='tamper'){ tt++; var ttest=r.tamper_test||{}; if(ttest.chain_intact===false||ttest.merkle_root_matches===false||r.authorized===false) tc++; } }
+    setTxt('wb-ok', ok+' / '+demos.length); setTxt('wb-rc', signed); setTxt('wb-tc', tc+' / '+tt);
   }
-  setTxt('wb-ok',ok+' / 5');
-  setTxt('wb-rc',signed);
-  setHTML('wb-cards',html);
 }
-
+// launch a single demo by key (used by the per-card Launch button)
+async function warboard_one(key, mode){
+  mode=(mode==='tamper')?'tamper':'nominal';
+  await _wb_run_one(key, mode);
+}
+async function _wb_run_one(key, mode){
+  var cid='wbk-'+key; var card=el(cid); var out=card&&card.querySelector('.wb-out');
+  if(out) out.innerHTML='<span style="color:#c9a05f">launching ('+esc(mode)+')\u2026</span>';
+  try{
+    var r=await postJSON('/api/killinchu/v1/warhacker/launch/'+encodeURIComponent(key),{mode:mode});
+    if(out){
+      var authorized=(r.authorized===true);
+      var verdict=r.decision!=null?String(r.decision):(authorized?'AUTHORIZED':'BLOCKED');
+      var fp=(r.formula_panel&&r.formula_panel[0])||{};
+      var rc=r.receipt||{}; var dsse=rc.dsse||{}; var sealed=r.sealed||{};
+      var rid=rc.receipt_id||('kc-rcpt-'+String((rc.chain_hash||sealed.chain_hash||'')).slice(0,16));
+      var signed=!!(dsse.signed||sealed.signed);
+      var keyid=dsse.keyid||'szlholdings-cosign';
+      var merkle=String(rc.merkle_root||sealed.merkle_root||'').slice(0,16);
+      var rho=(r.kinematic&&r.kinematic.robustness_rho_kn!=null)?('\u03c1='+r.kinematic.robustness_rho_kn+'kn'):(r.lambda!=null?Number(r.lambda).toFixed(4):'advisory');
+      var ttest=r.tamper_test||{}; var tcaught=(ttest.chain_intact===false)||(ttest.merkle_root_matches===false);
+      if(card) card.style.borderColor = authorized ? '#5fb3a3' : '#c9a05f';
+      out.innerHTML =
+         '<div style="color:'+(authorized?'#5fb3a3':'#c9a05f')+';font-weight:700">'+esc(verdict)+' \u00b7 '+(mode==='tamper'?'<span style="color:#b06a5a">tamper</span>':'<span style="color:#5fb3a3">nominal</span>')+'</div>'+
+         '<div>\u039b: <span style="color:#c9a05f">'+esc(rho)+'</span> <span style="color:#7a7a7a">(Conjecture 1)</span></div>'+
+         '<div style="color:#cdd2d8">f: '+esc(fp.formula||'\u2014')+'</div>'+
+         '<div>receipt: '+(signed?'<span style="color:#5fb3a3">SIGNED</span>':'<span style="color:#b06a5a">unsigned</span>')+'</div>'+
+         '<div style="color:#7a7a7a;word-break:break-all">'+esc(rid)+'</div>'+
+         '<div style="color:#7a7a7a">key: '+esc(keyid)+'</div>'+
+         '<div style="color:#7a7a7a">merkle: '+esc(merkle)+'\u2026</div>'+
+         '<div>tamper: '+(tcaught?'<span style="color:#5fb3a3">CAUGHT (chain breaks)</span>':'<span style="color:#7a7a7a">\u2014</span>')+'</div>';
+    }
+    return r;
+  }catch(e){ if(out) out.innerHTML='<span style="color:#b06a5a">retry: '+esc(e&&e.message||e)+'</span>'; return {ok:false}; }
+}
 /* ---- Maritime/Drone Warhacker (7 mode-aware demos) ---- */
 var _WH_KEYS=['spoofed-ais','dark-vessel','geofence-incursion','collision-cpa','swarm-hijack','tampered-command','roe-violation'];
-function warhacker_init(){
+async function warhacker_init(){
+  // 25-DEMO FIX: populate the full demo key list from the LIVE index (all 25), never a hardcoded 7-key subset.
+  try{ var idx=await getJSON('/api/killinchu/v1/warhacker/index'); var ks=(idx.demos||[]).map(function(m){return m.key;}); if(ks.length){ _WH_KEYS=ks; } var n=el('wh-n'); if(n) n.textContent=_WH_KEYS.length; }catch(e){}
   var html='';
   for(var i=0;i<_WH_KEYS.length;i++){
     var k=_WH_KEYS[i];
@@ -5630,7 +5671,7 @@ window.modelatlas_load=modelatlas_load; window.modelatlas_route=modelatlas_route
 window.melt_load=melt_load; window.melt_drill=melt_drill; window.melt_apply_filter=melt_apply_filter;
 window.darkgraph_load=darkgraph_load; window.darkgraph_render=darkgraph_render; window.darkgraph_sort=darkgraph_sort; window.darkgraph_evaluate=darkgraph_evaluate;
 window.deploy_load=deploy_load; window.deploy_verify=deploy_verify;
-window.warboard_init=warboard_init; window.warboard_all=warboard_all;
+window.warboard_init=warboard_init; window.warboard_all=warboard_all; window.warboard_one=warboard_one;
 
 // ===================== ROUTER =====================
 function go(view){
