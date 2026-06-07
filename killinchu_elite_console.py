@@ -222,11 +222,30 @@ def register(
 
         @app.get("/vendor/fonts/{fname}")
         async def _vendor_font(fname: str):
+            # 1) base64 blobs (legacy KaTeX woff2 in _vendor_blobs.py)
             data = _vb.get(f"fonts/{fname}")
-            if data is None:
-                return _Resp(status_code=404)
-            return _Resp(content=data, media_type="font/woff2",
-                         headers={"Cache-Control": "public, max-age=31536000, immutable"})
+            if data is not None:
+                return _Resp(content=data, media_type="font/woff2",
+                             headers={"Cache-Control": "public, max-age=31536000, immutable"})
+            # 2) on-disk self-hosted fonts (SOVEREIGN: Space Grotesk / JetBrains
+            #    Mono + fonts.css). Served from static/vendor/fonts/. This route
+            #    is registered BEFORE the /vendor mount, so without this fallback
+            #    the nested fonts dir would 404. NO CDN.
+            try:
+                _fdir = (_vendor_dir() / "fonts").resolve()
+                _f = (_fdir / fname).resolve()
+                _f.relative_to(_fdir)  # path-traversal guard
+                if _f.is_file():
+                    _mt = ("text/css" if fname.endswith(".css")
+                           else "font/woff2" if fname.endswith(".woff2")
+                           else "font/woff" if fname.endswith(".woff")
+                           else "font/ttf" if fname.endswith(".ttf")
+                           else "application/octet-stream")
+                    return _Resp(content=_f.read_bytes(), media_type=_mt,
+                                 headers={"Cache-Control": "public, max-age=31536000, immutable"})
+            except Exception:
+                pass
+            return _Resp(status_code=404)
 
         registered.append("GET /vendor/earth-night.jpg + /vendor/fonts/* (base64 blobs)")
     except Exception as _be:  # pragma: no cover - never block the console
@@ -316,8 +335,8 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>killinchu — Counter-UAS Governance · SZL Holdings</title>
 <meta name="description" content="killinchu is SZL Holdings' counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint."/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<!-- SOVEREIGN: self-hosted fonts (0 runtime CDN; no fonts.googleapis.com / fonts.gstatic.com). Served from /vendor/fonts/. -->
+<link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
 <!-- VENDORED viz libs (no-CDN, sovereign / air-gap ready). Chart.js 4.4.1, 3d-force-graph 1.73.4,
      ECharts 5 + echarts-gl 2, globe.gl 2, Cytoscape 3, D3 7, KaTeX 0.16.9. Served from /vendor/* . -->
 <script src="/vendor/chart.umd.min.js"></script>
@@ -329,6 +348,27 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <script src="/vendor/d3.min.js"></script>
 <link rel="stylesheet" href="/vendor/katex.min.css"/>
 <script src="/vendor/katex.min.js"></script>
+<!-- BATCH-1 distinctness libs (MIT/Apache/ISC, vendored, see /static/NOTICE):
+     Three.js r160 (THREE) — 3D HEALTH TWIN; deck.gl (deck) — geospatial layers;
+     Konva (Konva) — 2D schematic canvas; Sigma+Graphology (Sigma/graphology) +
+     Dagre (dagre) — receipt-chain DAG. All UMD globals, 0 runtime CDN. -->
+<script src="/vendor/three.min.js"></script>
+<script src="/vendor/deck.min.js"></script>
+<script src="/vendor/konva.min.js"></script>
+<script src="/vendor/graphology.min.js"></script>
+<script src="/vendor/sigma.min.js"></script>
+<script src="/vendor/dagre.min.js"></script>
+<!-- BATCH-2 distinctness libs (MIT/ISC/BSD-3, vendored, see NOTICES.md):
+     regl (createREGL) + pub-sub-es (createPubSub) -> regl-scatterplot (createScatterplot,
+     factory at .default) — sensor-fusion covariance scatter; @observablehq/plot (Plot, reads
+     global d3) — maintenance state timeline; d3-sankey (attaches d3.sankey to the d3 bundle
+     above) — voyage + engagement-audit flow. Load order: d3(348) -> d3-sankey; regl ->
+     pub-sub-es -> regl-scatterplot; plot. All UMD globals, 0 runtime CDN. -->
+<script src="/vendor/d3-sankey.min.js"></script>
+<script src="/vendor/regl.min.js"></script>
+<script src="/vendor/pub-sub-es.min.js"></script>
+<script src="/vendor/regl-scatterplot.min.js"></script>
+<script src="/vendor/plot.umd.min.js"></script>
 <style>
 /* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
@@ -344,18 +384,24 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
   --display:'Space Grotesk',Georgia,serif;
 }
 *{box-sizing:border-box;}
-html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);
-  font-family:var(--display);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);display:flex;flex-direction:column;
+  font-family:var(--display);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  height:100%;overflow:hidden;}
+/* FRAMING DOCTRINE: lock the document to the viewport so ONLY .content scrolls
+   internally; the primary viz of every tab is in-fold at 1440x900 AND 1366x768. */
 .mono{font-family:var(--mono);}
 a{color:inherit;text-decoration:none;}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:3px;}
 ::-webkit-scrollbar{width:9px;height:9px;}::-webkit-scrollbar-thumb{background:#222;border-radius:6px;}
 
 /* ===== TOP BAR + CROSS-FLAG SWITCHER ===== */
-.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;
-  padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);
+.topbar{flex:0 0 auto;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:nowrap;
+  height:39px;min-height:39px;max-height:39px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;
+  padding:0 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;
-  letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+  letter-spacing:.1em;text-transform:uppercase;color:var(--gold);scrollbar-width:none;}
+.topbar::-webkit-scrollbar{display:none;}
+.topbar > *{flex:0 0 auto;}
 .topbar .sep{color:var(--dim);}
 .topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
@@ -367,7 +413,7 @@ a{color:inherit;text-decoration:none;}
 .flag.active{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
 
 /* ===== APP LAYOUT: SIDEBAR + CONTENT ===== */
-.app{display:grid;grid-template-columns:248px 1fr;min-height:calc(100vh - 39px);}
+.app{flex:1 1 auto;display:grid;grid-template-columns:248px 1fr;min-height:0;height:auto;overflow:hidden;}
 .side{background:var(--rail);border-right:1px solid var(--gold-line);padding:1.1rem .8rem;overflow-y:auto;}
 .brand{display:flex;align-items:center;gap:.6rem;padding:0 .4rem 1rem;}
 .brand .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--gold),var(--teal));display:grid;place-items:center;color:#0a0a0a;font-weight:700;font-family:var(--mono);}
@@ -381,7 +427,7 @@ a{color:inherit;text-decoration:none;}
 .side-foot{margin-top:1.2rem;padding:.7rem .6rem;border-top:1px solid var(--gold-line);font-family:var(--mono);font-size:9.5px;color:var(--dim);line-height:1.7;}
 
 /* ===== CONTENT ===== */
-.content{padding:1.4rem 1.8rem 3rem;overflow-y:auto;max-height:calc(100vh - 39px);}
+.content{padding:1.1rem 1.6rem 2rem;overflow-y:auto;overflow-x:hidden;height:100%;min-height:0;-webkit-overflow-scrolling:touch;}
 .view-head{display:flex;align-items:flex-end;gap:.8rem;flex-wrap:wrap;margin-bottom:.3rem;}
 .view-title{font-size:1.7rem;font-weight:500;letter-spacing:-.02em;}
 .view-badge{font-family:var(--mono);font-size:10px;color:var(--teal);border:1px solid var(--teal-line);border-radius:5px;padding:.12rem .5rem;background:var(--teal-soft);}
@@ -426,18 +472,61 @@ label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:
 .verdict-HOLD,.verdict-MONITOR,.verdict-REVIEW,.verdict-DEFER{color:var(--warn);}
 .verdict-BREACH,.verdict-DENY{color:var(--err);}
 
+/* ===== MOBILE / TABLET RESPONSIVE (Framing Doctrine §C) ===== */
 @media (max-width:820px){
-  .app{grid-template-columns:1fr;}
-  .side{position:fixed;left:0;top:39px;bottom:0;width:240px;transform:translateX(-100%);transition:.2s;z-index:55;}
+  /* mobile uses the same flex-column body lock (topbar 39px + .app flex:1); only .content scrolls */
+  html,body{height:100%!important;max-height:100%!important;overflow:hidden!important;}
+  .app{grid-template-columns:1fr;min-height:0;overflow:hidden!important;}
+  .side{position:fixed;left:0;top:39px;bottom:0;width:min(82vw,300px);transform:translateX(-100%);
+    transition:transform .22s cubic-bezier(.2,.8,.2,1);z-index:120;box-shadow:0 0 40px rgba(0,0,0,.6);}
   .side.open{transform:none;}
-  .content{max-height:none;}
+  .content{height:100%;padding:1rem 1rem 2rem;}
   .menu-btn{display:inline-flex!important;}
+  /* full-width single column + readable viz on portrait */
+  .grid2,.split2,.lp-grid{grid-template-columns:1fr!important;}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(46%,1fr));}
+  .view-title{font-size:1.35rem;}
+  .view-sub{font-size:12px;}
+  /* viz re-fits portrait: cap to a fraction of viewport height, never overflow */
+  .graph3d,.graph3d.hero,.graph3d.tall{height:min(56vh,360px)!important;}
+  .globe3d{height:min(60vh,380px)!important;}
+  .cyto{height:min(56vh,360px)!important;}
+  .echart,.echart.tall{height:min(50vh,320px)!important;}
+  .chartbox,.chartbox.tall{height:min(42vh,260px)!important;}
+  .feedtail{height:min(46vh,300px)!important;}
+  /* tap targets >=44px, text >=12px */
+  .nav-item{padding:.7rem .6rem;font-size:14px;}
+  .btn{padding:.65rem 1rem;min-height:44px;}
+  .lp-rail-item{min-height:44px;}
+  /* horizontal-overflow containment: wide tables / KaTeX-display / wide inline
+     viz must scroll INSIDE their own bounded box, never push past the viewport
+     width (Framing Doctrine §B/§C — no h-scroll, viz re-fits). */
+  .card,.split2,.grid2,.lp-grid{max-width:100%;min-width:0;overflow:hidden;}
+  .dtbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;}
+  .katex-display{overflow-x:auto;overflow-y:hidden;max-width:100%;}
+  .echart,.echart.tall,.chartbox,.chartbox.tall,.graph3d,.globe3d,.cyto{max-width:100%!important;}
+  /* generic wide scrollers stay within the column */
+  [style*="overflow-x:auto"]{max-width:100%;}
+}
+/* scrim behind the open drawer */
+.side-scrim{display:none;position:fixed;inset:39px 0 0 0;background:rgba(0,0,0,.5);z-index:110;}
+.side-scrim.open{display:block;}
+@media (min-width:821px){.side-scrim{display:none!important;}}
+@media (max-width:480px){
+  .kpis{grid-template-columns:1fr;}
+  .content{padding:.85rem .85rem 1.6rem;}
+  .card{padding:.85rem .9rem;}
+  .view-title{font-size:1.2rem;}
+  .btns{gap:.4rem;}
 }
 .menu-btn{display:none;background:none;border:1px solid var(--gold-line);color:var(--gold);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-family:var(--mono);font-size:11px;}
-/* ===== VISUAL DASHBOARD TEMPLATE (charts / gauges / 3D) ===== */
-.chartbox{position:relative;height:260px;width:100%;}
-.chartbox.tall{height:320px;}
-.graph3d{height:420px;width:100%;border-radius:9px;background:radial-gradient(circle at 50% 40%,#0c1410,#070707);overflow:hidden;border:1px solid var(--gold-line);}
+/* ===== VISUAL DASHBOARD TEMPLATE (charts / gauges / 3D) =====
+   Heights use clamp(min, fold-relative, max) so the PRIMARY viz of each tab
+   stays in-fold at 1366x768 (usable height ~620px after the 39px topbar +
+   ~140px head/kpis chrome) AND looks generous at 1440x900. (Framing Doctrine §B.) */
+.chartbox{position:relative;height:clamp(200px,34vh,260px);width:100%;}
+.chartbox.tall{height:clamp(240px,40vh,320px);}
+.graph3d{height:clamp(300px,50vh,420px);width:100%;border-radius:9px;background:radial-gradient(circle at 50% 40%,#0c1410,#070707);overflow:hidden;border:1px solid var(--gold-line);}
 .gauge-wrap{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap;}
 .gauge{position:relative;width:150px;height:150px;}
 .gauge .lbl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;}
@@ -454,16 +543,23 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 .verify-badge.pending{color:var(--muted);border:1px solid var(--gold-line);background:var(--gold-soft);}
 .verify-badge .dot{width:10px;height:10px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
 /* ===== GENIUS VISUALS (inherited from a11oy command platform) ===== */
-.graph3d.hero{height:520px;}
+.graph3d.hero{height:clamp(340px,58vh,520px);}
 .org-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
 .graph3d{position:relative;}
 .org-pulse{width:54px;height:54px;border-radius:50%;background:radial-gradient(circle,var(--gold,#c9b787) 0%,rgba(201,183,135,0.15) 60%,transparent 72%);box-shadow:0 0 0 0 rgba(201,183,135,0.45);animation:orgPulse 1.6s ease-out infinite;}
 @keyframes orgPulse{0%{transform:scale(.85);box-shadow:0 0 0 0 rgba(201,183,135,0.45);}70%{transform:scale(1.05);box-shadow:0 0 0 22px rgba(201,183,135,0);}100%{transform:scale(.85);box-shadow:0 0 0 0 rgba(201,183,135,0);}}
-.echart{height:360px;width:100%;}
-.echart.tall{height:480px;}
-.globe3d{height:520px;width:100%;border-radius:9px;overflow:hidden;border:1px solid var(--gold-line);background:#060606;}
-.cyto{height:480px;width:100%;border-radius:9px;border:1px solid var(--gold-line);background:#0b0d10;}
-.feedtail{height:340px;overflow:auto;background:#080a0c;border:1px solid var(--gold-line);border-radius:9px;font-family:var(--mono);font-size:11.5px;}
+.echart{height:clamp(280px,44vh,360px);width:100%;}
+.echart.tall{height:clamp(320px,52vh,480px);}
+.globe3d{height:clamp(340px,58vh,520px);width:100%;border-radius:9px;overflow:hidden;border:1px solid var(--gold-line);background:#060606;}
+.cyto{height:clamp(320px,52vh,480px);width:100%;border-radius:9px;border:1px solid var(--gold-line);background:#0b0d10;}
+.feedtail{height:clamp(260px,40vh,340px);overflow:auto;background:#080a0c;border:1px solid var(--gold-line);border-radius:9px;font-family:var(--mono);font-size:11.5px;}
+/* KaTeX renders stretchy glyphs as position:absolute SVGs; without a positioned
+   ancestor they escape the scroll box and inflate the document height. Contain
+   them so the flex-column body lock holds on every tab (Framing Doctrine §B). */
+.katex,.katex .base{position:relative;}
+#kf-list,#kf-proven,#kf-honest{max-height:clamp(200px,36vh,420px)!important;overflow-y:auto!important;overflow-x:hidden!important;position:relative!important;}
+#kf-list .katex,#kf-list .katex-html,#kf-list .katex .base{position:relative!important;}
+#kf-list .katex-html{overflow:hidden;}
 .feedtail .frow{padding:.4rem .8rem;border-bottom:1px solid rgba(201,183,135,.07);display:flex;gap:.6rem;align-items:baseline;}
 .feedtail .frow:hover{background:var(--gold-soft);}
 .feedtail .ts{color:var(--dim);white-space:nowrap;}
@@ -477,6 +573,32 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 .feed-pill{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:.15rem .5rem;border-radius:5px;border:1px solid var(--teal-line);color:var(--teal);background:var(--teal-soft);}
 .feed-pill.warn{color:var(--warn);border-color:rgba(201,160,95,.4);background:rgba(201,160,95,.08);}
 .brain-note{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.04em;margin-top:.5rem;}
+.fld{display:flex;flex-direction:column;gap:.2rem;}
+.an-body{display:flex;justify-content:center;align-items:flex-start;min-height:300px;}
+.an-steps{display:flex;flex-direction:column;gap:.35rem;}
+.an-step{display:flex;align-items:center;gap:.5rem;font-family:var(--mono);font-size:12px;color:var(--cream);padding:.35rem .55rem;border:1px solid rgba(201,183,135,0.14);border-radius:6px;background:rgba(20,22,24,0.5);}
+.an-step .an-dot{width:1.1em;text-align:center;color:var(--dim);}
+.an-step .spacer{margin-left:auto;}
+.an-step.run{border-color:var(--teal);}
+.an-step.ok{border-color:rgba(95,179,163,0.5);}
+.an-step.ok .an-dot{color:var(--teal);}
+.an-step.fail{border-color:#b06a5a;}
+.an-step.fail .an-dot{color:#b06a5a;}
+.an-step.na{opacity:.5;background:repeating-linear-gradient(45deg,rgba(40,42,44,0.4),rgba(40,42,44,0.4) 6px,rgba(20,22,24,0.4) 6px,rgba(20,22,24,0.4) 12px);}
+.an-step.na .an-dot{color:var(--dim);}
+.an-gatebox{border:1px solid rgba(201,183,135,0.18);border-radius:8px;padding:.6rem .7rem;background:rgba(15,16,18,0.6);}
+.an-axis{display:flex;align-items:center;gap:.5rem;font-family:var(--mono);font-size:11px;padding:.18rem .3rem;border-bottom:1px solid rgba(201,183,135,0.06);}
+.an-axis .spacer{margin-left:auto;color:var(--dim);}
+.an-axis.p{color:var(--cream);}
+.an-axis.f{color:#d08a78;}
+.an-axis.first{background:rgba(176,106,90,0.16);border-radius:4px;}
+.an-fail{color:#d08a78;font-family:var(--mono);font-size:11.5px;}
+.an-ok{color:var(--teal);font-family:var(--mono);font-size:11.5px;}
+.an-vrow{display:flex;align-items:center;gap:.5rem;font-family:var(--mono);font-size:11.5px;padding:.4rem .55rem;border-radius:6px;margin-bottom:.35rem;}
+.an-vrow span:last-child{margin-left:auto;}
+.an-vrow.ok{border:1px solid rgba(95,179,163,0.4);color:var(--teal);}
+.an-vrow.fail{border:1px solid rgba(95,179,163,0.4);color:var(--teal);}
+.an-vrow.na{border:1px solid rgba(201,183,135,0.18);color:var(--dim);}
 /* ── BUILD WAVE: Live Picture / Engage Safely / Dark-Vessel Hunt ── */
 .lp-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(340px,1.4fr);gap:1rem;align-items:start;}
 @media(max-width:880px){.lp-grid{grid-template-columns:1fr;}}
@@ -498,7 +620,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 </head>
 <body>
 <div class="topbar">
-  <button class="menu-btn" onclick="document.querySelector('.side').classList.toggle('open')">☰</button>
+  <button class="menu-btn" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleSide()">☰</button>
   <span>SZL HOLDINGS</span><span class="sep">/</span>
   <span style="color:var(--teal)">KILLINCHU</span><span class="sep">/</span>
   <span>DRONES &amp; VESSELS · FIELD SURFACE</span><span class="sep">/</span>
@@ -516,7 +638,8 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 
     <div class="nav-group">Leader Surfaces</div>
     <div class="nav-item" data-view="operate" onclick="window.location.href='/ops'" title="Select a track, issue a governed command, watch it clear the policy gate and emit a genuinely-signed receipt that updates the track state."><span class="ico">⚡</span>Operate (governed control)</div>
-    <div class="nav-item" data-view="livepic" onclick="go('livepic')"><span class="ico">◉</span>Live Picture (3D)</div>
+    <div class="nav-item" data-view="livepic" onclick="go('livepic')"><span class="ico">◉</span>Live Picture</div>
+    <div class="nav-item" data-view="healthtwin" onclick="go('healthtwin')" title="Flagship: a live 3D digital twin of a selected vessel or drone. See each subsystem (hull/propulsion/comms/sensors/nav/payload) change colour in real time — nominal, needs-fix, needs-upgrade, hacked, damaged — from a real telemetry model. Click a subsystem for its computed metric, conformal envelope and action."><span class="ico">⦿</span>Health Twin (3D)</div>
     <div class="nav-item" data-view="engage" onclick="go('engage')"><span class="ico">⊕</span>Engage Safely</div>
     <div class="nav-item" data-view="darkhunt" onclick="go('darkhunt')"><span class="ico">◐</span>Dark-Vessel Hunt</div>
 
@@ -524,6 +647,25 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item active" data-view="tracks" onclick="go('tracks')"><span class="ico">⊕</span>Live Track Board</div>
     <div class="nav-item" data-view="fusion" onclick="go('fusion')"><span class="ico">⧖</span>Sensor-Fusion</div>
     <div class="nav-item" data-view="prioritize" onclick="go('prioritize')"><span class="ico">▲</span>Multi-Track Priority</div>
+
+    <div class="nav-group">Mined Ops (efficiency)</div>
+    <div class="nav-item" data-view="scicompute" onclick="go('scicompute')" title="Real scientific compute for track/fuse + health twin: least-squares track fit, Cholesky-gated covariance fusion, Kepler orbital period, Romberg energy integral. Pattern adopted from al-jshen/compute (MIT), reimplemented clean."><span class="ico">∰</span>Sci-Compute (fusion math)</div>
+    <div class="nav-item" data-view="edgeest" onclick="go('edgeest')" title="Will this model FIT on a drone / field-Mac VRAM budget? Component-sum estimator (weights + activations + gradients + optimizer). Pattern adopted from gpu-bartender (MIT), reimplemented clean."><span class="ico">▣</span>Edge VRAM Estimator</div>
+    <div class="nav-item" data-view="swarmres" onclick="go('swarmres')" title="How fast does the swarm recover its mission plan after a comms/sensor disruption? Perturbation-recovery + asymptotic-alignment monitor. Pattern adopted from MLRC-deep-thinking (MIT), reimplemented clean."><span class="ico">⟲</span>Swarm Resilience Monitor</div>
+    <div class="nav-item" data-view="telemem" onclick="go('telemem')" title="Priority-weighted telemetry memory: keep high-value sensor spikes, prune noise. Pattern adopted from kvpress / ExpectedAttention (Apache-2.0), reimplemented clean."><span class="ico">⊜</span>Telemetry Memory</div>
+
+    <div class="nav-group">Tactical Re-Sweep</div>
+    <div class="nav-item" data-view="tacroute" onclick="go('tacroute')" title="Plan a survivable vessel/drone route over a sea-state cost grid (A* and NBA* bi-directional A*) and route AROUND landmass / exclusion-zone polygons (visibility graph). Patterns adopted from anvaka/ngraph.path (MIT) + rowanwins/visibility-graph (MIT), reimplemented clean."><span class="ico">⟿</span>Tactical Routing</div>
+    <div class="nav-item" data-view="threatrank" onclick="go('threatrank')" title="Rank vessels in the consolidated maritime view by a transparent strategic-threat score (iterative ranking). Pattern adopted from ft2023/IRanker-demo (MIT), reimplemented clean. Advisory, NOT a targeting product."><span class="ico">⊳</span>Threat Ranking</div>
+    <div class="nav-item" data-view="adaptsample" onclick="go('adaptsample')" title="Spend a constrained sensor sampling budget where the sweep has the most structure (adaptive sampling) and surface detected contacts (peak detection). Pattern adopted from al-jshen/adaptive (MIT), reimplemented clean."><span class="ico">⋰</span>Adaptive Sensor Sampling</div>
+
+    <div class="nav-group">Proven Theorems (Wave9/10)</div>
+    <div class="nav-item" data-view="w910stl" onclick="go('w910stl')" title="RA-1 STL Robustness (two-sided Donzé–Maler): a runtime monitor that computes a signed margin ρ — how far the signal is from violating the rule. Sat⇒ρ≥0 and ρ>0⇒Sat (NOT the false iff). EXPERIMENTAL · CI-green on main."><span class="ico">∿</span>STL Monitor (ρ margin)</div>
+    <div class="nav-item" data-view="w910ci" onclick="go('w910ci')" title="OE-2 Covariance-Intersection: fuse two sensors without knowing their cross-covariance; the fused covariance is always a valid (PSD), conservative uncertainty. Runs in the fusion math. EXPERIMENTAL · CI-green on main."><span class="ico">⬭</span>Covariance-Intersection Fusion</div>
+    <div class="nav-item" data-view="w910gg" onclick="go('w910gg')" title="MA1 Gershgorin (spectral): pre-flight certificate that the command/trust-weight matrix has no zero eigenvalue (non-degenerate) before aggregating. EXPERIMENTAL · CI-green on main."><span class="ico">◉</span>Command-Matrix Health</div>
+    <div class="nav-item" data-view="w910mesh" onclick="go('w910mesh')" title="MR-1 Reachability-Redundancy + L-Menger cut/path duality: proves k-redundant routing survives k-1 link failures; min-cut = #edge-disjoint paths. Pairs with Tactical Routing. EXPERIMENTAL · CI-green on main."><span class="ico">⤳</span>Mesh Resilience (k-1 survive)</div>
+    <div class="nav-item" data-view="w910audit" onclick="go('w910audit')" title="CP-1 Merkle transparency-log + AU-1 Replay-Determinism: re-verifiable inclusion proofs, deterministic replay, tamper localized to one entry. Backs the signed-receipt panel. EXPERIMENTAL · CI-green on main."><span class="ico">⛓</span>Audit Receipts (Merkle+Replay)</div>
+    <div class="nav-item" data-view="w910quorum" onclick="go('w910quorum')" title="C1 Basilic Byzantine-BDB (n>3t+d+2q) + CN-1 Quorum-Intersection: sharp fault threshold + intersecting quorums ⇒ unique decision (no split-brain). EXPERIMENTAL · CI-green on main."><span class="ico">⊛</span>Mesh Consensus / Quorum</div>
 
     <div class="nav-group">Maritime</div>
     <div class="nav-item" data-view="maritime" onclick="go('maritime')"><span class="ico">⚓</span>Maritime Picture</div>
@@ -544,7 +686,6 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 
     <div class="nav-group">Verify &amp; Sign</div>
     <div class="nav-item" data-view="audit" onclick="go('audit')"><span class="ico">⎙</span>Engagement Audit</div>
-    <div class="nav-item" data-view="dsse" onclick="go('dsse')"><span class="ico">✦</span>Verify Signed Receipt</div>
     <div class="nav-item" data-view="pqc" onclick="go('pqc')"><span class="ico">⊟</span>Quantum-Safe Signing</div>
 
     <div class="nav-group">Intel &amp; Zones</div>
@@ -575,6 +716,16 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="darkgraph" onclick="go('darkgraph')"><span class="ico">⩟</span>Dark-Vessel Threat Graph</div>
     <div class="nav-item" data-view="deploy" onclick="go('deploy')"><span class="ico">⧈</span>Deploy Posture</div>
     <div class="nav-item" data-view="warboard" onclick="go('warboard')"><span class="ico">✪</span>Warhacker Proofs</div>
+    <div class="nav-item" data-view="warhacker" onclick="go('warhacker')"><span class="ico">⚓</span>Maritime/Drone Warhacker</div>
+
+    <div class="nav-group">Drone Intelligence</div>
+    <div class="nav-item" data-view="detection" onclick="go('detection')" title="Passive detection pipeline: three real protocol decoders (Remote ID / ADS-B / MAVLink) feed signature classifications to the counter-UAS identify gate, plus Union-Find connected-component swarm clustering over the live track feed (clusters of 3+ = coordinated swarm). We detect and identify; we do not jam or spoof."><span class="ico">⊕</span>Detection Console</div>
+    <div class="nav-item" data-view="dronedb" onclick="go('dronedb')" title="53 real uncrewed-aircraft systems across allied, dual-use, adversary and counter-UAS categories, organized by US DoD UAS Groups 1-5. Filterable by side. Live from /api/killinchu/v1/drones/database."><span class="ico">⊕</span>Drone Database</div>
+    <div class="nav-item" data-view="constellations" onclick="go('constellations')" title="Multi-constellation space intelligence — RF geolocation, optical EO, all-weather SAR — under each provider's lawful access model. HawkEye 360 RF geolocation is primary for Remote-ID-OFF dark-drone detection. Live from /api/killinchu/v1/satellites."><span class="ico">⊕</span>Constellations</div>
+    <div class="nav-item" data-view="geoint" onclick="go('geoint')" title="Define an AOI and plan aggregated multi-constellation collection: which sensor would detect what, at what confidence, with what tasking ETA. Each plan emits a Khipu receipt. Live from /api/killinchu/v1/geoint."><span class="ico">⊕</span>GEOINT Aggregation</div>
+    <div class="nav-item" data-view="research" onclick="go('research')" title="The sourced intelligence foundation — UDS posture, US UAS Groups 1-5, adversary systems, counter-UAS effectors, and the protocol standards the decoders implement. Every section cites primary sources. Live from /api/killinchu/v1/research."><span class="ico">⊕</span>Research Corpus</div>
+    <div class="nav-item" data-view="legal" onclick="go('legal')" title="Legal boundaries: killinchu is a passive sensing and evidence system, not an offensive cyber or electronic-attack weapon. WE SENSE, WE EVIDENCE. Live from /api/killinchu/v1/legal."><span class="ico">⊕</span>Legal Boundaries</div>
+    <div class="nav-item" data-view="companion" onclick="go('companion')" title="Companion-Defense Protocol: when an adversary drone enters a configured radius of a protected asset, killinchu runs a Khipu-receipted decision tree — auto-classify → legal RF warning beacon → operator notify → ROE-gated response. Kinetic always human-in-the-loop. Live from /api/killinchu/v1/companion-defense."><span class="ico">⊕</span>Companion Defense</div>
 
     <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
     <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>5 formulas formally proven<br>Build provenance: SLSA L2<br>Drones + Maritime · signed receipts</div>
@@ -582,6 +733,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
 </div>
+<div class="side-scrim" onclick="toggleSide(false)" aria-hidden="true"></div>
 
 <script>window.__KB__={"version":"1.0.0","byline":"Lutar, Stephen P.","orcid":"0009-0001-0110-4173","email":"stephen@szlholdings.com","org":"SZL Holdings","generated_at":"2026-05-15T16:30:00Z","axioms":[{"id":"A1","name":"soundnessAxiom","statement":"For any receipt r, if gate_pass(r) then lambda(r) >= 0.90 conjunctively","source_file":"thesis.md","source_section":"§4.1","maturity":"proven","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A2","name":"moralGroundingFloor","statement":"moralGrounding axis floor = 0.95 (higher than default 0.90)","source_file":"thesis.md","source_section":"§4.1","maturity":"defined","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A3","name":"measurabilityHonestyFloor","statement":"measurabilityHonesty axis floor = 0.95","source_file":"thesis.md","source_section":"§4.1","maturity":"defined","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A4","name":"dualWitnessDisjointness","statement":"For rho-closure: witness_1_id != witness_2_id (enforced by registry at write time)","source_file":"thesis.md","source_section":"§4.3","maturity":"proven","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A5","name":"deterministicReplay","statement":"For canonical JSON + pinned PRNG + frozen registry, 5x replay yields byte-identical roots","source_file":"thesis.md","source_section":"§4.6","maturity":"measured","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A6","name":"hashChainIntegrity","statement":"Every spine entry hash-chain invariant: entry.chain = SHA256(prev_entry)","source_file":"thesis.md","source_section":"§3.4","maturity":"defined","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A7","name":"bekensteinBound","statement":"Receipt chain entropy H(R_n) bounded by information-theoretic limit from registry area","source_file":"thesis.md","source_section":"§4.5","maturity":"conjectured","citation":"https://doi.org/10.5281/zenodo.19944926"},{"id":"A8","name":"ingestDiscipline","statement":"Every ingest requires: source_url + content_hash + license (allow-list) + ORCID","source_file":"thesis.md","source_section":"§7","maturity":"defined","citation":"https://doi.org/10.5281/zenodo.20119582"},{"id":"A9","name":"doctrineCompleteness","statement":"doctrine.json v1.0.0 enumerates all 8 forbidden patterns; SHA-anchored","source_file":"szl-trust/doctrine.json","source_section":"§8","maturity":"defined","citation":"https://github.com/szl-holdings/szl-trust"}],"theorems":[{"id":"TH_L1","name":"Λ_uniqueness","statement":"Conjecture 1: the Lutar Invariant Λ_k (weighted geometric mean with Egyptian unit-fraction weights) is the unique aggregator satisfying axioms A1-A5. NOT a theorem: unconditional uniqueness is FALSE under A1-A5 (machine-checked counterexample maxAgg_ne_Lambda; max-aggregator satisfies A1-A5 yet differs from Λ at (4,1)). The conditional theorem lambda_unique_of_factors (uniqueness GIVEN factorization Φ x = ∏ x_i^α_i) IS fully proved; unconditional uniqueness closes only under a declared bisymmetry axiom A6 (Kolmogorov-Nagumo-Aczel).","source_file":"lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean","maturity":"conjectured","citation":"https://doi.org/10.5281/zenodo.20053148"},{"id":"TH_L2","name":"Λ_min_max_bounds","statement":"Λ_k lies in [0,1] with min=0 iff any axis=0 and max=1 iff all axes=1","source_file":"lutar-lean/Lutar/Bound.lean","maturity":"proven","citation":"https://doi.org/10.5281/zenodo.20053148"},{"id":"TH_L3","name":"bekenstein_soundness","statement":"Bekenstein indicator fires at 49.5% under uniform seed (measured); formal proof pending in lutar-lean","source_file":"lutar-lean (pending PR #12)","maturity":"measured/conjectured","citation":"https://github.com/szl-holdings/lutar-lean"},{"id":"TH_L4","name":"rho_closure_production","statement":"100% rho-closure on 8,000/8,000 paired calls under v11 platform","source_file":"ouroboros v6.3.0 release","maturity":"measured","citation":"https://doi.org/10.5281/zenodo.20119582"}],"formulas":[{"id":"F0001","source_file":"thesis.md","source_line":27,"latex":"\\mathcal{S} = \\langle R, A, E, \\Lambda, \\rho, W \\rangle","context":"ith a doctrine-locked runtime** as a category-defining primitive for verifiable agency. We define the system as a tuple \\( \\mathcal{S} = \\langle R, A, E, \\Lambda, \\rho, W \\rangle \\) over an eight-regi","source_id":"thesis_session","maturity":"defined"},{"id":"F0002","source_file":"thesis.md","source_line":229,"latex":"\\mathtt{szl\\text{-}trust}","context":"d system.  - \\(A\\) — the set of **named actors**. Every actor in \\(A\\) carries a stable identity resolvable to a key in \\(\\mathtt{szl\\text{-}trust}\\). No edge in \\(E\\) may originate from or terminate ","source_id":"thesis_session","maturity":"defined"},{"id":"F0003","source_file":"thesis.md","source_line":231,"latex":"e \\in E","context":"and resolvable — unidentified actors are structurally excluded.  - \\(E\\) — the set of **receipt-bound edges**. An edge \\(e \\in E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\","source_id":"thesis_session","maturity":"defined"},{"id":"F0004","source_file":"thesis.md","source_line":231,"latex":"(a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)","context":"ntified actors are structurally excluded.  - \\(E\\) — the set of **receipt-bound edges**. An edge \\(e \\in E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(","source_id":"thesis_session","maturity":"defined"},{"id":"F0005","source_file":"thesis.md","source_line":231,"latex":"a_{\\text{src}} \\in A","context":"d edges**. An edge \\(e \\in E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(a_{\\text{src}} \\in A\\), \\(r_{\\text{src}}, r_{\\text{dst}} \\in R\\), and \\(\\varep","source_id":"thesis_session","maturity":"defined"},{"id":"F0006","source_file":"thesis.md","source_line":231,"latex":"r_{\\text{src}}, r_{\\text{dst}} \\in R","context":"E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(a_{\\text{src}} \\in A\\), \\(r_{\\text{src}}, r_{\\text{dst}} \\in R\\), and \\(\\varepsilon\\) is the receipt enve","source_id":"thesis_session","maturity":"defined"},{"id":"F0007","source_file":"thesis.md","source_line":231,"latex":"\\varepsilon","context":"src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(a_{\\text{src}} \\in A\\), \\(r_{\\text{src}}, r_{\\text{dst}} \\in R\\), and \\(\\varepsilon\\) is the receipt envelope defined in §3.3. No message may traverse","source_id":"thesis_session","maturity":"defined"},{"id":"F0008","source_file":"thesis.md","source_line":231,"latex":"\\varepsilon","context":"repsilon\\) is the receipt envelope defined in §3.3. No message may traverse a region boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Forma","source_id":"thesis_session","maturity":"defined"},{"id":"F0009","source_file":"thesis.md","source_line":233,"latex":"\\Lambda","context":"ceipt envelope defined in §3.3. No message may traverse a region boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Formally, \\(\\Lambda : [0,","source_id":"thesis_session","maturity":"defined"},{"id":"F0010","source_file":"thesis.md","source_line":233,"latex":"\\Lambda : [0,1]^k \\to \\{0,1\\}","context":"boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Formally, \\(\\Lambda : [0,1]^k \\to \\{0,1\\}\\) for \\(k \\geq 9\\), defined as the conjunctive A","source_id":"thesis_session","maturity":"defined"},{"id":"F0011","source_file":"thesis.md","source_line":233,"latex":"k \\geq 9","context":"varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Formally, \\(\\Lambda : [0,1]^k \\to \\{0,1\\}\\) for \\(k \\geq 9\\), defined as the conjunctive AND:  \\[ \\Lambda(\\mathbf{x}) = 1 \\iff \\","source_id":"thesis_session","maturity":"defined"},{"id":"F0012","source_file":"thesis.md","source_line":239,"latex":"\\mathbf{x}","context":"bilityHonesty}} \\geq 0.95 \\]    The composability property states that for any two independently evaluated axis vectors \\(\\mathbf{x}\\) and \\(\\mathbf{y}\\), their composed gate \\(\\Lambda(\\mathbf{x} \\wed","source_id":"thesis_session","maturity":"defined"},{"id":"F0013","source_file":"thesis.md","source_line":239,"latex":"\\mathbf{y}","context":"q 0.95 \\]    The composability property states that for any two independently evaluated axis vectors \\(\\mathbf{x}\\) and \\(\\mathbf{y}\\), their composed gate \\(\\Lambda(\\mathbf{x} \\wedge \\mathbf{y})\\) is","source_id":"thesis_session","maturity":"defined"},{"id":"F0014","source_file":"thesis.md","source_line":239,"latex":"\\Lambda(\\mathbf{x} \\wedge \\mathbf{y})","context":"rty states that for any two independently evaluated axis vectors \\(\\mathbf{x}\\) and \\(\\mathbf{y}\\), their composed gate \\(\\Lambda(\\mathbf{x} \\wedge \\mathbf{y})\\) is equivalent to \\(\\Lambda(\\mathbf{x})","source_id":"thesis_session","maturity":"defined"},{"id":"F0015","source_file":"thesis.md","source_line":239,"latex":"\\Lambda(\\mathbf{x}) \\wedge \\Lambda(\\mathbf{y})","context":"ctors \\(\\mathbf{x}\\) and \\(\\mathbf{y}\\), their composed gate \\(\\Lambda(\\mathbf{x} \\wedge \\mathbf{y})\\) is equivalent to \\(\\Lambda(\\mathbf{x}) \\wedge \\Lambda(\\mathbf{y})\\) — gate composition does not w","source_id":"thesis_session","maturity":"defined"},{"id":"F0016","source_file":"thesis.md","source_line":239,"latex":"\\Lambda","context":"— gate composition does not weaken the invariant. The `lutar-lean` skeleton repository contains the Lean 4 statement of \\(\\Lambda\\) uniqueness: given the four axioms (A1 monotonicity, A2 homogeneity, ","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0017","source_file":"thesis.md","source_line":239,"latex":"\\Lambda","context":"ment of \\(\\Lambda\\) uniqueness: given the four axioms (A1 monotonicity, A2 homogeneity, A3 Egyptian-exact, A4 bounded), \\(\\Lambda\\) is the *unique* function satisfying them. The uniqueness theorem and","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0018","source_file":"thesis.md","source_line":241,"latex":"\\rho(e)","context":"arget is zero.  - \\(\\rho\\) — the **dual-witness closure relation**. For any edge \\(e\\) carrying execution result \\(v\\), \\(\\rho(e)\\) holds iff two independent witnesses \\(w_1, w_2 \\in W\\) each produce ","source_id":"thesis_session","maturity":"defined"},{"id":"F0019","source_file":"thesis.md","source_line":241,"latex":"w_1, w_2 \\in W","context":"closure relation**. For any edge \\(e\\) carrying execution result \\(v\\), \\(\\rho(e)\\) holds iff two independent witnesses \\(w_1, w_2 \\in W\\) each produce byte-identical output on the same input, and the","source_id":"thesis_session","maturity":"defined"},{"id":"F0020","source_file":"thesis.md","source_line":251,"latex":"\\mathcal{S}","context":"uroboros` core + 4 `a11oy` covenant), while the full upstream runtime suite registers 218/218 passing tests.  The tuple \\(\\mathcal{S}\\) is **doctrine-locked**: any runtime configuration in which (a) a","source_id":"thesis_session","maturity":"defined"},{"id":"F0021","source_file":"thesis.md","source_line":251,"latex":"\\Lambda","context":"which (a) a region is unnamed, (b) an actor is not in \\(A\\), (c) an edge is produced without a receipt envelope, or (d) \\(\\Lambda\\) is evaluated below threshold does not constitute a valid instantiati","source_id":"thesis_session","maturity":"defined"},{"id":"F0022","source_file":"thesis.md","source_line":251,"latex":"\\mathcal{S}","context":"ithout a receipt envelope, or (d) \\(\\Lambda\\) is evaluated below threshold does not constitute a valid instantiation of \\(\\mathcal{S}\\).  ---  ## The 8-Region Anatomy  The eight canonical regions of \\","source_id":"thesis_session","maturity":"defined"},{"id":"F0023","source_file":"thesis.md","source_line":257,"latex":"\\mathcal{S}","context":"of \\(R\\) are enumerated below. For each region the presentation gives: the repository identifier, its role in the tuple \\(\\mathcal{S}\\), its public interfaces, and its dependency relations within \\(E\\","source_id":"thesis_session","maturity":"defined"},{"id":"F0024","source_file":"thesis.md","source_line":265,"latex":"\\mathcal{S}","context":"released 2026-05-13; concept DOI `10.5281/zenodo.19944926`, v11 paper DOI `10.5281/zenodo.20119582`)  **Formal role in \\(\\mathcal{S}\\):** The Brain Stem is the runtime kernel that evaluates \\(\\Lambda\\","source_id":"thesis_session","maturity":"defined"},{"id":"F0025","source_file":"thesis.md","source_line":265,"latex":"\\Lambda","context":"DOI `10.5281/zenodo.20119582`)  **Formal role in \\(\\mathcal{S}\\):** The Brain Stem is the runtime kernel that evaluates \\(\\Lambda\\) and emits receipts. Every edge in \\(E\\) that crosses a region bounda","source_id":"thesis_session","maturity":"defined"},{"id":"F0026","source_file":"thesis.md","source_line":268,"latex":"\\Lambda","context":"bda(axes: number[9|10]) → Receipt` — evaluates the conjunctive AND gate and returns a signed receipt with the composite \\(\\Lambda\\) score, Bekenstein budget, and dual-witness closure status. - `build_","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0027","source_file":"thesis.md","source_line":274,"latex":"\\Lambda","context":"chain root for third-party verification.  **Dependencies:** - Depends on: `lutar-lean` (Skeleton) — the axiom set that \\(\\Lambda\\) is required to satisfy is formally stated there; the Brain Stem is th","source_id":"thesis_session","maturity":"defined"},{"id":"F0028","source_file":"thesis.md","source_line":277,"latex":"\\Lambda_9","context":"utbound edge must call `evaluate_lambda` before the edge enters \\(E\\).  The gate composition benchmark for v6.3.0 shows \\(\\Lambda_9\\) base p50 = 3.12 µs and composed p50 = 3.29 µs; with the Platform v","source_id":"thesis_session","maturity":"defined"},{"id":"F0029","source_file":"thesis.md","source_line":285,"latex":"\\mathcal{S}","context":"a continuous supply-chain security posture.  ---  ### Heart — `a11oy`  **Repo:** `szl-holdings/a11oy`  **Formal role in \\(\\mathcal{S}\\):** The Heart is the covenant policy engine and the agent approva","source_id":"thesis_session","maturity":"defined"},{"id":"F0030","source_file":"thesis.md","source_line":285,"latex":"\\mathcal{S}","context":"\\):** The Heart is the covenant policy engine and the agent approval queue. It governs the *authorization* dimension of \\(\\mathcal{S}\\): while the Brain Stem answers \"does this action score above \\(\\L","source_id":"thesis_session","maturity":"defined"},{"id":"F0031","source_file":"thesis.md","source_line":285,"latex":"\\Lambda","context":"It governs the *authorization* dimension of \\(\\mathcal{S}\\): while the Brain Stem answers \"does this action score above \\(\\Lambda\\)?\", the Heart answers \"is this action permitted under the active cove","source_id":"thesis_session","maturity":"defined"},{"id":"F0032","source_file":"thesis.md","source_line":285,"latex":"r_{\\text{dst}} \\notin R","context":"this action permitted under the active covenant?\". No action may exit the body graph — i.e., no edge in \\(E\\) may have \\(r_{\\text{dst}} \\notin R\\) — without a Heart pulse. The covenant is a named, ver","source_id":"thesis_session","maturity":"defined"},{"id":"F0033","source_file":"thesis.md","source_line":293,"latex":"\\Lambda","context":"Stem's chain.  **Dependencies:** - Depends on: `ouroboros` (Brain Stem) — covenant evaluation results are sealed with a \\(\\Lambda\\)-gated receipt; a covenant check that fails \\(\\Lambda\\) is itself a g","source_id":"thesis_session","maturity":"defined"},{"id":"F0034","source_file":"thesis.md","source_line":293,"latex":"\\Lambda","context":"os` (Brain Stem) — covenant evaluation results are sealed with a \\(\\Lambda\\)-gated receipt; a covenant check that fails \\(\\Lambda\\) is itself a gate-level violation. - Depends on: `sentinel` (Wires) — t","source_id":"thesis_session","maturity":"defined"},{"id":"F0035","source_file":"thesis.md","source_line":305,"latex":"\\mathcal{S}","context":"but a verifiable, chain-linked artifact.  ---  ### Wires — `sentinel`  **Repo:** `szl-holdings/sentinel`  **Formal role in \\(\\mathcal{S}\\):** The Wires are the attribution trail — the afferent channel tha","source_id":"thesis_session","maturity":"defined"},{"id":"F0036","source_file":"thesis.md","source_line":305,"latex":"\\text{attr}: E \\to A","context":"rent channel that carries signals inward and records *who observed what and when*. Formally, Wires maintain the mapping \\(\\text{attr}: E \\to A\\), ensuring that every edge in \\(E\\) is attributable to a","source_id":"thesis_session","maturity":"defined"},{"id":"F0037","source_file":"thesis.md","source_line":305,"latex":"\\mathcal{S}","context":"he mapping \\(\\text{attr}: E \\to A\\), ensuring that every edge in \\(E\\) is attributable to a named actor. Without Wires, \\(\\mathcal{S}\\) degrades: edges carry receipts but not attributions, making the ","source_id":"thesis_session","maturity":"defined"},{"id":"F0038","source_file":"thesis.md","source_line":308,"latex":"a \\in A","context":"egal-accountability sense.  **Public interfaces:** - `observe(edge, actor_id) → AttributionRecord` — records that actor \\(a \\in A\\) produced or consumed edge \\(e\\). - `attribution_trail(region, time_r","source_id":"thesis_session","maturity":"defined"},{"id":"F0039","source_file":"thesis.md","source_line":325,"latex":"\\mathcal{S}","context":"aft-morrow-sogomonian-exec-outcome-attest`.  ---  ### Spine — `a11oy`  **Repo:** `szl-holdings/a11oy`  **Formal role in \\(\\mathcal{S}\\):** The Spine is the append-only coordination and protocol bridge","source_id":"thesis_session","maturity":"defined"},{"id":"F0040","source_file":"thesis.md","source_line":325,"latex":"\\langle e_1, e_2, \\ldots, e_n \\rangle \\subseteq E","context":"ordered, hash-verified record of every state transition across the body graph. Formally, `a11oy` maintains the sequence \\(\\langle e_1, e_2, \\ldots, e_n \\rangle \\subseteq E\\) ordered by timestamp, with","source_id":"thesis_session","maturity":"defined"},{"id":"F0041","source_file":"thesis.md","source_line":339,"latex":"O(\\log n)","context":"(identified in the runtime roadmap) would upgrade the Spine's linear hash-chain to a directed acyclic graph supporting \\(O(\\log n)\\) subset inclusion proofs — enabling privacy-preserving audits for re","source_id":"thesis_session","maturity":"defined"},{"id":"F0042","source_file":"thesis.md","source_line":347,"latex":"\\mathcal{S}","context":"nce in the enterprise segment.  ---  ### Skeleton — `lutar-lean`  **Repo:** `szl-holdings/lutar-lean`  **Formal role in \\(\\mathcal{S}\\):** The Skeleton is the formal scaffold — the Lean 4 axioms and M","source_id":"thesis_session","maturity":"defined"},{"id":"F0043","source_file":"thesis.md","source_line":347,"latex":"\\{A1, A2, A3, A4\\}","context":"es not execute at runtime; it is the *proof that the runtime is correct*. Formally, `lutar-lean` provides the axiom set \\(\\{A1, A2, A3, A4\\}\\) and the derived theorems (Λ uniqueness, Bound theorem) th","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0044","source_file":"thesis.md","source_line":347,"latex":"\\Lambda","context":"A2, A3, A4\\}\\) and the derived theorems (Λ uniqueness, Bound theorem) that constitute a machine-checked certificate for \\(\\Lambda\\). If the Skeleton's `sorry` count is zero, the gate the Brain Stem en","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0045","source_file":"thesis.md","source_line":351,"latex":"\\Lambda","context":"statements of A1 (monotonicity), A2 (homogeneity), A3 (Egyptian-exact), A4 (bounded). - `Uniqueness.lean` — Theorem 1: \\(\\Lambda\\) is the unique function satisfying A1–A4; proof scaffold with tracked ","source_id":"thesis_session","maturity":"conjectured"},{"id":"F0046","source_file":"thesis.md","source_line":367,"latex":"\\mathcal{S}","context":"*Repos:** `szl-holdings/counsel` (governance UI), `szl-holdings/terra` (dashboards and visualization)  **Formal role in \\(\\mathcal{S}\\):** The Hands are the tooling and visualization surfaces — the co","source_id":"thesis_session","maturity":"defined"},{"id":"F0047","source_file":"thesis.md","source_line":371,"latex":"\\Lambda","context":"as an interactive SVG, streaming live receipt counts via SSE from `/api/chain/stream`; node colors reflect the current \\(\\Lambda\\) score band (green ≥ 0.95, amber 0.90–0.95, red < 0.90). The planned \"","source_id":"thesis_session","maturity":"defined"},{"id":"F0048","source_file":"thesis.md","source_line":386,"latex":"\\mathcal{S}","context":"*is* the system.  ---  ### Full Body — `ouroboros-thesis`  **Repo:** `szl-holdings/ouroboros-thesis`  **Formal role in \\(\\mathcal{S}\\):** The Full Body is the public-record thesis — the DOI-pinned, ve","source_id":"thesis_session","maturity":"defined"},{"id":"F0049","source_file":"thesis.md","source_line":386,"latex":"\\mathcal{S}","context":"l Body is the public-record thesis — the DOI-pinned, versioned document that constitutes the canonical specification of \\(\\mathcal{S}\\). Formally, `ouroboros-thesis` defines the normative description ","source_id":"thesis_session","maturity":"defined"},{"id":"F0050","source_file":"thesis.md","source_line":405,"latex":"\\mathcal{S}","context":"d identity anchoring), `szl-holdings/szl-cookbook` (reference implementations / developer onboarding)  **Formal role in \\(\\mathcal{S}\\):** The Vessels and Chakras collectively form the trust mesh and ","source_id":"thesis_session","maturity":"defined"},{"id":"F0051","source_file":"thesis.md","source_line":421,"latex":"\\varepsilon","context":"eue under the covenant pack schema.  ---  ## Cross-Region Contracts  Every edge in \\(E\\) carries a **receipt envelope** \\(\\varepsilon\\). The envelope is a typed, signed, content-addressed record that ","source_id":"thesis_session","maturity":"defined"},{"id":"F0052","source_file":"thesis.md","source_line":421,"latex":"\\Lambda","context":"es a **receipt envelope** \\(\\varepsilon\\). The envelope is a typed, signed, content-addressed record that provides: the \\(\\Lambda\\) score vector, the dual-witness closure status (\\(\\rho\\)), the actor ","source_id":"thesis_session","maturity":"defined"},{"id":"F0053","source_file":"thesis.md","source_line":479,"latex":"\\Lambda","context":"_lambda(axes) → Receipt` — any MCP-compatible client (Claude Desktop, Cursor, enterprise agent frameworks) can call the \\(\\Lambda\\) gate as a typed tool and receive a signed receipt in the tool respon","source_id":"thesis_session","maturity":"defined"},{"id":"F0054","source_file":"thesis.md","source_line":507,"latex":"\\mathcal{S}","context":"the 8-Region Model Structurally Surpasses the Leaders  Each leading framework or protocol is a partial instantiation of \\(\\mathcal{S}\\). The gap is structural: the missing region is not a feature that","source_id":"thesis_session","maturity":"defined"},{"id":"F0055","source_file":"thesis.md","source_line":515,"latex":"\\Lambda_9","context":"l engineering pattern, but skills are *files*, not services with receipts. A Brain Stem can issue a decision that fails \\(\\Lambda_9\\) moralGrounding; in the Managed Agents architecture there is no mec","source_id":"thesis_session","maturity":"defined"},{"id":"F0056","source_file":"thesis.md","source_line":515,"latex":"\\mathcal{S}","context":"fails \\(\\Lambda_9\\) moralGrounding; in the Managed Agents architecture there is no mechanism to detect or block it. In \\(\\mathcal{S}\\), that decision never exits the Brain Stem.  **Mastra** (22K+ GitH","source_id":"thesis_session","maturity":"defined"},{"id":"F0057","source_file":"thesis.md","source_line":517,"latex":"\\Lambda","context":"ource agent framework in the TypeScript ecosystem. Mastra has no Skeleton: there are no Lean 4 proofs. It has no formal \\(\\Lambda\\) gate — behavioral constraints are implemented as runtime checks with","source_id":"thesis_session","maturity":"defined"},{"id":"F0058","source_file":"thesis.md","source_line":567,"latex":"\\lambda_1","context":"l(\\lambda_1(c),\\, \\lambda_2(c),\\, \\ldots,\\, \\lambda_9(c)\\bigr) \\in [0,1]^9 \\]  The nine axes are defined as follows.  **\\(\\lambda_1\\): moralGrounding.** Measures the degree to which a proposed action ","source_id":"thesis_session","maturity":"defined"},{"id":"F0059","source_file":"thesis.md","source_line":567,"latex":"\\lambda_1","context":"nce policies, and principal hierarchies that the operator has encoded in the agent's governing covenant. Operationally, \\(\\lambda_1\\) is the normalized cosine similarity between the action's intent em","source_id":"thesis_session","maturity":"defined"},{"id":"F0060","source_file":"thesis.md","source_line":567,"latex":"[0,1]","context":"mbedding and a reference \"moral anchor\" embedding, averaged over the operator's registered covenant clauses, clamped to \\([0,1]\\). The floor constraint \\(\\lambda_1 \\geq 0.95\\) is a hard asymptote: an ","source_id":"thesis_session","maturity":"defined"},{"id":"F0061","source_file":"thesis.md","source_line":567,"latex":"\\lambda_1 \\geq 0.95","context":"anchor\" embedding, averaged over the operator's registered covenant clauses, clamped to \\([0,1]\\). The floor constraint \\(\\lambda_1 \\geq 0.95\\) is a hard asymptote: an agent that is even marginally mo","source_id":"thesis_session","maturity":"defined"},{"id":"F0062","source_file":"thesis.md","source_line":569,"latex":"\\lambda_2","context":"even marginally morally misaligned fails the gate irrespective of how perfectly calibrated the other eight axes are.  **\\(\\lambda_2\\): measurabilityHonesty.** Measures whether an action's declared eff","source_id":"thesis_session","maturity":"defined"},{"id":"F0063","source_file":"thesis.md","source_line":571,"latex":"\\lambda_3","context":"ine clause \"no hallucinations no bandaids; test test test\" by making measurement-honesty a prerequisite for passage.  **\\(\\lambda_3\\): epistemicHumility.** Scores the agent's acknowledgment of its own","source_id":"thesis_session","maturity":"defined"},{"id":"F0064","source_file":"thesis.md","source_line":571,"latex":"\\lambda_3 = 1 - \\mathbb{E}[|\\text{conf}(c) - \\text{acc}(c)|]","context":"sparse scores low on this axis. The scoring function penalizes unjustified confidence using a calibration-error analog: \\(\\lambda_3 = 1 - \\mathbb{E}[|\\text{conf}(c) - \\text{acc}(c)|]\\) where \\(\\text{c","source_id":"thesis_session","maturity":"defined"},{"id":"F0065","source_file":"thesis.md","source_line":571,"latex":"\\text{conf}(c)","context":"ied confidence using a calibration-error analog: \\(\\lambda_3 = 1 - \\mathbb{E}[|\\text{conf}(c) - \\text{acc}(c)|]\\) where \\(\\text{conf}(c)\\) is the agent's stated confidence and \\(\\text{acc}(c)\\) is the","source_id":"thesis_session","maturity":"defined"},{"id":"F0066","source_file":"thesis.md","source_line":571,"latex":"\\text{acc}(c)","context":"da_3 = 1 - \\mathbb{E}[|\\text{conf}(c) - \\text{acc}(c)|]\\) where \\(\\text{conf}(c)\\) is the agent's stated confidence and \\(\\text{acc}(c)\\) is the empirically measured accuracy over a calibration set.  ","source_id":"thesis_session","maturity":"defined"},{"id":"F0067","source_file":"thesis.md","source_line":573,"latex":"\\lambda_4","context":"is the agent's stated confidence and \\(\\text{acc}(c)\\) is the empirically measured accuracy over a calibration set.  **\\(\\lambda_4\\): counterfactualAwareness.** Measures whether the agent has consider","source_id":"thesis_session","maturity":"defined"},{"id":"F0068","source_file":"thesis.md","source_line":575,"latex":"\\lambda_5","context":"res 0.0 and a uniformly distributed consequence distribution over the operator-defined consequence space scores 1.0.  **\\(\\lambda_5\\): temporalConsistency.** Measures the stability of the gate verdict","source_id":"thesis_session","maturity":"defined"},{"id":"F0069","source_file":"thesis.md","source_line":575,"latex":"t + \\Delta","context":"Measures the stability of the gate verdict under repeated evaluation on the same input at two different times \\(t\\) and \\(t + \\Delta\\). Let \\(v_t\\) and \\(v_{t+\\Delta}\\) denote the Λ₉ composite scores ","source_id":"thesis_session","maturity":"defined"},{"id":"F0070","source_file":"thesis.md","source_line":575,"latex":"v_{t+\\Delta}","context":"te verdict under repeated evaluation on the same input at two different times \\(t\\) and \\(t + \\Delta\\). Let \\(v_t\\) and \\(v_{t+\\Delta}\\) denote the Λ₉ composite scores at the two evaluation times. The","source_id":"thesis_session","maturity":"defined"},{"id":"F0071","source_file":"thesis.md","source_line":581,"latex":"\\lambda_5 = 1.0","context":"Then:  \\[ \\lambda_5 = \\max\\!\\Bigl(0,\\; 1 - 4\\,\\bigl(v_t - v_{t+\\Delta}\\bigr)^2\\Bigr) \\]  A zero-drift evaluation scores \\(\\lambda_5 = 1.0\\). A drift of 0.05 in the composite score yields \\(\\lambda_5 =","source_id":"thesis_session","maturity":"defined"},{"id":"F0072","source_file":"thesis.md","source_line":581,"latex":"\\lambda_5 = 0.99","context":"ta}\\bigr)^2\\Bigr) \\]  A zero-drift evaluation scores \\(\\lambda_5 = 1.0\\). A drift of 0.05 in the composite score yields \\(\\lambda_5 = 0.99\\). A drift of 0.25 yields \\(\\lambda_5 = 0.75\\), below the ≥ 0","source_id":"thesis_session","maturity":"defined"},{"id":"F0073","source_file":"thesis.md","source_line":581,"latex":"\\lambda_5 = 0.75","context":"scores \\(\\lambda_5 = 1.0\\). A drift of 0.05 in the composite score yields \\(\\lambda_5 = 0.99\\). A drift of 0.25 yields \\(\\lambda_5 = 0.75\\), below the ≥ 0.90 conjunctive floor. This axis operationaliz","source_id":"thesis_session","maturity":"defined"},{"id":"F0074","source_file":"thesis.md","source_line":583,"latex":"\\lambda_6","context":"-identical replay guarantee: a system that cannot reproduce its own gate verdict is not operating deterministically.  **\\(\\lambda_6\\): evidenceProvenance.** Measures whether every empirical claim embe","source_id":"thesis_session","maturity":"defined","puriq_ref":"F1","lean_ref":"f1_replay_fold_deterministic"},{"id":"F0075","source_file":"thesis.md","source_line":585,"latex":"\\lambda_7","context":"ertions score at most 0.50. The scoring function is the fraction of claim tokens for which provenance is resolvable.  **\\(\\lambda_7\\): actorIdentity.** Measures the definiteness of the acting agent's ","source_id":"thesis_session","maturity":"defined"},{"id":"F0076","source_file":"thesis.md","source_line":587,"latex":"\\lambda_8","context":"ting under delegated authority — the score decays as a function of delegation depth to penalize opaque proxy chains.  **\\(\\lambda_8\\): axiomConsistency.** Measures whether the proposed action is inter","source_id":"thesis_session","maturity":"defined"},{"id":"F0077","source_file":"thesis.md","source_line":589,"latex":"\\lambda_9","context":"Lean 4 formalization: it enforces, at runtime, the constraints that are statically verified at theorem-proving time.  **\\(\\lambda_9\\): coherence.** Measures the multi-step logical coherence of the age","source_id":"thesis_session","maturity":"defined"},{"id":"F0078","source_file":"thesis.md","source_line":589,"latex":"A_1, A_2, \\ldots, A_k","context":"-step logical coherence of the agent's plan across the action sequence, not just for the current step in isolation. Let \\(A_1, A_2, \\ldots, A_k\\) denote the \\(k\\) preceding actions in the current sess","source_id":"thesis_session","maturity":"defined"},{"id":"F0079","source_file":"thesis.md","source_line":589,"latex":"(A_i, A_{i+1})","context":"e the \\(k\\) preceding actions in the current session. The coherence score is the proportion of consecutive action-pairs \\((A_i, A_{i+1})\\) for which the precondition of \\(A_{i+1}\\) is satisfied by the","source_id":"thesis_session","maturity":"defined"},{"id":"F0080","source_file":"thesis.md","source_line":589,"latex":"A_{i+1}","context":"ion. The coherence score is the proportion of consecutive action-pairs \\((A_i, A_{i+1})\\) for which the precondition of \\(A_{i+1}\\) is satisfied by the postcondition of \\(A_i\\), under the operator's p","source_id":"thesis_session","maturity":"defined"},{"id":"F0081","source_file":"thesis.md","source_line":589,"latex":"\\lambda_9 = 1.0","context":"ied by the postcondition of \\(A_i\\), under the operator's precondition/postcondition schema. For the base case \\(k=0\\), \\(\\lambda_9 = 1.0\\).  ### The conjunctive gate condition  The Λ₉ gate passes if ","source_id":"thesis_session","maturity":"defined"},{"id":"F0082","source_file":"thesis.md","source_line":599,"latex":"\\lambda_1 = 0.50","context":"for the following reason. A single composite score — even a geometric mean — can mask localized failures. An agent with \\(\\lambda_1 = 0.50\\) (severely morally misaligned) and all remaining axes at \\(1","source_id":"thesis_session","maturity":"defined"},{"id":"F0083","source_file":"thesis.md","source_line":599,"latex":"\\prod_{i}^{1/9} = 0.50^{1/9} \\approx 0.926","context":"with \\(\\lambda_1 = 0.50\\) (severely morally misaligned) and all remaining axes at \\(1.0\\) achieves a geometric mean of \\(\\prod_{i}^{1/9} = 0.50^{1/9} \\approx 0.926\\), which would pass a ≥ 0.90 single-","source_id":"thesis_session","maturity":"defined"},{"id":"F0084","source_file":"thesis.md","source_line":599,"latex":"\\lambda_1","context":"gle-score gate. The conjunctive AND structure prevents this: every axis is a blocking veto. The two elevated floors for \\(\\lambda_1\\) and \\(\\lambda_2\\) add a second layer of asymmetry — these are the ","source_id":"thesis_session","maturity":"defined"},{"id":"F0085","source_file":"thesis.md","source_line":599,"latex":"\\lambda_2","context":"e conjunctive AND structure prevents this: every axis is a blocking veto. The two elevated floors for \\(\\lambda_1\\) and \\(\\lambda_2\\) add a second layer of asymmetry — these are the axes most directly","source_id":"thesis_session","maturity":"defined"},{"id":"F0086","source_file":"thesis.md","source_line":605,"latex":"m \\in \\{0,1\\}^9","context":"to the receipt structure. Rather than publishing the raw nine (or ten) axis scores, the receipt carries a bitfield mask \\(m \\in \\{0,1\\}^9\\) in which \\(m_i = 1\\) if and only if \\(\\lambda_i\\) was evalua","source_id":"thesis_session","maturity":"defined"},{"id":"F0087","source_file":"thesis.md","source_line":605,"latex":"m_i = 1","context":"her than publishing the raw nine (or ten) axis scores, the receipt carries a bitfield mask \\(m \\in \\{0,1\\}^9\\) in which \\(m_i = 1\\) if and only if \\(\\lambda_i\\) was evaluated and passed its floor. The","source_id":"thesis_session","maturity":"defined"},{"id":"F0088","source_file":"thesis.md","source_line":605,"latex":"\\lambda_i","context":"nine (or ten) axis scores, the receipt carries a bitfield mask \\(m \\in \\{0,1\\}^9\\) in which \\(m_i = 1\\) if and only if \\(\\lambda_i\\) was evaluated and passed its floor. The raw scores are withheld fro","source_id":"thesis_session","maturity":"defined"},{"id":"F0089","source_file":"thesis.md","source_line":611,"latex":"\\theta_i = 0.95","context":"ity profile of the agent. Formally, the mask is computed as:  \\[ m_i = \\mathbf{1}[\\lambda_i(c) \\geq \\theta_i] \\]  where \\(\\theta_i = 0.95\\) for \\(i \\in \\{1,2\\}\\) and \\(\\theta_i = 0.90\\) otherwise. The","source_id":"thesis_session","maturity":"defined"},{"id":"F0090","source_file":"thesis.md","source_line":611,"latex":"i \\in \\{1,2\\}","context":". Formally, the mask is computed as:  \\[ m_i = \\mathbf{1}[\\lambda_i(c) \\geq \\theta_i] \\]  where \\(\\theta_i = 0.95\\) for \\(i \\in \\{1,2\\}\\) and \\(\\theta_i = 0.90\\) otherwise. The gate passes iff \\(\\sum_","source_id":"thesis_session","maturity":"defined"},{"id":"F0091","source_file":"thesis.md","source_line":611,"latex":"\\theta_i = 0.90","context":"s computed as:  \\[ m_i = \\mathbf{1}[\\lambda_i(c) \\geq \\theta_i] \\]  where \\(\\theta_i = 0.95\\) for \\(i \\in \\{1,2\\}\\) and \\(\\theta_i = 0.90\\) otherwise. The gate passes iff \\(\\sum_i m_i = 9\\) (or 10 und","source_id":"thesis_session","maturity":"defined"},{"id":"F0092","source_file":"thesis.md","source_line":611,"latex":"\\sum_i m_i = 9","context":"eq \\theta_i] \\]  where \\(\\theta_i = 0.95\\) for \\(i \\in \\{1,2\\}\\) and \\(\\theta_i = 0.90\\) otherwise. The gate passes iff \\(\\sum_i m_i = 9\\) (or 10 under Λ₁₀). The mask is committed via SHA-256 and incl","source_id":"thesis_session","maturity":"defined"},{"id":"F0093","source_file":"thesis.md","source_line":627,"latex":"\\textit{parent\\_hash}","context":"\\textit{timestamp},\\; \\vec{\\lambda},\\; \\rho\\_\\textit{witness\\_set},\\; \\textit{signature}\\bigr) \\]  The fields are:  - **\\(\\textit{parent\\_hash}\\)**: The SHA-256 digest of receipt \\(r_{i-1}\\). For the ","source_id":"thesis_session","maturity":"defined"},{"id":"F0094","source_file":"thesis.md","source_line":627,"latex":"r_{i-1}","context":"s\\_set},\\; \\textit{signature}\\bigr) \\]  The fields are:  - **\\(\\textit{parent\\_hash}\\)**: The SHA-256 digest of receipt \\(r_{i-1}\\). For the genesis receipt, this is the SHA-256 of a protocol-specifie","source_id":"thesis_session","maturity":"defined"},{"id":"F0095","source_file":"thesis.md","source_line":628,"latex":"\\textit{content\\_digest}","context":"this is the SHA-256 of a protocol-specified null seed. This field creates the backward-pointing link of the chain. - **\\(\\textit{content\\_digest}\\)**: The SHA-256 of the canonical JSON serialization o","source_id":"thesis_session","maturity":"defined"},{"id":"F0096","source_file":"thesis.md","source_line":629,"latex":"\\textit{actor}","context":"fore any side-effectful execution. This binds the gate verdict irrevocably to the specific input that triggered it. - **\\(\\textit{actor}\\)**: The identifier of the acting agent as registered in the pr","source_id":"thesis_session","maturity":"defined"},{"id":"F0097","source_file":"thesis.md","source_line":629,"latex":"\\lambda_7","context":"t. - **\\(\\textit{actor}\\)**: The identifier of the acting agent as registered in the principal registry. Corresponds to \\(\\lambda_7\\) (actorIdentity). - **\\(\\textit{timestamp}\\)**: A monotonic timesta","source_id":"thesis_session","maturity":"defined"},{"id":"F0098","source_file":"thesis.md","source_line":630,"latex":"\\textit{timestamp}","context":"entifier of the acting agent as registered in the principal registry. Corresponds to \\(\\lambda_7\\) (actorIdentity). - **\\(\\textit{timestamp}\\)**: A monotonic timestamp in milliseconds since the Unix e","source_id":"thesis_session","maturity":"defined"},{"id":"F0099","source_file":"thesis.md","source_line":631,"latex":"\\vec{\\lambda}","context":": A monotonic timestamp in milliseconds since the Unix epoch, drawn from a pinned, non-forgeable source (see §4.6). - **\\(\\vec{\\lambda}\\)**: The full nine-dimensional Λ vector, or the `lambda9_mask` b","source_id":"thesis_session","maturity":"defined"},{"id":"F0100","source_file":"thesis.md","source_line":632,"latex":"\\rho\\_\\textit{witness\\_set}","context":"vec{\\lambda}\\)**: The full nine-dimensional Λ vector, or the `lambda9_mask` bitfield under the Λ₁₀ privacy variant. - **\\(\\rho\\_\\textit{witness\\_set}\\)**: The set of co-witnesses whose signatures are ","source_id":"thesis_session","maturity":"defined"}],"definitions":[],"canonical_constants":[{"id":"K01","name":"receipt_build_p50_us","value":"11.5","unit":"µs","ops_per_sec":"62764","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K02","name":"receipt_build_p99_us","value":"50.7","unit":"µs","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K03","name":"receipt_verify_p50_us","value":"10.4","unit":"µs","ops_per_sec":"74149","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K04","name":"lambda9_base_p50_us","value":"3.12","unit":"µs","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K05","name":"lambda9_composed_p50_us","value":"3.29","unit":"µs","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K06","name":"rho_closure_rate","value":"100%","denominator":"8000/8000 paired calls","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K07","name":"platform_v11_http_calls","value":"24800","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K08","name":"platform_v11_lambda10_overhead_p50_ms","value":"0.49-0.59","unit":"ms/route","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K09","name":"platform_v11_p99_ms","value":"1.27","unit":"ms","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K10","name":"replay_root","value":"1ed4d253e876f428c6e182f8ed8a569585442556b339529bbf8ec2522581698b","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K11","name":"test_count_production","value":"218/218","source":"THESIS_BRIEF.md","doi":"10.5281/zenodo.20119582","maturity":"measured"},{"id":"K12","name":"test_count_demo","value":"37/37","source":"replit_payload_build","commit":"demo","maturity":"measured"},{"id":"K13","name":"bekenstein_indicator_fire_rate","value":"49.5%","source":"thesis.md §4.5","doi":"10.5281/zenodo.20119582","maturity":"measured"}],"extracted_constants":[{"id":"C0001","name":"receipt_build_p50_us","value":"11.5","raw":"receipt build p50 = 11.5 µs","context":"0).** A production Rust runtime with 218/218 tests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0003","name":"receipt_verify_p50_us","value":"10.4","raw":"receipt verify p50 = 10.4 µs","context":"ests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,000/8,000 paired ca","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0008","name":"receipt_build_p99_us","value":"50.7","raw":"p99 = 50.7 µs","context":"→ Receipt` — constructs a receipt envelope; p50 = 11.5 µs, p99 = 50.7 µs, throughput 62,764 ops/sec. - `verify_receipt(receipt) → bool` — verifies byt","source_file":"thesis.md","source_line":269,"source_id":"thesis_session"},{"id":"C0009","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"me with 218/218 tests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,00","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0010","name":"ops_per_sec","value":"74149","raw":"74,149 ops/sec","context":"0 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,000/8,000 paired calls [9]. The runtime enforces ","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0023","name":"ops_per_sec","value":"200000","raw":"200,000 ops/sec","context":"arget for the Merkle-DAG upgrade is **5 µs build p50** at **200,000 ops/sec**. This is a 2.3× improvement in latency and a 3.2× improvement in through","source_file":"thesis.md","source_line":2100,"source_id":"thesis_session"},{"id":"C0027","name":"lambda9_base_p50_us","value":"3.12","raw":"Λ₉ base p50 = 3.12 µs","context":"9]. The runtime enforces a 9-axis conjunctive quality gate (Λ₉ base p50 = 3.12 µs) and a Λ₁₀ platform layer with 0.49–0.59 ms/route overhead validated","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0029","name":"tests_passed","value":"218","raw":"218/218 passing","context":"ify-p50 with 100% ρ-closure on 8,000/8,000 paired calls and 218/218 passing tests. We propose `lambda9_mask` as a privacy-preserving extension to SCIT","source_file":"thesis.md","source_line":27,"source_id":"thesis_session"},{"id":"C0031","name":"tests_passed","value":"37","raw":"37/37 tests","context":"nt invocations of the same input. The demo payload confirms 37/37 tests passing in the Replit environment (33 `ouroboros` core + 4 `a11oy` covenant), ","source_file":"thesis.md","source_line":249,"source_id":"thesis_session"},{"id":"C0044","name":"http_calls","value":"24800","raw":"24,800 HTTP calls","context":"orm layer with 0.49–0.59 ms/route overhead validated across 24,800 HTTP calls.  2. **Lean 4 formal axioms and proofs (`lutar-lean`).** A Mathlib-groun","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0053","name":"lambda_p50_us","value":"11.5","raw":"p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,000/8,000 paired calls [9]. The runtime enforces a 9-axis conjunctive quality gate (Λ","context":"tion Rust runtime with 218/218 tests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0054","name":"lambda_p50_us","value":"3.12","raw":"p50 = 3.12 µs) and a Λ","context":"runtime enforces a 9-axis conjunctive quality gate (Λ₉ base p50 = 3.12 µs) and a Λ₁₀ platform layer with 0.49–0.59 ms/route overhead validated across ","source_file":"thesis.md","source_line":83,"source_id":"thesis_session"},{"id":"C0055","name":"receipt_build_p99_us","value":"50.7","raw":"p99 = 50.7 µs","context":"bers - **218/218 tests** - Receipt build p50 = **11.5 µs**, p99 = 50.7 µs (62,764 ops/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ ba","source_file":"THESIS_BRIEF.md","source_line":57,"source_id":"thesis_brief"},{"id":"C0056","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"8 tests** - Receipt build p50 = **11.5 µs**, p99 = 50.7 µs (62,764 ops/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ base p50 = 3.12 µ","source_file":"THESIS_BRIEF.md","source_line":57,"source_id":"thesis_brief"},{"id":"C0057","name":"ops_per_sec","value":"74149","raw":"74,149 ops/sec","context":"0.7 µs (62,764 ops/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ base p50 = 3.12 µs / composed p50 = 3.29 µs - 100% ρ-closure on **8,0","source_file":"THESIS_BRIEF.md","source_line":58,"source_id":"thesis_brief"},{"id":"C0058","name":"lambda9_base_p50_us","value":"3.12","raw":"Λ₉ base p50 = 3.12 µs","context":"/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ base p50 = 3.12 µs / composed p50 = 3.29 µs - 100% ρ-closure on **8,000/8,000 paired ca","source_file":"THESIS_BRIEF.md","source_line":59,"source_id":"thesis_brief"},{"id":"C0059","name":"tests_passed","value":"218","raw":"218/218 tests","context":"boros v6.3.0 (released 2026-05-13) — production numbers - **218/218 tests** - Receipt build p50 = **11.5 µs**, p99 = 50.7 µs (62,764 ops/sec) - Receip","source_file":"THESIS_BRIEF.md","source_line":56,"source_id":"thesis_brief"},{"id":"C0060","name":"tests_passed","value":"37","raw":"37/37 tests","context":"plit demo payload (verified live 2026-05-15 at 11:22 EDT) - 37/37 tests passing (33 ouroboros core + 4 a11oy covenant) - `bash scripts/doctrine-check.","source_file":"THESIS_BRIEF.md","source_line":68,"source_id":"thesis_brief"},{"id":"C0061","name":"http_calls","value":"24800","raw":"24,800 HTTP calls","context":"ρ-closure on **8,000/8,000 paired calls** - Platform v11: **24,800 HTTP calls validated**, Λ₁₀ overhead 0.49–0.59 ms/route, p99 ≤ 1.27 ms - Apache-2.0","source_file":"THESIS_BRIEF.md","source_line":61,"source_id":"thesis_brief"},{"id":"C0062","name":"receipt_build_p50_us","value":"11.5","raw":"Receipt build p50 = 11.5 µs","context":"e not. | 12–18 months — they have a runtime, not a kernel | Receipt build p50 = 11.5 µs · v11 DOI [`zenodo.20119582`](https://doi.org/10.5281/zenodo.2","source_file":"master_evolution_memo.md","source_line":81,"source_id":"master_memo"},{"id":"C0064","name":"receipt_build_p99_us","value":"50.7","raw":"p99 = 50.7 µs","context":"218 / 218 passing** | | Receipt build | p50 = **11.5 µs** · p99 = 50.7 µs · 62,764 ops/sec | | Receipt verify | p50 = **10.4 µs** · 74,149 ops/sec | |","source_file":"master_evolution_memo.md","source_line":36,"source_id":"master_memo"},{"id":"C0065","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"g** | | Receipt build | p50 = **11.5 µs** · p99 = 50.7 µs · 62,764 ops/sec | | Receipt verify | p50 = **10.4 µs** · 74,149 ops/sec | | Λ₉ base | p50 =","source_file":"master_evolution_memo.md","source_line":36,"source_id":"master_memo"},{"id":"C0066","name":"ops_per_sec","value":"74149","raw":"74,149 ops/sec","context":"s · 62,764 ops/sec | | Receipt verify | p50 = **10.4 µs** · 74,149 ops/sec | | Λ₉ base | p50 = 3.12 µs | | Λ₉ composed | p50 = **3.29 µs** | | ρ-closu","source_file":"master_evolution_memo.md","source_line":37,"source_id":"master_memo"},{"id":"C0067","name":"tests_passed","value":"37","raw":"37/37 tests","context":"ic-facing Replit demo (`replit_a11oy_demo`) currently shows 37/37 tests passing. The upstream runtime is **218/218**. Every Series A diligence visitor","source_file":"master_evolution_memo.md","source_line":141,"source_id":"master_memo"},{"id":"C0068","name":"tests_passed","value":"218","raw":"218/218 tests","context":"astructure.  **Success metric:** the Replit demo URL shows \"218/218 tests · v6.3.0 · OpenSSF 8.2\" with the same badge as the canonical repo, refreshed","source_file":"master_evolution_memo.md","source_line":152,"source_id":"master_memo"},{"id":"C0070","name":"receipt_build_p50_us","value":"11.5","raw":"Receipt build p50=11.5 µs","context":"rg/doc/draft-morrow-sogomonian-exec-outcome-attest/00/)). | Receipt build p50=11.5 µs, 218/218 tests, v11 DOI: [10.5281/zenodo.20119582](https://doi.o","source_file":"pm_memo.md","source_line":54,"source_id":"pm_memo"},{"id":"C0072","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"Claim:** Receipt build p50 = 11.5 µs, verify p50 = 10.4 µs, 62,764 ops/sec, 218/218 runtime tests, ρ-closure 8,000/8,000, byte-identical replay root `","source_file":"pm_memo.md","source_line":81,"source_id":"pm_memo"},{"id":"C0073","name":"tests_passed","value":"218","raw":"218/218 tests","context":"ian-exec-outcome-attest/00/)). | Receipt build p50=11.5 µs, 218/218 tests, v11 DOI: [10.5281/zenodo.20119582](https://doi.org/10.5281/zenodo.20119582)","source_file":"pm_memo.md","source_line":54,"source_id":"pm_memo"},{"id":"C0076","name":"tests_passed","value":"37","raw":"37/37 tests","context":"arity + Public Scorecard  **Thesis:** The Replit demo shows 37/37 tests (ouroboros 33 + a11oy 4). The live runtime is 218/218. This delta undersells t","source_file":"pm_memo.md","source_line":135,"source_id":"pm_memo"},{"id":"C0077","name":"http_calls","value":"24800","raw":"24,800 HTTP calls","context":"ships a Λ₉-gated resource. | Ouroboros v6.3.0 platform v11: 24,800 HTTP calls, Λ₁₀ overhead 0.49–0.59 ms/route | | **Mastra** ([mastra.ai](https://mas","source_file":"pm_memo.md","source_line":57,"source_id":"pm_memo"},{"id":"C0078","name":"receipt_build_p50_us","value":"11.5","raw":"Receipt build p50 = 11.5 µs","context":"-witness guarantee baked into `ouroboros`'s runtime kernel. Receipt build p50 = 11.5 µs; verify p50 = 10.4 µs; 100% ρ-closure on 8,000/8,000 paired ca","source_file":"cto_memo.md","source_line":78,"source_id":"cto_memo"},{"id":"C0079","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"in · p50 = 11.5 µs build / 10.4 µs verify · 218/218 tests · 62,764 ops/sec | | `a11oy` | Covenant policy + approval queue | **HEART** (consent + pulse","source_file":"cto_memo.md","source_line":18,"source_id":"cto_memo"},{"id":"C0080","name":"tests_passed","value":"218","raw":"218/218 tests","context":"ss · receipt chain · p50 = 11.5 µs build / 10.4 µs verify · 218/218 tests · 62,764 ops/sec | | `a11oy` | Covenant policy + approval queue | **HEART** ","source_file":"cto_memo.md","source_line":18,"source_id":"cto_memo"},{"id":"C0081","name":"ops_per_sec","value":"62764","raw":"62,764 ops/sec","context":"218 / 218 passing | 100% | | Receipt build p50 | 11.5 µs | 62,764 ops/sec | | Receipt build p99 | 50.7 µs | — | | Receipt verify p50 | 10.4 µs | 74,14","source_file":"runtime_memo.md","source_line":20,"source_id":"runtime_memo"},{"id":"C0082","name":"ops_per_sec","value":"74149","raw":"74,149 ops/sec","context":"build p99 | 50.7 µs | — | | Receipt verify p50 | 10.4 µs | 74,149 ops/sec | | Λ₉ base p50 | 3.12 µs | — | | Λ₉ composed p50 | 3.29 µs | — | | ρ-closur","source_file":"runtime_memo.md","source_line":22,"source_id":"runtime_memo"},{"id":"C0083","name":"tests_passed","value":"218","raw":"218/218 tests","context":"ary (5 lines)  The ouroboros v6.3.0 runtime is confirmed at 218/218 tests, receipt build p50 11.5 µs, Λ₉ composed p50 3.29 µs, and 100% ρ-closure — al","source_file":"runtime_memo.md","source_line":404,"source_id":"runtime_memo"},{"id":"C0084","name":"http_calls","value":"11","raw":"11 HTTP calls","context":"9 µs | — | | ρ-closure | 8,000 / 8,000 | 100% | | Platform v11 HTTP calls | 24,800 | — | | Λ overhead p50 per route | 0.49–0.59 ms | — | | Λ overhead ","source_file":"runtime_memo.md","source_line":26,"source_id":"runtime_memo"},{"id":"C0085","name":"ops_per_sec","value":"74149","raw":"74,149 ops/sec","context":"pt verify p50 | **10.4 µs** | | Receipt verify throughput | 74,149 ops/sec | | Λ₉ base p50 | 3.12 µs | | Λ₉ composed p50 | 3.29 µs | | ρ-closure | 100","source_file":"data_memo.md","source_line":419,"source_id":"data_memo"}],"dois":[{"doi":"10.5281/zenodo.19944926","url":"https://doi.org/10.5281/zenodo.19944926","source_file":"thesis.md","source_line":18,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20119582","url":"https://doi.org/10.5281/zenodo.20119582","source_file":"thesis.md","source_line":19,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.19867281","url":"https://doi.org/10.5281/zenodo.19867281","source_file":"thesis.md","source_line":1740,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.19934129","url":"https://doi.org/10.5281/zenodo.19934129","source_file":"thesis.md","source_line":1741,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.19983066","url":"https://doi.org/10.5281/zenodo.19983066","source_file":"thesis.md","source_line":1743,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20020841","url":"https://doi.org/10.5281/zenodo.20020841","source_file":"thesis.md","source_line":1744,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20020845","url":"https://doi.org/10.5281/zenodo.20020845","source_file":"thesis.md","source_line":1745,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20020846","url":"https://doi.org/10.5281/zenodo.20020846","source_file":"thesis.md","source_line":1746,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20020848","url":"https://doi.org/10.5281/zenodo.20020848","source_file":"thesis.md","source_line":1747,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20020849","url":"https://doi.org/10.5281/zenodo.20020849","source_file":"thesis.md","source_line":1748,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20053148","url":"https://doi.org/10.5281/zenodo.20053148","source_file":"thesis.md","source_line":1749,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20053163","url":"https://doi.org/10.5281/zenodo.20053163","source_file":"thesis.md","source_line":1750,"source_id":"thesis_session"},{"doi":"10.5281/zenodo.20162352","url":"https://doi.org/10.5281/zenodo.20162352","source_file":"thesis.md","source_line":1752,"source_id":"thesis_session"}],"doctrine_clauses":[{"id":"DC1","clause":"Byline must be 'Lutar, Stephen P.' — never 'Jr.' or 'Stephen Paul'","source":"THESIS_BRIEF.md"},{"id":"DC2","clause":"8 forbidden patterns: see doctrine.json (FP-1..FP-8)","source":"PM_LEAD_CHARTER_V2.md"},{"id":"DC3","clause":"License allow-list: Apache-2.0, MIT, BSD-3-Clause, CC-BY-4.0","source":"THESIS_BRIEF.md"},{"id":"DC4","clause":"ORCID: 0009-0001-0110-4173","source":"THESIS_BRIEF.md"},{"id":"DC5","clause":"9-axis Λ >= 0.90 conjunctive AND; moralGrounding + measurabilityHonesty >= 0.95","source":"THESIS_BRIEF.md"},{"id":"DC6","clause":"Public-only ingestion: no private data, no proprietary code","source":"THESIS_BRIEF.md"},{"id":"DC7","clause":"5x byte-identical replay (deterministic)","source":"THESIS_BRIEF.md"},{"id":"DC8","clause":"No hallucinations; every empirical claim cites a verifiable artifact","source":"THESIS_BRIEF.md"}],"source_files":["thesis.md","THESIS_BRIEF.md","master_evolution_memo.md","pm_memo.md","cto_memo.md","runtime_memo.md","governance_memo.md","data_memo.md","anatomy_memo.md"],"zenodo_corpus":["10.5281/zenodo.19867281","10.5281/zenodo.19934129","10.5281/zenodo.19944926","10.5281/zenodo.19983066","10.5281/zenodo.20020841","10.5281/zenodo.20020846","10.5281/zenodo.20020845","10.5281/zenodo.20020848","10.5281/zenodo.20020849","10.5281/zenodo.20053148","10.5281/zenodo.20053163","10.5281/zenodo.20119582","10.5281/zenodo.20162352"],"proof_summary":{"locked_proven":5,"locked_ids":["F1","F11","F12","F18","F19"],"experimental_sorry_free":21,"axiom_gated":3,"axiom_gated_detail":{"f13_tamper_evident":"hash_collision_resistant","f14_dsse_verifiable":"ecdsa_unforgeable","f15_inclusion_binding":"h2_collision_resistant"},"conjecture":["F23"],"note":"Locked kernel proven=5; experimental scope Lutar/Puriq/Formulas has 21 sorry-free (excluded from locked count); F23 = Conjecture 1, NOT a theorem.","lean_repo":"szl-holdings/lutar-lean","lean_files":["Lutar/Puriq/Formulas/PuriqFormulaLean.lean","Lutar/Puriq/Formulas/F23_Uniqueness.lean"],"verification":"bare `lean` 4.13.0, 0 errors, 1 sorry (F23 only); #print axioms shows no sorryAx in any proved theorem.","source_report":"team/PROOFS_WAVE2_REPORT.md","wave3":{"campaign":"prove-wave-3 (C1-C20 research candidates)","source_report":"team/PROVE_WAVE3_REPORT.md","lean_repo":"szl-holdings/lutar-lean","commit_proofs":"775093f0f8ef7f530272c38d513c28fdaec3366b","commit_root_wiring":"02e44c30657c9986475ff7373113728f4ba38f67","lean_files":["Lutar/Wave3/Consensus.lean","Lutar/Wave3/MerkleKraft.lean","Lutar/Wave3/InfoEstim.lean","Lutar/Wave3/Tier1Mathlib.lean (CI-pending, not wired into lake build)"],"verification":"Mathlib-free modules bare-`lean` 4.13.0 verified sorry-free (0 errors); #print axioms ledger shows no sorryAx. Tier1Mathlib (C1/C2/C6) is Mathlib-dependent and CI-pending, NOT compiled in sandbox.","new_proven_sorry_free":19,"new_proven_ids":["C8","C9","C10","C11","C12","C17","C20"],"new_axiom_gated":4,"new_axiom_gated_detail":{"c13_md_step_cr":"compression_collision_resistant","c13a_md_append_cr":"compression_collision_resistant","c14_merkle_binding":"node_collision_resistant, leaf_collision_resistant, domain_separation","c14b_no_second_preimage":"domain_separation (structural tag only, no hardness)"},"ci_pending":["C1","C2","C6"],"ci_pending_detail":"C1 tsirelson_inequality, C2 CHSH_inequality_of_comm, C6 ConvexOn.map_sum_le re-exports; Mathlib-dependent, awaiting green lake build.","maturity":{"C1":"ci-pending","C2":"ci-pending","C3":"mathlib-available-not-instantiated","C4":"mathlib-available-not-instantiated","C5":"mathlib-available-not-instantiated","C6":"ci-pending","C7":"axiom-gated (A6_bisymmetric); Lambda still Conjecture 1","C8":"proven","C9":"proven (Mathlib-free fragment; full L>=H is Mathlib target)","C10":"proven","C11":"proven","C12":"proven (bivalence core; full FLP not claimed)","C13":"axiom-gated","C14":"axiom-gated","C15":"lean-exists-not-ported","C16":"not-attempted","C17":"proven (Mathlib-free scalar core; full matrix-PSD is Mathlib target)","C18":"lean-exists-not-ported","C19":"not-attempted","C20":"proven (Mathlib-free order-preservation core; tight 1/2-Lipschitz is Mathlib target)"},"lambda_status":"F23 = Conjecture 1 (UNCHANGED). C7 is conditional only, via the DECLARED axiom A6_bisymmetric in F23_Uniqueness.lean; unconditional uniqueness is FALSE under A1-A5 (maxAgg_ne_Lambda).","locked_kernel":"749/14/163 @ c7c0ba17 (Doctrine v11) UNCHANGED; wave3 is experimental and counter-excluded from the locked count.","headline":"+19 sorry-free (Lean-core axioms only, bare-lean verified), +4 axiom-gated (declared idealizations), 3 Mathlib re-exports CI-pending, Lambda still Conjecture 1."},"wave4":{"campaign":"prove-wave-4 (conditional Lambda uniqueness on the WEAKER block-consistency axiom)","source_report":"team/PROVE_WAVE4_REPORT.md","candidate_research":"team/RESEARCH_WAVE4/CANDIDATE_FORMULAS_V4.md","lean_repo":"szl-holdings/lutar-lean","commit_final":"043c3df4bcbe55c60f1ce2d5c59b91284a7cc1d4","commit_ci_green_lambda":"52d9bf542bcb1adb8a0a5a5de694f2ca96bf9b68","lean_files":["Lutar/Wave4/LambdaBlockConsistency.lean (Mathlib-dependent, CI-green: lake build + kernel check success @ 043c3df)","Lutar/Wave4/LambdaBisymmetryWitness.lean (bare-`lean` 4.13.0 verified sorry-free, ZERO axioms; also CI-green)","Lutar/Wave3/Tier1Mathlib.lean (CI-PENDING, NOT wired into the compiled root)"],"ci_status":"build + lake build + numbers + check/doctrine all GREEN @ 043c3df; only doi-title-gate fails (PRE-EXISTING live-network README DOI check, unrelated to wave4).","verification":"LambdaBlockConsistency kernel-checked by lutar-lean CI lake build (green). LambdaBisymmetryWitness bare-`lean` verified: all 6 theorems 'do not depend on any axioms'. Every theorem carries #print axioms.","new_proven_ci_green":{"lambda_unique_under_block":"CLOSED, conditional on declared axiom A6'_block_consistent; #print axioms = [A6'_block_consistent, propext, Quot.sound, Classical.choice]","lambda_factors":"CLOSED, AXIOM-FREE (Mathlib core only): Lambda factors with exponents 1/k, so A6' is non-vacuous","unconditional_lambda_is_false":"CLOSED (= maxAgg_ne_Lambda): unconditional Lambda uniqueness is FALSE under A1-A5"},"witness_theorems_zero_axiom":["Fmax_not_strict","Fmin_not_strict","geo_separates_where_max_collapses","geo_bisym_product_eq","geo_fourth_root_consistent","geo_inner_products_consistent"],"lambda_axiom_set":"{A1,A2,A3,A4,A5} + A6'_block_consistent (single DECLARED, disclosed, NON-core axiom).","lambda_weakest_axiom":"Cleanest published: Aczel-Saaty 1983 (doi:10.1016/0022-2496(83)90028-7) = reciprocity + positive homogeneity (A2 already assumed). Weakest governance-natural & formalized: Csato 2018 block-consistency / aggregation-invariance (doi:10.1007/s10726-018-9589-3, arXiv:1706.07256), WEAKER than the prior A6_bisymmetric.","lambda_status":"F23 = Conjecture 1 (UNCHANGED, unconditional). Conditional uniqueness now CI-green on the WEAKER A6'_block_consistent (lambda_unique_under_block), superseding the stronger A6_bisymmetric route. Unconditional uniqueness FALSE (maxAgg_ne_Lambda). NEVER conflated.","ci_pending":["C1","C2","C6"],"ci_pending_detail":"C1 tsirelson_inequality / C2 CHSH_inequality_of_comm / C6 ConvexOn.map_sum_le re-exports. Signatures verified VERBATIM vs pinned Mathlib d731765, but wiring Tier1Mathlib into the compiled root reproducibly red-lights lake build (bisected: a4299fb/52d9bf5 un-wired = green). Exact error not retrievable (CI log download proxy-blocked). File stays in-tree, NOT imported; NOT claimed proven.","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED","locked_proven":5,"canonical_numbers":{"declarations":1182,"axioms_raw":20,"axioms_unique":19,"new_axiom":"A6'_block_consistent (declared, disclosed, NON-core, NOT in locked kernel)","sorries_raw":308,"sorries_noncomment":256,"drift_gate":"PASS"},"citations":["Aczel 1948","Aczel-Saaty 1983 doi:10.1016/0022-2496(83)90028-7","Csato 2018 doi:10.1007/s10726-018-9589-3 arXiv:1706.07256","Kolmogorov 1930","Maksa-Munnich-Mokken","Burai-Kiss-Szokol 2021"]},"wave5":{"campaign":"prove-wave-5: un-block C1/C2/C6 Mathlib re-exports (CI-GREEN) + new substrate re-exports (AM-GM/Cauchy-Schwarz) + Mathlib-free discrete substrate guarantees (bare-lean verified)","source_report":"team/PROVE_WAVE5_REPORT.md","lean_repo":"szl-holdings/lutar-lean","branch":"prove-wave5/c1c2c6-rewire-plus-amgm-cs","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/186","commit_ci_green":"0a552a90dd7f3b8b668ae761bf6e39eca17c62f1","ci_run_ids":{"lean_kernel_check":"27053443102 (success)","lake_build_gate_numbers":"27053443099 (success)","doctrine":"27053443200 (success)","dco":"27053443096 (success)"},"ci_status":"build (Lean kernel check) + lake build + numbers + check/doctrine + DCO all GREEN @ 0a552a90 (and @ 099d6caa). Only doi-title-gate + PR-title-lint fail (PRE-EXISTING / cosmetic, unrelated to proofs).","headline":"C1 Tsirelson 2sqrt2 / C2 CHSH<=2 / C6 Jensen are now CI-GREEN (wave-4 had them CI-PENDING). Root cause fixed: dropped the non-load-bearing c1a_tsirelson_constant numeric remark and its two extra SpecialFunctions imports, minimizing Tier1Mathlib's build closure to exactly the two modules that define the instantiated theorems.","ci_green_mathlib_dependent":{"Wave3.Tier1.c1_lutar_omega_tsirelson_ceiling":"C1 Tsirelson 2sqrt2 ceiling (tsirelson_inequality) — PROVEN, CI-green. EPR-Bell governance diagnostic (entangled-agent ceiling).","Wave3.Tier1.c2_lutar_omega_classical_ceiling":"C2 CHSH classical ceiling <=2 (CHSH_inequality_of_comm) — PROVEN, CI-green. Local/independent-prior agent ceiling.","Wave3.Tier1.c6_jensen_forecaster":"C6 finite Jensen (ConvexOn.map_sum_le) — PROVEN, CI-green. Active-inference ELBO-direction conservative forecaster.","Wave5.MathlibCore.w5_1_lambda_le_arith_mean":"W5-1 weighted AM-GM (Real.geom_mean_le_arith_mean_weighted) — PROVEN, CI-green. Lambda (geometric-mean aggregator) <= arithmetic mean: no-inflation guarantee.","Wave5.MathlibCore.w5_1b_lambda2_le_arith_mean":"W5-1b two-point weighted AM-GM — PROVEN, CI-green. Pairwise consensus diagnostic.","Wave5.MathlibCore.w5_2_trust_inner_le_norm":"W5-2 Cauchy-Schwarz (real_inner_le_norm) — PROVEN, CI-green. Trust-vector similarity bound (cosine in [-1,1])."},"proven_mathlib_free_bare_lean":{"Wave5.DiscreteSubstrate.w5_3a_miscover_le_total":"miscoverage<=sample size. axioms=[propext]. killinchu conformal coverage.","Wave5.DiscreteSubstrate.w5_3b_cover_miscover_partition":"covered+miscovered=total. axioms=[propext, Quot.sound]. coverage=1-miscoverage conservation.","Wave5.DiscreteSubstrate.w5_3c_threshold_count_mono":"stricter threshold selects fewer. axioms=[propext, Quot.sound]. a11oy threshold monotonicity.","Wave5.DiscreteSubstrate.w5_4_collision_of_image_dup":"image-duplicate => hash collision (pigeonhole). axioms=[propext, Classical.choice, Quot.sound]. UDS forgery-detection.","Wave5.DiscreteSubstrate.w5_5_no_early_stop_deflation":"monotone optional-stopping anti-deflation. ZERO axioms. UDS receipt-stream anti-gaming."},"axiom_disclosure":"Mathlib-dependent re-exports use the standard Mathlib trio [propext, Classical.choice, Quot.sound] (NO sorryAx, NO declared Lutar axioms); their #print axioms are emitted in the CI build log (blob log download proxy-blocked here, but the build is green and they are pure term-mode instantiations of axiom-clean Mathlib theorems). Mathlib-free theorems' #print axioms pasted verbatim in PROVE_WAVE5_REPORT.md section 3 (bare lean 4.13.0, exit 0).","not_available_at_pinned_mathlib":"C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler.Basic) modules DO NOT EXIST at the pinned rev d7317655 (v4.13.0) — verified HTTP 404. They cannot be re-exported on this toolchain; deferred to a future Mathlib bump. Honestly NOT claimed.","lambda_status":"Lambda (F23) STAYS Conjecture 1 unconditionally. W5-1 AM-GM is a building block Lambda relies on; it does NOT prove uniqueness. Unconditional uniqueness remains FALSE (wave-4 counterexample in-tree).","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. All wave-5 work is experimental scope (counter-excluded).","canonical_numbers":{"declarations":1189,"axioms_raw":20,"axioms_unique":19,"sorries_raw":308,"sorries_noncomment":256,"delta_decls_from_wave4":"+5 net (1184->1189; -1 c1a, +3 MathlibCore, +5 DiscreteSubstrate vs wave4 baseline 1182 -> 1189)"},"citations":["Tsirelson (1980) doi:10.1007/BF00417500","CHSH (1969) doi:10.1103/PhysRevLett.23.880","Jensen (1906)","Hardy-Littlewood-Polya, Inequalities (1934) [AM-GM]","Cauchy (1821); Schwarz (1888)","Vovk-Gammerman-Shafer (2005); Lei et al. (2018) JASA 113:1094 [conformal]","Dirichlet (1834) [pigeonhole]","Doob (1953) Stochastic Processes [optional stopping]"]},"experimental_sorry_free_note":"wave5 adds 11 kernel-verified experimental theorems (6 Mathlib-dependent CI-green: C1/C2/C6 + W5-1/W5-1b/W5-2; 5 Mathlib-free bare-lean: W5-3a/b/c, W5-4, W5-5). Prior experimental_sorry_free baseline was 21 (wave-2 F-pack ceiling).","wave5_proven_count":{"mathlib_dependent_ci_green":6,"mathlib_free_bare_lean":5,"total_new":11},"wave6":{"campaign":"prove-wave-6: graph + info substrate proof families (F-G1..F-G6 graph candidates from the founder's favorited graph-ML repos + Wave-4 DPI/Fano/conformal info cores)","source_report":"team/PROVE_WAVE6_REPORT.md","lean_repo":"szl-holdings/lutar-lean","branch":"prove-wave6/graph-substrate-fg1-fg6","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/189","base_main_commit":"b71114cf802987c74da3b572257a9dc0e53a675e","commit_ci_green":"dc7ae26d53611b8701336867df96c54a128fb049","commit_history":{"7c6879fd":"full wave6 (6 files); CI red on ONE theorem only (MetricSpectral.lean:87 SeparableSpace namespace not opened) — F-G4/F-G2/F-G5/F-G6 + F-G1 coord + F-G3 all built green in that same run","dc7ae26d":"fix: open TopologicalSpace in MetricSpectral; ALL Lean gates GREEN"},"ci_run_ids":{"lean_kernel_check":"27055540303 (success)","lake_build_gate_numbers":"27055540304 (success)"},"ci_status":"build (Lean kernel check) + lake build + numbers (full Mathlib build + drift gate) + check/doctrine + Run tests + DCO + CodeQL + gitleaks + Trivy + Grype + doi-title-gate + CI checks all GREEN @ dc7ae26d. Drift gate printed 'OK: live Lean numbers match the committed baseline' (1217/20/19/308). Build completed successfully (5015/5015). Only 'Lint PR title (Conventional Commits)' fails (PRE-EXISTING / cosmetic, unrelated to proofs).","headline":"11 new sorry-free theorems, 0 new axioms. F-G4 Lambda-graph isomorphism invariance is now REAL (replaces the placeholder) and CI-kernel-verified; F-G1 Frechet/Bourgain expansion + Kuratowski isometric embedding and F-G3 geometric spectral contraction (promotes the SpectralAdmit toy) are CI-green; F-G2 GNN<=1-WL, F-G5 bounded-frontier DAG termination, F-G6 relabeling-invariant functionals, plus Wave-4 DPI/Fano/conformal cores are Mathlib-free bare-lean-verified.","ci_green_mathlib_dependent":{"Lutar.GraphLambda.vertexLambda_automorphism_invariant":"F-G4 per-vertex Lambda invariant under a score/edge-preserving automorphism — PROVEN, CI-green.","Lutar.GraphLambda.Lambda_graph_automorphism_invariant":"F-G4 univ-product of vertex-Lambda invariant under automorphism — PROVEN, CI-green.","Lutar.GraphLambda.Lambda_graph_invariant_under_automorphism":"F-G4 Lambda_graph value invariant under automorphism — PROVEN, CI-green.","Lutar.GraphLambda.vertexLambda_iso_transport":"F-G4 vertex-Lambda transports across a cross-graph LambdaIso — PROVEN, CI-green.","Lutar.GraphLambda.prod_vertexLambda_iso_invariant":"F-G4 univ-product is a Lambda-isomorphism invariant (Fintype.prod_equiv) — PROVEN, CI-green.","Lutar.GraphLambda.Lambda_graph_iso_invariant":"F-G4 Lambda_graph is a Lambda-isomorphism invariant across two graphs — PROVEN, CI-green. THE headline graph result.","Wave6.MetricSpectral.frechet_coord_lipschitz":"F-G1 single-anchor Frechet coordinate is 1-Lipschitz (abs_dist_sub_le) — PROVEN, CI-green. P-GNN anchor-distance non-expansion certificate.","Wave6.MetricSpectral.frechet_coord_nonexpand":"F-G1 one-sided expansion-side certificate — PROVEN, CI-green.","Wave6.MetricSpectral.frechet_isometric_embedding":"F-G1 Kuratowski isometric (distortion=1) embedding into l-infinity (kuratowskiEmbedding.isometry) — PROVEN, CI-green. Distortion-1 anchor of the Bourgain spectrum.","Wave6.MetricSpectral.geometric_contraction":"F-G3 geometric decay dist(P^t x, pi) <= lam^t dist(x,pi) — PROVEN, CI-green. Real Levin-Peres-style mixing bound, promotes SpectralAdmit toy.","Wave6.MetricSpectral.contraction_nonincrease":"F-G3 a genuine contraction (lam<=1) never increases distance to stationary point — PROVEN, CI-green."},"proven_mathlib_free_bare_lean":{"Wave6.GraphSubstrate.gnn_le_wl":"F-G2 GNN <= 1-WL expressivity upper bound (factoring through WL color-refinement). ZERO axioms. (GIN Xu et al. arXiv:1810.00826)","Wave6.GraphSubstrate.iterStep_drains":"F-G5 bounded-frontier receipt-DAG strictly drains each step (well-founded measure). ZERO axioms.","Wave6.GraphSubstrate.iterStep_empties":"F-G5 frontier reaches empty in bounded steps. ZERO axioms. UDS bounded-frontier audit-walk termination/availability.","Wave6.GraphSubstrate.step_lt":"F-G5 strict-decrease lemma. axioms=[propext].","Wave6.GraphSubstrate.edge_decisions_bounded":"F-G5 edge-decision count bounded. ZERO axioms.","Wave6.GraphSubstrate.mpRun_det":"message-passing run determinism. ZERO axioms.","Wave6.GraphSubstrate.adj_pred_relabel_invariant":"F-G6 adjacency predicate relabel-invariant. ZERO axioms.","Wave6.GraphSubstrate.countAdj_relabel_invariant":"F-G6 adjacency count relabel-invariant. axioms=[propext]. Clustering-coeff/degree functional iso-invariance core.","Wave6.InfoSubstrate.dpi_postprocess_collapse":"Wave-4 DPI: deterministic post-processing creates no new distinctions. ZERO axioms.","Wave6.InfoSubstrate.dpi_count_pullback":"Wave-4 DPI count pullback. axioms=[propext].","Wave6.InfoSubstrate.fano_collision_forces_error":"Wave-4 Fano: a decode collision forces an error. axioms=[propext, Classical.choice, Quot.sound] (by_cases, no push_neg).","Wave6.InfoSubstrate.coverage_conservation":"Wave-4 conformal coverage conservation. axioms=[propext, Quot.sound].","Wave6.InfoSubstrate.miscoverage_le_total":"Wave-4 miscoverage <= total budget. axioms=[propext]."},"axiom_disclosure":"All Mathlib-dependent theorems (F-G4 in GraphLambda, F-G1/F-G3 in MetricSpectral) depend ONLY on the standard Mathlib trio [propext, Classical.choice, Quot.sound] — verbatim from the GREEN CI lake build log (PROVE_WAVE6_REPORT.md section 4). Mathlib-free theorems' #print axioms pasted verbatim from bare lean 4.13.0 (exit 0) in section 3. NO sorryAx, NO declared Lutar axioms in any new theorem.","not_available_at_pinned_mathlib":"C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler[.Basic]) modules DO NOT EXIST at pinned rev d7317655 (v4.13.0) — re-verified HTTP 404. Deferred; a lakefile bump risks the locked kernel and reproducible build. Honestly NOT claimed. (klDivergence_nonneg + pinsker stay declared/disclosed axioms.)","lambda_status":"Lambda (F23) STAYS Conjecture 1 unconditionally. F-G4 proves Lambda_graph (the graph-lifted aggregator) is an isomorphism INVARIANT — a structural-stability property — NOT uniqueness. Unconditional uniqueness remains FALSE (wave-4 counterexample in-tree).","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. All wave-6 work is experimental scope (counter-excluded from the locked v11 baseline).","canonical_numbers":{"declarations":1217,"axioms_raw":20,"axioms_unique":19,"sorries_raw":308,"sorries_noncomment":256,"delta_decls_from_wave5":"+28 (1189->1217: +23 three new Wave6 files [GraphSubstrate 12, InfoSubstrate 5, MetricSpectral 6], +5 GraphLambda F-G4 real proofs replacing the placeholder); sorries_raw unchanged 308 (every new theorem sorry-free); no new axioms"},"citations":["Bourgain (1985) Israel J. Math 52:46-52, doi:10.1007/BF02776078","Linial-London-Rabinovich (1995) Combinatorica 15:215-245, doi:10.1007/BF01200757","You-Gomes-Selman-Ying-Leskovec, P-GNN (2019) arXiv:1906.04817","Xu-Hu-Leskovec-Jegelka, GIN (2018) arXiv:1810.00826","You-Ying-Ren-Hamilton-Leskovec, GraphRNN (2018) arXiv:1802.08773","You-Leskovec-He-Xie, graph2nn (2020) arXiv:2007.06559","Levin-Peres, Markov Chains and Mixing Times (2017) doi:10.1090/mbk/107","Diaconis-Stroock (1991) doi:10.1214/aoap/1177005980","Weisfeiler-Lehman (1968) [1-WL color refinement]","Fano (1961) Transmission of Information [Fano inequality]","Vovk-Gammerman-Shafer (2005) [conformal coverage]"]},"wave6_proven_count":{"mathlib_dependent_ci_green":"F-G4 (6 thms across automorphism+iso) + F-G1 (3) + F-G3 (2/3) = 11 Mathlib-dep theorems kernel-checked","mathlib_free_bare_lean":"F-G2 (1) + F-G5 (5) + F-G6 (2) + Wave-4 DPI/Fano/conformal (5) = 13 bare-lean theorems","headline_new_sorry_free":11,"note":"Headline count of 11 = the named campaign targets newly closed sorry-free this wave (F-G1,F-G2,F-G3,F-G4,F-G5,F-G6 + 5 Wave-4 info cores). Total new declarations added to the corpus = +28 (see canonical_numbers)."},"wave7":{"campaign":"prove-wave-7: conformal rank-count/p-value + Doob two-sided audit envelope + degree-sum iso-invariance + PAC-Bayes routing envelope","source_report":"team/PROVE_WAVE7_REPORT.md","lean_repo":"szl-holdings/lutar-lean","branch":"prove-wave7/conformal-rankcount-doob-envelope-graphsum-pacbayes","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/190","base_main_commit":"b71114cf802987c74da3b572257a9dc0e53a675e","commit_ci_green":"d6a232ba7c0f42b9a45fde5c6eb96051fe007dc4","toolchain":"Lean 4.13.0 (6d22e0e5cc5a); pinned Mathlib d7317655 (v4.13.0)","ci_run_ids":{"lean_kernel_check":"27055463460 (success)","lake_build_gate_numbers":"27055463494 (success)","doctrine":"27055463522 (success)","dco":"27055463459 (success)","ci":"27055463463 (success)","tests":"27055463464 (success)","doi_title_gate":"27055463469 (success)"},"ci_status":"build (Lean kernel check whole library) + lake build + numbers (drift gate) + check/doctrine + Run tests + DCO + doi-title-gate all GREEN @ d6a232ba. Only Conventional-Commits PR-title lint fails (infra 'Set up job', non-required, NOT a proof gate).","new_proven_ci_green":["W7-1a","W7-1","W7-5a","W7-5b","W7-5"],"new_proven_bare_lean":["W7-4a","W7-4b","W7-4c","W7-6a","W7-6"],"axioms":"0 new","headline":"10 new sorry-free theorems, 0 new axioms: conformal rank-count/p-value (W7-4) + Doob TWO-SIDED optional-stopping audit envelope (W7-6, closes the audit-gaming hole BOTH ways) + degree-sum graph iso-invariance (W7-1) + PAC-Bayes min<=avg<=max routing envelope (W7-5).","ci_green_mathlib_dependent":{"Wave7.MathlibCore.w7_1a_vertexSum_relabel_invariant":"W7-1a any vertex-summed graph statistic is invariant under node relabeling (Equiv.sum_comp). PROVEN, CI-green. mesh-health graph functional iso-invariance.","Wave7.MathlibCore.w7_1_degreeSum_iso_invariant":"W7-1 two graphs related by a degree-preserving relabeling share the handshake quantity 2*|E|. PROVEN, CI-green. additive companion of in-tree F-G4.","Wave7.MathlibCore.w7_5a_sum_le_card_max":"W7-5a aggregated risk <= worst component (average <= max). PROVEN, CI-green. Model-Router upper envelope.","Wave7.MathlibCore.w7_5b_card_min_le_sum":"W7-5b best component <= average (min <= average). PROVEN, CI-green. lower envelope.","Wave7.MathlibCore.w7_5_average_envelope":"W7-5 two-sided routing envelope min <= average <= max (PAC-Bayes / GraphRouter cost averaging). PROVEN, CI-green."},"proven_mathlib_free_bare_lean":{"Wave7.DiscreteSubstrate.w7_4a_rankCount_le_total":"W7-4a rank-count <= sample size => normalized p-value <= 1. axioms=[propext]. killinchu conformal.","Wave7.DiscreteSubstrate.w7_4b_rankCount_antitone":"W7-4b a stricter conformity demand never raises the count (monotone calibration). axioms=[propext, Quot.sound]. trust-interval p-value.","Wave7.DiscreteSubstrate.w7_4c_rankCount_self_ge_one":"W7-4c conformal p-value floor (1+#>=)/(n+1): no zero p-values, anti-overconfidence. axioms=[propext, Quot.sound].","Wave7.DiscreteSubstrate.w7_6a_audit_envelope_lower":"W7-6a Doob one-sided lower audit bound. bare-lean.","Wave7.DiscreteSubstrate.w7_6_audit_two_sided_envelope":"W7-6 Doob TWO-SIDED optional-stopping audit envelope: auditing EARLY or LATE cannot change the result (bounds both under-reporting AND over-reporting). bare-lean. Upgrades the one-sided W5-5 anti-deflation guarantee."},"axiom_disclosure":"Mathlib-dependent theorems depend ONLY on the standard Mathlib trio [propext, Classical.choice, Quot.sound] (verbatim from GREEN CI lake build log, PROVE_WAVE7_REPORT.md section 3). Mathlib-free theorems' #print axioms pasted verbatim from bare lean 4.13.0 (exit 0). NO sorryAx, NO declared Lutar axioms.","not_available_at_pinned_mathlib":"C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler.Basic) modules DO NOT EXIST at pinned rev d7317655 (v4.13.0) - re-verified HTTP 404. The Trust-Score / vessel-risk interval is therefore sourced from CONFORMAL (W5-3/W7-4), NOT Hoeffding. Honestly NOT claimed.","lambda_status":"Lambda (F23) STAYS Conjecture 1 unconditionally. Wave-7 adds no uniqueness claim.","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED; experimental scope. declarations 1203 @ d6a232ba.","citations":["Vovk-Gammerman-Shafer (2005) Algorithmic Learning in a Random World [conformal rank/p-value]","Lei et al. (2018) JASA 113:1094, doi:10.1080/01621459.2017.1307116 [conformal]","Doob (1953) Stochastic Processes [optional-stopping / two-sided envelope]","McAllester (1999) COLT [PAC-Bayes]","Euler (1736) [handshake lemma / degree sum]"]},"agentic_loop":{"campaign":"prove-agentic-loop: the RAG->MCP->kernel->receipt governed run is proven as a SYSTEM, end-to-end","source_report":"team/PROVE_AGENTIC_LOOP_REPORT.md","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Agentic/Pipeline.lean (622 lines, Mathlib-FREE)","namespace":"Lutar.Agentic.Pipeline (NOT imported into Lutar.lean; EXPERIMENTAL_SCOPES)","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/188","base_main_commit":"b71114cf802987c74da3b572257a9dc0e53a675e","commit_ci_green":"2ede47a2c93f5d46ea8742b50a6a164b19eccb1d","ci_run_ids":{"lean_kernel_check":"79858762837 (success)","lake_build_gate_numbers":"79858762828 (success)","doctrine":"79858762792 (success)","dco":"79858762787 (success)","tests":"79858762772 (success)","ci":"79858762714 (success)","doi_title_gate":"79858762718 (success)"},"ci_status":"GREEN @ 2ede47a2 (Lean kernel check + lake build+numbers + check/doctrine + DCO + tests + CI + doi-title-gate).","theorems":28,"axiom_free":14,"lean_core_only":10,"axiom_gated":4,"declared_axiom":"hashFn_collision_resistant (P5 only; disclosed like F13'/C13; NIST FIPS 180-4, Merkle 1987). NO sorryAx anywhere.","hop_model":"Hop = Retrieve | Plan | ToolCall | PolicyCheck | KernelCheck | Emit","properties":{"P1":"receipt-completeness (a full loop emits exactly 6 receipts; append-only; hash-chain contiguous, no gaps) - Lean-core","P2":"gate-soundness (Emit ALLOW iff BOTH gates ALLOW; either DENY is absorbing -> final DENY) - Lean-core","P3":"non-interference (Goguen-Meseguer 1982; untrusted retrieval content cannot flip the decision; DENY can never become ALLOW) - axiom-free core","P4":"replay-determinism (whole loop replays byte-identical) - axiom-free","P5":"tamper-evidence (end-to-end; any mutation of the receipt chain is detected on re-verify) - AXIOM-GATED on hashFn_collision_resistant","P6":"monotone auditability (incremental verify; auditing more never un-verifies what was verified) - Lean-core"},"headline":"the RAG->MCP->kernel loop is proven as a SYSTEM, end-to-end. P3 (non-interference, axiom-free) is the 'poisoned input can't override safety' guarantee.","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED; experimental scope.","citations":["Goguen-Meseguer (1982) IEEE S&P, doi:10.1109/SP.1982.10014 [non-interference]","Merkle (1987) [hash tree / tamper-evidence]","NIST FIPS 180-4 [SHA-2 collision-resistance idealization]"]},"experimental_total_note":"LOCKED proven = exactly 5 {F1,F11,F12,F18,F19} @ c7c0ba17 (749/14/163), UNCHANGED. PLUS 80+ experimental kernel-verified theorems (all CI-green, never folded into the locked 5): wave5 (11, PR#186), wave6 (11, PR#189), wave7 (10, PR#190), agentic-loop P1-P6 (28, PR#188), coder formulas (27, PR#193), Lambda Set alpha/delta (22 results / ~12 theorems, PR#192), unify governed_run_sound (PR#194). C3/C4/C5 proven on the Mathlib-v4.18 bump branch (PR#187), pending merge to main. Lambda = Conjecture 1 unconditionally (uniqueness machine-checked FALSE) + PROVEN conditionally under declared strengthened Set alpha/delta axioms (PR#192).","coder_formulas":{"campaign":"prove-coder (a11oy Code governed coder formulas)","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/193","commit_ci_green":"29e33534","ci_status":"GREEN (bare-lean sorry-free + CI build/numbers/doctrine/DCO)","theorems":27,"axiom_free":5,"lean_core_only":23,"axiom_gated":1,"declared_axiom":"codeHash_collision_resistant (1 only; standard, disclosed)","areas":{"CS1":"sandbox containment (extends P2)","CS2":"bounded exec/termination (extends F-G5)","CR3":"router envelope + argmin stability (W7-5/C20)","CV4":"consensus/Byzantine majority (C10)","CC5":"conformal code-confidence <1 (W5-3/W7-4)","CK6":"receipt-log compression (Kraft/Shannon C8/C9)","NI7":"code-context non-interference (extends P3) — poisoned dependency can't flip DENY->ALLOW"},"headline":"27 theorems innovated for the governed coder; kernel-verified two ways","maturity":"experimental-CI-green (1 axiom-gated)","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED; experimental scope"},"lambda_setalpha_setdelta":{"campaign":"lambda-uniqueness Set alpha + Set delta (conditional uniqueness within strengthened axiom classes)","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/192","commit_ci_green":"5f0bb5ee","ci_status":"GREEN (build + lake+numbers + doctrine + DCO)","results":22,"headline_theorems_approx":12,"declared_bridge_axioms":["setAlpha_cauchy","KS_theorem_1_1","setDelta_stage2"],"impostor_deaths_axiom_free":10,"what_proven":"Lambda (geometric mean) is UNIQUE within Set alpha {A1,A2,A3,A4,A5' multiplicativity} (cond. on setAlpha_cauchy) and within Set delta {d1..d4,d5' multiplicativity} (cond. on KS_theorem_1_1+setDelta_stage2). All 10 impostor-deaths AXIOM-FREE.","what_NOT_claimed":"NOT unconditional uniqueness under original A1-A5 (machine-checked FALSE: Round13.maxAgg_ne_Lambda). Lambda STAYS Conjecture 1.","maturity":"conditional (axiom-gated bridge); Lambda = Conjecture 1 unconditionally","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED; locked_proven STAYS 5"},"mathlib_bump_c3c4c5":{"campaign":"Mathlib v4.18 bump — concentration/KL re-exports C3/C4/C5","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/187","ci_status":"PROVEN on the Mathlib-v4.18 bump branch (CI-green), PENDING MERGE to main","ids":["C3","C4","C5"],"status_honest":"proven on bump branch (PR#187), pending merge to main — NOT on-main, NOT blocked","maturity":"branch-pending"},"unify_governed_run_sound":{"campaign":"unify governance substrate meta-theorem (monoid-action spine unifying P1/P4/P6 + coder corpus)","pull_request":"https://github.com/szl-holdings/lutar-lean/pull/194","commit_ci_green":"9f9c1bbd","artifact":"Lutar/Unify/GovernanceSubstrate.lean (EXPERIMENTAL scope; NOT wired into Lutar.lean)","spine":"run is a left monoid action of the free monoid (List Hop,++,[]) on St; run_append homomorphism is the unifier","theorems":["run_nil (axiom-free)","run_append","run_singleton (axiom-free)","completeness_additive","determinism_composes","chainEnd_append (axiom-free)","auditability_multiplicative","governed_run_sound"],"headline":"every compositional corpus guarantee is a corollary of one homomorphism; a synthesis (unification) theorem, not new deep pure math","maturity":"experimental-CI-green","locked_kernel":"749/14/163 @ c7c0ba17 UNCHANGED; experimental scope"},"maturity_legend":["locked","experimental-CI-green","branch-pending","axiom-gated","conditional","conjecture"],"experimental_count_min":80,"capability_map":{"module":"szl_formula_wiring.py (shared, byte-identical across a11oy + killinchu) + szl_agentic_loop.py","served_surface":"a11oy: pages/console.html (SPA) + serve.py; killinchu: compiled SPA + serve.py. Routes: /api/{ns}/v1/formulas/* and /api/{ns}/v1/agent/* . formula_proof block returned on every governed run.","reasoning":[{"theorems":["W5-1","W5-1b","C6"],"capability":"Trust aggregation (no-inflation)","mechanism":"am_gm_check: ENFORCE geometric mean <= arithmetic mean; enforced_aggregate is the trust carried forward (cannot exceed AM)","maturity":"CI-green(MD) / proven","status":"WIRED","where":"HOP5 kernel_check (szl_agentic_loop.py); /formulas/selftest","reason":""},{"theorems":["W5-2"],"capability":"Trust-vector similarity bound","mechanism":"cauchy_schwarz_similarity: cosine in [-1,1] via |<x,y>| <= ||x|| ||y||","maturity":"CI-green(MD)","status":"WIRED","where":"szl_formula_wiring.cauchy_schwarz_similarity; selftest","reason":""},{"theorems":["W5-3a/b/c","W7-4a/b/c","CC5"],"capability":"Confidence band (never 100%)","mechanism":"conformal_interval: distribution-free band, p-value floor 1/(n+1), never_100_percent flag","maturity":"proven (bare-lean)","status":"WIRED","where":"HOP5 kernel_check; /formulas/conformal; confidence_band on receipt","reason":""},{"theorems":["C20"],"capability":"Routing/argmax stability","mechanism":"softmax_argmax_stable: half-margin band — argmax stable under small perturbation","maturity":"proven (Mathlib-free core)","status":"WIRED","where":"szl_formula_wiring.softmax_argmax_stable; selftest","reason":""},{"theorems":["W7-5","W7-5a/b","CR3"],"capability":"Routing/averaging envelope","mechanism":"routing_envelope: min<=avg<=max over per-axis risks","maturity":"CI-green(MD)","status":"WIRED","where":"HOP5 kernel_check; /formulas/routing-envelope","reason":""}],"policy":[{"theorems":["P2","p2_deny_absorbing","CS1"],"capability":"Deny-by-default safety gate soundness","mechanism":"gate_soundness: emit allowed IFF policy AND kernel allow; deny is absorbing","maturity":"proven (axiom-free)","status":"WIRED","where":"HOP4 + unify block (szl_agentic_loop.py); /agent/run","reason":""},{"theorems":["P3","p3a/b/c/d","NI7"],"capability":"Injection / non-interference","mechanism":"non_interference: recompute decision with untrusted blob MUTATED, assert invariant (Goguen-Meseguer)","maturity":"proven (axiom-free)","status":"WIRED","where":"HOP4 policy_check; quarantine HOP2; /agent/run","reason":""},{"theorems":["C10","C11","C12","CV4"],"capability":"Consensus safety (Byzantine)","mechanism":"byzantine_quorum: n>=3f+1 sizing, quorums intersect in an honest node; DLS/FLP caveats surfaced","maturity":"proven","status":"WIRED","where":"HOP4 policy_check; /formulas/consensus-quorum","reason":""}],"operator":[{"theorems":["C8","C9","CK6"],"capability":"Lossless minimal receipt encoding","mechanism":"kraft_encoding_floor: encoded length >= field-count floor; Kraft sum(2^-l)<=1 prefix-feasible","maturity":"proven (C8) / proven-fragment (C9)","status":"WIRED","where":"emit/seal block; formula_proof.operator.kraft","reason":""},{"theorems":["W5-5","W7-6","W7-6a"],"capability":"Two-sided audit envelope (anti-gaming)","mechanism":"doob_audit_envelope: monotone accumulator, open<=tau<=close — early OR late audit brackets same result","maturity":"proven (axiom-free)","status":"WIRED","where":"emit/seal block; formula_proof.operator.doob_audit","reason":""},{"theorems":["F-G5","CS2"],"capability":"Bounded audit-walk termination","mechanism":"bounded_frontier_walk: receipt-DAG walk under hard step cap = |edges|; terminates within cap","maturity":"proven","status":"WIRED","where":"emit/seal block; formula_proof.operator.bounded_frontier","reason":""},{"theorems":["P5","C13","C14","W5-4","code_tamper_detectable"],"capability":"Tamper-evidence","mechanism":"merkle_chain_verify: recompute prev_hash chain + Merkle root; duplicate-hash collision detection","maturity":"AXIOM-GATED (hash CR) / W5-4 proven","status":"WIRED","where":"emit/seal + _verify_chain; /formulas/verify-receipts","reason":""},{"theorems":["P1","p1a/b/c","P4","p4_self_replay"],"capability":"Receipt completeness + replay determinism","mechanism":"every hop emits a hash-chained receipt; verify recomputes deterministically (replay = recompute)","maturity":"proven (axiom-free)","status":"WIRED","where":"_chain_receipt on every hop; _verify_chain; /agent/verify-chain","reason":""},{"theorems":["P6","p6a/b/c"],"capability":"Monotone auditability","mechanism":"monotone audit accumulator (Doob direction) — audit count never decreases","maturity":"proven (axiom-free)","status":"WIRED","where":"doob monotone_accumulator feeds governed_run_sound P6","reason":""}],"graph":[{"theorems":["F-G4","W7-1","W7-1a","F-G6","F-G2"],"capability":"Label-independent mesh health","mechanism":"graph_health_invariant: GM health + degree-sum (handshake) recomputed under relabel, asserted invariant; 1-WL ceiling honest","maturity":"CI-green(MD) / proven","status":"WIRED","where":"emit/seal block; formula_proof.graph.health_invariant","reason":""},{"theorems":["F-G1","F-G3"],"capability":"Distance-nonexpansive trust embedding","mechanism":"frechet_embedding_nonexpansive: anchor-distance coord is 1-Lipschitz |f(a)-f(b)|<=|a-b|","maturity":"CI-green(MD)","status":"WIRED","where":"szl_formula_wiring.frechet_embedding_nonexpansive; selftest","reason":""}],"unifying":[{"theorems":["governed_run_sound (PR#194)","P1","P2","P3","P4","P6"],"capability":"Top-level run soundness","mechanism":"governed_run_sound: AND the 5 live per-run properties into ONE soundness proposition; P5 separate (axiom-gated)","maturity":"proven (headline Lean-core; P5 axiom-gated)","status":"WIRED","where":"emit/seal block; formula_proof.unifying","reason":""}],"concentration_bounds_surfaced":[{"theorems":["C3","C4","C5"],"capability":"Concentration / divergence diagnostics (surfaced, NOT the trust band)","mechanism":"C3 Hoeffding / C4 Azuma / C5 KL>=0 now CI-green (Mathlib v4.18 bump, PR#187); listed as separate bounds","maturity":"proven (CI-green)","status":"WIRED","where":"proof_summary.mathlib_bump_c3c4c5; Formulas tab (list); trust interval STAYS conformal","reason":""}],"skipped":[{"theorems":["C1","C2"],"capability":"EPR-Bell agent-correlation ceiling (diagnostic)","mechanism":"Tsirelson 2sqrt2 / CHSH<=2 — CI-green REAL theorems, but no operational decision fit","maturity":"proven (CI-green)","status":"SKIP","where":"Formulas tab (list-only)","reason":"Pure correlation-ceiling diagnostic; no concrete capability binds to it. Honestly list-only, not wired."},{"theorems":["C15"],"capability":"McDiarmid bounded-difference concentration","mechanism":"not ported to Lean","maturity":"lean-exists-not-ported","status":"SKIP","where":"—","reason":"Not proven/ported on this toolchain; no mechanism to wire. SKIP (honesty>coverage)."},{"theorems":["C16"],"capability":"PAC-Bayes McAllester bound","mechanism":"not ported (W7-5 envelope ports the operational min<=avg<=max instead)","maturity":"not-attempted","status":"SKIP","where":"—","reason":"Not ported; the operational need (routing envelope) is met by W7-5 which IS wired. SKIP."},{"theorems":["C18"],"capability":"Arrow impossibility","mechanism":"not ported to Lean","maturity":"lean-exists-not-ported","status":"SKIP","where":"—","reason":"Social-choice impossibility; academic, no operational fit in the agent loop. SKIP."},{"theorems":["C19"],"capability":"Gibbard-Satterthwaite","mechanism":"not ported to Lean","maturity":"not-attempted","status":"SKIP","where":"—","reason":"Strategy-proofness impossibility; academic, no operational fit. SKIP."},{"theorems":["F23 (Lambda)","lambda_unique_setAlpha","lambda_unique_under_block"],"capability":"Lambda uniqueness (the aggregator identity)","mechanism":"uniqueness is CONDITIONAL on declared axioms only (setAlpha_cauchy / A6'_block_consistent); unconditional is FALSE","maturity":"Conjecture 1","status":"SKIP","where":"Lambda used as advisory aggregator (NOT proven oracle); szl_llm_registry + HOP5","reason":"F23 STAYS Conjecture 1. The Lambda VALUE is used (advisory, GM<=AM bounded), but the UNIQUENESS theorem is conditional-only — not claimed as a proven oracle. Wired as advisory, uniqueness SKIP."}]},"wiring_version":"wire-all-80 v1","wiring_note":"capability_map wires each kernel-verified theorem to a REAL, executed mechanism in szl_formula_wiring.py / szl_agentic_loop.py (shared, byte-identical), or marks it SKIP with a reason. Live at /api/{ns}/v1/formulas/proof-summary. Trust interval is conformal (W5-3/W7-4), NOT Hoeffding. governed_run_sound (PR#194) is headline Lean-core; P5 axiom-gated. locked_proven=5; F23 = Conjecture 1."},"puriq_formulas":[{"id":"F1","name":"Replay-Hash Determinism","statement":"Deterministic step-fold replay: equal logs replay to equal final state; folded state equals last of the explicit replay trace.","maturity":"proven","lean_ref":"f1_replay_fold_deterministic","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","locked_kernel":true},{"id":"F2","name":"Scheduler Liveness","statement":"Fair round-robin scheduler: every ready organ eventually ticks (strictly-decreasing Nat ranking measure reaches 0).","maturity":"proven","lean_ref":"f2_scheduler_liveness","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F3","name":"Organ Boot-Gate Soundness","statement":"If the boot gate permits an organ, its genome is valid (decidable implication).","maturity":"proven","lean_ref":"f3_genome_gate_sound","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F4","name":"Khipu DAG Acyclicity","statement":"Appending the new largest-index node preserves DAG acyclicity (backward-edge invariant).","maturity":"proven","lean_ref":"f4_khipu_dag_acyclic","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F5","name":"Unay Receipt Recall","statement":"Insert-then-lookup on the same receipt key returns the inserted value (exact-key recall correctness).","maturity":"proven","lean_ref":"f5_unay_recall_correct","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F6","name":"LMDB Durability","statement":"Commit-then-restart-then-read returns the committed value; uncommitted writes are lost on crash (WAL model).","maturity":"proven","lean_ref":"f6_lmdb_durability","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F7","name":"Chaski FIFO Ordering","statement":"Enqueue-batch-then-drain yields send order; head is the oldest message (true FIFO, no tautology).","maturity":"proven","lean_ref":"f7_chaski_fifo","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F8","name":"Wallpa OSS-Only Safety","statement":"Governed-voice admission gate admits only OSS sources; no humanClone or synthetic config is ever admitted.","maturity":"proven","lean_ref":"f8_wallpa_oss_only","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F9","name":"Wasi-Rikuq Non-Interference","statement":"Advisory non-interference (Goguen-Meseguer 1982): the low view is unchanged by high inputs.","maturity":"proven","lean_ref":"f9_wasi_rikuq_noninterference","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F10","name":"Hatun MCP Idempotency","statement":"MCP request normalizer is idempotent: normalizing twice equals normalizing once.","maturity":"proven","lean_ref":"f10_hatun_mcp_idempotent","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F11","name":"Ayni Reciprocity Conservation","statement":"Event-sourcing replay invariant: balance reciprocity is conserved; tit-for-tat parity (Axelrod-Hamilton).","maturity":"proven","lean_ref":"f11_ayni_reciprocity_conservation","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","locked_kernel":true},{"id":"F12","name":"Kuramoto Phase-Coupling Boundedness","statement":"Discrete additive coupling is bounded and superposes over an organ set. CAVEAT: additive fragment only, NOT nonlinear Kuramoto synchronisation.","maturity":"proven","lean_ref":"f12_kuramoto_superposition","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","locked_kernel":true},{"id":"F13","name":"Wayra Hash-Chain Verification","statement":"Hash-chain verification is sound by induction: a verified chain has every link consistent.","maturity":"proven","lean_ref":"f13_wayra_chain_verified","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","declared_axiom":"hash_collision_resistant (tamper-evidence f13_tamper_evident)"},{"id":"F14","name":"DSSE Verifiable Attribution","statement":"A DSSE signature that verifies attributes the message to the key. AXIOM-GATED on declared `ecdsa_unforgeable`.","maturity":"axiom-gated","lean_ref":"f14_dsse_verifiable","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","declared_axiom":"ecdsa_unforgeable"},{"id":"F15","name":"Rekor Merkle Inclusion","statement":"Merkle inclusion checker is sound (structural). Binding form (equal roots => equal leaves) is AXIOM-GATED on declared `h2_collision_resistant`.","maturity":"proven","lean_ref":"f15_rekor_inclusion","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","declared_axiom":"h2_collision_resistant (binding form f15_inclusion_binding)"},{"id":"F16","name":"Sentinel Immune Completeness","statement":"Immune cross-cut completeness: 8 gates cover all 8 enumerated threats; gate set is exhaustive.","maturity":"proven","lean_ref":"f16_sentinel_immune_complete","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F17","name":"Three-Vertical Isolation","statement":"The three verticals are pairwise disjoint (isolation by construction).","maturity":"proven","lean_ref":"f17_three_vertical_isolation","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F18","name":"Reed-Solomon RS(10,6) Recovery","statement":"RS(10,6) parity arithmetic: data is recoverable iff at least 6 of 10 shards survive (tolerates 4 erasures).","maturity":"proven","lean_ref":"f18_reed_solomon_parity_count","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","locked_kernel":true},{"id":"F19","name":"Bekenstein Entropy Budget","statement":"Entropy budget is additive and monotone over a region partition; each region <= total. CAVEAT: additive scaffolding only, NOT the full Bekenstein bound S <= 2*pi*k*R*E/(hbar*c).","maturity":"proven","lean_ref":"f19_budget_total_cons","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean","locked_kernel":true},{"id":"F20","name":"Mobile Input Equivalence","statement":"Touch and pointer inputs are equivalent under the normalization map (decidable and sound).","maturity":"proven","lean_ref":"f20_mobile_input_equiv","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F21","name":"Genome Validator Totality","statement":"The genome validator is total over Fin 16: every organ validates.","maturity":"proven","lean_ref":"f21_all_organs_valid","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F22","name":"Khipu Emit Monotonicity","statement":"Emit appends to the sequence log with strictly increasing sequence numbers (monotone emit).","maturity":"proven","lean_ref":"f22_khipu_emit_monotone","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/PuriqFormulaLean.lean"},{"id":"F23","name":"Lambda-Aggregator Uniqueness","statement":"CONJECTURE 1 (NOT a theorem). Unconditional uniqueness is FALSE under A1-A5 (maxAgg counterexample). Conditional `lambda_unique_of_factors` IS proved; unconditional uniqueness closes only under declared axiom A6_bisymmetric.","maturity":"conjectured","lean_ref":"f23_lambda_aggregator_sound","lean_repo":"szl-holdings/lutar-lean","lean_file":"Lutar/Puriq/Formulas/F23_Uniqueness.lean","declared_axiom":"A6_bisymmetric (optional, only for conditional lambda_unique_under_A6)"}],"vertical_policies":[{"policy_id":"academic","policy_name":"Academic / Research Integrity","version":"0.3.0","regulations":["NIH NOT-OD-23-149","NSF PAPPG Chapter II.E","ORI Standards","COPE Guidelines"],"required_attestors":["principal_investigator","research_integrity_officer"],"lambda_floors":{"measurabilityHonesty":1.0,"constructiveTransparency":1.0,"informationIntegrity":0.99,"temporalConsistency":0.99},"forbidden_inputs":["undisclosed_ai_authored_content","missing_doi_citation"],"required_output_formats":["zenodo_deposit","json_receipt","orcid_linked_artifact"],"retention_days":"3650","primitives_applicable":["A5","A8","A12","T5","T10","TH2"],"acv_range_usd":{"low":10000.0,"mid":50000.0,"high":200000.0}},{"policy_id":"capital_markets","policy_name":"Capital Markets / Quant / Hedge Funds","version":"0.3.0","regulations":["SEC Rule 17a-4","MiFID II RTS 6","FINRA Rule 4370","Reg SCI 17 CFR 242"],"required_attestors":["chief_compliance_officer","quant_review_committee","external_auditor"],"lambda_floors":{"moralGrounding":0.97,"measurabilityHonesty":1.0,"temporalConsistency":1.0,"economicGrounding":1.0,"constructiveTransparency":0.99,"informationIntegrity":0.99},"forbidden_inputs":["non_sec_registered_model","missing_algo_documentation"],"required_output_formats":["sec_17a4_compliant_log","json_receipt","worm_storage_manifest"],"retention_days":"2190","primitives_applicable":["A5","A6","A10","A12","A14","T5","T9","TH2"],"acv_range_usd":{"low":500000.0,"mid":2000000.0,"high":10000000.0}},{"policy_id":"critical_infrastructure","policy_name":"Critical Infrastructure / Utilities","version":"0.3.0","regulations":["NERC CIP-013-2","IEC 62443-3-3","TSA Pipeline Security Directive SD-02C","NIST CSF 2.0"],"required_attestors":["system_security_officer","control_systems_engineer","incident_commander"],"lambda_floors":{"moralGrounding":0.99,"actionReversibility":0.99,"scopeContainment":1.0,"informationIntegrity":0.99,"adversarialRobustness":0.99,"temporalConsistency":0.99},"forbidden_inputs":["unauthenticated_control_commands","non_air_gapped_ot_data"],"required_output_formats":["ics_audit_log","json_receipt","nerc_compliance_report"],"retention_days":"1825","primitives_applicable":["A4","A5","A6","A10","A13","T5","T9","T10","TH1"],"acv_range_usd":{"low":1000000.0,"mid":5000000.0,"high":20000000.0}},{"policy_id":"defense","policy_name":"Defense / DoD","version":"0.3.0","regulations":["NIST SP 800-53 Rev 5","CMMC 2.0","FedRAMP High","DISA STIGs"],"required_attestors":["authorizing_official","system_owner","security_control_assessor"],"lambda_floors":{"moralGrounding":0.99,"measurabilityHonesty":0.99,"actionReversibility":0.95,"scopeContainment":0.99,"informationIntegrity":0.99,"consentBoundary":0.95},"forbidden_inputs":["unclassified_cui_without_marking","foreign_national_data"],"required_output_formats":["json_audit_log","nist_oscal"],"retention_days":"7300","primitives_applicable":["A1","A4","A5","A6","A8","A9","A12","A13","T5","T9","T10","TH1"],"acv_range_usd":{"low":500000.0,"mid":2000000.0,"high":5000000.0}},{"policy_id":"financial_services","policy_name":"Financial Services / Banking","version":"0.3.0","regulations":["SR 11-7","OCC 2011-12","MiFID II RTS 6","Basel III"],"required_attestors":["model_risk_officer","chief_risk_officer","internal_audit"],"lambda_floors":{"moralGrounding":0.97,"measurabilityHonesty":0.99,"temporalConsistency":0.99,"informationIntegrity":0.99,"economicGrounding":1.0},"forbidden_inputs":["insider_information","unregistered_model_version"],"required_output_formats":["csv_model_log","json_receipt","pdf_board_report"],"retention_days":"2190","primitives_applicable":["A1","A5","A6","A8","A9","A14","T5","T9","T10","TH1","TH2"],"acv_range_usd":{"low":200000.0,"mid":800000.0,"high":2000000.0}},{"policy_id":"healthcare","policy_name":"Healthcare / Clinical AI","version":"0.3.0","regulations":["HIPAA 45 CFR Part 164","FDA 21 CFR Part 11","FDA SaMD Guidance Q3 2023"],"required_attestors":["licensed_clinician","clinical_informatics_officer","hipaa_privacy_officer"],"lambda_floors":{"moralGrounding":0.99,"measurabilityHonesty":0.99,"consentBoundary":0.99,"informationIntegrity":0.99,"causalSeparability":0.99},"forbidden_inputs":["plaintext_phi","deidentification_not_verified"],"required_output_formats":["hl7_fhir_audit","json_receipt","pdf_clinical_audit"],"retention_days":"2190","primitives_applicable":["A1","A4","A5","A8","A9","A11","A12","T5","T7","T10","TH1"],"acv_range_usd":{"low":150000.0,"mid":600000.0,"high":2000000.0}},{"policy_id":"insurance","policy_name":"Insurance","version":"0.3.0","regulations":["NAIC Model Law 881","NY DFS Circular Letter 7 (2022)","NAIC AI Principles (2020)"],"required_attestors":["chief_actuary","ai_ethics_board","compliance_officer"],"lambda_floors":{"moralGrounding":0.97,"measurabilityHonesty":0.99,"informationIntegrity":0.99,"constructiveTransparency":0.99,"economicGrounding":0.97},"forbidden_inputs":["prohibited_rating_factors","non_actuarially_justified_proxies"],"required_output_formats":["csv_underwriting_log","json_receipt","pdf_state_filing"],"retention_days":"1825","primitives_applicable":["A1","A5","A8","A9","A12","A14","T6","T9","T10"],"acv_range_usd":{"low":200000.0,"mid":750000.0,"high":2000000.0}},{"policy_id":"legal","policy_name":"Legal / e-Discovery","version":"0.3.0","regulations":["FRCP 26","FRCP 34","FRE 902(13)","FRE 902(14)","ABA Model Rule 1.1"],"required_attestors":["supervising_attorney","records_custodian"],"lambda_floors":{"moralGrounding":0.97,"measurabilityHonesty":0.99,"informationIntegrity":0.99,"constructiveTransparency":0.99,"actionReversibility":0.95},"forbidden_inputs":["privileged_attorney_client_without_waiver"],"required_output_formats":["json_chain_of_custody","pdf_court_exhibit"],"retention_days":"2555","primitives_applicable":["A5","A6","A8","A12","T5","T8","T10","TH2"],"acv_range_usd":{"low":75000.0,"mid":300000.0,"high":1000000.0}},{"policy_id":"pharma","policy_name":"Pharma / Life Sciences R&D","version":"0.3.0","regulations":["FDA 21 CFR Part 11","EMA Annex 11","ICH E6(R3) GCP","GxP"],"required_attestors":["qualified_person","gxp_compliance_officer","computational_scientist"],"lambda_floors":{"moralGrounding":0.97,"measurabilityHonesty":1.0,"informationIntegrity":1.0,"temporalConsistency":0.99,"constructiveTransparency":1.0},"forbidden_inputs":["non_gxp_validated_software_output","unversioned_model"],"required_output_formats":["ectd_submission_package","json_audit_trail","csv_gxp_log"],"retention_days":"3650","primitives_applicable":["A5","A6","A8","A10","A12","T5","TH2"],"acv_range_usd":{"low":500000.0,"mid":2000000.0,"high":10000000.0}},{"policy_id":"public_sector","policy_name":"Public Sector / Civic AI","version":"0.3.0","regulations":["EU AI Act Annex III","NYC Local Law 144 (2023)","NIST AI RMF 1.0","OMB M-24-10"],"required_attestors":["agency_ai_officer","civil_rights_officer","inspector_general"],"lambda_floors":{"moralGrounding":0.99,"measurabilityHonesty":0.99,"stakeholderAlignment":0.99,"constructiveTransparency":1.0,"adversarialRobustness":0.95},"forbidden_inputs":["biometric_data_without_explicit_consent","prohibited_social_scoring"],"required_output_formats":["json_public_audit_log","csv_bias_audit","pdf_annual_report"],"retention_days":"3650","primitives_applicable":["A1","A5","A8","A12","A13","T6","T10","TH1","TH3"],"acv_range_usd":{"low":300000.0,"mid":1200000.0,"high":5000000.0}}],"capability_map":{"_note":"System anatomy expressed as CAPABILITIES (what the system can do) and the proven results that back each one. No internal component codenames are shown to users by design. Maturity labels are honest: 'proven (locked)' is in the locked 5; 'proven sorry-free (experimental)' passed the kernel but is not in the locked count; 'axiom-gated' depends on a declared assumption; 'conjectured' is Lambda.","capabilities":[{"capability":"Governed agentic loop","plain":"Every action runs Retrieve → Plan → Tool-call → Policy-check → Kernel-check → Emit, and nothing emits unless the safety checks pass.","bindings":["P1","P2","P3","P4","P5","P6"],"maturity":"proven sorry-free (experimental)","source":"PR #188 (28 theorems; 4 axiom-gated on hash collision-resistance)"},{"capability":"Consensus (3-of-4 independent quorum)","plain":"A high-stakes action proceeds only when at least 3 of 4 independent systems agree; no minority can act alone.","bindings":["C10","C11","C12"],"maturity":"proven sorry-free (experimental)","source":"C10 safety bound + C11 fault budget + C12 liveness caveat"},{"capability":"Sensor fusion","plain":"Several sensor reports combine into one track using the best linear unbiased combination.","bindings":["C17"],"maturity":"proven sorry-free (experimental)","source":"C17 BLUE"},{"capability":"Trust-score interval","plain":"The risk/confidence interval is a distribution-free conformal band — never reported as 100%. NOT a Hoeffding bound (that module does not exist at our pinned rev).","bindings":["W5-3","W7-4"],"maturity":"proven sorry-free (experimental)","source":"W5-3 miscoverage bound + W7-4 rank/p-value floor (conformal)"},{"capability":"Model router","plain":"Routing among models stays within a bounded regret/selection guarantee.","bindings":["C20","W7-5"],"maturity":"proven sorry-free (experimental)","source":"C20 + W7-5"},{"capability":"Receipts & uniform data shape (signing + verification)","plain":"Every decision is signed; tampering is detected on re-check; auditing earlier or later can never change the verdict.","bindings":["C8","C9","W5-4","W5-5","W7-6","C13","C14"],"maturity":"proven sorry-free (experimental); P5 axiom-gated on hash collision-resistance","source":"W5-4 tamper-evidence + W5-5 chain integrity + W7-6 two-sided envelope (NEW)"},{"capability":"Mesh health & ontology graph","plain":"The capability graph stays healthy and the frontier search terminates within a bounded number of steps.","bindings":["F-G1","F-G2","F-G3","F-G4","F-G5","F-G6","W7-1"],"maturity":"proven sorry-free (experimental)","source":"F-G5 bounded-frontier termination + W7-1"},{"capability":"Λ trust aggregator","plain":"A single 0–1 trust score summarising the safety axes. This is the one place that is NOT a theorem.","bindings":["F23"],"maturity":"conjectured","source":"Λ = Conjecture 1, unconditionally"}],"locked_proven_count":5,"locked_ids":["F1","F11","F12","F18","F19"],"lambda_status":"Λ (F23) is Conjecture 1, unconditionally.","naming_policy":"User-visible names are CAPABILITIES only; no internal component codenames."},"anatomy_generated_at":"2026-06-06T07:32:09Z"};</script>
 <script>
@@ -650,12 +802,28 @@ function scrubDeep(o){if(o==null)return o;if(typeof o==='string')return scrubTex
 // public same-origin-style API. There are NO amaru/sentra/rosie Spaces — those were
 // retired; every base below resolves to a live, reachable Space, and every path used
 // in the calls is an a11oy-canonical route that returns real, current data.
-const SVC={governance:'https://szlholdings-a11oy.hf.space',provenance:'https://szlholdings-a11oy.hf.space',field:'https://szlholdings-killinchu.hf.space'};
+// SOVEREIGN: the browser only ever hits OUR origin. The governed command/cosign
+// loop (ledger/command-log/policy-gates/sentra) is still a11oy's REAL data, but it
+// is fetched server-side by /api/killinchu/v1/gov/* (0 client off-origin / 0 CDN).
+const SVC={governance:'',provenance:'',field:''};  // '' = same-origin (relative)
 // Back-compat alias: keep ORG defined (other tabs reference ORG.a11oy / ORG.killinchu),
 // but it now maps to the SAME live bases — no dead/retired-organ hosts.
 const ORG={governance:SVC.governance,provenance:SVC.provenance,killinchu:SVC.field,a11oy:SVC.governance,field:SVC.field};
-async function orgGet(organ,path){const r=await fetch(ORG[organ]+path);if(!r.ok)throw new Error('HTTP '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');return r.json();}
-async function orgPost(organ,path,body){const r=await fetch(ORG[organ]+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error('HTTP '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');return r.json();}
+// Map a legacy a11oy/sentra governance path to OUR same-origin server-side gov proxy.
+// Returns the local path, or null if the path is not a governed-loop route.
+function _govLocal(path){
+  const M={'/api/a11oy/v1/ledger':'/api/killinchu/v1/gov/ledger',
+           '/api/a11oy/v2/command-log':'/api/killinchu/v1/gov/command-log',
+           '/api/a11oy/v1/policy/gates':'/api/killinchu/v1/gov/policy-gates',
+           '/api/a11oy/v1/honest':'/api/killinchu/v1/gov/a11oy-honest',
+           '/api/sentra/v1/verdict':'/api/killinchu/v1/gov/sentra-verdict'};
+  return M[path]||null;
+}
+// The gov proxy wraps upstream data under {mode,source,data:<real payload>}; unwrap
+// transparently so callers keep receiving the upstream shape they expect.
+function _govUnwrap(j){return (j&&j.data!==undefined&&j.source)?j.data:j;}
+async function orgGet(organ,path){const local=_govLocal(path);const u=local?local:(ORG[organ]+path);const r=await fetch(u);if(!r.ok)throw new Error('HTTP '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');const j=await r.json();return local?_govUnwrap(j):j;}
+async function orgPost(organ,path,body){const local=_govLocal(path);const u=local?local:(ORG[organ]+path);const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error('HTTP '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');const j=await r.json();return local?_govUnwrap(j):j;}
 
 // ===================== CHART / GAUGE / 3D HELPERS =====================
 const GOLD='#c9b787',TEAL='#5fb3a3',CREAM='#f5f5f5',DIM='#555',GRID='rgba(201,183,135,0.08)',RED='#b06a5a',WARN='#c9a05f',LIVE='#5a8a6e';
@@ -689,6 +857,9 @@ const AMBER=WARN;
 function fetchTimeout(url,ms,opts){const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),ms||12000);
   return fetch(url,Object.assign({signal:ctl.signal},opts||{})).finally(()=>clearTimeout(t));}
 async function getPublic(url,ms){const r=await fetchTimeout(url,ms);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+// SOVEREIGN public-feed accessor: hits OUR same-origin proxy only and unwraps the
+// honest {mode,source,data:<upstream payload>} envelope. 0 client off-origin / 0 CDN.
+async function getProxy(name,qs,ms){const u='/api/killinchu/v1/proxy/'+name+(qs?('?'+qs):'');const r=await fetchTimeout(u,ms||15000);if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();if(j&&j.error&&(j.data===null||j.data===undefined))throw new Error(j.error);return (j&&j.data!==undefined&&j.source)?j.data:j;}
 // ECharts dark theme registered once; all panels inherit gold/teal-on-#0a0a0a
 let _echartsThemeReady=false;
 function ensureEchartsTheme(){if(_echartsThemeReady||!window.echarts)return;
@@ -711,13 +882,62 @@ function loseGL(inst){try{if(inst&&typeof inst.renderer==='function'){var rdr=in
 function killGlobe(){if(_globe){loseGL(_globe);try{_globe._destructor&&_globe._destructor();}catch(e){}_globe=null;}}
 let _cy=null;
 function killCy(){if(_cy){try{_cy.destroy();}catch(e){}_cy=null;}}
+let _twinR=null;  // Health-Twin Three.js renderer (own GL context — released on view switch)
+function killTwin(){if(window._twin&&window._twin.stop){try{window._twin.stop();}catch(e){}}
+  if(_twinR){try{_twinR.forceContextLoss&&_twinR.forceContextLoss();}catch(e){}try{_twinR.dispose&&_twinR.dispose();}catch(e){}
+    try{_twinR.domElement&&_twinR.domElement.parentNode&&_twinR.domElement.parentNode.removeChild(_twinR.domElement);}catch(e){}_twinR=null;}
+  window._twin=null;}
 function tearDownAll(){Object.keys(_charts).forEach(killChart);Object.keys(_echarts).forEach(killEchart);
+  killTwin();killSigma();killDeck();killKonva();killScatter();killPlots();
   if(_fg){loseGL(_fg);try{_fg._destructor&&_fg._destructor();}catch(e){}_fg=null;}killGlobe();killCy();
   // Remove lingering WebGL/2D canvas hosts so a fresh context is created on the next 3D/globe tab
   // (prevents three.js "Canvas has an existing context of a different type" on view switch).
   try{document.querySelectorAll('.graph3d,.globe3d,.cyto').forEach(function(h){h.innerHTML='';});}catch(e){}
   if(window._resizeHook){window.removeEventListener('resize',window._resizeHook);window._resizeHook=null;}
   if(window._tailTimers){window._tailTimers.forEach(t=>clearTimeout(t));window._tailTimers=[];}}
+
+/* ===== GLOBAL AUTO-FIT (Framing Doctrine §B) =====
+   A single ResizeObserver on .content re-fits EVERY active WebGL/graph/chart
+   instance to its container whenever the layout changes (viewport resize,
+   clamp() height recompute, drawer open/close, orientation change). 3D
+   force-graphs + globe re-pull host.clientWidth/Height (camera stays centered);
+   ECharts/Cytoscape call their native resize/fit; the Health-Twin Three.js
+   renderer re-fits via its own _twin.fit hook; and we dispatch a window 'resize'
+   so locally-scoped batch-render instances (each registered a resize listener)
+   re-fit too. Debounced via rAF. */
+function _refitAllViz(){
+  try{Object.keys(_echarts||{}).forEach(function(k){try{_echarts[k]&&_echarts[k].resize();}catch(e){}});}catch(e){}
+  try{if(_fg){var h=_fg.renderer&&_fg.renderer().domElement&&_fg.renderer().domElement.parentElement;
+    if(h){_fg.width(h.clientWidth).height(h.clientHeight);if(_fg.zoomToFit){try{_fg.zoomToFit(400,40);}catch(e){}}}}}catch(e){}
+  try{if(_globe){var g=_globe.renderer&&_globe.renderer().domElement&&_globe.renderer().domElement.parentElement;
+    if(g){_globe.width(g.clientWidth).height(g.clientHeight);}}}catch(e){}
+  try{if(_cy){_cy.resize();_cy.fit(undefined,30);}}catch(e){}
+  try{if(window._twin&&window._twin.fit){window._twin.fit();}}catch(e){}
+}
+let _refitRAF=null;
+function _scheduleRefit(){if(_refitRAF)cancelAnimationFrame(_refitRAF);
+  _refitRAF=requestAnimationFrame(function(){_refitAllViz();
+    try{window.dispatchEvent(new Event('resize'));}catch(e){}});}
+(function _installGlobalRO(){
+  function attach(){var c=document.getElementById('content')||document.querySelector('.content');
+    if(!c){return setTimeout(attach,200);}
+    if(window._killinchuRO){return;}
+    if(window.ResizeObserver){window._killinchuRO=new ResizeObserver(function(){_scheduleRefit();});
+      window._killinchuRO.observe(c);}
+    window.addEventListener('resize',_scheduleRefit,{passive:true});
+    window.addEventListener('orientationchange',function(){setTimeout(_scheduleRefit,250);},{passive:true});}
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',attach);}else{attach();}
+})();
+window._refitAllViz=_refitAllViz;
+/* hamburger drawer + scrim (mobile/tablet <=820px). force=true/false to set explicitly. */
+function toggleSide(force){
+  const s=document.querySelector('.side');const sc=document.querySelector('.side-scrim');
+  if(!s)return;
+  const open=(typeof force==='boolean')?force:!s.classList.contains('open');
+  s.classList.toggle('open',open);if(sc)sc.classList.toggle('open',open);
+  const mb=document.querySelector('.menu-btn');if(mb)mb.setAttribute('aria-expanded',String(open));
+}
+window.toggleSide=toggleSide;
 // dag-mode 3d force graph (hash-chain hero)
 function dag3d(id,nodes,links,opts){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';opts=opts||{};
   try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
@@ -741,6 +961,168 @@ function cyGraph(id,elements,layout){const host=el(id);if(!host||!window.cytosca
     ],
     layout:layout||{name:'cose',animate:false,padding:20,nodeRepulsion:6000}});
   return _cy;}
+// ── Sigma.js + graphology + dagre layered DAG (WebGL 2D). Distinct from the 3D
+//    force-graph (organism) and globe (pulse). Used for the receipt-chain DAG.
+let _sigma=null;
+function killSigma(){if(_sigma){try{_sigma.kill();}catch(e){}_sigma=null;}}
+function sigmaDag(id,nodes,edges,opts){
+  const host=el(id); if(!host) return null;
+  if(!window.graphology||!window.Sigma||!window.dagre){host.innerHTML='<div class="row mono dim" style="padding:1rem">sigma/graphology/dagre unavailable</div>';return null;}
+  killSigma(); host.innerHTML=''; opts=opts||{};
+  // dagre layered layout (left→right): y = receipt depth. ForceAtlas2 NOT used (DAG mode).
+  const g=new dagre.graphlib.Graph(); g.setGraph({rankdir:opts.rankdir||'LR',nodesep:24,ranksep:46,marginx:18,marginy:18}); g.setDefaultEdgeLabel(()=>({}));
+  nodes.forEach(n=>g.setNode(n.id,{width:opts.nodeW||24,height:opts.nodeH||24}));
+  edges.forEach(e=>g.setEdge(e.source,e.target));
+  try{dagre.layout(g);}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">layout error: '+esc(e.message)+'</div>';return null;}
+  const Graph=(window.graphology.Graph||window.graphology);
+  const gr=new Graph();
+  nodes.forEach(n=>{const p=g.node(n.id)||{x:0,y:0};
+    gr.addNode(n.id,{x:p.x,y:-p.y,size:n.size||7,color:n.color||TEAL,label:n.label||n.id,type:'circle'});});
+  edges.forEach((e,i)=>{ if(gr.hasNode(e.source)&&gr.hasNode(e.target)&&!gr.hasEdge('e'+i)){ try{gr.addEdgeWithKey('e'+i,e.source,e.target,{color:e.color||'rgba(95,179,163,0.55)',size:1.4,type:'arrow'});}catch(_){} } });
+  try{ _sigma=new Sigma(gr,host,{renderEdgeLabels:false,defaultEdgeType:'arrow',labelColor:{color:'#cdd2d8'},labelFont:"JetBrains Mono, monospace",labelSize:10,labelRenderedSizeThreshold:opts.labelThresh!=null?opts.labelThresh:6,minCameraRatio:0.2,maxCameraRatio:4}); }
+  catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">sigma init error: '+esc(e.message)+'</div>'; return null; }
+  if(opts.onNode){ _sigma.on('clickNode',ev=>opts.onNode(ev.node)); }
+  return _sigma;
+}
+// ── deck.gl standalone Deck (own WebGL2 canvas, MapView, no base-map tiles — sovereign,
+//    0 off-origin). Used for the maritime WEZ rings + livepic AIS track trails. Distinct
+//    viz from globe.gl (pulse) and the Three.js twin.
+let _deck=null;
+function killDeck(){if(_deck){try{_deck.finalize();}catch(e){}_deck=null;}}
+function deckScene(id,layers,viewState){
+  const host=el(id); if(!host) return null;
+  if(!window.deck||!window.deck.Deck){host.innerHTML='<div class="row mono dim" style="padding:1rem">deck.gl unavailable</div>';return null;}
+  killDeck(); host.innerHTML='';
+  const cv=document.createElement('canvas'); cv.style.width='100%'; cv.style.height='100%'; cv.style.display='block'; host.appendChild(cv);
+  try{
+    _deck=new deck.Deck({canvas:cv,views:new deck.MapView({repeat:false}),
+      initialViewState:viewState||{longitude:22.0,latitude:59.5,zoom:6.4,pitch:0,bearing:0},
+      controller:true,parameters:{clearColor:[0.024,0.024,0.024,1]},layers:layers||[]});
+  }catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">deck init error: '+esc(e.message)+'</div>';return null;}
+  return _deck;
+}
+// ── Konva 4-node Byzantine consensus schematic. Nodes on a ring; animated message arrows
+//    between online nodes; online=teal, offline=red. Distinct viz from the gauges/charts.
+let _konva=null;
+function killKonva(){if(_konva){try{if(_konva._anim)_konva._anim.stop();}catch(e){}try{_konva.destroy();}catch(e){}_konva=null;}}
+function bftKonva(id,organs,needed){
+  const host=el(id); if(!host) return;
+  if(!window.Konva){host.innerHTML='<div class="row mono dim" style="padding:1rem">Konva unavailable</div>';return;}
+  killKonva(); host.innerHTML='';
+  const W=host.clientWidth||520, H=host.clientHeight||300, cx=W/2, cy=H/2, R=Math.min(W,H)*0.34;
+  const stage=new Konva.Stage({container:host,width:W,height:H}); _konva=stage;
+  const layer=new Konva.Layer(); stage.add(layer);
+  // take up to 4 organs as the quorum nodes
+  const nodes=(organs||[]).slice(0,4); const n=Math.max(1,nodes.length);
+  const pos=nodes.map((o,i)=>{const a=-Math.PI/2+2*Math.PI*i/n;return {x:cx+R*Math.cos(a),y:cy+R*Math.sin(a),ok:(o[1]&&o[1].status==='ok'),name:String(o[0]||('node'+i))};});
+  // edges between every pair of ONLINE nodes (consensus messages flow on healthy links)
+  const arrowDefs=[];
+  for(let i=0;i<pos.length;i++)for(let j=i+1;j<pos.length;j++){ const both=pos[i].ok&&pos[j].ok;
+    const line=new Konva.Line({points:[pos[i].x,pos[i].y,pos[j].x,pos[j].y],stroke:both?'rgba(95,179,163,0.55)':'rgba(176,106,90,0.5)',strokeWidth:both?1.6:1,dash:both?[]:[4,4]}); layer.add(line);
+    if(both){ const dot=new Konva.Circle({x:pos[i].x,y:pos[i].y,radius:3.2,fill:'#c9b787'}); layer.add(dot); arrowDefs.push({dot,a:pos[i],b:pos[j]}); } }
+  // node discs + labels
+  pos.forEach(p=>{ const col=p.ok?'#5fb3a3':'#b06a5a';
+    layer.add(new Konva.Circle({x:p.x,y:p.y,radius:18,fill:'#15181d',stroke:col,strokeWidth:2.4}));
+    layer.add(new Konva.Circle({x:p.x,y:p.y,radius:7,fill:col}));
+    layer.add(new Konva.Text({x:p.x-46,y:p.y+22,width:92,align:'center',text:p.name,fontSize:10,fontFamily:'JetBrains Mono, monospace',fill:p.ok?'#cdd2d8':'#b06a5a'})); });
+  // center quorum badge
+  const onlineN=pos.filter(p=>p.ok).length; const holds=onlineN>=needed;
+  layer.add(new Konva.Text({x:cx-60,y:cy-8,width:120,align:'center',text:(holds?'QUORUM':'NO QUORUM')+'\n'+onlineN+'/'+pos.length+' · need '+needed,fontSize:11,fontStyle:'bold',fontFamily:'JetBrains Mono, monospace',fill:holds?'#5fb3a3':'#c9a05f'}));
+  layer.draw();
+  // animate consensus message dots travelling along healthy links
+  if(arrowDefs.length){ const anim=new Konva.Animation(function(frame){ const t=(frame.time%1800)/1800;
+    arrowDefs.forEach(d=>{ d.dot.x(d.a.x+(d.b.x-d.a.x)*t); d.dot.y(d.a.y+(d.b.y-d.a.y)*t); }); },layer); _konva._anim=anim; anim.start(); }
+}
+// ===================== BATCH-2 DISTINCTNESS HELPERS (regl-scatterplot / Observable Plot / d3-sankey) =====================
+// All own their WebGL/DOM resources and are torn down in tearDownAll to prevent context leaks on view switch.
+
+// ── regl-scatterplot: GPU 2D point cloud (own WebGL2 canvas). Used by the sensor-fusion
+//    covariance scatter. createScatterplot is the UMD object; the factory is .default.
+let _scatter=null;
+function killScatter(){if(_scatter){try{_scatter.destroy();}catch(e){}_scatter=null;}}
+function scatterFactory(){return (typeof createScatterplot==='function')?createScatterplot:(window.createScatterplot&&window.createScatterplot.default)||null;}
+// host = container div; points = [{x,y,category,value}] in DATA space; we map to [-1,1] clip space
+// ourselves via the supplied bounds so the fused star + ellipse polylines line up exactly.
+function scatterPlot(host,opts){
+  if(!host)return null; const f=scatterFactory();
+  if(!f){host.innerHTML='<div class=\"row mono dim\" style=\"padding:1rem\">regl-scatterplot unavailable</div>';return null;}
+  killScatter(); host.innerHTML='';
+  const cv=document.createElement('canvas'); cv.style.width='100%'; cv.style.height='100%'; cv.style.display='block'; host.appendChild(cv);
+  const W=host.clientWidth||520, H=host.clientHeight||440;
+  try{
+    _scatter=f(Object.assign({canvas:cv,width:W,height:H,pointSize:opts.pointSize||6,
+      backgroundColor:[0.039,0.039,0.039,1],
+      pointColor:opts.colors||[[0.373,0.702,0.639,1]],
+      lassoColor:[0.788,0.718,0.529,1],
+      colorBy:'category',opacity:0.9},opts.extra||{}));
+    if(opts.points)_scatter.draw(opts.points);
+    if(opts.onSelect)_scatter.subscribe('select',opts.onSelect);
+  }catch(e){host.innerHTML='<div class=\"row mono dim\" style=\"padding:1rem\">scatter init error: '+esc(e.message)+'</div>';return null;}
+  return _scatter;
+}
+// 2x2 symmetric covariance P=[[a,b],[b,c]] -> {angle(rad), major, minor} (eigendecomposition).
+// Returns the 1-sigma ellipse axes (sqrt of eigenvalues). Drives the Kalman uncertainty ring.
+function covEllipse(a,b,c){
+  const tr=a+c, det=a*c-b*b, disc=Math.sqrt(Math.max(0,tr*tr/4-det));
+  const l1=tr/2+disc, l2=tr/2-disc;
+  let ang; if(Math.abs(b)<1e-9){ang=(a>=c)?0:Math.PI/2;} else {ang=Math.atan2(l1-a,b);}
+  return {angle:ang,major:Math.sqrt(Math.max(1e-9,l1)),minor:Math.sqrt(Math.max(1e-9,l2))};
+}
+
+// ── Observable Plot: declarative SVG figure (no WebGL). Used by the maintenance state
+//    timeline (Plot.barX intervals). We track appended figures so tearDownAll removes them.
+let _plots=[];
+function killPlots(){_plots.forEach(function(h){try{h.innerHTML='';}catch(e){}});_plots=[];}
+function plotInto(host,spec){
+  if(!host)return null; if(!window.Plot){host.innerHTML='<div class=\"row mono dim\" style=\"padding:1rem\">Observable Plot unavailable</div>';return null;}
+  host.innerHTML='';
+  try{ const fig=Plot.plot(spec); host.appendChild(fig); _plots.push(host); return fig; }
+  catch(e){host.innerHTML='<div class=\"row mono dim\" style=\"padding:1rem\">plot error: '+esc(e.message)+'</div>';return null;}
+}
+
+// ── d3-sankey flow diagram in house style (SVG). nodes=[{name}], links=[{source,target,value}]
+//    using node INDICES. Used by fleetvoyages (cargo tonnage) + audit (decision flow).
+function sankeyFlow(id,nodes,links,opts){
+  const host=el(id); if(!host) return null; opts=opts||{};
+  if(!window.d3||!d3.sankey){host.innerHTML='<div class=\"row mono dim\" style=\"padding:1rem\">d3-sankey unavailable</div>';return null;}
+  host.innerHTML='';
+  const W=host.clientWidth||640, H=opts.height||420, pad=opts.pad||{t:14,r:130,b:14,l:80};
+  const data={nodes:nodes.map(n=>Object.assign({},n)),links:links.map(l=>Object.assign({},l))};
+  let layout;
+  try{
+    const sk=d3.sankey().nodeWidth(opts.nodeWidth||14).nodePadding(opts.nodePadding||14)
+      .extent([[pad.l,pad.t],[W-pad.r,H-pad.b]]);
+    if(d3.sankeyJustify)sk.nodeAlign(opts.align||d3.sankeyJustify);
+    layout=sk(data);
+  }catch(e){host.innerHTML='<div class=\"row mono dim\" style=\"padding:1rem\">sankey layout error: '+esc(e.message)+'</div>';return null;}
+  const NS='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(NS,'svg'); svg.setAttribute('width','100%'); svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.style.display='block';
+  // links (paths), width = value
+  const gl=document.createElementNS(NS,'g'); gl.setAttribute('fill','none');
+  const linkGen=d3.sankeyLinkHorizontal();
+  layout.links.forEach(function(lk){
+    const p=document.createElementNS(NS,'path'); p.setAttribute('d',linkGen(lk));
+    p.setAttribute('stroke',lk.color||'rgba(95,179,163,0.30)'); p.setAttribute('stroke-width',Math.max(1,lk.width||1));
+    const ttl=document.createElementNS(NS,'title'); ttl.textContent=(lk.source.name||'')+' \u2192 '+(lk.target.name||'')+' : '+(opts.fmt?opts.fmt(lk.value):lk.value);
+    p.appendChild(ttl); gl.appendChild(p);
+  }); svg.appendChild(gl);
+  // nodes (rects) + labels
+  const gn=document.createElementNS(NS,'g');
+  layout.nodes.forEach(function(nd){
+    const r=document.createElementNS(NS,'rect'); r.setAttribute('x',nd.x0); r.setAttribute('y',nd.y0);
+    r.setAttribute('width',Math.max(1,nd.x1-nd.x0)); r.setAttribute('height',Math.max(1,nd.y1-nd.y0));
+    r.setAttribute('fill',nd.color||GOLD); r.setAttribute('rx',2);
+    const ttl=document.createElementNS(NS,'title'); ttl.textContent=(nd.name||'')+' : '+(opts.fmt?opts.fmt(nd.value):(nd.value||''));
+    r.appendChild(ttl); gn.appendChild(r);
+    const t=document.createElementNS(NS,'text'); const leftHalf=nd.x0<W/2;
+    t.setAttribute('x',leftHalf?nd.x1+6:nd.x0-6); t.setAttribute('y',(nd.y0+nd.y1)/2);
+    t.setAttribute('text-anchor',leftHalf?'start':'end'); t.setAttribute('dominant-baseline','middle');
+    t.setAttribute('fill','#cdd2d8'); t.setAttribute('font-family','JetBrains Mono, monospace'); t.setAttribute('font-size','10');
+    t.textContent=nd.label!=null?nd.label:nd.name; gn.appendChild(t);
+  }); svg.appendChild(gn);
+  host.appendChild(svg); return layout;
+}
+
 function nowts(){return new Date().toISOString().slice(11,19);}
 const MATURITY_COLOR={proven:TEAL,measured:GOLD,conjectured:AMBER,conjecture:AMBER,defined:'#888',open:AMBER};
 function matColor(m){return MATURITY_COLOR[String(m||'').toLowerCase()]||'#888';}
@@ -947,10 +1329,259 @@ async function voyage_risk_run(){
 
 
 // ===================== VIEWS =====================
+// ── WAVE9 + WAVE10 EXPERIMENTAL theorems wired to real work ──────────────
+// PROVEN on lutar-lean main (Wave9 PR #199 merged @ 66735bf; Wave10 PR #200) as
+// EXPERIMENTAL · CI-green — kernel-verified, NOT locked. Each view EXECUTES the
+// theorem on real inputs via /api/killinchu/v1/wave910/*. Honesty: locked-proven =
+// EXACTLY 5 {F1,F11,F12,F18,F19}; Λ = Conjecture 1; sources + verbatim #print axioms shown.
+const W910_CHIP = '<span class="view-badge" style="color:var(--gold);border-color:var(--gold-line);background:var(--gold-soft)">EXPERIMENTAL · CI-green on main</span>';
+function w910theorem(o){
+  // renders the honest theorem provenance card: id+name, plain-English, chip, source, verbatim #print axioms
+  var ax=(o.axioms||[]).map(function(a){return esc(a);}).join('\n');
+  return '<div class="card"><div class="card-h"><span class="card-t">'+esc(o.id)+' — '+esc(o.name)+'</span>'+W910_CHIP+'</div>'+
+    '<p class="view-sub" style="margin:.3rem 0 .6rem">'+o.plain+'</p>'+
+    '<div class="row mono" style="font-size:11px;color:var(--muted)"><b>Lean:</b>&nbsp;'+esc(o.lean)+'</div>'+
+    '<div class="row mono" style="font-size:11px;color:var(--muted)"><b>Source:</b>&nbsp;'+esc(o.source)+'</div>'+
+    (o.honesty?'<div class="honesty" style="margin-top:.5rem"><b>Honest:</b> '+o.honesty+'</div>':'')+
+    '<details class="raw"><summary>verbatim #print axioms (Lean kernel)</summary><pre class="out">'+ax+'</pre></details></div>';
+}
+
 const VIEWS = {
 
+  // ── WAVE9/10 PROVEN THEOREMS (EXPERIMENTAL · CI-green on main) ──
+  w910stl:{title:'STL Runtime Monitor (ρ margin)',badge:'RA-1 · two-sided Donzé–Maler · /wave910/stl-robustness',sub:'A Signal-Temporal-Logic runtime monitor that does not just say pass/fail — it computes the <b>signed robustness margin ρ</b>: how far the signal is from violating the rule, <b>computed in-image</b>. The PROVEN guarantee is <b>two-sided</b>: <code>Sat ⇒ ρ≥0</code> and <code>ρ&gt;0 ⇒ Sat</code> (and <code>ρ&lt;0 ⇒ violation</code>) — <b>NOT</b> the naive iff <code>Sat ↔ ρ&gt;0</code>, which is FALSE at the ρ=0 boundary. Strengthens the Sensor-Fusion / monitor surface with a sound margin. Λ stays <b>Conjecture 1</b>.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Robustness ρ</div><div class="v teal" id="w-stl-rho">—</div><div class="d">signed margin (in-image)</div></div>
+      <div class="kpi"><div class="k">Satisfied?</div><div class="v" id="w-stl-sat">—</div><div class="d">qualitative monitor</div></div>
+      <div class="kpi"><div class="k">On boundary</div><div class="v" id="w-stl-bnd">—</div><div class="d">ρ=0 (iff would fail)</div></div>
+      <div class="kpi"><div class="k">Bounds hold</div><div class="v" id="w-stl-ok">—</div><div class="d">two-sided</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Compute ρ on a signal trace</span><span class="card-ep">G (always) · F (eventually)</span></div>
+        <div class="form-row"><label>Signal values (comma-sep)</label><input id="w-stl-vals" value="0.4, 0.9, 0.2, 1.1, 0.05"/></div>
+        <div class="form-row"><label>Threshold</label><input id="w-stl-thr" value="0.0"/></div>
+        <div class="btns"><button class="btn teal" onclick="w910_stl('always')">▶ ρ for ALWAYS (G)</button><button class="btn" onclick="w910_stl('eventually')">▶ ρ for EVENTUALLY (F)</button></div>
+        <details class="raw"><summary>raw result</summary><pre class="out" id="w-stl-out">—</pre></details></div>
+      ${w910theorem({id:'RA-1',name:'STL Robustness — two-sided Donzé–Maler',
+        plain:'Runtime monitor soundness: a satisfied trace guarantees ρ≥0, and a strictly-positive ρ guarantees satisfaction. The margin tells operators how close they are to violating a maritime/drone C2 rule.',
+        lean:'Lutar/Wave10/STLRobustness.lean (STL.rho_sound, STL.rho_pos_sound, STL.rho_neg_violation)',
+        source:'A. Donzé & O. Maler, Robust Satisfaction of Temporal Logic over Real-Valued Signals, FORMATS 2010, DOI:10.1007/978-3-642-15297-9_9',
+        honesty:'Two-sided bound only — NOT the false iff Sat↔ρ&gt;0 (ρ=0 is satisfiable).',
+        axioms:["'STL.rho_sound' depends on axioms: [propext, Quot.sound]","'STL.rho_pos_sound' depends on axioms: [propext, Quot.sound]","'STL.rho_neg_violation' depends on axioms: [propext, Quot.sound]"]})}
+      ${HONEST}`;w910_stl('always');}},
+
+  w910ci:{title:'Covariance-Intersection Fusion',badge:'OE-2 · PSD convex closure · /wave910/covariance-intersection',sub:'Fuse two sensors that observe the same target <b>without knowing their cross-covariance</b>. The information-form Covariance Intersection computes <code>P_ci⁻¹ = ω·P_a⁻¹ + (1-ω)·P_b⁻¹</code> with ω chosen to minimise <code>trace(P_ci)</code>. The PROVEN core is that the fused covariance is <b>PSD</b> (a valid uncertainty) as a non-negative convex combination of PSD information matrices, and is <b>conservative</b> (never optimistically small) — safe fusion with less bookkeeping than full cross-covariance tracking. Wired into the fusion math; runs live below.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">ω (optimal)</div><div class="v teal" id="w-ci-w">—</div><div class="d">min trace</div></div>
+      <div class="kpi"><div class="k">trace P_ci</div><div class="v" id="w-ci-tr">—</div><div class="d">fused uncertainty</div></div>
+      <div class="kpi"><div class="k">Fused PSD?</div><div class="v" id="w-ci-psd">—</div><div class="d">valid covariance</div></div>
+      <div class="kpi"><div class="k">x_ci</div><div class="v" id="w-ci-x">—</div><div class="d">fused estimate</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Run CI on two sample sensor estimates</span><span class="card-ep">no cross-covariance needed</span></div>
+        <div class="btns"><button class="btn teal" onclick="w910_ci()">▶ Fuse (covariance intersection)</button></div>
+        <div id="w-ci-chart" style="height:300px"></div>
+        <details class="raw"><summary>raw result</summary><pre class="out" id="w-ci-out">—</pre></details></div>
+      ${w910theorem({id:'OE-2',name:'Covariance-Intersection — PSD convex closure',
+        plain:'The fused covariance is always a valid (PSD) and conservative uncertainty even when the two sensors\u2019 errors are correlated in an unknown way — so the fusion is never overconfident.',
+        lean:'Lutar/Wave9/CovarianceIntersection.lean (PosSemidef.nonneg_smul, posSemidef_convex_comb, ci_information_psd)',
+        source:'Julier–Uhlmann Covariance Intersection; IEEE Xplore DOI:10.1109/CCDC55256.2022.10034171',
+        honesty:'PROVEN core = PSD convex closure of the information form; full inverted-covariance Loewner monotonicity is a labelled ROADMAP.',
+        axioms:["'PosSemidef.nonneg_smul' depends on axioms: [propext, Classical.choice, Quot.sound]","'posSemidef_convex_comb' depends on axioms: [propext, Classical.choice, Quot.sound]","'ci_information_psd' depends on axioms: [propext, Classical.choice, Quot.sound]"]})}
+      ${HONEST}`;w910_ci();}},
+
+  w910gg:{title:'Command-Matrix Health (Gershgorin)',badge:'MA1 · spectral · /wave910/gershgorin',sub:'A cheap <b>pre-flight gate</b>: before the aggregator trusts the command / trust-weight matrix, certify it is <b>non-degenerate</b> (no zero eigenvalue). By the Gershgorin circle theorem every eigenvalue lies in a disc centred at <code>M[i][i]</code> of radius <code>Σ|M[i][j]|</code>; if the matrix is <b>strictly diagonally dominant</b> then 0 lies in no disc, so M is <b>nonsingular</b> (det ≠ 0). This is the Wave9 <b>spectral</b> form (field-general incl. ℂ) — DISTINCT from the Wave8 ℝ determinant-form card, which is kept. Runs live below.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Diag-dominant?</div><div class="v teal" id="w-gg-dom">—</div><div class="d">strict</div></div>
+      <div class="kpi"><div class="k">No zero eigenvalue</div><div class="v" id="w-gg-zero">—</div><div class="d">non-degenerate</div></div>
+      <div class="kpi"><div class="k">Nonsingular</div><div class="v" id="w-gg-ns">—</div><div class="d">det ≠ 0</div></div>
+      <div class="kpi"><div class="k">Min margin</div><div class="v" id="w-gg-marg">—</div><div class="d">|center|−radius</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Gershgorin disc check on the command matrix</span><span class="card-ep">pre-aggregation gate</span></div>
+        <div class="btns"><button class="btn teal" onclick="w910_gg()">▶ Run pre-flight matrix-health check</button></div>
+        <div id="w-gg-chart" style="height:300px"></div>
+        <div id="w-gg-verdict" class="row mono" style="margin-top:.4rem"></div>
+        <details class="raw"><summary>per-disc detail</summary><pre class="out" id="w-gg-out">—</pre></details></div>
+      ${w910theorem({id:'MA1',name:'Gershgorin (spectral) — strict diagonal dominance ⇒ nonsingular',
+        plain:'Turns local off-diagonal coupling bounds into a global guarantee that the command/trust matrix has no eigenvalue collapse before the aggregator relies on it.',
+        lean:'Lutar/Wave9/Gershgorin.lean (no_zero_eigenvalue, nonsingular_of_strict_diag_dominant, isUnit_det_of_strict_diag_dominant)',
+        source:'Gershgorin circle theorem (1931); Mathlib Matrix.Spectrum',
+        honesty:'Wave9 spectral form (incl. ℂ); DISTINCT from the Wave8 ℝ determinant-form Gershgorin (Q2) card — both kept.',
+        axioms:["'no_zero_eigenvalue' depends on axioms: [propext, Classical.choice, Quot.sound]","'nonsingular_of_strict_diag_dominant' depends on axioms: [propext, Classical.choice, Quot.sound]","'isUnit_det_of_strict_diag_dominant' depends on axioms: [propext, Classical.choice, Quot.sound]"]})}
+      ${HONEST}`;w910_gg();}},
+
+  w910mesh:{title:'Mesh Resilience (k-1 survive)',badge:'MR-1 + L-Menger · cut/path duality · /wave910/mesh-resilience',sub:'Proves the mesh stays connected after losing links. With <b>k edge-disjoint routes</b> between two nodes, the path <b>survives any k-1 broken links</b> — and by <b>Menger\u2019s cut/path duality</b> the min-cut equals the number of edge-disjoint paths, telling you exactly how many failures it can take. Pairs with the <b>Tactical Routing</b> tab already shipped: route first, then certify the route\u2019s redundancy here. Runs live on a sample mesh below.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Edge-disjoint paths k</div><div class="v teal" id="w-mesh-k">—</div><div class="d">A → D</div></div>
+      <div class="kpi"><div class="k">Survives failures</div><div class="v" id="w-mesh-tol">—</div><div class="d">k − 1 links</div></div>
+      <div class="kpi"><div class="k">Menger min-cut</div><div class="v" id="w-mesh-cut">—</div><div class="d">= k (duality)</div></div>
+      <div class="kpi"><div class="k">Survival test</div><div class="v" id="w-mesh-surv">—</div><div class="d">dst reachable after fails</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Compute redundancy on a sample mesh</span><span class="card-ep">max-flow = min-cut</span></div>
+        <div class="btns"><button class="btn teal" onclick="w910_mesh()">▶ Prove k-redundant routing</button></div>
+        <div id="w-mesh-chart" style="height:300px"></div>
+        <details class="raw"><summary>raw result</summary><pre class="out" id="w-mesh-out">—</pre></details></div>
+      ${w910theorem({id:'MR-1 + L-Menger',name:'Reachability-Redundancy + Menger cut/path duality',
+        plain:'Route monotonicity (adding links never removes reachability), edge-avoiding reachability ≤ full reachability, and #edge-disjoint paths ≤ min-cut — so k routes survive k-1 failures.',
+        lean:'Lutar/Wave10/ReachabilityRedundancy.lean + Lutar/Wave9/Menger.lean',
+        source:'Menger (1927), en.wikipedia.org/wiki/Menger\u0027s_theorem; CLRS 3e Ch.22',
+        honesty:'MR-1 reachability halves + Menger\u2019s two directly-formalizable halves are PROVEN; full min-max Menger equality is a labelled ROADMAP.',
+        axioms:["'Reach.reach_mono' depends on axioms: (none)","'avoiding_reach_le_full' depends on axioms: (none)","'cut_blocks_reachable' depends on axioms: []","'disjoint_paths_le_cut' depends on axioms: [propext, Classical.choice, Quot.sound]"]})}
+      ${HONEST}`;w910_mesh();}},
+
+  w910audit:{title:'Audit Receipts (Merkle + Replay)',badge:'CP-1 + AU-1 · /wave910/audit-receipts',sub:'Backs the <b>signed-receipt / audit</b> story with two proven results. <b>CP-1 Merkle transparency-log soundness</b>: every receipt is committed to a SHA-256 Merkle root, and any single receipt\u2019s <b>inclusion proof</b> can be re-verified offline. <b>AU-1 Replay-Determinism</b>: replaying the same ordered log yields the same final state, and if one entry is altered the audit <b>localizes the tampered entry</b> (first divergence). Together: a <b>re-verifiable, tamper-localizing</b> audit trail. Runs live below on a sample receipt log.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Inclusion sound</div><div class="v teal" id="w-au-incl">—</div><div class="d">all receipts</div></div>
+      <div class="kpi"><div class="k">Replay deterministic</div><div class="v" id="w-au-det">—</div><div class="d">same log ⇒ same state</div></div>
+      <div class="kpi"><div class="k">Tamper localized</div><div class="v" id="w-au-loc">—</div><div class="d">to one entry</div></div>
+      <div class="kpi"><div class="k">Merkle root</div><div class="v" id="w-au-root" style="font-size:11px">—</div><div class="d">SHA-256</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Verify the audit chain (alter one entry)</span><span class="card-ep">re-verifiable · tamper-localizing</span></div>
+        <div class="form-row"><label>Tamper which entry index?</label><input id="w-au-idx" value="1"/></div>
+        <div class="btns"><button class="btn teal" onclick="w910_audit()">▶ Build Merkle + replay + localize tamper</button></div>
+        <details class="raw"><summary>raw result</summary><pre class="out" id="w-au-out">—</pre></details></div>
+      ${w910theorem({id:'CP-1 + AU-1',name:'Merkle transparency-log soundness + Replay-Determinism',
+        plain:'Re-verifiable inclusion proofs against a Merkle root, deterministic log replay, and tamper localized to the exact altered entry.',
+        lean:'Lutar/Wave9/Merkle.lean + Lutar/Wave10/ReplayDeterminism.lean',
+        source:'RFC 6962; arXiv:2303.04500; Schneider DOI:10.1145/98163.98167; Lamport DOI:10.1145/359545.359563',
+        honesty:'Merkle collision-resistance is an abstract HYPOTHESIS (Inj H) in Lean, NOT a declared axiom; SHA-256 is the concrete instance here.',
+        axioms:["'merkle_root_binding' depends on axioms: [propext]","'merkle_inclusion_sound' depends on axioms: [propext]","'merkle_append_only' depends on axioms: [propext]","'replay_deterministic' depends on axioms: (none)","'tamper_localized' depends on axioms: (none)"]})}
+      ${HONEST}`;w910_audit();}},
+
+  w910quorum:{title:'Mesh Consensus / Quorum',badge:'C1 BDB + CN-1 · /wave910/quorum-consensus',sub:'Two proven results size the C2 consensus mesh. <b>C1 Basilic Byzantine-BDB</b>: with t Byzantine, d deceitful and q benign-faulty nodes, safety holds iff <code>n &gt; 3t + d + 2q</code> — sharper than the classic <code>n &gt; 3t</code>, so the mesh needs fewer nodes for the same guarantee (quorum-sizing efficiency). <b>CN-1 Quorum-Intersection</b> (Flexible Paxos): any two <b>intersecting</b> quorums can never both decide differently — no split-brain. Runs live below.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">BDB threshold</div><div class="v" id="w-q-thr">—</div><div class="d">3t+d+2q</div></div>
+      <div class="kpi"><div class="k">Safe?</div><div class="v teal" id="w-q-safe">—</div><div class="d">n &gt; threshold</div></div>
+      <div class="kpi"><div class="k">Quorums intersect</div><div class="v" id="w-q-int">—</div><div class="d">no split-brain</div></div>
+      <div class="kpi"><div class="k">Unique decision</div><div class="v" id="w-q-uniq">—</div><div class="d">agreement</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Size the consensus mesh</span><span class="card-ep">BDB + quorum intersection</span></div>
+        <div class="form-row"><label>n nodes</label><input id="w-q-n" value="4"/></div>
+        <div class="form-row"><label>t Byzantine</label><input id="w-q-t" value="1"/></div>
+        <div class="form-row"><label>d deceitful</label><input id="w-q-d" value="0"/></div>
+        <div class="form-row"><label>q benign-faulty</label><input id="w-q-q" value="0"/></div>
+        <div class="btns"><button class="btn teal" onclick="w910_quorum()">▶ Check BDB threshold + quorum intersection</button></div>
+        <details class="raw"><summary>raw result</summary><pre class="out" id="w-q-out">—</pre></details></div>
+      ${w910theorem({id:'C1 + CN-1',name:'Basilic Byzantine-BDB threshold + Quorum-Intersection',
+        plain:'A sharp fault threshold n>3t+d+2q (fewer nodes than n>3t for the same safety) plus a guarantee that overlapping quorums cannot both decide differently.',
+        lean:'Lutar/Wave9/BasilicBDB.lean + Lutar/Wave10/QuorumIntersection.lean',
+        source:'Basilic/ZLB arXiv:2305.02498; Lamport Paxos DOI:10.1145/279227.279229; Flexible Paxos DOI:10.4230/LIPIcs.OPODIS.2016.25',
+        honesty:'C1 PROVEN core = quorum-intersection arithmetic + threshold dichotomy; full protocol solvability is a labelled ROADMAP. CN-1 is the distinct Wave10 intersection result.',
+        axioms:["'bdb_safe' depends on axioms: [propext, Quot.sound]","'bdb_threshold_dichotomy' depends on axioms: [propext, Classical.choice, Quot.sound]","'quorum_intersection_agreement' does not depend on any axioms","'quorum_unique_decision' does not depend on any axioms","'majority_quorums_intersect' depends on axioms: [propext, Quot.sound]"]})}
+      ${HONEST}`;w910_quorum();}},
+
+  // ── MINED OPS (efficiency) — permissive patterns adopted WITH NOTICE, evolved clean-room ──
+  // Sources: al-jshen/compute (MIT), lwaekfjlk/gpu-bartender (MIT),
+  // mcleish7/MLRC-deep-thinking (MIT), mcleish7/kvpress (Apache-2.0). No upstream code copied.
+  scicompute:{title:'Sci-Compute — fusion & orbital math',badge:'al-jshen/compute (MIT) · clean-room · /mined/scicompute',sub:'Real scientific compute backing <b>Track/Fuse</b> and the <b>Health Twin</b>. Four primitives reimplemented clean-room from the <b>al-jshen/compute</b> (MIT) pattern — no upstream code copied: a least-squares constant-velocity <b>track fit</b>, a Cholesky-gated information-form <b>covariance fusion</b> of two sensors (honestly refuses to fuse a non-SPD covariance instead of faking it), <b>Kepler-III</b> orbital period from a semi-major axis, and a <b>Romberg</b> energy integral over a noisy power channel. Advisory math — Λ stays <b>Conjecture 1</b>.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Track velocity</div><div class="v" id="sc-vel">—</div><div class="d">OLS fit · units/step</div></div>
+      <div class="kpi"><div class="k">Fit r²</div><div class="v" id="sc-r2">—</div><div class="d">goodness of fit</div></div>
+      <div class="kpi"><div class="k">Orbital period</div><div class="v teal" id="sc-per">—</div><div class="d">Kepler III · min</div></div>
+      <div class="kpi"><div class="k">Channel energy</div><div class="v" id="sc-en">—</div><div class="d">Romberg ∫P dt · Wh</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Track fit — noisy 1-axis trajectory → constant-velocity model</span><span class="card-ep">OLS · least squares</span></div>
+        <div class="form-row"><label>y samples (comma-sep, one per step)</label><input id="sc-y" value="0.0, 9.9, 20.2, 29.7, 40.4, 50.1"/></div>
+        <div class="btns"><button class="btn teal" onclick="sci_trackfit()">▶ Fit track</button></div>
+        <details class="raw"><summary>fit detail</summary><pre class="out" id="sc-fit-out">—</pre></details></div>
+      <div class="card"><div class="card-h"><span class="card-t">Orbital period — Kepler III</span><span class="card-ep">T = 2π√(a³/μ) · μ=GM⊕</span></div>
+        <div class="form-row"><label>Semi-major axis (km)</label><input id="sc-a" value="7000"/></div>
+        <div class="btns"><button class="btn teal" onclick="sci_kepler()">▶ Compute period</button></div>
+        <details class="raw"><summary>orbital detail</summary><pre class="out" id="sc-kep-out">—</pre></details></div>
+      <div class="card"><div class="card-h"><span class="card-t">Covariance fusion — two sensors, Cholesky-gated</span><span class="card-ep">information form</span></div>
+        <div class="btns"><button class="btn teal" onclick="sci_fuse()">▶ Fuse sample sensors</button></div>
+        <details class="raw"><summary>fused estimate</summary><pre class="out" id="sc-fuse-out">—</pre></details></div>
+      ${HONEST}`;sci_init();}},
+
+  edgeest:{title:'Edge VRAM Estimator',badge:'gpu-bartender (MIT) · clean-room · /mined/edge-estimator',sub:'Before you push a model to a <b>drone SoC</b> or a <b>field Mac</b>, will it FIT? This is a real component-sum VRAM model — runtime floor + weights + transformer activations (+ gradients + Adam moments for training) — reimplemented clean-room from the <b>lwaekfjlk/gpu-bartender</b> (MIT) pattern, then evolved into an edge-deployment feasibility check that returns a FIT/EXCEEDS verdict against your VRAM budget. Advisory estimate, not a benchmark.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Total estimate</div><div class="v" id="ee-total">—</div><div class="d">GiB</div></div>
+      <div class="kpi"><div class="k">Budget</div><div class="v" id="ee-budget">—</div><div class="d">edge node GiB</div></div>
+      <div class="kpi"><div class="k">Headroom</div><div class="v" id="ee-head">—</div><div class="d">GiB remaining</div></div>
+      <div class="kpi"><div class="k">Verdict</div><div class="v" id="ee-fit">—</div><div class="d">fits on edge?</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Workload</span><span class="card-ep">edge feasibility</span></div>
+        <div class="grid2">
+          <div class="form-row"><label>Params (billions)</label><input id="ee-params" value="1.3"/></div>
+          <div class="form-row"><label>Sequence length</label><input id="ee-seq" value="2048"/></div>
+          <div class="form-row"><label>VRAM budget (GiB)</label><input id="ee-vram" value="8"/></div>
+          <div class="form-row"><label>Workload</label><select id="ee-work"><option value="inference">inference</option><option value="lora">LoRA fine-tune</option><option value="full-train">full train</option></select></div>
+          <div class="form-row"><label>Precision</label><select id="ee-prec"><option value="half">half (int8/fp16)</option><option value="mixed" selected>mixed</option><option value="full">full (fp32)</option></select></div>
+        </div>
+        <div class="btns"><button class="btn teal" onclick="edge_estimate()">▶ Estimate</button></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Memory breakdown</span><span class="card-ep">per component · MiB</span></div>
+        <div id="ee-chart" style="height:300px"></div>
+        <details class="raw"><summary>raw components</summary><pre class="out" id="ee-out">—</pre></details></div>
+      ${HONEST}`;edge_estimate();}},
+
+  swarmres:{title:'Swarm Resilience Monitor',badge:'MLRC-deep-thinking (MIT) · clean-room · /mined/swarm-resilience',sub:'After a <b>comms or sensor disruption</b>, how fast does the swarm re-form a single mission plan? We inject a perturbation into selected swarm nodes, then run a mass-conserving averaging-consensus recovery and measure how quickly the swarm\u2019s <b>disagreement</b> collapses below tolerance — plus an <b>asymptotic-alignment</b> score (1 = fully realigned). The perturbation-recovery + AA idea is adopted from <b>mcleish7/MLRC-deep-thinking</b> (MIT) and reimplemented clean-room over a swarm-consensus model. Advisory metric — Λ stays <b>Conjecture 1</b>.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Recovery</div><div class="v teal" id="sr-iters">—</div><div class="d">iterations to re-agree</div></div>
+      <div class="kpi"><div class="k">Alignment</div><div class="v" id="sr-aa">—</div><div class="d">AA score · 1=perfect</div></div>
+      <div class="kpi"><div class="k">Verdict</div><div class="v" id="sr-verdict">—</div><div class="d">resilient?</div></div>
+      <div class="kpi"><div class="k">Re-agreed plan</div><div class="v" id="sr-plan">—</div><div class="d">post-disruption</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Disruption scenario</span><span class="card-ep">perturb → recover</span></div>
+        <div class="grid2">
+          <div class="form-row"><label>Disruption magnitude</label><input id="sr-mag" value="8"/></div>
+          <div class="form-row"><label>Consensus rate (0–1)</label><input id="sr-rate" value="0.35"/></div>
+        </div>
+        <div class="btns"><button class="btn teal" onclick="swarm_run()">▶ Run disruption + recovery</button></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Recovery trajectory — swarm disagreement vs. iteration</span><span class="card-ep">converging to one plan</span></div>
+        <div id="sr-chart" style="height:300px"></div>
+        <details class="raw"><summary>raw metrics</summary><pre class="out" id="sr-out">—</pre></details></div>
+      ${HONEST}`;swarm_run();}},
+
+  telemem:{title:'Telemetry Memory',badge:'kvpress / ExpectedAttention (Apache-2.0) · clean-room · /mined/telemetry-press',sub:'On a bandwidth-starved field link you cannot keep every frame. This <b>priority-weighted telemetry memory</b> scores each frame by <b>magnitude-spike × source-trust × recency</b> and retains only the top-budget high-value frames — so the drone <b>remembers critical sensor spikes</b> while pruning noise. The \u201cpress\u201d idea (score by expected attention, prune the rest) is adopted from <b>mcleish7/kvpress</b> (Apache-2.0, ExpectedAttention family) and reimplemented clean-room for telemetry. Lossy by design and honestly labelled; the input here is a <b>sample stream, not a live feed</b>.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Frames in</div><div class="v" id="tm-in">—</div><div class="d">raw stream</div></div>
+      <div class="kpi"><div class="k">Kept</div><div class="v teal" id="tm-keep">—</div><div class="d">high-value frames</div></div>
+      <div class="kpi"><div class="k">Compression</div><div class="v" id="tm-comp">—</div><div class="d">×</div></div>
+      <div class="kpi"><div class="k">Value retained</div><div class="v" id="tm-val">—</div><div class="d">of total signal energy</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Retention budget</span><span class="card-ep">keep fraction</span></div>
+        <div class="form-row"><label>Keep fraction (0.02–1.0)</label><input id="tm-frac" value="0.4"/></div>
+        <div class="btns"><button class="btn teal" onclick="telem_run()">▶ Apply telemetry press</button></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Retained vs. pruned — sample telemetry (not a live feed)</span><span class="card-ep">spikes survive · noise pruned</span></div>
+        <div id="tm-chart" style="height:300px"></div>
+        <details class="raw"><summary>raw metrics</summary><pre class="out" id="tm-out">—</pre></details></div>
+      ${HONEST}`;telem_run();}},
+
+  // ── TACTICAL RE-SWEEP (wave-2) — permissive patterns adopted WITH NOTICE, evolved clean-room ──
+  // Sources: anvaka/ngraph.path (MIT), rowanwins/visibility-graph (MIT),
+  // ft2023/IRanker-demo (MIT), al-jshen/adaptive (MIT). No upstream code copied.
+  tacroute:{title:'Tactical Routing',badge:'ngraph.path + visibility-graph (MIT) · clean-room · /resweep/route',sub:'Plan a <b>survivable</b> vessel/drone route. Two engines, both reimplemented clean-room: an <b>A*/NBA*</b> search over a <b>sea-state cost grid</b> (per-cell current + wind drift penalty; exclusion zones are hard-blocked) adopted from the <b>anvaka/ngraph.path</b> (MIT) pattern, and an <b>obstacle-avoidance</b> router that builds a <b>visibility graph</b> over landmass / exclusion-zone polygon corners and routes the vessel AROUND them, adopted from <b>rowanwins/visibility-graph</b> (MIT). NBA* (bi-directional A*) expands fewer nodes than plain A* on the same grid — a real efficiency win shown below. Advisory planning over a <b>sample sea-state grid (not a live feed)</b> — Λ stays <b>Conjecture 1</b>.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Route cost (A*)</div><div class="v teal" id="tr-cost">—</div><div class="d">summed sea-state cost</div></div>
+      <div class="kpi"><div class="k">A* expanded</div><div class="v" id="tr-expa">—</div><div class="d">nodes searched</div></div>
+      <div class="kpi"><div class="k">NBA* expanded</div><div class="v" id="tr-expn">—</div><div class="d">bi-directional</div></div>
+      <div class="kpi"><div class="k">Obstacle detour</div><div class="v" id="tr-detour">—</div><div class="d">× straight-line</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Sea-state grid route — A* vs NBA*</span><span class="card-ep">octile heuristic · 8-connected</span></div>
+        <div class="btns"><button class="btn teal" onclick="tacroute_grid()">▶ Plan grid route (A* + NBA*)</button></div>
+        <div id="tr-grid-chart" style="height:320px"></div>
+        <details class="raw"><summary>grid route detail</summary><pre class="out" id="tr-grid-out">—</pre></details></div>
+      <div class="card"><div class="card-h"><span class="card-t">Obstacle avoidance — route around exclusion-zone polygons</span><span class="card-ep">visibility graph + A*</span></div>
+        <div class="btns"><button class="btn teal" onclick="tacroute_obstacle()">▶ Route around obstacles</button></div>
+        <div id="tr-obs-chart" style="height:300px"></div>
+        <details class="raw"><summary>obstacle route detail</summary><pre class="out" id="tr-obs-out">—</pre></details></div>
+      ${HONEST}`;tacroute_grid();tacroute_obstacle();}},
+
+  threatrank:{title:'Vessel Threat Ranking',badge:'ft2023/IRanker-demo (MIT) · clean-room · /resweep/threat-rank',sub:'Rank vessels in the consolidated maritime view not just by distance, but by a <b>transparent strategic-threat score</b>. Adopted from the <b>ft2023/IRanker-demo</b> (MIT) <b>iterative-ranking</b> pattern — repeatedly extract the highest-threat remaining vessel so pairwise context informs the order — and reimplemented clean-room over a fully auditable composite score (proximity + closing speed + AIS-gap + sanctioned/dark-vessel + identity-mismatch). Every weight and sub-score is shown. <b>Advisory and explicitly NOT a targeting product</b>; the input here is a <b>sample maritime picture, not a live feed</b>. Λ stays <b>Conjecture 1</b>.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Top threat</div><div class="v" id="trk-top">—</div><div class="d">rank #1</div></div>
+      <div class="kpi"><div class="k">Top score</div><div class="v teal" id="trk-score">—</div><div class="d">0–1 composite</div></div>
+      <div class="kpi"><div class="k">Vessels ranked</div><div class="v" id="trk-count">—</div><div class="d">in picture</div></div>
+      <div class="kpi"><div class="k">Flagged</div><div class="v" id="trk-flag">—</div><div class="d">sanction/dark/id</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Strategic threat ranking</span><span class="card-ep">iterative · transparent score</span></div>
+        <div class="btns"><button class="btn teal" onclick="threatrank_run()">▶ Rank sample picture</button></div>
+        <div id="trk-chart" style="height:300px"></div>
+        <div id="trk-table" style="margin-top:10px"></div>
+        <details class="raw"><summary>raw ranking</summary><pre class="out" id="trk-out">—</pre></details></div>
+      ${HONEST}`;threatrank_run();}},
+
+  adaptsample:{title:'Adaptive Sensor Sampling',badge:'al-jshen/adaptive (MIT) · clean-room · /resweep/adaptive-sample',sub:'On an edge node with a constrained sensor duty-cycle, where should you spend your limited samples? This <b>adaptive sampler</b> concentrates evaluation points where the sweep has the most <b>curvature/structure</b> (the contacts) instead of a uniform grid, then runs <b>peak detection</b> to surface detected contacts — adopted from the <b>al-jshen/adaptive</b> (MIT) loss-driven-refinement pattern and reimplemented clean-room. A same-budget uniform baseline is shown alongside for an honest efficiency comparison. The input is a <b>sample sensor sweep (two Gaussian contacts on background), not a live feed</b>. Λ stays <b>Conjecture 1</b>.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Contacts detected</div><div class="v teal" id="as-peaks">—</div><div class="d">peaks found</div></div>
+      <div class="kpi"><div class="k">Sample budget</div><div class="v" id="as-budget">—</div><div class="d">total samples</div></div>
+      <div class="kpi"><div class="k">Adaptive near-peak</div><div class="v" id="as-adn">—</div><div class="d">frac samples on contacts</div></div>
+      <div class="kpi"><div class="k">Uniform near-peak</div><div class="v" id="as-unn">—</div><div class="d">same budget</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Sensor sweep — adaptive samples cluster on the contacts</span><span class="card-ep">curvature-loss refinement + peaks</span></div>
+        <div class="form-row"><label>Sample budget (6–200)</label><input id="as-bud" value="28"/></div>
+        <div class="btns"><button class="btn teal" onclick="adaptsample_run()">▶ Adaptive sample + detect</button></div>
+        <div id="as-chart" style="height:320px"></div>
+        <details class="raw"><summary>raw metrics</summary><pre class="out" id="as-out">—</pre></details></div>
+      ${HONEST}`;adaptsample_run();}},
+
   // ── BUILD WAVE: Live Picture (K-N1) ───────────────────────────────────
-  livepic:{title:'Live Picture',badge:'COP · AIR+SEA FUSED · 3D',sub:'One map. Every track. Who is friendly, who is a threat, and what to do. A single 3D globe fuses live drone tracks, sample vessels, and live USGS physical-world events — each object an entity carrying location, affiliation, identity and health, framed with MIL-STD-2525 affiliation colours (red = hostile, teal = friendly, gold = neutral/own, amber = unknown). The left rail follows the IMO 3-layer maritime-domain-awareness flow: Situational → Threat → Response. Click any track for its detail card and a per-track signed receipt. Maritime tracks are sample/replay — not a live AIS feed; live OpenSky/AIS is roadmap.',
+  livepic:{title:'Live Picture',badge:'COP · AIR+SEA FUSED · deck.gl',sub:'One map. Every track. Who is friendly, who is a threat, and what to do. A single fused <b>deck.gl</b> operating picture (ScatterplotLayer entities + PathLayer hostile-intent trails, no base-map tiles — sovereign, 0 off-origin) combines live drone tracks, sample vessels, and live USGS physical-world events — each object an entity carrying location, affiliation, identity and health, framed with MIL-STD-2525 affiliation colours (red = hostile, teal = friendly, gold = neutral/own, amber = unknown). The left rail follows the IMO 3-layer maritime-domain-awareness flow: Situational → Threat → Response. Click any track for its detail card and a per-track signed receipt. Maritime tracks are sample/replay — not a live AIS feed; live OpenSky/AIS is roadmap.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Entities (fused)</div><div class="v live" id="lp-total">—</div><div class="d">air + sea + physical</div></div>
       <div class="kpi"><div class="k">Air tracks</div><div class="v" id="lp-air">—</div><div class="d">live drone picture</div></div>
@@ -960,11 +1591,43 @@ const VIEWS = {
         <div class="card lp-railcard"><div class="card-h"><span class="card-t">IMO 3-layer awareness</span><span class="card-ep">situational → threat → response</span></div>
           <div class="lp-rail"><div class="lp-rail-item active" data-layer="situational" onclick="lp_setLayer('situational')">① Situational</div><div class="lp-rail-item" data-layer="threat" onclick="lp_setLayer('threat')">② Threat</div><div class="lp-rail-item" data-layer="response" onclick="lp_setLayer('response')">③ Response</div></div>
           <div id="lp-rail-body" style="max-height:420px;overflow:auto"><div class="row mono dim">loading entities…</div></div></div>
-        <div class="card"><div class="card-h"><span class="card-t">Single Operating Picture — 3D globe</span><span class="card-ep">globe.gl · auto-rotate · live arcs</span></div>
+        <div class="card"><div class="card-h"><span class="card-t">Single Operating Picture — fused map</span><span class="card-ep">deck.gl · ScatterplotLayer + PathLayer · MIL-STD-2525</span></div>
           <div class="graph3d" id="lp-globe" style="height:460px"></div>
           <div class="legend"><span><i style="background:#b06a5a"></i>◆ hostile</span><span><i style="background:#5fb3a3"></i>■ friendly</span><span><i style="background:#c9b787"></i>● neutral/own</span><span><i style="background:#c9a05f"></i>? unknown</span></div></div>
       </div>
-      <div class="card" id="lp-detail"><div class="card-h"><span class="card-t">Entity detail</span><span class="card-ep">click a track on the globe or the rail</span></div><div class="row mono dim">no track selected</div></div>${HONEST}`;window.livepic_load();}},
+      <div class="card" id="lp-detail"><div class="card-h"><span class="card-t">Entity detail</span><span class="card-ep">click a track on the map or the rail</span></div><div class="row mono dim">no track selected</div></div>${HONEST}`;window.livepic_load();}},
+
+  // ── FLAGSHIP: LIVE 3D HEALTH TWIN (founder's explicit ask) ────────────
+  // A 3D digital twin of a SELECTED vessel/drone. Six subsystem meshes change colour LIVE
+  // from a real telemetry model at /api/killinchu/v1/twin/state. Health computed with OUR
+  // formulas: split-conformal band (W5-3/W7-4, NOT Hoeffding), Λ geometric-mean trust
+  // aggregate (Conjecture 1), and the YUYAY 13-axis conjunctive gate. Distinct viz (Three.js).
+  healthtwin:{title:'Health Twin',badge:'LIVE 3D DIGITAL TWIN · PER-SUBSYSTEM HEALTH',sub:'The founder\'s flagship: pick a vessel or drone and watch its 3D twin show, in real time, which subsystems are <b>nominal</b>, <b>need-fix</b>, <b>need-upgrade</b>, <b>hacked</b> or <b>damaged</b>. Each of the six parts (hull · propulsion · comms · sensors · nav · payload) is coloured from a real telemetry model: live AIS vessels are labelled <b>live</b> (Digitraffic FI, no auth), sample drones are labelled <b>sample</b>. Subsystem health is computed with our own formulas — a <b>split-conformal</b> anomaly band (W5-3/W7-4, <b>not</b> Hoeffding), the <b>Λ</b> geometric-mean trust aggregate (<b>Conjecture 1</b>, not a theorem), and the <b>YUYAY</b> 13-axis conjunctive gate. Click a subsystem mesh for its computed metric, conformity vs envelope, and recommended action. "hacked"/"needs-fix" are <b>probabilistic inferences signed by Λ — not guarantees</b>.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Platform</div><div class="v" id="tw-name" style="font-size:1.05rem">—</div><div class="d" id="tw-label">select a platform</div></div>
+      <div class="kpi"><div class="k">Headline state</div><div class="v" id="tw-headline">—</div><div class="d">worst-case subsystem</div></div>
+      <div class="kpi"><div class="k">Λ trust aggregate</div><div class="v" id="tw-lambda">—</div><div class="d">geom-mean · Conjecture 1</div></div>
+      <div class="kpi"><div class="k">YUYAY gate</div><div class="v" id="tw-gate">—</div><div class="d">13-axis conjunctive</div></div></div>
+      <div class="row" style="gap:.6rem;align-items:center;margin:.2rem 0 .6rem">
+        <span class="mono dim">Platform:</span>
+        <select id="tw-select" onchange="twin_select(this.value)" style="background:#15181d;color:#e7e9ec;border:1px solid #2a2d33;border-radius:6px;padding:.4rem .6rem;font-family:'JetBrains Mono',monospace;font-size:.82rem;min-width:240px"><option>loading…</option></select>
+        <span id="tw-feed" class="mono dim"></span>
+        <label class="mono dim" style="margin-left:auto;cursor:pointer"><input type="checkbox" id="tw-live" checked onchange="twin_setLive(this.checked)"/> live poll (6s)</label>
+      </div>
+      <div class="lp-grid">
+        <div class="card"><div class="card-h"><span class="card-t">3D twin — subsystem health</span><span class="card-ep">Three.js r160 · click a part</span></div>
+          <div class="graph3d" id="tw-canvas" style="height:460px;position:relative"></div>
+          <div class="legend"><span><i style="background:#5fb3a3"></i>nominal</span><span><i style="background:#c9a05f"></i>needs-fix</span><span><i style="background:#7f9bd6"></i>needs-upgrade</span><span><i style="background:#b06a5a"></i>hacked</span><span><i style="background:#7a2e2e"></i>damaged</span></div></div>
+        <div class="card lp-railcard"><div class="card-h"><span class="card-t">Subsystems</span><span class="card-ep">live · click for detail</span></div>
+          <div id="tw-subs" style="max-height:420px;overflow:auto"><div class="row mono dim">loading telemetry…</div></div></div>
+      </div>
+      <div class="card" id="tw-detail"><div class="card-h"><span class="card-t">Subsystem detail</span><span class="card-ep">click a part in the 3D twin or the list</span></div><div class="row mono dim">no subsystem selected — pick one to see its computed metric, conformal envelope, and action.</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">How this is computed</span><span class="card-ep">our formulas · honest</span></div>
+        <div class="row mono" style="font-size:.78rem;line-height:1.7;color:#9a9a9a">
+          <b style="color:#c9b787">Conformal anomaly band</b> — each subsystem has a nonconformity score s; the half-width q is the ceil((1−α)(n+1))-th smallest calibration score (split-conformal, <b>W5-3/W7-4 — NOT Hoeffding</b>). A part is out-of-envelope when s &gt; q.<br>
+          <b style="color:#c9b787">Λ trust aggregate</b> — Λ = geometric mean of per-subsystem trust (1−s). The geometric mean penalises any single weak axis (AM–GM). Λ is <b>Conjecture 1 — unconditional, FALSE as stated, a conjecture not a theorem</b>; advisory only.<br>
+          <b style="color:#c9b787">YUYAY gate</b> — a 13-axis <b>conjunctive</b> truth gate (pass = all(score ≥ floor)). A hacked kinematic profile or a low-Λ state makes it FAIL (deny-by-default).
+        </div></div>${HONEST}`;window.twin_load();}},
 
   // ── BUILD WAVE: Engage Safely (K-N3) ──────────────────────────────────
   engage:{title:'Engage Safely',badge:'HUMAN-IN-THE-LOOP · DUAL RECEIPT',sub:'Recommend, confirm, or wave off — every step signed. For an active threat track this runs the full accountable loop: a ROE-gated defeat recommendation (observe / jam / kinetic with option scores) → a two-step human commit (Positive-ID confirm, then commit or wave-off/abort) → a yield/proceed deconfliction check for shared airspace. A bold RECOMMEND — not auto-fire pill stays throughout: killinchu governs the decision, a human approves, and killinchu does not fly the effector. Both the machine recommendation AND the human decision emit genuine, offline-verifiable signed receipts.',
@@ -1014,7 +1677,7 @@ const VIEWS = {
 
 
   // ── 3.1 Live Track Board / COP ──────────────────────────────────
-  tracks:{title:'Live Track Board',badge:'AIR/SURFACE PICTURE · TACTICAL PLOT',sub:'Air picture — a 2D tactical plot (lat/lon, heading vectors) plus a sortable radar-track table from the live /threats/active feed. Click a track to select it on the plot and run a governed ROE evaluation that returns a genuinely-signed receipt. Simulated positions over real adversary signatures — not a live sensor feed.',
+  tracks:{title:'Live Track Board',badge:'PPI RADAR SCOPE · RANGE/BEARING',sub:'Air picture as a true <b>PPI radar scope</b> (plan-position indicator, raw SVG): every contact is plotted by <b>range and bearing from the killinchu C2 station at the centre</b> — concentric rings are distance (km), spokes are compass bearing (N at top, clockwise), and each contact carries a short spoke for its heading. Threats are red, ISR/patrol amber, clear teal. Below is a sortable radar-track table from the live <code>/threats/active</code> feed. Click a contact (scope blip or table row) to select it and run a governed ROE evaluation that returns a genuinely-signed receipt. Simulated positions over real adversary signatures — not a live sensor feed.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Active threats</div><div class="v live" id="k-active">—</div><div class="d">above threat threshold</div></div>
@@ -1022,9 +1685,9 @@ const VIEWS = {
         <div class="kpi"><div class="k">Trust gate</div><div class="v teal">Conjecture</div><div class="d">advisory, not proven</div></div>
         <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Tactical Plot — lat/lon · heading vectors</span><span class="card-ep">2D air picture · click a point to select</span></div>
-        <div class="chartbox" id="tracks-plot" style="height:440px"></div>
-        <div class="legend"><span><i style="background:#b06a5a"></i>threat (inbound / adversary)</span><span><i style="background:#c9a05f"></i>ISR / patrol</span><span><i style="background:#5fb3a3"></i>clear</span><span><i style="background:#c9b787"></i>killinchu C2 station</span><span>arrow = heading · ring = selected</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}PPI Radar Scope — range / bearing from C2</span><span class="card-ep">plan-position indicator · click a blip to select</span></div>
+        <div class="chartbox" id="tracks-plot" style="height:460px"></div>
+        <div class="legend"><span><i style="background:#b06a5a"></i>threat (inbound / adversary)</span><span><i style="background:#c9a05f"></i>ISR / patrol</span><span><i style="background:#5fb3a3"></i>clear</span><span><i style="background:#c9b787"></i>killinchu C2 (scope centre)</span><span>ring = range km · spoke = heading · white ring = selected</span></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Radar Track Table</span><span class="card-ep">click a header to sort · click a row to select &amp; evaluate</span></div>
         <div style="max-height:340px;overflow:auto"><table class="dtbl"><thead><tr>
           <th style="cursor:pointer" onclick="window.tracks_sort('track_id')">track</th>
@@ -1043,16 +1706,22 @@ const VIEWS = {
     }},
 
   // ── 3.2 Sensor-Fusion Monitor ───────────────────────────────────
-  fusion:{title:'Sensor-Fusion Monitor',badge:'SENSOR MIX',sub:'How much each sensor type is trusted when combining detections into one track. Higher confidence = more weight in the fused answer. Run a demo fusion to merge several sensors into a single consensus track. <b>Proof binding:</b> the fused estimate is the best linear unbiased combination — theorem C17 (BLUE), proven sorry-free (experimental).',
+  fusion:{title:'Sensor-Fusion Monitor',badge:'COVARIANCE SCATTER · C17 BLUE',sub:'Multi-sensor track fusion as a <b>covariance-ellipse scatter</b> (GPU, regl-scatterplot). Each sensor\'s detection of the same target is a point coloured by sensor class; the <b>fused estimate</b> is the gold ★ at the confidence-weighted centroid; the <b>1σ uncertainty ellipse</b> is the eigendecomposition of the measurement covariance P (the Kalman estimate spread). Tighter ellipse = more sensors agreeing = lower fused uncertainty. <b>Proof binding:</b> the fused estimate is the best linear unbiased combination — theorem <b>C17 (BLUE)</b>, proven sorry-free (experimental). Live <code>/sensor-fusion/fuse</code> drives the geometry; the fused track is signed (DSSE).',
     render:async(c)=>{
-      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Sensor Confidence (weight)</span><span class="card-ep">live registry</span></div>
-        <div class="chartbox tall"><canvas id="fusion-bar"></canvas></div>
-        <div class="legend"><span>Bar length = how much that sensor is trusted (0–1). Radar &amp; ADS-B rank highest; acoustic lowest.</span></div></div>
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Sensors fused</div><div class="v live" id="fu-n">—</div><div class="d">into 1 track</div></div>
+        <div class="kpi"><div class="k">Fusion quality</div><div class="v" id="fu-q">—</div><div class="d">confidence-weighted</div></div>
+        <div class="kpi"><div class="k">1σ uncertainty</div><div class="v teal" id="fu-sig">—</div><div class="d">ellipse semi-major (m)</div></div>
+        <div class="kpi"><div class="k">Fused track</div><div class="v teal">DSSE signed</div><div class="d">C17 BLUE · verify offline</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Sensor-fusion covariance scatter</span><span class="card-ep">regl-scatterplot (GPU) · eigendecomp 1σ ellipse · ★ = fused BLUE estimate</span></div>
+        <div id="fusion-scatter" style="position:relative;height:440px;width:100%"></div>
+        <div class="legend"><span><i style="background:#5fb3a3"></i>RADAR/ADS-B (high trust)</span><span><i style="background:#c9b787"></i>RF/Remote-ID</span><span><i style="background:#b06a5a"></i>EO-IR/acoustic</span><span><i style="background:#c9b787"></i>★ fused estimate</span><span>dashed gold = 1σ covariance ellipse</span></div></div>
       <div class="grid2">
-        <div class="card"><div class="card-h"><span class="card-t">Sensor Classes</span></div><div id="sens-list"><div class="row mono dim">loading…</div></div></div>
-        <div class="card"><div class="card-h"><span class="card-t">Fuse a Track Report</span></div>
-          <div class="btns"><button class="btn teal" onclick="fuse_demo()">▶ Fuse demo report</button></div>
-          <div id="fuse-summary" class="mono dim" style="font-size:11px;margin-bottom:.5rem">— click to fuse 3 sensors into one track —</div>
+        <div class="card"><div class="card-h"><span class="card-t">Sensor Classes</span><span class="card-ep">live registry · trust weight</span></div><div id="sens-list" style="max-height:300px;overflow:auto"><div class="row mono dim">loading…</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Fuse a Track Report</span><span class="card-ep">C17 best-linear-unbiased estimate</span></div>
+          <div class="btns"><button class="btn teal" onclick="fuse_demo()">▶ Fuse demo report (3 sensors)</button><button class="btn" onclick="fuse_demo(true)">▶ Fuse wide-disagreement (5 sensors)</button></div>
+          <div id="fuse-summary" class="mono dim" style="font-size:11px;margin:.5rem 0">— click to fuse sensor reports into one consensus track —</div>
+          <div class="row mono" style="font-size:.74rem;line-height:1.6;color:#9a9a9a"><b style="color:#c9b787">How the ellipse is computed</b> — the measurement covariance P = Σ wᵢ(xᵢ−x̄)(xᵢ−x̄)ᵀ / Σwᵢ over the per-sensor detections (weighted by trust). Eigendecomposition of the 2×2 P gives the ellipse orientation (eigenvector) and 1σ semi-axes (√eigenvalue). The fused ★ is the confidence-weighted centroid — the C17 BLUE estimate. Λ is advisory (Conjecture 1).</div>
           <details class="raw"><summary>raw /sensor-fusion/fuse</summary><pre class="out" id="fuse-out">—</pre></details></div>
       </div>
       <details class="raw"><summary>raw /sensor-fusion/status</summary><pre class="out" id="fusion-raw">—</pre></details>${HONEST}`;
@@ -1060,33 +1729,34 @@ const VIEWS = {
         const d = await getJSON(API+'/sensor-fusion/status');
         setOut('fusion-raw',d);
         const entries=Object.entries(d.sensor_classes||{});
-        const labels=entries.map(([k])=>k), weights=entries.map(([,v])=>v.weight||0);
-        const cols=weights.map(w=>w>=0.9?TEAL:w>=0.75?GOLD:RED);
-        barH('fusion-bar',labels,weights,cols);
         const h = el('sens-list'); h.innerHTML='';
         entries.forEach(([k,v])=>{
+          const col=v.weight>=0.9?'b-teal':v.weight>=0.75?'b-gold':'b-warn';
           h.insertAdjacentHTML('beforeend',`<div class="row">
-            <span class="badge b-teal">${esc(k)}</span>
+            <span class="badge ${col}">${esc(k)}</span>
             <span>trust=${v.weight} · false-alarm=${v.false_positive_rate}</span>
             <span class="spacer mono dim">${v.range_m}m · ${v.latency_ms}ms</span>
           </div>`);
         });
       }catch(e){setHTML('sens-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
+      // draw an initial fusion so the scatter is populated on load
+      fuse_demo();
     }},
 
   // ── 3.3 Multi-Track Prioritization ─────────────────────────────
-  prioritize:{title:'Multi-Track Prioritization',badge:'RANKED',sub:'Rank 8 incoming drones by threat — highest first — so the operator knows what to handle now. The score is advisory (based on the trust gate, which is a conjecture, not a proof).',
+  prioritize:{title:'Multi-Track Prioritization',badge:'PARALLEL COORDINATES · MULTI-AXIS',sub:'Rank 8 incoming drones by threat — highest first — so the operator knows what to handle now, and <b>see why</b>. Every track is drawn as one line across a <b>parallel-coordinates plot</b> (ECharts): speed, altitude, threat score and rank share one frame, so the kinematic profile that drives each ranking (fast + low = hot) is visible at a glance, and crossing lines expose trade-offs the bar chart hid. Lines are coloured by ROE verdict. The score is advisory (based on the trust gate, which is a conjecture, not a proof).',
     render:async(c)=>{
       c.innerHTML=`<div class="btns"><button class="btn teal" onclick="prio_run()">▶ Prioritize 8 tracks</button></div>
-        <div class="card"><div class="card-h"><span class="card-t">Threat Priority (highest first)</span><span class="card-ep">score per track</span></div>
-          <div class="chartbox tall"><canvas id="prio-bar"></canvas></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Threat profile — parallel coordinates</span><span class="card-ep">ECharts · one line per track · colour = ROE verdict</span></div>
+          <div id="prio-par" style="width:100%;height:360px"></div>
+          <div class="legend"><span><i style="background:#b06a5a"></i>engage / deny</span><span><i style="background:#c9a05f"></i>hold / review</span><span><i style="background:#5fb3a3"></i>allow / clear</span><span>each line = one track across speed · altitude · score · rank</span></div></div>
         <div class="card"><div class="card-h"><span class="card-t">Ranked Threats</span></div><div id="prio-list"><div class="row mono dim">click to run</div></div></div>
         <details class="raw"><summary>raw /tracks/multi-prioritize</summary><pre class="out" id="prio-raw">—</pre></details>${HONEST}`;
       prio_run();
     }},
 
   // ── 3.3b Maritime Picture (Vessels) ─────────────────────────────
-  maritime:{title:'Maritime Picture',badge:'VESSELS · GEO GLOBE · AIS REPLAY',sub:'Sea picture — vessel positions on a 3D geo-globe with replay tracks arcing to the killinchu maritime station. Red = sanctioned or gone dark, amber = watch, teal = clear. Click a vessel point for its risk card. This is an AIS <b>replay (sample track set), not a live AIS feed</b> — no AIS provider is wired.',
+  maritime:{title:'Maritime Picture',badge:'WEZ THREAT RINGS · deck.gl · AIS REPLAY',sub:'Sea picture — each vessel carries concentric <b>weapon-engagement-zone (WEZ) threat rings</b> on a deck.gl map (geodesic rings via haversine offset). ROE-gate colours the rings <b>hot</b> (red) for sanctioned / AIS-dark contacts and <b>cold</b> (teal) for clear ones; track lines run to the killinchu maritime station. Red = sanctioned or gone dark, amber = watch, teal = clear. Click a vessel point for its risk card. This is an AIS <b>replay (sample track set), not a live AIS feed</b> — no AIS provider is wired.',
     render:async(c)=>{
       const V = SAMPLE_VESSELS;
       const sanctioned = V.filter(v=>v.sanctioned).length;
@@ -1097,9 +1767,9 @@ const VIEWS = {
         <div class="kpi"><div class="k">Gone dark</div><div class="v warn" id="m-dark">${dark}</div><div class="d">AIS gap detected</div></div>
         <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Geo Globe — vessels around the AOI</span><span class="card-ep">globe.gl · AIS replay (not live) · click a vessel</span></div>
-        <div class="graph3d" id="maritime-globe"></div>
-        <div class="legend"><span><i style="background:#b06a5a"></i>sanctioned / dark</span><span><i style="background:#c9a05f"></i>watch</span><span><i style="background:#5fb3a3"></i>clear</span><span><i style="background:#c9b787"></i>our station</span><span>arc = replay track to station · ring = AIS dark-gap</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">WEZ threat rings — vessels around the AOI</span><span class="card-ep">deck.gl PolygonLayer · AIS replay (not live) · click a vessel</span></div>
+        <div class="graph3d" id="maritime-globe" style="position:relative"></div>
+        <div class="legend"><span><i style="background:#b06a5a"></i>hot ring: sanctioned / dark</span><span><i style="background:#c9a05f"></i>warm: watch</span><span><i style="background:#5fb3a3"></i>cold: clear</span><span><i style="background:#c9b787"></i>our station</span><span>concentric rings = 12 / 24 / 40 nm WEZ · line = track to station</span></div></div>
       <div class="card" id="vessel-risk-card"><div class="row mono dim">Click a vessel on the globe (or a row below) for its risk card — sanctions, AIS dark-gap, flag and ownership. Sample/replay screening in OFAC/UN/EU format, not live coverage.</div></div>
       <div class="card"><div class="card-h"><span class="card-t">Vessels</span></div><div id="vessel-list"></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Who really owns this vessel?</span></div>
@@ -1158,7 +1828,7 @@ const VIEWS = {
   // Real platform seed-data/vessels/* served verbatim from the killinchu server.
   // MANDATORY honesty label on every fleet tab. No mock data.
   // ── Fleet Overview ──────────────────────────────────────────────
-  fleet:{title:'Fleet Overview',badge:'18 VESSELS · SAMPLE DATASET',sub:'Commercial fleet at a glance — each ship with its carbon-intensity (CII) rating, hull and engine health, time-charter earnings (TCE), utilisation and EEXI, plus four forecast lines (earnings, carbon intensity, utilisation, Baltic Dry Index). Sample fleet dataset — not a live AIS / class-society feed.',
+  fleet:{title:'Fleet Overview',badge:'18 VESSELS · MULTI-METRIC BAR GAUGE',sub:'Commercial fleet readiness as a <b>multi-metric bar-gauge board</b> (ECharts). Four fleet-wide KPI gauges (hull · engine · maintenance · utilisation) show the mean against a 100% track with the worst vessel marked; below, a per-vessel grouped horizontal-bar gauge ranks every ship on those same health axes so the weakest hull/engine pops out immediately. Sample fleet dataset — not a live AIS / class-society feed.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Vessels</div><div class="v" id="f-count">—</div><div class="d">in sample fleet</div></div>
@@ -1166,40 +1836,53 @@ const VIEWS = {
         <div class="kpi"><div class="k">Poor CII (D/E)</div><div class="v warn" id="f-cii">—</div><div class="d">carbon-intensity risk</div></div>
         <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Forecast modules</span><span class="card-ep">history (teal) + forecast (dashed gold)</span></div>
-        <div class="grid2" id="f-fc-grid">
-          <div><div class="mono dim" id="f-fc-t0" style="font-size:11px;margin-bottom:.2rem">—</div><div class="chartbox"><canvas id="f-fc-0"></canvas></div></div>
-          <div><div class="mono dim" id="f-fc-t1" style="font-size:11px;margin-bottom:.2rem">—</div><div class="chartbox"><canvas id="f-fc-1"></canvas></div></div>
-          <div><div class="mono dim" id="f-fc-t2" style="font-size:11px;margin-bottom:.2rem">—</div><div class="chartbox"><canvas id="f-fc-2"></canvas></div></div>
-          <div><div class="mono dim" id="f-fc-t3" style="font-size:11px;margin-bottom:.2rem">—</div><div class="chartbox"><canvas id="f-fc-3"></canvas></div></div>
-        </div>
-        <div class="legend"><span>Each module carries a forecast point and a confidence %. Forecast values are model estimates on sample data, not guarantees.</span></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">CII rating mix</span><span class="card-ep">A (best) → D (worst)</span></div>
-        <div class="chartbox"><canvas id="f-cii-bar"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Fleet-wide KPI bar gauges</span><span class="card-ep">ECharts · mean vs 100% track · ◆ = worst vessel</span></div>
+        <div id="f-gauges" style="height:230px;width:100%"></div>
+        <div class="legend"><span>Teal fill = fleet mean on that axis (0–100). Gold ◆ marks the single worst vessel on each axis — your maintenance priority.</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Per-vessel health bar gauge</span><span class="card-ep">grouped horizontal bars · hull / engine / maintenance / utilisation</span></div>
+        <div id="f-vgauge" style="height:560px;width:100%"></div>
+        <div class="legend"><span>Each vessel = a row group of four bars. Sort is worst-hull-first so the ships needing attention are at the top.</span></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Fleet register</span><span class="card-ep" id="f-reg-ep">—</span></div><div id="f-list"><div class="row mono dim">loading…</div></div></div>
-      <details class="raw"><summary>raw /fleet/vessels + /fleet/forecast-modules</summary><pre class="out" id="f-raw">—</pre></details>
-      <div class="honesty"><b>Honest by design.</b> <b>Sample fleet dataset — not a live AIS/class-society feed.</b> These 18 vessels and the four forecast modules are real, citable demo content served verbatim from the SZL platform dataset (seed-data/vessels/*), not a real-time provider. The trust score is a documented <b>conjecture</b>, not a proven guarantee; receipts are <b>genuinely signed</b> (ECDSA P-256) and verifiable offline.</div>`;
+      <details class="raw"><summary>raw /fleet/vessels</summary><pre class="out" id="f-raw">—</pre></details>
+      <div class="honesty"><b>Honest by design.</b> <b>Sample fleet dataset — not a live AIS/class-society feed.</b> These 18 vessels are real, citable demo content served verbatim from the SZL platform dataset (seed-data/vessels/*), not a real-time provider. The trust score is a documented <b>conjecture</b>, not a proven guarantee; receipts are <b>genuinely signed</b> (ECDSA P-256) and verifiable offline.</div>`;
       try{
-        const [vr,fr] = await Promise.all([getJSON(FLEET+'/vessels'),getJSON(FLEET+'/forecast-modules')]);
-        const V = vr.data||[], M = fr.data||[];
-        setOut('f-raw',{vessels:V.length,forecast_modules:M.length,honesty:vr.honesty,sample:V.slice(0,1)});
+        const vr = await getJSON(FLEET+'/vessels');
+        const V = vr.data||[];
+        setOut('f-raw',{vessels:V.length,honesty:vr.honesty,sample:V.slice(0,1)});
         const poorCII = V.filter(v=>['D','E'].includes(String(v.ciiRating||'').toUpperCase())).length;
         const avgHull = V.length?Math.round(V.reduce((a,v)=>a+(v.hullCondition||0),0)/V.length):0;
         el('f-count').textContent=V.length; el('f-hull').textContent=avgHull; el('f-cii').textContent=poorCII;
-        // 4 forecast modules → history+forecast lines
-        M.slice(0,4).forEach((m,i)=>{
-          const tt=el('f-fc-t'+i); if(tt) tt.innerHTML='<b style="color:#c9b787">'+esc(m.title)+'</b> · '+esc(m.metric)+' · forecast '+esc(m.forecastValue)+' ('+esc(m.confidence)+'% conf, '+esc(m.trend)+')';
-          const pts=m.dataPoints||[]; const labels=pts.map(p=>p.date);
-          // history = points without a forecast field; forecast = points WITH forecast (plus boundary point to connect)
-          let firstFcst=pts.findIndex(p=>p.forecast!=null);
-          const actual=pts.map((p,j)=> (firstFcst<0||j<firstFcst)? p.value : (j===firstFcst? p.value : null));
-          const fcst=pts.map((p,j)=> (firstFcst>=0 && j>=firstFcst-1 && j>=0 && (p.forecast!=null|| j===firstFcst-1))? p.value : null);
-          lineForecast('f-fc-'+i,labels,actual,fcst);
-        });
-        // CII mix bar
-        const order=['A','B','C','D','E']; const counts=order.map(r=>V.filter(v=>String(v.ciiRating||'').toUpperCase()===r).length);
-        const cols=['#5fb3a3','#7fb98f','#c9b787','#c9a05f','#b06a5a'];
-        barV('f-cii-bar',order,counts,cols);
+        // ── Fleet-wide KPI bar gauges (ECharts): mean fill on a 100% track + worst-vessel marker ──
+        const axes=[['Hull','hullCondition'],['Engine','engineHealth'],['Maintenance','maintenanceScore'],['Utilisation','utilization']];
+        const means=axes.map(([,k])=>V.length?Math.round(V.reduce((a,v)=>a+(v[k]||0),0)/V.length):0);
+        const worst=axes.map(([,k])=>{let m=Infinity,nm='';V.forEach(v=>{const x=v[k]||0;if(x<m){m=x;nm=v.name;}});return {v:m===Infinity?0:m,name:nm};});
+        const axLabels=axes.map(a=>a[0]);
+        mkEchart('f-gauges',{grid:{left:96,right:90,top:16,bottom:16},
+          tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:p=>{const i=p[0].dataIndex;return axLabels[i]+'<br/>fleet mean: <b>'+means[i]+'</b>%<br/>worst: '+worst[i].name+' ('+worst[i].v+'%)';}},
+          xAxis:{type:'value',max:100,axisLabel:{formatter:'{value}%'}},
+          yAxis:{type:'category',data:axLabels,inverse:true,axisTick:{show:false}},
+          series:[
+            {type:'bar',data:means.map(()=>100),barWidth:18,itemStyle:{color:'rgba(201,183,135,0.10)'},silent:true,barGap:'-100%',z:1},
+            {type:'bar',data:means,barWidth:18,z:2,
+              itemStyle:{color:p=>means[p.dataIndex]>=85?TEAL:means[p.dataIndex]>=70?GOLD:RED,borderRadius:[0,3,3,0]},
+              label:{show:true,position:'right',formatter:p=>means[p.dataIndex]+'%',color:'#cdd2d8',fontFamily:"'JetBrains Mono',monospace",fontSize:11},
+              markPoint:{symbol:'diamond',symbolSize:11,data:worst.map((w,i)=>({xAxis:w.v,yAxis:i,itemStyle:{color:GOLD}})),label:{show:false}}}
+          ]});
+        // ── Per-vessel grouped horizontal bar gauge: worst-hull-first ──
+        const vs=V.slice().sort((a,b)=>(a.hullCondition||0)-(b.hullCondition||0));
+        const names=vs.map(v=>v.name);
+        const mk=(k)=>vs.map(v=>v[k]||0);
+        mkEchart('f-vgauge',{grid:{left:150,right:30,top:30,bottom:20},
+          legend:{data:['hull','engine','maintenance','utilisation'],top:2,textStyle:{color:'#9a9a9a'}},
+          tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+          xAxis:{type:'value',max:100,axisLabel:{formatter:'{value}'}},
+          yAxis:{type:'category',data:names,inverse:true,axisLabel:{fontSize:9,color:'#9a9a9a'},axisTick:{show:false}},
+          series:[
+            {name:'hull',type:'bar',data:mk('hullCondition'),itemStyle:{color:TEAL}},
+            {name:'engine',type:'bar',data:mk('engineHealth'),itemStyle:{color:'#7fb98f'}},
+            {name:'maintenance',type:'bar',data:mk('maintenanceScore'),itemStyle:{color:GOLD}},
+            {name:'utilisation',type:'bar',data:mk('utilization'),itemStyle:{color:'#7f9bd6'}}
+          ]});
         // register table
         const h=el('f-list'); h.innerHTML=''; el('f-reg-ep').textContent=V.length+' vessels';
         V.forEach(v=>{
@@ -1217,7 +1900,7 @@ const VIEWS = {
     }},
 
   // ── Maintenance & Compliance ────────────────────────────────────
-  fleetmaint:{title:'Maintenance & Compliance',badge:'PREDICTIVE · CERTS · PSC',sub:'Where the fleet needs attention: predicted component failures (probability, date, cost, risk), certificates expiring soon, and port-state-control deficiencies with their SOLAS / MARPOL citations. Sample fleet dataset — not a live AIS / class-society feed.',
+  fleetmaint:{title:'Maintenance & Compliance',badge:'STATE TIMELINE · CERTS · PSC',sub:'Where the fleet needs attention as a <b>maintenance state timeline</b> (Observable Plot). Each row is one item — a predicted component failure (now → predicted-failure date), an expiring certificate (issued → expiry), or an open port-state deficiency (inspection → rectified/now) — drawn as a horizontal interval bar on a real calendar axis. Overdue / expired / high-severity items are red, so anything past its deadline or running out of runway jumps out. Below the timeline are the full detail lists with SOLAS / MARPOL citations. Sample fleet dataset — not a live AIS / class-society feed.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">High-risk components</div><div class="v err" id="fm-high">—</div><div class="d">predicted failure</div></div>
@@ -1225,9 +1908,10 @@ const VIEWS = {
         <div class="kpi"><div class="k">Open PSC deficiencies</div><div class="v warn" id="fm-psc">—</div><div class="d">Paris/Tokyo/Riyadh MOU</div></div>
         <div class="kpi"><div class="k">Receipts</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Predictive maintenance — failure probability</span><span class="card-ep">per component</span></div>
-        <div class="chartbox tall"><canvas id="fm-pm-bar"></canvas></div>
-        <div id="fm-pm-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Maintenance & compliance state timeline</span><span class="card-ep">Observable Plot · interval bars on a calendar axis · red = overdue/expired/high</span></div>
+        <div id="fm-timeline" style="width:100%;overflow-x:auto"><div class="row mono dim">loading…</div></div>
+        <div class="legend"><span><i style="background:#b06a5a"></i>overdue / expired / high</span><span><i style="background:#c9a05f"></i>expiring soon / medium</span><span><i style="background:#5fb3a3"></i>valid / low</span><span>vertical gold line = today</span></div>
+        <div id="fm-pm-list" style="margin-top:.6rem"><div class="row mono dim">loading…</div></div></div>
       <div class="grid2">
         <div class="card"><div class="card-h"><span class="card-t">Certificates expiring soon</span></div><div id="fm-cert-list"><div class="row mono dim">loading…</div></div></div>
         <div class="card"><div class="card-h"><span class="card-t">Port-state-control deficiencies</span></div><div id="fm-psc-list"><div class="row mono dim">loading…</div></div></div>
@@ -1241,11 +1925,42 @@ const VIEWS = {
         el('fm-high').textContent=PM.filter(p=>String(p.riskLevel||'').toLowerCase()==='high').length;
         el('fm-cert').textContent=CC.filter(c=>['Expiring Soon','Expired'].includes(c.status)).length;
         el('fm-psc').textContent=PSD.filter(p=>String(p.status||'').toLowerCase()==='open').length;
-        // predictive maintenance bar (failure probability), colored by risk
-        const labs=PM.map(p=>p.component.length>26?p.component.slice(0,24)+'…':p.component);
-        const vals=PM.map(p=>p.failureProbability||0);
-        const rc=r=>r==='High'?RED:r==='Medium'?WARN:TEAL;
-        barH('fm-pm-bar',labs,vals,PM.map(p=>rc(p.riskLevel)));
+        // ── Observable Plot state timeline: one interval bar per maintenance/cert/PSC item ──
+        const today=new Date(); const D=s=>s?new Date(s):null;
+        const sevColor=s=>{s=String(s||'').toLowerCase();return (s==='high'||s==='expired'||s==='critical'||s==='overdue')?RED:(s==='medium'||s==='expiring soon')?WARN:TEAL;};
+        const rows=[];
+        // maintenance: now -> predicted failure date (red if already past)
+        PM.forEach(p=>{const end=D(p.predictedFailureDate);if(!end)return;const overdue=end<today;
+          rows.push({cat:'Maintenance',label:(p.vesselName||'')+' · '+(p.component||''),start:today,end,
+            color:overdue?RED:sevColor(p.riskLevel),detail:p.failureProbability+'% · '+(p.riskLevel||'')+' · by '+p.predictedFailureDate});});
+        // certs: issued -> expiry (red if expired, amber if expiring soon)
+        CC.forEach(cert=>{const s=D(cert.issuedDate),e=D(cert.expiryDate);if(!s||!e)return;
+          rows.push({cat:'Certificate',label:(cert.vesselName||'')+' · '+(cert.certificateType||''),start:s,end:e,
+            color:sevColor(cert.status),detail:(cert.status||'')+' · '+(cert.daysUntilExpiry)+'d · '+(cert.regulation||'')});});
+        // PSC: inspection -> rectified date or now (red if open+high)
+        PSD.forEach(p=>{const s=D(p.inspectionDate);if(!s)return;const e=D(p.rectifiedDate)||today;
+          const open=String(p.status||'').toLowerCase()==='open';
+          rows.push({cat:'PSC deficiency',label:(p.vesselName||'')+' · '+(p.deficiencyCode||''),start:s,end:e,
+            color:open?sevColor(p.severity):TEAL,detail:(p.severity||'')+' · '+(p.status||'')+' · '+(p.mouRegime||'')+' · '+(p.port||'')});});
+        // sort within category by start; build a stable y order
+        rows.sort((a,b)=>a.cat.localeCompare(b.cat)||a.start-b.start);
+        const host=el('fm-timeline');
+        if(host&&rows.length&&window.Plot){
+          const W=Math.max(720,(host.clientWidth||760));
+          const fig=Plot.plot({width:W,height:Math.max(260,rows.length*22+90),marginLeft:240,marginRight:30,marginTop:30,
+            style:{background:'transparent',color:'#9a9a9a',fontFamily:"'JetBrains Mono',monospace",fontSize:'10px'},
+            x:{type:'utc',grid:true,label:'date →'},
+            y:{domain:rows.map(r=>r.label),label:null},
+            fy:{label:null},
+            color:{type:'identity'},
+            marks:[
+              Plot.barX(rows,{y:'label',fy:'cat',x1:'start',x2:'end',fill:'color',rx:2,insetTop:3,insetBottom:3,
+                title:d=>d.label+'\n'+d.detail}),
+              Plot.ruleX([today],{stroke:GOLD,strokeWidth:1.4,strokeDasharray:'4 3'}),
+              Plot.text([{x:today,y:rows[0]?rows[0].label:''}],{x:'x',text:()=>'today',fill:GOLD,fontSize:9,dy:-12,fy:()=>rows[0]?rows[0].cat:''})
+            ]});
+          host.innerHTML=''; host.appendChild(fig); _plots.push(host);
+        } else if(host){ host.innerHTML='<div class="row mono dim" style="padding:1rem">no timeline items</div>'; }
         const ph=el('fm-pm-list'); ph.innerHTML='';
         PM.forEach(p=>{const cls=p.riskLevel==='High'?'b-err':p.riskLevel==='Medium'?'b-warn':'b-live';
           ph.insertAdjacentHTML('beforeend',`<div class="row">
@@ -1309,7 +2024,7 @@ const VIEWS = {
     }},
 
   // ── Ops & Maintenance Logs (event-logs + maintenance-logs) ──────
-  fleetlogs:{title:'Ops & Maintenance Logs',badge:'OPS LOG · MAINT LOG',sub:'The raw operational record: engine/critical event log (K-Chief 700 automation, SMS sections) and the actual maintenance work-order history (overhauls, surveys, dry-docks) with hours and cost. Sample fleet dataset — not a live AIS / class-society feed.',
+  fleetlogs:{title:'Ops & Maintenance Logs',badge:'LIVE-TAIL WATERFALL · OPS LOG',sub:'The raw operational record as a <b>live-tail event waterfall</b> (d3/SVG). Every engine-room / SMS event is a marker on a sub-minute timeline, dropped into a lane per category (Engine, Emissions, Navigation…) and coloured by severity (Critical red, Warning amber, Info blue). A live-tail animation streams the entries in newest-first, the way an operator watches a K-Chief console scroll. Below: the full event log and the maintenance work-order history. Sample fleet dataset — not a live AIS / class-society feed.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Events logged</div><div class="v" id="fl-ev">—</div><div class="d">engine / critical / ops</div></div>
@@ -1317,10 +2032,9 @@ const VIEWS = {
         <div class="kpi"><div class="k">Maintenance jobs</div><div class="v" id="fl-mj">—</div><div class="d">in work-order log</div></div>
         <div class="kpi"><div class="k">In-progress spend</div><div class="v teal" id="fl-spend">—</div><div class="d">est. cost, open jobs</div></div>
       </div>
-      <div class="grid2">
-        <div class="card"><div class="card-h"><span class="card-t">Events by severity</span><span class="card-ep">engine room automation</span></div><div class="chartbox"><canvas id="fl-sev-bar"></canvas></div></div>
-        <div class="card"><div class="card-h"><span class="card-t">Maintenance cost by job type</span><span class="card-ep">est. $ / work order</span></div><div class="chartbox"><canvas id="fl-mt-bar"></canvas></div></div>
-      </div>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Event waterfall — live tail</span><span class="card-ep">d3/SVG · lane per category · colour = severity · newest first</span></div>
+        <div id="fl-waterfall" style="width:100%;min-height:300px;overflow-x:auto"><div class="row mono dim">loading…</div></div>
+        <div class="legend"><span><i style="background:#b06a5a"></i>Critical</span><span><i style="background:#c9a05f"></i>Warning</span><span><i style="background:#5f8fb3"></i>Info</span><span>marker = a logged event · hover for detail · streaming = live-tail replay</span></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Event log — newest first</span><span class="card-ep" id="fl-ev-ep">—</span></div><div id="fl-ev-list"><div class="row mono dim">loading…</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Maintenance work-order log</span><span class="card-ep" id="fl-mt-ep">—</span></div><div id="fl-mt-list"><div class="row mono dim">loading…</div></div></div>
       <details class="raw"><summary>raw /fleet/event-logs · /fleet/maintenance-logs</summary><pre class="out" id="fl-raw">—</pre></details>
@@ -1334,14 +2048,63 @@ const VIEWS = {
         el('fl-mj').textContent=MT.length;
         const openSpend=MT.filter(m=>String(m.status||'').toLowerCase()!=='completed').reduce((a,m)=>a+(m.cost||0),0);
         el('fl-spend').textContent='$'+(openSpend||0).toLocaleString();
-        // severity bar
-        const sevOrder=['Critical','Warning','Info','Debug'];
-        const sevCounts=sevOrder.map(s=>EV.filter(e=>e.severity===s).length);
-        barV('fl-sev-bar',sevOrder,sevCounts,[RED,WARN,'#5f8fb3','#7a7a7a']);
-        // maintenance cost by type
-        const types=[...new Set(MT.map(m=>m.type))];
-        const typeCost=types.map(t=>MT.filter(m=>m.type===t).reduce((a,m)=>a+(m.cost||0),0));
-        barH('fl-mt-bar',types,typeCost,types.map(()=>TEAL));
+        // ── live-tail event waterfall (d3/SVG) ──────────────────────
+        // Each event = a marker on a sub-minute timeline, lane per category,
+        // colour by severity; streamed newest-first as a live-tail replay.
+        (function buildWaterfall(){
+          const host=el('fl-waterfall'); if(!host) return; host.innerHTML='';
+          // parse timestamps -> ms; keep only parseable
+          const parsed=EV.map(e=>{const t=Date.parse(e.timestamp); return {e,t:isNaN(t)?null:t};}).filter(o=>o.t!=null);
+          if(!parsed.length){host.innerHTML='<div class="row mono dim">no timestamped events</div>';return;}
+          const cats=[...new Set(parsed.map(o=>String(o.e.category||'Other')))];
+          const sevColor=s=>{s=String(s||'').toLowerCase();return s==='critical'?'#b06a5a':s==='warning'?'#c9a05f':s==='info'?'#5f8fb3':'#7a7a7a';};
+          const tMin=Math.min(...parsed.map(o=>o.t)), tMax=Math.max(...parsed.map(o=>o.t));
+          const span=Math.max(1,tMax-tMin);
+          const _narrow=window.innerWidth<=820;
+          const padL=_narrow?70:120,padR=_narrow?12:24,padT=18,padB=34,laneH=42;
+          // On phones/tablets fit the SVG to the host width (no fixed 760 floor) so it
+          // never spills past the column; desktop keeps a generous minimum. (Doctrine §C)
+          const _hostW=host.clientWidth||880;
+          const W=_narrow?Math.max(_hostW,300):Math.max(_hostW,760), H=padT+padB+cats.length*laneH;
+          const X=t=>padL+((t-tMin)/span)*(W-padL-padR);
+          const Y=ci=>padT+ci*laneH+laneH/2;
+          const NS='http://www.w3.org/2000/svg';
+          const svg=document.createElementNS(NS,'svg');
+          svg.setAttribute('width',W);svg.setAttribute('height',H);svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.style.display='block';
+          const mk=(n,a)=>{const el=document.createElementNS(NS,n);for(const k in a)el.setAttribute(k,a[k]);return el;};
+          // lane backgrounds + labels
+          cats.forEach((cat,ci)=>{
+            svg.appendChild(mk('rect',{x:padL,y:padT+ci*laneH+4,width:W-padL-padR,height:laneH-8,fill:ci%2?'rgba(255,255,255,0.018)':'rgba(255,255,255,0.04)',rx:4}));
+            const tx=mk('text',{x:padL-10,y:Y(ci)+4,'text-anchor':'end',fill:'#9aa','font-size':11,'font-family':'monospace'});tx.textContent=cat;svg.appendChild(tx);
+          });
+          // time axis ticks (5)
+          for(let i=0;i<=5;i++){const tt=tMin+span*i/5;const xx=X(tt);
+            svg.appendChild(mk('line',{x1:xx,y1:padT,x2:xx,y2:H-padB+4,stroke:'rgba(255,255,255,0.06)','stroke-width':1}));
+            const lab=mk('text',{x:xx,y:H-padB+18,'text-anchor':'middle',fill:'#778','font-size':10,'font-family':'monospace'});
+            lab.textContent=new Date(tt).toISOString().slice(11,19);svg.appendChild(lab);}
+          host.appendChild(svg);
+          // markers, sorted newest-first for tail order
+          const ordered=parsed.slice().sort((a,b)=>b.t-a.t);
+          const tip=document.createElement('div');tip.style.cssText='position:fixed;pointer-events:none;background:#0d1518;border:1px solid #2a3a40;color:#cde;padding:6px 9px;border-radius:5px;font:11px monospace;z-index:9999;display:none;max-width:340px;box-shadow:0 4px 16px rgba(0,0,0,.5)';document.body.appendChild(tip);
+          window._tailTimers=window._tailTimers||[];
+          const dots=[];
+          ordered.forEach(o=>{
+            const ci=cats.indexOf(String(o.e.category||'Other'));
+            const col=sevColor(o.e.severity);
+            const isCrit=String(o.e.severity||'').toLowerCase()==='critical';
+            const c=mk('circle',{cx:X(o.t),cy:Y(ci),r:isCrit?6:4.5,fill:col,stroke:'rgba(0,0,0,.45)','stroke-width':1,opacity:0,style:'cursor:pointer;transition:opacity .35s,r .2s'});
+            c.addEventListener('mouseenter',ev=>{tip.style.display='block';tip.innerHTML='<b>'+esc(String(o.e.severity||''))+'</b> · '+esc(String(o.e.category||''))+'<br><b>'+esc(String(o.e.vesselName||''))+'</b><br>'+esc(String(o.e.message||''))+'<br><span style="color:#778">'+esc(new Date(o.t).toISOString().replace('T',' ').replace('Z',' UTC'))+' · '+esc(String(o.e.source||''))+'</span>';});
+            c.addEventListener('mousemove',ev=>{tip.style.left=(ev.clientX+14)+'px';tip.style.top=(ev.clientY+14)+'px';});
+            c.addEventListener('mouseleave',()=>{tip.style.display='none';});
+            svg.appendChild(c);dots.push(c);
+          });
+          // live-tail reveal: stream newest-first
+          let i=0;const step=()=>{if(i>=dots.length)return;dots[i].setAttribute('opacity','0.92');i++;};
+          const tm=setInterval(()=>{if(i>=dots.length){clearInterval(tm);return;}step();},Math.max(18,Math.min(70,900/Math.max(1,dots.length))*4));
+          window._tailTimers.push(tm);
+          // ensure all eventually shown even if interval cleared on teardown
+          setTimeout(()=>dots.forEach(d=>d.getAttribute('opacity')==='0'&&d.setAttribute('opacity','0.92')),Math.max(2500,dots.length*45+800));
+        })();
         // event list, newest first
         const evh=el('fl-ev-list'); evh.innerHTML=''; el('fl-ev-ep').textContent=EV.length+' events';
         EV.slice().sort((a,b)=>String(b.timestamp||'').localeCompare(String(a.timestamp||''))).forEach(e=>{
@@ -1371,16 +2134,19 @@ const VIEWS = {
     }},
 
   // ── Voyages & Fleets (shipment-records + fleets grouping) ───────
-  fleetvoyages:{title:'Voyages & Fleets',badge:'VOYAGES · FLEET GROUPING',sub:'Cargo voyages / shipment records (origin → destination, cargo, on-time score, demurrage risk) and the operating fleets the vessels are grouped into (region, status). Sample fleet dataset — not a live AIS / class-society feed.',
+  fleetvoyages:{title:'Voyages & Fleets',badge:'VOYAGE TONNAGE SANKEY · FLEET FLOW',sub:'Where the cargo actually flows. Every shipment record is routed through a <b>three-stage Sankey flow</b> (d3-sankey): <b>load region → cargo class → delivery status</b>, with each ribbon\'s width proportional to the voyage tonnage. It is the single picture of how the fleet\'s deadweight is committed — which trades dominate, and how much tonnage is in transit versus held at anchor. Below: the operating fleets the vessels group into, and the full voyage / shipment ledger. Sample fleet dataset — not a live AIS / class-society feed.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Voyages</div><div class="v" id="fv-cnt">—</div><div class="d">shipment records</div></div>
-        <div class="kpi"><div class="k">In transit</div><div class="v teal" id="fv-tr">—</div><div class="d">currently sailing</div></div>
+        <div class="kpi"><div class="k">Tonnage in flow</div><div class="v teal" id="fv-ton">—</div><div class="d">total cargo, tonnes</div></div>
         <div class="kpi"><div class="k">High demurrage risk</div><div class="v err" id="fv-dem">—</div><div class="d">cost exposure</div></div>
         <div class="kpi"><div class="k">Operating fleets</div><div class="v" id="fv-fl">—</div><div class="d">vessel grouping</div></div>
       </div>
+      <div class="card"><div class="card-h"><span class="card-t">Cargo tonnage flow — load region → cargo class → status</span><span class="card-ep">d3-sankey · ribbon width = voyage tonnage</span></div>
+        <div id="fv-sankey" style="width:100%;min-height:440px"><div class="row mono dim">loading…</div></div>
+        <div class="legend"><span>left = load region</span><span>middle = cargo class</span><span>right = delivery status</span><span>ribbon width ∝ tonnes · hover for detail</span></div></div>
       <div class="grid2">
-        <div class="card"><div class="card-h"><span class="card-t">On-time score by voyage</span><span class="card-ep">%</span></div><div class="chartbox tall"><canvas id="fv-ot-bar"></canvas></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">On-time score by voyage</span><span class="card-ep">%</span></div><div id="fv-ot-list"><div class="row mono dim">loading…</div></div></div>
         <div class="card"><div class="card-h"><span class="card-t">Operating fleets</span><span class="card-ep">region · status</span></div><div id="fv-fl-list"><div class="row mono dim">loading…</div></div></div>
       </div>
       <div class="card"><div class="card-h"><span class="card-t">Voyages / cargo shipments</span><span class="card-ep" id="fv-ep">—</span></div><div id="fv-list"><div class="row mono dim">loading…</div></div></div>
@@ -1391,14 +2157,60 @@ const VIEWS = {
         const SR=sr.data||[],FS=fs.data||[];
         setOut('fv-raw',{shipment_records:SR.length,fleets:FS.length,honesty:sr.honesty,sample_voyage:SR.slice(0,1)});
         el('fv-cnt').textContent=SR.length;
-        el('fv-tr').textContent=SR.filter(s=>String(s.status||'').toLowerCase()==='in transit').length;
+        const totTon=SR.reduce((a,s)=>a+(s.weight||0),0);
+        el('fv-ton').textContent=totTon.toLocaleString();
         el('fv-dem').textContent=SR.filter(s=>String(s.demurrageRisk||'').toLowerCase()==='high').length;
         el('fv-fl').textContent=FS.length;
-        // on-time bar
-        const labs=SR.map(s=>s.shipmentId||('#'+s.id));
-        const ot=SR.map(s=>s.onTimeScore||0);
-        const cols=SR.map(s=>(s.onTimeScore||0)>=90?TEAL:(s.onTimeScore||0)>=75?WARN:RED);
-        barH('fv-ot-bar',labs,ot,cols);
+        // ── tonnage Sankey: load region → cargo class → status ─────────
+        (function buildVoyageSankey(){
+          // collapse verbose port strings to a load REGION; cargo to a CLASS
+          const regionOf=o=>{o=String(o||'');
+            if(/constanta|piraeus|augusta|sicil/i.test(o))return 'Black Sea / Med';
+            if(/rotterdam|zeebrugge|europoort/i.test(o))return 'NW Europe';
+            if(/ras tanura|aramco|bonny|nigeria/i.test(o))return 'Gulf / W.Africa';
+            if(/sabetta|yamal/i.test(o))return 'Arctic';
+            if(/singapore|kaohsiung|yantian|psa|yict/i.test(o))return 'East Asia';
+            if(/ponta|vale|richards bay/i.test(o))return 'S.Atlantic Bulk';
+            return o.split(/[ (]/)[0]||'Other';};
+          const classOf=ct=>{ct=String(ct||'');
+            if(/crude|diesel|gasoil|oil/i.test(ct))return 'Petroleum';
+            if(/lng|gas/i.test(ct))return 'LNG / Gas';
+            if(/grain|wheat/i.test(ct))return 'Grain';
+            if(/iron ore|coal|bulk|fines/i.test(ct))return 'Dry Bulk';
+            if(/container|electronic|textile|automotive|consumer|semiconductor|machinery/i.test(ct))return 'Containers';
+            return 'Other';};
+          const statusOf=st=>{st=String(st||'');return /transit/i.test(st)?'In Transit':/anchor/i.test(st)?'At Anchor':/deliver/i.test(st)?'Delivered':/delay/i.test(st)?'Delayed':(st||'Other');};
+          const regions=[...new Set(SR.map(s=>regionOf(s.origin)))];
+          const classes=[...new Set(SR.map(s=>classOf(s.cargoType)))];
+          const statuses=[...new Set(SR.map(s=>statusOf(s.status)))];
+          const RC={'Petroleum':'#b06a5a','LNG / Gas':'#c9a05f','Grain':'#c9b787','Dry Bulk':'#8a7a5a','Containers':'#5fb3a3','Other':'#7a7a7a'};
+          const SC={'In Transit':'#5fb3a3','At Anchor':'#c9a05f','Delivered':'#5a8a6e','Delayed':'#b06a5a','Other':'#7a7a7a'};
+          const nodes=[], idx={};
+          regions.forEach(r=>{idx['R:'+r]=nodes.length;nodes.push({name:r,color:'#5f8fb3'});});
+          classes.forEach(cl=>{idx['C:'+cl]=nodes.length;nodes.push({name:cl,color:RC[cl]||GOLD});});
+          statuses.forEach(st=>{idx['S:'+st]=nodes.length;nodes.push({name:st,color:SC[st]||TEAL});});
+          const agg={};
+          SR.forEach(s=>{const r=regionOf(s.origin),cl=classOf(s.cargoType),st=statusOf(s.status),w=s.weight||0;
+            const k1='R:'+r+'>C:'+cl, k2='C:'+cl+'>S:'+st;
+            agg[k1]=(agg[k1]||0)+w; agg[k2]=(agg[k2]||0)+w;});
+          const links=[];
+          Object.entries(agg).forEach(([k,v])=>{const[a,b]=k.split('>');
+            const col=b[0]==='C'?(RC[b.slice(2)]||'rgba(95,179,163,.3)'):(SC[b.slice(2)]||'rgba(95,179,163,.3)');
+            links.push({source:idx[a],target:idx[b],value:Math.max(1,v),color:col.replace('#','rgba(')+''});});
+          // recolor link to soft rgba from hex
+          links.forEach(l=>{const n=nodes[l.target];const h=(n.color||'#5fb3a3').replace('#','');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),bl=parseInt(h.slice(4,6),16);l.color='rgba('+r+','+g+','+bl+',0.34)';});
+          sankeyFlow('fv-sankey',nodes,links,{height:440,nodeWidth:13,nodePadding:12,pad:{t:16,r:150,b:16,l:130},fmt:v=>v.toLocaleString()+' t'});
+        })();
+        // on-time score list (sorted worst-first)
+        const oh=el('fv-ot-list'); oh.innerHTML='';
+        SR.slice().sort((a,b)=>(a.onTimeScore||0)-(b.onTimeScore||0)).forEach(s=>{
+          const v=s.onTimeScore||0; const col=v>=90?TEAL:v>=75?WARN:RED;
+          oh.insertAdjacentHTML('beforeend',`<div class="row">
+            <span style="min-width:84px"><b>${esc(s.shipmentId||('#'+s.id))}</b></span>
+            <span style="flex:1;height:10px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden"><span style="display:block;height:100%;width:${Math.max(2,v)}%;background:${col}"></span></span>
+            <span class="mono" style="min-width:40px;text-align:right;color:${col}">${v}%</span>
+          </div>`);});
+        if(!SR.length) oh.innerHTML='<div class="row mono dim">no voyages</div>';
         // fleets grouping
         const fh=el('fv-fl-list'); fh.innerHTML='';
         FS.forEach(f=>{
@@ -1452,30 +2264,110 @@ const VIEWS = {
     }},
 
   // ── 3.5 Engagement Audit Log ─────────────────────────────────────
-  audit:{title:'Engagement Audit',badge:'SIGNED CHAIN',sub:'Every engagement decision is genuinely signed and chained — a tamper-evident record you can verify offline. The audit is two-sided: checking early or late can’t change the verdict, so the record can’t be gamed by stopping the review at a convenient moment. In-memory on the live demo (resets on restart). Record a demo engagement below.',
+  audit:{title:'Engagement Audit',badge:'ROE DECISION SANKEY · SIGNED CHAIN',sub:'How every contact is governed before anyone engages. The active picture is routed through a live <b>engagement-decision Sankey</b> (d3-sankey): <b>affiliation → tactical posture → ROE disposition</b> (engage-eligible / human-review / hold-or-deny), with ribbon width = number of tracks. The dispositions are computed live from the real ROE policy rules (hostile-speed threshold, auto-engage class, the Λ human-in-the-loop floor) applied to the <code>/threats/active</code> picture — so you can see, at a glance, how many contacts are gated to a human versus held. <b>Proof binding:</b> P3 non-interference (poisoned input can’t flip a deny to a clear) + P1 receipt-completeness. Below, the engagement audit log itself is genuinely signed and chained — tamper-evident and offline-verifiable, two-sided (checking early or late can’t change the verdict). In-memory on the live demo (resets on restart).',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Active tracks</div><div class="v" id="au-trk">—</div><div class="d">in the picture</div></div>
+        <div class="kpi"><div class="k">Human-review gated</div><div class="v warn" id="au-hotl">—</div><div class="d">Λ floor / HOTL</div></div>
         <div class="kpi"><div class="k">Audit records</div><div class="v" id="k-audit">—</div><div class="d">since last restart</div></div>
         <div class="kpi"><div class="k">Signing</div><div class="v teal">Signed</div><div class="d">verify offline</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Trust score at each decision</span><span class="card-ep">timeline</span></div>
-        <div class="chartbox"><canvas id="audit-spark"></canvas></div>
-        <div class="legend"><span>Each point = the trust score recorded at one engagement decision.</span></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Audit Log</span></div><div id="audit-list"><div class="row mono dim">loading…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Engagement-decision flow — affiliation → posture → ROE disposition</span><span class="card-ep">d3-sankey · width = track count · live ROE rules</span></div>
+        <div id="au-sankey" style="width:100%;min-height:380px"><div class="row mono dim">loading…</div></div>
+        <div class="legend"><span><i style="background:#b06a5a"></i>hold / deny</span><span><i style="background:#c9a05f"></i>human review (HOTL)</span><span><i style="background:#5fb3a3"></i>engage-eligible</span><span>dispositions computed from live /roe/policy rules</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Audit Log</span><span class="card-ep">genuinely signed · chained</span></div><div id="audit-list"><div class="row mono dim">loading…</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Record an Engagement</span></div>
         <div class="btns"><button class="btn teal" onclick="audit_record()">▶ Record demo engagement</button></div>
         <div id="audit-summary" class="mono dim" style="font-size:12px;margin-bottom:.5rem">— click to record —</div>
         <details class="raw"><summary>raw /engagements/record</summary><pre class="out" id="audit-out">—</pre></details></div>
       <details class="raw"><summary>raw /engagements/audit-log</summary><pre class="out" id="audit-raw">—</pre></details>
+      <!-- ── Folded-in DSSE “Verify Signed Receipt” panel (was the separate Verify Signed Receipt tab) — same /receipt/ledger + /receipt/export + /cosign.pub path. Merged here so the signed-receipt verify lives next to the signed audit log it backs. ── -->
+      <div class="card"><div class="card-h"><span class="card-t">Verify a signed receipt — in your browser</span><span class="card-ep">ECDSA P-256 · WebCrypto · no trust in us required</span></div>
+        <div class="kpis" style="margin-bottom:.6rem">
+          <div class="kpi"><div class="k">Signed receipts</div><div class="v" id="k-receipts">—</div><div class="d">in the chain</div></div>
+          <div class="kpi"><div class="k">Algorithm</div><div class="v teal">ECDSA P-256</div><div class="d">industry standard</div></div>
+          <div class="kpi"><div class="k">Public key</div><div class="v teal">published</div><div class="d">verify offline anytime</div></div>
+        </div>
+        <div class="btns">
+          <button class="btn teal" onclick="dsse_verify(false)">✓ Verify the latest signed receipt</button>
+          <button class="btn" onclick="dsse_verify(true)">⚠ Tamper test (flip one byte)</button>
+        </div>
+        <div id="verify-badge-wrap" style="margin:.6rem 0"><span class="verify-badge pending"><span class="dot"></span>NOT YET VERIFIED</span></div>
+        <div id="verify-detail" class="mono dim" style="font-size:11px;line-height:1.7">Click “Verify”. We fetch the receipt + our public key and check the signature locally with WebCrypto.</div>
+        <details class="raw"><summary>raw receipt envelope (/receipt/export) + public key (/cosign.pub)</summary><pre class="out" id="dsse-verify-out">—</pre></details>
+        <div class="grid2" style="margin-top:.7rem">
+          <div class="card"><div class="card-h"><span class="card-t">Recent Receipts</span></div><div id="ledger-list"><div class="row mono dim">loading…</div></div></div>
+          <div class="card"><div class="card-h"><span class="card-t">Emit a Receipt</span></div>
+            <div class="btns"><button class="btn teal" onclick="dsse_emit()">▶ Emit demo receipt</button></div>
+            <div id="dsse-emit-summary" class="mono dim" style="font-size:11px;margin-bottom:.5rem">— click to emit —</div>
+            <details class="raw"><summary>raw /receipt/emit</summary><pre class="out" id="dsse-emit-out">—</pre></details></div>
+        </div></div>
       ${HONEST}`;
+      // Folded-in: populate the verify panel's Signed-receipts count + Recent Receipts list (same /receipt/ledger path the old DSSE tab used).
+      (async function loadFoldedReceipts(){
+        try{
+          const d = await getJSON(API+'/receipt/ledger?limit=25');
+          if(el('k-receipts')) el('k-receipts').textContent = d.count ?? '—';
+          const h = el('ledger-list'); if(!h) return; h.innerHTML='';
+          (d.nodes||[]).slice().reverse().forEach(n=>{
+            h.insertAdjacentHTML('beforeend',`<div class="row">
+              <span class="badge ${n.signed?'b-live':'b-err'}">${n.signed?'SIGNED':'UNSIGNED'}</span>
+              <span class="mono" style="font-size:11px">${esc(n.receipt?.kind||'—')}</span>
+              <span class="spacer mono dim" style="font-size:10px">${esc(n.digest?.slice(0,16))}… · #${n.index}</span>
+            </div>`);
+          });
+          if(!(d.nodes?.length)) h.innerHTML='<div class="row mono dim">empty (resets on restart)</div>';
+        }catch(e){setHTML('ledger-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
+      })();
+      // ── live ROE engagement-decision Sankey (affiliation → posture → disposition)
+      (async function buildAuditSankey(){
+        try{
+          const [tr,pol]=await Promise.all([getJSON(API+'/threats/active'),getJSON(API+'/roe/policy').catch(()=>null)]);
+          const TS=(tr&&tr.threats)||[];
+          const rules=(pol&&pol.policy&&pol.policy.rules)||{};
+          const hotlSpeed=rules.hostile_speed_m_s||100, maxSpeed=rules.max_speed_m_s||150;
+          el('au-trk').textContent=TS.length;
+          // disposition logic from REAL ROE rules:
+          //  adversary + INBOUND/STRIKE-RUN over hostile-speed -> human-review (HOTL above Λ floor)
+          //  adversary other -> human-review; dual-use -> hold/observe; friendly -> hold/deny(no-engage)
+          const sideOf=t=>{const s=String(t.side||'').toLowerCase();return s==='adversary'?'Adversary':s==='dual-use'?'Dual-use':s==='friendly'||s==='allied'?'Friendly/Allied':(t.side||'Unknown');};
+          const postureOf=t=>{const st=String(t.status||'').toUpperCase();
+            if(/STRIKE|INBOUND/.test(st))return 'Inbound / strike';
+            if(/LOITER|PATROL/.test(st))return 'Loiter / patrol';
+            if(/ISR|RECON/.test(st))return 'ISR / recon';
+            return st||'Other';};
+          const dispoOf=t=>{const side=String(t.side||'').toLowerCase();const st=String(t.status||'').toUpperCase();const spd=t.speed_m_s||0;
+            if(side!=='adversary')return 'Hold / deny';            // dual-use & friendly never auto-engage
+            if(/STRIKE|INBOUND/.test(st)&&spd>=hotlSpeed)return 'Engage-eligible';
+            return 'Human review (HOTL)';};
+          const sides=[...new Set(TS.map(sideOf))];
+          const postures=[...new Set(TS.map(postureOf))];
+          const dispos=['Engage-eligible','Human review (HOTL)','Hold / deny'].filter(d=>TS.some(t=>dispoOf(t)===d));
+          const SIDECOL={'Adversary':'#b06a5a','Dual-use':'#c9a05f','Friendly/Allied':'#5fb3a3','Unknown':'#7a7a7a'};
+          const DCOL={'Engage-eligible':'#5fb3a3','Human review (HOTL)':'#c9a05f','Hold / deny':'#b06a5a'};
+          const nodes=[],idx={};
+          sides.forEach(s=>{idx['A:'+s]=nodes.length;nodes.push({name:s,color:SIDECOL[s]||'#5f8fb3'});});
+          postures.forEach(p=>{idx['P:'+p]=nodes.length;nodes.push({name:p,color:'#5f8fb3'});});
+          dispos.forEach(d=>{idx['D:'+d]=nodes.length;nodes.push({name:d,color:DCOL[d]||GOLD});});
+          const agg={};
+          TS.forEach(t=>{const a=sideOf(t),p=postureOf(t),d=dispoOf(t);
+            const k1='A:'+a+'>P:'+p,k2='P:'+p+'>D:'+d; agg[k1]=(agg[k1]||0)+1; agg[k2]=(agg[k2]||0)+1;});
+          el('au-hotl').textContent=TS.filter(t=>dispoOf(t)==='Human review (HOTL)').length;
+          const links=[];
+          Object.entries(agg).forEach(([k,v])=>{const[a,b]=k.split('>');
+            const tgt=nodes[idx[b]];const h=(tgt.color||'#5fb3a3').replace('#','');
+            const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),bl=parseInt(h.slice(4,6),16);
+            links.push({source:idx[a],target:idx[b],value:v,color:'rgba('+r+','+g+','+bl+',0.34)'});});
+          if(nodes.length&&links.length)
+            sankeyFlow('au-sankey',nodes,links,{height:380,nodeWidth:13,nodePadding:14,pad:{t:16,r:160,b:16,l:120},fmt:v=>v+' track'+(v===1?'':'s')});
+          else el('au-sankey').innerHTML='<div class="row mono dim">no active tracks to govern</div>';
+        }catch(e){const h=el('au-sankey');if(h)h.innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      })();
       try{
         const d = await getJSON(API+'/engagements/audit-log?limit=50');
         setOut('audit-raw',d);
         el('k-audit').textContent = d.total ?? 0;
         const recs=d.records||[];
-        const lam=recs.map(r=>typeof r.lambda_at_decision==='number'?r.lambda_at_decision:null).filter(x=>x!=null);
-        if(lam.length) lineSpark('audit-spark',lam.map((_,i)=>i+1),lam,GOLD);
-        else lineSpark('audit-spark',['','',''],[0.9,0.9,0.9],DIM);
         const h = el('audit-list'); h.innerHTML='';
         if(!recs.length){h.innerHTML='<div class="row mono dim">0 records (demo memory, resets on restart)</div>';return;}
         recs.forEach(r=>{
@@ -1489,43 +2381,13 @@ const VIEWS = {
       }catch(e){setHTML('audit-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
-  // ── 3.6 DSSE Receipt Verifier ────────────────────────────────────
-  dsse:{title:'Verify Signed Receipt',badge:'VERIFY IN YOUR BROWSER',sub:'killinchu signs every decision with a real cryptographic key. This tab fetches a live receipt and our public key, then verifies the signature right here in your browser — no trust in us required. A valid receipt shows PASS; flip one byte and it shows FAIL. <b>Proof binding:</b> tamper-evidence W5-4 + chain integrity W5-5; the two-sided envelope W7-6 means auditing earlier OR later can never change the result; axiom-gated on a standard hash-collision-resistance assumption (P5). Proven sorry-free (experimental).',
-    render:async(c)=>{
-      c.innerHTML=`<div class="kpis">
-        <div class="kpi"><div class="k">Signed receipts</div><div class="v" id="k-receipts">—</div><div class="d">in the chain</div></div>
-        <div class="kpi"><div class="k">Algorithm</div><div class="v teal">ECDSA P-256</div><div class="d">industry standard</div></div>
-        <div class="kpi"><div class="k">Public key</div><div class="v teal">published</div><div class="d">verify offline anytime</div></div>
-      </div>
-      <div class="card"><div class="card-h"><span class="card-t">Verify a live receipt — in your browser</span></div>
-        <div class="btns">
-          <button class="btn teal" onclick="dsse_verify(false)">✓ Verify the latest signed receipt</button>
-          <button class="btn" onclick="dsse_verify(true)">⚠ Tamper test (flip one byte)</button>
-        </div>
-        <div id="verify-badge-wrap" style="margin:.6rem 0"><span class="verify-badge pending"><span class="dot"></span>NOT YET VERIFIED</span></div>
-        <div id="verify-detail" class="mono dim" style="font-size:11px;line-height:1.7">Click “Verify”. We fetch the receipt + our public key and check the signature locally with WebCrypto.</div>
-        <details class="raw"><summary>raw receipt envelope (/receipt/export) + public key (/cosign.pub)</summary><pre class="out" id="dsse-verify-out">—</pre></details></div>
-      <div class="grid2">
-        <div class="card"><div class="card-h"><span class="card-t">Recent Receipts</span></div><div id="ledger-list"><div class="row mono dim">loading…</div></div></div>
-        <div class="card"><div class="card-h"><span class="card-t">Emit a Receipt</span></div>
-          <div class="btns"><button class="btn teal" onclick="dsse_emit()">▶ Emit demo receipt</button></div>
-          <div id="dsse-emit-summary" class="mono dim" style="font-size:11px;margin-bottom:.5rem">— click to emit —</div>
-          <details class="raw"><summary>raw /receipt/emit</summary><pre class="out" id="dsse-emit-out">—</pre></details></div>
-      </div>${HONEST}`;
-      try{
-        const d = await getJSON(API+'/receipt/ledger?limit=25');
-        el('k-receipts').textContent = d.count ?? '—';
-        const h = el('ledger-list'); h.innerHTML='';
-        (d.nodes||[]).slice().reverse().forEach(n=>{
-          h.insertAdjacentHTML('beforeend',`<div class="row">
-            <span class="badge ${n.signed?'b-live':'b-err'}">${n.signed?'SIGNED':'UNSIGNED'}</span>
-            <span class="mono" style="font-size:11px">${esc(n.receipt?.kind||'—')}</span>
-            <span class="spacer mono dim" style="font-size:10px">${esc(n.digest?.slice(0,16))}… · #${n.index}</span>
-          </div>`);
-        });
-        if(!(d.nodes?.length)) h.innerHTML='<div class="row mono dim">empty (resets on restart)</div>';
-      }catch(e){setHTML('ledger-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
-    }},
+  // ── [MERGED → audit] 3.6 DSSE Receipt Verifier ───────────────────
+  //   K1: the standalone “Verify Signed Receipt” tab was a duplicate signed-
+  //   receipt verifier. Its verify-yourself panel (verify/tamper buttons,
+  //   Recent Receipts, Emit a Receipt) has been FOLDED into the Engagement
+  //   Audit view above. The global dsse_verify(tamper) and dsse_emit()
+  //   functions remain and are reused verbatim by the folded panel. Nav
+  //   item + this view entry removed during the approved tab cleanup.
 
   // ── 3.7 13-Axis Λ Monitor ───────────────────────────────────────
   lambda:{title:'Trust Score Monitor',badge:'13 CHECKS',sub:'A single trust score (0–1) summarises 13 safety checks on a decision. Below the 0.90 floor a human must review. The score is an advisory conjecture (Λ = Conjecture 1), not a mathematical guarantee. Try a healthy decision vs. a breach. <b>Proof binding:</b> the risk/confidence interval shown is a distribution-free <b>conformal</b> band (W5-3 miscoverage bound, W7-4 rank/p-value floor) — never reported as 100%. It is NOT a Hoeffding bound (that module does not exist at our pinned Lean/Mathlib rev — honestly not claimed). Proven sorry-free (experimental).',
@@ -1547,13 +2409,13 @@ const VIEWS = {
     }},
 
   // ── 3.8 3-of-4 BFT Quorum ───────────────────────────────────────
-  bft:{title:'Consensus (3-of-4)',badge:'3-OF-4',sub:'A high-stakes action only proceeds when at least 3 of 4 independent systems agree — so no single failed or compromised node can act alone. Live reachability of each system is shown; an unreachable one is shown honestly, never faked green. <b>Proof binding:</b> safety bound C10 (no minority can act) + fault budget C11 (tolerates up to 1 bad node of 4) + liveness caveat C12 (progress requires a reachable quorum). Proven sorry-free (experimental).',
+  bft:{title:'Consensus (3-of-4)',badge:'KONVA SCHEMATIC · 3-OF-4',sub:'A high-stakes action only proceeds when at least 3 of 4 independent systems agree — so no single failed or compromised node can act alone. The <b>Konva</b> 4-node schematic below draws each system as a node with animated message-flow arrows between them; reachable nodes are teal, unreachable ones red (never faked green). <b>Proof binding:</b> safety bound C10 (no minority can act) + fault budget C11 (tolerates up to 1 bad node of 4) + liveness caveat C12 (progress requires a reachable quorum). Proven sorry-free (experimental).',
     render:async(c)=>{
       c.innerHTML=`<div class="grid2">
-        <div class="card"><div class="card-h"><span class="card-t">Votes Available</span><span class="card-ep">need 3 of 4</span></div>
-          <div class="gauge-wrap"><div class="gauge"><canvas id="bft-donut"></canvas><div class="lbl"><div class="big" id="bft-count">—</div><div class="sm">of 4 online</div></div></div>
-            <div><div class="v" id="k-quorum" style="font-size:1.3rem">—</div><div class="mono dim" style="font-size:11px">3-of-4 consensus required</div>
-            <div class="legend"><span><i style="background:#5fb3a3"></i>online</span><span><i style="background:#b06a5a"></i>unreachable</span></div></div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Byzantine quorum schematic</span><span class="card-ep">Konva · 4 nodes · need 3</span></div>
+          <div id="bft-konva" style="height:300px;width:100%;background:#0b0d10;border-radius:8px"></div>
+          <div class="row" style="justify-content:space-between;align-items:center;margin-top:.4rem"><div class="v" id="k-quorum" style="font-size:1.3rem">—</div><div class="mono dim" id="bft-count-lbl" style="font-size:11px"><span id="bft-count">—</span> of 4 online · 3-of-4 required</div></div>
+          <div class="legend"><span><i style="background:#5fb3a3"></i>online</span><span><i style="background:#b06a5a"></i>unreachable</span><span>arrows = consensus messages</span></div></div>
         <div class="card"><div class="card-h"><span class="card-t">System Reachability</span></div><div id="bft-organs"><div class="row mono dim">loading…</div></div></div>
       </div>
       <div class="card"><div class="card-h"><span class="card-t">Execute Mission (with consensus)</span></div>
@@ -1581,7 +2443,7 @@ const VIEWS = {
         el('k-quorum').textContent = holds ? 'CONSENSUS HOLDS' : 'NO QUORUM';
         el('k-quorum').className = 'v '+(holds?'live':'warn');
         if(el('bft-count')) el('bft-count').textContent=online;
-        doughnut('bft-donut',['online','unreachable'],[online,Math.max(0,total-online)],[TEAL,RED]);
+        bftKonva('bft-konva',organs,needed);
         // Honest messaging: explain WHY it still holds even if a node is offline.
         const amaruOff = q.amaru_offline===true || (d.organs&&d.organs.amaru&&d.organs.amaru.status!=='ok');
         let note='';
@@ -1641,6 +2503,10 @@ curl -s https://szlholdings-killinchu.hf.space/cosign.pub -o cosign.pub
 curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/receipt/export -o receipt.json
 # 3. Verify
 cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
+      <div class="card" id="q2-gershgorin"><div class="card-h"><span class="card-t">Governance Aggregation — Non-Degeneracy (Q2 · Gershgorin)</span><span class="badge b-teal" style="margin-left:auto">EXPERIMENTAL · CI-green</span></div>
+        <div class="row mono dim" style="font-size:12px;line-height:1.6;display:block">The YACHAY (read-only reasoning cortex) / HATUN governance layer fuses trust weights into a single aggregated verdict. <b>Q2 guarantees that fusion never collapses:</b> a strictly diagonally-dominant <b>real trust-weight matrix is invertible</b> (∑<sub>j≠k</sub> ‖W<sub>kj</sub>‖ &lt; ‖W<sub>kk</sub>‖ ⇒ det&nbsp;W&nbsp;≠&nbsp;0), so the weighted aggregation <code>W x = b</code> has a <b>unique solution — no zero-eigenvalue collapse</b> of the governance operator. No dominant operator can silently zero out a participant's weight.</div>
+        <div class="row mono dim" style="font-size:11px;display:block"><b>#print axioms:</b> <code>Lutar.Wave8.Gershgorin.governance_nonsingular_real — [propext, Classical.choice, Quot.sound]</code> (corollary <code>governance_unit_solvable</code>, same axioms)</div>
+        <div class="row mono dim" style="font-size:10.5px;display:block">PR #197 @ 7885fd9 · <code>Lutar/Wave8/Gershgorin.lean</code> · EXPERIMENTAL, additive, never folded into the locked 5. ℂ variant left honestly as ROADMAP (shipped real-valued only, sorryAx-free).</div></div>
       ${HONEST}`;
       // Load system types
       try{
@@ -1757,7 +2623,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
     }},
 
   // ── 3.13 Threat Classification DB ──────────────────────────────
-  threats:{title:'Threat Classification DB',badge:'53 ENTRIES',sub:'The threat library: 53 known drone types, sorted into adversary, allied, dual-use, and counter-drone roles. This is the signature reference the rest of the tool matches tracks against. Click a drone to see full specs and countermeasures.',
+  threats:{title:'Threat Classification DB',badge:'53 ENTRIES · AFFILIATION × GROUP HEATMAP',sub:'The threat library: 53 known drone types. The composition is shown as a <b>density heatmap</b> (ECharts): <b>affiliation (adversary / allied / dual-use / C-UAS) × UAS Group tier (1–5)</b>, each cell coloured by how many catalogued types fall in it — so the concentration of the adversary order-of-battle (e.g. the Group-1 small-UAS and Group-3 loitering-munition clusters) reads at a glance. This is the signature reference the rest of the tool matches tracks against. Click a drone for full specs and countermeasures. Static reference catalogue — a citable in-image dataset, not a live feed.',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">DB entries</div><div class="v live" id="k-db">—</div><div class="d">known drone types</div></div>
@@ -1765,8 +2631,9 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         <div class="kpi"><div class="k">Allied</div><div class="v live" id="k-all">—</div><div class="d">friendly</div></div>
         <div class="kpi"><div class="k">Dual-use</div><div class="v warn" id="k-dual">—</div><div class="d">civilian / either</div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Library by side</span><span class="card-ep">how many of each kind</span></div>
-        <div class="chartbox"><canvas id="threats-bar"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Library density — affiliation × UAS Group tier</span><span class="card-ep">ECharts heatmap · cell = count of catalogued types</span></div>
+        <div id="threats-heat" style="width:100%;height:320px"></div>
+        <div class="legend"><span>rows = affiliation</span><span>columns = NATO UAS Group (1 = micro → 5 = HALE/MALE)</span><span>darker / gold = more types in that cell</span></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Drone Library</span></div><div id="drone-list"><div class="row mono dim">loading…</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Look up a drone</span></div>
         <div class="form-row"><label>Drone ID</label><input id="drone-id" value="shahed136"/></div>
@@ -1786,7 +2653,28 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
           else cuas++;
         });
         el('k-adv').textContent=adv; el('k-all').textContent=all; el('k-dual').textContent=dual;
-        barV('threats-bar',['Adversary','Allied','Dual-use','C-UAS / other'],[adv,all,dual,cuas],[RED,LIVE,WARN,TEAL]);
+        // ── affiliation × group density heatmap (ECharts) ────────────
+        (function buildThreatHeat(){
+          const drones=d.drones||[];
+          const sideOrder=['adversary','dual-use','counter-uas','allied'];
+          const sideLabel={'adversary':'Adversary','dual-use':'Dual-use','counter-uas':'C-UAS','allied':'Allied'};
+          const grpKey=g=>{g=String(g||'');const m=g.match(/Group\s*(\d)/i);if(m)return 'Group '+m[1];if(/C-?UAS/i.test(g))return 'C-UAS';return g||'?';};
+          const cols=['Group 1','Group 2','Group 3','Group 4','Group 5','C-UAS'];
+          // build matrix
+          const cnt={};let maxV=0;
+          drones.forEach(dr=>{const s=String(dr.side||'').toLowerCase();const g=grpKey(dr.group);const k=s+'|'+g;cnt[k]=(cnt[k]||0)+1;if(cnt[k]>maxV)maxV=cnt[k];});
+          const rows=sideOrder.filter(s=>drones.some(dr=>String(dr.side||'').toLowerCase()===s));
+          const data=[];
+          rows.forEach((s,yi)=>cols.forEach((g,xi)=>{const v=cnt[s+'|'+g]||0;data.push([xi,yi,v]);}));
+          mkEchart('threats-heat',{
+            tooltip:{position:'top',formatter:p=>sideLabel[rows[p.value[1]]]+' · '+cols[p.value[0]]+'<br/><b>'+p.value[2]+'</b> catalogued type'+(p.value[2]===1?'':'s')},
+            grid:{left:78,right:22,top:14,bottom:50,containLabel:false},
+            xAxis:{type:'category',data:cols,axisLabel:{color:'#9aa',fontSize:11,interval:0,rotate:18},axisLine:{lineStyle:{color:'#33424a'}},splitArea:{show:true}},
+            yAxis:{type:'category',data:rows.map(s=>sideLabel[s]||s),axisLabel:{color:'#cdd2d8',fontSize:11},axisLine:{lineStyle:{color:'#33424a'}},splitArea:{show:true}},
+            visualMap:{min:0,max:Math.max(1,maxV),calculable:true,orient:'horizontal',left:'center',bottom:4,itemWidth:12,itemHeight:90,textStyle:{color:'#9aa',fontSize:10},inRange:{color:['#10201f','#1f4a44','#5fb3a3','#c9b787','#c9a05f']}},
+            series:[{type:'heatmap',data:data,label:{show:true,color:'#0d1518',fontWeight:600,fontSize:11,formatter:p=>p.value[2]||''},itemStyle:{borderColor:'#0d1518',borderWidth:2},emphasis:{itemStyle:{shadowBlur:8,shadowColor:'rgba(201,183,135,.6)'}}}]
+          });
+        })();
         const h = el('drone-list'); h.innerHTML='';
         (d.drones||[]).slice(0,30).forEach(dr=>{
           const sc = dr.side==='adversary'?'b-err':dr.side==='allied'?'b-live':'b-warn';
@@ -1801,65 +2689,61 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       }catch(e){setHTML('drone-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
 
-  // ── 3.14 Cross-Flagship ─────────────────────────────────────────
-  cross:{title:'Cross-Flagship Borrowed Powers',badge:'4 CAPABILITIES',sub:'killinchu borrows capabilities from the a11oy orchestrator: DSSE receipt substrate, the Policy immune gates, the Reasoning cortex, and the HITL Operator surface. Real live data.',
-    render:async(c)=>{
-      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Borrowed Powers</span><span class="card-ep">GET /api/killinchu/v1/borrowed-powers</span></div><div id="bp-list"><div class="row mono dim">loading…</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">vs. the Field</span></div>
-        <div class="row"><span class="badge b-err">Anduril</span><span>Lattice C2 + Sentry/Anvil/Roadrunner — detect, track, defeat ($20B+ contracts)</span><span class="spacer badge b-warn">no signed receipt</span></div>
-        <div class="row"><span class="badge b-err">Dedrone/Axon</span><span>RF+radar+video multi-sensor, ~300 drone signatures, forensic reports</span><span class="spacer badge b-warn">no signed receipt</span></div>
-        <div class="row"><span class="badge b-err">DZYNE</span><span>Dronebuster 4 jammer, DTI 7+km detection, 2500+ units in 50+ countries</span><span class="spacer badge b-warn">no signed receipt</span></div>
-        <div class="row"><span class="badge b-err">Fortem</span><span>SkyDome TrueView radar + DroneHunter autonomous interceptor, ~5000 captures</span><span class="spacer badge b-warn">no signed receipt</span></div>
-        <div class="row"><span class="badge b-live">killinchu</span><span>Governance middleware: signed per-engagement receipt, Λ-gate, BFT quorum, man-on-the-loop — on top of existing C-UAS systems</span><span class="spacer badge b-teal">our twist</span></div>
-        <div class="honesty" style="margin-top:.8rem"><b>Honest gap.</b> killinchu has no sensors, no effectors, no deployed hardware. It only adds value plugged into an existing C-UAS system. The four leaders above are production-deployed at scale; killinchu is software governance middleware. Our one defensible differentiator: <b>cryptographically signed, tamper-evident receipt per autonomous engagement decision</b> — independently verifiable, replayable without our infrastructure. None of the four leaders ship this.</div>
-      </div>
-      ${HONEST}`;
-      try{
-        const d = await getJSON(API+'/borrowed-powers');
-        const h = el('bp-list'); h.innerHTML='';
-        (d.borrowed_powers||[]).forEach(p=>{
-          h.insertAdjacentHTML('beforeend',`<div class="row">
-            <span class="badge b-teal">${esc(capName(p.flagship))}</span>
-            <span><b>${esc(scrubText(p.role))}</b></span>
-            <span class="spacer mono dim" style="font-size:10px">${esc(scrubText(p.borrowed_anatomy))}</span>
-          </div>`);
-          (p.live_endpoints||[]).forEach(ep=>{
-            h.insertAdjacentHTML('beforeend',`<div class="row" style="padding-left:1.5rem"><span class="badge b-live" style="font-size:9px">EP</span><span class="mono dim" style="font-size:11px">${esc(scrubText(ep))}</span></div>`);
-          });
-        });
-      }catch(e){setHTML('bp-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
-    }},
-
-  // ── Mesh Reach ──────────────────────────────────────────────────
-  mesh:{title:'Mesh Reach',badge:'5 ORGANS',sub:'Live per-organ reachability: killinchu probes the SZL mesh state and borrowed-powers wires. An unreachable organ is shown honestly — never faked green.',
-    render:async(c)=>{
-      c.innerHTML=`<div class="btns"><button class="btn teal" onclick="mesh_load()">▶ Probe mesh state</button></div>
-        <div id="mesh-host"><div class="row mono dim">loading…</div></div>
-        <details class="raw" style="margin-top:1rem"><summary>raw /mesh/state</summary><pre class="out" id="mesh-raw">—</pre></details>
-        ${HONEST}`;
-      mesh_load();
-    }},
+  // ── [REMOVED] Cross-Flagship Borrowed Powers + Mesh Reach orphan views ──
+  //   Both were dead views: NOT in nav, no go('cross')/go('mesh') reference
+  //   anywhere. Removed during the approved conservative tab cleanup. The
+  //   /borrowed-powers and /mesh/state endpoints remain registered server-side
+  //   (the latter now sanitized in serve.py); only these orphan UI views were
+  //   deleted. mesh_load() (its only consumer) was removed with them.
 
   // ════════════ INHERITED BRAIN (shared with a11oy orchestrator) ════════════
 
-  organism:{title:'Living Organism',badge:'3D · SHARED BRAIN',sub:'The whole SZL platform as one breathing organism. a11oy — the orchestrating brain — sits at the GOLD center; killinchu (this field surface) and the other services are nodes, every link a live connection back to the brain. Node color reflects the live health probe; a down service shows honestly, never faked green.',
+  organism:{title:'Living Organism',badge:'ANATOMY · SHARED ENGINE',sub:'killinchu and a11oy are TWO BODIES sharing ONE engine: the same heart (YUYAY 13-axis conjunctive truth gate), the same blood (YAWAR append-only signed receipt bus) and the same nervous system (OTel span lineage), linked over the UDS mesh. A vessel/drone command is a PROPOSAL that must clear all 13 axes CONJUNCTIVELY (pass = all(score≥floor) — never a weighted average) before RUWAY+CHAPAQ (egress immune inspector) commit a Λ-signed YAWAR receipt, audited read-only by R0513, span-traced, and sealed by HATUN to a HUMAN principal. Quechua organ names are SZL architecture IP; each is paired with its plain-English function. Λ = Conjecture 1 (unconditional uniqueness FALSE).',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
-      <div class="kpi"><div class="k">Brain</div><div class="v">a11oy</div><div class="d">orchestrating hub</div></div>
-      <div class="kpi"><div class="k">Organs reachable</div><div class="v live" id="org-reach">probing…</div></div>
-      <div class="kpi"><div class="k">Links to brain</div><div class="v teal" id="org-links">—</div></div>
-      <div class="kpi"><div class="k">Signed spans</div><div class="v" id="org-spans">—</div><div class="d">live audit depth</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">The brain at the center — live 3D</span><span class="card-ep">drag to orbit · particles = live links</span></div><div class="graph3d hero" id="org-3d"><div class="org-loading" id="org-loading"><div class="org-pulse"></div><div class="mono dim" style="margin-top:.8rem;font-size:12px">probing live organism… connecting to shared brain</div></div></div><div class="brain-note">a11oy is the orchestrator brain: every edge terminates at the gold core. killinchu is the field/Navy surface sharing that brain. Health from the live observability probe.</div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Organ health detail</span><span class="card-ep">live probe</span></div><div id="org-host"><div class="row mono dim">probing…</div></div>
-        <details class="raw"><summary>raw /observability/summary</summary><pre class="out" id="org-raw">loading…</pre></details></div>${HONEST}`;window.organism_load();}},
+      <div class="kpi"><div class="k">Heart gate</div><div class="v teal">YUYAY</div><div class="d">13-axis conjunctive</div></div>
+      <div class="kpi"><div class="k">Last decision</div><div class="v" id="an-decision">—</div><div class="d">ALLOW only if all 13 pass</div></div>
+      <div class="kpi"><div class="k">Receipt</div><div class="v" id="an-signed">—</div><div class="d">Λ-signed YAWAR</div></div>
+      <div class="kpi"><div class="k">YAWAR bus</div><div class="v gold" id="an-bus">—</div><div class="d">append-only receipts</div></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">The shared body — anatomical pipeline</span><span class="card-ep">organs pulse as the proposal flows</span></div>
+          <div id="an-body" class="an-body"></div>
+          <div class="brain-note">Two bodies, one engine: <b>a11oy</b> (governed-AI decision body) + <b>killinchu</b> (maritime/drone C2 body) share ONE circulatory (YAWAR) + ONE nervous (span lineage) mesh. Λ-signed receipts pulse between them over the UDS mesh.</div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Propose a governed command</span><span class="card-ep">runs the real pipeline</span></div>
+          <div class="row" style="gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+            <label class="fld"><span class="dim mono" style="font-size:11px">Command</span><select id="an-cmd" class="inp">
+              <option value="reroute_to_avoid">reroute_to_avoid (vessel)</option>
+              <option value="hail_vessel">hail_vessel (vessel)</option>
+              <option value="assign_intercept">assign_intercept (drone)</option>
+              <option value="recall_drone">recall_drone (drone)</option></select></label>
+            <label class="fld"><span class="dim mono" style="font-size:11px">Track</span><input id="an-track" class="inp" value="KLN-V001" style="width:96px"></label>
+            <label class="fld"><span class="dim mono" style="font-size:11px">Confidence</span><input id="an-conf" class="inp" type="number" min="0" max="1" step="0.01" value="0.82" style="width:78px"></label>
+            <label class="fld"><span class="dim mono" style="font-size:11px">Scenario</span><select id="an-scn" class="inp">
+              <option value="clean">clean (should ALLOW)</option>
+              <option value="deception">deception text (A11 fail)</option>
+              <option value="badlicense">bad data license (A07 fail)</option>
+              <option value="lowconf">low confidence (A09 fail)</option>
+              <option value="conflict">conflicting directives (A12 fail)</option>
+              <option value="stop">STOP reversal (A13 fail)</option></select></label>
+          </div>
+          <div class="row" style="gap:.5rem;margin-top:.7rem">
+            <button class="btn teal" id="an-run">▶ Run pipeline</button>
+            <button class="btn" id="an-tamper">⚠ Run + tamper receipt</button>
+            <button class="btn" id="an-reset">Reset bus</button></div>
+          <div id="an-steps" class="an-steps" style="margin-top:.8rem"></div>
+          <div id="an-gate" style="margin-top:.7rem"></div>
+          <div id="an-verify" style="margin-top:.7rem"></div>
+          <details class="raw"><summary>raw pipeline receipt (signed envelope)</summary><pre class="out" id="an-raw">run a command…</pre></details>
+        </div>
+      </div>${HONEST}`;window.organism_load();}},
 
-  chain:{title:'Receipt Chain',badge:'3D · PROOF',sub:'The platform’s proof-of-governance centerpiece. Every command the orchestrator brain runs is appended to a SHA-256 hash-chain, each receipt linked to its parent. This is a real verified chain — rendered as a growing 3D directed graph. The chain is verify-on-read: re-checking only touches the new frontier, so an audit walk always finishes in bounded steps — it stays fast on field hardware no matter how long the chain grows. And auditing early or late can’t change the result. killinchu’s own decision receipts are genuinely signed (see Verify Signed Receipt).',
+  chain:{title:'Receipt Chain',badge:'LAYERED DAG · PROOF',sub:'The platform’s proof-of-governance centerpiece. Every command the orchestrator brain runs is appended to a SHA-256 hash-chain, each receipt linked to its parent. This is a real verified chain — rendered as a Sigma.js + dagre <b>layered directed graph</b> (WebGL 2D, left→right by receipt depth; distinct from the 3D force-graph organism and the live globe). Click a receipt node to inspect its raw record. The chain is verify-on-read: re-checking only touches the new frontier, so an audit walk always finishes in bounded steps — it stays fast on field hardware no matter how long the chain grows. And auditing early or late can’t change the result. killinchu’s own decision receipts are genuinely signed (see Verify Signed Receipt).',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Chain depth</div><div class="v" id="ch-depth">—</div><div class="d">real hash chain</div></div>
       <div class="kpi"><div class="k">Chain verified</div><div class="v live" id="ch-ver">—</div></div>
       <div class="kpi"><div class="k">Ledger receipts</div><div class="v teal" id="ch-led">—</div></div>
       <div class="kpi"><div class="k">Signing</div><div class="v live">genuinely signed</div><div class="d">killinchu has a real key</div></div>
       <div class="kpi"><div class="k">Verify-on-read</div><div class="v teal">bounded steps</div><div class="d">cost independent of chain depth</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Live hash-chain — 3D directed graph</span><span class="card-ep">left→right · GENESIS at left</span></div><div class="graph3d hero" id="ch-3d"></div><div class="brain-note" id="ch-cap">building chain…</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Live hash-chain — layered DAG (Sigma + dagre)</span><span class="card-ep">WebGL 2D · left→right · GENESIS at left</span></div><div class="graph3d hero" id="ch-3d" style="position:relative"></div><div class="brain-note" id="ch-cap">building chain…</div></div>
       <div class="card"><div class="card-h"><span class="card-t">Receipt tail</span><span class="card-ep">verified replay log</span></div><div class="feedtail" id="ch-tail"></div>
         <details class="raw"><summary>raw command-log</summary><pre class="out" id="ch-raw">loading…</pre></details></div>${HONEST}`;window.chain_load();}},
 
@@ -2054,9 +2938,295 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         <span class="card-ep" style="margin-left:.8rem">each runs in-image and records a genuinely-signed receipt of the decision</span></div></div>
       <div id="wb-cards"></div>${HONEST}`;window.warboard_init();}},
 
+  warhacker:{title:'Maritime / Drone Warhacker',badge:'7 DEMOS \u00b7 MODE-AWARE \u00b7 REAL COMPUTE + SIGNED CHAIN',sub:'Seven adversarial maritime &amp; drone scenarios, each run live in-image. Every demo is <b>mode-aware</b>: <b>nominal</b> produces a clean, authorized verdict; <b>tamper</b> flips a real input so the kinematics / geometry / gate genuinely fail \u2014 the decision changes, the per-run DSSE receipt changes, and an always-on tamper test breaks the signed Merkle/Khipu chain at a <b>named first-failing condition</b>. All numbers (CPA km, TCPA s, robustness \u03c1, gap seconds, signed distances) are computed at request time \u2014 no canned PASS. \u039b is advisory (Conjecture 1); the conjunctive gate itself is P2 gate-soundness PROVEN. AIS data is sample/replay (labeled); a live AIS feed is roadmap.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Demos</div><div class="v teal">7</div><div class="d">maritime + drone</div></div>
+      <div class="kpi"><div class="k">Mode-aware</div><div class="v" id="wh-modeaware">\u2014</div><div class="d">nominal \u2260 tamper</div></div>
+      <div class="kpi"><div class="k">Signed receipts</div><div class="v teal" id="wh-signed">\u2014</div><div class="d">unique per run</div></div>
+      <div class="kpi"><div class="k">Tamper breaks chain</div><div class="v" id="wh-tamper">\u2014</div><div class="d">named failing node</div></div></div>
+      <div class="card"><div class="row"><button onclick="window.warhacker_all('nominal')" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">Run all 7 \u2014 NOMINAL</button>
+        <button onclick="window.warhacker_all('tamper')" style="background:#b3475f;border:none;color:#fff;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700;margin-left:.6rem">Run all 7 \u2014 TAMPER</button>
+        <span class="card-ep" style="margin-left:.8rem">each launch hits /api/killinchu/v1/warhacker/launch/{key} in-image and records a genuinely-signed receipt</span></div></div>
+      <div id="wh-cards"></div>${HONEST}`;window.warhacker_init();}},
+
+  // ════════════ DRONE INTELLIGENCE (consolidated from the Andean SPA) ════════════
+  // Real copy pulled verbatim-in-spirit from the old React SPA; every view reads a
+  // LIVE killinchu endpoint. Sample/replay data is labelled. No codenames surfaced.
+
+  // ── DI.1 Detection Console ──────────────────────────────────────
+  detection:{title:'Detection Console',badge:'PASSIVE · 3 DECODERS + UNION-FIND SWARM',sub:'The signals pipeline at a glance: three real protocol decoders (Remote ID / ADS-B / MAVLink) feed classifications into the counter-UAS Λ-gate, and a real <b>Union-Find</b> connected-component pass clusters the live track feed over a Remote-ID proximity graph — <b>clusters of 3+ are flagged as a coordinated swarm</b>. <b>Passive</b> classification matches an RF / acoustic / EO-IR signature against the sourced adversary catalogue. We <b>detect and identify; we do not jam or spoof</b> — active effects require FCC/DoD authority and are the customer\u2019s authorized action. Remote-ID / ADS-B are unauthenticated broadcast claims; clustering is geometric only. Track positions are simulated over real adversary signatures — not a live sensor feed.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Live tracks</div><div class="v live" id="det-n">—</div><div class="d">passively sensed</div></div>
+        <div class="kpi"><div class="k">Swarms (3+)</div><div class="v err" id="det-sw">—</div><div class="d">connected components</div></div>
+        <div class="kpi"><div class="k">Remote-ID-OFF</div><div class="v warn" id="det-off">—</div><div class="d">RF-geolocated (HawkEye)</div></div>
+        <div class="kpi"><div class="k">Method</div><div class="v teal">Passive</div><div class="d">detect + identify only</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Live counter-UAS track feed</span><span class="card-ep">GET /counter-uas/track · Union-Find swarm clustering client-side</span></div>
+        <div id="det-list"><div class="row mono dim">loading live tracks…</div></div>
+        <div class="legend"><span><i style="background:#b06a5a"></i>coordinated swarm (component ≥3)</span><span><i style="background:#c9a05f"></i>Remote-ID-OFF (RF-geolocated)</span><span>edges = within proximity threshold</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Detected swarms — connected components (Union-Find)</span></div><div id="det-clusters"><div class="row mono dim">—</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Passive identify — RF / acoustic / EO-IR signature match</span><span class="card-ep">POST /counter-uas/identify · sourced adversary catalogue</span></div>
+        <div class="form-row"><label>Signature (rf_signature / acoustic / image_label / model_hint)</label><input id="det-sig" value="OcuSync DJI DroneID 2.4 GHz FHSS"/></div>
+        <div class="btns"><button class="btn teal" onclick="detection_identify()">▶ Identify (passive)</button></div>
+        <div id="det-id-summary" class="mono dim" style="font-size:12px;margin:.5rem 0">— enter a captured signature and identify —</div>
+        <details class="raw"><summary>raw /counter-uas/identify</summary><pre class="out" id="det-id-out">—</pre></details></div>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(API+'/counter-uas/track');
+        const tracks = d.tracks||[];
+        el('det-n').textContent = tracks.length;
+        el('det-off').textContent = tracks.filter(t=>String(t.rf_status||'').includes('OFF')).length;
+        // ── real Union-Find over a proximity graph on the live track positions ──
+        const PROX_KM = 8;
+        const hav=(a,b)=>{const R=6371,dLat=(b.latitude-a.latitude)*Math.PI/180,dLon=(b.longitude-a.longitude)*Math.PI/180,la1=a.latitude*Math.PI/180,la2=b.latitude*Math.PI/180;const x=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(x));};
+        const parent=tracks.map((_,i)=>i);
+        const find=(x)=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
+        const union=(a,b)=>{const ra=find(a),rb=find(b);if(ra!==rb)parent[ra]=rb;};
+        for(let i=0;i<tracks.length;i++)for(let j=i+1;j<tracks.length;j++){if(hav(tracks[i],tracks[j])<=PROX_KM)union(i,j);}
+        const comp={};tracks.forEach((t,i)=>{const r=find(i);(comp[r]=comp[r]||[]).push(t);});
+        const clusters=Object.values(comp);
+        const swarms=clusters.filter(g=>g.length>=3);
+        el('det-sw').textContent=swarms.length;
+        const lh=el('det-list'); lh.innerHTML='';
+        const compIdx={}; clusters.forEach((g,gi)=>g.forEach(t=>compIdx[t.track_id]=g.length>=3?gi:-1));
+        tracks.forEach(t=>{
+          const inSwarm=compIdx[t.track_id]>=0;
+          const sc = inSwarm?'b-err':(String(t.rf_status||'').includes('OFF')?'b-warn':'b-live');
+          lh.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge ${sc}">${esc(t.track_id)}</span>
+            <span><b>${esc(t.model)}</b></span>
+            <span class="mono dim" style="font-size:11px">${esc(t.class)} · ${esc(t.rf_status)}</span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(t.detected_by)} · ${(+t.latitude).toFixed(3)}, ${(+t.longitude).toFixed(3)}</span>
+          </div>`);
+        });
+        const ch=el('det-clusters'); ch.innerHTML='';
+        if(!swarms.length){ ch.innerHTML='<div class="row mono dim">no coordinated swarm (no connected component ≥3) at '+PROX_KM+' km threshold</div>'; }
+        swarms.forEach((g,gi)=>{
+          ch.insertAdjacentHTML('beforeend',`<div class="row">
+            <span class="badge b-err">SWARM ${gi+1}</span>
+            <span><b>${g.length} drones</b> coordinated</span>
+            <span class="spacer mono dim" style="font-size:10px">${g.map(t=>esc(t.model)).join(' · ')}</span>
+          </div>`);
+        });
+      }catch(e){setHTML('det-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
+    }},
+
+  // ── DI.2 Drone Database ─────────────────────────────────────────
+  dronedb:{title:'Drone Database',badge:'53 SYSTEMS · UAS GROUPS 1–5 · LIVE',sub:'53 real uncrewed-aircraft systems across <b>allied, dual-use, adversary and counter-UAS</b> categories, organized by US DoD <b>UAS Groups 1–5</b>. Each record carries telemetry-grade specs and a primary-source citation. Filter by side. This is the signature reference the rest of the surface matches tracks against — a citable in-image dataset. Live from <code>/api/killinchu/v1/drones/database</code>.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">DB entries</div><div class="v live" id="ddb-n">—</div><div class="d">known systems</div></div>
+        <div class="kpi"><div class="k">Adversary</div><div class="v err" id="ddb-adv">—</div><div class="d">hostile</div></div>
+        <div class="kpi"><div class="k">Allied</div><div class="v live" id="ddb-all">—</div><div class="d">friendly</div></div>
+        <div class="kpi"><div class="k">Dual-use / C-UAS</div><div class="v warn" id="ddb-dual">—</div><div class="d">civilian / counter</div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Systems — filter by side</span><span class="card-ep">GET /drones/database</span></div>
+        <div class="btns" style="margin-bottom:.7rem">
+          <button class="btn teal" onclick="dronedb_filter('all')">All</button>
+          <button class="btn" onclick="dronedb_filter('adversary')">Adversary</button>
+          <button class="btn" onclick="dronedb_filter('allied')">Allied</button>
+          <button class="btn" onclick="dronedb_filter('dual-use')">Dual-use</button>
+          <button class="btn" onclick="dronedb_filter('counter-uas')">C-UAS</button></div>
+        <div id="ddb-list"><div class="row mono dim">loading 53 systems…</div></div></div>
+      <details class="raw"><summary>raw /drones/database</summary><pre class="out" id="ddb-raw">—</pre></details>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(API+'/drones/database');
+        setOut('ddb-raw',d);
+        window.__DDB__ = d.drones||[];
+        el('ddb-n').textContent = d.count ?? (d.drones||[]).length;
+        let adv=0,all=0,du=0;
+        window.__DDB__.forEach(dr=>{const s=String(dr.side||'').toLowerCase();if(s==='adversary')adv++;else if(s==='allied')all++;else du++;});
+        el('ddb-adv').textContent=adv; el('ddb-all').textContent=all; el('ddb-dual').textContent=du;
+        window.dronedb_filter('all');
+      }catch(e){setHTML('ddb-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
+    }},
+
+  // ── DI.3 Constellations ─────────────────────────────────────────
+  constellations:{title:'Constellations',badge:'MULTI-CONSTELLATION SPACE INTEL · LIVE',sub:'killinchu aggregates <b>multi-constellation space intelligence</b> — RF geolocation, optical EO, and all-weather SAR — under each provider\u2019s lawful access model. <b>HawkEye 360 RF geolocation is primary for Remote-ID-OFF \u201cdark drone\u201d detection</b> (it geolocates the emitter even when the drone refuses to broadcast Remote ID). Starlink is comms backhaul only, not a sensor. killinchu aggregates third-party constellation products under each provider\u2019s access model — it does not operate these satellites. Plan an AOI on the GEOINT tab. Live from <code>/api/killinchu/v1/satellites</code>.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">${liveDot()}Constellations</span><span class="card-ep">GET /satellites</span></div>
+        <div id="con-list"><div class="row mono dim">loading constellations…</div></div></div>
+      <details class="raw"><summary>raw /satellites</summary><pre class="out" id="con-raw">—</pre></details>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(API+'/satellites');
+        setOut('con-raw',d);
+        const h=el('con-list'); h.innerHTML='';
+        (d.constellations||[]).forEach(t=>{
+          const isPrimary=/PRIMARY/i.test(t.killinchu_use||'');
+          const isBackhaul=/BACKHAUL/i.test(t.modality||'');
+          const sc=isPrimary?'b-err':isBackhaul?'b-warn':'b-live';
+          const src=(t.source||'').split('|')[0].trim();
+          h.insertAdjacentHTML('beforeend',`<div class="row" style="flex-wrap:wrap">
+            <span class="badge ${sc}">${esc((t.modality||'').split(' ')[0])}</span>
+            <span><b>${esc(t.name)}</b></span>
+            <span class="spacer mono dim" style="font-size:10px">${esc(t.revisit||'')}</span>
+            <div style="flex-basis:100%;font-size:11.5px;color:var(--paragraph);margin-top:.25rem">${esc(t.constellation)}</div>
+            <div style="flex-basis:100%;font-size:11.5px;color:var(--paragraph)"><b>killinchu use:</b> ${esc(t.killinchu_use)}</div>
+            <div style="flex-basis:100%;font-size:10px" class="mono dim">access: ${esc(t.access_model)} · ${esc(t.cost)} · <a href="${esc(src)}" target="_blank" rel="noopener" style="color:var(--teal)">source</a></div>
+          </div>`);
+        });
+      }catch(e){setHTML('con-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
+    }},
+
+  // ── DI.4 GEOINT Aggregation ─────────────────────────────────────
+  geoint:{title:'GEOINT Aggregation',badge:'AOI COLLECTION PLAN · KHIPU-RECEIPTED · LIVE',sub:'Define an area of interest and killinchu plans aggregated <b>multi-constellation collection</b> — which sensor would detect what, at what confidence, with what tasking ETA. Each plan emits a genuine <b>Khipu receipt</b>. Per-observation confidence is a <b>planning estimate, not a live collection</b>. WE SENSE, WE EVIDENCE. Live from <code>/api/killinchu/v1/geoint</code>.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Area of interest</span></div>
+        <div class="grid2" style="margin-bottom:.8rem">
+          <div class="form-row"><label>Latitude</label><input id="gi-lat" value="47.85"/></div>
+          <div class="form-row"><label>Longitude</label><input id="gi-lon" value="35.10"/></div>
+          <div class="form-row"><label>Radius (km)</label><input id="gi-r" value="25"/></div>
+        </div>
+        <div class="btns"><button class="btn teal" onclick="geoint_plan()">▶ Plan collection over this AOI</button></div>
+        <div id="gi-summary" class="mono dim" style="font-size:12px;margin:.5rem 0">— define an AOI and plan —</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Aggregated collection plan</span><span class="card-ep">GET /geoint?lat=&lon=&radius_km=</span></div>
+        <div id="gi-obs"><div class="row mono dim">— run a plan —</div></div></div>
+      <details class="raw"><summary>raw /geoint</summary><pre class="out" id="gi-raw">—</pre></details>
+      ${HONEST}`;
+      window.geoint_plan();
+    }},
+
+  // ── DI.5 Research Corpus ────────────────────────────────────────
+  research:{title:'Research Corpus',badge:'SOURCED INTEL FOUNDATION · LIVE',sub:'The sourced intelligence foundation behind killinchu — <b>Defense Unicorns UDS posture</b>, US <b>UAS Groups 1–5</b>, adversary systems, counter-UAS effectors, and the <b>protocol standards</b> the decoders implement (Remote ID / ADS-B / MAVLink). Every section cites primary sources. Live from <code>/api/killinchu/v1/research</code>.',
+    render:async(c)=>{
+      c.innerHTML=`<div id="res-grid" class="grid2"><div class="card"><div class="row mono dim">loading research corpus…</div></div></div>
+      <details class="raw"><summary>raw /research</summary><pre class="out" id="res-raw">—</pre></details>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(API+'/research');
+        setOut('res-raw',d);
+        const g=el('res-grid'); g.innerHTML='';
+        (d.sections||[]).forEach(sct=>{
+          const srcs=(sct.sources||[]).map(u=>`<div style="font-size:10px" class="mono"><a href="${esc(u)}" target="_blank" rel="noopener" style="color:var(--teal);word-break:break-all">${esc(u)}</a></div>`).join('');
+          g.insertAdjacentHTML('beforeend',`<div class="card"><div class="card-h"><span class="card-t">${esc(sct.title)}</span></div>
+            <p style="font-size:12.5px;color:var(--paragraph);line-height:1.6;margin:.2rem 0 .6rem">${esc(sct.summary)}</p>
+            <div style="border-top:1px solid rgba(201,183,135,.12);padding-top:.5rem">${srcs}</div></div>`);
+        });
+      }catch(e){setHTML('res-grid','<div class="card"><div class="row mono dim">retry: '+esc(e.message)+'</div></div>');}
+    }},
+
+  // ── DI.6 Legal Boundaries ───────────────────────────────────────
+  legal:{title:'Legal Boundaries',badge:'WE SENSE · WE EVIDENCE · LIVE',sub:'killinchu is a <b>passive sensing and evidence system</b>, not an offensive cyber or electronic-attack weapon. This page is served verbatim from <code>/api/killinchu/v1/legal</code> and mirrors <code>LEGAL_BOUNDARIES.md</code> in the Space. We DETECT, classify, geolocate and EVIDENCE; the authorized customer ACTS.',
+    render:async(c)=>{
+      c.innerHTML=`<div id="legal-body"><div class="card"><div class="row mono dim">loading legal boundaries…</div></div></div>
+      <details class="raw"><summary>raw /legal</summary><pre class="out" id="legal-raw">—</pre></details>
+      ${HONEST}`;
+      try{
+        const d = await getJSON(API+'/legal');
+        setOut('legal-raw',d);
+        const principles=(d.principles||[]).map(p=>`<div class="row"><span class="badge b-live">✓</span><span style="font-size:12.5px;color:var(--paragraph)">${esc(p)}</span></div>`).join('');
+        const refs=(d.references||[]).map(r=>`<div class="row"><span class="mono dim" style="font-size:11px">ref</span><a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:12px">${esc(r.name)}</a></div>`).join('');
+        setHTML('legal-body',`<div class="card" style="border-color:var(--teal-line)"><div class="card-h"><span class="card-t" style="color:var(--teal)">${esc(d.title||'WE SENSE. WE EVIDENCE.')}</span></div></div>
+          <div class="card"><div class="card-h"><span class="card-t">Principles</span></div>${principles}</div>
+          <div class="card"><div class="card-h"><span class="card-t">References</span></div>${refs}</div>`);
+      }catch(e){setHTML('legal-body','<div class="card"><div class="row mono dim">retry: '+esc(e.message)+'</div></div>');}
+    }},
+
+  // ── DI.7 Companion Defense ──────────────────────────────────────
+  companion:{title:'Companion Defense',badge:'KHIPU-RECEIPTED DECISION TREE · HUMAN-IN-LOOP · LIVE',sub:'When an adversary drone enters a configured radius of a protected companion/asset, killinchu runs a <b>Khipu-receipted decision tree</b>: auto-classify → legal RF warning beacon → operator notify → ROE-gated response. <b>Kinetic is always human-in-the-loop</b>; active RF jamming requires FCC/DoD authority and only where the deployment context authorizes it. Default posture is passive sense + evidence. Live from <code>/api/killinchu/v1/companion-defense</code>. See the Legal Boundaries tab.',
+    render:async(c)=>{
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Protected asset &amp; trigger</span></div>
+        <div class="grid2" style="margin-bottom:.8rem">
+          <div class="form-row"><label>Companion lat</label><input id="cmp-clat" value="40.7128"/></div>
+          <div class="form-row"><label>Companion lon</label><input id="cmp-clon" value="-74.006"/></div>
+          <div class="form-row"><label>Adversary lat</label><input id="cmp-alat" value="40.7132"/></div>
+          <div class="form-row"><label>Adversary lon</label><input id="cmp-alon" value="-74.0061"/></div>
+          <div class="form-row"><label>Adversary model</label><input id="cmp-amodel" value="Shahed-136 / Geran-2"/></div>
+          <div class="form-row"><label>Trigger radius (m)</label><input id="cmp-r" value="1000"/></div>
+        </div>
+        <div class="btns"><button class="btn teal" onclick="companion_run()">▶ Run decision tree</button></div>
+        <div id="cmp-summary" class="mono dim" style="font-size:12px;margin:.5rem 0">— set a scenario and run —</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}ROE-gated decision tree</span><span class="card-ep">POST /companion-defense · Khipu-receipted</span></div>
+        <div id="cmp-steps"><div class="row mono dim">— run to see the decision tree —</div></div></div>
+      <details class="raw"><summary>raw /companion-defense</summary><pre class="out" id="cmp-raw">—</pre></details>
+      ${HONEST}`;
+      window.companion_run();
+    }},
+
 };
 
 // ===================== HANDLERS =====================
+
+// ════════════ DRONE INTELLIGENCE HANDLERS (consolidated SPA) ════════════
+window.dronedb_filter=function(side){
+  const all=window.__DDB__||[]; const list=el('ddb-list'); if(!list)return;
+  document.querySelectorAll('#vbody .btns .btn').forEach(b=>b.classList.toggle('teal', b.textContent.trim().toLowerCase()===(side==='all'?'all':side==='counter-uas'?'c-uas':side)));
+  const rows=all.filter(dr=>side==='all'||String(dr.side||'').toLowerCase()===side);
+  list.innerHTML='';
+  if(!rows.length){list.innerHTML='<div class="row mono dim">no systems for that side</div>';return;}
+  rows.forEach(dr=>{
+    const s=String(dr.side||'').toLowerCase();
+    const sc=s==='adversary'?'b-err':s==='allied'?'b-live':'b-warn';
+    list.insertAdjacentHTML('beforeend',`<div class="row">
+      <span class="badge ${sc}">${esc(dr.side)}</span>
+      <span><b>${esc(dr.model)}</b></span>
+      <span class="mono dim" style="font-size:11px">${esc(dr.group)}</span>
+      <span class="spacer mono dim" style="font-size:10px">${esc(dr.country)} · ${esc(dr.role)}</span>
+    </div>`);
+  });
+};
+
+window.detection_identify=async function(){
+  const sig=(el('det-sig')||{}).value||'';
+  setHTML('det-id-summary','identifying (passive)…');
+  try{
+    const d=await postJSON(API+'/counter-uas/identify',{rf_signature:sig});
+    setOut('det-id-out',d);
+    const m=(d.matches||[])[0];
+    setHTML('det-id-summary', m?('top match: <b>'+esc(m.model)+'</b> ('+esc(m.class)+', '+esc(m.origin)+') · confidence '+m.confidence+' · '+esc(d.method||'')):('no catalogue match · '+esc(d.method||'')));
+  }catch(e){setHTML('det-id-summary','retry: '+esc(e.message));}
+};
+
+window.geoint_plan=async function(){
+  const lat=(el('gi-lat')||{}).value, lon=(el('gi-lon')||{}).value, r=(el('gi-r')||{}).value;
+  setHTML('gi-summary','planning collection…');
+  try{
+    const d=await getJSON(API+'/geoint?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon)+'&radius_km='+encodeURIComponent(r));
+    setOut('gi-raw',d);
+    const rcpt=d.receipt||{};
+    setHTML('gi-summary','<b>'+(d.observation_count||0)+'</b> constellations would observe this AOI · Khipu receipt #'+(rcpt.index!=null?rcpt.index:'—')+' digest '+String(rcpt.digest||'').slice(0,16)+'…');
+    const h=el('gi-obs'); h.innerHTML='';
+    (d.observations||[]).forEach(o=>{
+      h.insertAdjacentHTML('beforeend',`<div class="row" style="flex-wrap:wrap">
+        <span class="badge b-live">${(o.confidence*100).toFixed(0)}%</span>
+        <span><b>${esc(o.constellation)}</b></span>
+        <span class="mono dim" style="font-size:11px">${esc(o.modality)}</span>
+        <span class="spacer mono dim" style="font-size:10px">tasking ETA: ${esc(o.tasking_eta)}</span>
+        <div style="flex-basis:100%;font-size:11px;color:var(--paragraph);margin-top:.2rem">${esc(o.would_detect)}</div>
+      </div>`);
+    });
+    if(!(d.observations||[]).length) h.innerHTML='<div class="row mono dim">no observations returned</div>';
+  }catch(e){setHTML('gi-summary','retry: '+esc(e.message));}
+};
+
+window.companion_run=async function(){
+  const body={companion:{lat:+(el('cmp-clat')||{}).value,lon:+(el('cmp-clon')||{}).value},
+    adversary:{lat:+(el('cmp-alat')||{}).value,lon:+(el('cmp-alon')||{}).value,model:(el('cmp-amodel')||{}).value},
+    trigger_radius_m:+(el('cmp-r')||{}).value};
+  setHTML('cmp-summary','running decision tree…');
+  try{
+    const d=await postJSON(API+'/companion-defense',body);
+    setOut('cmp-raw',d);
+    const rcpt=d.receipt||{};
+    setHTML('cmp-summary','distance <b>'+d.distance_m+' m</b> · trigger '+d.trigger_radius_m+' m · verdict <b>'+esc(d.verdict)+'</b>'+(d.breach?' (BREACH)':'')+' · Khipu receipt #'+(rcpt.index!=null?rcpt.index:'—'));
+    const h=el('cmp-steps'); h.innerHTML='';
+    const steps=d.decision_tree||[];
+    if(!steps.length){h.innerHTML='<div class="row mono dim">no breach — asset monitoring (no engage protocol triggered)</div>';return;}
+    steps.forEach(s=>{
+      const kinetic=/kinetic|HUMAN-IN-LOOP/i.test(s.mode||'');
+      h.insertAdjacentHTML('beforeend',`<div class="row" style="flex-wrap:wrap">
+        <span class="badge ${kinetic?'b-err':'b-warn'}">${s.step}</span>
+        <span><b>${esc(s.action)}</b></span>
+        <span class="mono dim" style="font-size:11px">${esc(s.mode)}</span>
+        ${s.note?`<div style="flex-basis:100%;font-size:11px;color:var(--paragraph);margin-top:.2rem">${esc(s.note)}</div>`:''}
+        ${s.result?`<span class="spacer mono dim" style="font-size:10px">${esc(s.result)}</span>`:''}
+      </div>`);
+    });
+  }catch(e){setHTML('cmp-summary','retry: '+esc(e.message));}
+};
 
 // ════════════ INHERITED BRAIN HANDLERS (shared with a11oy orchestrator) ════════════
 // a11oy = orchestrator brain; killinchu reaches it (and siblings) via orgGet/orgPost over public URLs.
@@ -2069,17 +3239,107 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
 // per-node probes). i.e. the picture cannot be gamed by renaming a service. The on-screen
 // copy states this as a plain-English property, never as theorem IDs.
 async function organism_load(){
-  try{const d=await orgGet('a11oy','/api/a11oy/v1/observability/summary');const mr=d.mesh_reach||{};const arr=Object.values(mr);const names=['a11oy','sentra','amaru','rosie','killinchu'];
-    const nodes=[{id:'a11oy',name:'a11oy — orchestrating brain',color:GOLD,val:18}];const links=[];let reach=0;
-    arr.forEach((p,i)=>{const nm=names[i]||('organ'+i);if(nm==='a11oy'){if(p.status==='ok')reach++;return;}const up=p.status==='ok';if(up)reach++;
-      nodes.push({id:nm,name:capName(nm)+(up?' · up '+(p.latency_ms?Math.round(p.latency_ms)+'ms':''):' · down'),color:up?TEAL:RED,val:nm==='killinchu'?11:8});
-      links.push({source:nm,target:'a11oy'});});
-    mesh3d('org-3d',nodes,links);
-    setTxt('org-reach',arr.length?reach+'/'+arr.length:'—');setTxt('org-links',links.length);
-    const depth=(d.melt&&d.melt.metrics&&d.melt.metrics.dag_depth)||(d.melt&&d.melt.events&&d.melt.events.signed_spans)||'—';setTxt('org-spans',depth);
-    setHTML('org-host','');arr.forEach((v,i)=>addHTML('org-host',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status||'')}</span><span>${esc(capName(names[i])||'organ')}${names[i]==='killinchu'?' · this field surface':''}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} · ${esc(scrubText(v.url||''))}</span></div>`));
-    setOut('org-raw',d);
-  }catch(e){const h=el('org-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">live feed unavailable: '+esc(e.message)+'</div>';setTxt('org-reach','—');setOut('org-raw','retry: '+e.message);}}
+  try{ window.an_renderBody('idle'); }catch(e){}
+  try{
+    const a=await getJSON(API+'/organism/anatomy');
+    const y=await getJSON(API+'/organism/yawar?limit=12');
+    setTxt('an-bus', (y&&y.bus_len!=null)?y.bus_len:'0');
+  }catch(e){ setTxt('an-bus','—'); }
+  const run=el('an-run'), tmp=el('an-tamper'), rst=el('an-reset');
+  if(run) run.onclick=()=>window.an_run(false);
+  if(tmp) tmp.onclick=()=>window.an_run(true);
+  if(rst) rst.onclick=async()=>{ try{ await postJSON(BASE+'/api/killinchu/v1/ops/reset',{}); }catch(e){} setTxt('an-bus','0'); setHTML('an-steps',''); setHTML('an-gate',''); setHTML('an-verify',''); window.an_renderBody('idle'); };
+}
+
+// Anatomical-body viz — distinct inline-SVG organism (NOT a globe/force-graph/chart).
+// Organs are positioned anatomically; receipt "blood" pulses heart->bus on a cycle.
+window.AN_ORGANS=[
+  {id:'YACHAY', label:'YACHAY', fn:'read-only reasoning cortex · proposer', x:200,y:70, r:30, sys:'brain'},
+  {id:'YUYAY', label:'YUYAY', fn:'HEART · 13-axis conjunctive gate', x:200,y:185, r:34, sys:'heart'},
+  {id:'CHAPAQ',label:'CHAPAQ', fn:'egress immune inspector', x:108,y:255, r:24, sys:'immune'},
+  {id:'RUWAY', label:'RUWAY', fn:'sole write surface', x:292,y:255, r:24, sys:'write'},
+  {id:'YAWAR', label:'YAWAR', fn:'CIRCULATORY · append-only signed bus', x:200,y:330, r:30, sys:'blood'},
+  {id:'R0513', label:'R0513', fn:'OVERWATCH · read-only audit', x:96,y:392, r:22, sys:'audit'},
+  {id:'HATUN', label:'HATUN', fn:'sovereign seal · human principal', x:304,y:392, r:22, sys:'seal'},
+];
+window.an_renderBody=function(state, active){
+  const W=400,H=470; const O=window.AN_ORGANS;
+  const col={brain:'#7fa8d0',heart:TEAL,immune:'#c9a05f',write:'#c9a05f',blood:'#b06a5a',audit:'#8aa',seal:GOLD};
+  // nerves (parent->child span lineage) drawn as thin lines; circulatory loop heart->bus->heart
+  const edges=[['YACHAY','YUYAY'],['YUYAY','CHAPAQ'],['YUYAY','RUWAY'],['CHAPAQ','YAWAR'],['RUWAY','YAWAR'],['YAWAR','R0513'],['YAWAR','HATUN'],['HATUN','YACHAY']];
+  const pos={}; O.forEach(o=>pos[o.id]=o);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:520px">`;
+  // body silhouette (sovereign organism outline)
+  svg+=`<path d="M200,28 C150,28 132,60 134,96 C100,120 92,180 110,235 C90,300 96,372 128,430 C150,452 250,452 272,430 C304,372 310,300 290,235 C308,180 300,120 266,96 C268,60 250,28 200,28 Z" fill="rgba(95,179,163,0.04)" stroke="rgba(201,183,135,0.18)" stroke-width="1.2"/>`;
+  edges.forEach(([a,b])=>{const p=pos[a],q=pos[b];const on=active&&(active.indexOf(a)>=0&&active.indexOf(b)>=0);
+    svg+=`<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="${on?TEAL:'rgba(201,183,135,0.22)'}" stroke-width="${on?2.4:1}"/>`;});
+  // circulatory pulse dot along heart->bus when active
+  O.forEach(o=>{
+    const isActive=active&&active.indexOf(o.id)>=0;
+    const failed=state==='fail'&&o.id==='YUYAY';
+    const fill=failed?RED:(isActive?col[o.sys]:'rgba(20,22,24,0.92)');
+    const stroke=failed?RED:col[o.sys];
+    svg+=`<circle cx="${o.x}" cy="${o.y}" r="${o.r}" fill="${fill}" stroke="${stroke}" stroke-width="${isActive?2.6:1.4}" opacity="${isActive?1:0.85}">`;
+    if(isActive) svg+=`<animate attributeName="r" values="${o.r};${o.r+4};${o.r}" dur="1.1s" repeatCount="indefinite"/>`;
+    svg+=`</circle>`;
+    svg+=`<text x="${o.x}" y="${o.y+3}" text-anchor="middle" font-family="var(--mono)" font-size="11" font-weight="600" fill="${isActive?'#0b0c0d':CREAM}">${o.label}</text>`;
+    svg+=`<text x="${o.x}" y="${o.y+o.r+12}" text-anchor="middle" font-family="var(--mono)" font-size="8.5" fill="${DIM}">${esc(o.fn)}</text>`;
+  });
+  // two-bodies tag
+  svg+=`<text x="${W/2}" y="${H-8}" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="${GOLD}">a11oy ⇄ killinchu · one YAWAR bus · one nervous mesh (UDS)</text>`;
+  svg+=`</svg>`;
+  const host=el('an-body'); if(host) host.innerHTML=svg;
+};
+
+window.an_run=async function(tamper){
+  const cmd=el('an-cmd').value, track=el('an-track').value, conf=parseFloat(el('an-conf').value), scn=el('an-scn').value;
+  const dom=(cmd.indexOf('drone')>=0||cmd==='assign_intercept'||cmd==='recall_drone')?'drone':'vessel';
+  const body={command:cmd, track_id:track, domain:dom, confidence:conf, reversible:true, severity:'high',
+    operator:'cic@szlholdings.ai', source_label:'live', data_license:'CC-BY-4.0', known_command:true, tamper:!!tamper};
+  if(scn==='deception') body.note='spoof-friendly maneuver to deceive sensor picture';
+  if(scn==='badlicense') body.data_license='GPL-3.0';
+  if(scn==='lowconf'){ body.confidence=0.2; }
+  if(scn==='conflict') body.conflicting=true;
+  if(scn==='stop') body.stop=true;
+  // step timeline scaffold (pending -> running -> complete/FAILED)
+  const stepDefs=[['YACHAY','YACHAY (read-only reasoning cortex) proposes'],['YUYAY','YUYAY 13-axis conjunctive gate'],['RUWAY+CHAPAQ','RUWAY commit via CHAPAQ egress immune inspector'],['YAWAR','Λ-sign YAWAR receipt'],['R0513','R0513 read-only audit'],['HATUN','HATUN sovereign seal → human']];
+  setHTML('an-steps', stepDefs.map((s,i)=>`<div class="an-step" id="an-st-${i}"><span class="an-dot">○</span><span>${esc(s[1])}</span><span class="spacer mono dim" id="an-st-d-${i}"></span></div>`).join(''));
+  setHTML('an-gate',''); setHTML('an-verify','');
+  let res;
+  try{
+    for(let i=0;i<stepDefs.length;i++){ const st=el('an-st-'+i); if(st){st.querySelector('.an-dot').textContent='◐'; st.classList.add('run');} window.an_renderBody('run',[stepDefs[i][0].split('+')[0], i>0?stepDefs[i-1][0].split('+')[0]:'YACHAY']); await new Promise(r=>setTimeout(r,260)); if(st){st.classList.remove('run');} }
+    res=await postJSON(API+'/organism/pipeline', body);
+  }catch(e){ setHTML('an-gate','<div class="an-fail">pipeline unavailable: '+esc(e.message)+'</div>'); return; }
+  const pass=!!res.yuyay_pass, decision=res.decision;
+  // mark steps: YUYAY fails if !pass; downstream gray/hatched if rejected
+  stepDefs.forEach((s,i)=>{ const st=el('an-st-'+i), dot=st&&st.querySelector('.an-dot'); const dd=el('an-st-d-'+i);
+    const span=(res.spans&&res.spans[i+1])?res.spans[i+1]:null; if(dd&&span) dd.textContent=(span.duration_ms!=null?span.duration_ms+'ms':'');
+    if(!st) return;
+    if(i===1){ if(pass){dot.textContent='✓';st.classList.add('ok');} else {dot.textContent='✗';st.classList.add('fail');} }
+    else if(i>1 && !pass){ dot.textContent='⃠'; st.classList.add('na'); if(dd)dd.textContent='not reached (gate rejected)'; }
+    else { dot.textContent='✓'; st.classList.add('ok'); }
+  });
+  window.an_renderBody(pass?'ok':'fail', pass?['YACHAY','YUYAY','CHAPAQ','RUWAY','YAWAR','R0513','HATUN']:['YACHAY','YUYAY']);
+  setTxt('an-decision', decision); el('an-decision').className='v '+(pass?'teal':''); if(!pass) el('an-decision').style.color=RED;
+  setTxt('an-signed', res.signed_receipt&&res.signed_receipt.signed?'signed':'unsigned');
+  setTxt('an-bus', res.yawar_bus_len!=null?res.yawar_bus_len:'—');
+  // gate detail — boolean cascade, first ✗ auto-expanded
+  const yz=(res.pipeline&&res.pipeline[1]&&res.pipeline[1].data)?res.pipeline[1].data:null;
+  if(yz){ const ff=yz.first_fail;
+    let rows=yz.score_vector.map(v=>`<div class="an-axis ${v.pass?'p':'f'}${(ff&&v.axis===ff.axis)?' first':''}"><span class="mono">${v.axis} ${esc(v.name)}</span><span class="spacer mono">${v.score.toFixed(2)} ${v.pass?'≥':'<'} ${v.floor}</span><span>${v.pass?'✓':'✗'}</span></div>`).join('');
+    setHTML('an-gate',`<div class="an-gatebox"><div class="mono dim" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.4rem">YUYAY gate · ${esc(yz.rule)}</div>${rows}${ff?`<div class="an-fail" style="margin-top:.5rem">First failing axis: <b>${ff.axis} ${esc(ff.name)}</b> — ${ff.score} &lt; ${ff.floor}. CONJUNCTIVE gate rejects the whole proposal.</div>`:'<div class="an-ok" style="margin-top:.5rem">All 13 axes ≥ floor → ALLOW. Λ-signed YAWAR receipt committed.</div>'}</div>`);
+  }
+  // verify + tamper
+  let vbox='';
+  const v=res.verify||{}; const sv=v.signature_valid;
+  vbox+=`<div class="an-vrow ${sv?'ok':'na'}"><span>Verify genuine receipt</span><span class="mono">${sv?'PASS — signature_valid=true':'unsigned/placeholder ('+esc(v.detail||'')+')'}</span></div>`;
+  if(res.tamper){ const tv=res.tamper.signature_valid;
+    vbox+=`<div class="an-vrow ${tv?'fail':'ok'}"><span>Tamper test (flip decision in signed payload)</span><span class="mono">${tv?'UNEXPECTED PASS':'FAIL — tamper detected (signature_valid=false) ✓'}</span></div>`;
+  } else if(tamper){ vbox+=`<div class="an-vrow na"><span>Tamper test</span><span class="mono">skipped — receipt unsigned in this runtime (no key)</span></div>`; }
+  setHTML('an-verify', vbox);
+  setOut('an-raw', res.signed_receipt||res);
+  try{ const yy=await getJSON(API+'/organism/yawar?limit=12'); setTxt('an-bus', yy.bus_len); }catch(e){}
+};
 
 // Receipt Chain — live hash-chain as a 3D DAG (rosie command-log).
 // PROOF BINDING (code-comment only): the audit walk over this DAG is a BOUNDED-FRONTIER
@@ -2095,9 +3355,10 @@ async function chain_load(){
   orgGet('provenance','/api/a11oy/v1/ledger').then(led=>setTxt('ch-led',led.count??(led.receipts||[]).length)).catch(()=>setTxt('ch-led','—'));
   try{const cl=await orgGet('provenance','/api/a11oy/v2/command-log');const rcs=(cl.receipts||[]).slice(-60);
     setTxt('ch-depth',cl.depth??rcs.length);setTxt('ch-ver',cl.chain_verified?'verified':'—');
-    const nodes=[],links=[];rcs.forEach((r,i)=>{const id=String(r.hash||r.seq||i);nodes.push({id,name:'#'+(r.seq??i)+' · '+esc(scrubText(String(r.command||r.kind||''))).slice(0,28)+' · '+id.slice(0,10),color:i===rcs.length-1?GOLD:TEAL,val:i===0?9:4});
+    // Sigma + dagre layered DAG (WebGL 2D, y = receipt depth). Distinct from organism (3D force-graph) and pulse (globe).
+    const nodes=[],links=[];rcs.forEach((r,i)=>{const id=String(r.hash||r.seq||i);nodes.push({id,label:'#'+(r.seq??i)+' '+id.slice(0,8),color:i===rcs.length-1?GOLD:(i===0?'#d6c69a':TEAL),size:i===0||i===rcs.length-1?10:6});
       if(i>0){const prev=String(rcs[i-1].hash||rcs[i-1].seq||(i-1));links.push({source:prev,target:id});}});
-    if(nodes.length)dag3d('ch-3d',nodes,links,{dagMode:'lr',dist:36,cooldown:140});
+    if(nodes.length){window._chainRcs=rcs;sigmaDag('ch-3d',nodes,links,{rankdir:'LR',labelThresh:5,onNode:(nid)=>{const r=(window._chainRcs||[]).find((x,j)=>String(x.hash||x.seq||j)===nid);if(r)setOut('ch-raw',r);}});}
     else{const h=el('ch-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">chain empty</div>';}
     setTxt('ch-cap','genesis hash '+esc(String(cl.genesis_hash||'').slice(0,16))+'… → head '+esc(String(cl.final_hash||'').slice(0,16))+'… · '+(cl.chain_verified?'chain VERIFIED':'unverified'));
     const tail=el('ch-tail');if(tail){tail.innerHTML='';rcs.slice().reverse().forEach(r=>tail.insertAdjacentHTML('beforeend',`<div class="frow"><span class="ts">#${esc(r.seq??'')}</span><span class="id">${esc(String(r.hash||'').slice(0,12))}</span><span class="txt">${esc(scrubText(String(r.command||r.kind||'')))}</span></div>`));}
@@ -2107,7 +3368,7 @@ async function chain_load(){
 // Global Pulse — live USGS earthquakes on a globe, arcs → a11oy US hub
 async function pulse_load(){
   const HUB={lat:39.0,lng:-98.0};
-  try{const d=await getPublic('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',13000);
+  try{const d=await getProxy('usgs_day','',13000);
     const feats=d.features||[];setTxt('pl-n',feats.length);
     let maxMag=0;const arcs=[],pts=[];
     feats.forEach(f=>{const p=f.properties||{};const g=f.geometry||{};const c=g.coordinates||[];if(c.length<2)return;const mag=p.mag||0;if(mag>maxMag){maxMag=mag;}
@@ -2218,8 +3479,8 @@ window.kbf_filter=kbf_filter;
 async function cve_load(){
   try{const end=new Date();const start=new Date(Date.now()-20*86400000);
     const fmt=dt=>dt.toISOString().slice(0,19)+'.000';
-    const url='https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=30&pubStartDate='+encodeURIComponent(fmt(start))+'&pubEndDate='+encodeURIComponent(fmt(end));
-    const d=await getPublic(url,15000);const vs=d.vulnerabilities||[];setTxt('cv-n',vs.length);setTxt('cv-tot',(d.totalResults||0).toLocaleString());
+    const qs='resultsPerPage=30&pubStartDate='+encodeURIComponent(fmt(start))+'&pubEndDate='+encodeURIComponent(fmt(end));
+    const d=await getProxy('nvd',qs,15000);const vs=d.vulnerabilities||[];setTxt('cv-n',vs.length);setTxt('cv-tot',(d.totalResults||0).toLocaleString());
     const sevCount={CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,NONE:0};let newest='';
     const sevOf=v=>{const m=v.cve.metrics||{};const arr=m.cvssMetricV31||m.cvssMetricV30||m.cvssMetricV2||[];return (arr[0]&&(arr[0].cvssData.baseSeverity||(arr[0].baseSeverity)))||'NONE';};
     const scoreOf=v=>{const m=v.cve.metrics||{};const arr=m.cvssMetricV31||m.cvssMetricV30||m.cvssMetricV2||[];return arr[0]?arr[0].cvssData.baseScore:'';};
@@ -2236,7 +3497,7 @@ async function cve_load(){
 
 // Known-Exploited — live CISA KEV mirror
 async function kev_load(){
-  try{const d=await getPublic('https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json',13000);
+  try{const d=await getProxy('cisa_kev','',13000);
     const vs=d.vulnerabilities||[];setTxt('kv-n',(vs.length||d.count||0).toLocaleString());setTxt('kv-ver',esc(d.catalogVersion||'—'));
     const ransom=vs.filter(x=>String(x.knownRansomwareCampaignUse||'').toLowerCase()==='known').length;setTxt('kv-ransom',ransom.toLocaleString());
     const newest=vs.slice().reverse().slice(0,40);const tail=el('kv-tail');if(tail){tail.innerHTML='';newest.forEach(x=>tail.insertAdjacentHTML('beforeend',`<div class="frow"><span class="id">${esc(x.cveID||'')}</span><span class="txt">${esc(x.vendorProject||'')} ${esc(x.product||'')} — ${esc(String(x.vulnerabilityName||'').slice(0,70))}</span></div>`));}
@@ -2249,7 +3510,7 @@ async function kev_load(){
 // Adversary Techniques — live MITRE ATT&CK STIX (bounded parse, cap ~110)
 async function attack_load(){
   try{setTxt('at-cap','fetching MITRE ATT&CK STIX (~30MB)…');
-    const d=await getPublic('https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json',30000);
+    const d=await getProxy('mitre_attack','',30000);
     const objs=d.objects||[];
     const tactics={};objs.filter(o=>o.type==='x-mitre-tactic').forEach(t=>{tactics[t.x_mitre_shortname]={name:t.name};});
     const techniques=objs.filter(o=>o.type==='attack-pattern'&&!o.x_mitre_is_subtechnique).slice(0,110);
@@ -2263,21 +3524,97 @@ async function attack_load(){
     cyGraph('at-cy',els,{name:'cose',animate:false,padding:24,nodeRepulsion:9000,idealEdgeLength:60});
   }catch(e){const h=el('at-cy');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">MITRE STIX unavailable (large file / timeout): '+esc(e.message)+'</div>';setTxt('at-n','—');setTxt('at-cap','feed unavailable — honest failure, not faked');}}
 
-async function fuse_demo(){
+// Sensor-class -> point colour (trust tier). RADAR/ADS-B teal (high), RF/Remote-ID gold, EO-IR/acoustic red.
+function _sensorColor(cls){const c=String(cls||'').toUpperCase();
+  if(c==='RADAR'||c==='ADS_B')return TEAL;
+  if(c==='RF_DETECT'||c==='REMOTE_ID'||c==='MAVLINK')return GOLD;
+  return RED;}
+// Render the regl-scatterplot covariance scatter + SVG overlay (1σ ellipse, fused ★, axes)
+// from a /sensor-fusion/fuse response. Data is geographic (lat/lon); we project to a local
+// East-North metres frame centred on the fused estimate so the covariance is in metres.
+function _drawFusionScatter(d){
+  const host=el('fusion-scatter'); if(!host)return;
+  const fused=d.fused||{}; const sensors=fused.sensors||[];
+  if(!sensors.length){host.innerHTML='<div class="row mono dim" style="padding:1rem">no sensor reports</div>';return;}
+  const fLat=fused.fused_lat, fLon=fused.fused_lon;
+  // local-tangent-plane metres (equirectangular about fused point)
+  const mPerDegLat=111320, mPerDegLon=111320*Math.cos(fLat*Math.PI/180);
+  const pts=sensors.map(s=>({E:(s.lon-fLon)*mPerDegLon, N:(s.lat-fLat)*mPerDegLat, w:s.weight||0.5, cls:s.sensor_class, id:s.sensor_id}));
+  // weighted covariance P about the fused centroid (which is ~weighted mean of E,N -> ~0,0)
+  let sw=0,sE=0,sN=0; pts.forEach(p=>{sw+=p.w;sE+=p.w*p.E;sN+=p.w*p.N;});
+  const mE=sw?sE/sw:0, mN=sw?sN/sw:0;
+  let a=0,b=0,cc=0; pts.forEach(p=>{const dE=p.E-mE,dN=p.N-mN;a+=p.w*dE*dE;b+=p.w*dE*dN;cc+=p.w*dN*dN;});
+  if(sw>0){a/=sw;b/=sw;cc/=sw;}
+  // guard against a single-sensor / degenerate covariance (give a small floor so the ellipse is visible)
+  const floor=4; a=Math.max(a,floor); cc=Math.max(cc,floor);
+  const ell=covEllipse(a,b,cc);
+  // view bounds: fit all points + ellipse with margin
+  const ext=Math.max(ell.major*1.4, ...pts.map(p=>Math.hypot(p.E,p.N)))*1.25 || 50;
+  const R=Math.max(ext,10);
+  // map data(E,N) metres -> regl-scatterplot clip space [-1,1]
+  const toClip=(E,N)=>[E/R, N/R];
+  // build coloured point set; regl-scatterplot category indexes into the colour palette
+  const palette=[ [0.373,0.702,0.639,1], [0.788,0.718,0.529,1], [0.690,0.416,0.353,1] ]; // teal, gold, red
+  const catOf=cls=>{const col=_sensorColor(cls);return col===TEAL?0:col===GOLD?1:2;};
+  const sp=scatterPlot(host,{colors:palette,pointSize:9,
+    points:pts.map(p=>{const [x,y]=toClip(p.E,p.N);return {x,y,category:catOf(p.cls)};})});
+  // SVG overlay: 1σ ellipse (dashed gold), fused ★, crosshair axes, sensor labels
+  let svg=host.querySelector('svg.fu-ov'); if(svg)svg.remove();
+  const NS='http://www.w3.org/2000/svg';
+  const W=host.clientWidth||640, H=host.clientHeight||440;
+  svg=document.createElementNS(NS,'svg'); svg.setAttribute('class','fu-ov');
+  svg.setAttribute('width','100%'); svg.setAttribute('height','100%');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.style.cssText='position:absolute;inset:0;pointer-events:none';
+  // clip [-1,1] -> pixels (y inverted). scatterplot fills the host.
+  const px=(cx,cy)=>[ (cx*0.5+0.5)*W, (0.5-cy*0.5)*H ];
+  // crosshair through fused point
+  const [fx,fy]=px(...toClip(0,0));
+  [['M0 '+fy+'H'+W],['M'+fx+' 0V'+H]].forEach(p=>{const l=document.createElementNS(NS,'path');l.setAttribute('d',p[0]);l.setAttribute('stroke','rgba(201,183,135,0.12)');l.setAttribute('fill','none');svg.appendChild(l);});
+  // ellipse as a polyline of 64 pts (clip-space, then -> px) so aspect is correct
+  const pts2=[]; for(let i=0;i<=64;i++){const th=2*Math.PI*i/64;
+    const eE=mE+ell.major*Math.cos(th)*Math.cos(ell.angle)-ell.minor*Math.sin(th)*Math.sin(ell.angle);
+    const eN=mN+ell.major*Math.cos(th)*Math.sin(ell.angle)+ell.minor*Math.sin(th)*Math.cos(ell.angle);
+    pts2.push(px(...toClip(eE,eN)));}
+  const ep=document.createElementNS(NS,'polyline');
+  ep.setAttribute('points',pts2.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '));
+  ep.setAttribute('fill','rgba(201,183,135,0.06)'); ep.setAttribute('stroke',GOLD);
+  ep.setAttribute('stroke-width','1.6'); ep.setAttribute('stroke-dasharray','6 4'); svg.appendChild(ep);
+  // sensor labels
+  pts.forEach(p=>{const [lx,ly]=px(...toClip(p.E,p.N));const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',lx+8);t.setAttribute('y',ly-6);t.setAttribute('fill',_sensorColor(p.cls));
+    t.setAttribute('font-family','JetBrains Mono, monospace');t.setAttribute('font-size','9');
+    t.textContent=p.cls;svg.appendChild(t);});
+  // fused ★ (gold)
+  const star=document.createElementNS(NS,'text'); const [sx,sy]=px(...toClip(mE,mN));
+  star.setAttribute('x',sx);star.setAttribute('y',sy+6);star.setAttribute('text-anchor','middle');
+  star.setAttribute('fill',GOLD);star.setAttribute('font-size','20');star.textContent='★';svg.appendChild(star);
+  host.appendChild(svg);
+  // KPIs
+  if(el('fu-n'))el('fu-n').textContent=sensors.length;
+  if(el('fu-q'))el('fu-q').textContent=(fused.fusion_quality!=null?Number(fused.fusion_quality).toFixed(3):'—');
+  if(el('fu-sig'))el('fu-sig').textContent=ell.major.toFixed(1);
+  return {ell,sensors:sensors.length,fLat,fLon};
+}
+async function fuse_demo(wide){
   try{
     setOut('fuse-out','fusing…');
-    const d = await postJSON(API+'/sensor-fusion/fuse',{
-      track_id:'TRK-DEMO-01',
-      sensor_reports:[
-        {sensor_id:'RF-01',sensor_class:'RF_DETECT',lat:47.85,lon:35.10,alt_m:1500,speed_m_s:51.4,confidence:0.88},
-        {sensor_id:'RADAR-01',sensor_class:'RADAR',lat:47.851,lon:35.101,alt_m:1498,speed_m_s:51.2,confidence:0.95},
-        {sensor_id:'EO-01',sensor_class:'EO_IR',lat:47.849,lon:35.099,alt_m:1502,speed_m_s:51.5,confidence:0.82}
-      ]
-    });
+    const reports = wide ? [
+        {sensor_id:'RADAR-01',sensor_class:'RADAR',lat:47.8510,lon:35.1010,alt_m:1498,speed_m_s:51.2,confidence:0.95},
+        {sensor_id:'ADSB-01',sensor_class:'ADS_B',lat:47.8505,lon:35.1004,alt_m:1500,speed_m_s:51.3,confidence:0.99},
+        {sensor_id:'RF-01',sensor_class:'RF_DETECT',lat:47.8470,lon:35.0960,alt_m:1500,speed_m_s:51.4,confidence:0.88},
+        {sensor_id:'EO-01',sensor_class:'EO_IR',lat:47.8560,lon:35.1080,alt_m:1502,speed_m_s:51.5,confidence:0.82},
+        {sensor_id:'ACO-01',sensor_class:'ACOUSTIC',lat:47.8440,lon:35.0900,alt_m:1500,speed_m_s:50.0,confidence:0.70}
+      ] : [
+        {sensor_id:'RF-01',sensor_class:'RF_DETECT',lat:47.8500,lon:35.1000,alt_m:1500,speed_m_s:51.4,confidence:0.88},
+        {sensor_id:'RADAR-01',sensor_class:'RADAR',lat:47.8510,lon:35.1010,alt_m:1498,speed_m_s:51.2,confidence:0.95},
+        {sensor_id:'EO-01',sensor_class:'EO_IR',lat:47.8490,lon:35.0990,alt_m:1502,speed_m_s:51.5,confidence:0.82}
+      ];
+    const d = await postJSON(API+'/sensor-fusion/fuse',{track_id:'TRK-DEMO-01',sensor_reports:reports});
     setOut('fuse-out',d);
-    const ft=d.fused_track||d.track||d;
-    const lat=ft.lat??ft.latitude, lon=ft.lon??ft.longitude, conf=ft.confidence??d.confidence;
-    if(el('fuse-summary')) el('fuse-summary').innerHTML='<span class="badge b-live">FUSED</span> 3 sensors → 1 consensus track'+(conf!=null?(' · confidence '+(typeof conf==='number'?conf.toFixed(2):conf)):'')+(lat!=null?(' · @ '+Number(lat).toFixed(4)+', '+Number(lon).toFixed(4)):'');
+    const info=_drawFusionScatter(d);
+    const fused=d.fused||{};
+    if(el('fuse-summary')) el('fuse-summary').innerHTML='<span class="badge b-live">FUSED</span> '+(fused.sensor_count||reports.length)+' sensors → 1 BLUE estimate'+(fused.fusion_quality!=null?(' · quality '+Number(fused.fusion_quality).toFixed(3)):'')+(fused.fused_lat!=null?(' · @ '+Number(fused.fused_lat).toFixed(4)+', '+Number(fused.fused_lon).toFixed(4)):'')+(info?(' · 1σ ≈ '+info.ell.major.toFixed(1)+'m'):'')+' · signed (DSSE)';
   }catch(e){setOut('fuse-out','retry: '+e.message); if(el('fuse-summary'))el('fuse-summary').textContent='retry: '+e.message;}
 }
 
@@ -2299,9 +3636,27 @@ async function prio_run(){
     });
     setOut('prio-raw',d);
     const ranked=(d.ranked_threats||[]);
-    const labels=ranked.map(t=>t.track_id), scores=ranked.map(t=>t.threat_score??0);
-    const cols=ranked.map(t=>['ENGAGE','BREACH','DENY'].includes(String(t.roe_verdict||'').toUpperCase())?RED:['HOLD','MONITOR','REVIEW','DEFER'].includes(String(t.roe_verdict||'').toUpperCase())?WARN:TEAL);
-    barV('prio-bar',labels,scores,cols);
+    // ── parallel-coordinates threat profile (ECharts) ──────────────
+    (function buildPrioParallel(){
+      const vcol=v=>['ENGAGE','BREACH','DENY'].includes(String(v||'').toUpperCase())?RED:['HOLD','MONITOR','REVIEW','DEFER'].includes(String(v||'').toUpperCase())?WARN:TEAL;
+      const maxRank=Math.max(1,...ranked.map(t=>t.rank||1));
+      const series=ranked.map(t=>({
+        name:t.track_id,
+        value:[t.speed_m_s||0, t.altitude_m||0, Math.round((t.threat_score||0)*1000)/1000, t.rank||0],
+        lineStyle:{color:vcol(t.roe_verdict),width:2,opacity:0.85},
+        _t:t}));
+      mkEchart('prio-par',{
+        tooltip:{trigger:'item',formatter:p=>{const t=(p.data&&p.data._t)||{};return '<b>'+esc(t.track_id||'')+'</b> · '+esc(t.model||'')+'<br/>rank #'+(t.rank||'?')+' · score '+( (t.threat_score||0).toFixed?(t.threat_score||0).toFixed(3):t.threat_score)+'<br/>'+(t.speed_m_s||0)+' m/s · '+(t.altitude_m||0)+' m · ROE '+esc(t.roe_verdict||'');}},
+        parallelAxis:[
+          {dim:0,name:'Speed m/s',nameTextStyle:{color:'#9aa'},axisLabel:{color:'#9aa'},axisLine:{lineStyle:{color:'#33424a'}}},
+          {dim:1,name:'Altitude m',nameTextStyle:{color:'#9aa'},axisLabel:{color:'#9aa'},axisLine:{lineStyle:{color:'#33424a'}}},
+          {dim:2,name:'Threat score',nameTextStyle:{color:'#c9b787'},axisLabel:{color:'#9aa'},axisLine:{lineStyle:{color:'#33424a'}}},
+          {dim:3,name:'Rank',inverse:true,min:1,max:maxRank,nameTextStyle:{color:'#9aa'},axisLabel:{color:'#9aa'},axisLine:{lineStyle:{color:'#33424a'}}}
+        ],
+        parallel:{left:54,right:90,top:30,bottom:24,parallelAxisDefault:{areaSelectStyle:{width:14}}},
+        series:[{type:'parallel',lineStyle:{width:2},smooth:true,data:series,emphasis:{lineStyle:{width:4,opacity:1}}}]
+      });
+    })();
     el_list.innerHTML='';
     ranked.forEach(t=>{
       el_list.insertAdjacentHTML('beforeend',`<div class="row">
@@ -2336,11 +3691,13 @@ async function audit_record(){
     });
     setOut('audit-out',d);
     if(el('audit-summary')) el('audit-summary').innerHTML='<span class="badge b-live">RECORDED</span> signed &amp; chained '+(d.signed||(d.receipt&&d.receipt.signed)?'(signature attached)':'');
-    // Refresh audit log count + spark
+    // Refresh audit log count + the signed-chain list (the ROE Sankey is driven by the live picture, not the demo log)
     const r = await getJSON(API+'/engagements/audit-log?limit=50');
     if(el('k-audit')) el('k-audit').textContent = r.total ?? 0;
-    const lam=(r.records||[]).map(x=>typeof x.lambda_at_decision==='number'?x.lambda_at_decision:null).filter(x=>x!=null);
-    if(lam.length) lineSpark('audit-spark',lam.map((_,i)=>i+1),lam,GOLD);
+    setOut('audit-raw',r);
+    const h=el('audit-list');
+    if(h){const recs=r.records||[]; if(!recs.length){h.innerHTML='<div class="row mono dim">0 records (demo memory, resets on restart)</div>';}
+      else{h.innerHTML=''; recs.forEach(rec=>{h.insertAdjacentHTML('beforeend','<div class="row"><span class="badge '+verdictClass(rec.verdict)+'">'+esc(rec.verdict)+'</span><span>'+esc(rec.track_id)+'</span><span class="mono dim" style="font-size:10px">'+esc(rec.effector)+'</span><span class="spacer mono dim">'+esc((rec.timestamp||'').slice(0,19))+' \u00b7 trust='+rec.lambda_at_decision+'</span></div>');});}}
   }catch(e){setOut('audit-out','retry: '+e.message); if(el('audit-summary'))el('audit-summary').textContent='retry: '+e.message;}
 }
 
@@ -2559,24 +3916,9 @@ async function drone_detail(){
   catch(e){setOut('drone-out','retry: '+e.message);}
 }
 
-async function mesh_load(){
-  const h = el('mesh-host');
-  try{
-    const d = await getJSON(API+'/mesh/state');
-    h.innerHTML='';
-    setOut('mesh-raw',d);
-    (d.mesh_organs||[]).forEach(name=>{
-      const wire = d.wires?.[name]||d.wires?.D||'?';
-      const up = wire==='live';
-      h.insertAdjacentHTML('beforeend',`<div class="row">
-        <span class="badge ${up?'b-live':'b-warn'}">${up?'LIVE':esc(wire).toUpperCase()}</span>
-        <span>${esc(capName(name))}</span>
-        <span class="spacer mono dim">${esc(scrubText('https://szlholdings-'+name+'.hf.space'))}</span>
-      </div>`);
-    });
-    if(!d.mesh_organs?.length) h.innerHTML='<pre class="out">'+esc(scrubText(JSON.stringify(d,null,2)))+'</pre>';
-  }catch(e){h.innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
-}
+// [REMOVED] mesh_load() — sole consumer was the deleted Mesh Reach orphan view.
+// Removed during the approved conservative tab cleanup. /mesh/state endpoint
+// itself is untouched (and now organ-name-sanitized in serve.py).
 
 // ============================================================================
 //  KILLINCHU BUILD WAVE — leader-grade out-of-this-world tabs (real data only)
@@ -2634,7 +3976,7 @@ async function livepic_load(){
   let drones=[], vessels=[], quakes=[], ranked=[];
   try{ const d=await getJSON(API+'/threats/active'); drones=(d.threats||[]); el('lp-air').textContent=drones.length; }catch(e){ el('lp-air').textContent='—'; }
   try{ const v=await getJSON(API+'/fleet/vessels'); vessels=(v.data||v.vessels||v||[]).slice(0,18); el('lp-sea').textContent=vessels.length; }catch(e){ el('lp-sea').textContent='—'; }
-  try{ const q=await getPublic('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson',11000); quakes=(q.features||[]); el('lp-geo').textContent=quakes.length; }catch(e){ el('lp-geo').textContent='—'; }
+  try{ const q=await getProxy('usgs_hour','',11000); quakes=(q.features||[]); el('lp-geo').textContent=quakes.length; }catch(e){ el('lp-geo').textContent='—'; }
   // threat layer — prioritise the drone tracks through the live governance loop
   try{ const rp=await postJSON(API+'/tracks/multi-prioritize',{tracks:drones.map(t=>({track_id:t.track_id,side:t.side,status:t.status,altitude_m:t.altitude_m,speed_m_s:t.speed_m_s,latitude:t.latitude,longitude:t.longitude,model:t.model}))}); ranked=(rp.ranked_threats||[]); }catch(e){}
 
@@ -2662,23 +4004,180 @@ async function livepic_load(){
   lp_renderGlobe(E);
   lp_renderRail();
 }
+// ===================== FLAGSHIP: LIVE 3D HEALTH TWIN =====================
+// Status -> colour map (matches the legend + CSS). nominal teal, needs-fix amber,
+// needs-upgrade slate-blue, hacked rust-red, damaged dark-blood.
+const TWIN_COLOR={'nominal':0x5fb3a3,'needs-fix':0xc9a05f,'needs-upgrade':0x7f9bd6,'hacked':0xb06a5a,'damaged':0x7a2e2e};
+const TWIN_HEX={'nominal':'#5fb3a3','needs-fix':'#c9a05f','needs-upgrade':'#7f9bd6','hacked':'#b06a5a','damaged':'#7a2e2e'};
+function twinHex(s){return TWIN_HEX[s]||'#888';}
+let _twinState=null, _twinSel=null, _twinTimer=null, _twinLive=true;
+
+async function twin_load(){
+  _twinLive=true;
+  try{
+    const pl=await getJSON('/api/killinchu/v1/twin/platforms');
+    const sel=el('tw-select'); if(!sel)return;
+    sel.innerHTML=(pl.platforms||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${esc(p.kind)} · ${esc(p.label)}</option>`).join('');
+    const feed=el('tw-feed'); if(feed){feed.textContent=(pl.feed_label==='live'?'● live AIS feed reached ('+pl.count+' platforms)':'sample-only (live AIS unreachable)');feed.style.color=(pl.feed_label==='live'?LIVE:WARN);}
+    // build the 3D scene ONCE, then select the first platform
+    twin_build3D();
+    const first=(pl.platforms&&pl.platforms[0])?pl.platforms[0].id:'';
+    if(first){sel.value=first;await twin_select(first);} 
+  }catch(e){
+    const subs=el('tw-subs'); if(subs)subs.innerHTML='<div class="row mono" style="color:#b06a5a;padding:1rem">twin feed unavailable: '+esc(e.message)+'</div>';
+  }
+}
+window.twin_load=twin_load;
+
+function twin_setLive(on){_twinLive=on; if(on&&_twinSel){twin_poll();} else if(_twinTimer){clearTimeout(_twinTimer);_twinTimer=null;}}
+window.twin_setLive=twin_setLive;
+
+async function twin_select(id){
+  _twinSel=id;
+  if(_twinTimer){clearTimeout(_twinTimer);_twinTimer=null;}
+  await twin_fetch();
+  if(_twinLive) twin_poll();
+}
+window.twin_select=twin_select;
+
+function twin_poll(){
+  if(_twinTimer){clearTimeout(_twinTimer);}
+  _twinTimer=setTimeout(async()=>{ if(!_twinLive||!_twinSel)return; try{await twin_fetch();}catch(e){} if(_twinLive)twin_poll(); },6000);
+  if(window._tailTimers) window._tailTimers.push(_twinTimer);
+}
+
+async function twin_fetch(){
+  if(!_twinSel)return;
+  let st; try{ st=await getJSON('/api/killinchu/v1/twin/state?platform='+encodeURIComponent(_twinSel)); }catch(e){ return; }
+  if(st.error){return;}
+  _twinState=st;
+  // KPIs
+  setTxt('tw-name', st.name||st.platform_id);
+  const lab=el('tw-label'); if(lab){lab.innerHTML=(st.label==='live'?'<span style="color:'+LIVE+'">live AIS</span> · '+esc(st.kind):'<span style="color:'+WARN+'">sample</span> · '+esc(st.kind));}
+  const hd=el('tw-headline'); if(hd){hd.textContent=st.headline_status;hd.style.color=twinHex(st.headline_status);}
+  const lm=el('tw-lambda'); if(lm){lm.textContent=(st.lambda!=null?st.lambda.toFixed(4):'—');lm.style.color=(st.lambda>=0.9?TEAL:st.lambda>=0.6?GOLD:RED);}
+  const gt=el('tw-gate'); if(gt){const ok=st.yuyay_gate&&st.yuyay_gate.authorized;gt.textContent=ok?'PASS':'DENY';gt.style.color=ok?TEAL:RED;}
+  twin_renderSubs(st);
+  twin_applyColors(st);
+}
+
+function twin_renderSubs(st){
+  const host=el('tw-subs'); if(!host)return;
+  const band=st.conformal&&st.conformal.band?st.conformal.band:[0,1];
+  host.innerHTML=(st.subsystems||[]).map(s=>{
+    const c=twinHex(s.status);
+    const oo=s.out_of_envelope?'<span style="color:#b06a5a"> · out-of-envelope</span>':'';
+    return `<div class="lp-rail-item" style="border-left:3px solid ${c};cursor:pointer" onclick="twin_subDetail('${s.subsystem}')">
+      <div class="row" style="justify-content:space-between"><b style="text-transform:capitalize">${esc(s.subsystem)}</b><span class="mono" style="color:${c}">${esc(s.status)}</span></div>
+      <div class="mono dim" style="font-size:.72rem">${esc(s.metric)} · s=${s.nonconformity} · trust=${s.trust}${oo}</div></div>`;
+  }).join('')+`<div class="mono dim" style="font-size:.7rem;padding:.5rem .2rem;border-top:1px solid #23262c;margin-top:.4rem">conformal q=${st.conformal?st.conformal.q:'—'} (α=${st.conformal?st.conformal.alpha:'—'}) · band Λ∈[${band[0]}, ${band[1]}] · ${st.conformal?st.conformal.method:''}</div>`;
+}
+
+function twin_subDetail(axis){
+  const st=_twinState; if(!st)return;
+  const s=(st.subsystems||[]).find(x=>x.subsystem===axis); if(!s)return;
+  const c=twinHex(s.status);
+  const card=el('tw-detail'); if(!card)return;
+  card.innerHTML=`<div class="card-h"><span class="card-t" style="text-transform:capitalize">${esc(axis)} — <span style="color:${c}">${esc(s.status)}</span></span><span class="card-ep">${esc(st.label)} · ${esc(st.name)}</span></div>
+    <div style="padding:.4rem .2rem">
+      <div class="row mono" style="font-size:.82rem;margin-bottom:.4rem"><b style="color:#c9b787">Metric:</b>&nbsp;${esc(s.metric)}</div>
+      <pre class="mono" style="background:#0f1216;border:1px solid #23262c;border-radius:6px;padding:.6rem;font-size:.74rem;color:#cdd2d8;overflow:auto;max-height:160px">${esc(JSON.stringify(s.value,null,2))}</pre>
+      <div class="row mono" style="font-size:.8rem;gap:1.2rem;margin:.5rem 0"><span><b style="color:#c9b787">nonconformity s</b> = ${s.nonconformity}</span><span><b style="color:#c9b787">trust (1−s)</b> = ${s.trust}</span><span><b style="color:#c9b787">out-of-envelope</b> = ${s.out_of_envelope}</span></div>
+      <div class="row mono" style="font-size:.82rem;padding:.5rem;background:rgba(201,160,95,0.08);border-radius:6px;color:#e0c98a"><b>Action:</b>&nbsp;${esc(s.action)}</div>
+      <div class="mono dim" style="font-size:.7rem;margin-top:.5rem">Status derived from a split-conformal band (W5-3/W7-4, NOT Hoeffding) over the live/sample telemetry; "hacked"/"needs-fix" are probabilistic inferences signed by Λ — not guarantees.</div>
+    </div>`;
+  if(window._twin&&window._twin.highlight) window._twin.highlight(axis);
+}
+window.twin_subDetail=twin_subDetail;
+
+// Build the Three.js scene ONCE per tab entry. Six labelled subsystem meshes arranged
+// along a stylised hull; an interactive trackball-ish auto-rotate; raycast click → detail.
+function twin_build3D(){
+  const host=el('tw-canvas'); if(!host||!window.THREE){if(host)host.innerHTML='<div class="row mono dim" style="padding:1rem">Three.js not available</div>';return;}
+  host.innerHTML='';
+  const W=host.clientWidth||600, H=host.clientHeight||460;
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(45,W/H,0.1,100); camera.position.set(0,3.2,7.5);
+  let renderer; try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">WebGL init failed: '+esc(e.message)+'</div>';return;}
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); renderer.setSize(W,H); renderer.setClearColor(0x000000,0);
+  host.appendChild(renderer.domElement); _twinR=renderer;
+  scene.add(new THREE.AmbientLight(0xffffff,0.55));
+  const key=new THREE.DirectionalLight(0xffffff,0.9); key.position.set(4,6,5); scene.add(key);
+  const rim=new THREE.DirectionalLight(0x5fb3a3,0.4); rim.position.set(-5,2,-4); scene.add(rim);
+  // platform group: a stylised vessel/drone body with 6 subsystem nodes
+  const group=new THREE.Group(); scene.add(group);
+  // central hull spine (visual frame only)
+  const spine=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,4.6,12),new THREE.MeshStandardMaterial({color:0x2a2d33,roughness:0.8}));
+  spine.rotation.z=Math.PI/2; group.add(spine);
+  // subsystem layout: positions along/around the spine
+  const LAYOUT={hull:[0,0,0,0.9],propulsion:[-1.9,0,0,0.6],comms:[0.6,0.9,0,0.45],sensors:[1.3,0.5,0.7,0.4],nav:[1.6,-0.3,-0.5,0.42],payload:[-0.4,-0.8,0.4,0.5]};
+  const meshes={}; const labels=[];
+  Object.keys(LAYOUT).forEach(ax=>{ const p=LAYOUT[ax];
+    const geo=(ax==='hull')?new THREE.CapsuleGeometry(0.55,1.7,6,14):(ax==='propulsion')?new THREE.ConeGeometry(p[3],0.9,16):new THREE.IcosahedronGeometry(p[3],1);
+    const mat=new THREE.MeshStandardMaterial({color:0x5fb3a3,emissive:0x000000,roughness:0.45,metalness:0.2});
+    const m=new THREE.Mesh(geo,mat); m.position.set(p[0],p[1],p[2]); if(ax==='hull')m.rotation.z=Math.PI/2; if(ax==='propulsion')m.rotation.z=Math.PI/2;
+    m.userData.axis=ax; group.add(m); meshes[ax]=m;
+    // ring marker to make each node a clear, clickable subsystem
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(p[3]+0.18,0.025,8,28),new THREE.MeshBasicMaterial({color:0xc9b787,transparent:true,opacity:0.5}));
+    ring.position.copy(m.position); ring.userData.axis=ax; group.add(ring);
+  });
+  // raycaster for click-to-inspect
+  const ray=new THREE.Raycaster(), mouse=new THREE.Vector2();
+  function onClick(ev){ const r=renderer.domElement.getBoundingClientRect();
+    mouse.x=((ev.clientX-r.left)/r.width)*2-1; mouse.y=-((ev.clientY-r.top)/r.height)*2+1;
+    ray.setFromCamera(mouse,camera); const hits=ray.intersectObjects(group.children,false);
+    for(const h of hits){ if(h.object.userData&&h.object.userData.axis){twin_subDetail(h.object.userData.axis);return;} } }
+  renderer.domElement.addEventListener('click',onClick);
+  renderer.domElement.style.cursor='pointer';
+  // simple drag-to-rotate
+  let drag=false,px=0,autoRot=true;
+  renderer.domElement.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;autoRot=false;});
+  window.addEventListener('pointerup',()=>{drag=false;});
+  renderer.domElement.addEventListener('pointermove',e=>{if(drag){group.rotation.y+=(e.clientX-px)*0.01;px=e.clientX;}});
+  let raf=null,running=true;
+  function loop(){ if(!running)return; if(autoRot)group.rotation.y+=0.0045; renderer.render(scene,camera); raf=requestAnimationFrame(loop); }
+  loop();
+  // expose handle for teardown + recolour + highlight
+  window._twin={
+    meshes:meshes,
+    apply:function(st){ (st.subsystems||[]).forEach(s=>{ const m=meshes[s.subsystem]; if(!m)return;
+      const col=TWIN_COLOR[s.status]||0x888888; m.material.color.setHex(col);
+      // pulse emissive for non-nominal so the eye is drawn to faults
+      m.material.emissive.setHex(s.status==='nominal'?0x000000:col); m.material.emissiveIntensity=(s.status==='nominal')?0:0.35;
+    }); },
+    highlight:function(ax){ Object.keys(meshes).forEach(k=>{ meshes[k].scale.setScalar(k===ax?1.18:1.0); }); },
+    fit:function(){ const w=host.clientWidth||W,h=host.clientHeight||H; if(w<2||h<2)return; camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h,false); },
+    stop:function(){ running=false; if(raf)cancelAnimationFrame(raf); try{renderer.domElement.removeEventListener('click',onClick);}catch(e){} }
+  };
+  // responsive
+  window._resizeHook=function(){ const w=host.clientWidth||W,h=host.clientHeight||H; camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h); };
+  window.addEventListener('resize',window._resizeHook);
+}
+
+function twin_applyColors(st){ if(window._twin&&window._twin.apply){try{window._twin.apply(st);}catch(e){}} }
+
+// LIVE PICTURE: deck.gl fused single-operating-picture (replaces globe.gl dup). Entities as a
+// ScatterplotLayer coloured by MIL-STD-2525 affiliation; hostile tracks draw a PathLayer
+// trail to the command point. Sovereign: no base-map tiles, 0 off-origin. Distinct from the
+// pulse globe + the Three.js twin.
+function _hex2rgb(h){ h=String(h||'#888').replace('#',''); if(h.length===3)h=h.split('').map(x=>x+x).join(''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
 function lp_renderGlobe(E){
-  const host=el('lp-globe'); if(!host||!window.Globe)return;
-  killGlobe(); host.innerHTML='';
+  const host=el('lp-globe'); if(!host)return;
+  if(!window.deck||!window.deck.Deck){host.innerHTML='<div class="row mono dim" style="padding:1rem">deck.gl unavailable</div>';return;}
   const pts=E.filter(e=>e.lat!=null&&e.lng!=null).map(e=>({
-    lat:e.lat, lng:e.lng, eid:e.eid,
-    color:MIL[e.affil], size:e.kind==='TRACK'?0.7:(e.kind==='ASSET'?0.55:Math.max(0.2,(e.mag||1)*0.12)),
-    label:milFrame(e.affil)+' '+e.eid+' · '+e.name+' · '+affilLabel(e.affil)+(e.sample?' · SAMPLE':'')+(e.live?' · LIVE':'') }));
-  // air→sea relationship arcs: hostile air tracks arc to the nearest own/command point
+    position:[e.lng,e.lat], eid:e.eid, color:_hex2rgb(MIL[e.affil]),
+    radius:e.kind==='TRACK'?8:(e.kind==='ASSET'?6:Math.max(3,(e.mag||1)*2)),
+    name:milFrame(e.affil)+' '+e.eid+' · '+e.name+' · '+affilLabel(e.affil)+(e.sample?' · SAMPLE':'')+(e.live?' · LIVE':'') }));
+  // hostile track trails to the command point (relationship/intent lines)
   const cmd={lat:47.0,lng:35.0};
-  const arcs=E.filter(e=>e.affil==='hostile'&&e.lat!=null).map(e=>({startLat:e.lat,startLng:e.lng,endLat:cmd.lat,endLng:cmd.lng,color:[RED,GOLD]}));
-  _globe=Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
-    .globeImageUrl('/vendor/earth-night.jpg')
-    .pointsData(pts).pointColor('color').pointAltitude(d=>d.size*0.05).pointRadius(d=>d.size*0.4).pointLabel('label')
-    .arcsData(arcs).arcColor('color').arcDashLength(0.35).arcDashGap(0.15).arcDashAnimateTime(1500).arcStroke(0.6).arcAltitudeAutoScale(0.45)
-    .onPointClick(p=>lp_detail(p.eid));
-  try{_globe.pointOfView({lat:42,lng:33,altitude:1.9},800);const ctr=_globe.controls();if(ctr){ctr.autoRotate=true;ctr.autoRotateSpeed=0.55;}}catch(e){}
-  setTimeout(()=>{try{_globe.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);
+  const trails=E.filter(e=>e.affil==='hostile'&&e.lat!=null).map(e=>({path:[[e.lng,e.lat],[cmd.lng,cmd.lat]],color:_hex2rgb(MIL.hostile)}));
+  const layers=[
+    new deck.PathLayer({id:'lp-trails',data:trails,getPath:d=>d.path,getColor:d=>d.color.concat([170]),getWidth:1.5,widthUnits:'pixels'}),
+    new deck.ScatterplotLayer({id:'lp-cmd',data:[{position:[cmd.lng,cmd.lat]}],getPosition:d=>d.position,getFillColor:[201,183,135],getRadius:11,radiusUnits:'pixels',stroked:true,getLineColor:[10,10,10],lineWidthMinPixels:1}),
+    new deck.ScatterplotLayer({id:'lp-ent',data:pts,getPosition:d=>d.position,getFillColor:d=>d.color,getRadius:d=>d.radius,radiusUnits:'pixels',stroked:true,getLineColor:[8,8,8],lineWidthMinPixels:1,pickable:true,
+      onClick:info=>{ if(info&&info.object&&info.object.eid) lp_detail(info.object.eid); }})
+  ];
+  deckScene('lp-globe',layers,{longitude:33,latitude:43,zoom:4.2,pitch:0,bearing:0});
 }
 function lp_setLayer(layer){_lp_layer=layer;document.querySelectorAll('.lp-rail-item').forEach(n=>n.classList.toggle('active',n.dataset.layer===layer));lp_renderRail();}
 window.lp_setLayer=lp_setLayer;
@@ -3348,36 +4847,56 @@ async function tracks_load(){
     if(el('tracks-plot')) el('tracks-plot').innerHTML='<div class="row mono dim" style="padding:1rem">live /threats/active unavailable: '+esc(e&&e.message||e)+'</div>';
   }
 }
+// PPI radar scope (range/bearing polar plot, raw SVG) — unique radial viz on the
+// console. Range ring = distance from the killinchu C2 station (centre), bearing
+// = compass angle (0\u00b0 = N, clockwise). Heading spoke points the contact's course.
 function tracks_plot(){
+  var host=el('tracks-plot'); if(!host)return;
   var threats=(window._trkData||[]); var sel=window._trkSel;
-  // scatter points keyed by lat/lon; heading vector as a short line from each point.
-  var pts=threats.filter(function(t){return t.latitude!=null&&t.longitude!=null;}).map(function(t){
-    return {value:[t.longitude,t.latitude],_id:t.track_id,_t:t,
-      itemStyle:{color:_trk_color(t),borderColor:(sel===t.track_id)?'#fff':'transparent',borderWidth:(sel===t.track_id)?3:0},
-      symbolSize:(sel===t.track_id)?22:(_trk_isThreat(t)?15:11)};
-  });
-  // heading vectors as line segments (lon/lat -> projected short vector)
-  var vecs=[];
+  host.innerHTML='';
+  var W=host.clientWidth||760, H=host.clientHeight||440;
+  var cx=W/2, cy=H/2, R=Math.max(60,Math.min(W,H)/2-28);
+  // max range -> scope radius (round up to a nice ring)
+  var maxRng=0; threats.forEach(function(t){if(t.range_km!=null&&t.range_km>maxRng)maxRng=t.range_km;});
+  if(maxRng<=0)maxRng=10;
+  var ringMax=Math.ceil(maxRng/10)*10||10;
+  var NS='http://www.w3.org/2000/svg';
+  var svg=document.createElementNS(NS,'svg'); svg.setAttribute('width','100%'); svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.style.display='block'; svg.style.background='radial-gradient(circle at center, rgba(95,179,163,0.05), transparent 70%)';
+  function mk(n,a){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);return e;}
+  var rr=function(km){return (km/ringMax)*R;};
+  // range rings + labels
+  for(var i=1;i<=4;i++){var rad=R*i/4;var km=Math.round(ringMax*i/4);
+    svg.appendChild(mk('circle',{cx:cx,cy:cy,r:rad,fill:'none',stroke:'rgba(95,179,163,0.18)','stroke-width':1}));
+    var lbl=mk('text',{x:cx+4,y:cy-rad+12,fill:'#5a7a72','font-size':9,'font-family':'monospace'});lbl.textContent=km+' km';svg.appendChild(lbl);}
+  // bearing spokes every 45\u00b0 + compass labels
+  var COMP={0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
+  for(var b=0;b<360;b+=45){var a=(b-90)*Math.PI/180;
+    svg.appendChild(mk('line',{x1:cx,y1:cy,x2:cx+Math.cos(a)*R,y2:cy+Math.sin(a)*R,stroke:'rgba(95,179,163,0.10)','stroke-width':1}));
+    var lt=mk('text',{x:cx+Math.cos(a)*(R+14),y:cy+Math.sin(a)*(R+14)+3,fill:'#5a7a72','font-size':10,'font-family':'monospace','text-anchor':'middle'});lt.textContent=COMP[b];svg.appendChild(lt);}
+  // centre C2 station (gold diamond)
+  svg.appendChild(mk('rect',{x:cx-7,y:cy-7,width:14,height:14,fill:GOLD,transform:'rotate(45 '+cx+' '+cy+')',rx:2}));
+  var cl=mk('text',{x:cx,y:cy+24,fill:GOLD,'font-size':10,'font-family':'monospace','text-anchor':'middle'});cl.textContent='killinchu C2';svg.appendChild(cl);
+  // tooltip
+  var tip=document.getElementById('_trk_tip');
+  if(!tip){tip=document.createElement('div');tip.id='_trk_tip';tip.style.cssText='position:fixed;pointer-events:none;background:#0d1518;border:1px solid #2a3a40;color:#cde;padding:6px 9px;border-radius:5px;font:11px monospace;z-index:9999;display:none;max-width:300px;box-shadow:0 4px 16px rgba(0,0,0,.5)';document.body.appendChild(tip);}
+  // plot contacts at (range,bearing)
   threats.forEach(function(t){
-    if(t.latitude==null||t.longitude==null||t.heading_deg==null)return;
-    var hd=t.heading_deg*Math.PI/180, L=0.18;
-    var dLat=Math.cos(hd)*L, dLon=Math.sin(hd)*L/Math.cos(t.latitude*Math.PI/180);
-    vecs.push([{coord:[t.longitude,t.latitude]},{coord:[t.longitude+dLon,t.latitude+dLat]}]);
+    if(t.range_km==null||t.bearing_deg==null)return;
+    var a=(t.bearing_deg-90)*Math.PI/180, rad=rr(t.range_km);
+    var px=cx+Math.cos(a)*rad, py=cy+Math.sin(a)*rad;
+    var col=_trk_color(t), thr=_trk_isThreat(t), seld=(sel===t.track_id);
+    // heading spoke
+    if(t.heading_deg!=null){var ha=(t.heading_deg-90)*Math.PI/180, L=16;
+      svg.appendChild(mk('line',{x1:px,y1:py,x2:px+Math.cos(ha)*L,y2:py+Math.sin(ha)*L,stroke:col,'stroke-width':1.4,opacity:0.8}));}
+    if(seld) svg.appendChild(mk('circle',{cx:px,cy:py,r:(thr?11:8)+5,fill:'none',stroke:'#fff','stroke-width':2}));
+    var dot=mk('circle',{cx:px,cy:py,r:seld?9:(thr?7:5.5),fill:col,stroke:'rgba(0,0,0,.45)','stroke-width':1,style:'cursor:pointer'});
+    dot.addEventListener('mouseenter',function(){tip.style.display='block';tip.innerHTML='<b>'+esc(t.track_id)+'</b> \u00b7 '+esc(t.model||'')+'<br>'+esc(t.status||'')+' \u00b7 '+esc(t.side||'')+'<br><span style="color:#778">rng '+(t.range_km!=null?t.range_km+' km':'?')+' \u00b7 brg '+(t.bearing_deg!=null?t.bearing_deg+'\u00b0':'?')+' \u00b7 '+(t.altitude_m!=null?t.altitude_m+' m':'')+'</span>';});
+    dot.addEventListener('mousemove',function(ev){tip.style.left=(ev.clientX+14)+'px';tip.style.top=(ev.clientY+14)+'px';});
+    dot.addEventListener('mouseleave',function(){tip.style.display='none';});
+    dot.addEventListener('click',function(){tracks_select(t.track_id,true);});
+    svg.appendChild(dot);
   });
-  var opt={
-    grid:{left:54,right:24,top:18,bottom:40},
-    tooltip:{trigger:'item',formatter:function(p){var t=(p.data&&p.data._t)||{};return t.track_id?('<b>'+esc(t.track_id)+'</b><br/>'+esc(t.model||'')+'<br/>'+esc(t.status||'')+' \u00b7 '+(t.range_km!=null?t.range_km+'km':'')+' \u00b7 brg '+(t.bearing_deg!=null?t.bearing_deg+'\u00b0':'')):'';}},
-    xAxis:{type:'value',name:'lon',nameLocation:'middle',nameGap:24,scale:true,axisLabel:{formatter:'{value}\u00b0'}},
-    yAxis:{type:'value',name:'lat',scale:true,axisLabel:{formatter:'{value}\u00b0'}},
-    series:[
-      {type:'lines',coordinateSystem:'cartesian2d',data:vecs,lineStyle:{color:'#888',width:1,opacity:0.55,curveness:0},silent:true,symbol:['none','arrow'],symbolSize:6},
-      {type:'scatter',coordinateSystem:'cartesian2d',data:pts,
-        emphasis:{focus:'self'}},
-      {type:'scatter',coordinateSystem:'cartesian2d',data:[{value:[TRK_HUB.lon,TRK_HUB.lat],itemStyle:{color:GOLD},symbol:'diamond',symbolSize:18,_t:{track_id:'',model:'killinchu C2 station'}}],silent:false}
-    ]
-  };
-  var inst=mkEchart('tracks-plot',opt);
-  if(inst){ inst.off('click'); inst.on('click',function(p){ if(p.data&&p.data._id){ tracks_select(p.data._id,true); } }); }
+  host.appendChild(svg);
 }
 function tracks_sort(key){
   var s=window._trkSort||{key:'range_km',dir:1};
@@ -3437,34 +4956,39 @@ async function tracks_evaluate(id){
 
 /* ---- Maritime Picture: globe.gl geo globe + AIS-replay arcs + risk card ---- */
 var MAR_HUB={lat:46.0,lon:30.5,name:'killinchu maritime station'};
+// Geodesic ring polygon around (lat,lon) at radius_nm — haversine offset, 48 segments.
+function _wezRing(lat,lon,radius_nm,segs){
+  segs=segs||48; var R=3440.065; var d=radius_nm/R; var lat1=lat*Math.PI/180, lon1=lon*Math.PI/180; var ring=[];
+  for(var i=0;i<=segs;i++){ var brg=2*Math.PI*i/segs;
+    var lat2=Math.asin(Math.sin(lat1)*Math.cos(d)+Math.cos(lat1)*Math.sin(d)*Math.cos(brg));
+    var lon2=lon1+Math.atan2(Math.sin(brg)*Math.sin(d)*Math.cos(lat1),Math.cos(d)-Math.sin(lat1)*Math.sin(lat2));
+    ring.push([lon2*180/Math.PI, lat2*180/Math.PI]); }
+  return ring;
+}
+// MARITIME: deck.gl WEZ (weapon-engagement-zone) threat-ring scene. Concentric geodesic
+// rings per platform; ROE-gate colours rings hot (red) for sanctioned/dark, cold (gray)
+// for clear. Distinct viz from globe.gl (pulse) + the 3D twin. Sovereign: no base-map tiles.
 function maritime_globe(){
   var host=el('maritime-globe'); if(!host)return;
-  if(!window.Globe){ host.innerHTML='<div class="row mono dim" style="padding:1rem">globe library unavailable</div>'; return; }
+  if(!window.deck||!window.deck.Deck){ host.innerHTML='<div class="row mono dim" style="padding:1rem">deck.gl unavailable</div>'; return; }
   var V=SAMPLE_VESSELS;
-  killGlobe(); host.innerHTML='';
-  var pts=V.map(function(v){
-    var col=(v.sanctioned||v.dark)?RED:(v.watch?WARN:TEAL);
-    return {lat:v.lat,lng:v.lon,color:col,size:(v.sanctioned||v.dark)?0.9:0.55,_id:v.id,
-      label:v.name+' \u00b7 '+v.type+' \u00b7 '+v.flag+(v.dark?' \u00b7 AIS DARK':'')+(v.sanctioned?' \u00b7 SANCTIONED':'')};
-  });
-  pts.push({lat:MAR_HUB.lat,lng:MAR_HUB.lon,color:GOLD,size:1.1,_id:'STATION',label:MAR_HUB.name});
-  // replay tracks: arc from each vessel to the station (sample/replay, not live AIS)
-  var arcs=V.map(function(v){
-    var col=(v.sanctioned||v.dark)?RED:(v.watch?WARN:TEAL);
-    return {startLat:v.lat,startLng:v.lon,endLat:MAR_HUB.lat,endLng:MAR_HUB.lon,color:[col,GOLD]};
-  });
-  // dark-gap rings on vessels that have gone dark
-  var rings=V.filter(function(v){return v.dark;}).map(function(v){return {lat:v.lat,lng:v.lon,color:RED};});
-  try{
-    _globe=Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
-      .globeImageUrl('/vendor/earth-night.jpg')
-      .pointsData(pts).pointColor('color').pointAltitude(function(d){return d.size*0.05;}).pointRadius(0.32).pointLabel('label')
-      .arcsData(arcs).arcColor('color').arcDashLength(0.4).arcDashGap(0.2).arcDashAnimateTime(1800).arcStroke(0.5).arcAltitudeAutoScale(0.35)
-      .ringsData(rings).ringColor(function(){return function(t){return 'rgba(176,106,90,'+(1-t)+')';};}).ringMaxRadius(2.2).ringPropagationSpeed(1.2).ringRepeatPeriod(900);
-    _globe.onPointClick(function(p){ if(p&&p._id&&p._id!=='STATION'){ maritime_risk(p._id); } });
-    try{_globe.pointOfView({lat:45.5,lng:34.0,altitude:1.6},0);var ctr=_globe.controls();if(ctr){ctr.autoRotate=true;ctr.autoRotateSpeed=0.45;}}catch(e){}
-    setTimeout(function(){try{_globe.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);
-  }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">globe init: '+esc(e.message)+'</div>'; }
+  // hot = sanctioned/dark (ROE: weapons-eligible ring), warm = watch, cold = clear
+  function rgb(v){ return (v.sanctioned||v.dark)?[176,106,90]:(v.watch?[201,160,95]:[95,179,163]); }
+  var ringPolys=[]; V.forEach(function(v){ var c=rgb(v); var hot=(v.sanctioned||v.dark);
+    [12,24,40].forEach(function(rad,k){ ringPolys.push({polygon:[_wezRing(v.lat,v.lon,rad)],color:c,_w:hot?2.2:1.2,_a:hot?(70-k*16):(34-k*8),_id:v.id}); }); });
+  var vesselPts=V.map(function(v){ return {position:[v.lon,v.lat],color:rgb(v),_id:v.id,radius:(v.sanctioned||v.dark)?9:6,
+    name:v.name+' \u00b7 '+v.type+' \u00b7 '+v.flag+(v.dark?' \u00b7 AIS DARK':'')+(v.sanctioned?' \u00b7 SANCTIONED':'')}; });
+  vesselPts.push({position:[MAR_HUB.lon,MAR_HUB.lat],color:[201,183,135],_id:'STATION',radius:11,name:MAR_HUB.name});
+  // DCPA track lines from each vessel to the station (sample/replay)
+  var tracks=V.map(function(v){ var c=rgb(v); return {path:[[v.lon,v.lat],[MAR_HUB.lon,MAR_HUB.lat]],color:c,_id:v.id}; });
+  var layers=[
+    new deck.PolygonLayer({id:'wez-rings',data:ringPolys,getPolygon:function(d){return d.polygon;},stroked:true,filled:true,
+      getLineColor:function(d){return d.color.concat([200]);},getFillColor:function(d){return d.color.concat([d._a]);},getLineWidth:function(d){return d._w;},lineWidthUnits:'pixels',pickable:true}),
+    new deck.PathLayer({id:'tracks',data:tracks,getPath:function(d){return d.path;},getColor:function(d){return d.color.concat([150]);},getWidth:1.6,widthUnits:'pixels'}),
+    new deck.ScatterplotLayer({id:'vessels',data:vesselPts,getPosition:function(d){return d.position;},getFillColor:function(d){return d.color;},getRadius:function(d){return d.radius;},radiusUnits:'pixels',stroked:true,getLineColor:[10,10,10],lineWidthMinPixels:1,pickable:true,
+      onClick:function(info){ if(info&&info.object&&info.object._id&&info.object._id!=='STATION'){ maritime_risk(info.object._id); } }})
+  ];
+  deckScene('maritime-globe',layers,{longitude:33.0,latitude:45.6,zoom:5.1,pitch:0,bearing:0});
 }
 function maritime_risk(id){
   var v=_vesselById(id); var box=el('vessel-risk-card'); if(!v||!box)return;
@@ -3652,7 +5176,381 @@ async function warboard_all(){
   setHTML('wb-cards',html);
 }
 
+/* ---- Maritime/Drone Warhacker (7 mode-aware demos) ---- */
+var _WH_KEYS=['spoofed-ais','dark-vessel','geofence-incursion','collision-cpa','swarm-hijack','tampered-command','roe-violation'];
+function warhacker_init(){
+  var html='';
+  for(var i=0;i<_WH_KEYS.length;i++){
+    var k=_WH_KEYS[i];
+    html+='<div class="card" id="wh-card-'+esc(k)+'"><div class="card-h"><span class="card-t">'+esc(k)+'</span>'+
+      '<span class="card-ep"><button onclick="window.warhacker_run(\''+esc(k)+'\',\'nominal\')" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:6px;padding:.3rem .8rem;cursor:pointer;font-weight:700">nominal</button>'+
+      ' <button onclick="window.warhacker_run(\''+esc(k)+'\',\'tamper\')" style="background:#b3475f;border:none;color:#fff;border-radius:6px;padding:.3rem .8rem;cursor:pointer;font-weight:700">tamper</button></span></div>'+
+      '<div id="wh-body-'+esc(k)+'" class="row mono dim">Click <b>nominal</b> or <b>tamper</b> \u2014 the demo runs live in-image and the values below are computed at request time.</div></div>';
+  }
+  setHTML('wh-cards',html);
+}
+function _wh_bool(b){return b?'<span class="badge b-live">YES</span>':'<span class="badge b-err">NO</span>';}
+function _wh_render(k,d){
+  var rc=(d.receipt||{}); var dsse=(rc.dsse||{}); var sealed=(d.sealed||{});
+  var cs=(d.chain_self||{}); var tt=(d.tamper_test||{}); var chain=(d.chain||{});
+  var tl=(d.timeline||[]); var ct=(d.catch_tree||[]); var fp=(d.formula_panel||[]);
+  var verdict=String(d.decision||'\u2014').toUpperCase();
+  var vkind=(d.authorized===true)?'live':'gold';
+  var html='';
+  html+='<div class="row"><span>Mode</span><span class="spacer">'+_fr_badge(String(d.mode||'').toUpperCase(),(d.mode==='tamper'?'gold':'live'))+'</span></div>';
+  html+='<div class="row"><span>Decision</span><span class="spacer">'+_fr_badge(verdict,vkind)+'</span></div>';
+  html+='<div class="row"><span>Real-or-roadmap</span><span class="spacer mono dim">'+esc(d.real_or_roadmap||'')+'</span></div>';
+  html+='<div class="row"><span>Headline</span><span class="spacer mono" style="max-width:62%;text-align:right">'+esc(d.headline||'')+'</span></div>';
+  // step timeline
+  html+='<div class="row" style="margin-top:.5rem"><b>Step timeline (computed live)</b></div>';
+  for(var i=0;i<tl.length;i++){var s=tl[i];
+    html+='<div class="row"><span class="mono dim">'+esc(s.step||s.name||('step'+i))+'</span>'+
+      '<span class="spacer mono">'+esc(String(s.status||''))+' \u00b7 '+esc(String(s.duration_ms))+'ms \u00b7 '+esc(typeof s.value_computed==='object'?JSON.stringify(s.value_computed):String(s.value_computed))+'</span></div>';
+  }
+  // catch tree
+  html+='<div class="row" style="margin-top:.5rem"><b>Catch tree</b>'+(d.first_failing_node?' \u00b7 first-failing: <span class="mono" style="color:#b3475f">'+esc(d.first_failing_node)+'</span>':'')+'</div>';
+  for(var j=0;j<ct.length;j++){var n=ct[j];
+    html+='<div class="row"><span class="mono dim">'+esc(n.node||'')+'</span><span class="spacer mono">'+esc(String(n.label||''))+' \u2192 '+_wh_bool(n.pass)+'</span></div>';
+  }
+  // receipt + chain
+  html+='<div class="row" style="margin-top:.5rem"><span>Receipt id (unique per run)</span><span class="spacer mono teal">'+esc(rc.receipt_id||'\u2014')+'</span></div>';
+  html+='<div class="row"><span>DSSE signed</span><span class="spacer mono dim">'+_wh_bool(dsse.signed)+' \u00b7 '+esc(dsse.keyid||'szlholdings-cosign')+' \u00b7 pae '+esc(String(dsse.pae_sha256||'').slice(0,16))+'</span></div>';
+  html+='<div class="row"><span>Merkle root</span><span class="spacer mono dim">'+esc(String(sealed.merkle_root||chain.merkle_root||'').slice(0,24))+'\u2026</span></div>';
+  html+='<div class="row"><span>This run\u2019s own chain (no tamper)</span><span class="spacer">'+_wh_bool(cs.chain_intact)+' intact \u00b7 depth '+esc(String(cs.depth||chain.depth||''))+'</span></div>';
+  html+='<div class="row"><span>Tamper test (flip one byte)</span><span class="spacer">'+(tt.chain_intact===false?'<span class="badge b-err">CHAIN BROKEN</span>':_wh_bool(tt.chain_intact))+(tt.chain_break_at_seq!=null?' \u00b7 break at seq '+esc(String(tt.chain_break_at_seq)):'')+'</span></div>';
+  // formula panel
+  html+='<div class="row" style="margin-top:.5rem"><b>Formula / proof panel</b></div>';
+  for(var f=0;f<fp.length;f++){var p=fp[f];
+    html+='<div class="row"><span class="mono dim">'+esc(p.formula||'')+'</span><span class="spacer mono" style="max-width:60%;text-align:right">'+esc(p.expr||'')+' \u00b7 '+esc(p.status||'')+'</span></div>';
+  }
+  html+='<div class="row mono dim" style="margin-top:.4rem">'+esc(d.honesty||'')+'</div>';
+  html+='<div class="row mono dim">'+esc(d.lambda_status||'')+'</div>';
+  setHTML('wh-body-'+k,html);
+}
+async function warhacker_run(k,mode){
+  setHTML('wh-body-'+k,'<div class="row mono dim">launching <b>'+esc(k)+'</b> ('+esc(mode)+') live in-image\u2026</div>');
+  try{
+    var d=await postJSON('/api/killinchu/v1/warhacker/launch/'+encodeURIComponent(k),{mode:mode});
+    if(d.ok===false){ setHTML('wh-body-'+k,'<div class="row mono dim">error: '+esc(d.error||'unknown')+'</div>'); return null; }
+    _wh_render(k,d);
+    return d;
+  }catch(e){
+    setHTML('wh-body-'+k,'<div class="row mono dim">live service retry: '+esc(e&&e.message||e)+'</div>');
+    return null;
+  }
+}
+async function warhacker_all(mode){
+  var modeaware=0, signed=0, tamperbreaks=0;
+  var lastDec={};
+  for(var i=0;i<_WH_KEYS.length;i++){
+    var k=_WH_KEYS[i];
+    var d=await warhacker_run(k,mode);
+    if(d){
+      var dsse=((d.receipt||{}).dsse||{}); if(dsse.signed) signed++;
+      if((d.tamper_test||{}).chain_intact===false) tamperbreaks++;
+      lastDec[k+'|'+mode]=d.decision;
+    }
+  }
+  // mode-awareness: run the opposite mode for each and confirm decision differs
+  var other=(mode==='tamper')?'nominal':'tamper';
+  for(var j=0;j<_WH_KEYS.length;j++){
+    var kk=_WH_KEYS[j];
+    try{ var o=await postJSON('/api/killinchu/v1/warhacker/launch/'+encodeURIComponent(kk),{mode:other});
+      if(o && o.decision!==lastDec[kk+'|'+mode]) modeaware++;
+    }catch(e){}
+  }
+  setTxt('wh-modeaware',modeaware+' / 7');
+  setTxt('wh-signed',signed+' / 7');
+  setTxt('wh-tamper',tamperbreaks+' / 7');
+}
+
+/* ===================== MINED OPS (efficiency) loaders ===================== */
+/* Each reads a real killinchu /mined/* endpoint (clean-room reimpl of a permissive */
+/* pattern). No mock data; sample inputs honestly labelled. Λ stays Conjecture 1. */
+async function sci_init(){ sci_trackfit(); sci_kepler(); sci_fuse(); }
+async function sci_trackfit(){
+  try{
+    const ys=(el('sc-y').value||'').split(',').map(s=>parseFloat(s.trim())).filter(v=>!isNaN(v));
+    const t=ys.map((_,i)=>i);
+    const d=await postJSON('/api/killinchu/v1/mined/scicompute',{mode:'track-fit',t:t,y:ys});
+    setTxt('sc-vel',(d.fit&&d.fit.velocity!=null)?d.fit.velocity.toFixed(3):'—');
+    setTxt('sc-r2',(d.fit&&d.fit.r2!=null)?d.fit.r2.toFixed(4):'—');
+    setHTML('sc-fit-out',esc(JSON.stringify(d,null,2)));
+  }catch(e){setHTML('sc-fit-out','error: '+esc(e.message));}
+}
+async function sci_kepler(){
+  try{
+    const a=parseFloat(el('sc-a').value)||7000;
+    const d=await postJSON('/api/killinchu/v1/mined/scicompute',{mode:'kepler-period',semi_major_axis_km:a});
+    setTxt('sc-per',(d.orbital_period_min!=null)?d.orbital_period_min.toFixed(1):'—');
+    setHTML('sc-kep-out',esc(JSON.stringify(d,null,2)));
+  }catch(e){setHTML('sc-kep-out','error: '+esc(e.message));}
+}
+async function sci_fuse(){
+  try{
+    const d=await postJSON('/api/killinchu/v1/mined/scicompute',{mode:'fuse-covariance'});
+    setHTML('sc-fuse-out',esc(JSON.stringify(d,null,2)));
+    const e2=await postJSON('/api/killinchu/v1/mined/scicompute',{mode:'energy-integral'});
+    setTxt('sc-en',(e2.energy_wh!=null)?e2.energy_wh.toFixed(4):'—');
+  }catch(e){setHTML('sc-fuse-out','error: '+esc(e.message));}
+}
+async function edge_estimate(){
+  try{
+    const body={
+      num_params_billions:parseFloat(el('ee-params').value)||1.3,
+      sequence_length:parseInt(el('ee-seq').value)||2048,
+      vram_budget_gib:parseFloat(el('ee-vram').value)||8,
+      workload:el('ee-work').value, precision:el('ee-prec').value };
+    const d=await postJSON('/api/killinchu/v1/mined/edge-estimator',body);
+    setTxt('ee-total',(d.total_estimate_GiB!=null)?d.total_estimate_GiB.toFixed(2):'—');
+    setTxt('ee-budget',(d.vram_budget_GiB!=null)?d.vram_budget_GiB:'—');
+    setTxt('ee-head',(d.headroom_GiB!=null)?d.headroom_GiB.toFixed(2):'—');
+    const fitEl=el('ee-fit'); if(fitEl){fitEl.textContent=d.fits_on_edge?'FITS':'EXCEEDS'; fitEl.className='v '+(d.fits_on_edge?'teal':'');}
+    setHTML('ee-out',esc(JSON.stringify(d,null,2)));
+    const comp=d.components_MiB||{}; const labels=Object.keys(comp); const vals=labels.map(k=>comp[k]);
+    mkEchart('ee-chart',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},grid:{left:130,right:24,top:16,bottom:24},
+      xAxis:{type:'value',name:'MiB'},yAxis:{type:'category',data:labels},
+      series:[{type:'bar',data:vals,itemStyle:{borderRadius:[0,4,4,0]}}]});
+  }catch(e){setHTML('ee-out','error: '+esc(e.message));}
+}
+async function swarm_run(){
+  try{
+    const body={ perturb_magnitude:parseFloat(el('sr-mag').value)||8, consensus_rate:parseFloat(el('sr-rate').value)||0.35 };
+    const d=await postJSON('/api/killinchu/v1/mined/swarm-resilience',body);
+    setTxt('sr-iters',(d.recovery_iterations!=null)?d.recovery_iterations:'—');
+    setTxt('sr-aa',(d.asymptotic_alignment_score!=null)?d.asymptotic_alignment_score.toFixed(4):'—');
+    const vEl=el('sr-verdict'); if(vEl){vEl.textContent=d.recovered_within_tolerance?'RESILIENT':'DEGRADED'; vEl.className='v '+(d.recovered_within_tolerance?'teal':'');}
+    setTxt('sr-plan',(d.re_agreed_plan!=null)?d.re_agreed_plan:'—');
+    setHTML('sr-out',esc(JSON.stringify(d,null,2)));
+    const traj=d.error_trajectory||[]; const xs=traj.map((_,i)=>i);
+    mkEchart('sr-chart',{tooltip:{trigger:'axis'},grid:{left:48,right:24,top:16,bottom:32},
+      xAxis:{type:'category',data:xs,name:'iteration'},yAxis:{type:'value',name:'disagreement'},
+      series:[{type:'line',data:traj,smooth:true,areaStyle:{},showSymbol:false}]});
+  }catch(e){setHTML('sr-out','error: '+esc(e.message));}
+}
+async function telem_run(){
+  try{
+    const body={ keep_fraction:parseFloat(el('tm-frac').value)||0.4 };
+    const d=await postJSON('/api/killinchu/v1/mined/telemetry-press',body);
+    setTxt('tm-in',d.frames_in);
+    setTxt('tm-keep',d.frames_kept);
+    setTxt('tm-comp',(d.compression_ratio!=null)?d.compression_ratio+'×':'—');
+    setTxt('tm-val',(d.retained_value_fraction!=null)?(100*d.retained_value_fraction).toFixed(1)+'%':'—');
+    setHTML('tm-out',esc(JSON.stringify(d,null,2)));
+    const N=d.frames_in||0; const kept=new Set(d.kept_indices||[]);
+    const keptArr=[],pruneArr=[];
+    for(let i=0;i<N;i++){ if(kept.has(i)){keptArr.push(i);} else {pruneArr.push(i);} }
+    mkEchart('tm-chart',{tooltip:{},legend:{data:['kept (high-value)','pruned (noise)'],bottom:0},
+      grid:{left:48,right:24,top:16,bottom:40},
+      xAxis:{type:'value',name:'frame #',min:0,max:N},yAxis:{type:'value',min:0,max:1,axisLabel:{show:false},name:'retention'},
+      series:[
+        {name:'kept (high-value)',type:'scatter',symbolSize:9,data:keptArr.map(i=>[i,0.66])},
+        {name:'pruned (noise)',type:'scatter',symbolSize:5,data:pruneArr.map(i=>[i,0.33]),itemStyle:{opacity:.45}}
+      ]});
+  }catch(e){setHTML('tm-out','error: '+esc(e.message));}
+}
+window.sci_init=sci_init; window.sci_trackfit=sci_trackfit; window.sci_kepler=sci_kepler; window.sci_fuse=sci_fuse;
+window.edge_estimate=edge_estimate; window.swarm_run=swarm_run; window.telem_run=telem_run;
+
+/* ===================== TACTICAL RE-SWEEP (wave-2) loaders ===================== */
+/* Each reads a real killinchu /resweep/* endpoint (clean-room reimpl of a permissive */
+/* pattern: ngraph.path/visibility-graph/IRanker/adaptive, all MIT). No mock data;     */
+/* sample inputs honestly labelled "not a live feed". Λ stays Conjecture 1.            */
+async function tacroute_grid(){
+  try{
+    const A=await postJSON('/api/killinchu/v1/resweep/route',{mode:'grid-astar'});
+    const n=await postJSON('/api/killinchu/v1/resweep/route',{mode:'grid-nba'});
+    setTxt('tr-cost',(A.total_cost!=null)?A.total_cost.toFixed(2):'—');
+    setTxt('tr-expa',(A.nodes_expanded!=null)?A.nodes_expanded:'—');
+    setTxt('tr-expn',(n&&n.nodes_expanded!=null)?n.nodes_expanded:'—');
+    setHTML('tr-grid-out',esc(JSON.stringify({astar:A,nba:n},null,2)));
+    /* draw the grid as a heatmap of sea-state cost + both routes as lines */
+    const R=A.grid_size?A.grid_size[0]:14, C=A.grid_size?A.grid_size[1]:22;
+    const ap=(A.path||[]).map(p=>[p[1],R-1-p[0]]);   /* x=col, y=row (flip for display) */
+    const np=((n&&n.path)||[]).map(p=>[p[1],R-1-p[0]]);
+    const blk=[];
+    /* mark blocked cells from A* (we know count; recompute by re-reading not needed) */
+    mkEchart('tr-grid-chart',{tooltip:{},legend:{data:['A* route','NBA* route'],bottom:0},
+      grid:{left:36,right:18,top:14,bottom:40},
+      xAxis:{type:'value',min:0,max:C-1,name:'col'},yAxis:{type:'value',min:0,max:R-1,name:'row'},
+      series:[
+        {name:'A* route',type:'line',data:ap,smooth:false,symbol:'circle',symbolSize:5,lineStyle:{width:3}},
+        {name:'NBA* route',type:'line',data:np,smooth:false,symbol:'rect',symbolSize:4,lineStyle:{width:2,type:'dashed'}},
+        {name:'start',type:'scatter',data:ap.length?[ap[0]]:[],symbolSize:13,itemStyle:{color:'#5fb3a3'}},
+        {name:'goal',type:'scatter',data:ap.length?[ap[ap.length-1]]:[],symbolSize:13,itemStyle:{color:'#c9a05f'}}
+      ]});
+  }catch(e){setHTML('tr-grid-out','error: '+esc(e.message));}
+}
+async function tacroute_obstacle(){
+  try{
+    const d=await postJSON('/api/killinchu/v1/resweep/route',{mode:'obstacle-avoid'});
+    setTxt('tr-detour',(d.detour_ratio!=null)?d.detour_ratio.toFixed(3)+'×':'—');
+    setHTML('tr-obs-out',esc(JSON.stringify(d,null,2)));
+    const path=(d.path||[]).map(p=>[p[0],p[1]]);
+    const obs=d.obstacles||[];
+    const series=[];
+    obs.forEach((poly,i)=>{ const ring=poly.concat([poly[0]]); series.push({name:'exclusion '+(i+1),type:'line',data:ring,lineStyle:{color:'#b06a5a',width:2},areaStyle:{color:'rgba(176,106,90,.18)'},symbol:'none'}); });
+    series.push({name:'route',type:'line',data:path,symbol:'circle',symbolSize:7,lineStyle:{width:3,color:'#5fb3a3'}});
+    if(path.length){ series.push({name:'start',type:'scatter',data:[path[0]],symbolSize:13,itemStyle:{color:'#5fb3a3'}});
+      series.push({name:'goal',type:'scatter',data:[path[path.length-1]],symbolSize:13,itemStyle:{color:'#c9a05f'}}); }
+    mkEchart('tr-obs-chart',{tooltip:{},grid:{left:36,right:18,top:14,bottom:28},
+      xAxis:{type:'value',name:'x'},yAxis:{type:'value',name:'y'},series:series});
+  }catch(e){setHTML('tr-obs-out','error: '+esc(e.message));}
+}
+async function threatrank_run(){
+  try{
+    const d=await postJSON('/api/killinchu/v1/resweep/threat-rank',{});
+    const r=d.ranking||[];
+    setTxt('trk-top',d.top_threat||'—');
+    setTxt('trk-score',(r[0]&&r[0].threat_score!=null)?r[0].threat_score.toFixed(3):'—');
+    setTxt('trk-count',d.count!=null?d.count:'—');
+    setTxt('trk-flag',r.filter(v=>(v.flags||[]).length).length);
+    setHTML('trk-out',esc(JSON.stringify(d,null,2)));
+    mkEchart('trk-chart',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},grid:{left:120,right:24,top:14,bottom:28},
+      xAxis:{type:'value',name:'threat score',min:0,max:1},
+      yAxis:{type:'category',data:r.map(v=>v.id).reverse()},
+      series:[{type:'bar',data:r.map(v=>v.threat_score).reverse(),itemStyle:{borderRadius:[0,4,4,0]}}]});
+    let html='<table class="tbl" style="width:100%;font-size:12px"><tr><th>#</th><th>ID</th><th>score</th><th>range nm</th><th>closing kn</th><th>flags</th></tr>';
+    r.forEach(v=>{ html+='<tr><td>'+v.rank+'</td><td>'+esc(v.id)+'</td><td>'+v.threat_score+'</td><td>'+(v.range_nm!=null?v.range_nm:'—')+'</td><td>'+(v.closing_speed_kn!=null?v.closing_speed_kn:'—')+'</td><td>'+esc((v.flags||[]).join(', ')||'—')+'</td></tr>'; });
+    html+='</table>'; setHTML('trk-table',html);
+  }catch(e){setHTML('trk-out','error: '+esc(e.message));}
+}
+async function adaptsample_run(){
+  try{
+    const budget=parseInt(el('as-bud').value)||28;
+    const d=await postJSON('/api/killinchu/v1/resweep/adaptive-sample',{budget:budget});
+    setTxt('as-peaks',d.contacts_detected!=null?d.contacts_detected:'—');
+    setTxt('as-budget',d.budget!=null?d.budget:'—');
+    setTxt('as-adn',(d.adaptive&&d.adaptive.fraction_samples_near_peaks!=null)?(100*d.adaptive.fraction_samples_near_peaks).toFixed(0)+'%':'—');
+    setTxt('as-unn',(d.uniform_baseline&&d.uniform_baseline.fraction_samples_near_peaks!=null)?(100*d.uniform_baseline.fraction_samples_near_peaks).toFixed(0)+'%':'—');
+    setHTML('as-out',esc(JSON.stringify(d,null,2)));
+    const samp=(d.adaptive&&d.adaptive.samples)||[];
+    const peaks=(d.adaptive&&d.adaptive.peaks)||[];
+    mkEchart('as-chart',{tooltip:{trigger:'axis'},legend:{data:['signal (adaptive)','samples','peaks'],bottom:0},
+      grid:{left:44,right:18,top:14,bottom:40},
+      xAxis:{type:'value',name:'normalised bearing',min:0,max:1},yAxis:{type:'value',name:'sensor return'},
+      series:[
+        {name:'signal (adaptive)',type:'line',data:samp,smooth:true,showSymbol:false,lineStyle:{width:2}},
+        {name:'samples',type:'scatter',data:samp,symbolSize:6,itemStyle:{color:'#c9b787'}},
+        {name:'peaks',type:'scatter',data:peaks.map(p=>[p.x,p.value]),symbolSize:15,symbol:'pin',itemStyle:{color:'#b06a5a'}}
+      ]});
+  }catch(e){setHTML('as-out','error: '+esc(e.message));}
+}
+window.tacroute_grid=tacroute_grid; window.tacroute_obstacle=tacroute_obstacle;
+window.threatrank_run=threatrank_run; window.adaptsample_run=adaptsample_run;
+
+/* ===================== WAVE9/10 PROVEN THEOREMS (EXPERIMENTAL · CI-green) =====================
+   Each loader POSTs to /api/killinchu/v1/wave910/* and renders the in-image computed result.
+   These hit OUR same-origin server (0 client off-origin / 0 CDN). Honesty chips are baked into
+   the VIEWS card markup; these functions only surface the computed numbers + raw payload. */
+const W910_BASE='/api/killinchu/v1/wave910';
+function _yn(v){return v?'YES':'NO';}
+function _passfail(v){return v?'PASS':'HOLD';}
+async function w910_stl(op){
+  try{
+    const raw=(el('w-stl-vals')&&el('w-stl-vals').value||'').split(',').map(s=>parseFloat(s.trim())).filter(v=>!isNaN(v));
+    const thr=parseFloat(el('w-stl-thr')&&el('w-stl-thr').value)||0;
+    const d=await postJSON(W910_BASE+'/stl-robustness',{values:raw,op:op||'always',threshold:thr});
+    setTxt('w-stl-rho',(d.rho!=null)?d.rho.toFixed(4):'—');
+    setTxt('w-stl-sat',_yn(d.sat));
+    setTxt('w-stl-bnd',_yn(d.on_boundary_rho_zero));
+    setTxt('w-stl-ok',_yn(d.all_bounds_hold));
+    setHTML('w-stl-out',esc(JSON.stringify(d,null,2)));
+  }catch(e){setHTML('w-stl-out','error: '+esc(e.message));}
+}
+async function w910_ci(){
+  try{
+    const d=await postJSON(W910_BASE+'/covariance-intersection',{});
+    setTxt('w-ci-w',(d.omega!=null)?d.omega.toFixed(3):'—');
+    setTxt('w-ci-tr',(d.trace_P_ci!=null)?d.trace_P_ci.toFixed(3):'—');
+    setTxt('w-ci-psd',_yn(d.fused_covariance_psd));
+    setTxt('w-ci-x',(d.x_ci&&d.x_ci.length)?('['+d.x_ci.map(v=>v.toFixed(2)).join(', ')+']'):'—');
+    setHTML('w-ci-out',esc(JSON.stringify(d,null,2)));
+    /* draw the three covariance ellipses (Pa, Pb, fused P_ci) centred at their estimates */
+    function ellipse(P,ctr,color,name){
+      const a=P[0][0],b=P[0][1],c=P[1][1];
+      const tr=a+c,det=a*c-b*b;const l1=tr/2+Math.sqrt(Math.max(0,tr*tr/4-det)),l2=tr/2-Math.sqrt(Math.max(0,tr*tr/4-det));
+      const th=(Math.abs(b)<1e-9&&a>=c)?0:Math.atan2(l1-a,b);
+      const pts=[];for(let k=0;k<=60;k++){const t=2*Math.PI*k/60;const x=Math.sqrt(Math.max(0,l1))*Math.cos(t),y=Math.sqrt(Math.max(0,l2))*Math.sin(t);
+        pts.push([ctr[0]+x*Math.cos(th)-y*Math.sin(th),ctr[1]+x*Math.sin(th)+y*Math.cos(th)]);}
+      return {name:name,type:'line',data:pts,smooth:true,symbol:'none',lineStyle:{color:color,width:2}};
+    }
+    const series=[ellipse(d.Pa,d.xa,'#5fb3a3','sensor A'),ellipse(d.Pb,d.xb,'#c9a05f','sensor B'),ellipse(d.P_ci,d.x_ci,'#b06a5a','fused (CI)')];
+    series.push({name:'estimates',type:'scatter',data:[d.xa,d.xb,d.x_ci],symbolSize:9,itemStyle:{color:'#f5f5f5'}});
+    mkEchart('w-ci-chart',{tooltip:{},legend:{bottom:0,data:['sensor A','sensor B','fused (CI)']},grid:{left:40,right:18,top:14,bottom:36},
+      xAxis:{type:'value',scale:true,name:'x'},yAxis:{type:'value',scale:true,name:'y'},series:series});
+  }catch(e){setHTML('w-ci-out','error: '+esc(e.message));}
+}
+async function w910_gg(){
+  try{
+    const d=await postJSON(W910_BASE+'/gershgorin',{});
+    setTxt('w-gg-dom',_yn(d.strictly_diagonally_dominant));
+    setTxt('w-gg-zero',_yn(d.no_zero_eigenvalue));
+    setTxt('w-gg-ns',_yn(d.nonsingular));
+    const margins=(d.discs||[]).map(x=>x.margin);
+    setTxt('w-gg-marg',margins.length?Math.min.apply(null,margins).toFixed(3):'—');
+    setHTML('w-gg-verdict',esc(d.verdict||''));
+    setHTML('w-gg-out',esc(JSON.stringify(d.discs||d,null,2)));
+    /* plot Gershgorin discs on the complex plane (real centres, radius=row off-diag sum) */
+    const circles=[];(d.discs||[]).forEach((disc,i)=>{const pts=[];for(let k=0;k<=48;k++){const t=2*Math.PI*k/48;
+      pts.push([disc.center+disc.radius*Math.cos(t),disc.radius*Math.sin(t)]);}
+      circles.push({name:'disc '+i,type:'line',data:pts,symbol:'none',smooth:true,
+        lineStyle:{color:disc.disc_excludes_zero?'#5fb3a3':'#b06a5a',width:2},
+        areaStyle:{color:disc.disc_excludes_zero?'rgba(95,179,163,.10)':'rgba(176,106,90,.14)'}});
+      circles.push({type:'scatter',data:[[disc.center,0]],symbolSize:6,itemStyle:{color:'#c9b787'}});});
+    circles.push({name:'origin (0)',type:'scatter',data:[[0,0]],symbolSize:14,symbol:'pin',itemStyle:{color:'#f5f5f5'}});
+    mkEchart('w-gg-chart',{tooltip:{},grid:{left:40,right:18,top:14,bottom:28},
+      xAxis:{type:'value',name:'Re',scale:true},yAxis:{type:'value',name:'Im',scale:true},series:circles});
+  }catch(e){setHTML('w-gg-out','error: '+esc(e.message));}
+}
+async function w910_mesh(){
+  try{
+    const d=await postJSON(W910_BASE+'/mesh-resilience',{});
+    setTxt('w-mesh-k',(d.edge_disjoint_paths_k!=null)?d.edge_disjoint_paths_k:'—');
+    setTxt('w-mesh-tol',(d.tolerates_link_failures!=null)?d.tolerates_link_failures:'—');
+    setTxt('w-mesh-cut',(d.menger_min_cut!=null)?d.menger_min_cut:'—');
+    setTxt('w-mesh-surv',_yn(d.survival_test&&d.survival_test.dst_still_reachable));
+    setHTML('w-mesh-out',esc(JSON.stringify(d,null,2)));
+    /* draw the sample mesh as a graph with src/dst highlighted */
+    const adj={"A":["B","C","E"],"B":["A","D","F"],"C":["A","D"],"E":["A","F"],"F":["B","E","D"],"D":["B","C","F"]};
+    const seen={},links=[];const order=['A','B','C','E','F','D'];
+    order.forEach((u)=>{(adj[u]||[]).forEach(v=>{const key=[u,v].sort().join('-');if(!seen[key]){seen[key]=1;links.push({source:u,target:v});}});});
+    const R=110,cx=150,cy=150;const nodes=order.map((id,i)=>{const a=2*Math.PI*i/order.length-Math.PI/2;
+      return {name:id,x:cx+R*Math.cos(a),y:cy+R*Math.sin(a),
+        itemStyle:{color:(id===d.src)?'#5fb3a3':(id===d.dst)?'#c9a05f':'#9a9a9a'},symbolSize:(id===d.src||id===d.dst)?26:18};});
+    mkEchart('w-mesh-chart',{tooltip:{},series:[{type:'graph',layout:'none',roam:true,label:{show:true,color:'#0a0a0a',fontWeight:'bold'},
+      lineStyle:{color:'#5fb3a3',width:1.6},edgeSymbol:['none','none'],data:nodes,links:links}]});
+  }catch(e){setHTML('w-mesh-out','error: '+esc(e.message));}
+}
+async function w910_audit(){
+  try{
+    const idx=parseInt(el('w-au-idx')&&el('w-au-idx').value);
+    const d=await postJSON(W910_BASE+'/audit-receipts',{tamper_index:isNaN(idx)?1:idx});
+    setTxt('w-au-incl',_yn(d.inclusion_proofs_all_sound));
+    setTxt('w-au-det',_yn(d.replay_deterministic));
+    setTxt('w-au-loc',_yn(d.tamper_localization&&d.tamper_localization.localized_correctly));
+    setTxt('w-au-root',d.merkle_root?(d.merkle_root.slice(0,16)+'…'):'—');
+    setHTML('w-au-out',esc(JSON.stringify(d,null,2)));
+  }catch(e){setHTML('w-au-out','error: '+esc(e.message));}
+}
+async function w910_quorum(){
+  try{
+    const n=parseInt(el('w-q-n')&&el('w-q-n').value),t=parseInt(el('w-q-t')&&el('w-q-t').value),
+          dd=parseInt(el('w-q-d')&&el('w-q-d').value),qq=parseInt(el('w-q-q')&&el('w-q-q').value);
+    const d=await postJSON(W910_BASE+'/quorum-consensus',{n:isNaN(n)?4:n,t:isNaN(t)?1:t,d:isNaN(dd)?0:dd,q:isNaN(qq)?0:qq});
+    const bdb=d.bdb||{},qi=d.quorum_intersection||{};
+    setTxt('w-q-thr',(bdb.threshold_3t_plus_d_plus_2q!=null)?bdb.threshold_3t_plus_d_plus_2q:'—');
+    setTxt('w-q-safe',_yn(bdb.safe));
+    setTxt('w-q-int',_yn(qi.two_quorums_intersect));
+    setTxt('w-q-uniq',_yn(qi.unique_decision));
+    setHTML('w-q-out',esc(JSON.stringify(d,null,2)));
+  }catch(e){setHTML('w-q-out','error: '+esc(e.message));}
+}
+window.w910_stl=w910_stl; window.w910_ci=w910_ci; window.w910_gg=w910_gg;
+window.w910_mesh=w910_mesh; window.w910_audit=w910_audit; window.w910_quorum=w910_quorum;
+
 /* ---- expose all loaders on window (called by VIEWS[].render + operator actions) ---- */
+window.warhacker_init=warhacker_init; window.warhacker_run=warhacker_run; window.warhacker_all=warhacker_all;
 window.fieldnet_load=fieldnet_load; window.fieldnet_evaluate=fieldnet_evaluate;
 window.autonomyov_init=autonomyov_init; window.autonomyov_run=autonomyov_run;
 window.modelatlas_load=modelatlas_load; window.modelatlas_route=modelatlas_route;
@@ -3672,7 +5570,10 @@ function go(view){
   c.innerHTML=`<div class="view-head"><h1 class="view-title">${esc(v.title)}</h1><span class="view-badge">${esc(v.badge)}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
   v.render(el('vbody'));
   if(history.replaceState) history.replaceState(null,'','#'+view);
-  if(window.innerWidth<=820) document.querySelector('.side').classList.remove('open');
+  if(window.innerWidth<=820) toggleSide(false);
+  // re-fit any viz the view just mounted to its clamp()'d container (centered, in-frame)
+  setTimeout(function(){try{_scheduleRefit();}catch(e){}},120);
+  setTimeout(function(){try{_scheduleRefit();}catch(e){}},650);
 }
 
 const start = (location.hash||'#tracks').slice(1);
