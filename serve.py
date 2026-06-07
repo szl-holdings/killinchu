@@ -1204,10 +1204,18 @@ except Exception as _kc_wh_e:
     print(f"[killinchu] Warhacker demo suite NOT registered: {_kc_wh_e!r}", file=sys.stderr)
 
 @app.get("/")
-async def spa_root() -> FileResponse:
-    """FRONT DOOR: cathedral-style sovereign 3D hero (killinchu field node tethered
-    to the a11oy substrate, live edge Λ, current updates) matching the org card.
-    The full working operator is one click in at /operator. Falls back to SPA index."""
+async def spa_root():
+    """FRONT DOOR = the ONE killinchu surface: the /elite Counter-UAS Governance deck
+    (25 tabs, all real work, live endpoints). Opening killinchu lands directly in /elite
+    — no intermediate 3D landing. The cinematic 3D hero remains available at /hero and
+    the UDS operator at /operator, but /elite is the single face. ADDITIVE redirect."""
+    from starlette.responses import RedirectResponse as _RootRedir
+    return _RootRedir(url="/elite", status_code=307)
+
+
+@app.get("/hero")
+async def spa_hero() -> FileResponse:
+    """The cinematic 3D hero is kept here (cool, but secondary to the real /elite work)."""
     hero = Path("/app/cathedral.html")
     if hero.is_file():
         return FileResponse(hero, media_type="text/html")
