@@ -1583,7 +1583,7 @@ const VIEWS = {
       ${HONEST}`;adaptsample_run();}},
 
   // ── BUILD WAVE: Live Picture (K-N1) ───────────────────────────────────
-  livepic:{title:'Live Picture',badge:'COP · AIR+SEA FUSED · deck.gl',sub:'One map. Every track. Who is friendly, who is a threat, and what to do. A single fused <b>deck.gl</b> operating picture (ScatterplotLayer entities + PathLayer hostile-intent trails, no base-map tiles — sovereign, 0 off-origin) combines the drone threat picture, <b>live OpenSky ADS-B aircraft</b> (real positions, server-side fetch, labelled live), sample vessels, and <b>live USGS</b> physical-world events — each object an entity carrying location, affiliation, identity and health, framed with MIL-STD-2525 affiliation colours (red = hostile, teal = friendly, gold = neutral/own, amber = unknown). The left rail follows the IMO 3-layer maritime-domain-awareness flow: Situational → Threat → Response. Click any track for its detail card and a per-track signed receipt. Air picture is <b>LIVE · OpenSky Network</b> with honest fallback to sample; maritime tracks remain <b>sample/replay</b> (the dedicated Maritime tab carries the live Digitraffic AIS feed).',
+  livepic:{title:'Live Picture',badge:'COP · AIR+SEA FUSED · deck.gl',sub:'One map. Every track. Who is friendly, who is a threat, and what to do. A single fused <b>deck.gl</b> operating picture (ScatterplotLayer entities + PathLayer hostile-intent trails, no base-map tiles — sovereign, 0 off-origin) combines the drone threat picture, <b>live adsb.lol military ADS-B aircraft</b> (real positions, server-side fetch, ODbL, labelled live), sample vessels, and <b>live USGS</b> physical-world events — each object an entity carrying location, affiliation, identity and health, framed with MIL-STD-2525 affiliation colours (red = hostile, teal = friendly, gold = neutral/own, amber = unknown). The left rail follows the IMO 3-layer maritime-domain-awareness flow: Situational → Threat → Response. Click any track for its detail card and a per-track signed receipt. Air picture is <b>LIVE · adsb.lol (ODbL)</b> with honest fallback to last-good/empty (never fabricated); maritime tracks remain <b>sample/replay</b> (the dedicated Maritime tab carries the live Digitraffic AIS feed).',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Entities (fused)</div><div class="v live" id="lp-total">—</div><div class="d">air + sea + physical</div></div>
       <div class="kpi"><div class="k">Air tracks</div><div class="v" id="lp-air">—</div><div class="d">live drone picture</div></div>
@@ -3978,10 +3978,12 @@ async function livepic_load(){
   // ---- gather entities from REAL endpoints ----
   let drones=[], vessels=[], quakes=[], ranked=[], airlive=[], airliveMode=false, airliveIso=null;
   try{ const d=await getJSON(API+'/threats/active'); drones=(d.threats||[]); }catch(e){}
-  // LIVE air picture: OpenSky Network ADS-B (server-side, CORS-safe). Real aircraft positions.
-  try{ const a=await getJSON(API+'/adsb'); airlive=(a.flights||[]).filter(f=>f.latitude!=null&&f.longitude!=null); airliveMode=(a.frontier==='opensky_adsb'); airliveIso=a.ts||null; }catch(e){}
+  // LIVE air picture: adsb.lol military ADS-B (server-side, CORS-safe, ODbL). Real aircraft positions.
+  // FIX 2026-06-07: OpenSky retired (OAuth2-only). Endpoint repointed to adsb.lol; honest live flag.
+  let airliveSrc='adsb.lol (ODbL)';
+  try{ const a=await getJSON(API+'/adsb'); airlive=(a.flights||[]).filter(f=>f.latitude!=null&&f.longitude!=null); airliveMode=(a.live===true)||(a.frontier==='adsblol_adsb'); airliveIso=a.ts||a.fetched_at||null; if(a.source) airliveSrc=a.source; }catch(e){}
   { const ae=el('lp-air'); if(ae){ ae.textContent=(drones.length+airlive.length);
-      const dd=ae.nextElementSibling; if(dd) dd.innerHTML=(airliveMode&&airlive.length)?('<b style="color:#5fb3a3">LIVE</b> OpenSky '+airlive.length+' + '+drones.length+' tracks'):('drone picture + air ('+(airliveMode?'live':'sample')+')'); } }
+      const dd=ae.nextElementSibling; if(dd) dd.innerHTML=(airliveMode&&airlive.length)?('<b style="color:#5fb3a3">LIVE</b> '+esc(airliveSrc)+' '+airlive.length+' + '+drones.length+' tracks'):('drone picture + air ('+(airliveMode?'live':'sample')+')'); } }
   try{ const v=await getJSON(API+'/fleet/vessels'); vessels=(v.data||v.vessels||v||[]).slice(0,18); el('lp-sea').textContent=vessels.length; }catch(e){ el('lp-sea').textContent='—'; }
   try{ const q=await getProxy('usgs_hour','',11000); quakes=(q.features||[]); el('lp-geo').textContent=quakes.length; }catch(e){ el('lp-geo').textContent='—'; }
   // threat layer — prioritise the drone tracks through the live governance loop
@@ -3995,14 +3997,14 @@ async function livepic_load(){
     spd:t.speed_m_s, hdg:t.heading_deg, aliases:{role:t.role,country:t.country,group:t.group},
     health:1.0, status:t.status, threat:(ranked.find(r=>r.track_id===t.track_id)||{}).threat_score });
   });
-  // LIVE OpenSky aircraft — real ADS-B contacts (affiliation unknown until classified)
+  // LIVE adsb.lol aircraft — real military ADS-B contacts (affiliation unknown until classified)
   airlive.forEach(f=>{ E.push({
     eid:('ICAO '+(f.icao24||'?')), kind:'TRACK', template:'AIR-LIVE', dim:'air',
     affil:(f.szl_threat_tier==='T1_HIGH'?'unknown':'neutral'),
     name:((f.callsign||'').trim()||('ICAO '+(f.icao24||'?'))), lat:f.latitude, lng:f.longitude,
     alt:f.baro_altitude_m, spd:f.velocity_ms, hdg:null,
-    aliases:{origin:f.origin_country,szl_class:f.szl_class,icao24:f.icao24}, health:1.0,
-    status:(f.szl_class||'AIRBORNE'), live:true, source:'OpenSky Network (CC-BY-4.0)' });
+    aliases:{origin:f.origin_country,szl_class:f.szl_class,icao24:f.icao24,type:f.type}, health:1.0,
+    status:(f.szl_class||'AIRBORNE'), live:true, source:'adsb.lol community ADS-B (ODbL)' });
   });
   vessels.forEach(v=>{ E.push({
     eid:('IMO '+(v.imo||v.id)), kind:'ASSET', template:'SEA-VESSEL', dim:'surface', affil:'neutral',
@@ -4017,7 +4019,7 @@ async function livepic_load(){
   el('lp-total').textContent=E.length;
   // honest source line on the fused-map card header
   try{ var cap=document.querySelector('#lp-globe').closest('.card').querySelector('.card-ep');
-    if(cap){ cap.innerHTML='deck.gl · '+(airliveMode?('<b style="color:#5fb3a3">LIVE</b> OpenSky air + '):'sample air + ')+'sample sea + <b style="color:#5fb3a3">LIVE</b> USGS geo'; } }catch(e){}
+    if(cap){ cap.innerHTML='deck.gl · '+(airliveMode?('<b style="color:#5fb3a3">LIVE</b> adsb.lol air + '):'sample air + ')+'sample sea + <b style="color:#5fb3a3">LIVE</b> USGS geo'; } }catch(e){}
 
   // ---- render the globe (the marquee) ----
   lp_renderGlobe(E);
