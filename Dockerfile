@@ -54,6 +54,12 @@ RUN pip install --no-cache-dir "numpy>=1.26,<3.0"
 # index.html + assets/* served directly at / and /assets/*; unknown GET -> index.html.
 COPY static/ ./static/
 
+# ADDITIVE (cathedral front-door hero): sovereign 3D landing matching the org card.
+# Served at / by serve.py (operator one click in at /operator). The hero JS +
+# vendored ES-module Three.js r160 (MIT) live under static/ (already copied above).
+# NO CDN. Doctrine v11 LOCKED 749/14/163. Trust Gate = Conjecture.
+COPY cathedral.html ./cathedral.html
+
 # Copy serve orchestrator + real drone DB + real protocol decoders.
 # ADDITIVE (Unified Operator Shell v4, 2026-06-01, Yachay / Perplexity Computer Agent):
 # v4 endpoint module + self-contained desktop shell. Per-file COPY (no `COPY . .`).
@@ -111,6 +117,9 @@ COPY szl_unay_routes.py ./szl_unay_routes.py
 # Per-file COPY (no `COPY . .`) — without these the imports fail and routes 404.
 COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
 COPY killinchu_genius.py ./killinchu_genius.py
+# ADDITIVE (Killinchu maritime/drone Warhacker demo suite, 2026-06-06): 7 mode-aware
+# demos at /api/killinchu/v1/warhacker/launch/{key}. Per-file COPY (no `COPY . .`).
+COPY killinchu_warhacker_demos.py ./killinchu_warhacker_demos.py
 # ADDITIVE (Killinchu v3 deep C-UAS, Yachay 2026-06-01): killinchu_v3 registers
 # /api/killinchu/v3/* (ingest pipelines + Kalman fusion + provenanced threat
 # scoring + honest effector catalogue + airspace + boids/ORCA swarm + replay +
@@ -202,6 +211,26 @@ COPY _vendor_blobs.py ./_vendor_blobs.py
 # `COPY . .` — every file is explicit. fleet_vessels_data.json carries all 10 datasets
 # embedded verbatim, so the 4 new endpoints need no new COPY line. Cache-bust: full-vessels-2026-06-06
 COPY killinchu_fleet_vessels.py ./killinchu_fleet_vessels.py
+# Live data proxies (Digitraffic FI AIS + adsb.lol military) — per-file COPY.
+# Without this `import killinchu_live_feeds` fails and /ais/live + /air/live 404.
+COPY killinchu_live_feeds.py ./killinchu_live_feeds.py
+# Bundled on-disk snapshots for the live-data layer (cached fallback). If any
+# upstream feed (Digitraffic AIS / adsb.lol / celestrak / rekor / kev / osv /
+# prometheus) is unreachable, get_feed() serves the in-image snapshot labelled
+# 'cached' — NEVER fabricated. KILLINCHU_LIVE_SNAPSHOTS defaults to /app/live_snapshots.
+COPY live_snapshots/ ./live_snapshots/
+# SZL Agent Body anatomy engine (YUYAY gate + YAWAR bus + organism pipeline) —
+# per-file COPY. Without this `import killinchu_anatomy` fails and the organism
+# pipeline endpoints 404.
+COPY killinchu_anatomy.py ./killinchu_anatomy.py
+# killinchu_health_twin.py: flagship LIVE 3D vessel/drone HEALTH TWIN backend.
+# Computes per-subsystem health (hull/propulsion/comms/sensors/nav/payload) from
+# real-ish signals using OUR formulas: split-conformal band (W5-3/W7-4, NOT
+# Hoeffding), Λ geometric-mean trust aggregate (Conjecture 1), and the YUYAY
+# 13-axis conjunctive gate. Reuses live Digitraffic AIS via killinchu_live_feeds.
+# serve.py imports via try/except; without this COPY the /api/killinchu/v1/twin/*
+# routes fall through to the SPA catch-all.
+COPY killinchu_health_twin.py ./killinchu_health_twin.py
 COPY fleet_vessels_data.json ./fleet_vessels_data.json
 # killinchu_beyond.py: Beyond-Cannonico proof console — autonomy-governance
 # generalized beyond one drone (autonomy envelope · 3-of-4 swarm quorum · HOTL
@@ -294,6 +323,33 @@ COPY killinchu_ops_control.py ./killinchu_ops_control.py
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY szl_llm_registry.py ./szl_llm_registry.py
 COPY szl_alloy_models.py ./szl_alloy_models.py
+# ADDITIVE (MINED ops upgrades, 2026-06-07): four license-vetted operational/efficiency
+# surfaces (pattern-mined clean-room WITH NOTICE: al-jshen/compute MIT, gpu-bartender MIT,
+# MLRC-deep-thinking MIT, kvpress Apache-2.0). serve.py imports killinchu_mined_ops via
+# try/except and register()s POST /api/killinchu/v1/mined/{scicompute,edge-estimator,
+# swarm-resilience,telemetry-press} + GET .../index. Per-file COPY (this Dockerfile NEVER
+# uses `COPY . .`); without it `import killinchu_mined_ops` fails and every mined route 404s.
+# Pure-stdlib, additive; Lambda stays Conjecture 1; no fabricated data.
+COPY killinchu_mined_ops.py ./killinchu_mined_ops.py
+
+# ADDITIVE (RE-SWEEP wave-2 ops, 2026-06-07): three license-vetted operational surfaces
+# (pattern-mined clean-room WITH NOTICE: anvaka/ngraph.path MIT, rowanwins/visibility-graph
+# MIT, ft2023/IRanker-demo MIT, al-jshen/adaptive MIT). serve.py imports killinchu_resweep_ops
+# via try/except and register()s POST /api/killinchu/v1/resweep/{route,threat-rank,
+# adaptive-sample} + GET .../index. Per-file COPY (this Dockerfile NEVER uses `COPY . .`);
+# without it `import killinchu_resweep_ops` fails and every resweep route 404s.
+# Pure-stdlib, additive; Lambda stays Conjecture 1; no fabricated data.
+COPY killinchu_resweep_ops.py ./killinchu_resweep_ops.py
+
+# ADDITIVE (Wave9 + Wave10 EXPERIMENTAL theorems, 2026-06-08): six killinchu-targeted
+# theorem families PROVEN on lutar-lean main (Wave9 PR #199 merged @ 66735bf; Wave10
+# PR #200) as EXPERIMENTAL · CI-green — kernel-verified, NOT locked. serve.py imports
+# killinchu_wave910 via try/except and register()s POST /api/killinchu/v1/wave910/
+# {stl-robustness,covariance-intersection,gershgorin,mesh-resilience,audit-receipts,
+# quorum-consensus} + GET .../index + .../selftest. Per-file COPY (this Dockerfile NEVER
+# uses `COPY . .`); without it `import killinchu_wave910` fails and every wave910 route 404s.
+# Pure-stdlib, additive; locked-proven stays EXACTLY 5 {F1,F11,F12,F18,F19}; Λ = Conjecture 1.
+COPY killinchu_wave910.py ./killinchu_wave910.py
 
 CMD ["python", "serve.py"]
 
@@ -302,3 +358,6 @@ CMD ["python", "serve.py"]
 # MODEL LAYER from a11oy -> COPY szl_alloy_models.py + szl_llm_registry.py; serve.py
 # registers alloy under /api/killinchu/v1/alloy/* (C20/W7-5 router, W5-3/W7-4 conformal,
 # C10-C12 consensus; DeepSeek-Coder-V2 CODE_PRIMARY; honest tower-side; never faked).
+
+# Build cache-bust 2026-06-07T05:00Z (MINED ops squad): COPY killinchu_mined_ops.py
+# into /app so serve.py can import+register the 4 mined operational/efficiency surfaces.
