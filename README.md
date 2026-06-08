@@ -16,7 +16,7 @@ tags:
   - szl-holdings
   - agentic-ai
   - dsse
-  - slsa-l2
+  - slsa-l1
   - apache-2.0
 ecosystem-stage: "operational"
 ---
@@ -27,13 +27,13 @@ ecosystem-stage: "operational"
 
 > **53 drone fingerprints · 13-axis Λ-gate · DSSE-signed verdicts · human-on-the-loop**
 
-[![SLSA L1 + L2 attested](https://img.shields.io/badge/SLSA-L1%20%2B%20L2%20attested-2C5F2D?style=flat-square)](https://github.com/szl-holdings/killinchu/attestations/29917005)
+[![SLSA L1 honest · L2 roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20roadmap-2C5F2D?style=flat-square)](https://github.com/szl-holdings/killinchu)
 [![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
 [![CI](https://github.com/szl-holdings/killinchu/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/killinchu/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 
 **LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
-**Proof posture (two-tier):** 5 locked-proven `{F1, F11, F12, F18, F19}` + **~36 experimental** theorems CI-green on main `@7885fd9` (Lean v4.18.0 · 1304 decls / 22 axioms — NOT in the locked count).
+**Proof posture (two-tier):** 5 locked-proven `{F1, F11, F12, F18, F19}` + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · ~1323 decls / 22 unique axioms — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1**; Byzantine BFT safety is **Khipu Conjecture 2 (open)**. Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
 [Live demo](#live) · [What it does](#what-it-does) · [Verify](#verify-it-yourself) · [Architecture](#architecture) · [Parity vs. leaders](#parity-vs-leaders) · [Honest status](#honest-status)
 
@@ -98,15 +98,13 @@ Key capabilities:
 curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit
 # => "c7c0ba17"
 
-# 2. Verify the image provenance — SLSA Build L1 + L2 (independently verified PASS).
-#    The signed SLSA provenance attestation verifies via cosign verify-attestation,
-#    returning a slsa.dev/provenance payload under strict per-organ identity scoped
-#    to killinchu (keyless Fulcio + Rekor).
-cosign verify-attestation --type slsaprovenance \
+# 2. Verify the image signature — SLSA Build L1 (honest): cosign keyless-signed,
+#    Rekor-anchored. SLSA L2 verified build-provenance (isolated builders) is on
+#    the roadmap; we do NOT claim L2-verified today.
+cosign verify \
   ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
-  --certificate-identity-regexp='https://github.com/szl-holdings/killinchu/' \
+  --certificate-identity-regexp='^https://github.com/szl-holdings/' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
-# Attestation: https://github.com/szl-holdings/killinchu/attestations/29917005
 
 # 3. Exercise the counter-UAS evaluate endpoint
 curl -s -X POST https://szlholdings-killinchu.hf.space/api/killinchu/counter-uas/evaluate \
@@ -147,7 +145,7 @@ graph TD
 | Protocol decoders | ✅ (proprietary) | ✅ **open-source** (ASTM/ADS-B/MAVLink) | Open, auditable |
 | Signed verdicts per interdiction | — | ✅ **DSSE receipt per decision** | Each block is a verifiable artifact |
 | Human-on-the-loop gate | ✅ | ✅ operator confirmation | — |
-| Supply-chain provenance | — | ✅ **cosign-signed + SLSA L2 attested** | — |
+| Supply-chain provenance | — | ✅ **cosign keyless-signed, Rekor-anchored (SLSA Build L1, honest)** | SLSA L2 verified-provenance on roadmap |
 | Air-gap deployment | ✅ | ✅ **UDS bundle** | Open-source |
 | BFT receipt quorum | — | ✅ | — |
 
@@ -166,8 +164,9 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/killinchu:uds-v0.2.0
 | Claim | Status |
 |---|---|
 | Live HF Space (HTTP 200) | ✅ |
-| SLSA Build L1 + L2 | ✅ — cosign-signed; signed SLSA provenance attestation independently verified via `cosign verify-attestation --type slsaprovenance` (keyless Fulcio + Rekor, strict per-organ identity); attestation [29917005](https://github.com/szl-holdings/killinchu/attestations/29917005). |
-| cosign keyless signed | ✅ (private repo; GitHub Sigstore instance) |
+| SLSA Build **L1 (honest)** | ✅ — cosign keyless-signed image, Rekor-anchored, verifiable via `cosign verify`. |
+| SLSA Build **L2** | 🛣️ **Roadmap** — verified build-provenance attestation under isolated builders. **Not claimed as achieved today.** |
+| cosign keyless signed | ✅ (GitHub Sigstore instance) |
 | 53 drone fingerprints | ✅ |
 | Real protocol decoders | ✅ — ASTM F3411-22a / pyModeS / pymavlink (no mocks) |
 | Spoofing vulnerability | ⚠️ **Explicit** — broadcast protocols are unauthenticated; every field is a claim, not ground truth |
@@ -180,7 +179,7 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/killinchu:uds-v0.2.0
 
 ---
 
-<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA L1 + L2 (provenance attestation verified; L3 not claimed) · Λ = Conjecture 1 · Apache-2.0</sub>
+<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA Build L1 honest (L2 roadmap; L3 / FedRAMP / Iron Bank / CMMC not claimed) · 5 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Khipu Conjecture 2 open · Apache-2.0</sub>
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 
