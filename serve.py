@@ -422,6 +422,28 @@ except Exception as _rk_e:
     print(f"[killinchu] Rekor cross-verify NOT registered: {_rk_e}", file=_sys_rk.stderr)
     _tb_rk.print_exc()
 # ── end Sigstore Rekor cross-verify ──────────────────────────────────────────
+
+# ── OSINT verticals: amaru + rosie (ADDITIVE, Forge) ─────────────────────────
+# Registers the public-web OSINT capability tabs under the Killinchu namespace:
+#   GET /api/killinchu/v1/amaru/{counter-uas,naval,procurement,advisories,geopolitical}
+#   GET /api/killinchu/v1/rosie/{digest,routing,entities,correlate,watch}
+#   GET /api/killinchu/v1/osint/status
+# REAL public-web search/scrape via Tavily (TAVILY_API_KEY), normalized + a
+# sha256 provenance chain + on-disk corpus. Honest mode per item: live | cached
+# | unreachable. NOT the staged UDS mesh modules; provenance = sha256 chain, NOT
+# a signature; routing/entities/correlate are heuristic·advisory. Pure stdlib
+# urllib. Registered EARLY (before the /{full_path:path} catch-all). Sign: Forge.
+try:
+    import killinchu_osint as _killinchu_osint
+    _killinchu_osint_status = _killinchu_osint.register(app, ns="killinchu")
+    import sys as _sys_os
+    print(f"[killinchu] OSINT verticals (amaru/rosie) registered: {_killinchu_osint_status}", file=_sys_os.stderr)
+except Exception as _os_e:
+    import sys as _sys_os, traceback as _tb_os
+    print(f"[killinchu] OSINT verticals NOT registered: {_os_e}", file=_sys_os.stderr)
+    _tb_os.print_exc()
+# ── end OSINT verticals ──────────────────────────────────────────────────────
+
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # ---------------------------------------------------------------------------

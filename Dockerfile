@@ -100,6 +100,10 @@ COPY killinchu_szl_pqc_sign.py ./killinchu_szl_pqc_sign.py
 # the UDS-facing /api/killinchu/uds/v1/rekor/* endpoints. stdlib-only (reuses the
 # existing cryptography install). ADDITIVE ONLY.
 COPY szl_rekor.py ./szl_rekor.py
+# OSINT verticals (amaru/rosie): public-web search/scrape via Tavily, normalize
+# + sha256 provenance chain + corpus. serve.py imports this; without this
+# per-file COPY the import fails and the amaru/rosie endpoints 404.
+COPY killinchu_osint.py ./killinchu_osint.py
 COPY serve.py ./serve.py
 ENV PORT=7860
 # BE hardening (Greene) — per-file COPY (this Dockerfile uses per-file COPY).
