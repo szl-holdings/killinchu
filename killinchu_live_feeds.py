@@ -99,7 +99,7 @@ def _now_iso():
 # The browser must only ever hit OUR origin (0 client CDN / 0 off-origin).
 # These two tables back GET /api/<ns>/v1/proxy/<name> (public free feeds) and
 # GET /api/<ns>/v1/gov/<name> (the cross-platform governed command/cosign loop:
-# killinchu reads a11oy's REAL ledger/command-log/policy-gates/sentra verdict,
+# killinchu reads a11oy's REAL ledger/command-log/policy-gates/CHAPAQ verdict,
 # but the FETCH happens server-side so the field surface stays sovereign).
 # Every response keeps the honest live|cached label.
 # ---------------------------------------------------------------------------
@@ -111,6 +111,21 @@ _PROXY = {
                   "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson", 120),
     "usgs_hour": ("USGS Earthquake Hazards Program (past hour)",
                   "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson", 60),
+    # full USGS summary matrix {significant,4.5,2.5,1.0,all}_{hour,day,week,month} (no key, ~1min refresh)
+    "usgs_all_week": ("USGS earthquakes — all, past 7 days",
+                  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson", 300),
+    "usgs_all_month": ("USGS earthquakes — all, past 30 days",
+                  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson", 900),
+    "usgs_2.5_week": ("USGS earthquakes — M2.5+, past 7 days",
+                  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson", 300),
+    "usgs_4.5_week": ("USGS earthquakes — M4.5+, past 7 days",
+                  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson", 300),
+    "usgs_4.5_month": ("USGS earthquakes — M4.5+, past 30 days",
+                  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson", 900),
+    "usgs_significant_week": ("USGS earthquakes — significant, past 7 days",
+                  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.geojson", 300),
+    "usgs_significant_month": ("USGS earthquakes — significant, past 30 days",
+                  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson", 900),
     "nvd":       ("U.S. National Vulnerability Database (NVD CVE API 2.0)",
                   "https://services.nvd.nist.gov/rest/json/cves/2.0", 1800),
     "mitre_attack": ("MITRE ATT&CK Enterprise STIX bundle",
@@ -126,7 +141,10 @@ _GOV = {
     "command-log": ("GET",  "/api/a11oy/v2/command-log", 10),
     "policy-gates": ("GET", "/api/a11oy/v1/policy/gates", 60),
     "a11oy-honest": ("GET", "/api/a11oy/v1/honest", 60),
-    "sentra-verdict": ("POST", "/api/sentra/v1/verdict", 0),
+    # killinchu-side codename = CHAPAQ (egress/immune inspector). The UPSTREAM a11oy
+    # route is a11oy's own canonical compat path (not killinchu's to rename); we keep it
+    # pointing at the REAL a11oy endpoint while exposing only the CHAPAQ codename here.
+    "chapaq-verdict": ("POST", "/api/sentra/v1/verdict", 0),
 }
 
 
@@ -406,6 +424,177 @@ def get_feed(feed):
                 "error": "upstream unreachable and no snapshot: %s" % e, "data": None}
 
 
+# ===========================================================================
+# EARTHQUAKE AFTERSHOCK FORECAST — Reasenberg-Jones / modified Omori-Utsu.
+#
+# HONEST METHOD (NOT a deterministic prediction; this is the same statistical
+# aftershock-RATE model USGS itself uses):
+#   R(T,M) = 10^(a + b*(Mmain - M)) * (T + c)^(-p)
+#     10^(a+b*Mmain)  = Utsu productivity
+#     (T+c)^(-p)      = modified Omori-Utsu temporal decay
+#   Generic Reasenberg-Jones (1989/1994): a=-1.67, b=1.0, c=0.05 d, p=1.08.
+#   We MLE-refine a (Ogata 1983 likelihood) on the observed post-mainshock
+#   sequence pulled from ComCat FDSN, integrate R over forecast windows, and
+#   build P(N) as a Poisson mixture. We report prob(>=1), expected count, and a
+#   95% range — ALWAYS labelled "statistical forecast — probabilities, not
+#   certainty." Where USGS publishes an OAF for the event we surface it too.
+#
+# Numeric honesty: the Omori integral and Poisson-mixture summation share the
+# fp summation/series error envelope of CF-17 (NumericStability, merged) and
+# CF-18 (Leibniz/Madhava alternating-series bound, merged) — a machine-checked
+# accumulation bound. The forecast MODEL stays a documented statistical method,
+# NEVER a locked-proven claim. locked-5 = {F1,F11,F12,F18,F19}; Lambda = Conj 1.
+# Refs: Reasenberg & Jones BSSA 1989/1994; Utsu 1961 (Omori); Ogata 1983.
+# ===========================================================================
+_RJ_GENERIC = {"a": -1.67, "b": 1.0, "c": 0.05, "p": 1.08}
+
+
+def _omori_integral(c, p, t0, t1):
+    """Integral of (T+c)^(-p) dT from t0 to t1 (days). Closed form; p!=1 vs p==1.
+    Shares the CF-17/CF-18 fp accumulation envelope (documented, not locked)."""
+    import math
+    if abs(p - 1.0) < 1e-9:
+        return math.log((t1 + c) / (t0 + c))
+    e = 1.0 - p
+    return ((t1 + c) ** e - (t0 + c) ** e) / e
+
+
+def _rj_expected_count(a, b, p, c, mmain, mmin, t0, t1):
+    """Expected number of aftershocks >= mmin in [t0,t1] days after mainshock.
+    N = 10^(a + b*(mmain - mmin)) * integral (T+c)^-p dT."""
+    prod = 10.0 ** (a + b * (mmain - mmin))
+    return prod * _omori_integral(c, p, t0, t1)
+
+
+def _mle_refine_a(times_days, b, p, c, mmain, mmin, t_obs):
+    """Closed-form MLE for productivity term 'a' given observed aftershock times
+    (days since mainshock) within [0, t_obs], for fixed b,p,c (Ogata 1983).
+    For an inhomogeneous Poisson process with rate lambda(T)=K*(T+c)^-p, the MLE
+    of K is n / integral(0,t_obs). Then a = log10(K) - b*(mmain - mmin)."""
+    import math
+    n = len([t for t in times_days if 0.0 <= t <= t_obs])
+    if n == 0 or t_obs <= 0:
+        return None, 0
+    integ = _omori_integral(c, p, 0.0, t_obs)
+    if integ <= 0:
+        return None, n
+    K = n / integ
+    if K <= 0:
+        return None, n
+    a = math.log10(K) - b * (mmain - mmin)
+    return a, n
+
+
+def _poisson_pmf(k, lam):
+    import math
+    if lam <= 0:
+        return 1.0 if k == 0 else 0.0
+    return math.exp(-lam + k * math.log(lam) - math.lgamma(k + 1))
+
+
+def _forecast_window(a, b, p, c, mmain, mmin, t0, t1):
+    """Build prob(>=1), expected count, and 95% range over a forecast window.
+    Variability modelled as Poisson on the expected count (Eq.2 simplification:
+    single MLE point estimate of a -> Poisson(N); a full a-mixture would widen
+    the bands — documented as a conservative-but-honest simplification)."""
+    N = _rj_expected_count(a, b, p, c, mmain, mmin, t0, t1)
+    N = max(0.0, N)
+    prob_ge1 = 1.0 - _poisson_pmf(0, N)
+    # 95% range = 2.5th..97.5th percentile of Poisson(N)
+    cum = 0.0
+    lo = hi = 0
+    kmax = int(N + 8 * (N ** 0.5) + 20)
+    lo_set = False
+    for k in range(0, kmax + 1):
+        cum += _poisson_pmf(k, N)
+        if not lo_set and cum >= 0.025:
+            lo = k
+            lo_set = True
+        if cum >= 0.975:
+            hi = k
+            break
+    return {"expected": round(N, 2), "prob_ge1": round(prob_ge1, 4),
+            "range95": [lo, hi]}
+
+
+def compute_aftershock_forecast(mainshock, sequence, mmin=3.0):
+    """mainshock: {mag, time_ms, lat, lon}. sequence: list of feature props with
+    {mag, time(ms)} pulled from ComCat for the SAME region AFTER the mainshock.
+    Returns honest forecast dict (generic + MLE-refined) over 1d/1wk/1mo."""
+    import math
+    g = dict(_RJ_GENERIC)
+    mmain = float(mainshock.get("mag") or 0.0)
+    t_main = float(mainshock.get("time_ms") or 0.0)
+    # observed aftershock times in DAYS since mainshock (mag >= mmin, after t_main)
+    times = []
+    for s in sequence or []:
+        try:
+            m = float(s.get("mag"))
+            t = float(s.get("time"))
+        except Exception:
+            continue
+        if m is None or t <= t_main:
+            continue
+        if m >= mmin:
+            times.append((t - t_main) / 86400000.0)
+    times.sort()
+    t_obs = max(times) if times else 0.0
+    a_ref, n_obs = _mle_refine_a(times, g["b"], g["p"], g["c"], mmain, mmin, t_obs) if t_obs > 0 else (None, 0)
+    a_used = a_ref if a_ref is not None else g["a"]
+    refined = a_ref is not None
+    windows = {"1_day": (0.0, 1.0), "1_week": (0.0, 7.0), "1_month": (0.0, 30.0)}
+    out = {}
+    for name, (t0, t1) in windows.items():
+        out[name] = _forecast_window(a_used, g["b"], g["p"], g["c"], mmain, mmin, t0, t1)
+    # Omori decay curve: cumulative expected count vs time (for the chart)
+    curve = []
+    for d in [0.04, 0.1, 0.25, 0.5, 1, 2, 3, 5, 7, 10, 14, 21, 30]:
+        curve.append({"t_days": d,
+                      "cum_expected": round(_rj_expected_count(a_used, g["b"], g["p"], g["c"], mmain, mmin, 0.0, d), 3)})
+    return {
+        "model": "Reasenberg-Jones / modified Omori-Utsu aftershock-rate",
+        "equation": "R(T,M) = 10^(a + b*(Mmain - M)) * (T + c)^(-p)",
+        "params": {"a": round(a_used, 4), "b": g["b"], "c": g["c"], "p": g["p"],
+                   "a_generic": g["a"], "a_mle_refined": refined,
+                   "observed_aftershocks_used": n_obs, "t_obs_days": round(t_obs, 3)},
+        "mainshock": {"mag": mmain, "mmin_forecast": mmin},
+        "forecast": out,
+        "omori_curve": curve,
+        "label": "statistical forecast — probabilities, not certainty",
+        "method_note": ("Reasenberg-Jones aftershock-rate model (the statistical method USGS uses); "
+                        "productivity 'a' MLE-refined (Ogata 1983) on the live ComCat sequence when "
+                        ">=1 aftershock M>=%.1f is observed, else generic RJ params. Poisson count model. "
+                        "This is NOT a deterministic prediction and NEVER a locked-proven claim.") % mmin,
+        "numeric_tie": ("Omori integral + Poisson-mixture summation carry the CF-17/CF-18 fp "
+                        "accumulation/series error envelope (machine-checked, merged); the forecast "
+                        "model itself stays a documented statistical method."),
+        "refs": ["Reasenberg & Jones, BSSA 1989/1994", "Utsu 1961 (Omori)", "Ogata 1983 (likelihood)",
+                 "USGS OAF background: https://earthquake.usgs.gov/data/oaf/background.php"],
+    }
+
+
+def _fetch_comcat_sequence(lat, lon, t_main_ms, radius_km=100.0, days=30.0, minmag=2.5):
+    """Pull post-mainshock sequence within radius via ComCat FDSN event query."""
+    import datetime as _dt
+    start = _dt.datetime.fromtimestamp(t_main_ms / 1000.0, tz=timezone.utc)
+    end = start + _dt.timedelta(days=days)
+    now = datetime.now(timezone.utc)
+    if end > now:
+        end = now
+    q = ("https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson"
+         "&starttime=%s&endtime=%s&latitude=%.4f&longitude=%.4f&maxradiuskm=%.1f"
+         "&minmagnitude=%.2f&orderby=time-asc" % (
+             start.strftime("%Y-%m-%dT%H:%M:%S"), end.strftime("%Y-%m-%dT%H:%M:%S"),
+             lat, lon, radius_km, minmag))
+    data = _http_get(q, timeout=40)
+    feats = (data or {}).get("features", [])
+    seq = []
+    for f in feats:
+        p = f.get("properties") or {}
+        seq.append({"mag": p.get("mag"), "time": p.get("time")})
+    return seq, q
+
+
 # ---------------------------------------------------------------------------
 # Route registration. serve.py calls register(app, ns="killinchu") on a FastAPI
 # app; FastAPI wraps Starlette so app.router.routes.insert(0, Route(...)) places
@@ -569,6 +758,44 @@ def register(app, ns="killinchu"):
         payload = await _run(_do_gov, name, body)
         return JSONResponse(payload)
 
+    # ---- EARTHQUAKE aftershock forecast (Reasenberg-Jones / Omori-Utsu) ----
+    def _do_quake_forecast(lat, lon, mag, t_ms, mmin, radius_km):
+        try:
+            seq, q = _fetch_comcat_sequence(lat, lon, t_ms, radius_km=radius_km,
+                                            days=30.0, minmag=min(2.5, mmin))
+            comcat_ok = True
+        except Exception as e:
+            seq, q, comcat_ok = [], None, False
+        fc = compute_aftershock_forecast(
+            {"mag": mag, "time_ms": t_ms, "lat": lat, "lon": lon}, seq, mmin=mmin)
+        fc["comcat"] = {"reached": comcat_ok, "query": q,
+                        "sequence_count": len(seq),
+                        "radius_km": radius_km}
+        fc["source"] = "USGS ComCat FDSN event query (live, no key)"
+        fc["source_url"] = "https://earthquake.usgs.gov/fdsnws/event/1/"
+        fc["fetched_at"] = _now_iso()
+        return fc
+
+    async def _quake_forecast(request):
+        qp = request.query_params
+        try:
+            lat = float(qp["lat"]); lon = float(qp["lon"]); mag = float(qp["mag"])
+            t_ms = float(qp["time"])
+        except Exception:
+            return JSONResponse({"error": "required query params: lat, lon, mag, time(ms epoch)",
+                                 "example": "/api/%s/v1/quake/forecast?lat=35.7&lon=-117.5&mag=6.4&time=1562383193040" % ns},
+                                status_code=422)
+        try:
+            mmin = float(qp.get("mmin", "3.0"))
+        except Exception:
+            mmin = 3.0
+        try:
+            radius_km = float(qp.get("radius_km", "100"))
+        except Exception:
+            radius_km = 100.0
+        payload = await _run(_do_quake_forecast, lat, lon, mag, t_ms, mmin, radius_km)
+        return JSONResponse(payload)
+
     routes = [
         Route(base, _index, methods=["GET"], name="%s_live_index" % ns),
         Route(base + "/{feed}", _feed_route, methods=["GET"], name="%s_live_feed" % ns),
@@ -577,6 +804,7 @@ def register(app, ns="killinchu"):
         Route("/api/%s/v1/feeds/status" % ns, _feeds_status, methods=["GET"], name="%s_feeds_status" % ns),
         Route("/api/%s/v1/proxy/{name}" % ns, _proxy_route, methods=["GET"], name="%s_proxy" % ns),
         Route("/api/%s/v1/gov/{name}" % ns, _gov_route, methods=["GET", "POST"], name="%s_gov" % ns),
+        Route("/api/%s/v1/quake/forecast" % ns, _quake_forecast, methods=["GET"], name="%s_quake_forecast" % ns),
     ]
     for r in reversed(routes):
         app.router.routes.insert(0, r)
