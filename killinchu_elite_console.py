@@ -780,6 +780,8 @@ function el(id){return document.getElementById(id);}
 function setOut(id,obj){const e=el(id);if(!e)return;const v=(typeof obj==='string')?scrubText(obj):scrubDeep(obj);e.textContent=(typeof v==='string')?v:JSON.stringify(v,null,2);}
 function setHTML(id,html){const e=el(id);if(e)e.innerHTML=html;}
 function setTxt(id,t){const e=el(id);if(e)e.textContent=t;}
+function setCls(id,cls){const e=el(id);if(e)e.className=cls;}
+function setSty(id,prop,val){const e=el(id);if(e)e.style[prop]=val;}
 function addHTML(id,html){const e=el(id);if(e)e.insertAdjacentHTML('beforeend',html);}
 // ===== CAPABILITY RELABEL (CEO scrub rule): the reasoning/policy/operator organs are now
 // INTERNAL a11oy capabilities. ZERO amaru/sentra/rosie may be USER-VISIBLE. a11oy + killinchu
@@ -2589,8 +2591,8 @@ const VIEWS = {
         const holds = (q.quorum_possible!=null) ? q.quorum_possible
                     : (d.quorum_possible!=null) ? d.quorum_possible
                     : (online>=needed);
-        el('k-quorum').textContent = holds ? 'CONSENSUS HOLDS' : 'NO QUORUM';
-        el('k-quorum').className = 'v '+(holds?'live':'warn');
+        setTxt('k-quorum', holds ? 'CONSENSUS HOLDS' : 'NO QUORUM');
+        setCls('k-quorum', 'v '+(holds?'live':'warn'));
         if(el('bft-count')) el('bft-count').textContent=online;
         bftKonva('bft-konva',organs,needed);
         // Honest messaging: a strict majority of the four governance roles is reachable.
@@ -3509,7 +3511,7 @@ window.an_run=async function(tamper){
     else { dot.textContent='✓'; st.classList.add('ok'); }
   });
   window.an_renderBody(pass?'ok':'fail', pass?['YACHAY','YUYAY','CHAPAQ','RUWAY','YAWAR','R0513','HATUN']:['YACHAY','YUYAY']);
-  setTxt('an-decision', decision); el('an-decision').className='v '+(pass?'teal':''); if(!pass) el('an-decision').style.color=RED;
+  setTxt('an-decision', decision); setCls('an-decision','v '+(pass?'teal':'')); if(!pass) setSty('an-decision','color',RED);
   setTxt('an-signed', res.signed_receipt&&res.signed_receipt.signed?'signed':'unsigned');
   setTxt('an-bus', res.yawar_bus_len!=null?res.yawar_bus_len:'—');
   // gate detail — boolean cascade, first ✗ auto-expanded
