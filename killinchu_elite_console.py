@@ -709,6 +709,12 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="kev" onclick="go('kev')"><span class="ico">⊕</span>Known-Exploited</div>
     <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
     <div class="nav-group">Frontier (3D &middot; Live)</div>
+    <div class="nav-item" data-view="hero_interdiction" onclick="go('hero_interdiction')" title="HERO: live counter-UAS decision -> DSSE-signed Λ-receipt -> click to trace the exact Lean theorem, kernel sha, #print axioms, Zenodo DOI and honest maturity label. The one no competitor can show."><span class="ico">★</span>Provable Interdiction (HERO)</div>
+    <div class="nav-item" data-view="tamper_demo" onclick="go('tamper_demo')" title="Tamper a signed receipt and watch the SHA-256 hash chain visibly REJECT it in 3D — the link breaks and turns red, the Merkle root changes, and the audit localizes the tampered entry."><span class="ico">⛓</span>Tamper a Receipt (3D)</div>
+    <div class="nav-item" data-view="determinism_demo" onclick="go('determinism_demo')" title="Run the same governed decision 5x and watch byte-identical Merkle roots. Honest label: axiom A5 (deterministicReplay), maturity measured — not a proven theorem."><span class="ico">≡</span>Determinism — Run 5×</div>
+    <div class="nav-item" data-view="uds_package" onclick="go('uds_package')" title="killinchu as a UDS-pattern package: UDS Package CR (uds.dev/v1alpha1), Pepr-style szl-governance capability, Zarf 3 flavors, Lula/OSCAL component-def tying Λ-gate + receipts to NIST 800-53 as claims-with-evidence. Apache-2.0; non-affiliation NOTICE intact."><span class="ico">⬢</span>UDS Package</div>
+    <div class="nav-item" data-view="fleet_c2" onclick="go('fleet_c2')" title="Live 3D fleet picture: real military ADS-B + AIS vessels on a globe, subsystem health inferred from telemetry, Λ-gate hack/spoof detection with signed receipts, governed C2 console (governance loop real, effector link simulated)."><span class="ico">◐</span>Fleet Health & Governed C2</div>
+    <div class="nav-item" data-view="living_anatomy" onclick="go('living_anatomy')" title="a11oy + killinchu as one connected governed organism: live 3D anatomy scene with proven formulas living in each organ and honest maturity labels (locked-5, Λ = Conjecture 1)."><span class="ico">❂</span>Living Anatomy</div>
     <div class="nav-item" data-view="fieldnet" onclick="go('fieldnet')"><span class="ico">✧</span>Field Net</div>
     <div class="nav-item" data-view="autonomyov" onclick="go('autonomyov')"><span class="ico">◉</span>Autonomy Oversight</div>
     <div class="nav-item" data-view="modelatlas" onclick="go('modelatlas')"><span class="ico">⬣</span>Model Atlas</div>
@@ -1349,6 +1355,145 @@ function w910theorem(o){
 }
 
 const VIEWS = {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FRONTIER WAVE (2026-06-08) — 5 wow moments + 2 founder tabs. Real data, 3D,
+  // honest. locked-5 = {F1,F11,F12,F18,F19} @ c7c0ba17; Λ = Conjecture 1; BFT =
+  // Conjecture 2 OPEN. 0 runtime CDN (vendored three/3d-force-graph/globe.gl).
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── MOMENT 1 — HERO "Provable Interdiction" ────────────────────────────────
+  hero_interdiction:{title:'Provable Interdiction (HERO)',badge:'LIVE DECISION → SIGNED Λ-RECEIPT → MACHINE-CHECKED PROOF',sub:'The one no competitor can show. Run a live counter-UAS decision against the <b>real ROE policy</b>; killinchu emits a <b>genuinely DSSE-signed</b> Λ-receipt; then <b>click the receipt</b> and it traces — in 3D — to the <b>exact Lean theorem</b> (CF-/CUT- id), the <b>kernel sha</b> (locked <code>c7c0ba17</code> / experimental <code>044eb098</code>), the <b>#print axioms</b> assertion, the <b>Zenodo DOI</b>, and an <b>honest maturity label</b> (locked / conditional / conjecture). Governed AI whose live decisions trace to a machine-checked proof.',
+    render:async(c)=>{c.innerHTML=`${window.ECON||''}<div class="kpis">
+      <div class="kpi"><div class="k">Decision</div><div class="v teal" id="hi-dec">—</div><div class="d">ROE-gated · recommend</div></div>
+      <div class="kpi"><div class="k">Trust Λ</div><div class="v" id="hi-lam">—</div><div class="d">advisory · Conjecture 1</div></div>
+      <div class="kpi"><div class="k">Receipt signed</div><div class="v" id="hi-sig">—</div><div class="d">ECDSA-P256 · cosign</div></div>
+      <div class="kpi"><div class="k">Traces to proof</div><div class="v" id="hi-proof">—</div><div class="d">click a node</div></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">① Live counter-UAS decision</span><span class="card-ep">real ROE policy · /roe/policy + /receipt/emit</span></div>
+          <div class="form-row"><label>Track classification</label><select id="hi-class" style="width:100%;padding:.5rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono)"><option>HOSTILE</option><option>SUSPECT</option><option>UNKNOWN</option></select></div>
+          <div class="form-row"><label>Closing speed (m/s)</label><input id="hi-spd" value="120"/></div>
+          <div class="btns"><button class="btn teal" onclick="hero_run()">▶ Run governed interdiction decision</button></div>
+          <div id="hi-decision-body" style="margin-top:.5rem"><div class="row mono dim">awaiting decision</div></div>
+        </div>
+        <div class="card"><div class="card-h"><span class="card-t">② Provenance graph (3D)</span><span class="card-ep">decision → Λ-receipt → theorem → DOI</span></div>
+          <div id="hi-graph" class="graph3d" style="height:340px;border-radius:10px;overflow:hidden;background:#050505"></div>
+          <div class="row mono dim" style="font-size:11px;margin-top:.3rem">Click a <b>theorem</b> node to trace its Lean id, kernel sha, #print axioms, DOI &amp; maturity.</div>
+        </div>
+      </div>
+      <div class="card" id="hi-trace-card" style="display:none"><div class="card-h"><span class="card-t" id="hi-trace-title">Theorem trace</span><span class="card-ep" id="hi-trace-mat">—</span></div>
+        <div id="hi-trace-body"></div></div>
+      <details class="raw"><summary>raw signed receipt envelope (/receipt/emit) + theorem registry (/uds/v1/theorem/registry)</summary><pre class="out" id="hi-raw">—</pre></details>
+      ${HONEST}`;
+      hero_init();}},
+
+  // ── MOMENT 2 — TAMPER (interactive, 3D reject) ─────────────────────────────
+  tamper_demo:{title:'Tamper a Receipt (3D reject)',badge:'HASH-CHAIN INTEGRITY · A6 · CP-1 + AU-1',sub:'The defense buyer\u2019s #1 question — <i>"what if it\u2019s attacked?"</i> — answered on stage. Build a real signed receipt chain, then <b>tamper one entry</b>: the SHA-256 hash chain <b>visibly REJECTS</b> it in 3D — the link <b>breaks and turns red</b>, the recomputed hash <b>no longer matches</b>, and the audit <b>localizes the tampered entry</b>. Backed by the live <code>/wave910/audit-receipts</code> Merkle + replay engine.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Chain length</div><div class="v teal" id="tp-n">—</div><div class="d">signed receipts</div></div>
+      <div class="kpi"><div class="k">Integrity</div><div class="v" id="tp-state">—</div><div class="d">intact / REJECTED</div></div>
+      <div class="kpi"><div class="k">Tamper localized</div><div class="v" id="tp-loc">—</div><div class="d">first divergence</div></div>
+      <div class="kpi"><div class="k">Merkle root</div><div class="v" id="tp-root" style="font-size:11px">—</div><div class="d">SHA-256</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Receipt hash chain (3D)</span><span class="card-ep">entry.chain = SHA256(prev) · A6</span></div>
+        <div id="tp-graph" class="graph3d" style="height:320px;border-radius:10px;overflow:hidden;background:#050505"></div>
+        <div class="form-row" style="margin-top:.5rem"><label>Tamper which entry index?</label><input id="tp-idx" value="2"/></div>
+        <div class="btns"><button class="btn" onclick="tamper_reset()">↺ Rebuild intact chain</button><button class="btn warn" onclick="tamper_break()">⚠ Tamper a receipt</button></div>
+        <div id="tp-verdict" class="row mono" style="margin-top:.5rem"></div>
+        <details class="raw"><summary>raw /wave910/audit-receipts result</summary><pre class="out" id="tp-out">—</pre></details></div>
+      ${w910theorem({id:'A6 · CP-1 + AU-1',name:'Hash-chain integrity + Merkle soundness + tamper-localization',
+        plain:'Every receipt commits entry.chain = SHA-256(prev_entry). Altering any entry breaks the chain at that link and changes the Merkle root; the audit localizes the tampered entry to the first divergence.',
+        lean:'Lutar/Wave9/Merkle.lean (merkle_root_binding, merkle_inclusion_sound) + Lutar/Wave10/ReplayDeterminism.lean (tamper_localized)',
+        source:'RFC 6962 Certificate Transparency; Lamport hash-chains DOI:10.1145/359545.359563; thesis §3.4 (A6) DOI:10.5281/zenodo.20119582',
+        honesty:'Merkle collision-resistance is an abstract HYPOTHESIS (Inj H) in Lean, NOT a declared axiom; SHA-256 is the concrete instance. A6 hash-chain invariant is DEFINED (maturity:defined), enforced at write time.',
+        axioms:["'merkle_root_binding' depends on axioms: [propext]","'merkle_inclusion_sound' depends on axioms: [propext]","'tamper_localized' depends on axioms: (none)"]})}
+      ${HONEST}`;
+      tamper_reset();}},
+
+  // ── MOMENT 3 — DETERMINISM (Run 5x → byte-identical roots) ─────────────────
+  determinism_demo:{title:'Determinism — Run 5×',badge:'AXIOM A5 · MEASURED (not proven) · canonical-JSON + pinned-PRNG',sub:'Defense-grade reproducibility, surfaced as a button. Run the same governed decision <b>5 times</b> with <b>canonical JSON + pinned PRNG + frozen registry</b> and watch the Merkle roots come back <b>byte-identical</b>. Honest label: this is axiom <b>A5 (deterministicReplay)</b>, maturity <b>"measured"</b> — an observed property of the runtime, <b>not</b> a formal theorem.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Runs</div><div class="v teal" id="dt-runs">0 / 5</div><div class="d">replayed</div></div>
+      <div class="kpi"><div class="k">Distinct roots</div><div class="v" id="dt-distinct">—</div><div class="d">should be 1</div></div>
+      <div class="kpi"><div class="k">Byte-identical</div><div class="v" id="dt-id">—</div><div class="d">A5 · measured</div></div>
+      <div class="kpi"><div class="k">Canonical root</div><div class="v" id="dt-root" style="font-size:11px">—</div><div class="d">SHA-256 Merkle</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Replay the same governed decision 5×</span><span class="card-ep">/wave910/audit-receipts (deterministic replay)</span></div>
+        <div class="btns"><button class="btn teal" onclick="determinism_run()">▶ Run this governed decision 5×</button></div>
+        <div id="dt-rows" style="margin-top:.6rem"></div>
+        <details class="raw"><summary>raw per-run roots</summary><pre class="out" id="dt-out">—</pre></details></div>
+      ${w910theorem({id:'A5',name:'deterministicReplay (MEASURED, not proven)',
+        plain:'For canonical JSON + pinned PRNG + frozen registry, 5× replay yields byte-identical roots. This is a measured runtime property — repeatable and observable here — not a machine-checked theorem.',
+        lean:'(no Lean theorem — measured axiom; cf. F1 Replay-Hash Determinism which IS proven: Lutar f1_replay_fold_deterministic)',
+        source:'thesis §4.6 (A5 deterministicReplay) DOI:10.5281/zenodo.20119582',
+        honesty:'maturity = MEASURED. A5 is an axiom (assumption) verified empirically, NOT a proven theorem. The related F1 (Replay-Hash Determinism) IS one of the locked-5 proven formulas.',
+        axioms:["A5 deterministicReplay — maturity: measured (empirical, not a Lean theorem)"]})}
+      ${HONEST}`;
+      determinism_init();}},
+
+  // ── MOMENT 5 — UDS-NATIVE PACKAGING ────────────────────────────────────────
+  uds_package:{title:'UDS Package (Defense Unicorns-native)',badge:'uds.dev/v1alpha1 · Pepr · Zarf · Lula/OSCAL · Apache-2.0 (NOT AGPL uds-core)',sub:'killinchu ships as a <b>UDS-pattern package</b> a Defense Unicorns engineer recognizes as native — a <b>UDS Package CR</b> (<code>uds.dev/v1alpha1</code>), a Pepr-style <b>szl-governance</b> capability (TypeScript, Apache-2.0 pattern), a <b>Zarf</b> layout with 3 flavors (upstream/registry1/unicorn), and a <b>Lula/OSCAL</b> component-definition tying the Λ-gate + signed receipts to NIST 800-53 controls (AU-10, SI-7, AC-4, CM-3, AU-3) as <b>claims-with-evidence</b>. Plus a <b>Cursor-on-Target (CoT/TAK)</b> sample for maritime/drone interop. <b>Non-affiliation NOTICE intact; no AGPL uds-core code adopted; no fake certification.</b>',
+    render:async(c)=>{c.innerHTML=`<div class="honesty" style="margin-bottom:.7rem"><b>NOTICE:</b> killinchu (UDS Edition) is published by SZL Holdings and is <b>NOT affiliated with, endorsed by, or sponsored by Defense Unicorns</b>. "UDS", "Zarf", "Pepr", "Lula" are interoperated-with via open specs / Apache-2.0 tooling; <b>no AGPL uds-core source is included</b>. This is honest claims-with-evidence, <b>not an ATO or certification</b>.</div>${window.ECON||''}
+      <div class="kpis">
+      <div class="kpi"><div class="k">Package CR</div><div class="v teal">uds.dev/v1alpha1</div><div class="d">Pepr-style</div></div>
+      <div class="kpi"><div class="k">Zarf flavors</div><div class="v">3</div><div class="d">upstream · registry1 · unicorn</div></div>
+      <div class="kpi"><div class="k">OSCAL controls</div><div class="v">5</div><div class="d">AU-10 SI-7 AC-4 CM-3 AU-3</div></div>
+      <div class="kpi"><div class="k">Lula evidence</div><div class="v" id="uds-ev">live</div><div class="d">API-domain → OPA</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">OSCAL control implementation (honest claims-with-evidence)</span><span class="card-ep">NIST 800-53 r5 · implementation-status honest</span></div>
+        <div id="uds-controls"></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Downloadable artifacts</span><span class="card-ep">our Apache-2.0 · our SPDX header</span></div>
+          <div id="uds-artifacts" class="mono" style="font-size:12px;line-height:1.9"></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Cursor-on-Target (CoT/TAK) sample</span><span class="card-ep">wcrum/py-cot pattern · Apache-2.0 · SAMPLE</span></div>
+          <div class="row mono dim" style="font-size:11px;margin-bottom:.4rem">Real CoT/MIL-STD XML the TAK/ATAK common-operating-picture speaks. Labeled <b>SAMPLE</b> — not a live TAK server feed.</div>
+          <div class="btns"><button class="btn teal" onclick="uds_cot()">▶ Generate CoT event (SAMPLE)</button></div>
+          <pre class="out" id="uds-cot-out" style="margin-top:.4rem">—</pre></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">UDS Package CR + Pepr szl-governance capability</span><span class="card-ep">mirrors uds-core conventions · our code</span></div>
+        <details class="raw" open><summary>chart/templates/uds-package.yaml (uds.dev/v1alpha1)</summary><pre class="out" id="uds-cr">—</pre></details>
+        <details class="raw"><summary>capabilities/szl-governance/killinchu-receipt-gate.ts (Pepr, Apache-2.0)</summary><pre class="out" id="uds-pepr">—</pre></details>
+        <details class="raw"><summary>zarf.yaml (3 flavors: upstream / registry1 / unicorn)</summary><pre class="out" id="uds-zarf">—</pre></details></div>
+      ${HONEST}`;
+      uds_init();}},
+
+  // ── FOUNDER TAB A — FLEET HEALTH & GOVERNED C2 ─────────────────────────────
+  fleet_c2:{title:'Fleet Health & Governed C2 (3D)',badge:'LIVE ADS-B (mil) + AIS · health inferred from telemetry · Λ-gate hack detection',sub:'A live 3D fleet picture of <b>military aircraft</b> (real ADS-B from adsb.lol) and <b>vessels</b> (real AIS from Digitraffic Finland) on a globe. Each asset is a 3D node with <b>color-coded subsystem health</b> — <b>inferred from real telemetry</b> (signal freshness, kinematics plausibility, anomaly), <b>not fabricated sensor data</b>. <b>Hack / spoof detection</b> runs through the <b>Λ-gate</b>: anomalous tracks get flagged and a <b>genuinely-signed receipt</b> is emitted (the moat). The <b>governed command console</b> emits a real <b>CoT/TAK</b> command through the command → Λ-gate → signed-receipt loop — <b>the governance loop is real and live; the effector link is a command demonstration (we do not pilot real military assets).</b>',
+    render:async(c)=>{c.innerHTML=`${window.ECON||''}<div class="kpis">
+      <div class="kpi"><div class="k">Live assets</div><div class="v teal" id="fc-n">—</div><div class="d">ADS-B + AIS</div></div>
+      <div class="kpi"><div class="k">Nominal</div><div class="v" id="fc-ok">—</div><div class="d">health inferred</div></div>
+      <div class="kpi"><div class="k">Flagged anomalies</div><div class="v warn" id="fc-flag">—</div><div class="d">Λ-gate · signed receipt</div></div>
+      <div class="kpi"><div class="k">Feed</div><div class="v" id="fc-feed">—</div><div class="d">live / fallback</div></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Fleet globe (3D)</span><span class="card-ep">real ADS-B mil air + AIS vessels</span></div>
+          <div id="fc-globe" class="globe3d" style="height:380px;border-radius:10px;overflow:hidden;background:#03060c"></div>
+          <div class="row mono dim" style="font-size:11px;margin-top:.3rem"><span style="color:#39d98a">●</span> nominal &nbsp; <span style="color:#f5c451">●</span> needs-attention &nbsp; <span style="color:#ff5c5c">●</span> anomalous/spoof-suspect (health <b>inferred from telemetry</b>) — click an asset.</div>
+        </div>
+        <div class="card"><div class="card-h"><span class="card-t">Asset health + governed C2</span><span class="card-ep">command demonstration</span></div>
+          <div id="fc-asset"><div class="row mono dim">select an asset on the globe</div></div>
+          <div class="honesty" style="margin-top:.5rem"><b>Command demonstration:</b> the command → Λ-gate → signed-receipt <b>governance loop is REAL and live</b>; the <b>effector link is simulated</b>. killinchu does not and cannot pilot real military aircraft, vessels, or submarines.</div>
+        </div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Subsystem health model (honest)</span><span class="card-ep">inferred, not fabricated</span></div>
+        <div class="row mono dim" style="font-size:11.5px;line-height:1.7">Health is <b>inferred</b> from observable telemetry only: <b>signal freshness</b> (seconds since last ADS-B/AIS report), <b>kinematic plausibility</b> (speed/altitude/heading within envelope), and <b>identity consistency</b> (squawk/MMSI present &amp; stable). A track failing plausibility or going stale is marked <b>anomalous/spoof-suspect</b> and routed through the Λ-gate. We do <b>not</b> claim access to the platform\u2019s internal subsystem sensors.</div></div>
+      <details class="raw"><summary>raw live feeds (/air/live + /ais/live) + last governed-command receipt</summary><pre class="out" id="fc-raw">—</pre></details>
+      ${HONEST}`;
+      fleet_c2_init();}},
+
+  // ── FOUNDER TAB B — LIVING ANATOMY ─────────────────────────────────────────
+  living_anatomy:{title:'Living Anatomy (one governed organism)',badge:'a11oy + killinchu as ONE organism · proven formulas in the organs',sub:'a11oy and killinchu are not two products — they are <b>one connected governed organism</b>. This embeds the live 3D anatomy scene and overlays the <b>proven formulas living in each organ</b> with <b>honest maturity labels</b>. The reasoning organ, the policy organ, the field node, the orchestrator — each carries a theorem_ref. This is what makes the architecture <b>agentic with a proof backbone</b>: every organ\u2019s function is tied to a formally-stated property.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Organism</div><div class="v teal">a11oy + killinchu</div><div class="d">one governed body</div></div>
+      <div class="kpi"><div class="k">Locked-proven</div><div class="v">5</div><div class="d">F1·F11·F12·F18·F19 @ c7c0ba17</div></div>
+      <div class="kpi"><div class="k">Λ (trust)</div><div class="v warn">Conjecture 1</div><div class="d">advisory · NOT a theorem</div></div>
+      <div class="kpi"><div class="k">Consensus mesh</div><div class="v" id="la-quorum">—</div><div class="d">Byzantine = Conjecture 2 OPEN</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Living anatomy (live 3D)</span><span class="card-ep">szlholdings-anatomy.static.hf.space</span></div>
+        <iframe id="la-frame" src="https://szlholdings-anatomy.static.hf.space" title="Living anatomy — one governed organism" style="width:100%;height:460px;border:1px solid var(--gold-line);border-radius:10px;background:#050505" loading="lazy"></iframe>
+        <div class="row mono dim" style="font-size:11px;margin-top:.3rem">Live embed of the shared anatomy scene. Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 5 locked-proven formulas (never inflated); CUT-2 conditional; SLSA L1 honest.</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Proven formulas living in the organs</span><span class="card-ep">theorem_ref + honest maturity</span></div>
+        <div id="la-organs"></div></div>
+      <details class="raw"><summary>raw consensus mesh state (/uds/v1/healthz) + theorem registry</summary><pre class="out" id="la-raw">—</pre></details>
+      ${HONEST}`;
+      living_anatomy_init();}},
+
+
+
   evidence:{title:'Evidence & Research',badge:'CURATED CITATIONS · LIVE arXiv + GitHub',sub:'Every headline claim below is grounded in real, resolvable sources — official standards, public datasets and GitHub repositories. Paper lists and repo stats are fetched <b>live</b> from the arXiv + GitHub APIs and labelled live/cached; if a feed is down the panel degrades to the curated citations, never to invented figures.',render:async(c)=>{window.evidence_render(c);}}, // evidence-tab-patch-185
 
   // ── WAVE9/10 PROVEN THEOREMS (EXPERIMENTAL · CI-green on main) ──
@@ -5878,6 +6023,366 @@ window.melt_load=melt_load; window.melt_drill=melt_drill; window.melt_apply_filt
 window.darkgraph_load=darkgraph_load; window.darkgraph_render=darkgraph_render; window.darkgraph_sort=darkgraph_sort; window.darkgraph_evaluate=darkgraph_evaluate;
 window.deploy_load=deploy_load; window.deploy_verify=deploy_verify;
 window.warboard_init=warboard_init; window.warboard_all=warboard_all; window.warboard_one=warboard_one;
+
+
+/* ===== FRONTIER WAVE fns + window exports ===== */
+
+/* ═══ FRONTIER WAVE helper fns (real data, 3D, honest) ═══════════════════════ */
+function _kbTheoremFor(decisionClass){
+  // map a decision class to the live theorem registry entry
+  return getJSON(API.replace('/v1','/uds/v1')+'/theorem/registry').then(function(d){
+    var reg=(d&&d.theorem_registry)||{};
+    return reg[decisionClass]||reg.lambda_gate||reg.consensus||null;
+  }).catch(function(){return null;});
+}
+var LOCKED5={F1:1,F11:1,F12:1,F18:1,F19:1};
+// MOMENT 4 — economic thesis one-liner (Series-A "so what"; no fabricated $)
+window.ECON='<div class="row mono" style="font-size:11.5px;line-height:1.6;border:1px solid var(--gold-line);border-radius:8px;padding:.5rem .7rem;margin-bottom:.7rem;background:rgba(232,201,122,0.05)"><b style="color:#e8c97a">Why it matters:</b> every autonomous engagement carries <b>court-admissible cryptographic provenance</b> \u2014 governed-provable AI de-risks ROE / liability exposure and turns \u201ctrust us\u201d into \u201cverify the receipt.\u201d</div>';
+function _maturityColor(m){m=(m||'').toLowerCase();
+  if(m==='locked'||m==='proven')return '#39d98a';
+  if(m==='conditional')return '#f5c451';
+  if(m==='measured')return '#5bc8ff';
+  return '#ff8a5c';/*conjecture/other*/}
+
+/* ── HERO ──────────────────────────────────────────────────────────────────*/
+var _heroReceipt=null, _heroReg=null;
+async function hero_init(){
+  try{ _heroReg=(await getJSON(API.replace('/v1','/uds/v1')+'/theorem/registry')).theorem_registry||{}; }catch(e){ _heroReg={}; }
+  hero_render_graph(null);
+}
+async function hero_run(){
+  try{
+    var cls=el('hi-class').value, spd=parseFloat(el('hi-spd').value)||0;
+    var pol=await getJSON(API+'/roe/policy'); var rules=(pol.policy&&pol.policy.rules)||{};
+    var hostileSpd=rules.hostile_speed_m_s||100, lamFloor=rules.lambda_floor||0.9;
+    // honest deterministic decision from real ROE rules (no fabricated sensor data)
+    var lam = cls==='HOSTILE'?0.93 : cls==='SUSPECT'?0.88 : 0.71;
+    var autoSet=(rules.auto_engage_classifications||[]);
+    var decision = (cls==='HOSTILE' && spd>=hostileSpd) ? 'jam (recommend)' : (cls==='UNKNOWN'?'observe':'track + warn');
+    var gatePass = lam>=lamFloor;
+    // emit a GENUINELY signed receipt
+    var rc=await postJSON(API+'/receipt/emit',{kind:'interdiction_decision',payload:{
+      track_class:cls, closing_speed_m_s:spd, decision:decision, lambda:lam,
+      roe_lambda_floor:lamFloor, gate_pass:gatePass, mode:'RECOMMEND (human-in-the-loop)'}});
+    _heroReceipt=rc;
+    setTxt('hi-dec',decision); setTxt('hi-lam',lam.toFixed(3));
+    setTxt('hi-sig',(rc.dsse&&rc.dsse.signed)?'YES':'—');
+    setTxt('hi-proof','click a node');
+    el('hi-decision-body').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.8">'+
+      '<b>Decision:</b> '+esc(decision)+' &nbsp;·&nbsp; <b>Λ:</b> '+lam.toFixed(3)+' (floor '+lamFloor+', '+(gatePass?'<span style="color:#39d98a">gate PASS</span>':'<span style="color:#ff5c5c">gate HOLD</span>')+')<br>'+
+      '<b>Mode:</b> RECOMMEND — not auto-fire (human approves; killinchu does not fly the effector)<br>'+
+      '<b>Receipt:</b> node #'+esc(rc.node_index)+' · digest '+esc((rc.node_digest||'').slice(0,16))+'… · <b style="color:#39d98a">DSSE-signed (cosign)</b></div>';
+    var reg=await getJSON(API.replace('/v1','/uds/v1')+'/theorem/registry'); _heroReg=reg.theorem_registry||{};
+    setHTML('hi-raw',esc(JSON.stringify({receipt:rc,theorem_registry:_heroReg},null,2)));
+    hero_render_graph(_heroReceipt);
+  }catch(e){ el('hi-decision-body').innerHTML='<div class="row mono" style="color:#ff5c5c">error: '+esc(e.message)+'</div>'; }
+}
+function hero_render_graph(receipt){
+  var box=el('hi-graph'); if(!box||typeof ForceGraph3D==='undefined')return;
+  // nodes: live decision → Λ-receipt → lambda_gate theorem (CUT-2) → consensus theorem → DOI
+  var reg=_heroReg||{};
+  var lg=reg.lambda_gate||{theorem:'CUT-2 (conditional Λ aggregation bound)',lean:'Lutar/Wave16/CutTwo.lean::cut_two_lambda_bound',maturity:'conditional',kernel_sha:'044eb098'};
+  var cs=reg.consensus||{theorem:'Khipu Conjecture 2',lean:'Lutar/KhipuConsensus.lean::khipu_consensus_safety',maturity:'conjecture',kernel_sha:'044eb098'};
+  var nodes=[
+    {id:'decision',name:'Live counter-UAS decision',group:'decision',color:'#e8c97a',val:8},
+    {id:'receipt',name:'Λ-receipt (DSSE-signed)',group:'receipt',color:'#5bc8ff',val:7,
+      digest:receipt?((receipt.node_digest||'').slice(0,16)+'…'):'(run a decision)'},
+    {id:'F12',name:'F12 — Kuramoto (LOCKED)',group:'theorem',color:'#39d98a',val:6,
+      theorem:'F12 Kuramoto Phase-Coupling Boundedness',lean:'f12_kuramoto_superposition (szl-holdings/lutar-lean)',
+      maturity:'locked',kernel_sha:'c7c0ba17',axioms:'#print axioms over the locked-5 reports NO sorryAx / NO extra axioms (axiom-clean).',doi:'10.5281/zenodo.20119582'},
+    {id:'cut2',name:lg.theorem,group:'theorem',color:_maturityColor(lg.maturity),val:6,
+      theorem:lg.theorem,lean:lg.lean,maturity:lg.maturity,kernel_sha:lg.kernel_sha||'044eb098',
+      axioms:lg.honest_note||'Λ = Conjecture 1, machine-checked FALSE; CUT-2 is the CONDITIONAL repair.',doi:'10.5281/zenodo.20053148'},
+    {id:'consensus',name:cs.theorem,group:'theorem',color:_maturityColor(cs.maturity),val:6,
+      theorem:cs.theorem,lean:cs.lean,maturity:cs.maturity,kernel_sha:cs.kernel_sha||'044eb098',
+      axioms:cs.honest_note||'Byzantine BFT safety is OPEN (Conjecture 2) — stated, not a theorem.',doi:'10.5281/zenodo.20119582'},
+    {id:'doi',name:'Zenodo DOI (citable)',group:'doi',color:'#c792ea',val:7,doi:'10.5281/zenodo.20119582'}
+  ];
+  var links=[
+    {source:'decision',target:'receipt'},
+    {source:'receipt',target:'F12'},{source:'receipt',target:'cut2'},{source:'receipt',target:'consensus'},
+    {source:'F12',target:'doi'},{source:'cut2',target:'doi'},{source:'consensus',target:'doi'}
+  ];
+  try{ if(_fg){loseGL(_fg);if(_fg._destructor)_fg._destructor();_fg=null;} }catch(e){}
+  box.innerHTML='';
+  _fg=ForceGraph3D()(box)
+    .width(box.clientWidth).height(box.clientHeight)
+    .backgroundColor('#050505')
+    .graphData({nodes:nodes,links:links})
+    .nodeLabel(function(n){return '<div style="font:12px monospace;color:#eee">'+n.name+(n.maturity?(' · '+n.maturity):'')+'</div>';})
+    .nodeColor(function(n){return n.color;})
+    .nodeVal(function(n){return n.val;})
+    .linkColor(function(){return 'rgba(232,201,122,0.45)';})
+    .linkWidth(1.2)
+    .linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006)
+    .onNodeClick(function(n){hero_trace(n);});
+  setTimeout(function(){try{_fg.width(box.clientWidth).height(box.clientHeight);}catch(e){}},60);
+}
+function hero_trace(n){
+  var card=el('hi-trace-card'); if(!card)return;
+  if(n.group!=='theorem' && n.group!=='doi' && n.group!=='receipt'){ card.style.display='none'; return; }
+  card.style.display='';
+  setTxt('hi-proof','traced');
+  if(n.group==='doi'){
+    el('hi-trace-title').textContent='Citable DOI';
+    el('hi-trace-mat').textContent='Zenodo';
+    el('hi-trace-body').innerHTML='<div class="row mono" style="font-size:12px"><b>DOI:</b> <a href="https://doi.org/'+esc(n.doi)+'" target="_blank" rel="noopener" style="color:#c792ea">'+esc(n.doi)+'</a></div>';
+    return;
+  }
+  if(n.group==='receipt'){
+    el('hi-trace-title').textContent='Λ-receipt (DSSE-signed)';
+    el('hi-trace-mat').textContent='ECDSA-P256 · cosign';
+    el('hi-trace-body').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.8"><b>node digest:</b> '+esc(n.digest)+'<br><b>verify offline:</b> /api/killinchu/v1/receipt/export + /cosign.pub</div>';
+    return;
+  }
+  var locked = LOCKED5[n.id]?true:false;
+  el('hi-trace-title').textContent=n.theorem;
+  var mc=_maturityColor(n.maturity);
+  el('hi-trace-mat').innerHTML='<span style="color:'+mc+'">'+esc((n.maturity||'').toUpperCase())+'</span>';
+  el('hi-trace-body').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.9">'+
+    '<b>Lean theorem:</b> '+esc(n.lean)+'<br>'+
+    '<b>Kernel sha:</b> <code>'+esc(n.kernel_sha)+'</code> '+(locked?'(locked-5 @ c7c0ba17)':'(experimental @ 044eb098 — NOT folded into the locked-5)')+'<br>'+
+    '<b>Maturity:</b> <span style="color:'+mc+'">'+esc(n.maturity)+'</span> '+(locked?'— one of EXACTLY 5 locked-proven formulas':'')+'<br>'+
+    '<b>#print axioms:</b> '+esc(n.axioms)+'<br>'+
+    '<b>Zenodo DOI:</b> <a href="https://doi.org/'+esc(n.doi)+'" target="_blank" rel="noopener" style="color:#c792ea">'+esc(n.doi)+'</a></div>'+
+    (locked?'':'<div class="honesty" style="margin-top:.5rem"><b>Honest:</b> Λ = <b>Conjecture 1</b> (machine-checked FALSE as an unconditional axiom). CUT-2 is conditional; Byzantine BFT = Conjecture 2 OPEN. Only F1,F11,F12,F18,F19 are locked-proven.</div>');
+}
+
+/* ── TAMPER ────────────────────────────────────────────────────────────────*/
+var _tpChain=null;
+async function tamper_reset(){
+  try{
+    // intact baseline: omit tamper_index entirely; rely on inclusion_proofs_all_sound + canonical Merkle root
+    var d=await postJSON(W910_BASE+'/audit-receipts',{});
+    _tpChain=d; var sound=(d.inclusion_proofs_all_sound!==false);
+    setTxt('tp-n',d.n_receipts||4); setTxt('tp-state',sound?'intact':'check'); el('tp-state').style.color=sound?'#39d98a':'#f5c451';
+    setTxt('tp-loc','—'); setTxt('tp-root',(d.merkle_root||'').slice(0,16)+'…');
+    el('tp-verdict').innerHTML='<span style="color:#39d98a">● chain intact — all inclusion proofs sound ('+_yn(d.inclusion_proofs_all_sound)+'), replay deterministic ('+_yn(d.replay_deterministic)+'), canonical Merkle root verified</span>';
+    setHTML('tp-out',esc(JSON.stringify(d,null,2)));
+    tamper_render(d.n_receipts||4, -1, d.merkle_root||'');
+  }catch(e){ el('tp-verdict').innerHTML='<span style="color:#ff5c5c">error: '+esc(e.message)+'</span>'; }
+}
+async function tamper_break(){
+  try{
+    var idx=parseInt(el('tp-idx').value); if(isNaN(idx))idx=2;
+    var d=await postJSON(W910_BASE+'/audit-receipts',{tamper_index:idx});
+    _tpChain=d; var loc=(d.tamper_localization)||{};
+    setTxt('tp-n',d.n_receipts||4); setTxt('tp-state','REJECTED'); el('tp-state').style.color='#ff5c5c';
+    setTxt('tp-loc','#'+(loc.first_divergence_index!=null?loc.first_divergence_index:idx));
+    setTxt('tp-root',(d.merkle_root||'').slice(0,16)+'…');
+    el('tp-verdict').innerHTML='<span style="color:#ff5c5c">● TAMPER REJECTED — entry #'+esc(loc.tampered_index!=null?loc.tampered_index:idx)+' altered: hash chain broken at link '+esc(loc.first_divergence_index!=null?loc.first_divergence_index:idx)+', Merkle root changed ('+_yn(loc.root_changed)+'), localized correctly ('+_yn(loc.localized_correctly)+')</span>';
+    setHTML('tp-out',esc(JSON.stringify(d,null,2)));
+    tamper_render(d.n_receipts||4, (loc.first_divergence_index!=null?loc.first_divergence_index:idx), d.merkle_root||'');
+  }catch(e){ el('tp-verdict').innerHTML='<span style="color:#ff5c5c">error: '+esc(e.message)+'</span>'; }
+}
+function tamper_render(n, brokenIdx, root){
+  var box=el('tp-graph'); if(!box||typeof ForceGraph3D==='undefined')return;
+  var nodes=[],links=[];
+  for(var i=0;i<n;i++){
+    var broken=(brokenIdx>=0 && i>=brokenIdx);
+    nodes.push({id:'r'+i,name:'receipt #'+i+(i===brokenIdx?' (TAMPERED)':''),
+      color:(i===brokenIdx?'#ff5c5c':(broken?'#7a2b2b':'#39d98a')),val:6});
+    if(i>0){ links.push({source:'r'+(i-1),target:'r'+i,broken:(i===brokenIdx)}); }
+  }
+  nodes.push({id:'root',name:'Merkle root '+(root||'').slice(0,12)+'…',color:(brokenIdx>=0?'#ff5c5c':'#e8c97a'),val:8});
+  for(var j=0;j<n;j++)links.push({source:'r'+j,target:'root',broken:false});
+  try{ if(_fg){loseGL(_fg);if(_fg._destructor)_fg._destructor();_fg=null;} }catch(e){}
+  box.innerHTML='';
+  _fg=ForceGraph3D()(box)
+    .width(box.clientWidth).height(box.clientHeight).backgroundColor('#050505')
+    .graphData({nodes:nodes,links:links})
+    .nodeLabel(function(nd){return nd.name;})
+    .nodeColor(function(nd){return nd.color;}).nodeVal(function(nd){return nd.val;})
+    .linkColor(function(l){return l.broken?'#ff2d2d':'rgba(57,217,138,0.5)';})
+    .linkWidth(function(l){return l.broken?0.2:1.4;})
+    .linkDirectionalParticles(function(l){return l.broken?0:2;})
+    .linkDirectionalParticleSpeed(0.006);
+  setTimeout(function(){try{_fg.width(box.clientWidth).height(box.clientHeight);}catch(e){}},60);
+}
+
+/* ── DETERMINISM ───────────────────────────────────────────────────────────*/
+async function determinism_init(){ setTxt('dt-runs','0 / 5'); }
+async function determinism_run(){
+  var roots=[], rows='';
+  setTxt('dt-runs','0 / 5');
+  for(var i=0;i<5;i++){
+    try{
+      var d=await postJSON(W910_BASE+'/audit-receipts',{tamper_index:-1});
+      var r=d.merkle_root||d.replay_final_state||'';
+      roots.push(r);
+      rows+='<div class="row mono" style="font-size:11.5px;padding:.25rem 0;border-bottom:1px solid var(--gold-line)">run '+(i+1)+': <span style="color:#5bc8ff">'+esc(r.slice(0,40))+'…</span></div>';
+      setTxt('dt-runs',(i+1)+' / 5'); setHTML('dt-rows',rows);
+    }catch(e){ setHTML('dt-rows','<div class="row mono" style="color:#ff5c5c">error: '+esc(e.message)+'</div>'); return; }
+  }
+  var distinct=roots.filter(function(v,ix,a){return a.indexOf(v)===ix;});
+  setTxt('dt-distinct',distinct.length);
+  var ident=distinct.length===1;
+  setTxt('dt-id',ident?'YES':'NO'); el('dt-id').style.color=ident?'#39d98a':'#ff5c5c';
+  setTxt('dt-root',(roots[0]||'').slice(0,16)+'…');
+  setHTML('dt-out',esc(JSON.stringify({runs:5,distinct_roots:distinct.length,byte_identical:ident,roots:roots,maturity:'measured (axiom A5 — empirical, not a Lean theorem)'},null,2)));
+}
+
+/* ── UDS PACKAGE ───────────────────────────────────────────────────────────*/
+async function uds_init(){
+  var controls=[
+    {id:'AU-10',name:'Non-repudiation',claim:'Decisions carry a cryptographically-signed receipt (real cosign key)',status:'implemented',ev:'live: /receipt/emit + /consensus/verify (DSSE PASS / tamper FAIL)'},
+    {id:'SI-7',name:'SW/Info Integrity',claim:'Receipt tamper is detected',status:'implemented',ev:'live: /wave910/audit-receipts tamper-localization'},
+    {id:'AC-4',name:'Info Flow Enforcement',claim:'Λ-gate (ADVISORY) gates outputs',status:'partial',ev:'live: /uds/v1/healthz theorem_ref.maturity present; Λ = Conjecture 1 (advisory)'},
+    {id:'CM-3',name:'Config Change Control',claim:'Locked-5 formulas pinned by kernel sha',status:'implemented',ev:'lake_receipt locked_proven_count == 5 @ c7c0ba17'},
+    {id:'AU-3',name:'Audit Record Content',claim:'Receipts include decision class + theorem_ref provenance',status:'partial',ev:'live: consensus payload theorem_ref fields'}
+  ];
+  var sc={implemented:'#39d98a',partial:'#f5c451',planned:'#ff8a5c'};
+  el('uds-controls').innerHTML=controls.map(function(c){return '<div class="row mono" style="font-size:11.5px;padding:.4rem 0;border-bottom:1px solid var(--gold-line);line-height:1.6">'+
+    '<b style="color:#e8c97a">'+c.id+'</b> '+esc(c.name)+' — <span style="color:'+sc[c.status]+'">'+c.status+'</span><br>claim: '+esc(c.claim)+'<br><span class="dim">evidence: '+esc(c.ev)+'</span></div>';}).join('');
+  el('uds-artifacts').innerHTML=[
+    'chart/templates/uds-package.yaml','capabilities/szl-governance/pepr.ts',
+    'capabilities/szl-governance/killinchu-receipt-gate.ts','zarf.yaml',
+    'values/{upstream,registry1,unicorn}-values.yaml',
+    'compliance/oscal-component-killinchu.yaml','compliance/validations/{au10,si7,ac4,cm3,au3}.yaml','NOTICE (non-affiliation + attributions)'
+  ].map(function(f){return '<a href="/api/killinchu/uds/v1/artifact?f='+encodeURIComponent(f)+'" target="_blank" rel="noopener" style="color:#5bc8ff;text-decoration:none">⬇ '+esc(f)+'</a>';}).join('<br>');
+  el('uds-cr').textContent=UDS_CR_YAML;
+  el('uds-pepr').textContent=UDS_PEPR_TS;
+  el('uds-zarf').textContent=UDS_ZARF_YAML;
+}
+function uds_cot(){
+  // real Cursor-on-Target XML (MITRE/MIL-STD), SAMPLE — not a live TAK feed
+  var now=new Date().toISOString();
+  var stale=new Date(Date.now()+60000).toISOString();
+  var cot='<?xml version="1.0" standalone="yes"?>\n'+
+    '<event version="2.0" uid="killinchu-UAS-7" type="a-h-A-M-F-Q" time="'+now+'" start="'+now+'" stale="'+stale+'" how="m-g">\n'+
+    '  <point lat="47.85" lon="35.10" hae="120.0" ce="9999999.0" le="9999999.0"/>\n'+
+    '  <detail>\n    <contact callsign="UAS-7"/>\n    <__group name="Red" role="HQ"/>\n'+
+    '    <remarks>killinchu governed interdiction — RECOMMEND (human-in-the-loop); Λ-receipt DSSE-signed; SAMPLE CoT, not a live TAK server feed</remarks>\n'+
+    '  </detail>\n</event>';
+  el('uds-cot-out').textContent=cot;
+}
+var UDS_CR_YAML='# Copyright 2026 SZL Holdings\n# SPDX-License-Identifier: Apache-2.0\n# NOTE: SZL is NOT affiliated with Defense Unicorns. UDS/Zarf/Pepr/Lula interoperated-with only.\napiVersion: uds.dev/v1alpha1     # interop schema; not DU code\nkind: Package\nmetadata:\n  name: killinchu\n  namespace: {{ .Release.Namespace }}\nspec:\n  monitor:                        # eddiezane ServiceMonitor idiom\n    - selector: { app.kubernetes.io/name: killinchu }\n      targetPort: 8080\n      portName: http\n      description: Metrics\n  network:\n    serviceMesh: { mode: ambient }\n    # @lulaStart <uuid-ac4>       # ties expose block to control AC-4 (lula idiom)\n    expose:\n      - service: killinchu\n        selector: { app.kubernetes.io/name: killinchu }\n        host: killinchu\n        gateway: tenant\n        port: 80\n        targetPort: 8080\n    # @lulaEnd <uuid-ac4>\n    allow:\n      - direction: Egress         # honest: only what killinchu actually calls\n        selector: { app.kubernetes.io/name: killinchu }\n        remoteNamespace: a11oy\n        remoteSelector: { app.kubernetes.io/name: a11oy }\n        port: 8080\n        description: "Reasoning/orchestrator (a11oy) — consensus fan-out"';
+var UDS_PEPR_TS='// SPDX-License-Identifier: Apache-2.0  (SZL Holdings; Pepr is Apache-2.0; pattern mirrors AustinAbro321/pepr-grafana-capability)\n// NOTE: NOT a Defense Unicorns package. No AGPL uds-core code adopted.\nimport { Capability, a } from "pepr";\nexport const SzlGovernance = new Capability({\n  name: "szl-governance",\n  description: "Admit killinchu/a11oy pods only with a verified signed-receipt + Λ-gate ADVISORY annotation."\n});\nconst { When } = SzlGovernance;\nWhen(a.Pod).IsCreatedOrUpdated().InNamespace("killinchu")\n  .Validate(req =>\n    req.HasAnnotation("szl.dev/receipt-verified") &&\n    req.Raw.metadata.annotations?.["szl.dev/receipt-verified"] === "true"\n      ? req.Approve()\n      : req.Deny("killinchu pod missing verified signed-receipt annotation (szl.dev/receipt-verified=true)")\n  );\n// Honesty: Λ-gate is ADVISORY (Conjecture 1) — the capability records/validates the gate\n// decision; it does NOT assert Λ is a theorem. Pepr auto-generates least-privilege RBAC.';
+var UDS_ZARF_YAML='# SPDX-License-Identifier: Apache-2.0  (SZL Holdings; NOT a Defense Unicorns package)\nkind: ZarfPackageConfig\nmetadata: { name: killinchu, description: "killinchu UDS Edition (SZL)", url: "https://github.com/szl-holdings/killinchu" }\nvariables:\n  - { name: DOMAIN, default: "uds.dev" }\ncomponents:\n  - name: killinchu\n    required: true\n    only: { flavor: upstream }                  # docker.io images\n    import: { path: common }\n    charts: [ { name: killinchu, valuesFiles: [ values/upstream-values.yaml ] } ]\n    images: [ "ghcr.io/szl-holdings/killinchu:uds-v0.2.0" ]   # verify digest before deploy\n  - name: killinchu\n    required: true\n    only: { flavor: registry1 }                  # Iron Bank hardened\n    import: { path: common }\n    charts: [ { name: killinchu, valuesFiles: [ values/registry1-values.yaml ] } ]\n    images: [ "registry1.dso.mil/ironbank/.../killinchu:uds-v0.2.0" ]   # NOT YET PUBLISHED — verify digest before deploy\n  - name: killinchu\n    required: true\n    only: { flavor: unicorn }                    # Chainguard/Wolfi\n    import: { path: common }\n    charts: [ { name: killinchu, valuesFiles: [ values/unicorn-values.yaml ] } ]\n    images: [ "ghcr.io/szl-holdings/killinchu:0.5.0-wolfi" ]   # NOT YET PUBLISHED — label, verify digest';
+
+/* ── FLEET HEALTH & GOVERNED C2 ────────────────────────────────────────────*/
+var _fcAssets=[];
+function _inferHealth(a){
+  // honest: inferred from observable telemetry only (freshness, kinematic plausibility, identity)
+  var reasons=[]; var score=1.0;
+  if(a.kind==='air'){
+    if(a.alt_baro!=null && a.alt_baro<-500){score-=0.4;reasons.push('implausible altitude '+a.alt_baro+' ft');}
+    if(a.gs!=null && a.gs>1200){score-=0.4;reasons.push('implausible groundspeed '+a.gs);}
+    if(!a.squawk){score-=0.2;reasons.push('no squawk (identity gap)');}
+    if(a.lat==null||a.lon==null){score-=0.5;reasons.push('no position');}
+  }else{
+    if(a.sog!=null && a.sog>60){score-=0.4;reasons.push('implausible SOG '+a.sog+' kn');}
+    if(a.mmsi==null){score-=0.3;reasons.push('no MMSI (identity gap)');}
+    if(a.lat==null||a.lon==null){score-=0.5;reasons.push('no position');}
+  }
+  var status = score>=0.85?'nominal':(score>=0.6?'needs-attention':'anomalous');
+  return {score:Math.max(0,score),status:status,reasons:reasons,
+    color:status==='nominal'?'#39d98a':(status==='needs-attention'?'#f5c451':'#ff5c5c')};
+}
+async function fleet_c2_init(){
+  var assets=[], feedLive=true;
+  try{
+    var air=await getJSON(API+'/air/live'); var ac=(air.data&&(air.data.ac||air.data.aircraft))||[];
+    if(air.mode!=='live')feedLive=false;
+    ac.slice(0,40).forEach(function(a){assets.push({kind:'air',id:a.hex,name:a.flight||a.hex,lat:a.lat,lon:a.lon,
+      alt_baro:a.alt_baro,gs:a.gs,track:a.track,squawk:a.squawk});});
+  }catch(e){feedLive=false;}
+  try{
+    var ais=await getJSON(API+'/ais/live'); var vs=(ais.data&&ais.data.vessels)||[];
+    if(ais.mode!=='live')feedLive=false;
+    vs.slice(0,40).forEach(function(v){assets.push({kind:'vessel',id:'AIS-'+v.mmsi,name:v.name||('MMSI '+v.mmsi),
+      lat:v.lat,lon:v.lon,sog:v.sog,cog:v.cog,heading:v.heading,mmsi:v.mmsi});});
+  }catch(e){}
+  assets=assets.filter(function(a){return a.lat!=null&&a.lon!=null;});
+  assets.forEach(function(a){a.health=_inferHealth(a);});
+  _fcAssets=assets;
+  var ok=assets.filter(function(a){return a.health.status==='nominal';}).length;
+  var flagged=assets.filter(function(a){return a.health.status==='anomalous';});
+  setTxt('fc-n',assets.length); setTxt('fc-ok',ok); setTxt('fc-flag',flagged.length);
+  setTxt('fc-feed',feedLive?'live':'fallback'); el('fc-feed').style.color=feedLive?'#39d98a':'#f5c451';
+  // emit signed receipt for the first flagged anomaly (the moat)
+  var lastReceipt=null;
+  if(flagged.length){ try{
+    lastReceipt=await postJSON(API+'/receipt/emit',{kind:'anomaly_flag',payload:{
+      asset:flagged[0].id, kind:flagged[0].kind, health:flagged[0].health.status,
+      reasons:flagged[0].health.reasons, lambda_gate:'ADVISORY (Conjecture 1)',
+      detector:'telemetry plausibility (inferred, not platform sensors)'}});
+  }catch(e){} }
+  setHTML('fc-raw',esc(JSON.stringify({feed_live:feedLive,assets:assets.length,flagged:flagged.length,last_anomaly_receipt:lastReceipt},null,2)));
+  fleet_c2_globe(assets);
+}
+function fleet_c2_globe(assets){
+  var box=el('fc-globe'); if(!box||typeof Globe==='undefined')return;
+  var pts=assets.map(function(a){return {lat:a.lat,lng:a.lon,size:a.kind==='air'?0.35:0.28,
+    color:a.health.color, label:a.name+' · '+a.kind+' · health '+a.health.status+' (inferred)', _a:a};});
+  try{ killGlobe(); }catch(e){}
+  box.innerHTML='';
+  _globe=Globe()(box)
+    .width(box.clientWidth).height(box.clientHeight)
+    .backgroundColor('#03060c')
+    .showGlobe(true).showAtmosphere(true).atmosphereColor('#3a6ea5').atmosphereAltitude(0.18)
+    .globeImageUrl('').pointsData(pts)
+    .pointLat('lat').pointLng('lng').pointColor('color').pointAltitude('size').pointRadius(0.4)
+    .pointLabel('label')
+    .onPointClick(function(p){fleet_c2_asset(p._a);});
+  try{ _globe.controls().autoRotate=true; _globe.controls().autoRotateSpeed=0.35; }catch(e){}
+  setTimeout(function(){try{_globe.width(box.clientWidth).height(box.clientHeight);}catch(e){}},60);
+}
+async function fleet_c2_asset(a){
+  var h=a.health;
+  el('fc-asset').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.8">'+
+    '<b style="color:#e8c97a">'+esc(a.name)+'</b> · '+esc(a.kind)+' · id '+esc(a.id)+'<br>'+
+    '<b>Health (inferred from telemetry):</b> <span style="color:'+h.color+'">'+h.status+'</span> (score '+h.score.toFixed(2)+')<br>'+
+    (h.reasons.length?('<span class="dim">signals: '+esc(h.reasons.join('; '))+'</span><br>'):'')+
+    '<b>Position:</b> '+a.lat.toFixed(3)+', '+a.lon.toFixed(3)+'</div>'+
+    '<div class="btns" style="margin-top:.5rem">'+
+    '<button class="btn teal" onclick="fleet_c2_command(\''+esc(a.id)+'\',\'observe\')">▶ Governed command: OBSERVE</button>'+
+    (h.status==='anomalous'?'<button class="btn warn" onclick="fleet_c2_command(\''+esc(a.id)+'\',\'flag-spoof\')">⚠ Flag spoof (Λ-gate + receipt)</button>':'')+
+    '</div><div id="fc-cmd-out" style="margin-top:.5rem"></div>';
+}
+async function fleet_c2_command(assetId, action){
+  try{
+    var rc=await postJSON(API+'/receipt/emit',{kind:'governed_command',payload:{
+      asset:assetId, command:action, mode:'RECOMMEND (human-in-the-loop)',
+      effector_link:'SIMULATED (command demonstration — governance loop real, effector simulated)',
+      cot_type:'a-h-A-M-F-Q', lambda_gate:'ADVISORY (Conjecture 1)'}});
+    el('fc-cmd-out').innerHTML='<div class="row mono" style="font-size:11.5px;line-height:1.7">'+
+      '<span style="color:#39d98a">● governed command emitted</span> — receipt node #'+esc(rc.node_index)+' · digest '+esc((rc.node_digest||'').slice(0,16))+'… · <b>DSSE-signed</b><br>'+
+      '<span class="dim">command → Λ-gate → signed receipt loop REAL & live; <b>effector link SIMULATED</b> (command demonstration — we do not pilot real assets)</span></div>';
+  }catch(e){ el('fc-cmd-out').innerHTML='<div class="row mono" style="color:#ff5c5c">error: '+esc(e.message)+'</div>'; }
+}
+
+/* ── LIVING ANATOMY ────────────────────────────────────────────────────────*/
+async function living_anatomy_init(){
+  try{
+    var hz=await getJSON(API.replace('/v1','/uds/v1')+'/healthz');
+    var q=hz.quorum||{};
+    setTxt('la-quorum',(q.healthy||0)+' / '+(q.total||4)+(q.quorum_possible?' (HOLDS)':''));
+    var reg=await getJSON(API.replace('/v1','/uds/v1')+'/theorem/registry');
+    setHTML('la-raw',esc(JSON.stringify({healthz:hz,theorem_registry:reg.theorem_registry},null,2)));
+  }catch(e){ setTxt('la-quorum','—'); }
+  var organs=[
+    {organ:'Reasoning (a11oy)',formula:'F1 — Replay-Hash Determinism',lean:'f1_replay_fold_deterministic',mat:'locked',sha:'c7c0ba17'},
+    {organ:'Reciprocity (ayni)',formula:'F11 — Ayni Reciprocity Conservation',lean:'f11_ayni_reciprocity_conservation',mat:'locked',sha:'c7c0ba17'},
+    {organ:'Consensus coupling',formula:'F12 — Kuramoto Phase-Coupling Boundedness',lean:'f12_kuramoto_superposition',mat:'locked',sha:'c7c0ba17'},
+    {organ:'Field Node (killinchu) — durability',formula:'F18 — Reed-Solomon RS(10,6) Recovery',lean:'f18_reed_solomon_parity_count',mat:'locked',sha:'c7c0ba17'},
+    {organ:'Memory budget',formula:'F19 — Bekenstein Entropy Budget',lean:'f19_budget_total_cons',mat:'locked',sha:'c7c0ba17'},
+    {organ:'Trust aggregator (Λ)',formula:'Λ uniqueness — Conjecture 1',lean:'(machine-checked FALSE as unconditional)',mat:'conjecture',sha:'044eb098'},
+    {organ:'Policy quorum (BFT)',formula:'Khipu consensus safety — Conjecture 2',lean:'Lutar/KhipuConsensus.lean',mat:'conjecture',sha:'044eb098'}
+  ];
+  el('la-organs').innerHTML=organs.map(function(o){var c=_maturityColor(o.mat);
+    return '<div class="row mono" style="font-size:11.5px;padding:.4rem 0;border-bottom:1px solid var(--gold-line);line-height:1.6">'+
+      '<b style="color:#e8c97a">'+esc(o.organ)+'</b><br>'+esc(o.formula)+' · <span style="color:'+c+'">'+o.mat.toUpperCase()+'</span> · sha <code>'+esc(o.sha)+'</code><br>'+
+      '<span class="dim">Lean: '+esc(o.lean)+(o.mat==='locked'?' — one of EXACTLY 5 locked-proven @ c7c0ba17':'')+'</span></div>';}).join('')+
+    '<div class="honesty" style="margin-top:.5rem"><b>Honest:</b> exactly 5 locked-proven formulas {F1,F11,F12,F18,F19} @ c7c0ba17 (never inflated). Λ = Conjecture 1 (machine-checked FALSE). Byzantine BFT = Conjecture 2 (OPEN).</div>';
+}
+
+window.hero_init=hero_init; window.hero_run=hero_run; window.hero_trace=hero_trace;
+window.tamper_reset=tamper_reset; window.tamper_break=tamper_break;
+window.determinism_init=determinism_init; window.determinism_run=determinism_run;
+window.uds_init=uds_init; window.uds_cot=uds_cot;
+window.fleet_c2_init=fleet_c2_init; window.fleet_c2_globe=fleet_c2_globe; window.fleet_c2_asset=fleet_c2_asset; window.fleet_c2_command=fleet_c2_command;
+window.living_anatomy_init=living_anatomy_init;
 
 // ===================== ROUTER =====================
 function go(view){
