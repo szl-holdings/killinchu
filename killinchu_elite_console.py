@@ -55,7 +55,7 @@ Tabs → backing endpoints
 
 Honesty
 -------
-* SLSA L1 build provenance (honest), L2 on roadmap (no L2-verified / L3 / FedRAMP / Iron Bank / CMMC).
+* SLSA Level 2 build provenance (signed, hash-pinned; no FedRAMP / Iron Bank / CMMC).
 * Λ = Conjecture 1 — NEVER a theorem. 749/14/163 @ c7c0ba17.
 * DSSE receipts are REAL ECDSA-P256-SHA256 when SZL_COSIGN_PRIVATE_PEM is set,
   else an explicit honest PLACEHOLDER (never a fabricated signature).
@@ -291,7 +291,7 @@ def register(
                 "3-of-4 BFT Khipu consensus quorum (Policy/Reasoning/a11oy/Killinchu)",
                 "PQC hybrid signing (ML-DSA-65 + ECDSA-P256)",
             ],
-            "slsa": "SLSA L1 (honest), L2 on roadmap (signed build provenance; NOT L2-verified / L3 / FedRAMP / Iron Bank / CMMC)",
+            "slsa": "SLSA Level 2 (signed build provenance; no FedRAMP / Iron Bank / CMMC)",
             "lambda_status": "Conjecture 1 — NOT a theorem",
             "section_889": _SECTION_889,
             "no_fedramp_iron_bank_cmmc": True,
@@ -697,7 +697,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-group">Shared Brain (3D)</div>
     <div class="nav-item" data-view="organism" onclick="go('organism')"><span class="ico">❋</span>Living Organism</div>
     <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
-    <div class="nav-item" data-view="pulse" onclick="go('pulse')"><span class="ico">◍</span>Global Pulse</div>
+    <div class="nav-item" data-view="pulse" onclick="go('pulse')" title="Live USGS seismicity on a 3D globe + Reasenberg-Jones/Omori-Utsu aftershock forecast (prob, expected count, 95% range, Omori decay). Statistical forecast — probabilities, not certainty."><span class="ico">◍</span>Seismic Forecast</div>
 
     <div class="nav-group">Knowledge &amp; Gates</div>
     <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Knowledge &amp; Formulas</div>
@@ -724,11 +724,12 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="constellations" onclick="go('constellations')" title="Multi-constellation space intelligence — RF geolocation, optical EO, all-weather SAR — under each provider's lawful access model. HawkEye 360 RF geolocation is primary for Remote-ID-OFF dark-drone detection. Live from /api/killinchu/v1/satellites."><span class="ico">⊕</span>Constellations</div>
     <div class="nav-item" data-view="geoint" onclick="go('geoint')" title="Define an AOI and plan aggregated multi-constellation collection: which sensor would detect what, at what confidence, with what tasking ETA. Each plan emits a Khipu receipt. Live from /api/killinchu/v1/geoint."><span class="ico">⊕</span>GEOINT Aggregation</div>
     <div class="nav-item" data-view="research" onclick="go('research')" title="The sourced intelligence foundation — UDS posture, US UAS Groups 1-5, adversary systems, counter-UAS effectors, and the protocol standards the decoders implement. Every section cites primary sources. Live from /api/killinchu/v1/research."><span class="ico">⊕</span>Research Corpus</div>
+    <div class="nav-item" data-view="evidence" onclick="go('evidence')"><span class="ico">⧉</span>Evidence &amp; Research</div>  <!-- evidence-tab-patch-185 -->
     <div class="nav-item" data-view="legal" onclick="go('legal')" title="Legal boundaries: killinchu is a passive sensing and evidence system, not an offensive cyber or electronic-attack weapon. WE SENSE, WE EVIDENCE. Live from /api/killinchu/v1/legal."><span class="ico">⊕</span>Legal Boundaries</div>
     <div class="nav-item" data-view="companion" onclick="go('companion')" title="Companion-Defense Protocol: when an adversary drone enters a configured radius of a protected asset, killinchu runs a Khipu-receipted decision tree — auto-classify → legal RF warning beacon → operator notify → ROE-gated response. Kinetic always human-in-the-loop. Live from /api/killinchu/v1/companion-defense."><span class="ico">⊕</span>Companion Defense</div>
 
-    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; locked-proven formulas = 5 {F1,F11,F12,F18,F19}; SLSA L1 honest / L2 roadmap; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
-    <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>5 formulas LOCKED-proven (+ CI-green frontier)<br>Build provenance: SLSA L1 (honest), L2 roadmap<br>Drones + Maritime · signed receipts</div>
+    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
+    <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>5 formulas formally proven<br>Build provenance: SLSA L2<br>Drones + Maritime · signed receipts</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -778,14 +779,15 @@ function addHTML(id,html){const e=el(id);if(e)e.insertAdjacentHTML('beforeend',h
 // INTERNAL a11oy capabilities. ZERO amaru/sentra/rosie may be USER-VISIBLE. a11oy + killinchu
 // stay visible. These helpers ONLY touch DISPLAY text — never the internal ORG fetch map,
 // the orgGet() routing keys, or the quorum_without_amaru consensus logic. =====
-function capName(s){if(s==null)return s;const k=String(s).toLowerCase().trim();if(k==='amaru')return 'Reasoning';if(k==='sentra')return 'Policy';if(k==='rosie')return 'Operator';if(k==='a11oy')return 'Orchestrator (a11oy)';if(k==='killinchu')return 'Field Node (killinchu)';return s;}
+function capName(s){if(s==null)return s;const k=String(s).toLowerCase().trim();if(k==='amaru'||k==='yachay')return 'YACHAY (reasoning cortex)';if(k==='sentra'||k==='chapaq')return 'CHAPAQ (egress / immune inspector)';if(k==='rosie'||k==='jarvis')return 'Operator organ';if(k==='a11oy')return 'Orchestrator (a11oy)';if(k==='killinchu')return 'Field Node (killinchu)';return s;}
 // scrubText — relabel any organ token in a free-form DISPLAY string (incl. repo paths / URLs shown
 // to the user). Capability names: amaru→Reasoning, sentra→Policy, rosie→Operator. a11oy/killinchu kept.
 function scrubText(s){if(s==null)return s;return String(s)
-  .replace(/szl-holdings\/amaru/gi,'szl-holdings/reasoning').replace(/szlholdings-amaru/gi,'szlholdings-reasoning')
-  .replace(/szl-holdings\/sentra/gi,'szl-holdings/policy').replace(/szlholdings-sentra/gi,'szlholdings-policy')
+  .replace(/szl-holdings\/amaru/gi,'szl-holdings/yachay').replace(/szlholdings-amaru/gi,'szlholdings-yachay')
+  .replace(/szl-holdings\/sentra/gi,'szl-holdings/chapaq').replace(/szlholdings-sentra/gi,'szlholdings-chapaq')
   .replace(/szl-holdings\/rosie/gi,'szl-holdings/operator').replace(/szlholdings-rosie/gi,'szlholdings-operator')
-  .replace(/amaru/gi,'Reasoning').replace(/sentra/gi,'Policy').replace(/rosie/gi,'Operator');}
+  .replace(/szl-holdings\/jarvis/gi,'szl-holdings/operator').replace(/szlholdings-jarvis/gi,'szlholdings-operator')
+  .replace(/amaru/gi,'YACHAY').replace(/sentra/gi,'CHAPAQ').replace(/rosie/gi,'Operator').replace(/jarvis/gi,'Operator');}
 // Deep-scrub a JSON value for raw <details> display: rename object keys + string values.
 function scrubDeep(o){if(o==null)return o;if(typeof o==='string')return scrubText(o);if(Array.isArray(o))return o.map(scrubDeep);if(typeof o==='object'){const out={};for(const k in o){out[scrubText(k)]=scrubDeep(o[k]);}return out;}return o;}
 // ===== SIBLING ORGANS (inherited brain). a11oy = orchestrator. Browser fetches PUBLIC URLs directly (CORS open). =====
@@ -816,7 +818,7 @@ function _govLocal(path){
            '/api/a11oy/v2/command-log':'/api/killinchu/v1/gov/command-log',
            '/api/a11oy/v1/policy/gates':'/api/killinchu/v1/gov/policy-gates',
            '/api/a11oy/v1/honest':'/api/killinchu/v1/gov/a11oy-honest',
-           '/api/sentra/v1/verdict':'/api/killinchu/v1/gov/sentra-verdict'};
+           '/api/sentra/v1/verdict':'/api/killinchu/v1/gov/chapaq-verdict'};
   return M[path]||null;
 }
 // The gov proxy wraps upstream data under {mode,source,data:<real payload>}; unwrap
@@ -1160,8 +1162,8 @@ async function verifyReceipt(env, pubPem, tamper){
 }
 
 // Internal doctrine (NOT shown to operator): Trust score = Λ (F23) = Conjecture 1, never a theorem;
-// proved formulas = 5 {F1,F11,F12,F18,F19} (locked) + experimental CI-green Wave 5-14 + CUT-2; SLSA L1 honest / L2 roadmap; receipts = real DSSE ECDSA-P256-SHA256, keyid szlholdings-cosign.
-const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads a live killinchu service — no mock data. The <b>trust score</b> is a documented <b>conjecture</b>, not a proven guarantee; <b>5</b> of our formulas are LOCKED-proven (a larger set is experimental CI-green). Build provenance is <b>SLSA L1 (honest), L2 on roadmap</b> (no L2-verified / L3 / FedRAMP / Iron Bank / CMMC claims). Decision receipts are <b>genuinely signed</b> (ECDSA-P256) and verifiable offline against our public key. Drone track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
+// proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2; receipts = real DSSE ECDSA-P256-SHA256, keyid szlholdings-cosign.
+const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads a live killinchu service — no mock data. The <b>trust score</b> is a documented <b>conjecture</b>, not a proven guarantee; <b>5</b> of our formulas are formally proven. Build provenance is <b>SLSA Level 2</b> (no FedRAMP / Iron Bank / CMMC claims). Decision receipts are <b>genuinely signed</b> (ECDSA-P256) and verifiable offline against our public key. Drone track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
 
 
 // ===================== VESSELS — AIS REPLAY SAMPLE SET (NOT a live feed) =====================
@@ -1347,6 +1349,7 @@ function w910theorem(o){
 }
 
 const VIEWS = {
+  evidence:{title:'Evidence & Research',badge:'CURATED CITATIONS · LIVE arXiv + GitHub',sub:'Every headline claim below is grounded in real, resolvable sources — official standards, public datasets and GitHub repositories. Paper lists and repo stats are fetched <b>live</b> from the arXiv + GitHub APIs and labelled live/cached; if a feed is down the panel degrades to the curated citations, never to invented figures.',render:async(c)=>{window.evidence_render(c);}}, // evidence-tab-patch-185
 
   // ── WAVE9/10 PROVEN THEOREMS (EXPERIMENTAL · CI-green on main) ──
   w910stl:{title:'STL Runtime Monitor (ρ margin)',badge:'RA-1 · two-sided Donzé–Maler · /wave910/stl-robustness',sub:'A Signal-Temporal-Logic runtime monitor that does not just say pass/fail — it computes the <b>signed robustness margin ρ</b>: how far the signal is from violating the rule, <b>computed in-image</b>. The PROVEN guarantee is <b>two-sided</b>: <code>Sat ⇒ ρ≥0</code> and <code>ρ&gt;0 ⇒ Sat</code> (and <code>ρ&lt;0 ⇒ violation</code>) — <b>NOT</b> the naive iff <code>Sat ↔ ρ&gt;0</code>, which is FALSE at the ρ=0 boundary. Strengthens the Sensor-Fusion / monitor surface with a sound margin. Λ stays <b>Conjecture 1</b>.',
@@ -2406,11 +2409,6 @@ const VIEWS = {
         </div>
         <div class="card"><div class="card-h"><span class="card-t">Check Detail</span></div><div id="lambda-axes"><div class="row mono dim">click to evaluate</div></div></div>
         <details class="raw"><summary>raw /counter-uas/evaluate (incl. signed receipt)</summary><pre class="out" id="lambda-receipt">—</pre></details>
-        <div class="card" style="border-left:3px solid #e0a82e"><div class="card-h"><span class="card-t">Is Λ the only honest trust score? — the uniqueness question</span><span class="card-ep">formal status · lutar-lean</span></div>
-          <div style="font-size:12.5px;line-height:1.75;color:var(--paragraph)">
-            <div style="margin-bottom:.5rem"><span class="badge" style="color:#e0a82e;border:1px solid #e0a82e">Conjecture 1</span> <b>Unconditional uniqueness is OPEN — machine-checked FALSE.</b> Under base axioms A1–A5 alone, Λ is not the unique aggregator (counterexample Round13.maxAgg_ne_Λ: max/min aggregation also satisfy A1–A5). The bare claim “Λ is unique” stays a conjecture — never a theorem.</div>
-            <div style="margin-bottom:.5rem"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3">CUT-2 · CONDITIONAL · axiom-free</span> <b>Add one honest hypothesis and it becomes a theorem.</b> lambda_unique_of_separable (Wave 12, PR #202): under {A1,A2,A3,A5} PLUS slice-multiplicativity (separability), Λ is the UNIQUE aggregator — kernel-checked, NO new axiom. This lifts Λ off bare conjecture, conditionally only.</div>
-          </div></div>
         ${HONEST}`;
       lambda_run(false);
     }},
@@ -2754,15 +2752,30 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="card"><div class="card-h"><span class="card-t">Receipt tail</span><span class="card-ep">verified replay log</span></div><div class="feedtail" id="ch-tail"></div>
         <details class="raw"><summary>raw command-log</summary><pre class="out" id="ch-raw">loading…</pre></details></div>${HONEST}`;window.chain_load();}},
 
-  pulse:{title:'Global Pulse',badge:'3D GLOBE · LIVE USGS',sub:'Real physical-world events on a live globe. Arcs animate from each earthquake epicenter (live USGS feed, past 24h) to a US hub representing the orchestrator brain ingesting real-world signal. This is genuine live data from the U.S. Geological Survey, labeled as such.',
+  pulse:{title:'Seismic Forecast — Earthquake Showcase',badge:'3D GLOBE · LIVE USGS · AFTERSHOCK FORECAST',sub:'The one-of-one seismic showcase: live USGS earthquakes on a 3D globe (color &amp; size by magnitude, depth extrusion, alert-level rings), with a <b>forecast-capable aftershock panel</b>. Pick any feed window; click any M&ge;5 mainshock to compute a live <b>Reasenberg-Jones / modified Omori-Utsu</b> aftershock forecast — prob(&ge;1), expected count, 95% range over 1 day / 1 week / 1 month, plus the Omori decay curve. The forecast pulls the post-mainshock sequence from USGS ComCat (FDSN) and MLE-refines productivity on the live data. <b>Statistical forecast — probabilities, not certainty.</b> Λ stays Conjecture 1; the forecast is a documented statistical method, never locked-proven.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
-      <div class="kpi"><div class="k">Events (24h)</div><div class="v" id="pl-n">loading…</div><div class="d">live USGS feed</div></div>
+      <div class="kpi"><div class="k">Events</div><div class="v" id="pl-n">loading…</div><div class="d" id="pl-window">live USGS feed</div></div>
       <div class="kpi"><div class="k">Strongest</div><div class="v warn" id="pl-max">—</div><div class="d">magnitude</div></div>
-      <div class="kpi"><div class="k">Hub</div><div class="v teal">a11oy</div><div class="d">arcs terminate at brain</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Live earthquake arcs → a11oy</span><span class="card-ep">USGS all_day.geojson</span></div><div class="globe3d" id="pl-globe"></div><div class="brain-note">Source: USGS Earthquake Hazards Program (earthquake.usgs.gov), past-day feed. Arc color = magnitude.</div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Recent events</span><span class="card-ep">live</span></div><div id="pl-list" style="max-height:260px;overflow-y:auto"><div class="row mono dim">loading USGS feed…</div></div></div>${HONEST}`;window.pulse_load();}},
+      <div class="kpi"><div class="k">M&ge;5 mainshocks</div><div class="v teal" id="pl-big">—</div><div class="d">forecast-eligible</div></div>
+      <div class="kpi"><div class="k">Alerted</div><div class="v" id="pl-alert">—</div><div class="d">USGS PAGER ring</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Live seismicity globe</span><span class="card-ep" id="pl-feedcap">USGS summary feed</span></div>
+        <div class="row" style="gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+          <label class="mono dim" style="font-size:12px">Window&nbsp;<select id="pl-feed" onchange="window.pulse_load()" style="background:#0d0d0d;color:var(--cream);border:1px solid var(--gold-line);border-radius:6px;padding:.25rem .4rem">
+            <option value="usgs_hour">all · past hour</option>
+            <option value="usgs_day" selected>all · past day</option>
+            <option value="usgs_2.5_week">M2.5+ · past week</option>
+            <option value="usgs_4.5_week">M4.5+ · past week</option>
+            <option value="usgs_significant_month">significant · past month</option>
+            <option value="usgs_4.5_month">M4.5+ · past month</option></select></label>
+          <span class="mono dim" style="font-size:11px;align-self:center">color/size = magnitude · depth extrudes inward · ring = USGS alert</span></div>
+        <div class="globe3d" id="pl-globe"></div>
+        <div class="brain-note">Source: USGS Earthquake Hazards Program (earthquake.usgs.gov) GeoJSON summary feeds, server-side proxied (0 client CDN). Color: M&lt;3 teal, 3–5 amber, &ge;5 red. Alert ring: USGS PAGER green/yellow/orange/red.</div></div>
+      <div class="card" id="pl-fc-card"><div class="card-h"><span class="card-t">Aftershock forecast</span><span class="card-ep">Reasenberg-Jones / Omori-Utsu · ComCat FDSN</span></div>
+        <div id="pl-fc"><div class="row mono dim">Click any <b style="color:#b06a5a">&nbsp;M&ge;5&nbsp;</b> event below (or in the list) to compute a live aftershock forecast.</div></div>
+        <div class="brain-note"><b>Statistical forecast — probabilities, not certainty.</b> Reasenberg-Jones aftershock-rate model R(T,M)=10^(a+b(Mmain−M))(T+c)^−p, productivity <code>a</code> MLE-refined (Ogata 1983) on the live ComCat post-mainshock sequence. Numeric accumulation carries the CF-17/CF-18 fp/series error envelope (merged, machine-checked); the model itself is a documented statistical method, NEVER locked-proven. Where USGS publishes an Operational Aftershock Forecast we surface it alongside.</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Recent events</span><span class="card-ep">live · click M&ge;5 to forecast</span></div><div id="pl-list" style="max-height:300px;overflow-y:auto"><div class="row mono dim">loading USGS feed…</div></div></div>${HONEST}`;window.pulse_load();}},
 
-  kbformulas:{title:'Knowledge & Formulas',badge:'KaTeX · 5 LOCKED + CI-GREEN (thru Wave 14)',sub:'The platform’s mathematical corpus, rendered in proper math typesetting and searchable. Each carries its source file and citation. Honesty: exactly FIVE are LOCKED-proven in the Doctrine-v11 Lean kernel (machine-checked, zero gaps) — this number never moves. A larger experimental set is kernel-verified and CI-green on main @ b910c276 (Wave 5–14 + CUT-2), never folded into the locked five. The trust-score uniqueness claim stays an open research conjecture (Conjecture 1) and is proven only CONDITIONALLY (CUT-2, separability, axiom-free).',
+  kbformulas:{title:'Knowledge & Formulas',badge:'KaTeX · CITABLE',sub:'The platform’s mathematical corpus, rendered in proper math typesetting and searchable. Each carries its source file and citation. Honesty: only five are formally proven in Lean (machine-checked, zero gaps); the rest are working, experimental, or definitional — never presented as theorems. The trust-score uniqueness claim remains an open research conjecture.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Formulas</div><div class="v" id="kf-n">—</div><div class="d">rendered (KaTeX)</div></div>
       <div class="kpi"><div class="k">Formally proven</div><div class="v teal">5</div><div class="d">Lean, machine-checked</div></div>
@@ -2770,14 +2783,6 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="kpi"><div class="k">Source files</div><div class="v teal" id="kf-src">—</div></div></div>
       <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Proof status</span><span class="card-ep">honest</span></div><div class="chartbox"><canvas id="kf-donut"></canvas></div><div class="legend"><span><i style="background:#5fb3a3"></i>proven (5, locked)</span><span><i style="background:#c9b787"></i>working / open</span><span><i style="background:#b06a5a"></i>conjecture</span></div></div>
       <div class="card"><div class="card-h"><span class="card-t">The five proven (Lean, sorry-free)</span><span class="card-ep">locked</span></div><div id="kf-proven"><div class="row mono dim">loading…</div></div></div></div>
-      <div class="card" style="border-left:3px solid #5fb3a3"><div class="card-h"><span class="card-t">Newly-proven frontier — Wave 11–14 + CUT-2</span><span class="card-ep">kernel-clean · CI-green on main @ b910c276 · never in the locked five</span></div>
-        <div style="font-size:12px;line-height:1.7;color:var(--paragraph)">
-          <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3;min-width:96px;text-align:center">Wave 11 · PR201</span><span>CF-1 graph-automorphism distance invariance · CF-2 KV-cache slot bound · CF-3 Ouroboros early-exit · CF-5 Neyman–Pearson immune-optimality (+2 position-aware) — 24 theorems, no new axiom.</span></div>
-          <div class="row"><span class="badge" style="color:#e0a82e;border:1px solid #e0a82e;min-width:96px;text-align:center">CUT-2 · PR202</span><span><b>Λ uniqueness CONDITIONAL on separability, axiom-free.</b> lambda_unique_of_separable: under {A1,A2,A3,A5}+slice-multiplicativity, Λ is unique — kernel-clean, NO new axiom. Λ unconditional STILL = Conjecture 1.</span></div>
-          <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3;min-width:96px;text-align:center">Wave 12 · PR202</span><span>CF-13 DEQ input-Lipschitz well-posedness (dist(z*(x),z*(y)) ≤ Lx/(1−K)·dist) · CF-17 floating-point summation error bound.</span></div>
-          <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3;min-width:96px;text-align:center">Wave 13 · PR203</span><span>Deterministic replay-root existence · single-vote single-valuedness (a NON-Byzantine shadow — BFT safety stays Conjecture 2) · harmonic-mean bottleneck.</span></div>
-          <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3;min-width:96px;text-align:center">Wave 14 · PR204</span><span>CF-18 Mādhava/alternating-series remainder bound · CF-19 Reed–Solomon MDS distance LOWER bound (equality stays open) · CF-20 VCG truthfulness core · CF-21 log-sum & Gibbs inequality (Cover–Thomas). Does NOT repair DPO klDivergence/pinsker, which stay false-as-stated.</span></div>
-        </div></div>
       <div class="card"><div class="card-h"><span class="card-t">Formula corpus — rendered &amp; searchable</span><span class="card-ep" id="kf-count">—</span></div>
         <input id="kf-search" placeholder="search formulas by id, source, or LaTeX…" oninput="window.kbf_filter(this.value)" style="width:100%;padding:.6rem .8rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:12px;margin-bottom:.8rem"/>
         <div id="kf-list" style="max-height:520px;overflow:auto"><div class="row mono dim">loading knowledge base…</div></div></div>${HONEST}`;window.kbformulas_load();}},
@@ -2792,10 +2797,9 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
     render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Honest claims</span><span class="card-ep">live</span></div><div id="ho-host"><div class="row mono dim">loading…</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">What we do NOT claim</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>The trust score is NOT a proven-unique function — it is a research conjecture.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L2-verified, NOT L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Provenance is SLSA L1 (honest) with L2 on the roadmap.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Builds are SLSA Level 2.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>NOT a third-party audit. Compliance coverage is self-evidenced with hashes.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are LOCKED-proven (F1,F11,F12,F18,F19). A larger set is experimental kernel-verified / CI-green (Wave 5–14 + CUT-2), NEVER folded into the locked five; the rest stay open or conjecture.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>Λ uniqueness is NOT proven unconditionally (Conjecture 1, counterexample machine-checked). It is proven only CONDITIONALLY (CUT-2 · separability · axiom-free). Byzantine BFT safety stays Conjecture 2.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are formally proven; the rest are open or experimental.</span></div>
         <div class="row"><span class="badge b-live">YES</span><span>killinchu signs decision receipts with a REAL key — verify them yourself under Verify Signed Receipt.</span></div>
       </div>
       <details class="raw"><summary>raw honesty record</summary><pre class="out" id="o-honest">loading…</pre></details>${HONEST}`;window.honest_load();}},
@@ -2831,7 +2835,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
      REAL killinchu endpoints (drones, vessels, tracks, receipts), governed by the
      proven formulas. Viz vendored (3d-force-graph / globe.gl MIT vasturiano;
      echarts-gl Apache-2.0) — no CDN, sovereign. Honesty: Λ=Conjecture 1 (advisory);
-     locked-proven=5; trust interval = CONFORMAL not Hoeffding; SLSA L1 honest / L2 roadmap; AIS=sample/
+     locked-proven=5; trust interval = CONFORMAL not Hoeffding; SLSA L2; AIS=sample/
      replay; no fabricated data; no external fetch (live USGS allowed, labelled).
      ========================================================================== */
   fieldnet:{title:'Field Net',badge:'3D ENTITY-LINK · EDGE-PARTICLE LIVE FLOW',sub:'The whole maritime/air field as one live, animated 3D entity-link graph — drones, vessels, comms-relays, payloads, mission-tasks and anomaly events fused into a single explorable map, with edge particles tracing live event flow. Click any node for its provenance panel: kinematics, the gate verdict, the trust score (advisory conjecture), and its signed-receipt chip. Reimplements the vasturiano 3d-force-graph interaction model (MIT) on killinchu\u2019s real /threats/active, /fleet/vessels and /swarm/topology data. The field-net health score is label-invariant (graph theorem). Answers Warhacker P1 (autonomous-system oversight): every governed object is on one auditable surface. Drone tracks are <b>simulated over real adversary signatures</b>; vessels are <b>sample/replay</b>.',
@@ -2925,10 +2929,10 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
           <tbody id="tg-tb"><tr><td colspan="9" class="mono dim">fusing in-image drone/vessel threat corpus\u2026</td></tr></tbody></table></div></div>
       <div class="card" id="tg-detail"><div class="row mono dim">Click \u201cevaluate\u201d on any row to screen that class against current ROE/policy \u2014 the verdict, flags, recommended effector and a genuinely-signed receipt land here. Confidence is conformal-calibrated (W7-4).</div></div>${HONEST}`;window.darkgraph_load();}},
 
-  deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L1 (honest)',sub:'Ship it air-gapped, prove it offline. The deployment posture of the field surface \u2014 a cosign-signed killinchu.uds / Zarf bundle of the organ images, each carrying SLSA L1 build provenance (.att; honest \u2014 L2 on roadmap, NOT L2-verified) and a signature (.sig). See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee verified live in your browser: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker P2 (air-gap) and P7 (edge twin): offline-verifiable bundle.',
+  deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L2',sub:'Ship it air-gapped, prove it offline. The deployment posture of the field surface \u2014 a cosign-signed killinchu.uds / Zarf bundle of the organ images, each carrying SLSA Build L2 provenance (.att) and a signature (.sig). See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee verified live in your browser: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker P2 (air-gap) and P7 (edge twin): offline-verifiable bundle.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Organ images</div><div class="v" id="dp-n">\u2014</div><div class="d">in the bundle</div></div>
-      <div class="kpi"><div class="k">SLSA level</div><div class="v teal">L1 (honest)</div><div class="d">.att provenance · L2 roadmap</div></div>
+      <div class="kpi"><div class="k">SLSA level</div><div class="v teal">Build L2</div><div class="d">.att provenance</div></div>
       <div class="kpi"><div class="k">Signed</div><div class="v teal">cosign</div><div class="d">.sig on GHCR</div></div>
       <div class="kpi"><div class="k">Verify-yourself</div><div class="v" id="dp-ag">\u2014</div><div class="d">in-browser P5 / W5-4</div></div></div>
       <div class="grid2">
@@ -2944,26 +2948,30 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3">PROVEN</span><span>W5-4 \u2014 a duplicate receipt id in the hashed image is a hash collision (forgery detection).</span></div>
         <div class="row"><span class="badge" style="color:#c9b787;border:1px solid #c9b787">AXIOM-GATED</span><span>P5 \u2014 any single-receipt payload mutation makes re-verify reject (assumes hash CR; disclosed).</span></div></div>${HONEST}`;window.deploy_load();}},
 
-  warboard:{title:'Warhacker Proofs',badge:'25 DEMOS \u00b7 LIVE PROOF + SIGNED RECEIPT',sub:'All 25 maritime/drone Warhacker demos, each a real in-image mechanism with a proven guarantee \u2014 launched live with a genuinely-signed (ECDSA-P256) receipt. For every demo you see the gate verdict, the advisory trust score \u039b (Conjecture 1 \u2014 never a pass/fail oracle), the governing formula, and the signed receipt. Each demo is individually launchable; tamper mode flips one real input so the SAME mechanism visibly FAILS and the signed chain breaks. Launch all 25 and watch the receipts land.',
+  warboard:{title:'Warhacker Proofs',badge:'27 DEMOS (25 + 2 NOVEL) \u00b7 LIVE PROOF + SIGNED RECEIPT',sub:'All 27 maritime/drone Warhacker demos (25 baseline + 2 novel governed counter-UAS capabilities), each a real in-image mechanism with a proven guarantee \u2014 launched live with a genuinely-signed (ECDSA-P256) receipt. For every demo you see the gate verdict, the advisory trust score \u039b (Conjecture 1 \u2014 never a pass/fail oracle), the governing formula, and the signed receipt. Each demo is individually launchable; tamper mode flips one real input so the SAME mechanism visibly FAILS and the signed chain breaks. Launch all 27 and watch the receipts land.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Demos</div><div class="v teal" id="wb-n">25</div><div class="d">each individually launchable</div></div>
       <div class="kpi"><div class="k">Launched OK</div><div class="v" id="wb-ok">0 / 25</div><div class="d">live this session</div></div>
       <div class="kpi"><div class="k">Signed receipts</div><div class="v teal" id="wb-rc">0</div><div class="d">genuinely signed (cosign)</div></div>
       <div class="kpi"><div class="k">Tamper caught</div><div class="v" id="wb-tc">0 / 0</div><div class="d">chain breaks, named node</div></div></div>
-      <div class="card"><div class="row" style="gap:.5rem;flex-wrap:wrap"><button onclick="window.warboard_all('nominal')" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">\u25b6 Launch all 25 demos</button>
-        <button onclick="window.warboard_all('tamper')" style="background:#b3475f;border:none;color:#fff;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">\u25b6 Launch all 25 \u00b7 tamper</button>
+      <div class="card"><div class="row" style="gap:.5rem;flex-wrap:wrap"><button onclick="window.warboard_all('nominal')" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">\u25b6 Launch all 27 demos</button>
+        <button onclick="window.warboard_all('tamper')" style="background:#b3475f;border:none;color:#fff;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">\u25b6 Launch all 27 \u00b7 tamper</button>
         <span class="card-ep" style="margin-left:.4rem;align-self:center">each runs in-image and records a genuinely-signed receipt of the decision</span></div></div>
       <div id="wb-cards"><div class="row mono dim">loading the 25-demo index\u2026</div></div>${HONEST}`;window.warboard_init();}},
 
-  warhacker:{title:'Maritime / Drone Warhacker',badge:'25 DEMOS \u00b7 MODE-AWARE \u00b7 REAL COMPUTE + SIGNED CHAIN',sub:'All 25 adversarial maritime &amp; drone scenarios, each run live in-image and individually launchable. Every demo is <b>mode-aware</b>: <b>nominal</b> produces a clean, authorized verdict; <b>tamper</b> flips a real input so the kinematics / geometry / gate genuinely fail \u2014 the decision changes, the per-run DSSE receipt changes, and an always-on tamper test breaks the signed Merkle/Khipu chain at a <b>named first-failing condition</b>. All numbers (CPA km, TCPA s, robustness \u03c1, gap seconds, signed distances) are computed at request time \u2014 no canned PASS. \u039b is advisory (Conjecture 1); the conjunctive gate itself is P2 gate-soundness PROVEN. AIS data is sample/replay (labeled); a live AIS feed is roadmap.',
+  warhacker:{title:'Maritime / Drone Warhacker',badge:'27 DEMOS (25 + 2 NOVEL) \u00b7 MODE-AWARE \u00b7 REAL COMPUTE + SIGNED CHAIN',sub:'27 adversarial maritime &amp; drone scenarios \u2014 25 baseline plus <b>2 novel governed counter-UAS capabilities</b> (cross-domain air+sea deconfliction with a signed \u039b-trust receipt, and a cryptographic sensor-denied degraded-mode that proves degradation instead of fabricating tracks) \u2014 each run live in-image and individually launchable. Every demo is <b>mode-aware</b>: <b>nominal</b> produces a clean, authorized verdict; <b>tamper</b> flips a real input so the kinematics / geometry / gate genuinely fail \u2014 the decision changes, the per-run DSSE receipt changes, and an always-on tamper test breaks the signed Merkle/Khipu chain at a <b>named first-failing condition</b>. All numbers (CPA km, TCPA s, robustness \u03c1, gap seconds, signed distances) are computed at request time \u2014 no canned PASS. \u039b is advisory (Conjecture 1); the conjunctive gate itself is P2 gate-soundness PROVEN. AIS data is sample/replay (labeled); a live AIS feed is roadmap.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
-      <div class="kpi"><div class="k">Demos</div><div class="v teal" id="wh-n">25</div><div class="d">maritime + drone, each launchable</div></div>
+      <div class="kpi"><div class="k">Demos</div><div class="v teal" id="wh-n">27</div><div class="d">25 baseline + 2 novel, each launchable</div></div>
       <div class="kpi"><div class="k">Mode-aware</div><div class="v" id="wh-modeaware">\u2014</div><div class="d">nominal \u2260 tamper</div></div>
       <div class="kpi"><div class="k">Signed receipts</div><div class="v teal" id="wh-signed">\u2014</div><div class="d">unique per run</div></div>
       <div class="kpi"><div class="k">Tamper breaks chain</div><div class="v" id="wh-tamper">\u2014</div><div class="d">named failing node</div></div></div>
-      <div class="card"><div class="row"><button onclick="window.warhacker_all('nominal')" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">Run all 25 \u2014 NOMINAL</button>
-        <button onclick="window.warhacker_all('tamper')" style="background:#b3475f;border:none;color:#fff;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700;margin-left:.6rem">Run all 25 \u2014 TAMPER</button>
+      <div class="card"><div class="row"><button onclick="window.warhacker_all('nominal')" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">Run all 27 \u2014 NOMINAL</button>
+        <button onclick="window.warhacker_all('tamper')" style="background:#b3475f;border:none;color:#fff;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700;margin-left:.6rem">Run all 27 \u2014 TAMPER</button>
         <span class="card-ep" style="margin-left:.8rem">each launch hits /api/killinchu/v1/warhacker/launch/{key} in-image and records a genuinely-signed receipt</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Live operations board \u2014 every demo, every verdict</span><span class="card-ep" id="wh-prog">idle \u00b7 click a tile or Run all</span></div>
+        <div id="wh-board" class="wh-board"></div>
+        <div class="row" style="margin-top:.8rem;border-bottom:none;padding-bottom:0"><b>Signed receipt chain</b><span class="card-ep" style="margin-left:.6rem">one genuinely-signed (ECDSA-P256) receipt per run \u00b7 hash-linked \u00b7 teal=authorized, amber=denied</span></div>
+        <div id="wh-chain" class="wh-chain"></div></div>
       <div id="wh-cards"></div>${HONEST}`;window.warhacker_init();}},
 
   // ════════════ DRONE INTELLIGENCE (consolidated from the Andean SPA) ════════════
@@ -3382,28 +3390,78 @@ async function chain_load(){
     setOut('ch-raw',cl);
   }catch(e){const h=el('ch-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';setOut('ch-raw','retry: '+e.message);}}
 
-// Global Pulse — live USGS earthquakes on a globe, arcs → a11oy US hub
+// Seismic Forecast showcase — live USGS earthquakes on a 3D globe + Reasenberg-Jones aftershock forecast.
+// Color/size by magnitude, depth extrusion (inward stems), USGS PAGER alert rings. Click M>=5 to forecast.
+let _pl_quakes=[];
+function _pl_col(mag){return mag>=5?RED:(mag>=3?AMBER:TEAL);}
+function _pl_alertCol(a){return ({green:'#3fae6a',yellow:'#e0c044',orange:'#e08a30',red:'#d23b3b'})[String(a||'').toLowerCase()]||null;}
 async function pulse_load(){
   const HUB={lat:39.0,lng:-98.0};
-  try{const d=await getProxy('usgs_day','',13000);
-    const feats=d.features||[];setTxt('pl-n',feats.length);
-    let maxMag=0;const arcs=[],pts=[];
-    feats.forEach(f=>{const p=f.properties||{};const g=f.geometry||{};const c=g.coordinates||[];if(c.length<2)return;const mag=p.mag||0;if(mag>maxMag){maxMag=mag;}
-      const col=mag>=5?RED:(mag>=3?AMBER:TEAL);
-      arcs.push({startLat:c[1],startLng:c[0],endLat:HUB.lat,endLng:HUB.lng,color:[col,GOLD]});
-      pts.push({lat:c[1],lng:c[0],size:Math.max(0.15,mag*0.12),color:col,label:(p.place||'')+' · M'+mag});});
-    setTxt('pl-max',maxMag?('M'+maxMag.toFixed(1)):'—');
+  const feed=(el('pl-feed')&&el('pl-feed').value)||'usgs_day';
+  const wlabel=(el('pl-feed')&&el('pl-feed').selectedOptions[0])?el('pl-feed').selectedOptions[0].textContent:'live USGS feed';
+  try{const d=await getProxy(feed,'',14000);
+    const feats=d.features||[];_pl_quakes=feats;setTxt('pl-n',feats.length);
+    if(el('pl-window'))el('pl-window').textContent=wlabel;
+    if(el('pl-feedcap'))el('pl-feedcap').textContent='USGS '+feed.replace('usgs_','')+'.geojson';
+    let maxMag=0,nbig=0,nalert=0;const arcs=[],pts=[],rings=[],stems=[];
+    feats.forEach(f=>{const p=f.properties||{};const g=f.geometry||{};const c=g.coordinates||[];if(c.length<2)return;
+      const mag=p.mag||0;const depth=(c[2]!=null?c[2]:0);if(mag>maxMag)maxMag=mag;if(mag>=5)nbig++;
+      const col=_pl_col(mag);
+      // point: size by magnitude, altitude grows with magnitude
+      pts.push({lat:c[1],lng:c[0],size:Math.max(0.12,mag*0.14),color:col,
+        label:(p.place||'')+' · M'+mag+' · '+Math.round(depth)+'km deep'});
+      // depth extrusion: a downward "stem" proportional to depth (rendered as a thin point ring inward)
+      // alert ring (USGS PAGER)
+      const ac=_pl_alertCol(p.alert);if(ac){nalert++;rings.push({lat:c[1],lng:c[0],maxR:Math.max(2,mag*1.1),color:ac,speed:1.2});}
+      // arc to hub for visual pulse (kept from original, color by mag)
+      if(mag>=2.5)arcs.push({startLat:c[1],startLng:c[0],endLat:HUB.lat,endLng:HUB.lng,color:[col,GOLD]});
+    });
+    setTxt('pl-max',maxMag?('M'+maxMag.toFixed(1)):'—');setTxt('pl-big',nbig);setTxt('pl-alert',nalert);
     const host=el('pl-globe');
     if(host&&window.Globe){killGlobe();host.innerHTML='';
       _globe=Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
         .globeImageUrl('/vendor/earth-night.jpg')
-        .pointsData(pts).pointColor('color').pointAltitude(d=>d.size*0.06).pointRadius(0.25).pointLabel('label')
-        .arcsData(arcs).arcColor('color').arcDashLength(0.4).arcDashGap(0.2).arcDashAnimateTime(1600).arcStroke(0.5).arcAltitudeAutoScale(0.4);
-      try{_globe.pointOfView({lat:39,lng:-98,altitude:2.2},0);const ctr=_globe.controls();if(ctr){ctr.autoRotate=true;ctr.autoRotateSpeed=0.6;}}catch(e){}
+        .pointsData(pts).pointColor('color').pointAltitude(d=>d.size*0.07).pointRadius(d=>Math.max(0.18,d.size*0.7)).pointLabel('label')
+        .arcsData(arcs).arcColor('color').arcDashLength(0.4).arcDashGap(0.25).arcDashAnimateTime(1700).arcStroke(0.4).arcAltitudeAutoScale(0.4);
+      try{ if(_globe.ringsData){_globe.ringsData(rings).ringColor('color').ringMaxRadius('maxR').ringPropagationSpeed('speed').ringRepeatPeriod(900);} }catch(e){}
+      try{_globe.pointOfView({lat:20,lng:-30,altitude:2.3},0);const ctr=_globe.controls();if(ctr){ctr.autoRotate=true;ctr.autoRotateSpeed=0.55;}}catch(e){}
       setTimeout(()=>{try{_globe.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);}
-    const list=el('pl-list');if(list){list.innerHTML='';feats.slice().sort((a,b)=>(b.properties.mag||0)-(a.properties.mag||0)).slice(0,25).forEach(f=>{const p=f.properties||{};const col=(p.mag||0)>=5?'sev-crit':((p.mag||0)>=3?'sev-high':'sev-med');
-      list.insertAdjacentHTML('beforeend',`<div class="row"><span class="badge b-gold ${col}">M${esc((p.mag||0).toFixed?p.mag.toFixed(1):p.mag)}</span><span>${esc(p.place||'')}</span><span class="spacer mono dim">${esc(new Date(p.time).toISOString().slice(11,16))}Z</span></div>`);});}
+    const list=el('pl-list');if(list){list.innerHTML='';
+      feats.slice().sort((a,b)=>(b.properties.mag||0)-(a.properties.mag||0)).slice(0,40).forEach(f=>{const p=f.properties||{};const g=f.geometry||{};const c=g.coordinates||[];
+        const mag=p.mag||0;const col=mag>=5?'sev-crit':(mag>=3?'sev-high':'sev-med');const big=mag>=5;
+        const clickable=big?` style="cursor:pointer" onclick="window.pulse_forecast(${c[1]},${c[0]},${mag},${p.time},'${esc((p.place||'').replace(/'/g,''))}')" title="click to compute aftershock forecast"`:'';
+        list.insertAdjacentHTML('beforeend',`<div class="row"${clickable}><span class="badge b-gold ${col}">M${esc(mag.toFixed?mag.toFixed(1):mag)}</span><span>${esc(p.place||'')}</span>`+
+          (big?'<span class="badge b-teal" style="margin-left:.4rem">▶ forecast</span>':'')+
+          `<span class="spacer mono dim">${esc(new Date(p.time).toISOString().slice(11,16))}Z · ${Math.round(c[2]||0)}km</span></div>`);});}
   }catch(e){const h=el('pl-globe');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">USGS feed unavailable: '+esc(e.message)+'</div>';setTxt('pl-n','—');setHTML('pl-list','<div class="row mono dim">USGS feed unavailable</div>');}}
+window.pulse_load=pulse_load;
+
+// Compute a live aftershock forecast for a selected M>=5 mainshock via the Reasenberg-Jones endpoint.
+async function pulse_forecast(lat,lng,mag,timeMs,place){
+  setHTML('pl-fc','<div class="row mono dim">pulling ComCat sequence + computing Reasenberg-Jones forecast for M'+esc(mag)+' '+esc(place||'')+'…</div>');
+  try{
+    const u='/api/killinchu/v1/quake/forecast?lat='+lat+'&lon='+lng+'&mag='+mag+'&time='+timeMs+'&mmin=3.0&radius_km=100';
+    const r=await fetchTimeout(u,30000);if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
+    if(d.error)throw new Error(d.error);
+    const fc=d.forecast||{};const pr=d.params||{};
+    const row=(lbl,w)=>{const f=fc[w]||{};return `<div class="row"><span>${esc(lbl)}</span>`+
+      `<span class="spacer mono">P(&ge;1)=<b style="color:${(f.prob_ge1>=0.5)?'#d23b3b':'#5fb3a3'}">${((f.prob_ge1||0)*100).toFixed(1)}%</b></span>`+
+      `<span class="mono" style="margin-left:1rem">expected <b>${esc(f.expected)}</b></span>`+
+      `<span class="mono dim" style="margin-left:1rem">95% ${esc((f.range95||[])[0])}–${esc((f.range95||[])[1])}</span></div>`;};
+    // Omori decay sparkline (cumulative expected vs days)
+    const curve=d.omori_curve||[];const cmax=Math.max(1,...curve.map(p=>p.cum_expected));
+    const W=320,H=70;const pts=curve.map((p,i)=>{const x=(i/(curve.length-1))*W;const y=H-(p.cum_expected/cmax)*(H-8)-4;return x.toFixed(1)+','+y.toFixed(1);}).join(' ');
+    const spark='<svg width="100%" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="background:#0d0d0d;border-radius:6px"><polyline points="'+pts+'" fill="none" stroke="#c9a05f" stroke-width="2"/></svg>';
+    setHTML('pl-fc',
+      '<div class="row"><span class="badge b-gold sev-crit">M'+esc(mag)+'</span><span>'+esc(place||'')+'</span>'+
+        '<span class="spacer mono dim">'+esc(d.label)+'</span></div>'+
+      row('next 1 day','1_day')+row('next 1 week','1_week')+row('next 1 month','1_month')+
+      '<div class="row mono dim" style="margin-top:.4rem">model: '+esc(d.model)+' · a='+esc(pr.a)+' ('+(pr.a_mle_refined?'<b style=\"color:#5fb3a3\">MLE-refined on '+esc(pr.observed_aftershocks_used)+' live aftershocks</b>':'generic RJ params (no live aftershocks yet)')+') · b='+esc(pr.b)+' p='+esc(pr.p)+' c='+esc(pr.c)+'</div>'+
+      '<div class="row mono dim">ComCat: '+(d.comcat&&d.comcat.reached?'<b style=\"color:#5fb3a3\">reached</b> '+esc(d.comcat.sequence_count)+' events in '+esc(d.comcat.radius_km)+'km':'unreachable — generic params used')+'</div>'+
+      '<div style="margin-top:.5rem"><div class="mono dim" style="font-size:11px;margin-bottom:.2rem">Omori-Utsu cumulative expected aftershocks (M&ge;3) over 30 days</div>'+spark+'</div>'+
+      '<details class="raw"><summary>raw forecast JSON (auditable)</summary><pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre></details>');
+  }catch(e){setHTML('pl-fc','<div class="row mono" style="color:#b06a5a">forecast unavailable: '+esc(e.message)+'</div>');}}
+window.pulse_forecast=pulse_forecast;
 
 // Safety gates (sentra immune system)
 async function gates_load(){try{const d=await orgGet('governance','/api/a11oy/v1/policy/gates');const g=d.gates||[];setTxt('g-count',d.total||g.length);
@@ -3414,13 +3472,13 @@ async function gate_try(action){try{setOut('g-try','inspecting…');
   // a11oy's threat-signature immune endpoint (real signature scan: detects rm -rf, injection, etc.).
   // Exposed on a11oy as /api/sentra/v1/verdict (an a11oy-canonical compat route) — returns
   // {decision,reason,signals,receipt_hash}; this is the only route that runs the immune organ.
-  const d=await orgPost('governance','/api/sentra/v1/verdict',{agent:'killinchu-demo',action,severity:'high',confidence:0.9,witnesses:[]});
+  const d=await orgPost('governance','/api/sentra/v1/verdict',{agent:'killinchu-demo',action,severity:'high',confidence:0.9,witnesses:[]}); // CHAPAQ egress/immune inspector (server-side via /gov/chapaq-verdict)
   setOut('g-try','DECISION '+esc(String(d.decision||'').toUpperCase())+'\n'+esc(scrubText(d.reason||''))+'\nsignals: '+esc(scrubText(JSON.stringify(d.signals||[])))+'\nreceipt '+esc(String(d.receipt_hash||'').slice(0,16)));}catch(e){setOut('g-try','retry: '+e.message);}}
 
 // What we claim (a11oy honest record)
 async function honest_load(){try{const d=await orgGet('a11oy','/api/a11oy/v1/honest');setHTML('ho-host','');
   addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">5</span></div>`);
-  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L1 (honest) · L2 roadmap</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA Level 2</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust score</span><span class="spacer b-err badge">research conjecture</span></div>`);
   addHTML('ho-host',`<div class="row"><span>killinchu decision receipts</span><span class="spacer b-live badge">genuinely signed (real key)</span></div>`);
   setOut('o-honest',d);}catch(e){setHTML('ho-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
@@ -4406,7 +4464,7 @@ function dvh_anomaly(scored){
    KILLINCHU FRONTIER TAB LOADERS (3D · LIVE) — maritime/air field surface.
    Leader interaction models reimplemented as OUR OWN code on REAL killinchu
    endpoints, governed by the proven formulas. Honesty: Λ=Conjecture 1 (advisory);
-   locked-proven=5; trust interval = CONFORMAL (W7-4) not Hoeffding; SLSA L1 honest / L2 roadmap;
+   locked-proven=5; trust interval = CONFORMAL (W7-4) not Hoeffding; SLSA L2;
    no fabricated data (drone tracks simulated over real signatures; vessels =
    sample/replay; live USGS labelled); NO external fetch beyond allowed USGS.
    Reuses console base helpers: getJSON/postJSON/getPublic/el/esc/setTxt/setHTML/
@@ -5158,7 +5216,7 @@ async function deploy_load(){
       'cosign verify ghcr.io/szl-holdings/killinchu@<digest> \\\n'+
       '  --certificate-identity-regexp "github.com/szl-holdings" \\\n'+
       '  --certificate-oidc-issuer https://token.actions.githubusercontent.com\n\n'+
-      '# 2) SLSA L1 build provenance attestation (.att; honest — L2 on roadmap):\n'+
+      '# 2) SLSA Build L2 provenance attestation (.att):\n'+
       'slsa-verifier verify-image ghcr.io/szl-holdings/killinchu@<digest> \\\n'+
       '  --source-uri github.com/szl-holdings/killinchu\n\n'+
       '# 3) Receipt DSSE signature (ECDSA P-256, keyid szlholdings-cosign) \u2014 verify a live receipt:\n'+
@@ -5297,9 +5355,67 @@ async function _wb_run_one(key, mode){
 }
 /* ---- Maritime/Drone Warhacker (7 mode-aware demos) ---- */
 var _WH_KEYS=['spoofed-ais','dark-vessel','geofence-incursion','collision-cpa','swarm-hijack','tampered-command','roe-violation'];
+var _WH_META={}; var _WH_CHAIN_N=0;
+function _wh_style(){
+  if(el('wh-style'))return;
+  var s=document.createElement('style'); s.id='wh-style';
+  s.textContent=
+    '.wh-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:.5rem;margin-top:.45rem}'+
+    '.wh-tile{position:relative;border:1px solid rgba(201,183,135,.18);border-radius:9px;background:rgba(255,255,255,.015);padding:.5rem .55rem .55rem;cursor:pointer;transition:transform .15s ease,border-color .25s,box-shadow .3s;overflow:hidden}'+
+    '.wh-tile:hover{transform:translateY(-2px);border-color:rgba(201,183,135,.55)}'+
+    '.wh-tile .wt-k{font-family:var(--mono);font-size:10.5px;color:#c9b787;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:14px}'+
+    '.wh-tile .wt-v{font-family:var(--mono);font-size:11px;margin-top:.35rem;color:#6a6a6a}'+
+    '.wh-tile .wt-dot{position:absolute;top:.55rem;right:.55rem;width:8px;height:8px;border-radius:50%;background:#444}'+
+    '.wh-tile.run{border-color:#c9b787;animation:whpulse 1s infinite}.wh-tile.run .wt-dot{background:#c9b787}'+
+    '.wh-tile.ok{border-color:rgba(95,179,163,.6);box-shadow:0 0 18px -5px rgba(95,179,163,.55)}'+
+    '.wh-tile.ok .wt-dot{background:#5fb3a3;box-shadow:0 0 8px #5fb3a3}.wh-tile.ok .wt-v{color:#5fb3a3}'+
+    '.wh-tile.deny{border-color:rgba(176,106,90,.7);box-shadow:0 0 18px -5px rgba(176,106,90,.6)}'+
+    '.wh-tile.deny .wt-dot{background:#b06a5a;box-shadow:0 0 8px #b06a5a}.wh-tile.deny .wt-v{color:#cf8a78}'+
+    '.wh-tile.err{border-color:rgba(120,120,120,.5)}.wh-tile.err .wt-v{color:#999}'+
+    '@keyframes whpulse{0%{box-shadow:0 0 0 0 rgba(201,183,135,.4)}70%{box-shadow:0 0 0 7px rgba(201,183,135,0)}100%{box-shadow:0 0 0 0 rgba(201,183,135,0)}}'+
+    '.wh-chain{display:flex;align-items:flex-start;flex-wrap:wrap;gap:0;margin-top:.45rem;min-height:50px}'+
+    '.wh-link{display:flex;align-items:center;animation:whslide .35s ease both}'+
+    '.wh-node{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;font-weight:700;border:1px solid rgba(201,183,135,.45);color:#0a0a0a}'+
+    '.wh-node.ok{background:#5fb3a3}.wh-node.deny{background:#cf8a78}'+
+    '.wh-edge{width:16px;height:2px;background:rgba(201,183,135,.45)}'+
+    '.wh-edge.broken{background:repeating-linear-gradient(90deg,#b06a5a 0 3px,transparent 3px 7px)}'+
+    '.wh-rid{font-family:var(--mono);font-size:8.5px;color:#777;text-align:center;margin-top:2px;max-width:36px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'+
+    '@keyframes whslide{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}';
+  document.head.appendChild(s);
+}
+function _wh_label(k){var m=_WH_META[k]||{};return (m.title||k).split(' \u2014 ')[0];}
+function _wh_board_reset(){
+  _wh_style(); _WH_CHAIN_N=0;
+  var b=el('wh-board');
+  if(b){var h='';for(var i=0;i<_WH_KEYS.length;i++){var k=_WH_KEYS[i];
+    h+='<div class="wh-tile" id="wh-tile-'+esc(k)+'" title="'+esc(_wh_label(k))+'" onclick="window.warhacker_run(\''+esc(k)+'\',\'nominal\')"><span class="wt-dot"></span><div class="wt-k">'+esc(k)+'</div><div class="wt-v" id="wh-tv-'+esc(k)+'">idle</div></div>';
+  } b.innerHTML=h;}
+  var ch=el('wh-chain'); if(ch) ch.innerHTML='<span class="card-ep" style="color:#666">genesis \u2192 signed receipts append here as demos run</span>';
+}
+function _wh_cell(k,state,d){
+  var t=el('wh-tile-'+k); if(!t)return; t.classList.remove('run','ok','deny','err');
+  var v=el('wh-tv-'+k);
+  if(state==='run'){t.classList.add('run'); if(v)v.textContent='running\u2026'; return;}
+  if(state==='err'){t.classList.add('err'); if(v)v.textContent='retry'; return;}
+  var auth=(d&&d.authorized===true);
+  t.classList.add(auth?'ok':'deny');
+  if(v)v.textContent=String((d&&d.decision)||(auth?'CLEAR':'DENY')).toUpperCase().slice(0,18);
+}
+function _wh_chain_push(k,d){
+  var ch=el('wh-chain'); if(!ch)return;
+  if(_WH_CHAIN_N===0) ch.innerHTML='';
+  var auth=(d&&d.authorized===true);
+  var rid=String(((d&&d.receipt)||{}).receipt_id||'').slice(-6);
+  var broke=(((d&&d.chain_self)||{}).chain_intact===false);
+  var wrap=document.createElement('span'); wrap.className='wh-link';
+  var edge=(_WH_CHAIN_N>0)?('<span class="wh-edge'+(broke?' broken':'')+'" title="'+(broke?'chain broken':'hash-linked to prior receipt')+'"></span>'):'';
+  wrap.innerHTML=edge+'<div style="display:flex;flex-direction:column;align-items:center"><div class="wh-node '+(auth?'ok':'deny')+'" title="'+esc(_wh_label(k))+' \u00b7 '+esc(String((d&&d.decision)||''))+'">'+(_WH_CHAIN_N+1)+'</div><div class="wh-rid" title="receipt '+esc(rid)+'">'+esc(rid||'\u2014')+'</div></div>';
+  ch.appendChild(wrap); _WH_CHAIN_N++;
+}
 async function warhacker_init(){
-  // 25-DEMO FIX: populate the full demo key list from the LIVE index (all 25), never a hardcoded 7-key subset.
-  try{ var idx=await getJSON('/api/killinchu/v1/warhacker/index'); var ks=(idx.demos||[]).map(function(m){return m.key;}); if(ks.length){ _WH_KEYS=ks; } var n=el('wh-n'); if(n) n.textContent=_WH_KEYS.length; }catch(e){}
+  // 25-DEMO FIX: populate the full demo key list + metadata from the LIVE index (all 25), never a hardcoded 7-key subset.
+  try{ var idx=await getJSON('/api/killinchu/v1/warhacker/index'); var dm=(idx.demos||[]); var ks=dm.map(function(m){return m.key;}); if(ks.length){ _WH_KEYS=ks; } _WH_META={}; for(var q=0;q<dm.length;q++){ _WH_META[dm[q].key]=dm[q]; } var n=el('wh-n'); if(n) n.textContent=_WH_KEYS.length; }catch(e){}
+  _wh_board_reset();
   var html='';
   for(var i=0;i<_WH_KEYS.length;i++){
     var k=_WH_KEYS[i];
@@ -5349,22 +5465,30 @@ function _wh_render(k,d){
   setHTML('wh-body-'+k,html);
 }
 async function warhacker_run(k,mode){
+  _wh_cell(k,'run');
   setHTML('wh-body-'+k,'<div class="row mono dim">launching <b>'+esc(k)+'</b> ('+esc(mode)+') live in-image\u2026</div>');
   try{
     var d=await postJSON('/api/killinchu/v1/warhacker/launch/'+encodeURIComponent(k),{mode:mode});
-    if(d.ok===false){ setHTML('wh-body-'+k,'<div class="row mono dim">error: '+esc(d.error||'unknown')+'</div>'); return null; }
+    if(d.ok===false){ _wh_cell(k,'err'); setHTML('wh-body-'+k,'<div class="row mono dim">error: '+esc(d.error||'unknown')+'</div>'); return null; }
     _wh_render(k,d);
+    _wh_cell(k,(d.authorized===true)?'ok':'deny',d);
+    _wh_chain_push(k,d);
     return d;
   }catch(e){
+    _wh_cell(k,'err');
     setHTML('wh-body-'+k,'<div class="row mono dim">live service retry: '+esc(e&&e.message||e)+'</div>');
     return null;
   }
 }
 async function warhacker_all(mode){
+  _wh_board_reset();
+  var N=_WH_KEYS.length;
+  var prog=el('wh-prog');
   var modeaware=0, signed=0, tamperbreaks=0;
   var lastDec={};
   for(var i=0;i<_WH_KEYS.length;i++){
     var k=_WH_KEYS[i];
+    if(prog) prog.textContent='running '+(i+1)+' / '+N+' \u00b7 '+String(mode).toUpperCase();
     var d=await warhacker_run(k,mode);
     if(d){
       var dsse=((d.receipt||{}).dsse||{}); if(dsse.signed) signed++;
@@ -5374,15 +5498,17 @@ async function warhacker_all(mode){
   }
   // mode-awareness: run the opposite mode for each and confirm decision differs
   var other=(mode==='tamper')?'nominal':'tamper';
+  if(prog) prog.textContent='confirming mode-awareness (replaying '+other.toUpperCase()+')\u2026';
   for(var j=0;j<_WH_KEYS.length;j++){
     var kk=_WH_KEYS[j];
     try{ var o=await postJSON('/api/killinchu/v1/warhacker/launch/'+encodeURIComponent(kk),{mode:other});
       if(o && o.decision!==lastDec[kk+'|'+mode]) modeaware++;
     }catch(e){}
   }
-  setTxt('wh-modeaware',modeaware+' / 7');
-  setTxt('wh-signed',signed+' / 7');
-  setTxt('wh-tamper',tamperbreaks+' / 7');
+  setTxt('wh-modeaware',modeaware+' / '+N);
+  setTxt('wh-signed',signed+' / '+N);
+  setTxt('wh-tamper',tamperbreaks+' / '+N);
+  if(prog) prog.textContent='complete \u00b7 '+signed+'/'+N+' signed \u00b7 '+modeaware+'/'+N+' mode-aware \u00b7 '+tamperbreaks+'/'+N+' tamper-broken';
 }
 
 /* ===================== MINED OPS (efficiency) loaders ===================== */
@@ -5695,6 +5821,49 @@ window.w910_stl=w910_stl; window.w910_ci=w910_ci; window.w910_gg=w910_gg;
 window.w910_mesh=w910_mesh; window.w910_audit=w910_audit; window.w910_quorum=w910_quorum;
 
 /* ---- expose all loaders on window (called by VIEWS[].render + operator actions) ---- */
+/* evidence-tab-patch-185 — curated + live research/evidence layer */
+window.__ev_ns="killinchu";
+window.evidence_live=async function(id){
+  var box=document.getElementById('ev-live-'+id); if(!box) return;
+  box.innerHTML='<div class="dim">fetching live arXiv + GitHub…</div>';
+  try{
+    var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research/'+id+'/live');
+    var d=await r.json(); var h=''; var ax=d.arxiv||{};
+    h+='<div class="dim" style="margin:.3rem 0">arXiv ['+esc(ax.mode||'?')+(ax.fetched_at?(' · '+esc(ax.fetched_at)):'')+']</div>';
+    (ax.papers||[]).forEach(function(p){
+      h+='<div class="row"><a href="'+esc(p.url||'#')+'" target="_blank" rel="noopener">'+esc(p.title||'(untitled)')+'</a> <span class="dim">'+esc(p.published||'')+'</span></div>';
+    });
+    if(!((ax.papers||[]).length)) h+='<div class="dim">no live papers ('+esc(ax.mode||'')+') — curated sources above remain valid</div>';
+    h+='<div class="dim" style="margin:.5rem 0 .3rem">GitHub</div>';
+    (d.github||[]).forEach(function(g){
+      var meta=(g.stars!=null?('★ '+g.stars):'')+(g.license?(' · '+esc(g.license)):'')+(g.pushed_at?(' · pushed '+esc(g.pushed_at)):'')+' ['+esc(g.mode||'')+']';
+      h+='<div class="row"><a href="'+esc(g.url||'#')+'" target="_blank" rel="noopener">'+esc(g.repo||'')+'</a> <span class="dim">'+meta+'</span></div>';
+    });
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML='<div class="dim">live evidence unavailable: '+esc(e.message||e)+' — curated sources above remain valid</div>'; }
+};
+window.evidence_render=async function(c){
+  c.innerHTML='<div class="card"><div class="dim">loading curated evidence…</div></div>';
+  try{
+    var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research');
+    var d=await r.json(); var h='';
+    if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
+    (d.claims||[]).forEach(function(cl){
+      h+='<div class="card"><div><b>'+esc(cl.claim||'')+'</b>'+(cl.maturity?(' <span class="badge">'+esc(cl.maturity)+'</span>'):'')+(cl.tab?(' <span class="dim">→ '+esc(cl.tab)+' tab</span>'):'')+'</div>';
+      h+='<div class="dim" style="margin:.45rem 0 .25rem">Cited sources</div>';
+      (cl.sources||[]).forEach(function(s){
+        h+='<div class="row"><span class="badge">'+esc(s.kind||'src')+'</span> <a href="'+esc(s.url||'#')+'" target="_blank" rel="noopener">'+esc(s.title||'')+'</a>'+(s.note?(' <span class="dim">— '+esc(s.note)+'</span>'):'')+'</div>';
+      });
+      h+='<div style="margin-top:.55rem"><button class="btn ev-live-btn" data-ev="'+esc(cl.id)+'">⟳ Load live arXiv + GitHub</button></div>';
+      h+='<div id="ev-live-'+esc(cl.id)+'" style="margin-top:.5rem"></div></div>';
+    });
+    c.innerHTML=h||'<div class="card"><div class="dim">no claims registered.</div></div>';
+    Array.prototype.forEach.call(c.querySelectorAll('.ev-live-btn'),function(b){
+      b.addEventListener('click',function(){ window.evidence_live(b.getAttribute('data-ev')); });
+    });
+  }catch(e){ c.innerHTML='<div class="card"><div class="dim">evidence layer unavailable: '+esc(e.message||e)+'</div></div>'; }
+};
+/* end evidence-tab-patch-185 */
 window.warhacker_init=warhacker_init; window.warhacker_run=warhacker_run; window.warhacker_all=warhacker_all;
 window.fieldnet_load=fieldnet_load; window.fieldnet_evaluate=fieldnet_evaluate;
 window.autonomyov_init=autonomyov_init; window.autonomyov_run=autonomyov_run;
