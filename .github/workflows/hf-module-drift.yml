@@ -18,7 +18,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '37 6 * * 1'  # Mondays 06:37 UTC (HF-side edits land with no GitHub push)
+    - cron: '52 6 * * 1'  # Mondays 06:52 UTC (HF-side edits land with no GitHub push)
   workflow_dispatch:
 
 permissions:
