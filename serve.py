@@ -3013,3 +3013,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "7860"))
     print(f"[killinchu] Andean Drone Intelligence on :{port} — Doctrine v11 — SPA at /", file=sys.stderr)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+# hf-sync trigger probe (task-349) — auto-removed
