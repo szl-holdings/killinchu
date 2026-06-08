@@ -961,6 +961,219 @@ def register(app, space: str = "killinchu") -> dict[str, Any]:
         })
     registered.append(f"{base}/theorem/registry")
 
+
+    # ===================== UDS PACKAGE ARTIFACTS (downloadable, honest) =====================
+    # Apache-2.0 (SZL Holdings). NOT a Defense Unicorns package; UDS/Zarf/Pepr/Lula
+    # interoperated-with via open specs + Apache-2.0 tooling only. No AGPL uds-core source.
+    # Claims-with-evidence, NOT an ATO/certification. Λ = Conjecture 1 (advisory).
+    _UDS_NOTICE = (
+        "killinchu (UDS Edition) — NOTICE\n"
+        "================================\n"
+        "Copyright 2026 SZL Holdings. Licensed under the Apache License, Version 2.0.\n\n"
+        "NON-AFFILIATION: SZL Holdings and killinchu are NOT affiliated with, endorsed by,\n"
+        "or sponsored by Defense Unicorns. \"UDS\", \"Zarf\", \"Pepr\", \"Lula\", \"Iron Bank\" and\n"
+        "related marks belong to their respective owners. killinchu interoperates with these\n"
+        "via open specifications (uds.dev/v1alpha1 schema) and Apache-2.0 tooling ONLY.\n"
+        "NO AGPL uds-core source code is included or adopted (patterns/vocabulary only).\n\n"
+        "COMPLIANCE HONESTY: The OSCAL component-definition states CLAIMS WITH LIVE EVIDENCE,\n"
+        "not an Authorization To Operate (ATO) or certification. The trust score Λ is\n"
+        "Conjecture 1 (machine-checked FALSE as an unconditional axiom) — ADVISORY, never a\n"
+        "theorem. Byzantine quorum safety is Conjecture 2 (OPEN). Exactly 5 formulas are\n"
+        "locked-proven {F1,F11,F12,F18,F19} @ kernel c7c0ba17.\n\n"
+        "THIRD-PARTY ATTRIBUTIONS (patterns / tooling):\n"
+        " - Pepr (Apache-2.0, defenseunicorns/pepr) — capability idiom mirrored; our code is original.\n"
+        " - Zarf (Apache-2.0, zarf-dev/zarf) — package layout idiom.\n"
+        " - Lula1 (Apache-2.0, defenseunicorns-labs/lula1) — Validation (Domain+Provider) model.\n"
+        " - go-oscal (Apache-2.0, defenseunicorns/go-oscal) — OSCAL data-type reference.\n"
+        " - py-cot (Apache-2.0, wcrum/py-cot) — Cursor-on-Target XML format reference for the CoT SAMPLE.\n"
+        " - pepr-grafana-capability (AustinAbro321) — capability pattern reference.\n"
+    )
+    _UDS_OSCAL = (
+        "# Copyright 2026 SZL Holdings\n"
+        "# SPDX-License-Identifier: Apache-2.0\n"
+        "# NOTE: SZL is NOT affiliated with Defense Unicorns. OSCAL component-definition =\n"
+        "# honest CLAIMS-WITH-EVIDENCE, NOT an ATO/certification. Lambda = Conjecture 1 (advisory).\n"
+        "component-definition:\n"
+        "  uuid: 8f1d2c00-0000-4a00-9000-killinchu0001\n"
+        "  metadata:\n"
+        "    title: killinchu (UDS Edition) — Governed-Provable Counter-UAS\n"
+        "    version: uds-v0.2.0\n"
+        "    oscal-version: 1.1.2\n"
+        "    remarks: >-\n"
+        "      Claims-with-evidence. NOT an ATO. Trust score (Lambda) is Conjecture 1 — advisory,\n"
+        "      machine-checked FALSE as an unconditional axiom; never a theorem. Byzantine quorum\n"
+        "      safety = Conjecture 2 (OPEN). Exactly 5 locked-proven formulas @ kernel c7c0ba17.\n"
+        "  components:\n"
+        "    - uuid: 8f1d2c00-0000-4a00-9000-killinchu000c\n"
+        "      type: service\n"
+        "      title: killinchu governance service\n"
+        "      description: Lambda-gate (advisory) + DSSE-signed decision receipts + hash-chain audit.\n"
+        "      control-implementations:\n"
+        "        - uuid: 8f1d2c00-0000-4a00-9000-killinchu00ci\n"
+        "          source: https://csrc.nist.gov/extensions/nudp/oscal/nist-800-53-rev5\n"
+        "          description: NIST SP 800-53 rev5 honest control claims with live evidence.\n"
+        "          implemented-requirements:\n"
+        "            - uuid: 8f1d2c00-0000-4a00-9000-au10\n"
+        "              control-id: au-10\n"
+        "              description: 'Non-repudiation: every decision carries a cryptographically signed (cosign ECDSA-P256) receipt.'\n"
+        "              props: [ { name: implementation-status, value: implemented } ]\n"
+        "              # @lulaStart 8f1d2c00-0000-4a00-9000-au10  (validations/au10.yaml)\n"
+        "            - uuid: 8f1d2c00-0000-4a00-9000-si7\n"
+        "              control-id: si-7\n"
+        "              description: 'Software/information integrity: receipt tamper is detected and localized (Merkle + hash-chain).'\n"
+        "              props: [ { name: implementation-status, value: implemented } ]\n"
+        "            - uuid: 8f1d2c00-0000-4a00-9000-ac4\n"
+        "              control-id: ac-4\n"
+        "              description: 'Information flow enforcement: Lambda-gate (ADVISORY, Conjecture 1) is evaluated on outputs and recorded.'\n"
+        "              props: [ { name: implementation-status, value: partial } ]   # honest: ADVISORY, not theorem-backed\n"
+        "            - uuid: 8f1d2c00-0000-4a00-9000-cm3\n"
+        "              control-id: cm-3\n"
+        "              description: 'Configuration change control: locked-5 formulas pinned by kernel sha (lake_receipt.locked_proven_count == 5 @ c7c0ba17).'\n"
+        "              props: [ { name: implementation-status, value: implemented } ]\n"
+        "            - uuid: 8f1d2c00-0000-4a00-9000-au3\n"
+        "              control-id: au-3\n"
+        "              description: 'Audit record content: receipts include decision class + theorem_ref provenance.'\n"
+        "              props: [ { name: implementation-status, value: partial } ]\n"
+    )
+    def _lula_val(uuid, name, url, method, rego):
+        return (
+            "# Copyright 2026 SZL Holdings\n"
+            "# SPDX-License-Identifier: Apache-2.0  (Lula Validation pattern; lula1 is Apache-2.0)\n"
+            "lula-version: \">=v0.2.0\"\n"
+            f"metadata: {{ name: \"{name}\", uuid: \"{uuid}\" }}\n"
+            "domain:\n"
+            "  type: api\n"
+            "  api-spec:\n"
+            "    requests:\n"
+            f"      - {{ name: probe, url: \"{url}\", method: {method} }}\n"
+            "provider:\n"
+            "  type: opa\n"
+            "  opa-spec:\n"
+            "    rego: |\n"
+            "      package validate\n"
+            f"      {rego}\n"
+        )
+    _UDS_BASE_URL = "https://szlholdings-killinchu.hf.space/api/killinchu"
+    _UDS_VALIDATIONS = {
+        "au10": _lula_val("8f1d2c00-0000-4a00-9000-au10", "AU-10 non-repudiation (signed receipt)",
+                          f"{_UDS_BASE_URL}/v1/receipt/emit", "POST",
+                          "default = false\n      validate { input.probe.dsse.signed == true }"),
+        "si7":  _lula_val("8f1d2c00-0000-4a00-9000-si7", "SI-7 integrity (tamper detected)",
+                          f"{_UDS_BASE_URL}/v1/wave910/audit-receipts", "POST",
+                          "default = false\n      validate { input.probe.tamper_localization.localized_correctly == true }"),
+        "ac4":  _lula_val("8f1d2c00-0000-4a00-9000-ac4", "AC-4 info flow (Lambda-gate advisory present)",
+                          f"{_UDS_BASE_URL}/uds/v1/healthz", "GET",
+                          "default = false\n      # honest: asserts the ADVISORY gate theorem_ref is present (Lambda = Conjecture 1)\n      validate { input.probe.quorum.theorem_ref.maturity != \"\" }"),
+        "cm3":  _lula_val("8f1d2c00-0000-4a00-9000-cm3", "CM-3 config change control (locked-5 pinned)",
+                          f"{_UDS_BASE_URL}/uds/v1/theorem/registry", "GET",
+                          "default = false\n      validate { input.probe.lake_receipt.locked_proven_count == 5 }"),
+        "au3":  _lula_val("8f1d2c00-0000-4a00-9000-au3", "AU-3 audit record content (theorem_ref provenance)",
+                          f"{_UDS_BASE_URL}/uds/v1/healthz", "GET",
+                          "default = false\n      validate { input.probe.quorum.theorem_ref.theorem != \"\" }"),
+    }
+    _UDS_PEPR = (
+        "// SPDX-License-Identifier: Apache-2.0  (SZL Holdings; Pepr is Apache-2.0; pattern mirrors AustinAbro321/pepr-grafana-capability)\n"
+        "// NOTE: NOT a Defense Unicorns package. No AGPL uds-core code adopted.\n"
+        "import { Capability, a } from \"pepr\";\n"
+        "export const SzlGovernance = new Capability({\n"
+        "  name: \"szl-governance\",\n"
+        "  description: \"Admit killinchu/a11oy pods only with a verified signed-receipt + Lambda-gate ADVISORY annotation.\"\n"
+        "});\n"
+        "const { When } = SzlGovernance;\n"
+        "When(a.Pod).IsCreatedOrUpdated().InNamespace(\"killinchu\")\n"
+        "  .Validate(req =>\n"
+        "    req.Raw.metadata.annotations?.[\"szl.dev/receipt-verified\"] === \"true\"\n"
+        "      ? req.Approve()\n"
+        "      : req.Deny(\"killinchu pod missing verified signed-receipt annotation (szl.dev/receipt-verified=true)\")\n"
+        "  );\n"
+        "// Honesty: Lambda-gate is ADVISORY (Conjecture 1) — the capability records/validates the gate\n"
+        "// decision; it does NOT assert Lambda is a theorem. Pepr auto-generates least-privilege RBAC.\n"
+    )
+    _UDS_CR = (
+        "# Copyright 2026 SZL Holdings\n"
+        "# SPDX-License-Identifier: Apache-2.0\n"
+        "# NOTE: SZL is NOT affiliated with Defense Unicorns. uds.dev/v1alpha1 interop schema only.\n"
+        "apiVersion: uds.dev/v1alpha1\n"
+        "kind: Package\n"
+        "metadata:\n"
+        "  name: killinchu\n"
+        "  namespace: '{{ .Release.Namespace }}'\n"
+        "spec:\n"
+        "  monitor:\n"
+        "    - selector: { app.kubernetes.io/name: killinchu }\n"
+        "      targetPort: 8080\n"
+        "      portName: http\n"
+        "      description: Metrics\n"
+        "  network:\n"
+        "    serviceMesh: { mode: ambient }\n"
+        "    # @lulaStart 8f1d2c00-0000-4a00-9000-ac4\n"
+        "    expose:\n"
+        "      - service: killinchu\n"
+        "        selector: { app.kubernetes.io/name: killinchu }\n"
+        "        host: killinchu\n"
+        "        gateway: tenant\n"
+        "        port: 80\n"
+        "        targetPort: 8080\n"
+        "    # @lulaEnd 8f1d2c00-0000-4a00-9000-ac4\n"
+        "    allow:\n"
+        "      - direction: Egress\n"
+        "        selector: { app.kubernetes.io/name: killinchu }\n"
+        "        remoteNamespace: a11oy\n"
+        "        remoteSelector: { app.kubernetes.io/name: a11oy }\n"
+        "        port: 8080\n"
+        "        description: 'Reasoning/orchestrator (a11oy) — consensus fan-out'\n"
+    )
+    _UDS_ZARF = (
+        "# SPDX-License-Identifier: Apache-2.0  (SZL Holdings; NOT a Defense Unicorns package)\n"
+        "kind: ZarfPackageConfig\n"
+        "metadata: { name: killinchu, description: 'killinchu UDS Edition (SZL)', url: 'https://github.com/szl-holdings/killinchu' }\n"
+        "variables:\n"
+        "  - { name: DOMAIN, default: 'uds.dev' }\n"
+        "components:\n"
+        "  - name: killinchu\n"
+        "    required: true\n"
+        "    only: { flavor: upstream }                  # docker.io images\n"
+        "    import: { path: common }\n"
+        "    charts: [ { name: killinchu, valuesFiles: [ values/upstream-values.yaml ] } ]\n"
+        "    images: [ 'ghcr.io/szl-holdings/killinchu:uds-v0.2.0' ]   # verify digest before deploy\n"
+        "  - name: killinchu\n"
+        "    required: true\n"
+        "    only: { flavor: registry1 }                 # Iron Bank hardened (NOT YET PUBLISHED)\n"
+        "    import: { path: common }\n"
+        "    charts: [ { name: killinchu, valuesFiles: [ values/registry1-values.yaml ] } ]\n"
+        "    images: [ 'registry1.dso.mil/ironbank/szl/killinchu:uds-v0.2.0' ]   # verify digest before deploy\n"
+        "  - name: killinchu\n"
+        "    required: true\n"
+        "    only: { flavor: unicorn }                   # Chainguard/Wolfi (NOT YET PUBLISHED)\n"
+        "    import: { path: common }\n"
+        "    charts: [ { name: killinchu, valuesFiles: [ values/unicorn-values.yaml ] } ]\n"
+        "    images: [ 'ghcr.io/szl-holdings/killinchu:0.5.0-wolfi' ]   # verify digest before deploy\n"
+    )
+    _UDS_ARTIFACTS = {
+        "chart/templates/uds-package.yaml": _UDS_CR,
+        "capabilities/szl-governance/pepr.ts": _UDS_PEPR,
+        "capabilities/szl-governance/killinchu-receipt-gate.ts": _UDS_PEPR,
+        "zarf.yaml": _UDS_ZARF,
+        "compliance/oscal-component-killinchu.yaml": _UDS_OSCAL,
+        "NOTICE": _UDS_NOTICE,
+    }
+    for _k, _v in _UDS_VALIDATIONS.items():
+        _UDS_ARTIFACTS[f"compliance/validations/{_k}.yaml"] = _v
+
+    @app.get(f"{base}/artifact")
+    async def uds_artifact(f: str = ""):
+        from fastapi.responses import PlainTextResponse as _PTR, JSONResponse as _JRr
+        if not f:
+            return _JRr({"artifacts": sorted(_UDS_ARTIFACTS.keys()),
+                         "license": "Apache-2.0", "affiliation": "NOT affiliated with Defense Unicorns",
+                         "note": "claims-with-evidence, not an ATO/certification; Lambda = Conjecture 1 (advisory)"})
+        body = _UDS_ARTIFACTS.get(f)
+        if body is None:
+            return _JRr({"error": "unknown artifact", "available": sorted(_UDS_ARTIFACTS.keys())}, status_code=404)
+        fn = f.rsplit("/", 1)[-1] or "artifact.txt"
+        return _PTR(body, headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+    registered.append(f"{base}/artifact")
+
     # ===================== UDS PAIN-POINT + INNOVATION ENDPOINTS =====================
     # These use _claim() so sibling agents (UDS HARDENING, SIGSTORE REKOR, GPU
     # SUBSTRATE) that already registered a path keep ownership; we add the rest.
