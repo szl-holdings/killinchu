@@ -6313,7 +6313,7 @@ async function fleet_c2_init(){
 }
 function fleet_c2_globe(assets){
   var box=el('fc-globe'); if(!box||typeof Globe==='undefined')return;
-  var pts=assets.map(function(a){return {lat:a.lat,lng:a.lon,size:a.kind==='air'?0.35:0.28,
+  var pts=assets.map(function(a){return {lat:a.lat,lng:a.lon,size:a.kind==='air'?0.14:0.10,
     color:a.health.color, label:a.name+' · '+a.kind+' · health '+a.health.status+' (inferred)', _a:a};});
   try{ killGlobe(); }catch(e){}
   box.innerHTML='';
@@ -6332,7 +6332,7 @@ function fleet_c2_globe(assets){
   try{
     var cLat=20,cLng=-30;
     if(pts.length){var sLat=0,sLng=0;pts.forEach(function(p){sLat+=p.lat;sLng+=p.lng;});cLat=sLat/pts.length;cLng=sLng/pts.length;}
-    _globe.pointOfView({lat:cLat,lng:cLng,altitude:2.3},0);
+    _globe.pointOfView({lat:cLat,lng:cLng,altitude:2.55},0);
   }catch(e){}
   try{ _globe.controls().autoRotate=true; _globe.controls().autoRotateSpeed=0.35; }catch(e){}
   // re-fit after layout settles (mirrors the working pl-globe 300ms re-fit; covers tab-activation 0-size race)
