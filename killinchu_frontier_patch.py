@@ -52,75 +52,59 @@ async def _killinchu_frontier_health(request: Request):
 
 async def _killinchu_frontier_adsb(request: Request):
     """
-    FRONTIER: Live ADS-B flight data via OpenSky Network (CC-BY-4.0, free).
-    Classifies each flight with killinchu's drone-intelligence role.
-    Query params: lat_min, lat_max, lon_min, lon_max (defaults to CONUS bounding box)
+    FRONTIER: Live ADS-B via adsb.lol military feed (no auth, ODbL).
+
+    FIX 2026-06-07 (Yachay CTO + Opus 4.8 wiring v3): OpenSky is DEAD for us
+    (now OAuth2-only, refuses non-institutional use). This route is REPLACED with
+    adsb.lol/v2/mil through the resilient cached killinchu_live_feeds.get_feed('air')
+    (fallback chain adsb.fi -> airplanes.live, last-good snapshot, honest labels).
+    HONESTY DOCTRINE: NO fabricated tracks. On total upstream failure this returns
+    the last-good cached snapshot labelled live=false, or an honest empty set —
+    never synthetic 'demo' aircraft. Field shape preserved for livepic/maritime.
+
+    NOTE: this module's register() inserts routes at position 0, so this definition
+    is the one that actually serves /api/killinchu/v1/adsb (it shadows serve.py's
+    killinchu_adsb_v3); both are now identical in behaviour + attribution.
     """
-    # Parse bounding box params
     try:
-        lat_min = float(request.query_params.get("lat_min", "24.0"))
-        lat_max = float(request.query_params.get("lat_max", "50.0"))
-        lon_min = float(request.query_params.get("lon_min", "-125.0"))
-        lon_max = float(request.query_params.get("lon_max", "-60.0"))
-    except ValueError:
-        lat_min, lat_max, lon_min, lon_max = 24.0, 50.0, -125.0, -60.0
-    
-    # Cap to valid range
-    lat_min = max(-90.0, min(90.0, lat_min))
-    lat_max = max(-90.0, min(90.0, lat_max))
-    lon_min = max(-180.0, min(180.0, lon_min))
-    lon_max = max(-180.0, min(180.0, lon_max))
-    
-    import urllib.request, json as _json, urllib.error
-    opensky_url = (
-        f"{_OPENSKY_URL}?"
-        f"lamin={lat_min}&lamax={lat_max}&lomin={lon_min}&lomax={lon_max}"
-    )
-    
-    try:
-        req = urllib.request.Request(
-            opensky_url,
-            headers={"User-Agent": "SZL-killinchu/1.0 (C-UAS demo; contact@szlholdings.ai)"},
-        )
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            raw = _json.loads(resp.read())
-        
-        states = raw.get("states", []) or []
-        time_epoch = raw.get("time", 0)
-        
-        # Parse OpenSky state vectors
-        # [icao24, callsign, origin_country, time_position, last_contact,
-        #  longitude, latitude, baro_altitude, on_ground, velocity,
-        #  true_track, vertical_rate, sensors, geo_altitude, squawk,
-        #  spi, position_source]
+        import killinchu_live_feeds as _klf
+        payload = _klf.get_feed("air")  # cached, honestly-labelled live|cached
+        data = payload.get("data") or {}
+        ac = data.get("aircraft") or []
+        live = (payload.get("mode") == "live")
         flights = []
-        for s in states[:50]:  # cap at 50 for demo
-            if s and len(s) >= 9:
-                flights.append({
-                    "icao24": s[0], "callsign": (s[1] or "").strip() or None,
-                    "origin_country": s[2],
-                    "longitude": s[5], "latitude": s[6],
-                    "baro_altitude_m": s[7],
-                    "on_ground": s[8],
-                    "velocity_ms": s[9],
-                    "true_track_deg": s[10],
-                    "vertical_rate_ms": s[11],
-                    "squawk": s[14],
-                    # killinchu classification layer
-                    "szl_class": _classify_flight(s),
-                    "szl_threat_tier": _threat_tier(s),
-                })
-        
+        for a in ac:
+            lat = a.get("lat"); lon = a.get("lon")
+            if lat is None or lon is None:
+                continue
+            altb = a.get("alt_baro")
+            alt = None if altb in (None, "ground") else (0 if altb == "ground" else altb)
+            vel = a.get("gs")
+            if alt is None: cls = "NO_ALTITUDE"
+            elif isinstance(alt, (int, float)) and alt < 150 and (vel is None or vel < 30): cls = "POTENTIAL_UAS"
+            elif isinstance(alt, (int, float)) and alt < 500: cls = "LOW_ALTITUDE"
+            elif isinstance(alt, (int, float)) and alt < 3000: cls = "MID_ALTITUDE"
+            else: cls = "COMMERCIAL_ALTITUDE"
+            tier = "T1_HIGH" if cls == "POTENTIAL_UAS" else ("T2_MEDIUM" if cls == "LOW_ALTITUDE" else "T3_LOW")
+            flights.append({
+                "icao24": a.get("hex"), "callsign": (a.get("flight") or "").strip() or None,
+                "origin_country": None,
+                "longitude": lon, "latitude": lat,
+                "baro_altitude_m": alt, "on_ground": (altb == "ground"),
+                "velocity_ms": vel, "true_track_deg": a.get("track"), "type": a.get("t"),
+                "szl_class": cls, "szl_threat_tier": tier,
+            })
         return _FJSON({
             "flagship": "killinchu",
-            "frontier": "opensky_adsb",
-            "source": "OpenSky Network (CC-BY-4.0)",
-            "source_url": "https://opensky-network.org",
-            "license": "CC-BY-4.0",
-            "bounding_box": {"lat_min": lat_min, "lat_max": lat_max,
-                             "lon_min": lon_min, "lon_max": lon_max},
-            "epoch": time_epoch,
-            "total_states": len(states),
+            "frontier": "adsblol_adsb" if live else "adsblol_adsb_cached",
+            "source": "adsb.lol community ADS-B (military, ODbL)",
+            "source_url": data.get("endpoint") or "https://api.adsb.lol/v2/mil",
+            "attribution": data.get("attribution") or "Data: adsb.lol / adsb.fi community ADS-B (ODbL)",
+            "license": "ODbL",
+            "live": live, "mode": payload.get("mode"),
+            "fetched_at": payload.get("fetched_at"),
+            "stale_seconds": payload.get("stale_seconds"),
+            "total_states": data.get("total", len(ac)),
             "flights_returned": len(flights),
             "flights": flights,
             "doctrine": _DOCTRINE, "kernel_commit": _KERNEL,
@@ -130,25 +114,18 @@ async def _killinchu_frontier_adsb(request: Request):
                 "UAS/drone detection uses ADS-B fingerprinting heuristics. "
                 "Lambda cone score applied per flight. Doctrine v11 LOCKED."
             ),
-            "ts": _NOW(),
+            "ts": payload.get("fetched_at") or _NOW(),
         })
-    
-    except urllib.error.HTTPError as e:
-        if e.code == 429:
-            return _FJSON({
-                "error": "opensky_rate_limited", "code": 429,
-                "message": "OpenSky anonymous rate limit (100 req/day). Use auth for 4000/day.",
-                "fallback": _adsb_fallback(lat_min, lat_max, lon_min, lon_max),
-                "doctrine": _DOCTRINE, "ts": _NOW(),
-            }, status_code=429)
-        return _FJSON({"error": str(e), "fallback": _adsb_fallback(lat_min, lat_max, lon_min, lon_max),
-                       "doctrine": _DOCTRINE, "ts": _NOW()}, status_code=502)
     except Exception as e:
+        # HONEST failure — NO fabricated tracks. Empty set, clearly labelled not-live.
         return _FJSON({
-            "error": str(e)[:200], "source": "opensky",
-            "fallback": _adsb_fallback(lat_min, lat_max, lon_min, lon_max),
-            "doctrine": _DOCTRINE, "ts": _NOW(),
-        }, status_code=502)
+            "flagship": "killinchu", "frontier": "adsblol_adsb_unavailable",
+            "source": "adsb.lol community ADS-B (military, ODbL)",
+            "note": "upstream ADS-B unavailable and no cached snapshot — no fabricated data",
+            "error": str(e)[:160], "live": False,
+            "doctrine": _DOCTRINE, "kernel_commit": _KERNEL,
+            "flights": [], "flights_returned": 0, "ts": _NOW(),
+        }, status_code=200)
 
 def _classify_flight(s) -> str:
     """Heuristic drone/UAS classification from ADS-B state vector."""
@@ -168,19 +145,13 @@ def _threat_tier(s) -> str:
     return "T3_LOW"
 
 def _adsb_fallback(lat_min, lat_max, lon_min, lon_max) -> dict:
-    """Synthetic demo data when OpenSky is unavailable."""
+    """HONESTY DOCTRINE: NO synthetic/fabricated aircraft. Retired 2026-06-07
+    (wiring v3). The /adsb route now serves live adsb.lol via the resilient
+    cached killinchu_live_feeds layer and, on total upstream failure, an honest
+    empty set labelled live=false — never fabricated tracks."""
     return {
-        "note": "Synthetic demo — OpenSky unavailable",
-        "flights": [
-            {"icao24": "a00001", "callsign": "DAL123", "origin_country": "United States",
-             "latitude": 40.7, "longitude": -74.0, "baro_altitude_m": 10000,
-             "on_ground": False, "velocity_ms": 220, "szl_class": "COMMERCIAL_ALTITUDE",
-             "szl_threat_tier": "T3_LOW"},
-            {"icao24": "a00002", "callsign": None, "origin_country": "United States",
-             "latitude": 37.3, "longitude": -122.0, "baro_altitude_m": 120,
-             "on_ground": False, "velocity_ms": 12, "szl_class": "POTENTIAL_UAS",
-             "szl_threat_tier": "T1_HIGH"},
-        ],
+        "note": "upstream ADS-B unavailable — no fabricated data (honesty doctrine v11)",
+        "flights": [],
         "bounding_box": {"lat_min": lat_min, "lat_max": lat_max,
                          "lon_min": lon_min, "lon_max": lon_max},
     }
