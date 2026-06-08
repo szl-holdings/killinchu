@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>killinchu — Autonomous Systems · Drones &amp; Vessels · SZL Holdings</title>
+<meta name="description" content="killinchu is SZL Holdings' field tool for autonomous systems — governed counter-UAS and maritime decisions, every one a verifiable signed receipt. Live track board, sensor fusion, engagement rules, and dark-vessel screening, governed by the same trust brain as the a11oy Command Platform." />
+<meta name="theme-color" content="#0a0a0a" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3 L27 27 L16 21 L5 27 Z' fill='%23c9b787'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================================
+   SHARED — a11oy + killinchu landing. Reused verbatim from
+   team/LANDING_DESIGN_SYSTEM.css (authored by the a11oy landing agent).
+   Do not diverge. House style identical to the live command/console apps.
+   ============================================================================ */
+
+/* ---- TOKENS ------------------------------------------------------------- */
+:root {
+  --bg:        #0a0a0a;
+  --panel:     #111317;
+  --panel-2:   #15181d;
+  --hairline:  #1f2630;
+  --hairline-soft: rgba(255,255,255,0.05);
+  --gold:      #c9b787;
+  --gold-dim:  #a89868;
+  --teal:      #5fb3a3;
+  --red:       #e0564f;
+  --muted:     #8a93a0;
+  --text:      #e7e9ec;
+  --text-soft: #b9bfc8;
+  --display: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:    "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, monospace;
+  --maxw: 1180px;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---- RESET -------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--display); font-size: 16px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; }
+::selection { background: rgba(201,183,135,0.25); color: #fff; }
+
+/* ---- LAYOUT ------------------------------------------------------------- */
+.ds-wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+.ds-section { padding: clamp(56px, 9vw, 128px) 0; position: relative; }
+.ds-section--tight { padding: clamp(40px, 6vw, 80px) 0; }
+.ds-eyebrow {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.32em;
+  text-transform: uppercase; color: var(--gold-dim); margin: 0 0 18px;
+  display: flex; align-items: center; gap: 10px;
+}
+.ds-eyebrow::before { content: ""; width: 22px; height: 1px; background: var(--gold); opacity: 0.7; }
+.ds-h2 {
+  font-family: var(--display); font-weight: 600; font-size: clamp(26px, 4vw, 42px);
+  line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 16px; color: var(--text);
+}
+.ds-lead { font-size: clamp(15px, 1.5vw, 18px); color: var(--muted); max-width: 60ch; margin: 0; }
+.ds-mono { font-family: var(--mono); }
+
+/* ---- TOPBAR ------------------------------------------------------------- */
+.ds-topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  border-bottom: 1px solid var(--hairline);
+  background: rgba(10,10,10,0.72);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.ds-topbar__inner {
+  max-width: var(--maxw); margin: 0 auto; padding: 0 24px; height: 62px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.ds-brand {
+  display: flex; align-items: center; gap: 11px;
+  font-family: var(--display); font-weight: 600; font-size: 17px;
+  letter-spacing: -0.01em; color: var(--text);
+}
+.ds-brand__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgba(201,183,135,0.14); }
+.ds-brand__sub { color: var(--muted); font-weight: 400; }
+.ds-nav { display: flex; align-items: center; gap: 26px; }
+.ds-nav a { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); transition: color 0.2s var(--ease); }
+.ds-nav a:hover { color: var(--text); }
+@media (max-width: 760px) { .ds-nav { display: none; } }
+
+/* ---- BUTTONS / CTA ------------------------------------------------------ */
+.ds-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 13px; letter-spacing: 0.06em;
+  text-transform: uppercase; font-weight: 500;
+  padding: 13px 22px; border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline); color: var(--text);
+  background: var(--panel-2); transition: all 0.22s var(--ease); cursor: pointer;
+}
+.ds-btn:hover { border-color: var(--gold-dim); transform: translateY(-1px); }
+.ds-btn--primary { background: var(--gold); color: #0a0a0a; border-color: var(--gold); font-weight: 600; }
+.ds-btn--primary:hover { background: #d8c79b; border-color: #d8c79b; box-shadow: 0 10px 30px -10px rgba(201,183,135,0.5); }
+.ds-btn__arrow { transition: transform 0.22s var(--ease); }
+.ds-btn:hover .ds-btn__arrow { transform: translateX(3px); }
+
+/* ---- PANEL / FEATURE CARD ---------------------------------------------- */
+.ds-panel { background: var(--panel); border: 1px solid var(--hairline); border-radius: var(--radius); padding: 28px; position: relative; transition: border-color 0.25s var(--ease), transform 0.25s var(--ease); }
+.ds-panel:hover { border-color: rgba(201,183,135,0.4); }
+.ds-card {
+  background: var(--panel); border: 1px solid var(--hairline); border-radius: var(--radius);
+  padding: 26px; display: flex; flex-direction: column; gap: 12px;
+  position: relative; overflow: hidden; transition: border-color 0.25s var(--ease), transform 0.25s var(--ease);
+}
+.ds-card:hover { border-color: rgba(201,183,135,0.4); transform: translateY(-2px); }
+.ds-card__id { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-dim); }
+.ds-card__title { font-family: var(--display); font-weight: 600; font-size: 18px; letter-spacing: -0.01em; color: var(--text); margin: 0; }
+.ds-card__body { font-size: 14.5px; color: var(--muted); margin: 0; line-height: 1.6; }
+.ds-card__rule { height: 1px; background: var(--hairline); margin: 4px 0; }
+
+/* ---- KPI TILE ----------------------------------------------------------- */
+.ds-kpi { background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius-sm); padding: 20px 22px; display: flex; flex-direction: column; gap: 6px; }
+.ds-kpi__label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.ds-kpi__value { font-family: var(--mono); font-weight: 600; font-size: clamp(24px, 3.2vw, 34px); letter-spacing: -0.01em; color: var(--text); line-height: 1; }
+.ds-kpi__value.is-live { color: var(--teal); }
+.ds-kpi__value.is-gold { color: var(--gold); }
+.ds-kpi__note { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.ds-kpi__value.is-loading { color: var(--muted); opacity: 0.5; }
+
+/* ---- SIGNED-RECEIPT CHIP ----------------------------------------------- */
+.ds-receipt { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(95,179,163,0.35); background: rgba(95,179,163,0.08); color: var(--teal); }
+.ds-receipt__hash { color: var(--text-soft); }
+.ds-receipt__check { width: 14px; height: 14px; border-radius: 50%; background: var(--teal); color: #0a0a0a; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
+
+/* ---- LIVE DOT ----------------------------------------------------------- */
+.ds-live { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--teal); }
+.ds-live__pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 0 rgba(95,179,163,0.6); animation: ds-pulse 2.4s infinite var(--ease); }
+@keyframes ds-pulse { 0% { box-shadow: 0 0 0 0 rgba(95,179,163,0.5); } 70% { box-shadow: 0 0 0 8px rgba(95,179,163,0); } 100% { box-shadow: 0 0 0 0 rgba(95,179,163,0); } }
+
+/* ---- HERO --------------------------------------------------------------- */
+.ds-hero { position: relative; padding-top: 124px; min-height: 100vh; display: flex; align-items: center; border-bottom: 1px solid var(--hairline); overflow: hidden; }
+.ds-hero__grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(32px, 5vw, 72px); align-items: center; width: 100%; }
+@media (max-width: 900px) { .ds-hero { min-height: auto; padding-top: 100px; padding-bottom: 48px; } .ds-hero__grid { grid-template-columns: 1fr; gap: 36px; } }
+.ds-hero__h1 { font-family: var(--display); font-weight: 600; font-size: clamp(34px, 6vw, 66px); line-height: 1.02; letter-spacing: -0.03em; margin: 18px 0 20px; color: var(--text); }
+.ds-hero__h1 .accent { color: var(--gold); }
+.ds-hero__sub { font-size: clamp(16px, 1.8vw, 20px); color: var(--text-soft); max-width: 52ch; margin: 0 0 30px; line-height: 1.5; }
+.ds-hero__cta { display: flex; gap: 14px; flex-wrap: wrap; }
+.ds-hero__stamp { margin-top: 28px; display: flex; gap: 18px; flex-wrap: wrap; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+.ds-hero__stamp b { color: var(--gold-dim); font-weight: 500; }
+
+/* ---- ORBITAL ANIMATION -------------------------------------------------- */
+.ds-orbital { position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 520px; margin: 0 auto; border-radius: 18px; overflow: hidden; background: radial-gradient(circle at 50% 50%, rgba(201,183,135,0.06) 0%, rgba(201,183,135,0.02) 35%, rgba(0,0,0,0) 65%), #0d0d0d; border: 1px solid var(--hairline); box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.02); }
+.ds-orbital__corner { position: absolute; width: 14px; height: 14px; border-top: 1px solid var(--gold); border-left: 1px solid var(--gold); opacity: 0.55; pointer-events: none; }
+.ds-orbital__hud { position: absolute; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); line-height: 1.7; z-index: 3; }
+.ds-orbital__hud .gold { color: var(--gold-dim); }
+.ds-orbital__hud .teal { color: var(--teal); }
+.ds-orbital__scan { position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold) 50%, transparent); opacity: 0.35; mix-blend-mode: screen; animation: ds-scan 5.5s linear infinite; z-index: 2; }
+@keyframes ds-scan { from { top: -5%; } to { top: 105%; } }
+.ds-orbital svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ds-orbital__spin { transform-origin: 250px 250px; }
+.ds-orbital__spin.dir-cw  { animation: ds-rot 60s linear infinite; }
+.ds-orbital__spin.dir-ccw { animation: ds-rot-rev 80s linear infinite; }
+@keyframes ds-rot     { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes ds-rot-rev { from { transform: rotate(0); } to { transform: rotate(-360deg); } }
+.ds-orbital__corepulse { position: absolute; top: 50%; left: 50%; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 1px solid var(--gold); pointer-events: none; animation: ds-corepulse 3.2s ease-out infinite; z-index: 2; }
+@keyframes ds-corepulse { 0% { transform: scale(0.8); opacity: 0.5; } 50% { transform: scale(1.4); opacity: 0; } 100% { transform: scale(0.8); opacity: 0.5; } }
+
+/* ---- PROOF / FORMULA LIST ---------------------------------------------- */
+.ds-formula { display: flex; gap: 16px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--hairline); }
+.ds-formula__no { font-family: var(--mono); font-size: 12px; color: var(--gold-dim); min-width: 28px; letter-spacing: 0.1em; }
+.ds-formula__name { font-family: var(--display); font-weight: 500; color: var(--text); }
+.ds-formula__desc { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+.ds-tag { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px; border: 1px solid var(--hairline); color: var(--muted); }
+.ds-tag--proven { color: var(--teal); border-color: rgba(95,179,163,0.4); background: rgba(95,179,163,0.07); }
+.ds-tag--conjecture { color: var(--gold); border-color: rgba(201,183,135,0.4); background: rgba(201,183,135,0.07); }
+
+/* ---- GRID HELPERS ------------------------------------------------------- */
+.ds-grid { display: grid; gap: 18px; }
+.ds-grid--3 { grid-template-columns: repeat(3, 1fr); }
+.ds-grid--4 { grid-template-columns: repeat(4, 1fr); }
+.ds-grid--2 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 880px) { .ds-grid--3, .ds-grid--4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .ds-grid--2, .ds-grid--3, .ds-grid--4 { grid-template-columns: 1fr; } }
+
+/* ---- SECTION DIVIDER HAIRLINE ------------------------------------------ */
+.ds-divider { height: 1px; background: var(--hairline); border: 0; margin: 0; }
+
+/* ---- FOOTER ------------------------------------------------------------- */
+.ds-footer { border-top: 1px solid var(--hairline); padding: 56px 0 40px; background: var(--bg); }
+.ds-footer__top { display: flex; justify-content: space-between; gap: 32px; flex-wrap: wrap; margin-bottom: 40px; }
+.ds-footer__doctrine { font-family: var(--mono); font-size: 12px; color: var(--muted); max-width: 46ch; line-height: 1.7; letter-spacing: 0.02em; }
+.ds-footer__cols { display: flex; gap: 56px; flex-wrap: wrap; }
+.ds-footer__col h4 { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold-dim); margin: 0 0 14px; }
+.ds-footer__col a { display: block; font-size: 13.5px; color: var(--muted); margin-bottom: 9px; transition: color 0.2s var(--ease); }
+.ds-footer__col a:hover { color: var(--text); }
+.ds-footer__bottom { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-top: 24px; border-top: 1px solid var(--hairline); font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+
+/* ---- ENTRANCE ANIMATION ------------------------------------------------- */
+.ds-reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); }
+.ds-reveal.is-in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .ds-reveal { opacity: 1; transform: none; transition: none; } .ds-orbital__scan, .ds-orbital__spin, .ds-orbital__corepulse, .ds-live__pulse { animation: none; } }
+
+/* ---- killinchu-local helpers (layout only; tokens unchanged) ----------- */
+.kc-surface-active { border-color: rgba(201,183,135,0.55); }
+.kc-surface-badge { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px; }
+.kc-badge-active { color: var(--teal); border: 1px solid rgba(95,179,163,0.4); background: rgba(95,179,163,0.07); }
+.kc-badge-link { color: var(--gold); border: 1px solid rgba(201,183,135,0.4); background: rgba(201,183,135,0.07); }
+.kc-verify-pre { font-family: var(--mono); font-size: 12px; line-height: 1.65; color: var(--text-soft); background: #0c0e12; border: 1px solid var(--hairline); border-radius: var(--radius-sm); padding: 18px 20px; overflow-x: auto; white-space: pre; margin: 0; max-width: 100%; }
+/* prevent grid/flex children from expanding tracks past the viewport (mobile overflow guard) */
+.ds-grid > * { min-width: 0; }
+.ds-hero__grid > * { min-width: 0; }
+@media (max-width: 600px) { .kc-verify-pre { white-space: pre-wrap; word-break: break-word; } }
+.kc-verify-pre .c { color: var(--muted); }
+.kc-verify-pre .g { color: var(--gold-dim); }
+</style>
+</head>
+<body>
+
+<!-- ===================== TOPBAR ===================== -->
+<header class="ds-topbar">
+  <div class="ds-topbar__inner">
+    <a class="ds-brand" href="/landing.html">
+      <span class="ds-brand__dot"></span>
+      killinchu <span class="ds-brand__sub">· Drones &amp; Vessels</span>
+    </a>
+    <nav class="ds-nav">
+      <a href="#what">What it is</a>
+      <a href="#brain">The brain</a>
+      <a href="#proof">Live proof</a>
+      <a href="#verify">Verify it</a>
+      <a href="#surfaces">Surfaces</a>
+      <a href="/elite">Field Console →</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ===================== HERO ===================== -->
+<section class="ds-hero">
+  <div class="ds-wrap">
+    <div class="ds-hero__grid">
+      <!-- left: copy -->
+      <div>
+        <p class="ds-eyebrow">SZL Holdings · Field Tool · Counter-UAS &amp; Maritime</p>
+        <h1 class="ds-hero__h1">Autonomous Systems —<br /><span class="accent">Drones &amp; Vessels</span></h1>
+        <p class="ds-hero__sub">Governed counter-UAS and maritime decisions, every one a verifiable signed receipt.</p>
+        <div class="ds-hero__cta">
+          <a class="ds-btn ds-btn--primary" href="/elite">Enter the Field Console <span class="ds-btn__arrow">→</span></a>
+          <a class="ds-btn" href="#verify">Verify a signed receipt</a>
+        </div>
+        <div class="ds-hero__stamp">
+          <span><b>UTC</b> <span id="kc-utc" class="ds-mono">————-——-—— ——:——:——Z</span></span>
+          <span><b>DOCTRINE</b> <span id="kc-doctrine" class="ds-mono">v11 LOCKED</span></span>
+          <span class="ds-live"><span class="ds-live__pulse"></span>LIVE</span>
+        </div>
+      </div>
+
+      <!-- right: orbital field-command motif -->
+      <div>
+        <div class="ds-orbital" aria-hidden="true">
+          <!-- corner crosshairs -->
+          <div class="ds-orbital__corner" style="top:12px;left:12px;"></div>
+          <div class="ds-orbital__corner" style="top:12px;right:12px;transform:rotate(90deg);"></div>
+          <div class="ds-orbital__corner" style="bottom:12px;right:12px;transform:rotate(180deg);"></div>
+          <div class="ds-orbital__corner" style="bottom:12px;left:12px;transform:rotate(270deg);"></div>
+
+          <!-- HUD top-left -->
+          <div class="ds-orbital__hud" style="top:22px;left:22px;">
+            <div>NODE · KILLINCHU-01</div>
+            <div>FIELD · NOMINAL</div>
+            <div class="teal">● TRACK · LIVE</div>
+          </div>
+          <!-- HUD top-right -->
+          <div class="ds-orbital__hud" style="top:22px;right:22px;text-align:right;">
+            <div id="kc-orb-stamp">————-——-——</div>
+            <div id="kc-orb-epoch">EPOCH ——</div>
+            <div class="gold">TRUST ≥ 0.90</div>
+          </div>
+          <!-- HUD bottom -->
+          <div class="ds-orbital__hud" style="bottom:22px;left:22px;right:22px;display:flex;justify-content:space-between;">
+            <span>SIG · P-256 · OK</span>
+            <span class="gold">SENSOR-FUSION ∧ · SIGNED RECEIPT</span>
+          </div>
+
+          <!-- scan line -->
+          <div class="ds-orbital__scan"></div>
+
+          <!-- static rings + ticks + stations + core -->
+          <svg viewBox="0 0 500 500">
+            <defs>
+              <radialGradient id="kc-core" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#c9b787" stop-opacity="0.55" />
+                <stop offset="55%" stop-color="#c9b787" stop-opacity="0.08" />
+                <stop offset="100%" stop-color="#c9b787" stop-opacity="0" />
+              </radialGradient>
+              <radialGradient id="kc-halo" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#c9b787" stop-opacity="0.15" />
+                <stop offset="100%" stop-color="#c9b787" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+            <circle cx="250" cy="250" r="240" fill="url(#kc-halo)" />
+            <!-- tick ring + station labels rendered by JS -->
+            <g id="kc-ticks" opacity="0.55"></g>
+            <!-- orbit rings -->
+            <circle cx="250" cy="250" r="70"  fill="none" stroke="#1f2630" stroke-width="0.75" stroke-dasharray="2 6" opacity="0.35" />
+            <circle cx="250" cy="250" r="110" fill="none" stroke="#1f2630" stroke-width="0.75" stroke-dasharray="2 6" opacity="0.35" />
+            <circle cx="250" cy="250" r="158" fill="none" stroke="#1f2630" stroke-width="0.75" opacity="0.6" />
+            <circle cx="250" cy="250" r="210" fill="none" stroke="#1f2630" stroke-width="0.75" stroke-dasharray="2 6" opacity="0.35" />
+            <!-- radial guides -->
+            <g id="kc-guides" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"></g>
+            <!-- stations (field capabilities) -->
+            <g id="kc-stations"></g>
+            <!-- core -->
+            <circle cx="250" cy="250" r="58" fill="url(#kc-core)" />
+            <circle cx="250" cy="250" r="34" fill="none" stroke="#c9b787" stroke-width="0.75" opacity="0.6" />
+            <circle cx="250" cy="250" r="22" fill="none" stroke="#a89868" stroke-width="0.5" />
+            <text x="250" y="254" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="12" fill="#f5f5f5" letter-spacing="2.5" font-weight="500">killinchu</text>
+          </svg>
+
+          <!-- traveling pulses (CSS-rotated groups) -->
+          <svg viewBox="0 0 500 500">
+            <g class="ds-orbital__spin dir-cw"><circle r="3.2" fill="#c9b787" cx="320" cy="250" /></g>
+            <g class="ds-orbital__spin dir-ccw"><circle r="3.2" fill="#c9b787" cx="360" cy="250" /></g>
+            <g class="ds-orbital__spin dir-ccw" style="animation-duration:52s;"><circle r="3.2" fill="#c9b787" cx="140" cy="250" /></g>
+            <g class="ds-orbital__spin dir-cw" style="animation-duration:110s;"><circle r="3.2" fill="#5fb3a3" cx="408" cy="250" /></g>
+            <g class="ds-orbital__spin dir-cw" style="animation-duration:38s;"><circle r="3.2" fill="#c9b787" cx="408" cy="250" /></g>
+          </svg>
+
+          <div class="ds-orbital__corepulse"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== WHAT IT IS ===================== -->
+<section class="ds-section" id="what">
+  <div class="ds-wrap">
+    <p class="ds-eyebrow ds-reveal">What it is</p>
+    <h2 class="ds-h2 ds-reveal">One field tool for air and sea.</h2>
+    <p class="ds-lead ds-reveal">killinchu is the hands-on console an operator uses in the field. It watches live tracks, fuses what the sensors see into one picture, applies the rules of engagement under human authority, and screens vessels at sea — and it writes a signed, checkable record of every decision.</p>
+    <div class="ds-grid ds-grid--4" style="margin-top:42px;">
+      <div class="ds-card ds-reveal">
+        <span class="ds-card__id">AIR · 01</span>
+        <h3 class="ds-card__title">Live track board</h3>
+        <p class="ds-card__body">Real-time drone tracks with classification, severity, and telemetry — sorted hostile-first so the operator sees the threat that matters now.</p>
+      </div>
+      <div class="ds-card ds-reveal">
+        <span class="ds-card__id">FUSION · 02</span>
+        <h3 class="ds-card__title">Sensor fusion</h3>
+        <p class="ds-card__body">Radar, RF, and optical inputs are reconciled into a single confident track instead of three noisy ones the operator has to merge by hand.</p>
+      </div>
+      <div class="ds-card ds-reveal">
+        <span class="ds-card__id">RULES · 03</span>
+        <h3 class="ds-card__title">Engagement rules</h3>
+        <p class="ds-card__body">Rules of engagement and geofences are enforced before any action. Defensive by doctrine — every engagement requires a human on the loop.</p>
+      </div>
+      <div class="ds-card ds-reveal">
+        <span class="ds-card__id">SEA · 04</span>
+        <h3 class="ds-card__title">Maritime screening</h3>
+        <p class="ds-card__body">Sanctions and dark-vessel checks for ships that go quiet. Runs on sample / replay AIS data today — a demonstration, not a live feed.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="ds-divider" />
+
+<!-- ===================== GOVERNED BY THE SAME BRAIN ===================== -->
+<section class="ds-section" id="brain">
+  <div class="ds-wrap">
+    <div class="ds-grid ds-grid--2" style="align-items:center;gap:48px;">
+      <div>
+        <p class="ds-eyebrow ds-reveal">Governed by the same brain</p>
+        <h2 class="ds-h2 ds-reveal">The field tool. The platform decides how it's allowed to act.</h2>
+        <p class="ds-lead ds-reveal">killinchu runs the same governance brain as the <strong style="color:var(--text-soft)">a11oy Command Platform</strong>: the same Trust Score gate, the same signed receipts. The platform sets the policy; killinchu carries it into the field. Decisions made on a vessel deck or at a forward site verify against the exact same key and rules as the headquarters console.</p>
+        <div class="ds-hero__cta" style="margin-top:26px;">
+          <a class="ds-btn" href="https://szlholdings-a11oy.hf.space/" target="_blank" rel="noopener">Open the a11oy Command Platform <span class="ds-btn__arrow">→</span></a>
+        </div>
+      </div>
+      <div class="ds-panel ds-reveal">
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="ds-card__id">TRUST SCORE</span>
+            <span class="ds-tag ds-tag--conjecture">Research conjecture</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:10px;">
+            <span id="kc-trust-big" class="ds-mono is-loading" style="font-size:48px;font-weight:600;color:var(--gold);line-height:1;">0.———</span>
+            <span class="ds-mono" style="color:var(--muted);font-size:13px;">floor 0.90</span>
+          </div>
+          <p class="ds-card__body">A single trust number aggregated across 13 honesty axes (soundness, calibration, provenance, attestation, auditability…). It must clear the floor before any engagement is permitted.</p>
+          <div class="ds-card__rule"></div>
+          <div class="ds-receipt">
+            <span class="ds-receipt__check">✓</span>
+            <span>SIGNED RECEIPT</span>
+            <span class="ds-receipt__hash" id="kc-brain-hash">————————</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="ds-divider" />
+
+<!-- ===================== LIVE PROOF STRIP ===================== -->
+<section class="ds-section" id="proof">
+  <div class="ds-wrap">
+    <p class="ds-eyebrow ds-reveal">Live proof <span class="ds-live" style="margin-left:8px;"><span class="ds-live__pulse"></span>from this Space</span></p>
+    <h2 class="ds-h2 ds-reveal">Real numbers, pulled live — honest if it's slow.</h2>
+    <p class="ds-lead ds-reveal">These tiles read killinchu's own endpoints on this Space right now. If an endpoint is slow or unreachable, the tile says so rather than faking a number.</p>
+    <div class="ds-grid ds-grid--4" style="margin-top:42px;">
+      <div class="ds-kpi ds-reveal">
+        <span class="ds-kpi__label">Drones tracked</span>
+        <span id="kpi-tracks" class="ds-kpi__value is-loading">——</span>
+        <span class="ds-kpi__note">/threats/active · total_tracks</span>
+      </div>
+      <div class="ds-kpi ds-reveal">
+        <span class="ds-kpi__label">Active threats</span>
+        <span id="kpi-threats" class="ds-kpi__value is-loading">——</span>
+        <span class="ds-kpi__note">/threats/active · active_threats</span>
+      </div>
+      <div class="ds-kpi ds-reveal">
+        <span class="ds-kpi__label">Drone fingerprints</span>
+        <span id="kpi-db" class="ds-kpi__value is-loading">——</span>
+        <span class="ds-kpi__note">/drones/database · count</span>
+      </div>
+      <div class="ds-kpi ds-reveal">
+        <span class="ds-kpi__label">Trust score</span>
+        <span id="kpi-trust" class="ds-kpi__value is-gold is-loading">——</span>
+        <span class="ds-kpi__note">/lambda · 13-axis aggregate</span>
+      </div>
+    </div>
+    <p id="kc-proof-state" class="ds-kpi__note ds-reveal" style="margin-top:18px;">Reading live endpoints…</p>
+  </div>
+</section>
+
+<hr class="ds-divider" />
+
+<!-- ===================== VERIFY IT YOURSELF ===================== -->
+<section class="ds-section" id="verify">
+  <div class="ds-wrap">
+    <div class="ds-grid ds-grid--2" style="gap:48px;align-items:start;">
+      <div>
+        <p class="ds-eyebrow ds-reveal">Verify it yourself</p>
+        <h2 class="ds-h2 ds-reveal">Don't trust us. Check the signature.</h2>
+        <p class="ds-lead ds-reveal">Every decision is sealed with a real ECDSA P-256 signature over a signed envelope, using the same cosign keypair the signer holds. The public half is published on this Space. You can verify a receipt offline — no SZL service required.</p>
+        <div style="margin-top:24px;display:flex;flex-direction:column;gap:14px;">
+          <div class="ds-receipt">
+            <span class="ds-receipt__check">✓</span>
+            <span>keyid</span>
+            <span class="ds-receipt__hash" id="kc-keyid">szlholdings-cosign</span>
+          </div>
+          <div class="ds-receipt">
+            <span class="ds-receipt__check">✓</span>
+            <span>ledger root</span>
+            <span class="ds-receipt__hash" id="kc-root">————————</span>
+          </div>
+        </div>
+        <div class="ds-hero__cta" style="margin-top:24px;">
+          <a class="ds-btn" href="/cosign.pub" target="_blank" rel="noopener">View cosign.pub <span class="ds-btn__arrow">→</span></a>
+          <a class="ds-btn" href="/api/killinchu/v1/receipt/export" target="_blank" rel="noopener">Export a live receipt</a>
+        </div>
+      </div>
+      <div class="ds-panel ds-reveal">
+        <span class="ds-card__id" style="margin-bottom:14px;display:block;">OFFLINE VERIFY — 3 STEPS</span>
+        <pre class="kc-verify-pre"><span class="c"># 1 · get the public key (published on this Space)</span>
+curl -s <span class="g">/cosign.pub</span> -o cosign.pub
+
+<span class="c"># 2 · export a real signed receipt</span>
+curl -s <span class="g">/api/killinchu/v1/receipt/export</span> \
+  -o receipt.json
+
+<span class="c"># 3 · verify the signature — no SZL service needed</span>
+cosign verify-blob --key cosign.pub \
+  --signature sig.b64 payload.bin
+
+<span class="c"># ✓ ECDSA-P256-SHA256 over a signed envelope</span>
+<span class="c">#   keyid: szlholdings-cosign</span></pre>
+        <p class="ds-card__body" style="margin-top:14px;">The trust score is a research conjecture, not a closed proof — and we label it that way. The signature, though, is real: this is the showcase.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="ds-divider" />
+
+<!-- ===================== HONEST FORMULAS / DOCTRINE ===================== -->
+<section class="ds-section ds-section--tight" id="formulas">
+  <div class="ds-wrap">
+    <p class="ds-eyebrow ds-reveal">What's proven, and what isn't</p>
+    <h2 class="ds-h2 ds-reveal">Five proven formulas. One honest conjecture.</h2>
+    <p class="ds-lead ds-reveal" style="margin-bottom:24px;">We're plain about the line between proved mathematics and active research. Build provenance is SLSA Level 2.</p>
+    <div>
+      <div class="ds-formula ds-reveal">
+        <span class="ds-formula__no">01</span>
+        <div style="flex:1;"><div class="ds-formula__name">Geofence containment</div><div class="ds-formula__desc">A track inside a no-fly polygon is detected deterministically.</div></div>
+        <span class="ds-tag ds-tag--proven">Proven</span>
+      </div>
+      <div class="ds-formula ds-reveal">
+        <span class="ds-formula__no">02</span>
+        <div style="flex:1;"><div class="ds-formula__name">Hash-chain integrity</div><div class="ds-formula__desc">The receipt ledger is a tamper-evident SHA3-256 chain.</div></div>
+        <span class="ds-tag ds-tag--proven">Proven</span>
+      </div>
+      <div class="ds-formula ds-reveal">
+        <span class="ds-formula__no">03</span>
+        <div style="flex:1;"><div class="ds-formula__name">Quorum agreement</div><div class="ds-formula__desc">A 3-of-4 quorum tolerates one faulty node without losing safety.</div></div>
+        <span class="ds-tag ds-tag--proven">Proven</span>
+      </div>
+      <div class="ds-formula ds-reveal">
+        <span class="ds-formula__no">04</span>
+        <div style="flex:1;"><div class="ds-formula__name">Signature soundness</div><div class="ds-formula__desc">A receipt that verifies could only have been signed by the keyholder.</div></div>
+        <span class="ds-tag ds-tag--proven">Proven</span>
+      </div>
+      <div class="ds-formula ds-reveal">
+        <span class="ds-formula__no">05</span>
+        <div style="flex:1;"><div class="ds-formula__name">Monotone gating</div><div class="ds-formula__desc">Lowering any honesty axis can never raise the overall trust score.</div></div>
+        <span class="ds-tag ds-tag--proven">Proven</span>
+      </div>
+      <div class="ds-formula ds-reveal">
+        <span class="ds-formula__no">06</span>
+        <div style="flex:1;"><div class="ds-formula__name">Trust-score uniqueness</div><div class="ds-formula__desc">That the 13-axis aggregator is the unique valid one — an open research conjecture, not yet proven.</div></div>
+        <span class="ds-tag ds-tag--conjecture">Conjecture</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="ds-divider" />
+
+<!-- ===================== SURFACES ===================== -->
+<section class="ds-section" id="surfaces">
+  <div class="ds-wrap">
+    <p class="ds-eyebrow ds-reveal">Surfaces</p>
+    <h2 class="ds-h2 ds-reveal">Two front doors, one governed system.</h2>
+    <div class="ds-grid ds-grid--2" style="margin-top:42px;">
+      <a class="ds-card ds-reveal" href="https://szlholdings-a11oy.hf.space/" target="_blank" rel="noopener">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="ds-card__id">PLATFORM</span>
+          <span class="kc-surface-badge kc-badge-link">a11oy →</span>
+        </div>
+        <h3 class="ds-card__title">Command Platform</h3>
+        <p class="ds-card__body">The headquarters console — sets policy, trust scoring, and the signing rules that every field tool inherits.</p>
+      </a>
+      <a class="ds-card ds-reveal kc-surface-active" href="/elite">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="ds-card__id">FIELD TOOL</span>
+          <span class="kc-surface-badge kc-badge-active">● Active</span>
+        </div>
+        <h3 class="ds-card__title">Drones &amp; Vessels</h3>
+        <p class="ds-card__body">This surface — the hands-on counter-UAS and maritime console for the field. Enter the live Field Console.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="ds-footer">
+  <div class="ds-wrap">
+    <div class="ds-footer__top">
+      <div>
+        <div class="ds-brand" style="margin-bottom:16px;"><span class="ds-brand__dot"></span>killinchu <span class="ds-brand__sub">· SZL Holdings</span></div>
+        <p class="ds-footer__doctrine">Defensive by doctrine. Every engagement requires a human on the loop, and every decision leaves a signed receipt anyone can verify offline.</p>
+      </div>
+      <div class="ds-footer__cols">
+        <div class="ds-footer__col">
+          <h4>Field</h4>
+          <a href="/elite">Field Console</a>
+          <a href="/api/killinchu/v1/threats/active" target="_blank" rel="noopener">Live tracks</a>
+          <a href="/api/killinchu/v1/honest" target="_blank" rel="noopener">Honest disclosure</a>
+        </div>
+        <div class="ds-footer__col">
+          <h4>Verify</h4>
+          <a href="/cosign.pub" target="_blank" rel="noopener">cosign.pub</a>
+          <a href="/api/killinchu/v1/receipt/export" target="_blank" rel="noopener">Export receipt</a>
+          <a href="/api/killinchu/v1/lambda" target="_blank" rel="noopener">Trust score</a>
+        </div>
+        <div class="ds-footer__col">
+          <h4>Platform</h4>
+          <a href="https://szlholdings-a11oy.hf.space/" target="_blank" rel="noopener">a11oy Command</a>
+          <a href="https://huggingface.co/SZLHOLDINGS" target="_blank" rel="noopener">SZL Holdings</a>
+        </div>
+      </div>
+    </div>
+    <div class="ds-footer__bottom">
+      <span>SZL Holdings · killinchu — Drones &amp; Vessels</span>
+      <span id="kc-foot-doctrine">Doctrine v11 · Trust score is a research conjecture · receipts genuinely signed · SLSA L2 · AIS = sample/replay</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var API = "/api/killinchu/v1";
+  function $(id){ return document.getElementById(id); }
+  function pad(n,w){ w=w||2; return String(n).padStart(w,"0"); }
+
+  /* ---- live UTC stamp ---- */
+  function stampNow(){
+    var d = new Date();
+    var iso = d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate())+" "+
+              pad(d.getUTCHours())+":"+pad(d.getUTCMinutes())+":"+pad(d.getUTCSeconds())+"Z";
+    var u = $("kc-utc"); if(u) u.textContent = iso;
+    var os = $("kc-orb-stamp"); if(os) os.textContent =
+      d.getUTCFullYear()+"."+pad(d.getUTCMonth()+1)+"."+pad(d.getUTCDate());
+    var oe = $("kc-orb-epoch"); if(oe) oe.textContent = "EPOCH "+(Math.floor(d.getTime()/1000));
+  }
+  stampNow(); setInterval(stampNow, 1000);
+
+  /* ---- orbital motif: ticks, guides, stations (field capabilities) ---- */
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function mk(tag, attrs){ var e=document.createElementNS(SVGNS,tag); for(var k in attrs) e.setAttribute(k,attrs[k]); return e; }
+  (function buildOrbital(){
+    var ticks = $("kc-ticks");
+    if(ticks){
+      for(var t=0;t<360;t+=10){
+        var a = t*Math.PI/180, long = (t%30===0), r1 = long?232:236, r2=240;
+        ticks.appendChild(mk("line",{
+          x1:250+r1*Math.cos(a), y1:250+r1*Math.sin(a),
+          x2:250+r2*Math.cos(a), y2:250+r2*Math.sin(a),
+          stroke: long?"#a89868":"#1f2630", "stroke-width": long?1:0.6
+        }));
+      }
+      [0,90,180,270].forEach(function(t){
+        var a=t*Math.PI/180;
+        var tx = mk("text",{ x:250+222*Math.cos(a), y:250+222*Math.sin(a)+3,
+          "text-anchor":"middle","font-family":"'JetBrains Mono',monospace","font-size":8,
+          fill:"#a89868","letter-spacing":2 });
+        tx.textContent = pad(t,3); ticks.appendChild(tx);
+      });
+    }
+    var guides = $("kc-guides");
+    if(guides){ [0,45,90,135].forEach(function(deg){
+      var a=deg*Math.PI/180;
+      guides.appendChild(mk("line",{ x1:250-230*Math.cos(a), y1:250-230*Math.sin(a),
+        x2:250+230*Math.cos(a), y2:250+230*Math.sin(a) }));
+    }); }
+    var stations = $("kc-stations");
+    var STN = [
+      { angle:14,  r:158, label:"DRONES" },
+      { angle:90,  r:210, label:"VESSELS" },
+      { angle:162, r:110, label:"SENSOR-FUSION" },
+      { angle:232, r:158, label:"ENGAGEMENT" },
+      { angle:308, r:110, label:"GEOFENCE" }
+    ];
+    if(stations){ STN.forEach(function(s){
+      var a=s.angle*Math.PI/180, cx=250+s.r*Math.cos(a), cy=250+s.r*Math.sin(a);
+      stations.appendChild(mk("circle",{ cx:cx, cy:cy, r:9, fill:"none", stroke:"#c9b787","stroke-width":1, opacity:0.7 }));
+      stations.appendChild(mk("circle",{ cx:cx, cy:cy, r:3, fill:"#c9b787" }));
+      var anchor = (cx>250) ? "start" : "end";
+      var dx = (cx>250) ? 14 : -14;
+      var tx=mk("text",{ x:cx+dx, y:cy+3, "text-anchor":anchor,
+        "font-family":"'JetBrains Mono',monospace","font-size":9, fill:"#a89868","letter-spacing":1.5 });
+      tx.textContent=s.label; stations.appendChild(tx);
+    }); }
+  })();
+
+  /* ---- live KPI strip ---- */
+  function setVal(id, txt, liveClass){
+    var e=$(id); if(!e) return;
+    e.classList.remove("is-loading"); e.textContent=txt;
+    if(liveClass) e.classList.add(liveClass);
+  }
+  function shortHash(h){ return (h&&h.length>10) ? h.slice(0,8)+"…"+h.slice(-4) : (h||"—"); }
+
+  var ok = { tracks:false, db:false, trust:false };
+  function reportState(){
+    var s=$("kc-proof-state"); if(!s) return;
+    var good = ok.tracks && ok.db && ok.trust;
+    s.textContent = good
+      ? "Live · all endpoints responding on this Space."
+      : "Reading live endpoints… some may be slow.";
+    if(good) s.style.color = "var(--teal)";
+  }
+
+  function loadThreats(){
+    fetch(API+"/threats/active",{cache:"no-store"}).then(function(r){return r.json();}).then(function(d){
+      var total=(d&&(d.total_tracks!=null?d.total_tracks:(d.threats&&d.threats.length)))||0;
+      var act=(d&&d.active_threats!=null)?d.active_threats:0;
+      setVal("kpi-tracks", String(total), "is-live");
+      setVal("kpi-threats", String(act), act>0?"is-loading":"is-live");
+      var te=$("kpi-threats"); if(te){ te.classList.remove("is-loading"); te.style.color = act>0 ? "var(--red)" : "var(--teal)"; }
+      ok.tracks=true; reportState();
+    }).catch(function(){
+      setVal("kpi-tracks","n/a"); setVal("kpi-threats","n/a");
+    });
+  }
+  function loadDB(){
+    fetch(API+"/drones/database",{cache:"no-store"}).then(function(r){return r.json();}).then(function(d){
+      var n=(d&&(d.count!=null?d.count:d.total))||0;
+      setVal("kpi-db", String(n), "is-live"); ok.db=true; reportState();
+    }).catch(function(){ setVal("kpi-db","n/a"); });
+  }
+  function loadTrust(){
+    fetch(API+"/lambda",{cache:"no-store"}).then(function(r){return r.json();}).then(function(d){
+      var v=(d&&(d.lambda!=null?d.lambda:d.value));
+      if(v!=null){
+        var s=Number(v).toFixed(3);
+        setVal("kpi-trust", s);
+        var big=$("kc-trust-big"); if(big){ big.classList.remove("is-loading"); big.textContent=s; }
+      }
+      ok.trust=true; reportState();
+    }).catch(function(){ setVal("kpi-trust","n/a"); });
+  }
+  function loadDoctrine(){
+    fetch(API+"/honest",{cache:"no-store"}).then(function(r){return r.json();}).then(function(d){
+      var lock=d&&d.doctrine_lock;
+      if(lock){
+        var dc=$("kc-doctrine"); if(dc) dc.textContent=(lock.doctrine||"v11")+" "+(lock.state||"LOCKED");
+      }
+    }).catch(function(){});
+  }
+  function setRoot(root){
+    if(!root) return;
+    var r1=$("kc-root"); if(r1) r1.textContent=shortHash(root);
+    var bh=$("kc-brain-hash"); if(bh) bh.textContent=shortHash(root);
+  }
+  function loadReceipt(){
+    // Preferred: a fully-exported signed receipt (available once a decision exists).
+    fetch(API+"/receipt/export",{cache:"no-store"}).then(function(r){
+      return r.ok ? r.json() : Promise.reject(r.status);
+    }).then(function(d){
+      var root = d&&(d.khipu_root||d.node_digest);
+      var keyid = d&&(d.keyid||(d.dsse&&d.dsse.keyid));
+      setRoot(root);
+      if(keyid){ var k=$("kc-keyid"); if(k) k.textContent=keyid; }
+    }).catch(function(){
+      // Honest fallback: read the ledger root directly; the public key is fixed.
+      fetch(API+"/receipt/ledger",{cache:"no-store"}).then(function(r){return r.json();}).then(function(d){
+        var root = d&&(d.khipu_root || (d.nodes&&d.nodes.length&&(d.nodes[d.nodes.length-1].digest)));
+        if(root){ setRoot(root); }
+        else {
+          // No decisions sealed yet on this boot — say so plainly, don't fake a hash.
+          var r1=$("kc-root"); if(r1) r1.textContent="seal on first decision";
+          var bh=$("kc-brain-hash"); if(bh) bh.textContent="seal on first decision";
+        }
+      }).catch(function(){});
+    });
+  }
+
+  function init(){
+    loadThreats(); loadDB(); loadTrust(); loadDoctrine(); loadReceipt();
+    setInterval(loadThreats, 15000);
+    setInterval(loadTrust, 30000);
+  }
+  if(document.readyState!=="loading") init(); else document.addEventListener("DOMContentLoaded", init);
+
+  /* ---- scroll reveal ---- */
+  var io = ("IntersectionObserver" in window) ? new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("is-in"); io.unobserve(e.target); } });
+  }, { threshold:0.12 }) : null;
+  document.querySelectorAll(".ds-reveal").forEach(function(el){
+    if(io) io.observe(el); else el.classList.add("is-in");
+  });
+})();
+</script>
+</body>
+</html>

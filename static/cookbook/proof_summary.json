@@ -1,0 +1,738 @@
+{
+ "proof_summary": {
+  "locked_proven": 5,
+  "locked_ids": [
+   "F1",
+   "F11",
+   "F12",
+   "F18",
+   "F19"
+  ],
+  "experimental_sorry_free": 21,
+  "axiom_gated": 3,
+  "axiom_gated_detail": {
+   "f13_tamper_evident": "hash_collision_resistant",
+   "f14_sigenv_verifiable": "ecdsa_unforgeable",
+   "f15_inclusion_binding": "h2_collision_resistant"
+  },
+  "conjecture": [
+   "F23"
+  ],
+  "note": "Locked kernel proven=5; experimental scope Lutar/Puriq/Formulas has 21 sorry-free (excluded from locked count); F23 = Conjecture 1, NOT a theorem.",
+  "lean_repo": "szl-holdings/lutar-lean",
+  "lean_files": [
+   "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "Lutar/Puriq/Formulas/F23_Uniqueness.lean"
+  ],
+  "verification": "bare `lean` 4.13.0, 0 errors, 1 sorry (F23 only); #print axioms shows no sorryAx in any proved theorem.",
+  "source_report": "team/PROOFS_WAVE2_REPORT.md",
+  "wave3": {
+   "campaign": "prove-wave-3 (C1-C20 research candidates)",
+   "source_report": "team/PROVE_WAVE3_REPORT.md",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "commit_proofs": "775093f0f8ef7f530272c38d513c28fdaec3366b",
+   "commit_root_wiring": "02e44c30657c9986475ff7373113728f4ba38f67",
+   "lean_files": [
+    "Lutar/Wave3/Consensus.lean",
+    "Lutar/Wave3/MerkleKraft.lean",
+    "Lutar/Wave3/InfoEstim.lean",
+    "Lutar/Wave3/Tier1Mathlib.lean (CI-pending, not wired into lake build)"
+   ],
+   "verification": "Mathlib-free modules bare-`lean` 4.13.0 verified sorry-free (0 errors); #print axioms ledger shows no sorryAx. Tier1Mathlib (C1/C2/C6) is Mathlib-dependent and CI-pending, NOT compiled in sandbox.",
+   "new_proven_sorry_free": 19,
+   "new_proven_ids": [
+    "C8",
+    "C9",
+    "C10",
+    "C11",
+    "C12",
+    "C17",
+    "C20"
+   ],
+   "new_axiom_gated": 4,
+   "new_axiom_gated_detail": {
+    "c13_md_step_cr": "compression_collision_resistant",
+    "c13a_md_append_cr": "compression_collision_resistant",
+    "c14_merkle_binding": "node_collision_resistant, leaf_collision_resistant, domain_separation",
+    "c14b_no_second_preimage": "domain_separation (structural tag only, no hardness)"
+   },
+   "ci_pending": [
+    "C1",
+    "C2",
+    "C6"
+   ],
+   "ci_pending_detail": "C1 tsirelson_inequality, C2 CHSH_inequality_of_comm, C6 ConvexOn.map_sum_le re-exports; Mathlib-dependent, awaiting green lake build.",
+   "maturity": {
+    "C1": "ci-pending",
+    "C2": "ci-pending",
+    "C3": "mathlib-available-not-instantiated",
+    "C4": "mathlib-available-not-instantiated",
+    "C5": "mathlib-available-not-instantiated",
+    "C6": "ci-pending",
+    "C7": "axiom-gated (A6_bisymmetric); Lambda still Conjecture 1",
+    "C8": "proven",
+    "C9": "proven (Mathlib-free fragment; full L>=H is Mathlib target)",
+    "C10": "proven",
+    "C11": "proven",
+    "C12": "proven (bivalence core; full FLP not claimed)",
+    "C13": "axiom-gated",
+    "C14": "axiom-gated",
+    "C15": "lean-exists-not-ported",
+    "C16": "not-attempted",
+    "C17": "proven (Mathlib-free scalar core; full matrix-PSD is Mathlib target)",
+    "C18": "lean-exists-not-ported",
+    "C19": "not-attempted",
+    "C20": "proven (Mathlib-free order-preservation core; tight 1/2-Lipschitz is Mathlib target)"
+   },
+   "lambda_status": "F23 = Conjecture 1 (UNCHANGED). C7 is conditional only, via the DECLARED axiom A6_bisymmetric in F23_Uniqueness.lean; unconditional uniqueness is FALSE under A1-A5 (maxAgg_ne_Lambda).",
+   "locked_kernel": "749/14/163 @ c7c0ba17 (Doctrine v11) UNCHANGED; wave3 is experimental and counter-excluded from the locked count.",
+   "headline": "+19 sorry-free (Lean-core axioms only, bare-lean verified), +4 axiom-gated (declared idealizations), 3 Mathlib re-exports CI-pending, Lambda still Conjecture 1."
+  },
+  "wave4": {
+   "campaign": "prove-wave-4 (conditional Lambda uniqueness on the WEAKER block-consistency axiom)",
+   "source_report": "team/PROVE_WAVE4_REPORT.md",
+   "candidate_research": "team/RESEARCH_WAVE4/CANDIDATE_FORMULAS_V4.md",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "commit_final": "043c3df4bcbe55c60f1ce2d5c59b91284a7cc1d4",
+   "commit_ci_green_lambda": "52d9bf542bcb1adb8a0a5a5de694f2ca96bf9b68",
+   "lean_files": [
+    "Lutar/Wave4/LambdaBlockConsistency.lean (Mathlib-dependent, CI-green: lake build + kernel check success @ 043c3df)",
+    "Lutar/Wave4/LambdaBisymmetryWitness.lean (bare-`lean` 4.13.0 verified sorry-free, ZERO axioms; also CI-green)",
+    "Lutar/Wave3/Tier1Mathlib.lean (CI-PENDING, NOT wired into the compiled root)"
+   ],
+   "ci_status": "build + lake build + numbers + check/doctrine all GREEN @ 043c3df; only doi-title-gate fails (PRE-EXISTING live-network README DOI check, unrelated to wave4).",
+   "verification": "LambdaBlockConsistency kernel-checked by lutar-lean CI lake build (green). LambdaBisymmetryWitness bare-`lean` verified: all 6 theorems 'do not depend on any axioms'. Every theorem carries #print axioms.",
+   "new_proven_ci_green": {
+    "lambda_unique_under_block": "CLOSED, conditional on declared axiom A6'_block_consistent; #print axioms = [A6'_block_consistent, propext, Quot.sound, Classical.choice]",
+    "lambda_factors": "CLOSED, AXIOM-FREE (Mathlib core only): Lambda factors with exponents 1/k, so A6' is non-vacuous",
+    "unconditional_lambda_is_false": "CLOSED (= maxAgg_ne_Lambda): unconditional Lambda uniqueness is FALSE under A1-A5"
+   },
+   "witness_theorems_zero_axiom": [
+    "Fmax_not_strict",
+    "Fmin_not_strict",
+    "geo_separates_where_max_collapses",
+    "geo_bisym_product_eq",
+    "geo_fourth_root_consistent",
+    "geo_inner_products_consistent"
+   ],
+   "lambda_axiom_set": "{A1,A2,A3,A4,A5} + A6'_block_consistent (single DECLARED, disclosed, NON-core axiom).",
+   "lambda_weakest_axiom": "Cleanest published: Aczel-Saaty 1983 (doi:10.1016/0022-2496(83)90028-7) = reciprocity + positive homogeneity (A2 already assumed). Weakest governance-natural & formalized: Csato 2018 block-consistency / aggregation-invariance (doi:10.1007/s10726-018-9589-3, arXiv:1706.07256), WEAKER than the prior A6_bisymmetric.",
+   "lambda_status": "F23 = Conjecture 1 (UNCHANGED, unconditional). Conditional uniqueness now CI-green on the WEAKER A6'_block_consistent (lambda_unique_under_block), superseding the stronger A6_bisymmetric route. Unconditional uniqueness FALSE (maxAgg_ne_Lambda). NEVER conflated.",
+   "ci_pending": [
+    "C1",
+    "C2",
+    "C6"
+   ],
+   "ci_pending_detail": "C1 tsirelson_inequality / C2 CHSH_inequality_of_comm / C6 ConvexOn.map_sum_le re-exports. Signatures verified VERBATIM vs pinned Mathlib d731765, but wiring Tier1Mathlib into the compiled root reproducibly red-lights lake build (bisected: a4299fb/52d9bf5 un-wired = green). Exact error not retrievable (CI log download proxy-blocked). File stays in-tree, NOT imported; NOT claimed proven.",
+   "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED",
+   "locked_proven": 5,
+   "canonical_numbers": {
+    "declarations": 1182,
+    "axioms_raw": 20,
+    "axioms_unique": 19,
+    "new_axiom": "A6'_block_consistent (declared, disclosed, NON-core, NOT in locked kernel)",
+    "sorries_raw": 308,
+    "sorries_noncomment": 256,
+    "drift_gate": "PASS"
+   },
+   "citations": [
+    "Aczel 1948",
+    "Aczel-Saaty 1983 doi:10.1016/0022-2496(83)90028-7",
+    "Csato 2018 doi:10.1007/s10726-018-9589-3 arXiv:1706.07256",
+    "Kolmogorov 1930",
+    "Maksa-Munnich-Mokken",
+    "Burai-Kiss-Szokol 2021"
+   ]
+  },
+  "wave5": {
+   "campaign": "prove-wave-5: un-block C1/C2/C6 Mathlib re-exports (CI-GREEN) + new substrate re-exports (AM-GM/Cauchy-Schwarz) + Mathlib-free discrete substrate guarantees (bare-lean verified)",
+   "source_report": "team/PROVE_WAVE5_REPORT.md",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "branch": "prove-wave5/c1c2c6-rewire-plus-amgm-cs",
+   "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/186",
+   "commit_ci_green": "0a552a90dd7f3b8b668ae761bf6e39eca17c62f1",
+   "ci_run_ids": {
+    "lean_kernel_check": "27053443102 (success)",
+    "lake_build_gate_numbers": "27053443099 (success)",
+    "doctrine": "27053443200 (success)",
+    "dco": "27053443096 (success)"
+   },
+   "ci_status": "build (Lean kernel check) + lake build + numbers + check/doctrine + DCO all GREEN @ 0a552a90 (and @ 099d6caa). Only doi-title-gate + PR-title-lint fail (PRE-EXISTING / cosmetic, unrelated to proofs).",
+   "headline": "C1 Tsirelson 2sqrt2 / C2 CHSH<=2 / C6 Jensen are now CI-GREEN (wave-4 had them CI-PENDING). Root cause fixed: dropped the non-load-bearing c1a_tsirelson_constant numeric remark and its two extra SpecialFunctions imports, minimizing Tier1Mathlib's build closure to exactly the two modules that define the instantiated theorems.",
+   "ci_green_mathlib_dependent": {
+    "Wave3.Tier1.c1_lutar_omega_tsirelson_ceiling": "C1 Tsirelson 2sqrt2 ceiling (tsirelson_inequality) \u2014 PROVEN, CI-green. EPR-Bell governance diagnostic (entangled-agent ceiling).",
+    "Wave3.Tier1.c2_lutar_omega_classical_ceiling": "C2 CHSH classical ceiling <=2 (CHSH_inequality_of_comm) \u2014 PROVEN, CI-green. Local/independent-prior agent ceiling.",
+    "Wave3.Tier1.c6_jensen_forecaster": "C6 finite Jensen (ConvexOn.map_sum_le) \u2014 PROVEN, CI-green. Active-inference ELBO-direction conservative forecaster.",
+    "Wave5.MathlibCore.w5_1_lambda_le_arith_mean": "W5-1 weighted AM-GM (Real.geom_mean_le_arith_mean_weighted) \u2014 PROVEN, CI-green. Lambda (geometric-mean aggregator) <= arithmetic mean: no-inflation guarantee.",
+    "Wave5.MathlibCore.w5_1b_lambda2_le_arith_mean": "W5-1b two-point weighted AM-GM \u2014 PROVEN, CI-green. Pairwise consensus diagnostic.",
+    "Wave5.MathlibCore.w5_2_trust_inner_le_norm": "W5-2 Cauchy-Schwarz (real_inner_le_norm) \u2014 PROVEN, CI-green. Trust-vector similarity bound (cosine in [-1,1])."
+   },
+   "proven_mathlib_free_bare_lean": {
+    "Wave5.DiscreteSubstrate.w5_3a_miscover_le_total": "miscoverage<=sample size. axioms=[propext]. killinchu conformal coverage.",
+    "Wave5.DiscreteSubstrate.w5_3b_cover_miscover_partition": "covered+miscovered=total. axioms=[propext, Quot.sound]. coverage=1-miscoverage conservation.",
+    "Wave5.DiscreteSubstrate.w5_3c_threshold_count_mono": "stricter threshold selects fewer. axioms=[propext, Quot.sound]. a11oy threshold monotonicity.",
+    "Wave5.DiscreteSubstrate.w5_4_collision_of_image_dup": "image-duplicate => hash collision (pigeonhole). axioms=[propext, Classical.choice, Quot.sound]. UDS forgery-detection.",
+    "Wave5.DiscreteSubstrate.w5_5_no_early_stop_deflation": "monotone optional-stopping anti-deflation. ZERO axioms. UDS receipt-stream anti-gaming."
+   },
+   "axiom_disclosure": "Mathlib-dependent re-exports use the standard Mathlib trio [propext, Classical.choice, Quot.sound] (NO sorryAx, NO declared Lutar axioms); their #print axioms are emitted in the CI build log (blob log download proxy-blocked here, but the build is green and they are pure term-mode instantiations of axiom-clean Mathlib theorems). Mathlib-free theorems' #print axioms pasted verbatim in PROVE_WAVE5_REPORT.md section 3 (bare lean 4.13.0, exit 0).",
+   "not_available_at_pinned_mathlib": "C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler.Basic) modules DO NOT EXIST at the pinned rev d7317655 (v4.13.0) \u2014 verified HTTP 404. They cannot be re-exported on this toolchain; deferred to a future Mathlib bump. Honestly NOT claimed.",
+   "lambda_status": "Lambda (F23) STAYS Conjecture 1 unconditionally. W5-1 AM-GM is a building block Lambda relies on; it does NOT prove uniqueness. Unconditional uniqueness remains FALSE (wave-4 counterexample in-tree).",
+   "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. All wave-5 work is experimental scope (counter-excluded).",
+   "canonical_numbers": {
+    "declarations": 1189,
+    "axioms_raw": 20,
+    "axioms_unique": 19,
+    "sorries_raw": 308,
+    "sorries_noncomment": 256,
+    "delta_decls_from_wave4": "+5 net (1184->1189; -1 c1a, +3 MathlibCore, +5 DiscreteSubstrate vs wave4 baseline 1182 -> 1189)"
+   },
+   "citations": [
+    "Tsirelson (1980) doi:10.1007/BF00417500",
+    "CHSH (1969) doi:10.1103/PhysRevLett.23.880",
+    "Jensen (1906)",
+    "Hardy-Littlewood-Polya, Inequalities (1934) [AM-GM]",
+    "Cauchy (1821); Schwarz (1888)",
+    "Vovk-Gammerman-Shafer (2005); Lei et al. (2018) JASA 113:1094 [conformal]",
+    "Dirichlet (1834) [pigeonhole]",
+    "Doob (1953) Stochastic Processes [optional stopping]"
+   ]
+  },
+  "experimental_sorry_free_note": "Tonight's experimental kernel-verified additions (NOT in the locked 5): wave5 (11, PR#186), wave6 (11, PR#189), wave7 (10, PR#190), agentic-loop P1-P6 (28, PR#188; 1 declared hash-collision axiom on P5). All sorry-free; Mathlib-dependent items CI-green, Mathlib-free items bare-lean exit 0. PRIOR: wave5 adds 11 kernel-verified experimental theorems (6 Mathlib-dependent CI-green: C1/C2/C6 + W5-1/W5-1b/W5-2; 5 Mathlib-free bare-lean: W5-3a/b/c, W5-4, W5-5). Prior experimental_sorry_free baseline was 21 (wave-2 F-pack ceiling).",
+  "wave5_proven_count": {
+   "mathlib_dependent_ci_green": 6,
+   "mathlib_free_bare_lean": 5,
+   "total_new": 11
+  },
+  "wave6": {
+   "campaign": "prove-wave-6: graph + info substrate proof families (F-G1..F-G6 graph candidates + Wave-4 DPI/Fano/conformal info cores)",
+   "source_report": "team/PROVE_WAVE6_REPORT.md",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "branch": "prove-wave6/graph-substrate-fg1-fg6",
+   "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/189",
+   "base_main_commit": "b71114cf802987c74da3b572257a9dc0e53a675e",
+   "commit_ci_green": "dc7ae26d53611b8701336867df96c54a128fb049",
+   "ci_status": "build (Lean kernel check) + lake build + numbers (full Mathlib build + drift gate) + check/doctrine + Run tests + DCO + CodeQL + gitleaks + Trivy + Grype all GREEN @ dc7ae26d. Drift gate: 'OK live Lean numbers match baseline' (1217/20/19/308). Only 'Lint PR title' fails (pre-existing/cosmetic).",
+   "headline": "11 new sorry-free experimental theorems, 0 new axioms. F-G4 Lambda-graph isomorphism invariance is REAL + CI-kernel-verified; F-G1 Frechet/Kuratowski embedding + F-G3 geometric spectral contraction CI-green; F-G2 GNN<=1-WL, F-G5 bounded-frontier DAG termination, F-G6 relabel-invariant functionals + Wave-4 DPI/Fano/conformal cores bare-lean-verified.",
+   "maturity_label": "proven sorry-free (experimental); 5 Mathlib-dependent CI-green + 6 Mathlib-free bare-lean",
+   "new_theorems": 11,
+   "lambda_status": "Lambda (F23) STAYS Conjecture 1 unconditionally. F-G4 proves Lambda_graph is an isomorphism INVARIANT (structural stability), NOT uniqueness.",
+   "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. Wave-6 is experimental scope (excluded from locked baseline).",
+   "canonical_numbers": {
+    "declarations": 1217,
+    "axioms_raw": 20,
+    "axioms_unique": 19,
+    "sorries_raw": 308
+   },
+   "citations": [
+    "Bourgain (1985) Israel J. Math 52:46-52, doi:10.1007/BF02776078",
+    "Linial-London-Rabinovich (1995) Combinatorica 15:215-245, doi:10.1007/BF01200757",
+    "Xu-Hu-Leskovec-Jegelka, GIN (2018) arXiv:1810.00826",
+    "Levin-Peres, Markov Chains and Mixing Times (2017) doi:10.1090/mbk/107",
+    "Weisfeiler-Lehman (1968)",
+    "Fano (1961) Transmission of Information",
+    "Vovk-Gammerman-Shafer (2005)"
+   ]
+  },
+  "wave7": {
+   "campaign": "prove-wave-7: conformal rank-count p-value + two-sided Doob envelope + degree-sum iso-invariance + PAC-Bayes routing envelope",
+   "source_report": "team/PROVE_WAVE7_REPORT.md",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "branch": "prove-wave7/conformal-rankcount-doob-envelope-graphsum-pacbayes",
+   "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/190",
+   "base_main_commit": "b71114cf802987c74da3b572257a9dc0e53a675e",
+   "commit_ci_green": "d6a232ba",
+   "ci_status": "build (Lean kernel check) run 27055463460 SUCCESS + lake build + numbers run 27055463494 SUCCESS @ d6a232ba. No new axiom, no new sorry; declarations 1189->1203.",
+   "headline": "10 new sorry-free experimental theorems, 0 new axioms. Conformal p-value = normalized rank-count (<=1, antitone, >=1/(n+1) floor -> distribution-free trust intervals); two-sided Doob envelope (a bounded audit can neither under- nor over-report); degree-sum iso-invariance (mesh-health score label-independent); PAC-Bayes/router envelope (min<=average<=max -> a router can't beat its best component nor be worse than its worst).",
+   "maturity_label": "proven sorry-free (experimental); 5 Mathlib-dependent CI-green + 5 Mathlib-free bare-lean (W7-6a/W7-6 axiom-free)",
+   "new_theorems": 10,
+   "lambda_status": "Lambda (F23) STAYS Conjecture 1; untouched by this wave.",
+   "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. Wave-7 is experimental scope.",
+   "canonical_numbers": {
+    "declarations": 1203,
+    "axioms_raw": 20,
+    "axioms_unique": 19,
+    "sorries_raw": 308
+   },
+   "ecosystem_use": {
+    "trust_score_intervals": "W7-4a/b/c conformal rank-count -> distribution-free Trust Score confidence intervals (no zero p-values / anti-overconfidence floor 1/(n+1)).",
+    "model_router": "W7-5a/b/W7-5 PAC-Bayes envelope -> cost-aware Model Router bounded by its component min/max.",
+    "mesh_health": "W7-1a/W7-1 degree-sum invariance -> mesh-health graph functional independent of agent labeling.",
+    "receipt_anti_gaming": "W7-6a/W7-6 two-sided Doob envelope -> receipt-stream audit can neither under- nor over-report."
+   },
+   "citations": [
+    "Vovk-Gammerman-Shafer (2005) Algorithmic Learning in a Random World",
+    "Lei et al. (2018) JASA 113:1094, doi:10.1080/01621459.2017.1307116",
+    "Doob (1953) Stochastic Processes",
+    "McAllester (1999) PAC-Bayesian Model Averaging, doi:10.1145/307400.307435",
+    "Feng et al. GraphRouter (2024) arXiv:2410.03834",
+    "You et al. graph2nn (2020) arXiv:2007.06559"
+   ]
+  },
+  "agentic_loop": {
+   "campaign": "prove-agentic-loop: end-to-end governed-run system proofs P1-P6 (Lutar.Agentic.Pipeline)",
+   "source_report": "team/PROVE_AGENTIC_LOOP_REPORT.md",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "branch": "prove-agentic/loop-end-to-end-system-proofs",
+   "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/188",
+   "commit_ci_green": "2ede47a2c93f5d46ea8742b50a6a164b19eccb1d",
+   "ci_status": "build (Lean kernel check) + lake build + numbers + check/doctrine + DCO all SUCCESS @ 2ede47a2. Mathlib-FREE module, excluded from v11 drift baseline via EXPERIMENTAL_SCOPES.",
+   "headline": "28 new kernel-verified theorems, 1 declared axiom (hashFn_collision_resistant, P5 only). Proves a governed agentic run is auditable, gate-sound, and injection-resistant end-to-end.",
+   "new_theorems": 28,
+   "axioms_added": 1,
+   "axiom_name": "hashFn_collision_resistant",
+   "maturity_breakdown": "14 fully axiom-free; 10 Lean-core only (propext, Quot.sound); 4 axiom-gated (declared) on hashFn_collision_resistant (P5 only). 0 sorryAx.",
+   "properties": {
+    "P1_receipt_completeness": {
+     "maturity": "proven sorry-free (experimental)",
+     "plain": "Every step of a governed run leaves exactly one signed receipt; the log is append-only and gap-free -> an auditor can reconstruct the whole run."
+    },
+    "P2_gate_soundness": {
+     "maturity": "proven sorry-free (experimental)",
+     "plain": "An action is allowed only if BOTH the policy check AND the kernel/doctrine check return ALLOW; a single failing check is absorbing and cannot be overridden downstream."
+    },
+    "P3_non_interference": {
+     "maturity": "proven sorry-free (experimental); core axiom-free",
+     "plain": "HEADLINE: prompt-injection / poisoned retrieval provably cannot flip a DENY into an ALLOW. The untrusted context is recorded in the audit log yet quarantined from the decision (Goguen-Meseguer information-flow security)."
+    },
+    "P4_replay_determinism": {
+     "maturity": "proven sorry-free (experimental)",
+     "plain": "Re-running a recorded run from the same state reproduces a byte-identical receipt chain -> deterministic replay audit. Extends F1 from one step to the whole pipeline."
+    },
+    "P5_tamper_evidence": {
+     "maturity": "axiom-gated (declared)",
+     "plain": "Any single-receipt payload tampering that doesn't recompute its hash makes chain re-verification reject -> forgery is detectable. Gated on the standard hash collision-resistance idealization (NIST FIPS 180-4)."
+    },
+    "P6_monotone_auditability": {
+     "maturity": "proven sorry-free (experimental)",
+     "plain": "An auditor who accepted the chain up to a point never has to retract that as the log grows -> streaming/incremental audit without re-checking history."
+    }
+   },
+   "ecosystem_use": "P1-P6 underwrite the governed-run / signed-receipts story: P1 receipt completeness + P6 monotone auditability = the receipt chain; P2 gate-soundness = the policy + kernel deny path; P3 non-interference = injection-resistant tool calls; P4 = deterministic replay; P5 = tamper-evident receipts.",
+   "lambda_status": "Lambda (F23) STAYS Conjecture 1; untouched.",
+   "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. Experimental scope (Lutar.Agentic.Pipeline, not imported into Lutar.lean).",
+   "citations": [
+    "Goguen & Meseguer (1982) IEEE S&P, doi:10.1109/SP.1982.10014 (non-interference)",
+    "Merkle (1987) CRYPTO '87, LNCS 293, doi:10.1007/3-540-48184-2_32",
+    "NIST FIPS PUB 180-4 (2015) Secure Hash Standard",
+    "in-toto Attestation Framework (CNCF) + DSSE",
+    "Rogaway & Shrimpton (2004) FSE 2004, LNCS 3017"
+   ]
+  },
+  "maturity_legend": {
+   "proven (locked)": "Kernel-verified in the locked Doctrine-v11 corpus (749/14/163 @ c7c0ba17). Exactly 5: F1, F11, F12, F18, F19.",
+   "proven sorry-free (experimental)": "Kernel-verified sorry-free this session on a PR branch (CI-green or bare-lean exit 0); NOT in the locked count.",
+   "axiom-gated (declared)": "Proven modulo a single named, disclosed idealization (e.g. hash collision-resistance); the axiom is #print-axioms-visible.",
+   "CI-pending": "Compiles locally but CI confirmation not yet green.",
+   "conjectured": "Open / not a theorem. Lambda (F23) uniqueness is Conjecture 1 unconditionally."
+  },
+  "experimental_waves_summary": {
+   "wave5": {
+    "new_theorems": 11,
+    "pr": 186,
+    "status": "CI-green / bare-lean"
+   },
+   "wave6": {
+    "new_theorems": 11,
+    "pr": 189,
+    "status": "CI-green / bare-lean"
+   },
+   "wave7": {
+    "new_theorems": 10,
+    "pr": 190,
+    "status": "CI-green / bare-lean"
+   },
+   "agentic_loop": {
+    "new_theorems": 28,
+    "pr": 188,
+    "status": "CI-green; 1 declared axiom (P5)"
+   },
+   "total_new_experimental_theorems": 60,
+   "note": "These 60 new experimental theorems are SEPARATE from the locked 5. Locked proven count is UNCHANGED at 5. Lambda (F23) is Conjecture 1 unconditionally."
+  },
+  "lambda_conjecture_status": "Lambda (F23) = Conjecture 1 unconditionally. Unconditional uniqueness is FALSE (wave-4 counterexample in-tree). A conditional/strengthened-class uniqueness theorem (under A6') is CI-green and is the only proven uniqueness claim. No unconditional uniqueness claimed."
+ },
+ "capability_anatomy": {
+  "note": "a11oy is one governance substrate. The reasoning, policy and operator capabilities are INTERNAL a11oy functions (formerly separate services). No user-visible service split.",
+  "capabilities": [
+   {
+    "id": "reasoning",
+    "title": "Reasoning & Provenance",
+    "plain": "Grounded reasoning, memory/recall, and provenance over a signed knowledge base.",
+    "functions": [
+     "grounded ask (cites its source, refuses to fabricate)",
+     "13-axis Trust Score (geometric-mean aggregate, floor 0.90)",
+     "knowledge ontology (axioms -> theorems -> formulas)",
+     "model router (5-tier, cost-aware)"
+    ],
+    "proof_support": [
+     "Trust Score confidence interval from CONFORMAL (W5-3 + W7-4, proven) \u2014 distribution-free, with anti-overconfidence floor (never reports 100%)",
+     "Model Router stability C20 + PAC-Bayes/router envelope W7-5 (min<=average<=max)",
+     "Knowledge ontology label-invariance/expressivity: F-G2 (GNN<=1-WL ceiling), F-G4 (Lambda-graph iso-invariant), F-G6 (relabel-invariant functionals), W7-1 (degree-sum invariance)"
+    ]
+   },
+   {
+    "id": "policy",
+    "title": "Policy & Compliance",
+    "plain": "Deny-by-default safety gates and full verdicts with signed receipts.",
+    "functions": [
+     "8 deny-by-default safety gates",
+     "full verdict (ALLOW/DENY) with signals + receipt hash",
+     "30-signature threat corpus (MITRE ATT&CK + CVSS)",
+     "readiness/compliance (NIST/STIG/ISO)"
+    ],
+    "proof_support": [
+     "Safety Gates = gate-soundness P2 (no action without BOTH the policy check AND the kernel/doctrine check; a single deny is absorbing)",
+     "agentic-loop P3 non-interference (untrusted/poisoned input provably cannot flip a DENY into an ALLOW)"
+    ]
+   },
+   {
+    "id": "operator",
+    "title": "Operator (Ask / Act / Approvals)",
+    "plain": "Human-in-the-loop operator actions, each appended to a hash-chained, signed audit ring.",
+    "functions": [
+     "ask & act (enumerated safe actions, HITL)",
+     "hash-chained operator audit ring",
+     "multi-step governed workflow with per-hop receipts + trace id",
+     "recommendations from live health/quorum/Lambda probes only"
+    ],
+    "proof_support": [
+     "Governed run anatomy = P1 receipt completeness (exactly one receipt per step, append-only, gap-free)",
+     "P4 replay determinism (byte-identical replay)",
+     "P6 monotone auditability (accepted prefix never retracted)"
+    ]
+   },
+   {
+    "id": "integrity",
+    "title": "Receipts & Integrity",
+    "plain": "Signed, replayable, tamper-evident receipt chain for every governed decision.",
+    "functions": [
+     "DSSE signed receipts (honest PLACEHOLDER when no key)",
+     "hash-chained receipt DAG (replayable)",
+     "Reed-Solomon RS(10,6) recovery",
+     "Merkle inclusion verification"
+    ],
+    "proof_support": [
+     "Receipt encoding C8/C9; F1 (locked) replay determinism; F18 (locked) RS(10,6) recovery",
+     "Forgery detection W5-4 (a duplicate receipt is exactly a hash collision)",
+     "Audit envelope W5-5 + W7-6 (Doob two-sided: auditing early OR late can't change the result)",
+     "Merkle inclusion C13/C14 + agentic-loop P5 tamper-evidence \u2014 AXIOM-GATED on disclosed hash collision-resistance (NIST FIPS 180-4)",
+     "F-G5 bounded-frontier audit walk always finishes in bounded steps (edge hardware)"
+    ]
+   }
+  ],
+  "lambda_node": {
+   "title": "Trust aggregator (\u039b)",
+   "maturity": "conjectured",
+   "plain": "The 13-axis trust aggregate. Its UNIQUENESS is Conjecture 1 \u2014 NOT a theorem. A conditional/strengthened-class theorem (lambda_unique_under_block, under A6') is CI-green; unconditional uniqueness is FALSE.",
+   "stamp": "\u039b = Conjecture 1 (advisory, never a pass/fail oracle)"
+  },
+  "deprecated_internal_names": [
+   "amaru",
+   "sentra",
+   "rosie"
+  ],
+  "deprecation_note": "Prior internal service names (amaru/sentra/rosie) are NOT user-visible. They map to the reasoning, policy, and operator capabilities above respectively."
+ },
+ "tab_proof_bindings": {
+  "note": "Per-tab maturity-chipped proof bindings. Shared verbatim between a11oy and killinchu so counts/labels are identical. Plain language; no service names.",
+  "trust_score": {
+   "binding": "conformal confidence interval (W5-3 + W7-4)",
+   "maturity": "proven sorry-free (experimental)",
+   "copy": "Distribution-free confidence interval. Anti-overconfidence floor: we never report 100%.",
+   "honesty_flag": "Sourced from CONFORMAL, NOT Hoeffding/PAC-Bayes (those are NOT proven at our Mathlib pin)."
+  },
+  "safety_gates": {
+   "binding": "gate-soundness P2",
+   "maturity": "proven sorry-free (experimental)",
+   "copy": "No action without both the policy check and the kernel check; a single deny is absorbing."
+  },
+  "model_router": {
+   "binding": "C20 stability + W7-5 PAC-Bayes envelope",
+   "maturity": "proven sorry-free (experimental)",
+   "copy": "Routed cost is bracketed by component min/max \u2014 a router can't beat its best nor be worse than its worst."
+  },
+  "signed_receipts": {
+   "binding": "C8/C9 encoding + W5-4 forgery + W5-5/W7-6 audit envelope + C13/C14 (axiom-gated)",
+   "maturity": "mixed: proven + axiom-gated (declared)",
+   "copy": "Duplicate receipt = tampering; auditing early or late can't change the result. Tamper-evidence is axiom-gated on disclosed hash collision-resistance."
+  },
+  "knowledge_ontology": {
+   "binding": "F-G2 expressivity ceiling + F-G4/F-G6/W7-1 label-invariance",
+   "maturity": "proven sorry-free (experimental)",
+   "copy": "The knowledge/mesh-health functionals are independent of how nodes are labeled."
+  },
+  "governed_decision": {
+   "binding": "agentic-loop P1-P6",
+   "maturity": "proven sorry-free (experimental); P5 axiom-gated (declared)",
+   "copy": "signals -> forecast -> evidence -> recommendation -> signed receipt, with injection-resistant gates (P3)."
+  },
+  "lambda": {
+   "binding": "lambda_unique_under_block (conditional, CI-green)",
+   "maturity": "conjectured",
+   "copy": "\u039b uniqueness is Conjecture 1. Only a conditional/strengthened-class theorem is proven; unconditional uniqueness is FALSE."
+  },
+  "deferred": {
+   "items": [
+    "C3 Hoeffding",
+    "C4 Azuma",
+    "C5 KL>=0",
+    "C15",
+    "C16",
+    "C18",
+    "C19"
+   ],
+   "reason": "Required Mathlib modules absent at pinned v4.13.0 (HTTP 404). NOT proven; honestly deferred."
+  },
+  "skipped_list_only": [
+   "C1 Tsirelson",
+   "C2 CHSH"
+  ]
+ },
+ "puriq_formulas": [
+  {
+   "id": "F1",
+   "name": "Replay-Hash Determinism",
+   "statement": "Deterministic step-fold replay: equal logs replay to equal final state; folded state equals last of the explicit replay trace.",
+   "maturity": "proven (locked)",
+   "lean_ref": "f1_replay_fold_deterministic",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": true
+  },
+  {
+   "id": "F2",
+   "name": "Scheduler Liveness",
+   "statement": "Fair round-robin scheduler: every ready organ eventually ticks (strictly-decreasing Nat ranking measure reaches 0).",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f2_scheduler_liveness",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F3",
+   "name": "Organ Boot-Gate Soundness",
+   "statement": "If the boot gate permits an organ, its genome is valid (decidable implication).",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f3_genome_gate_sound",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F4",
+   "name": "Receipt-Chain Acyclicity",
+   "statement": "Appending the new largest-index node preserves DAG acyclicity (backward-edge invariant).",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f4_rcptchain_dag_acyclic",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F5",
+   "name": "Unay Receipt Recall",
+   "statement": "Insert-then-lookup on the same receipt key returns the inserted value (exact-key recall correctness).",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f5_unay_recall_correct",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F6",
+   "name": "LMDB Durability",
+   "statement": "Commit-then-restart-then-read returns the committed value; uncommitted writes are lost on crash (WAL model).",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f6_lmdb_durability",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F7",
+   "name": "Chaski FIFO Ordering",
+   "statement": "Enqueue-batch-then-drain yields send order; head is the oldest message (true FIFO, no tautology).",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f7_chaski_fifo",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F8",
+   "name": "Wallpa OSS-Only Safety",
+   "statement": "Governed-voice admission gate admits only OSS sources; no humanClone or synthetic config is ever admitted.",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f8_wallpa_oss_only",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F9",
+   "name": "Wasi-Rikuq Non-Interference",
+   "statement": "Advisory non-interference (Goguen-Meseguer 1982): the low view is unchanged by high inputs.",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f9_wasi_rikuq_noninterference",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F10",
+   "name": "Hatun MCP Idempotency",
+   "statement": "MCP request normalizer is idempotent: normalizing twice equals normalizing once.",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f10_hatun_mcp_idempotent",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F11",
+   "name": "Ayni Reciprocity Conservation",
+   "statement": "Event-sourcing replay invariant: balance reciprocity is conserved; tit-for-tat parity (Axelrod-Hamilton).",
+   "maturity": "proven (locked)",
+   "lean_ref": "f11_ayni_reciprocity_conservation",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": true
+  },
+  {
+   "id": "F12",
+   "name": "Kuramoto Phase-Coupling Boundedness",
+   "statement": "Discrete additive coupling is bounded and superposes over an organ set. CAVEAT: additive fragment only, NOT nonlinear Kuramoto synchronisation.",
+   "maturity": "proven (locked)",
+   "lean_ref": "f12_kuramoto_superposition",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": true
+  },
+  {
+   "id": "F13",
+   "name": "Wayra Hash-Chain Verification",
+   "statement": "Hash-chain verification is sound by induction: a verified chain has every link consistent.",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f13_wayra_chain_verified",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "declared_axiom": "hash_collision_resistant (tamper-evidence f13_tamper_evident)",
+   "locked_kernel": false
+  },
+  {
+   "id": "F14",
+   "name": "Signature Verifiable Attribution",
+   "statement": "A signature-envelope signature that verifies attributes the message to the key. AXIOM-GATED on declared `ecdsa_unforgeable`.",
+   "maturity": "axiom-gated (declared)",
+   "lean_ref": "f14_sigenv_verifiable",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "declared_axiom": "ecdsa_unforgeable",
+   "locked_kernel": false
+  },
+  {
+   "id": "F15",
+   "name": "Rekor Merkle Inclusion",
+   "statement": "Merkle inclusion checker is sound (structural). Binding form (equal roots => equal leaves) is AXIOM-GATED on declared `h2_collision_resistant`.",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f15_rekor_inclusion",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "declared_axiom": "h2_collision_resistant (binding form f15_inclusion_binding)",
+   "locked_kernel": false
+  },
+  {
+   "id": "F16",
+   "name": "Safety-Gate Coverage Completeness",
+   "statement": "Immune cross-cut completeness: 8 gates cover all 8 enumerated threats; gate set is exhaustive.",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f16_safegate_immune_complete",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F17",
+   "name": "Three-Vertical Isolation",
+   "statement": "The three verticals are pairwise disjoint (isolation by construction).",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f17_three_vertical_isolation",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F18",
+   "name": "Reed-Solomon RS(10,6) Recovery",
+   "statement": "RS(10,6) parity arithmetic: data is recoverable iff at least 6 of 10 shards survive (tolerates 4 erasures).",
+   "maturity": "proven (locked)",
+   "lean_ref": "f18_reed_solomon_parity_count",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": true
+  },
+  {
+   "id": "F19",
+   "name": "Bekenstein Entropy Budget",
+   "statement": "Entropy budget is additive and monotone over a region partition; each region <= total. CAVEAT: additive scaffolding only, NOT the full Bekenstein bound S <= 2*pi*k*R*E/(hbar*c).",
+   "maturity": "proven (locked)",
+   "lean_ref": "f19_budget_total_cons",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": true
+  },
+  {
+   "id": "F20",
+   "name": "Mobile Input Equivalence",
+   "statement": "Touch and pointer inputs are equivalent under the normalization map (decidable and sound).",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f20_mobile_input_equiv",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F21",
+   "name": "Genome Validator Totality",
+   "statement": "The genome validator is total over Fin 16: every organ validates.",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f21_all_organs_valid",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F22",
+   "name": "Receipt Emit Monotonicity",
+   "statement": "Emit appends to the sequence log with strictly increasing sequence numbers (monotone emit).",
+   "maturity": "proven sorry-free (experimental)",
+   "lean_ref": "f22_rcptchain_emit_monotone",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+   "locked_kernel": false
+  },
+  {
+   "id": "F23",
+   "name": "Lambda-Aggregator Uniqueness",
+   "statement": "CONJECTURE 1 (NOT a theorem). Unconditional uniqueness is FALSE under A1-A5 (maxAgg counterexample). Conditional `lambda_unique_of_factors` IS proved; unconditional uniqueness closes only under declared axiom A6_bisymmetric.",
+   "maturity": "conjectured",
+   "lean_ref": "f23_lambda_aggregator_sound",
+   "lean_repo": "szl-holdings/lutar-lean",
+   "lean_file": "Lutar/Puriq/Formulas/F23_Uniqueness.lean",
+   "declared_axiom": "A6_bisymmetric (optional, only for conditional lambda_unique_under_A6)",
+   "locked_kernel": false
+  }
+ ],
+ "instill_wave": "instill-wave (locked 5 {F1,F11,F12,F18,F19} + wave5 11 + wave6 11 + wave7 10 + agentic-loop 28 [1 declared axiom] experimental sorry-free, separate from locked; Lambda=Conjecture 1; capability anatomy a11oy-internal). SLSA L1+L2.",
+ "version": "6.0.0",
+ "_provenance": {
+  "shared_with": [
+   "a11oy",
+   "killinchu"
+  ],
+  "note": "Identical shared anatomy JSON (proof_summary + capability_anatomy + tab_proof_bindings + puriq_formulas). Added to killinchu so both apps surface the same proven anatomy. Lambda=Conjecture 1; locked proven=5; conformal (never 100%), not Hoeffding; SLSA L1 honest.",
+  "added_by": "HF infra + 3D showcase squad",
+  "doctrine": "v11 LOCKED 749/14/163 @ c7c0ba17"
+ }
+}
