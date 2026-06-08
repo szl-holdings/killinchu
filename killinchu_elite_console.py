@@ -6347,6 +6347,16 @@ window.w910_mesh=w910_mesh; window.w910_audit=w910_audit; window.w910_quorum=w91
 /* ---- expose all loaders on window (called by VIEWS[].render + operator actions) ---- */
 /* evidence-tab-patch-185 — curated + live research/evidence layer */
 window.__ev_ns="killinchu";
+/* source-liveness-badge — honest reachable/unreachable label from real HTTP probe (no fabricated state) */
+window.ev_livebadge=function(lv){
+  if(!lv) return '<span class="badge" style="border:1px solid #6b6b6b;color:#9a9a9a" title="liveness not checked">… checking</span>';
+  var st=(lv.http_status!=null)?(' '+lv.http_status):'';
+  if(lv.reachable){
+    if(lv.mode==='cached') return '<span class="badge" style="border:1px solid #5aa0d0;color:#7ab8e6" title="reachable (from cache · '+esc(lv.checked_at||'')+')">● cached'+esc(st)+'</span>';
+    return '<span class="badge" style="border:1px solid #4fb37f;color:#5fe39a" title="reachable now ('+esc(lv.checked_at||'')+')">● live'+esc(st)+'</span>';
+  }
+  return '<span class="badge" style="border:1px solid #c06a5a;color:#ff7b6b" title="unreachable: '+esc(lv.error||'no HTTP response')+' ('+esc(lv.checked_at||'')+')">● unreachable</span>';
+};
 window.evidence_live=async function(id){
   var box=document.getElementById('ev-live-'+id); if(!box) return;
   box.innerHTML='<div class="dim">fetching live arXiv + GitHub…</div>';
@@ -6376,8 +6386,9 @@ window.evidence_render=async function(c){
       h+='<div class="card"><div><b>'+esc(cl.claim||'')+'</b>'+(cl.maturity?(' <span class="badge">'+esc(cl.maturity)+'</span>'):'')+(cl.tab?(' <span class="dim">→ '+esc(cl.tab)+' tab</span>'):'')+'</div>';
       h+='<div class="dim" style="margin:.45rem 0 .25rem">Cited sources</div>';
       (cl.sources||[]).forEach(function(s){
-        h+='<div class="row"><span class="badge">'+esc(s.kind||'src')+'</span> <a href="'+esc(s.url||'#')+'" target="_blank" rel="noopener">'+esc(s.title||'')+'</a>'+(s.note?(' <span class="dim">— '+esc(s.note)+'</span>'):'')+'</div>';
+        h+='<div class="row"><span class="badge">'+esc(s.kind||'src')+'</span> '+window.ev_livebadge(s.liveness)+' <a href="'+esc(s.url||'#')+'" target="_blank" rel="noopener">'+esc(s.title||'')+'</a>'+(s.note?(' <span class="dim">— '+esc(s.note)+'</span>'):'')+'</div>';
       });
+      if(cl.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">source liveness: '+esc(String(cl.sources_reachable))+'/'+esc(String(cl.sources_total))+' reachable</div>';
       h+='<div style="margin-top:.55rem"><button class="btn ev-live-btn" data-ev="'+esc(cl.id)+'">⟳ Load live arXiv + GitHub</button></div>';
       h+='<div id="ev-live-'+esc(cl.id)+'" style="margin-top:.5rem"></div></div>';
     });
