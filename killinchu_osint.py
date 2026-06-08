@@ -63,12 +63,16 @@ _UA = "killinchu-osint/1.0 (+https://szlholdings-killinchu.hf.space)"
 _TAVILY_URL = "https://api.tavily.com/search"
 _OSINT_DIR = Path(os.environ.get("KILLINCHU_OSINT_DIR", "/app/osint_corpus"))
 _TTL = int(os.environ.get("KILLINCHU_OSINT_TTL", "900"))  # 15 min freshness window
+# Min seconds between forced (fresh=1) live scrapes per stream — guards the
+# unauthenticated endpoint from being driven into Tavily key/cost exhaustion.
+_FRESH_MIN = int(os.environ.get("KILLINCHU_OSINT_FRESH_MIN", "60"))
 
 # In-memory corpus: stream -> list[item]; plus per-stream fetch metadata.
 _LOCK = threading.Lock()
 _CORPUS: dict[str, list[dict]] = {}
 _META: dict[str, dict] = {}          # stream -> {"ts", "mode", "iso", "query"}
 _CHAIN_HEAD: dict[str, str] = {}     # stream -> sha256 chain head over items
+_CHAIN_OK: dict[str, dict] = {}      # stream -> {"verified": bool, ...} integrity of hydrated chain
 
 # ---------------------------------------------------------------------------
 # amaru stream definitions: fixed vertical + a curated default search query.
@@ -252,41 +256,75 @@ def _rechain(stream: str) -> str:
     return head
 
 
+def _verify_chain(stream: str, persisted: Optional[str]) -> dict:
+    """Recompute the chain over the just-loaded items and compare it to the
+    head persisted on disk. NEVER trust the persisted head blindly — a tampered
+    or truncated snapshot is flagged verified=False instead of silently served."""
+    recomputed = _rechain(stream)            # sets _CHAIN_HEAD[stream] from _CORPUS
+    if persisted and persisted != recomputed:
+        ok = {"verified": False, "reason": "persisted chain_head != recomputed",
+              "persisted": persisted, "recomputed": recomputed}
+    elif not persisted:
+        ok = {"verified": True, "basis": "no persisted head; recomputed on load"}
+    else:
+        ok = {"verified": True, "basis": "recomputed matches persisted"}
+    _CHAIN_OK[stream] = ok
+    return ok
+
+
 def _ingest(stream: str, query: Optional[str] = None, fresh: bool = False) -> dict:
     """Fetch (or serve cached) one amaru stream. Honest mode label."""
     spec = _STREAMS[stream]
     q = (query or spec["query"]).strip()
     with _LOCK:
         meta = _META.get(stream)
+        age = (time.time() - meta["ts"]) if meta else None
         fresh_enough = (meta and meta.get("mode") == "live"
-                        and (time.time() - meta["ts"]) < _TTL
+                        and age is not None and age < _TTL
                         and meta.get("query") == q)
         if fresh_enough and not fresh:
             return _bundle(stream, "live")
+        # Throttle forced refresh: if a live scrape happened very recently, do
+        # NOT re-hit Tavily — serve what we have (honest mode_note records it).
+        throttled = (fresh and meta and meta.get("mode") == "live"
+                     and age is not None and age < _FRESH_MIN and _CORPUS.get(stream))
+        if throttled:
+            return _bundle(stream, "live",
+                           note="forced refresh throttled (<%ss since last live fetch)" % _FRESH_MIN)
     # Try live scrape.
     try:
         raw = _tavily_search(q, topic=spec["topic"], days=spec["days"], max_results=10)
         items = _normalize(raw, stream)
+        for it in items:                       # freshly scraped this request
+            it["item_mode"] = "live"
         with _LOCK:
-            # merge: keep new on top, dedupe vs existing by prov_hash, cap 60
-            existing = {it["prov_hash"]: it for it in _CORPUS.get(stream, [])}
-            merged = items + [it for it in _CORPUS.get(stream, [])
-                              if it["prov_hash"] not in {x["prov_hash"] for x in items}]
-            _CORPUS[stream] = merged[:60]
+            # merge: new on top (item_mode=live), carry prior items as item_mode
+            # =cached, dedupe by prov_hash, cap 60. Per-item mode keeps the bundle
+            # honest even though the bundle label is "live".
+            fresh_hashes = {x["prov_hash"] for x in items}
+            carried = []
+            for it in _CORPUS.get(stream, []):
+                if it["prov_hash"] not in fresh_hashes:
+                    c = dict(it); c["item_mode"] = "cached"; carried.append(c)
+            _CORPUS[stream] = (items + carried)[:60]
             _META[stream] = {"ts": time.time(), "mode": "live", "iso": _now_iso(), "query": q}
             _rechain(stream)
+            _CHAIN_OK[stream] = {"verified": True, "basis": "computed-this-request"}
             _persist(stream)
             return _bundle(stream, "live")
     except Exception as exc:
         # Fall back to in-memory, then on-disk last-good corpus.
         with _LOCK:
             if _CORPUS.get(stream):
+                for it in _CORPUS[stream]:
+                    it["item_mode"] = "cached"
                 return _bundle(stream, "cached", note="search unreachable (%s) — last-good corpus" % type(exc).__name__)
         disk = _load_disk(stream)
         if disk and disk.get("items"):
             with _LOCK:
-                _CORPUS[stream] = disk["items"]
-                _CHAIN_HEAD[stream] = disk.get("chain_head") or _rechain(stream)
+                items = [dict(it, item_mode="cached") for it in disk["items"]]
+                _CORPUS[stream] = items
+                _verify_chain(stream, disk.get("chain_head"))
                 _META[stream] = {"ts": 0, "mode": "cached", "iso": disk.get("saved_at"), "query": q}
             return _bundle(stream, "cached", note="search unreachable (%s) — on-disk snapshot" % type(exc).__name__)
         return _bundle(stream, "unreachable", note="no search key and no cached corpus: %s" % exc)
@@ -314,7 +352,8 @@ def _bundle(stream: str, mode: str, note: Optional[str] = None) -> dict:
         "stream": stream, "label": spec["label"], "vertical": spec["vertical"],
         "mode": mode, "fetched_at": meta.get("iso"), "query": meta.get("query"),
         "count": len(items), "items": items,
-        "provenance": {"algo": "sha256", "chain_head": _CHAIN_HEAD.get(stream)},
+        "provenance": {"algo": "sha256", "chain_head": _CHAIN_HEAD.get(stream),
+                       "integrity": _CHAIN_OK.get(stream, {"verified": True, "basis": "fresh"})},
         "honesty": _honesty(),
         "engine": "tavily",
     }
@@ -513,12 +552,12 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
     base = "/api/%s/v1" % ns
     registered: list[str] = []
 
-    # hydrate from disk (resilient cold start)
+    # hydrate from disk (resilient cold start) — verify chain, never trust blindly
     for s in _STREAMS:
         disk = _load_disk(s)
         if disk and disk.get("items"):
-            _CORPUS[s] = disk["items"]
-            _CHAIN_HEAD[s] = disk.get("chain_head") or _rechain(s)
+            _CORPUS[s] = [dict(it, item_mode="cached") for it in disk["items"]]
+            _verify_chain(s, disk.get("chain_head"))
             _META[s] = {"ts": 0, "mode": "cached", "iso": disk.get("saved_at"),
                         "query": _STREAMS[s]["query"]}
 
@@ -562,7 +601,9 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
             "streams": {s: {"vertical": _STREAMS[s]["vertical"],
                             "count": len(_CORPUS.get(s, [])),
                             "mode": (_META.get(s, {}) or {}).get("mode"),
-                            "chain_head": _CHAIN_HEAD.get(s)} for s in _STREAMS},
+                            "chain_head": _CHAIN_HEAD.get(s),
+                            "chain_integrity": _CHAIN_OK.get(s, {"verified": True, "basis": "fresh"})}
+                        for s in _STREAMS},
             "total_corpus": sum(len(v) for v in _CORPUS.values()),
             "honesty": _honesty(),
         })
