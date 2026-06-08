@@ -2953,6 +2953,30 @@ except Exception as _kops_e:
 # END: OPERATIONAL CONTROL SURFACES — killinchu
 # ============================================================================
 
+# ============================================================================
+# BEGIN: dev3 HF ASSETS INSTILL layer (Knowledge & Formulas / Evidence)
+# ADDITIVE. Namespace /api/killinchu/v1/assets/* — same app-agnostic module as
+# a11oy (uses ns param). Server-side fetch of REAL SZLHOLDINGS/* dataset resolve
+# URLs (rag-corpus, lean-proofs, canonical-formulas, lake receipts, evidence,
+# k-verify, ...) with honest live|cached|pending degrade. Routes moved to FRONT
+# inside register() to win over the /{full_path:path} SPA catch-all. 0 runtime
+# browser CDN (server-side fetch, not a browser CDN load).
+# ============================================================================
+try:
+    import a11oy_hf_assets as _kc_hf_assets
+    import sys as _kchfa_sys
+    _kchfa_status = _kc_hf_assets.register(app, ns="killinchu")
+    print(f"[killinchu] dev3 HF assets instill registered: {_kchfa_status}", file=_kchfa_sys.stderr)
+    _KILLINCHU_HFA_DIAG = {"status": "ok", "registered": _kchfa_status}
+except Exception as _kchfa_e:
+    import sys as _kchfa_sys, traceback as _kchfa_tb
+    print(f"[killinchu] dev3 HF assets instill FAILED (non-fatal): {_kchfa_e!r}", file=_kchfa_sys.stderr)
+    _kchfa_tb.print_exc(file=_kchfa_sys.stderr)
+    _KILLINCHU_HFA_DIAG = {"status": "FAILED", "error": repr(_kchfa_e)}
+# ============================================================================
+# END: dev3 HF ASSETS INSTILL layer — killinchu
+# ============================================================================
+
 
 # ============================================================================
 # ENTRYPOINT — MUST be the LAST top-level block. uvicorn.run() blocks forever,

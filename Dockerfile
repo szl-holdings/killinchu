@@ -70,6 +70,8 @@ COPY serve.py ./serve.py
 # without this per-file COPY the import fails and /api/killinchu/v1/evidence/research 404s.
 ARG EVIDENCE_FIX_BUST=1780922329
 COPY szl_evidence_research.py ./szl_evidence_research.py
+# dev3 HF assets instill (Knowledge & Formulas / Evidence) — app-agnostic, server-side fetch, 0 CDN.
+COPY a11oy_hf_assets.py ./a11oy_hf_assets.py
 COPY drones_db.json ./drones_db.json
 COPY killinchu_protocols.py ./killinchu_protocols.py
 COPY killinchu_expansion.py ./killinchu_expansion.py
