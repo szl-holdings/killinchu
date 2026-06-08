@@ -13,14 +13,21 @@ name: Sync to HuggingFace Space
 #     workflow_dispatch force=true.
 #
 #   * App-file mirror (mirror-app job) — fires ONLY on pushes that touch the
-#     deployed app files (serve.py, Dockerfile, killinchu_elite_console.py,
-#     killinchu_cannonico.py). A README-only push no longer re-pushes app code
-#     or forces a no-op Space commit. PARENT must factory-rebuild the Space
-#     after this job runs. Idempotent: identical content is a no-op.
+#     deployed app files listed in the APP_FILES env below (serve.py, Dockerfile,
+#     and the route modules). A README-only push no longer re-pushes app code or
+#     forces a no-op Space commit. PARENT must factory-rebuild the Space after
+#     this job runs. Idempotent: identical content is a no-op.
 #
 # A lightweight detect job computes which file groups changed (git diff, no
 # third-party actions — org policy allows only github-owned/verified actions)
 # and gates the two jobs. workflow_dispatch runs both.
+#
+# SINGLE SOURCE OF TRUTH for the mirrored app files: the workflow-level
+# `env.APP_FILES` below. Both the detect gate and the mirror-app job read it, so
+# adding/removing a mirrored route module is a one-word change there. GitHub
+# requires `on.push.paths` to be a LITERAL list (it cannot reference env/vars),
+# so the trigger list must be kept in lockstep with APP_FILES BY HAND — adding a
+# route module = one line in on.push.paths + one word in APP_FILES.
 #
 # Credential: HF_WRITE_TOKEN (HuggingFace write token with org-write to
 # SZLHOLDINGS). The legacy HF_TOKEN secret is retired.
@@ -29,6 +36,8 @@ on:
   push:
     branches: [main]
     paths:
+      # Keep this list in lockstep with env.APP_FILES below (GitHub does not
+      # allow env/vars in on.push.paths, so it must be literal).
       - "README.md"
       - ".github/workflows/hf-sync.yml"
       - "serve.py"
@@ -44,6 +53,12 @@ on:
 
 permissions:
   contents: read
+
+env:
+  # SINGLE SOURCE OF TRUTH for the mirrored app files (space-separated). The
+  # detect gate and the mirror-app job both read this. Adding a route module is a
+  # one-word change here (plus the matching literal line in on.push.paths above).
+  APP_FILES: "serve.py Dockerfile killinchu_elite_console.py killinchu_cannonico.py"
 
 jobs:
   detect:
@@ -95,9 +110,10 @@ jobs:
             case "$f" in
               README.md|.github/workflows/hf-sync.yml) readme=true ;;
             esac
-            case "$f" in
-              serve.py|Dockerfile|killinchu_elite_console.py|killinchu_cannonico.py) app=true ;;
-            esac
+            # Match against the single-source APP_FILES list (space-separated).
+            for af in $APP_FILES; do
+              [ "$f" = "$af" ] && app=true
+            done
           done <<< "$changed"
 
           echo "readme=$readme" >> "$GITHUB_OUTPUT"
@@ -198,8 +214,8 @@ jobs:
           PYEOF
 
   # ADDITIVE: the README-only sync above cannot make an app route live. This
-  # job mirrors the deployed app files (serve.py, Dockerfile, and the two
-  # route modules) from canonical GitHub main to the Space so the Space code
+  # job mirrors the deployed app files (env.APP_FILES: serve.py, Dockerfile, and
+  # the route modules) from canonical GitHub main to the Space so the Space code
   # never drifts behind GitHub. It runs ONLY when those files actually change.
   # Idempotent: identical content is a no-op. PARENT must factory-rebuild the
   # Space after this job runs.
@@ -217,7 +233,7 @@ jobs:
           python-version: "3.12"
       - name: Install huggingface_hub
         run: pip install --quiet "huggingface_hub>=0.25"
-      - name: Mirror app files (serve.py + Dockerfile + route modules) to the Space
+      - name: Mirror app files (env.APP_FILES) to the Space
         env:
           HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
           SPACE_ID: SZLHOLDINGS/killinchu
@@ -234,8 +250,9 @@ jobs:
 
           api = HfApi(token=os.environ["HF_TOKEN"])
           space = os.environ["SPACE_ID"]
-          files = ["serve.py", "Dockerfile",
-                   "killinchu_elite_console.py", "killinchu_cannonico.py"]
+          files = os.environ["APP_FILES"].split()
+          if not files:
+              raise SystemExit("::error::APP_FILES is empty — nothing to mirror.")
           ops = []
           for f in files:
               with open(f, "rb") as fh:
