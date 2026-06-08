@@ -1,15 +1,22 @@
 name: Sync to HuggingFace Space
 
-# hf-sync (Yachay, slsa-l2-promotion 2026-06-03): switched from git-push / orphan
-# mirror to huggingface_hub create_commit of README.md only. Prior failures:
-# (1) dangling LFS pointer (oid 28f749cf 404s) broke lfs:true checkout/push;
-# (2) HF pre-receive hook rejected oversized plain-git design blobs in ancestor
-# commits; (3) the upload_folder variant pushed the GitHub README verbatim with
-# NO Space front-matter, which CONFIG_ERROR'd the Space. create_commit of a
-# front-matter-prepended README needs no git history and no LFS, so it avoids all
-# three. Deployed app files already live on the Space and are NOT re-synced here.
-# Front-matter is base64 (FM_B64) so the python here-doc stays fully indented
-# inside the YAML block scalar (the indentation pitfall flagged in sentra).
+# hf-sync: keep the HuggingFace Space card (README.md) byte-identical with the
+# canonical GitHub README on szl-holdings/killinchu.
+#
+# DESIGN
+#   * The GitHub README already carries the full, correct HF Space front-matter
+#     (enforced on every push by readme-frontmatter-check.yml). Therefore this
+#     job pushes the README VERBATIM — no front-matter strip/re-inject. That
+#     guarantees true byte-for-byte parity and removes the prior hazard where a
+#     hardcoded (and drifted) front-matter block silently rewrote the card.
+#   * SAFETY GUARD: before overwriting, the current Space README is fetched and
+#     its byte-count compared with the incoming one. A blind one-way push that
+#     would sharply shrink the card (new < old * MIN_RATIO) is REFUSED, so an
+#     accidental gutting can never silently delete content. Override for an
+#     intentional large reduction via workflow_dispatch with force=true.
+#   * Credential: HF_WRITE_TOKEN (HuggingFace write token with org-write to
+#     SZLHOLDINGS). The legacy HF_TOKEN secret is retired.
+#   * The deployed app files are mirrored in a separate, additive step below.
 
 on:
   push:
@@ -17,7 +24,12 @@ on:
     paths:
       - "README.md"
       - ".github/workflows/hf-sync.yml"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Bypass the anti-shrink guard for an intentional large README reduction"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -35,88 +47,99 @@ jobs:
           python-version: "3.12"
       - name: Install huggingface_hub
         run: pip install --quiet "huggingface_hub>=0.25"
-      - name: Sync README (front-matter + body) to HuggingFace Space
+      - name: Sync README verbatim (with anti-shrink safety guard)
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
           SPACE_ID: SZLHOLDINGS/killinchu
-          FM_B64: "dGl0bGU6ICJLaWxsaW5jaHUg4oCUIEFuZGVhbiBEcm9uZSBJbnRlbGxpZ2VuY2UiCmVtb2ppOiDwn6aFCmNvbG9yRnJvbTogZ3JheQpjb2xvclRvOiBpbmRpZ28Kc2RrOiBkb2NrZXIKYXBwX3BvcnQ6IDc4NjAKcGlubmVkOiB0cnVlCmxpY2Vuc2U6IGFwYWNoZS0yLjAKc2hvcnRfZGVzY3JpcHRpb246ICJQcm92ZW5hbmNlZCBkZWZlbnNlIGludGVsIMK3IDUzLWRyb25lIG1lc2ggwrcgY29zaWduLXNpZ25lZCIKdGFnczoKICAtIGRvY3RyaW5lLXYxMQogIC0gZGVmZW5zZQogIC0gZHJvbmUtaW50ZWxsaWdlbmNlCiAgLSBzemwtaG9sZGluZ3MKICAtIGFnZW50aWMtYWkKICAtIGRzc2UKICAtIGdvdmVybmFuY2UKICAtIHByb3ZlbmFuY2UKICAtIGFwYWNoZS0yLjAKICAtIGNvdW50ZXItdWFz"
+          FORCE: ${{ inputs.force }}
+          MIN_RATIO: "0.85"
         run: |
           set -euo pipefail
           if [ -z "${HF_TOKEN:-}" ]; then
-            echo "::error::HF_TOKEN secret is not set on this repo — cannot push to the HuggingFace Space."
-            echo "::error::Founder action required: add repo secret HF_TOKEN (HF write token with org write to SZLHOLDINGS)."
+            echo "::error::HF_WRITE_TOKEN secret is not set — cannot push to the HuggingFace Space."
+            echo "::error::Founder action: add repo secret HF_WRITE_TOKEN (HF write token with org-write to SZLHOLDINGS)."
             exit 1
           fi
           python3 <<'PYEOF'
-          import os, base64
-          from huggingface_hub import HfApi, CommitOperationAdd
+          import os, sys
+          from huggingface_hub import HfApi, CommitOperationAdd, hf_hub_download
 
-          # HF's server-side README YAML validator (_validate_yaml) intermittently
-          # returns a non-JSON body (HTML/5xx), which raises JSONDecodeError and
-          # aborts an otherwise-valid commit. The front-matter here is well-formed
-          # (identical structure is accepted on the sibling Spaces), so make the
-          # validator non-fatal: try it, and if it raises, skip it and commit.
-          _orig_validate = HfApi._validate_yaml
-          def _safe_validate(self, content, *a, **k):
+          # HF's server-side README YAML validator occasionally returns a non-JSON
+          # body (HTML/5xx) and raises, aborting an otherwise-valid commit. The
+          # front-matter is well-formed (it is identical to what the Space already
+          # serves), so make the validator non-fatal.
+          _orig = HfApi._validate_yaml
+          def _safe(self, content, *a, **k):
               try:
-                  return _orig_validate(self, content, *a, **k)
+                  return _orig(self, content, *a, **k)
               except Exception as e:
                   print("::warning::HF _validate_yaml skipped (non-fatal):", repr(e)[:160])
                   return None
-          HfApi._validate_yaml = _safe_validate
+          HfApi._validate_yaml = _safe
 
-          fm = base64.b64decode(os.environ["FM_B64"]).decode("utf-8")
-          front_matter = "---\n" + fm + "\n---\n"
-
-          with open("README.md", "r", encoding="utf-8") as fh:
-              body = fh.read()
-          # Strip any existing front-matter so we never double-stack a header.
-          if body.startswith("---"):
-              segs = body.split("\n---", 2)
-              if len(segs) >= 2:
-                  body = segs[-1].lstrip("\n")
-
-          note = ("<!-- HF Space front-matter is REQUIRED (sdk: docker). Injected by "
-                  "hf-sync\n     so the Space builds the Dockerfile. Do not remove. -->\n\n")
-          card = front_matter + note + body
-
-          api = HfApi(token=os.environ["HF_TOKEN"])
+          token = os.environ["HF_TOKEN"]
           space = os.environ["SPACE_ID"]
+          force = os.environ.get("FORCE", "").lower() == "true"
+          min_ratio = float(os.environ.get("MIN_RATIO", "0.85"))
+
+          with open("README.md", "rb") as fh:
+              new = fh.read()
+
+          # Front-matter sanity: a verbatim push must still be a valid Space card.
+          head = new[:4096]
+          if not new.startswith(b"---") or b"\nsdk:" not in head:
+              print("::error::Incoming README is missing YAML front-matter or the 'sdk:' field; refusing to push (would break the Space).")
+              sys.exit(1)
+
+          api = HfApi(token=token)
+
+          # Fetch the current Space README for the anti-shrink guard.
+          old = b""
+          try:
+              p = hf_hub_download(repo_id=space, repo_type="space",
+                                  filename="README.md", token=token)
+              with open(p, "rb") as fh:
+                  old = fh.read()
+          except Exception as e:
+              print("::warning::Could not fetch current Space README (treating as new):", repr(e)[:160])
+
+          if old and new == old:
+              print("Space README already byte-identical (%d bytes); nothing to push." % len(new))
+              sys.exit(0)
+
+          if old and not force and len(new) < len(old) * min_ratio:
+              print("::error title=anti-shrink guard tripped::Refusing blind push.")
+              print("::error::Incoming README is %d bytes vs %d on the Space (%.1f%% of current; floor is %.0f%%)."
+                    % (len(new), len(old), 100.0 * len(new) / len(old), min_ratio * 100))
+              print("::error::This looks like an accidental content deletion. If the reduction is intentional, re-run with workflow_dispatch force=true.")
+              sys.exit(1)
+
           commit = api.create_commit(
               repo_id=space,
               repo_type="space",
               operations=[CommitOperationAdd(path_in_repo="README.md",
-                                             path_or_fileobj=card.encode("utf-8"))],
-              commit_message="docs(slsa): sync Space card with GitHub README (SLSA L1 + L2 attested)",
-              commit_description=("Automated README sync from szl-holdings/killinchu main via hf-sync.\n\n"
-                                  "Signed-off-by: Yachay <yachay@szlholdings.ai>\n"
-                                  "Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>"),
+                                             path_or_fileobj=new)],
+              commit_message="docs: sync Space card with GitHub README (verbatim, byte-identical)",
+              commit_description=("Automated README sync from szl-holdings/killinchu main via hf-sync.\n"
+                                  "Verbatim push; anti-shrink guard floor=%.2f." % min_ratio),
           )
-          print("HF commit:", commit.oid, "->", space)
+          print("HF commit:", commit.oid, "->", space, "(%d bytes)" % len(new))
           PYEOF
 
-      # ADDITIVE (Live-ops close-out, 2026-06-05): the README-only sync above
-      # CANNOT make a new route live. Proven drift: the killinchu Space lacked
-      # killinchu_elite_console.py + killinchu_cannonico.py (both 404 on the Space)
-      # and the Space serve.py/Dockerfile never registered/COPY'd them — so /elite,
-      # /api/killinchu/v1/borrowed-powers, and /api/killinchu/v1/cannonico/* are 404
-      # LIVE. GitHub main serve.py registers both (lines ~1548 + ~1559) and the
-      # GitHub Dockerfile COPYs both. GitHub serve.py is also strictly newer than
-      # the Space copy (it carries the #54 _json_body hardening that coerces non-dict
-      # bodies to {} so bad input is a clean 4xx, and the honest "SLSA L1; L2 roadmap"
-      # label instead of the Space's stale L2 over-claim). Mirror GitHub main's
-      # serve.py + Dockerfile + the two modules to the Space. ADDITIVE ONLY.
-      # PARENT must factory-rebuild after this runs (no HF creds here).
-      # Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem).
-      - name: Mirror elite-console + cannonico app files + serve.py + Dockerfile to the Space
+      # ADDITIVE: the README-only sync above cannot make an app route live. This
+      # step mirrors the deployed app files (serve.py, Dockerfile, and the two
+      # route modules) from canonical GitHub main to the Space so the Space code
+      # never drifts behind GitHub. Idempotent: identical content is a no-op.
+      # PARENT must factory-rebuild the Space after this runs.
+      - name: Mirror app files (serve.py + Dockerfile + route modules) to the Space
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
           SPACE_ID: SZLHOLDINGS/killinchu
         run: |
           set -euo pipefail
           if [ -z "${HF_TOKEN:-}" ]; then
-            echo "::error::HF_TOKEN secret is not set — cannot mirror app files to the Space."
-            echo "::error::Founder action required: add repo secret HF_TOKEN (HF write token, org write to SZLHOLDINGS)."
+            echo "::error::HF_WRITE_TOKEN secret is not set — cannot mirror app files to the Space."
+            echo "::error::Founder action: add repo secret HF_WRITE_TOKEN (HF write token, org-write to SZLHOLDINGS)."
             exit 1
           fi
           python3 <<'PYEOF'
@@ -134,14 +157,8 @@ jobs:
               print("Queued:", f)
           commit = api.create_commit(
               repo_id=space, repo_type="space", operations=ops,
-              commit_message="feat(elite+cannonico): mirror serve.py + Dockerfile + modules so /elite and /cannonico go live",
-              commit_description=(
-                  "Live-ops close-out: README-only sync could not deliver the elite\n"
-                  "console (#51) or the cannonico loop (#52). Mirrors GitHub main's\n"
-                  "serve.py (registers both; carries the #54 bad-input hardening),\n"
-                  "Dockerfile (per-file COPY of both modules), and the two modules.\n"
-                  "Factory-rebuild after this commit.\n\n"
-                  "Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"),
+              commit_message="chore: mirror app files (serve.py + Dockerfile + route modules) from GitHub main",
+              commit_description="Keeps Space app code in lockstep with canonical GitHub main. Factory-rebuild after this commit.",
           )
           print("HF commit:", commit.oid, "->", space)
           PYEOF

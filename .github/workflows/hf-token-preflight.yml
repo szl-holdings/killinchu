@@ -1,26 +1,14 @@
 # Copyright 2026 SZL Holdings
 # SPDX-License-Identifier: Apache-2.0
 #
-# hf-token-preflight — fail LOUDLY when HF_TOKEN is missing.
+# hf-token-preflight — fail LOUDLY when the HuggingFace write credential is missing.
 #
 # WHY
-#   The HuggingFace Space sync (hf-sync.yml) needs the HF_TOKEN repo secret. If it
-#   is absent the Space card silently stops updating — a doctrine README (sdk:
-#   docker front-matter) drifts and nobody notices until the Space CONFIG_ERRORs.
-#   Confirmed 2026-06-03: killinchu has repo secret GHCR_TOKEN but NO HF_TOKEN, so
-#   hf-sync would fail mid-run instead of failing fast and visibly.
-#
-#   This preflight runs on every push to main and on demand. It does NOT skip when
-#   the secret is missing — it fails the run with a ::error:: and a precise founder
-#   action, so a missing secret is impossible to miss. HONESTY OVER CHECKLIST: we
-#   never report green on a sync that cannot happen.
-#
-#   The secret VALUE is never printed; only its presence is asserted.
-#
-# Doctrine v11 LOCKED 749/14/163 at kernel commit c7c0ba17 — not bumped.
-# SLSA L1 honest + L2 attested — never L3. Lambda stays Conjecture 1.
-# Signed-off-by: Yachay <yachay@szlholdings.ai>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+#   The Space sync (hf-sync.yml) needs the HF_WRITE_TOKEN repo secret. If it is
+#   absent the Space card silently stops updating and eventually drifts. This
+#   preflight runs on every push to main and on demand; it does NOT skip when the
+#   secret is missing — it fails the run with a precise founder action so a
+#   missing credential is impossible to miss. The secret VALUE is never printed.
 
 name: hf-token-preflight
 
@@ -38,44 +26,42 @@ permissions:
 
 jobs:
   assert-hf-token:
-    name: Assert HF_TOKEN present (loud-fail, no silent skip)
+    name: Assert HF_WRITE_TOKEN present (loud-fail, no silent skip)
     runs-on: ubuntu-latest
     steps:
-      - name: Fail loudly if HF_TOKEN is unset
+      - name: Fail loudly if HF_WRITE_TOKEN is unset
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${HF_TOKEN:-}" ]; then
-            echo "::error title=HF_TOKEN missing::The HF_TOKEN repo secret is NOT set on szl-holdings/killinchu."
-            echo "::error::hf-sync.yml CANNOT push the Space card without it; the HuggingFace Space SZLHOLDINGS/killinchu will drift / CONFIG_ERROR."
-            echo "::error::FOUNDER ACTION: add repo secret HF_TOKEN — a HuggingFace WRITE token with org-write to SZLHOLDINGS."
+          if [ -z "${HF_WRITE_TOKEN:-}" ]; then
+            echo "::error title=HF_WRITE_TOKEN missing::The HF_WRITE_TOKEN repo secret is NOT set on szl-holdings/killinchu."
+            echo "::error::hf-sync.yml CANNOT push the Space card without it; the HuggingFace Space SZLHOLDINGS/killinchu will drift."
+            echo "::error::FOUNDER ACTION: add repo secret HF_WRITE_TOKEN — a HuggingFace WRITE token with org-write to SZLHOLDINGS."
             echo "::error::URL: https://github.com/szl-holdings/killinchu/settings/secrets/actions/new"
             {
               echo "### hf-token-preflight: FAILED"
-              echo "Secret **HF_TOKEN** is missing. hf-sync would fail silently-ish mid-run."
+              echo "Secret **HF_WRITE_TOKEN** is missing. hf-sync would fail mid-run."
               echo ""
-              echo "**Founder action:** add repo secret \`HF_TOKEN\` (HF write token, org-write to \`SZLHOLDINGS\`) at"
+              echo "**Founder action:** add repo secret \`HF_WRITE_TOKEN\` (HF write token, org-write to \`SZLHOLDINGS\`) at"
               echo "<https://github.com/szl-holdings/killinchu/settings/secrets/actions/new>"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          echo "HF_TOKEN is present (value not printed). hf-sync can proceed."
+          echo "HF_WRITE_TOKEN is present (value not printed). hf-sync can proceed."
           {
             echo "### hf-token-preflight: OK"
-            echo "Secret \`HF_TOKEN\` is present. hf-sync to \`SZLHOLDINGS/killinchu\` is unblocked."
+            echo "Secret \`HF_WRITE_TOKEN\` is present. hf-sync to \`SZLHOLDINGS/killinchu\` is unblocked."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Validate token can reach the HF Space (non-fatal probe)
+      - name: Validate token can reach HuggingFace (non-fatal probe)
         if: success()
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
         run: |
           set -euo pipefail
-          # whoami-v2 confirms the token is valid; non-fatal so a transient HF 5xx
-          # does not block the push. Presence assertion above is the hard gate.
           code=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${HF_TOKEN}" \
+            -H "Authorization: Bearer ${HF_WRITE_TOKEN}" \
             https://huggingface.co/api/whoami-v2 || echo "000")
           if [ "$code" = "200" ]; then
             echo "HF token validated (whoami-v2 200)."
