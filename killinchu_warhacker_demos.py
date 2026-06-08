@@ -2925,6 +2925,340 @@ def _demo_quorum_splitbrain(mode, host):
         (first_fail["node"] if first_fail else None))
 
 
+
+# ===========================================================================
+# 26. CROSS-DOMAIN-DECONFLICTION — air+sea fused track deconfliction with a
+#     signed Λ-trust receipt per engagement decision.  NOVEL CAPABILITY #1.
+# ===========================================================================
+# Counter-UAS reality: an air sensor (ADS-B / Remote-ID style) and a sea sensor
+# (AIS / radar style) can BOTH report a contact that an operator must decide to
+# engage. If those two domains are fused naively, a single spoofed feed can cue
+# an effector against a friendly. The novel governed capability here is a
+# cross-domain DECONFLICTION GATE that (a) projects each domain's track to a
+# common time and frame, (b) requires the two domains to AGREE within a fused
+# covariance gate (Mahalanobis) before the contact is treated as one object,
+# (c) requires a positive deconfliction margin from every PROTECTED friendly
+# track, and (d) only then issues a per-engagement Λ-TRUST RECEIPT that records
+# WHICH evidence supported the decision. Every clause is conjunctive: if air
+# and sea DISAGREE, the receipt records DECONFLICT-FAIL and the engagement is
+# DENIED — the system refuses to fuse a disputed contact rather than guessing.
+# Tamper flips one byte of the signed trust receipt -> the chain breaks and the
+# deconfliction conclusion is no longer cryptographically attributable.
+
+# Sample/replay fused picture (NOT live): a single contact reported by both an
+# air sensor and a sea sensor, plus one protected friendly track to deconflict.
+_XD_AIR = {"sensor": "ADSB/RemoteID", "id": "AIR-7C1A2B", "lat": 32.7300, "lon": -117.1900,
+           "alt_m": 80.0, "sog_kn": 38.0, "cog_deg": 215.0, "sigma_m": 45.0}
+_XD_SEA = {"sensor": "AIS/RADAR",     "id": "SEA-RDR-19", "lat": 32.7306, "lon": -117.1894,
+           "sog_kn": 36.0, "cog_deg": 212.0, "sigma_m": 60.0}
+_XD_FRIENDLY = {"id": "OWN-USV-04", "lat": 32.6900, "lon": -117.2300, "sog_kn": 10.0, "cog_deg": 40.0}
+_XD_GATE_SIGMA = 3.0          # Mahalanobis gate: agree within 3-sigma fused error
+_XD_DECONFLICT_KM = 0.4       # min CPA from any protected friendly to clear engagement
+
+
+def _xd_project_latlon(track, dt_s):
+    """Constant-velocity dead-reckon a lat/lon track forward dt_s seconds."""
+    vx, vy = _vessel_velocity_mps(track["sog_kn"], track["cog_deg"])  # (east, north) m/s
+    m_per_deg = 111320.0
+    lat = track["lat"] + (vy * dt_s) / m_per_deg
+    lon = track["lon"] + (vx * dt_s) / (m_per_deg * math.cos(math.radians(track["lat"])))
+    return lat, lon
+
+
+def _demo_cross_domain_deconfliction(mode, host):
+    tl = _Timeline()
+    chain = _KhipuChain()
+
+    air = dict(_XD_AIR)
+    sea = dict(_XD_SEA)
+    if mode == "tamper":
+        # ADVERSARY spoofs the SEA feed onto a different bearing/position so the
+        # two domains describe DIFFERENT objects -> must NOT be fused/engaged.
+        sea = dict(_XD_SEA)
+        sea.update({"lat": 32.7480, "lon": -117.1700, "cog_deg": 95.0, "sog_kn": 22.0})
+
+    tl.run("Ingest cross-domain tracks: air sensor + sea sensor (sample/replay — NOT live)",
+           lambda: {"air": air, "sea": sea, "protected_friendly": _XD_FRIENDLY,
+                    "source": "sample/replay fused picture; live multi-sensor fusion = roadmap"},
+           kind="ingest")
+
+    # (a) project both domains to a common epoch (here dt=0; identity but explicit)
+    a_lat, a_lon = _xd_project_latlon(air, 0.0)
+    s_lat, s_lon = _xd_project_latlon(sea, 0.0)
+    sep_m = _haversine_m(a_lat, a_lon, s_lat, s_lon)
+    fused_sigma = math.sqrt(air["sigma_m"] ** 2 + sea["sigma_m"] ** 2)
+    maha = sep_m / (fused_sigma or 1e-9)   # 1-D Mahalanobis distance in fused error units
+    agree = maha <= _XD_GATE_SIGMA
+    assoc_val = {"separation_m": round(sep_m, 1), "fused_sigma_m": round(fused_sigma, 1),
+                 "mahalanobis": round(maha, 3), "gate_sigma": _XD_GATE_SIGMA,
+                 "domains_agree": agree,
+                 "rule": "domains describe ONE object iff sep <= %.0f * fused_sigma" % _XD_GATE_SIGMA}
+    if not agree:
+        assoc_val["_step_failed"] = True
+    tl.run("Cross-domain association gate (Mahalanobis fused-covariance agreement)",
+           lambda: assoc_val, kind="gate")
+
+    # (b) deconflict the fused contact from every protected friendly track (CPA)
+    contact = {"lat": (a_lat + s_lat) / 2.0, "lon": (a_lon + s_lon) / 2.0,
+               "sog_kn": (air["sog_kn"] + sea["sog_kn"]) / 2.0,
+               "cog_deg": (air["cog_deg"] + sea["cog_deg"]) / 2.0}
+    cpa_m, tcpa_s = _cpa_tcpa(_XD_FRIENDLY, contact)
+    cpa_km = cpa_m / 1000.0
+    clear = cpa_km >= _XD_DECONFLICT_KM
+    deconf_val = {"cpa_km_to_friendly": round(cpa_km, 3), "tcpa_s": round(tcpa_s, 1),
+                  "min_clearance_km": _XD_DECONFLICT_KM, "deconflicted": clear,
+                  "rule": "engage only if CPA to every protected friendly >= %.1f km" % _XD_DECONFLICT_KM}
+    if not clear:
+        deconf_val["_step_failed"] = True
+    tl.run("Friendly deconfliction gate (fused-contact CPA vs protected track)",
+           lambda: deconf_val, kind="gate")
+
+    # (c) conjunctive Λ-trust authority: agree AND deconflicted -> authorize
+    authorized = bool(agree and clear)
+    decision = "ENGAGE-AUTHORIZED (deconflicted)" if authorized else "ENGAGE-DENIED (deconfliction failed)"
+    why = []
+    if not agree:
+        why.append("air/sea domains disagree (>%.0f-sigma) — disputed contact, refuse to fuse" % _XD_GATE_SIGMA)
+    if not clear:
+        why.append("fused contact CPA %.3f km < %.1f km from protected friendly" % (cpa_km, _XD_DECONFLICT_KM))
+    if authorized:
+        why.append("both domains agree within fused gate AND clear of all friendlies")
+
+    # The Λ-TRUST RECEIPT: the signed engagement event records exactly which
+    # evidence (per-clause) supported the authority decision.
+    trust_receipt = {
+        "lambda_trust_clauses": {
+            "domain_agreement": {"pass": agree, "mahalanobis": round(maha, 3), "gate_sigma": _XD_GATE_SIGMA},
+            "friendly_deconfliction": {"pass": clear, "cpa_km": round(cpa_km, 3),
+                                       "min_clearance_km": _XD_DECONFLICT_KM},
+        },
+        "authority": "ENGAGE" if authorized else "DENY",
+        "conjunctive": "authority = domain_agreement AND friendly_deconfliction (HITL advisory)",
+    }
+    event = {"event": "cross_domain_engagement_decision", "timestamp_utc": _now(),
+             "decision": decision, "authorized": authorized,
+             "air_id": air["id"], "sea_id": sea["id"], "friendly_id": _XD_FRIENDLY["id"],
+             "mahalanobis": round(maha, 3), "cpa_km_to_friendly": round(cpa_km, 3),
+             "lambda_trust": trust_receipt}
+    sealed, receipt = _seal_and_receipt(chain, host, mode, decision, event)
+    receipt["lambda_trust"] = trust_receipt
+    tl.run("DSSE-sign Λ-TRUST engagement receipt + append to chain",
+           lambda: {"signed": sealed["signed"], "receipt_id": receipt["receipt_id"],
+                    "authority": trust_receipt["authority"], "merkle_root": sealed["merkle_root"]},
+           kind="seal")
+
+    catch_tree = [
+        {"node": "domain_agreement",
+         "label": "Mahalanobis %.2f <= %.0f-sigma gate" % (maha, _XD_GATE_SIGMA), "pass": agree},
+        {"node": "friendly_deconfliction",
+         "label": "CPA %.3f km >= %.1f km from friendly" % (cpa_km, _XD_DECONFLICT_KM), "pass": clear},
+    ]
+    first_fail = next((c for c in catch_tree if not c["pass"]), None)
+
+    return _wh_envelope(
+        "cross-domain-deconfliction", mode,
+        "CROSS-DOMAIN-DECONFLICTION — air+sea fused track deconfliction with a signed Λ-trust receipt",
+        "REAL TODAY — projection, Mahalanobis association + CPA deconfliction computed live; multi-sensor picture = sample/replay",
+        decision, authorized,
+        ("Air + sea agree at %.2f-sigma and the fused contact clears the protected friendly by %.3f km; "
+         "ENGAGE-AUTHORIZED with a signed Λ-trust receipt." % (maha, cpa_km) if authorized else
+         "Spoofed sea feed puts the two domains %.2f-sigma apart (disputed contact); the system REFUSES to fuse "
+         "and the Λ-trust receipt records ENGAGE-DENIED + the failing clause — no effector cued on a guess."
+         % maha),
+        {"air_track": air, "sea_track": sea, "protected_friendly": _XD_FRIENDLY,
+         "association": assoc_val, "deconfliction": deconf_val,
+         "lambda_trust_receipt": trust_receipt, "decision_rationale": why},
+        [{"formula": "Cross-domain association (Mahalanobis fused-covariance gate)",
+          "role": "do air + sea describe ONE object?",
+          "expr": "sep = haversine(air, sea); fused_sigma = sqrt(s_air^2 + s_sea^2); agree iff sep <= k*fused_sigma",
+          "status": "Computed live; deny-by-default when domains disagree (refuse to fuse a disputed contact).",
+          "proven_where": "gating-association (chi-square 1-D gate) — pattern; computed"},
+         {"formula": "Friendly deconfliction (CPA/TCPA, G1)",
+          "role": "is the fused contact clear of every protected friendly?",
+          "expr": "CPA(friendly, fused_contact) >= min_clearance; conjunctive with association",
+          "status": "Computed live from relative motion (constant-velocity).",
+          "proven_where": "relative-motion CPA (computed); shared with collision-cpa"},
+         {"formula": "Λ-trust conjunctive authority + signed receipt",
+          "role": "per-engagement trust attribution",
+          "expr": "authority = domain_agreement AND friendly_deconfliction; signed event records each clause",
+          "status": "Advisory/HITL. Conjunctive gate = P2 gate-soundness PROVEN; Λ uniqueness = Conjecture 1.",
+          "proven_where": "P2 gate-soundness; Λ = Conjecture 1 (advisory)"},
+         _SEAL_FP],
+        ("The projection, Mahalanobis association distance, and CPA deconfliction are all computed live from the "
+         "track states; the Λ-trust receipt is a real DSSE-signed event that records exactly which clauses "
+         "authorized (or denied) the engagement. The tamper run spoofs the sea feed onto a different object AND "
+         "flips ONE byte in the signed receipt -> the chain breaks, so the deconfliction conclusion is no longer "
+         "cryptographically attributable. Multi-sensor tracks are labeled sample/replay; engagement is HITL-advisory."),
+        chain, sealed, receipt, tl.as_list(), catch_tree,
+        (first_fail["node"] if first_fail else None))
+
+
+# ===========================================================================
+# 27. SENSOR-DENIED-ATTEST — honest "sensor-denied" degraded mode that PROVES
+#     degradation cryptographically instead of hallucinating tracks. NOVEL #2.
+# ===========================================================================
+# Counter-UAS reality: under GNSS jamming / RF denial / sensor dropout, a naive
+# system keeps emitting confident tracks (dead-reckoned or fabricated), which is
+# exactly when an operator is most likely to be deceived. The novel governed
+# capability here is a DEGRADED-MODE ATTESTATION: when sensor health crosses a
+# denial threshold, the system (a) measures which sensors are denied and by how
+# much (C/N0 drop, RAIM failure, RF noise floor), (b) inflates the track
+# covariance accordingly and computes whether any track still meets the minimum
+# confidence for action, (c) REFUSES to emit tracks it cannot support and
+# instead signs a degraded-mode attestation that records the denial evidence and
+# a covariance floor — a cryptographic proof "we are degraded; we are NOT
+# fabricating." Nominal = sensors healthy, tracks emitted normally. Tamper =
+# denial detected -> attestation issued; flipping one byte breaks the proof.
+
+_SD_SENSORS = [  # sample/replay sensor-health observables (NOT live)
+    {"sensor": "GNSS",   "cn0_dbhz": 44.0, "cn0_floor_dbhz": 30.0, "raim_ok": True},
+    {"sensor": "RADAR",  "snr_db": 18.0,   "snr_floor_db": 8.0,    "raim_ok": True},
+    {"sensor": "RF-DF",  "noise_dbm": -95.0, "noise_floor_dbm": -80.0, "raim_ok": True},
+]
+_SD_BASE_SIGMA_M = 30.0       # nominal track 1-sigma
+_SD_ACTION_SIGMA_M = 150.0    # max 1-sigma at which a track is action-grade
+
+
+def _demo_sensor_denied_attest(mode, host):
+    tl = _Timeline()
+    chain = _KhipuChain()
+
+    sensors = [dict(s) for s in _SD_SENSORS]
+    if mode == "tamper":
+        # DENIAL EVENT: GNSS jammed (C/N0 collapses below floor, RAIM fails) and
+        # RF-DF swamped (noise above floor). The honest response is to DEGRADE.
+        sensors[0].update({"cn0_dbhz": 22.0, "raim_ok": False})
+        sensors[2].update({"noise_dbm": -72.0})
+
+    tl.run("Ingest sensor-health observables (C/N0, SNR, RAIM, RF noise — sample/replay)",
+           lambda: {"sensors": sensors,
+                    "source": "sample/replay sensor health; live SDR/GNSS telemetry = roadmap"},
+           kind="ingest")
+
+    # (a) per-sensor denial detection + covariance-inflation factor
+    denied = []
+    inflation = 1.0
+    for s in sensors:
+        d = False
+        margin = None
+        if s["sensor"] == "GNSS":
+            d = (s["cn0_dbhz"] < s["cn0_floor_dbhz"]) or (not s["raim_ok"])
+            margin = round(s["cn0_dbhz"] - s["cn0_floor_dbhz"], 1)
+        elif s["sensor"] == "RADAR":
+            d = s["snr_db"] < s["snr_floor_db"]
+            margin = round(s["snr_db"] - s["snr_floor_db"], 1)
+        elif s["sensor"] == "RF-DF":
+            d = s["noise_dbm"] > s["noise_floor_dbm"]
+            margin = round(s["noise_floor_dbm"] - s["noise_dbm"], 1)
+        if d:
+            denied.append({"sensor": s["sensor"], "margin": margin, "raim_ok": s.get("raim_ok", True)})
+            inflation *= 3.0   # each denied sensor triples positional uncertainty
+    health_val = {"denied_sensors": [d["sensor"] for d in denied], "denial_detail": denied,
+                  "covariance_inflation": round(inflation, 2),
+                  "rule": "denied(GNSS) iff C/N0<floor OR RAIM fail; denied(RF) iff noise>floor"}
+    tl.run("Sensor-denial detection + covariance-inflation factor", lambda: health_val, kind="compute")
+
+    # (b) inflated track confidence vs the action-grade threshold
+    inflated_sigma = _SD_BASE_SIGMA_M * inflation
+    action_grade = inflated_sigma <= _SD_ACTION_SIGMA_M
+    degraded = len(denied) > 0
+    conf_val = {"base_sigma_m": _SD_BASE_SIGMA_M, "inflated_sigma_m": round(inflated_sigma, 1),
+                "action_sigma_m": _SD_ACTION_SIGMA_M, "action_grade": action_grade,
+                "degraded": degraded,
+                "rule": "track is action-grade iff inflated 1-sigma <= %.0f m" % _SD_ACTION_SIGMA_M}
+    if degraded and not action_grade:
+        conf_val["_step_failed"] = True
+    tl.run("Track-confidence gate under inflated covariance (action-grade?)",
+           lambda: conf_val, kind="gate")
+
+    # (c) honest verdict: if degraded below action-grade, REFUSE to emit tracks
+    #     and instead sign a degraded-mode attestation (proof of degradation).
+    if not degraded:
+        decision = "SENSORS HEALTHY — tracks emitted at nominal confidence"
+        fabricated_refused = 0
+    elif action_grade:
+        decision = "DEGRADED — tracks emitted with inflated covariance (still action-grade)"
+        fabricated_refused = 0
+    else:
+        decision = "SENSOR-DENIED — DEGRADED MODE: refusing to emit unsupported tracks"
+        fabricated_refused = 1  # we explicitly DID NOT fabricate the track we cannot support
+
+    attestation = {
+        "mode": "DEGRADED" if degraded else "NOMINAL",
+        "denied_sensors": [d["sensor"] for d in denied],
+        "covariance_floor_m": round(inflated_sigma, 1),
+        "action_grade": action_grade,
+        "fabricated_tracks_refused": fabricated_refused,
+        "claim": ("System is operating degraded; positional covariance is inflated to the recorded floor; "
+                  "no track is asserted above its supportable confidence."
+                  if degraded else "All sensors nominal; tracks asserted at base confidence."),
+    }
+    event = {"event": "sensor_denied_attestation", "timestamp_utc": _now(),
+             "decision": decision, "degraded": degraded, "action_grade": action_grade,
+             "denied_sensors": [d["sensor"] for d in denied],
+             "covariance_floor_m": round(inflated_sigma, 1),
+             "fabricated_tracks_refused": fabricated_refused}
+    sealed, receipt = _seal_and_receipt(chain, host, mode, decision, event)
+    receipt["degraded_mode_attestation"] = attestation
+    tl.run("DSSE-sign degraded-mode attestation + append to chain",
+           lambda: {"signed": sealed["signed"], "receipt_id": receipt["receipt_id"],
+                    "mode": attestation["mode"], "merkle_root": sealed["merkle_root"]},
+           kind="seal")
+
+    catch_tree = [
+        {"node": "gnss_health",
+         "label": "GNSS C/N0 %.0f vs floor %.0f, RAIM=%s" %
+                  (sensors[0]["cn0_dbhz"], sensors[0]["cn0_floor_dbhz"], sensors[0]["raim_ok"]),
+         "pass": (sensors[0]["cn0_dbhz"] >= sensors[0]["cn0_floor_dbhz"]) and sensors[0]["raim_ok"]},
+        {"node": "rf_health",
+         "label": "RF-DF noise %.0f vs floor %.0f dBm" % (sensors[2]["noise_dbm"], sensors[2]["noise_floor_dbm"]),
+         "pass": sensors[2]["noise_dbm"] <= sensors[2]["noise_floor_dbm"]},
+        {"node": "action_grade",
+         "label": "inflated 1-sigma %.0f m <= %.0f m" % (inflated_sigma, _SD_ACTION_SIGMA_M),
+         "pass": action_grade or (not degraded)},
+    ]
+    first_fail = next((c for c in catch_tree if not c["pass"]), None)
+
+    return _wh_envelope(
+        "sensor-denied-attest", mode,
+        "SENSOR-DENIED-ATTEST — cryptographic degraded-mode attestation (proves degradation, refuses to fabricate)",
+        "REAL TODAY — denial detection, covariance inflation + action-grade gate computed live; sensor health = sample/replay",
+        decision, (not degraded) or action_grade,
+        ("All sensors nominal (GNSS C/N0=%.0f, RAIM ok); tracks emitted at base 1-sigma=%.0f m; signed."
+         % (sensors[0]["cn0_dbhz"], _SD_BASE_SIGMA_M) if not degraded else
+         "GNSS jammed (C/N0=%.0f<floor, RAIM fail) + RF swamped: covariance inflated to 1-sigma=%.0f m > %.0f m "
+         "action threshold. The system SIGNS a degraded-mode attestation and REFUSES to emit %d unsupported "
+         "track(s) — degradation is proven cryptographically, not hidden behind fabricated tracks."
+         % (sensors[0]["cn0_dbhz"], inflated_sigma, _SD_ACTION_SIGMA_M, fabricated_refused)),
+        {"sensors": sensors, "denial": health_val, "confidence": conf_val,
+         "degraded_mode_attestation": attestation},
+        [{"formula": "Sensor-denial detection (C/N0 / RAIM / RF noise-floor)",
+          "role": "is a sensor denied/jammed?",
+          "expr": "denied(GNSS)=C/N0<floor OR ~RAIM; denied(RF)=noise>floor; denied(RADAR)=SNR<floor",
+          "status": "Computed live from observables; deny-by-default on threshold crossing.",
+          "proven_where": "RAIM / C/N0 jamming-detection — pattern; computed"},
+         {"formula": "Covariance inflation + action-grade gate",
+          "role": "may a track be asserted under degradation?",
+          "expr": "sigma_inflated = sigma_base * 3^(#denied); action-grade iff sigma_inflated <= sigma_action",
+          "status": "Computed live; refuses to assert tracks beyond supportable covariance.",
+          "proven_where": "covariance inflation under sensor loss — pattern; computed"},
+         {"formula": "Degraded-mode attestation (signed proof of degradation)",
+          "role": "cryptographic honesty under denial",
+          "expr": "signed event records denied sensors + covariance floor + count of tracks REFUSED (not fabricated)",
+          "status": "PROVEN tamper-evidence (P5); the attestation cannot be silently altered.",
+          "proven_where": "PR#188 P5; sigstore/rekor (Apache-2.0)"},
+         _SEAL_FP],
+        ("Denial detection, covariance inflation, and the action-grade gate are computed live from the sensor "
+         "observables; the degraded-mode attestation is a real DSSE-signed event that records exactly which "
+         "sensors are denied, the covariance floor, and the number of tracks the system REFUSED to fabricate. "
+         "The tamper run jams GNSS + RF and flips ONE byte in the signed attestation -> the chain breaks, so a "
+         "forged 'healthy' claim cannot survive verification. Sensor health is labeled sample/replay; live "
+         "SDR/GNSS telemetry is roadmap."),
+        chain, sealed, receipt, tl.as_list(), catch_tree,
+        (first_fail["node"] if first_fail else None))
+
+
+
 # ===========================================================================
 # DISPATCH + REGISTRATION
 # ===========================================================================
@@ -2956,6 +3290,9 @@ _DEMOS = {
     "gershgorin-degeneracy": _demo_gershgorin_degeneracy,
     "rf-df-spoof": _demo_rf_df_spoof,
     "quorum-splitbrain": _demo_quorum_splitbrain,
+    # --- 2 NOVEL governed counter-UAS capabilities (26..27) ---
+    "cross-domain-deconfliction": _demo_cross_domain_deconfliction,
+    "sensor-denied-attest": _demo_sensor_denied_attest,
 }
 
 _DEMO_META = [
@@ -3009,11 +3346,20 @@ _DEMO_META = [
      "real_or_roadmap": "REAL TODAY (DF bearings sample/replay)", "tab": "warhacker"},
     {"key": "quorum-splitbrain", "title": "QUORUM-SPLITBRAIN — C2 quorum split-brain authority (majority + epoch)",
      "real_or_roadmap": "REAL TODAY (cluster state sample/replay)", "tab": "warhacker"},
+    {"key": "cross-domain-deconfliction",
+     "title": "CROSS-DOMAIN-DECONFLICTION \u2014 air+sea fused track deconfliction with a signed \u039b-trust receipt (NOVEL)",
+     "real_or_roadmap": "REAL TODAY (Mahalanobis association + CPA deconfliction computed; multi-sensor picture sample/replay)",
+     "tab": "warhacker", "novel": True},
+    {"key": "sensor-denied-attest",
+     "title": "SENSOR-DENIED-ATTEST \u2014 cryptographic degraded-mode attestation, proves degradation & refuses to fabricate (NOVEL)",
+     "real_or_roadmap": "REAL TODAY (denial detection + covariance inflation computed; sensor health sample/replay)",
+     "tab": "warhacker", "novel": True},
 ]
 
 
 def register(app, sign_fn=None, verify_fn=None, ns="killinchu"):
-    """Register the 25 maritime/drone Warhacker demo endpoints. Purely additive;
+    """Register the 27 maritime/drone Warhacker demo endpoints (25 baseline + 2
+    NOVEL governed counter-UAS capabilities). Purely additive;
     inserted BEFORE the SPA catch-all so they win route ordering. The sign_fn is
     the REAL killinchu cosign DSSE signer (szl_dsse.sign_payload)."""
     host = {"sign": sign_fn, "verify": verify_fn}
@@ -3021,7 +3367,7 @@ def register(app, sign_fn=None, verify_fn=None, ns="killinchu"):
 
     async def _index(request: Request):
         return JSONResponse({
-            "ok": True, "product": "killinchu Warhacker maritime/drone demos (25)",
+            "ok": True, "product": "killinchu Warhacker maritime/drone demos (27: 25 baseline + 2 novel)",
             "count": len(_DEMO_META), "demos": _DEMO_META, "modes": ["nominal", "tamper"],
             "launch_at": "/api/%s/v1/warhacker/launch/{key}" % ns,
             "lambda_status": _LAMBDA_STATUS,
