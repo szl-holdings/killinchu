@@ -938,7 +938,7 @@ let _globe=null;
 // (its own THREE renderer only). Frees the GL slot on software-GL hosts so the next
 // 3D/globe tab gets a clean context instead of "existing context of a different type".
 function loseGL(inst){try{if(inst&&typeof inst.renderer==='function'){var rdr=inst.renderer();if(rdr&&rdr.forceContextLoss)rdr.forceContextLoss();if(rdr&&rdr.dispose)rdr.dispose();}}catch(e){}}
-function killGlobe(){if(_globe){loseGL(_globe);try{_globe._destructor&&_globe._destructor();}catch(e){}_globe=null;}}
+function killGlobe(){if(_globe){try{_globe.pauseAnimation&&_globe.pauseAnimation();}catch(e){}try{var ctr=_globe.controls&&_globe.controls();if(ctr){ctr.autoRotate=false;if(ctr.dispose)ctr.dispose();}}catch(e){}loseGL(_globe);try{_globe._destructor&&_globe._destructor();}catch(e){}_globe=null;}}
 let _cy=null;
 function killCy(){if(_cy){try{_cy.destroy();}catch(e){}_cy=null;}}
 let _twinR=null;  // Health-Twin Three.js renderer (own GL context — released on view switch)
@@ -6481,7 +6481,7 @@ async function fleet_c2_init(){
   setHTML('fc-raw',esc(JSON.stringify({feed_live:feedLive,assets:assets.length,flagged:flagged.length,last_anomaly_receipt:lastReceipt},null,2)));
   fleet_c2_globe(assets);
 }
-function fleet_c2_globe(assets){
+function fleet_c2_globe(assets,_try){
   var box=el('fc-globe'); if(!box||typeof Globe==='undefined')return;
   var pts=assets.map(function(a){return {lat:a.lat,lng:a.lon,size:a.kind==='air'?0.14:0.10,
     color:a.health.color, label:a.name+' · '+a.kind+' · health '+a.health.status+' (inferred)', _a:a};});
@@ -6507,7 +6507,11 @@ function fleet_c2_globe(assets){
   try{ _globe.controls().autoRotate=true; _globe.controls().autoRotateSpeed=0.35; }catch(e){}
   // re-fit after layout settles (mirrors the working pl-globe 300ms re-fit; covers tab-activation 0-size race)
   setTimeout(function(){try{var w=box.clientWidth||bw,h=box.clientHeight||bh;_globe.width(w).height(h);}catch(e){}},120);
-  setTimeout(function(){try{var w=box.clientWidth||bw,h=box.clientHeight||bh;_globe.width(w).height(h);}catch(e){}},600);
+  setTimeout(function(){try{var w=box.clientWidth||bw,h=box.clientHeight||bh;_globe.width(w).height(h);}catch(e){}
+    /* GL context pool can be momentarily exhausted after several consecutive 3D tabs; if no
+       WebGL canvas appeared, release and re-init ONCE so the globe never silently blanks. */
+    if(box && !box.querySelector('canvas') && !_try){ try{killGlobe();}catch(e2){} box.innerHTML=''; setTimeout(function(){fleet_c2_globe(assets,1);},150); }
+  },600);
 }
 async function fleet_c2_asset(a){
   var h=a.health;
