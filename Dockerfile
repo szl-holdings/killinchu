@@ -66,6 +66,9 @@ COPY cathedral.html ./cathedral.html
 COPY operator_shell_v4.py ./operator_shell_v4.py
 COPY web/operator.html ./web/operator.html
 COPY serve.py ./serve.py
+# Evidence & Research backend (curated + live arXiv/GitHub). serve.py imports this;
+# without this per-file COPY the import fails and /api/killinchu/v1/evidence/research 404s.
+COPY szl_evidence_research.py ./szl_evidence_research.py
 COPY drones_db.json ./drones_db.json
 COPY killinchu_protocols.py ./killinchu_protocols.py
 COPY killinchu_expansion.py ./killinchu_expansion.py
