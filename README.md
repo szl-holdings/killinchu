@@ -1,6 +1,7 @@
 ---
 title: "killinchu — Andean Drone Intelligence"
 emoji: "🦅"
+thumbnail: "https://killinchu.a11oy.net/og-card.png"
 colorFrom: gray
 colorTo: indigo
 sdk: docker
