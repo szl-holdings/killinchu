@@ -68,6 +68,7 @@ COPY web/operator.html ./web/operator.html
 COPY serve.py ./serve.py
 # Evidence & Research backend (curated + live arXiv/GitHub). serve.py imports this;
 # without this per-file COPY the import fails and /api/killinchu/v1/evidence/research 404s.
+ARG EVIDENCE_FIX_BUST=1780922329
 COPY szl_evidence_research.py ./szl_evidence_research.py
 COPY drones_db.json ./drones_db.json
 COPY killinchu_protocols.py ./killinchu_protocols.py
