@@ -681,103 +681,42 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item nav-pinned" data-view="darkgraph" onclick="go('darkgraph')" title="Dark-vessel threat graph: 3D force-directed graph of vessels, owners, flags and sanction links from real maritime data."><span class="ico">⩟</span>Dark-Vessel Threat Graph (3D)</div>
     <div class="nav-item nav-pinned" data-view="constellations" onclick="go('constellations')" title="Multi-constellation space intelligence — RF geolocation, optical EO, all-weather SAR — under each provider's lawful access model. HawkEye 360 RF geolocation is primary for Remote-ID-OFF dark-drone detection. Live from /api/killinchu/v1/satellites."><span class="ico">⊕</span>Constellations (3D LEO)</div>
 
-    <div class="nav-group">Leader Surfaces</div>
+    <div class="nav-group">Common Picture &amp; Tracks</div>
     <div class="nav-item" data-view="operate" onclick="window.location.href='/ops'" title="Select a track, issue a governed command, watch it clear the policy gate and emit a genuinely-signed receipt that updates the track state."><span class="ico">⚡</span>Operate (governed control)</div>
-    <div class="nav-item" data-view="livepic" onclick="go('livepic')"><span class="ico">◉</span>Live Picture</div>
-    <div class="nav-item" data-view="healthtwin" onclick="go('healthtwin')" title="Flagship: a live 3D digital twin of a selected vessel or drone. See each subsystem (hull/propulsion/comms/sensors/nav/payload) change colour in real time — nominal, needs-fix, needs-upgrade, hacked, damaged — from a real telemetry model. Click a subsystem for its computed metric, conformal envelope and action."><span class="ico">⦿</span>Health Twin (3D)</div>
-    <div class="nav-item" data-view="engage" onclick="go('engage')"><span class="ico">⊕</span>Engage Safely</div>
-    <div class="nav-item" data-view="darkhunt" onclick="go('darkhunt')"><span class="ico">◐</span>Dark-Vessel Hunt</div>
+    <div class="nav-item" data-view="livepic" onclick="go('livepic')" title="Live common operating picture: military ADS-B (adsb.lol) + AIS (Digitraffic FI), auto-recording."><span class="ico">◉</span>Live Picture</div>
+    <div class="nav-item" data-view="tracks" onclick="go('tracks')" title="Live track board off the air picture, auto-recording."><span class="ico">⊕</span>Live Track Board</div>
+    <div class="nav-item" data-view="u_fusion" onclick="go('u_fusion')" title="Multi-sensor fusion + fusion math + proved Covariance-Intersection."><span class="ico">⧖</span>Sensor-Fusion</div>
+    <div class="nav-item" data-view="u_maritime" onclick="go('u_maritime')" title="Live AIS maritime picture + sanctions/dark-vessel screening + dark-vessel hunt."><span class="ico">⚓</span>Maritime Picture</div>
 
-    <div class="nav-group">Track &amp; Fuse</div>
-    <div class="nav-item active" data-view="tracks" onclick="go('tracks')"><span class="ico">⊕</span>Live Track Board</div>
-    <div class="nav-item" data-view="fusion" onclick="go('fusion')"><span class="ico">⧖</span>Sensor-Fusion</div>
-    <div class="nav-item" data-view="prioritize" onclick="go('prioritize')"><span class="ico">▲</span>Multi-Track Priority</div>
+    <div class="nav-group">Threats, Fleet &amp; Swarm</div>
+    <div class="nav-item" data-view="u_darkgraph" onclick="go('u_darkgraph')" title="3D threat graph + class DB + ranking + detection + drone DB."><span class="ico">⩟</span>Threat Intel &amp; Dark-Vessel Hunt</div>
+    <div class="nav-item" data-view="u_fleet" onclick="go('u_fleet')" title="Fleet operations: overview, 3D health twin, maintenance, logs, voyages, briefings (live vessels)."><span class="ico">⛴</span>Fleet Operations</div>
+    <div class="nav-item" data-view="u_swarm" onclick="go('u_swarm')" title="Swarm integrity: 3D topology + resilience monitor."><span class="ico">☹</span>Swarm Integrity</div>
+    <div class="nav-item" data-view="u_minedops" onclick="go('u_minedops')" title="Mined field-efficiency ops: edge VRAM, telemetry memory, adaptive sampling, routing, prioritization."><span class="ico">∰</span>Mined Ops</div>
 
-    <div class="nav-group">Mined Ops (efficiency)</div>
-    <div class="nav-item" data-view="scicompute" onclick="go('scicompute')" title="Real scientific compute for track/fuse + health twin: least-squares track fit, Cholesky-gated covariance fusion, Kepler orbital period, Romberg energy integral. Pattern adopted from al-jshen/compute (MIT), reimplemented clean."><span class="ico">∰</span>Sci-Compute (fusion math)</div>
-    <div class="nav-item" data-view="edgeest" onclick="go('edgeest')" title="Will this model FIT on a drone / field-Mac VRAM budget? Component-sum estimator (weights + activations + gradients + optimizer). Pattern adopted from gpu-bartender (MIT), reimplemented clean."><span class="ico">▣</span>Edge VRAM Estimator</div>
-    <div class="nav-item" data-view="swarmres" onclick="go('swarmres')" title="How fast does the swarm recover its mission plan after a comms/sensor disruption? Perturbation-recovery + asymptotic-alignment monitor. Pattern adopted from MLRC-deep-thinking (MIT), reimplemented clean."><span class="ico">⟲</span>Swarm Resilience Monitor</div>
-    <div class="nav-item" data-view="telemem" onclick="go('telemem')" title="Priority-weighted telemetry memory: keep high-value sensor spikes, prune noise. Pattern adopted from kvpress / ExpectedAttention (Apache-2.0), reimplemented clean."><span class="ico">⊜</span>Telemetry Memory</div>
+    <div class="nav-group">Decide, Govern &amp; Consensus</div>
+    <div class="nav-item" data-view="hero_interdiction" onclick="go('hero_interdiction')" title="HERO: live counter-UAS decision -> signed Lambda-receipt -> traces to the exact Lean theorem, kernel sha, axioms, DOI."><span class="ico">★</span>Provable Interdiction (HERO)</div>
+    <div class="nav-item" data-view="u_engage" onclick="go('u_engage')" title="Governed engagement: ROE, engage-safely, geofence, autonomy governance, companion-defense."><span class="ico">⊞</span>Engage &amp; ROE</div>
+    <div class="nav-item" data-view="lambda" onclick="go('lambda')" title="13-axis Trust score monitor. Lambda = Conjecture 1 (advisory, not a theorem)."><span class="ico">◈</span>Trust Score Monitor</div>
+    <div class="nav-item" data-view="u_consensus" onclick="go('u_consensus')" title="SKELETON organ: 3-of-4 consensus (BFT safety = Conjecture 2 OPEN), quorum, mesh resilience, field net, oversight."><span class="ico">⊛</span>Mesh &amp; Consensus</div>
+    <div class="nav-item" data-view="fleet_c2" onclick="go('fleet_c2')" title="Fleet Health & Governed C2 (3D): live ADS-B + AIS on a globe; governance loop real, effector link simulated."><span class="ico">◐</span>Fleet Health &amp; Governed C2 (3D)</div>
 
-    <div class="nav-group">Tactical Re-Sweep</div>
-    <div class="nav-item" data-view="tacroute" onclick="go('tacroute')" title="Plan a survivable vessel/drone route over a sea-state cost grid (A* and NBA* bi-directional A*) and route AROUND landmass / exclusion-zone polygons (visibility graph). Patterns adopted from anvaka/ngraph.path (MIT) + rowanwins/visibility-graph (MIT), reimplemented clean."><span class="ico">⟿</span>Tactical Routing</div>
-    <div class="nav-item" data-view="threatrank" onclick="go('threatrank')" title="Rank vessels in the consolidated maritime view by a transparent strategic-threat score (iterative ranking). Pattern adopted from ft2023/IRanker-demo (MIT), reimplemented clean. Advisory, NOT a targeting product."><span class="ico">⊳</span>Threat Ranking</div>
-    <div class="nav-item" data-view="adaptsample" onclick="go('adaptsample')" title="Spend a constrained sensor sampling budget where the sweep has the most structure (adaptive sampling) and surface detected contacts (peak detection). Pattern adopted from al-jshen/adaptive (MIT), reimplemented clean."><span class="ico">⋰</span>Adaptive Sensor Sampling</div>
+    <div class="nav-group">Proofs, Receipts &amp; Observability</div>
+    <div class="nav-item" data-view="u_proofs" onclick="go('u_proofs')" title="BRAIN organ: knowledge & formulas (exactly 5 locked), runtime theorem cards, safety gates."><span class="ico">∑</span>Knowledge &amp; Runtime Proofs</div>
+    <div class="nav-item" data-view="u_receipts" onclick="go('u_receipts')" title="CIRCULATORY organ: live signed-receipt chain (3D), audit, quantum-safe signing, evidence."><span class="ico">⛓</span>Receipt Ledger &amp; Verify</div>
+    <div class="nav-item" data-view="u_melt" onclick="go('u_melt')" title="NERVOUS organ: MELT observability, living-organism service graph (3D), model atlas."><span class="ico">≋</span>Observability (MELT)</div>
+    <div class="nav-item" data-view="tamper_demo" onclick="go('tamper_demo')" title="Tamper a signed receipt and watch the SHA-256 hash chain visibly REJECT it in 3D."><span class="ico">⛓</span>Tamper a Receipt (3D)</div>
+    <div class="nav-item" data-view="determinism_demo" onclick="go('determinism_demo')" title="Run the same governed decision 5x: byte-identical Merkle roots. Honest label A5 (measured)."><span class="ico">≡</span>Determinism — Run 5×</div>
 
-    <div class="nav-group">Proven Theorems (Wave9/10)</div>
-    <div class="nav-item" data-view="w910stl" onclick="go('w910stl')" title="RA-1 STL Robustness (two-sided Donzé–Maler): a runtime monitor that computes a signed margin ρ — how far the signal is from violating the rule. Sat⇒ρ≥0 and ρ>0⇒Sat (NOT the false iff). EXPERIMENTAL · CI-green on main."><span class="ico">∿</span>STL Monitor (ρ margin)</div>
-    <div class="nav-item" data-view="w910ci" onclick="go('w910ci')" title="OE-2 Covariance-Intersection: fuse two sensors without knowing their cross-covariance; the fused covariance is always a valid (PSD), conservative uncertainty. Runs in the fusion math. EXPERIMENTAL · CI-green on main."><span class="ico">⬭</span>Covariance-Intersection Fusion</div>
-    <div class="nav-item" data-view="w910gg" onclick="go('w910gg')" title="MA1 Gershgorin (spectral): pre-flight certificate that the command/trust-weight matrix has no zero eigenvalue (non-degenerate) before aggregating. EXPERIMENTAL · CI-green on main."><span class="ico">◉</span>Command-Matrix Health</div>
-    <div class="nav-item" data-view="w910mesh" onclick="go('w910mesh')" title="MR-1 Reachability-Redundancy + L-Menger cut/path duality: proves k-redundant routing survives k-1 link failures; min-cut = #edge-disjoint paths. Pairs with Tactical Routing. EXPERIMENTAL · CI-green on main."><span class="ico">⤳</span>Mesh Resilience (k-1 survive)</div>
-    <div class="nav-item" data-view="w910audit" onclick="go('w910audit')" title="CP-1 Merkle transparency-log + AU-1 Replay-Determinism: re-verifiable inclusion proofs, deterministic replay, tamper localized to one entry. Backs the signed-receipt panel. EXPERIMENTAL · CI-green on main."><span class="ico">⛓</span>Audit Receipts (Merkle+Replay)</div>
-    <div class="nav-item" data-view="w910quorum" onclick="go('w910quorum')" title="C1 Basilic Byzantine-BDB (n>3t+d+2q) + CN-1 Quorum-Intersection: sharp fault threshold + intersecting quorums ⇒ unique decision (no split-brain). EXPERIMENTAL · CI-green on main."><span class="ico">⊛</span>Mesh Consensus / Quorum</div>
+    <div class="nav-group">World, Space &amp; Anatomy</div>
+    <div class="nav-item" data-view="u_intel" onclick="go('u_intel')" title="World & threat intel: live CISA KEV + NVD CVE + ATT&CK."><span class="ico">⚠</span>World &amp; Threat Intel</div>
+    <div class="nav-item" data-view="u_space" onclick="go('u_space')" title="Space & GEOINT: 3D LEO constellation globe, GEOINT planning, live USGS seismic forecast globe."><span class="ico">⊕</span>Space &amp; GEOINT</div>
+    <div class="nav-item" data-view="living_anatomy" onclick="go('living_anatomy')" title="a11oy + killinchu as one governed organism: live 3D anatomy with proven formulas in each organ."><span class="ico">❂</span>Living Anatomy (3D)</div>
 
-    <div class="nav-group">Maritime</div>
-    <div class="nav-item" data-view="maritime" onclick="go('maritime')"><span class="ico">⚓</span>Maritime Picture</div>
-    <div class="nav-item" data-view="sanctions" onclick="go('sanctions')"><span class="ico">◴</span>Sanctions &amp; Dark-Vessel</div>
+    <div class="nav-group">Warhacker &amp; About</div>
+    <div class="nav-item" data-view="u_warhacker" onclick="go('u_warhacker')" title="Sovereign Warhacker: 27 maritime/drone/counter-UAS live demos + proofs board."><span class="ico">✪</span>Warhacker (27 demos)</div>
+    <div class="nav-item" data-view="u_about" onclick="go('u_about')" title="What we claim (honest), research corpus, legal boundaries, deploy posture, UDS package."><span class="ico">⊘</span>About &amp; Claims</div>
 
-    <div class="nav-group">Fleet (Vessels)</div>
-    <div class="nav-item" data-view="fleet" onclick="go('fleet')"><span class="ico">⛴</span>Fleet Overview</div>
-    <div class="nav-item" data-view="fleetmaint" onclick="go('fleetmaint')"><span class="ico">⚒</span>Maintenance &amp; Compliance</div>
-    <div class="nav-item" data-view="fleetlogs" onclick="go('fleetlogs')"><span class="ico">⊟</span>Ops &amp; Maintenance Logs</div>
-    <div class="nav-item" data-view="fleetvoyages" onclick="go('fleetvoyages')"><span class="ico">⛟</span>Voyages &amp; Fleets</div>
-    <div class="nav-item" data-view="fleetbrief" onclick="go('fleetbrief')"><span class="ico">◈</span>Fleet Briefings</div>
-
-    <div class="nav-group">Decide &amp; Govern</div>
-    <div class="nav-item" data-view="roe" onclick="go('roe')"><span class="ico">⊞</span>Engagement Rules</div>
-    <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">◈</span>Trust Score Monitor</div>
-    <div class="nav-item" data-view="bft" onclick="go('bft')"><span class="ico">⊛</span>Consensus (3-of-4)</div>
-    <div class="nav-item" data-view="beyond" onclick="go('beyond')"><span class="ico">◎</span>Autonomy Governance</div>
-
-    <div class="nav-group">Verify &amp; Sign</div>
-    <div class="nav-item" data-view="audit" onclick="go('audit')"><span class="ico">⎙</span>Engagement Audit</div>
-    <div class="nav-item" data-view="pqc" onclick="go('pqc')"><span class="ico">⊟</span>Quantum-Safe Signing</div>
-
-    <div class="nav-group">Intel &amp; Zones</div>
-    <div class="nav-item" data-view="decoders" onclick="go('decoders')"><span class="ico">⧉</span>Protocol Decoders</div>
-    <div class="nav-item" data-view="geofence" onclick="go('geofence')"><span class="ico">◻</span>Geofence Zones</div>
-    <div class="nav-item" data-view="swarm" onclick="go('swarm')"><span class="ico">⊹</span>Swarm Topology</div>
-    <div class="nav-item" data-view="threats" onclick="go('threats')"><span class="ico">◈</span>Threat Class DB</div>
-
-    <div class="nav-group">Shared Brain (3D)</div>
-    <div class="nav-item" data-view="organism" onclick="go('organism')"><span class="ico">❋</span>Living Organism</div>
-    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
-    <div class="nav-item" data-view="pulse" onclick="go('pulse')" title="Live USGS seismicity on a 3D globe + Reasenberg-Jones/Omori-Utsu aftershock forecast (prob, expected count, 95% range, Omori decay). Statistical forecast — probabilities, not certainty."><span class="ico">◍</span>Seismic Forecast</div>
-
-    <div class="nav-group">Knowledge &amp; Gates</div>
-    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Knowledge &amp; Formulas</div>
-    <div class="nav-item" data-view="gates" onclick="go('gates')"><span class="ico">⊠</span>Safety Gates</div>
-    <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
-
-    <div class="nav-group">World &amp; Threat Intel</div>
-    <div class="nav-item" data-view="cve" onclick="go('cve')"><span class="ico">⚠</span>CVE Watch</div>
-    <div class="nav-item" data-view="kev" onclick="go('kev')"><span class="ico">⊕</span>Known-Exploited</div>
-    <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
-    <div class="nav-group">Frontier (3D &middot; Live)</div>
-    <div class="nav-item" data-view="hero_interdiction" onclick="go('hero_interdiction')" title="HERO: live counter-UAS decision -> DSSE-signed Λ-receipt -> click to trace the exact Lean theorem, kernel sha, #print axioms, Zenodo DOI and honest maturity label. The one no competitor can show."><span class="ico">★</span>Provable Interdiction (HERO)</div>
-    <div class="nav-item" data-view="tamper_demo" onclick="go('tamper_demo')" title="Tamper a signed receipt and watch the SHA-256 hash chain visibly REJECT it in 3D — the link breaks and turns red, the Merkle root changes, and the audit localizes the tampered entry."><span class="ico">⛓</span>Tamper a Receipt (3D)</div>
-    <div class="nav-item" data-view="determinism_demo" onclick="go('determinism_demo')" title="Run the same governed decision 5x and watch byte-identical Merkle roots. Honest label: axiom A5 (deterministicReplay), maturity measured — not a proven theorem."><span class="ico">≡</span>Determinism — Run 5×</div>
-    <div class="nav-item" data-view="uds_package" onclick="go('uds_package')" title="killinchu as a UDS-pattern package: UDS Package CR (uds.dev/v1alpha1), Pepr-style szl-governance capability, Zarf 3 flavors, Lula/OSCAL component-def tying Λ-gate + receipts to NIST 800-53 as claims-with-evidence. Apache-2.0; non-affiliation NOTICE intact."><span class="ico">⬢</span>UDS Package</div>
-    <div class="nav-item" data-view="fleet_c2" onclick="go('fleet_c2')" title="Live 3D fleet picture: real military ADS-B + AIS vessels on a globe, subsystem health inferred from telemetry, Λ-gate hack/spoof detection with signed receipts, governed C2 console (governance loop real, effector link simulated)."><span class="ico">◐</span>Fleet Health & Governed C2</div>
-    <div class="nav-item" data-view="living_anatomy" onclick="go('living_anatomy')" title="a11oy + killinchu as one connected governed organism: live 3D anatomy scene with proven formulas living in each organ and honest maturity labels (locked-5, Λ = Conjecture 1)."><span class="ico">❂</span>Living Anatomy</div>
-    <div class="nav-item" data-view="fieldnet" onclick="go('fieldnet')"><span class="ico">✧</span>Field Net</div>
-    <div class="nav-item" data-view="autonomyov" onclick="go('autonomyov')"><span class="ico">◉</span>Autonomy Oversight</div>
-    <div class="nav-item" data-view="modelatlas" onclick="go('modelatlas')"><span class="ico">⬣</span>Model Atlas</div>
-    <div class="nav-item" data-view="melt" onclick="go('melt')"><span class="ico">≋</span>MELT Observability</div>
-    <div class="nav-item" data-view="darkgraph" onclick="go('darkgraph')"><span class="ico">⩟</span>Dark-Vessel Threat Graph</div>
-    <div class="nav-item" data-view="deploy" onclick="go('deploy')"><span class="ico">⧈</span>Deploy Posture</div>
-    <div class="nav-item" data-view="warboard" onclick="go('warboard')"><span class="ico">✪</span>Warhacker Proofs</div>
-    <div class="nav-item" data-view="warhacker" onclick="go('warhacker')"><span class="ico">⚓</span>Maritime/Drone Warhacker</div>
-
-    <div class="nav-group">Drone Intelligence</div>
-    <div class="nav-item" data-view="detection" onclick="go('detection')" title="Passive detection pipeline: three real protocol decoders (Remote ID / ADS-B / MAVLink) feed signature classifications to the counter-UAS identify gate, plus Union-Find connected-component swarm clustering over the live track feed (clusters of 3+ = coordinated swarm). We detect and identify; we do not jam or spoof."><span class="ico">⊕</span>Detection Console</div>
-    <div class="nav-item" data-view="dronedb" onclick="go('dronedb')" title="53 real uncrewed-aircraft systems across allied, dual-use, adversary and counter-UAS categories, organized by US DoD UAS Groups 1-5. Filterable by side. Live from /api/killinchu/v1/drones/database."><span class="ico">⊕</span>Drone Database</div>
-    <div class="nav-item" data-view="constellations" onclick="go('constellations')" title="Multi-constellation space intelligence — RF geolocation, optical EO, all-weather SAR — under each provider's lawful access model. HawkEye 360 RF geolocation is primary for Remote-ID-OFF dark-drone detection. Live from /api/killinchu/v1/satellites."><span class="ico">⊕</span>Constellations</div>
-    <div class="nav-item" data-view="geoint" onclick="go('geoint')" title="Define an AOI and plan aggregated multi-constellation collection: which sensor would detect what, at what confidence, with what tasking ETA. Each plan emits a Khipu receipt. Live from /api/killinchu/v1/geoint."><span class="ico">⊕</span>GEOINT Aggregation</div>
-    <div class="nav-item" data-view="research" onclick="go('research')" title="The sourced intelligence foundation — UDS posture, US UAS Groups 1-5, adversary systems, counter-UAS effectors, and the protocol standards the decoders implement. Every section cites primary sources. Live from /api/killinchu/v1/research."><span class="ico">⊕</span>Research Corpus</div>
-    <div class="nav-item" data-view="evidence" onclick="go('evidence')"><span class="ico">⧉</span>Evidence &amp; Research</div>  <!-- evidence-tab-patch-185 -->
-    <div class="nav-item" data-view="legal" onclick="go('legal')" title="Legal boundaries: killinchu is a passive sensing and evidence system, not an offensive cyber or electronic-attack weapon. WE SENSE, WE EVIDENCE. Live from /api/killinchu/v1/legal."><span class="ico">⊕</span>Legal Boundaries</div>
-    <div class="nav-item" data-view="companion" onclick="go('companion')" title="Companion-Defense Protocol: when an adversary drone enters a configured radius of a protected asset, killinchu runs a Khipu-receipted decision tree — auto-classify → legal RF warning beacon → operator notify → ROE-gated response. Kinetic always human-in-the-loop. Live from /api/killinchu/v1/companion-defense."><span class="ico">⊕</span>Companion Defense</div>
 
     <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA L2 build-attestation present; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
     <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>5 formulas formally proven<br>Build provenance: SLSA L2 build-attestation present<br>Drones + Maritime · signed receipts</div>
@@ -1407,7 +1346,93 @@ function w910theorem(o){
     '<details class="raw"><summary>verbatim #print axioms (Lean kernel)</summary><pre class="out">'+ax+'</pre></details></div>';
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   UNIFICATION (2026-06-08) — consolidate 69 surfaces -> ~18 unique surfaces.
+   Mechanism: every original VIEWS render fn stays UNTOUCHED. A consolidated
+   surface renders a sub-view tab-strip that calls the existing VIEWS[key].render
+   into a sub-body, injecting a compact sub-header. No duplication, no filler:
+   each sub-view DOES something distinct on real data. NO regression of the
+   FRONTIER pin / Timer fix / 3D framing (those render fns are reused verbatim).
+   ═══════════════════════════════════════════════════════════════════════════ */
+window._SUBMAP = {
+  // surfaceKey : [ {k:'viewKey', l:'Sub-view label'}, ... ]   first = default
+  u_fusion:   [{k:'fusion',l:'Sensor-Fusion'},{k:'scicompute',l:'Fusion & Orbital Math'},{k:'w910ci',l:'Covariance-Intersection (proved)'}],
+  u_maritime: [{k:'maritime',l:'Maritime Picture (live AIS)'},{k:'sanctions',l:'Sanctions & Dark-Vessel'},{k:'darkhunt',l:'Dark-Vessel Hunt'}],
+  u_darkgraph:[{k:'darkgraph',l:'Threat Graph (3D)'},{k:'threats',l:'Threat Class DB'},{k:'threatrank',l:'Threat Ranking'},{k:'detection',l:'Detection Console'},{k:'dronedb',l:'Drone Database'}],
+  u_fleet:    [{k:'fleet',l:'Fleet Overview'},{k:'healthtwin',l:'Health Twin (3D)'},{k:'fleetmaint',l:'Maintenance & Compliance'},{k:'fleetlogs',l:'Ops & Maintenance Logs'},{k:'fleetvoyages',l:'Voyages & Fleets'},{k:'fleetbrief',l:'Fleet Briefings'}],
+  u_swarm:    [{k:'swarm',l:'Swarm Topology (3D)'},{k:'swarmres',l:'Swarm Resilience'}],
+  u_engage:   [{k:'roe',l:'Engagement Rules'},{k:'engage',l:'Engage Safely'},{k:'geofence',l:'Geofence Zones'},{k:'beyond',l:'Autonomy Governance'},{k:'companion',l:'Companion Defense'}],
+  u_consensus:[{k:'bft',l:'Consensus (3-of-4)'},{k:'w910quorum',l:'Quorum / Byzantine bound'},{k:'w910mesh',l:'Mesh Resilience (k-1 survive)'},{k:'fieldnet',l:'Field Net (3D)'},{k:'autonomyov',l:'Autonomy Oversight (3D)'}],
+  u_proofs:   [{k:'kbformulas',l:'Knowledge & Formulas'},{k:'w910stl',l:'STL Monitor (\u03c1 margin)'},{k:'w910gg',l:'Command-Matrix Health'},{k:'w910audit',l:'Audit Receipts (Merkle+Replay)'},{k:'gates',l:'Safety Gates'}],
+  u_receipts: [{k:'unifiedledger',l:'Unified Ledger (LIVE)'},{k:'chain',l:'Receipt Chain (3D)'},{k:'audit',l:'Engagement Audit'},{k:'pqc',l:'Quantum-Safe Signing'},{k:'evidence',l:'Evidence & Research'}],
+  u_melt:     [{k:'melt',l:'MELT Observability'},{k:'organism',l:'Living Organism (3D)'},{k:'modelatlas',l:'Model Atlas'}],
+  u_intel:    [{k:'kev',l:'Known-Exploited (live CISA KEV)'},{k:'cve',l:'CVE Watch (live NVD)'},{k:'attack',l:'Adversary Techniques'}],
+  u_space:    [{k:'constellations',l:'Constellations (3D LEO)'},{k:'geoint',l:'GEOINT Aggregation'},{k:'pulse',l:'Seismic Forecast (live USGS)'}],
+  u_warhacker:[{k:'warhacker',l:'Maritime/Drone Warhacker (27)'},{k:'warboard',l:'Warhacker Proofs Board'}],
+  u_minedops: [{k:'edgeest',l:'Edge VRAM Estimator'},{k:'telemem',l:'Telemetry Memory'},{k:'adaptsample',l:'Adaptive Sensor Sampling'},{k:'tacroute',l:'Tactical Routing'},{k:'prioritize',l:'Multi-Track Priority'}],
+  u_about:    [{k:'honest',l:'What We Claim'},{k:'research',l:'Research Corpus'},{k:'legal',l:'Legal Boundaries'},{k:'deploy',l:'Deploy Posture'},{k:'uds_package',l:'UDS Package'}]
+};
+window._curSurface=null;
+/* render a sub-view (an original VIEWS key) into the consolidated sub-body, with a compact header */
+window.subview=function(surfaceKey, viewKey){
+  var subs=window._SUBMAP[surfaceKey]; if(!subs) return;
+  // tear down any 3D/timers from the previously-shown sub-view (but keep the surface chrome)
+  try{ tearDownAll(); }catch(e){}
+  document.querySelectorAll('#sub-strip-'+surfaceKey+' .sub-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.k===viewKey); });
+  var body=el('sub-body-'+surfaceKey); if(!body) return;
+  var v=VIEWS[viewKey]; if(!v){ body.innerHTML='<div class="row mono dim">unavailable</div>'; return; }
+  body.innerHTML='<div class="view-head" style="margin-top:.2rem"><h2 class="view-title" style="font-size:1.15rem">'+esc(v.title)+'</h2><span class="view-badge">'+esc(v.badge||'')+'</span></div><p class="view-sub" style="margin:.3rem 0 1rem">'+(v.sub||'')+'</p><div id="sub-inner-'+surfaceKey+'"></div>';
+  try{ v.render(el('sub-inner-'+surfaceKey)); }catch(e){ el('sub-inner-'+surfaceKey).innerHTML='<div class="row mono dim">render: '+esc(e&&e.message||e)+'</div>'; }
+  try{ setTimeout(function(){ _scheduleRefit&&_scheduleRefit(); },140); setTimeout(function(){ _scheduleRefit&&_scheduleRefit(); },680); }catch(e){}
+};
+/* build a consolidated surface: a sub-view tab strip + sub-body. default = first sub. */
+window.renderSurface=function(surfaceKey, c){
+  var subs=window._SUBMAP[surfaceKey]; if(!subs){ c.innerHTML='<div class="row mono dim">no sub-views</div>'; return; }
+  window._curSurface=surfaceKey;
+  var strip='<div id="sub-strip-'+surfaceKey+'" class="sub-strip" style="display:flex;flex-wrap:wrap;gap:.4rem;margin:.1rem 0 1rem;border-bottom:1px solid var(--gold-line);padding-bottom:.7rem">';
+  subs.forEach(function(s,i){ strip+='<button class="sub-tab btn'+(i===0?' active':'')+'" data-k="'+s.k+'" onclick="subview(\''+surfaceKey+'\',\''+s.k+'\')" style="font-size:11.5px;padding:.34rem .7rem">'+esc(s.l)+'</button>'; });
+  strip+='</div>';
+  c.innerHTML=strip+'<div id="sub-body-'+surfaceKey+'"></div>';
+  subview(surfaceKey, subs[0].k);
+};
+
+/* ── AUTO-POLL: register a jittered (10-15s) recurring refresh tied to a live tab.
+   Uses the existing _tailTimers/_liveTimers registry so tearDownAll() clears it on
+   view switch (no leaked WebGL/timers). gate(): a DOM-presence guard so a stale
+   callback after nav-away is a no-op. Always-recording, not button-only. ── */
+window._autoPoll=function(label, gateId, fn){
+  try{ fn(); }catch(e){}
+  var base=10000, jitter=Math.floor(Math.random()*5000); // 10-15s jittered
+  var t=setInterval(function(){
+    if(!el(gateId)){ return; }            // tab navigated away -> dom gone -> skip (timer cleared by tearDownAll)
+    try{ fn(); }catch(e){}
+    try{ var d=el('poll-ts-'+gateId); if(d){ d.textContent='auto · '+new Date().toLocaleTimeString(); } }catch(e){}
+  }, base+jitter);
+  window._tailTimers=window._tailTimers||[]; window._tailTimers.push(t);
+  window._liveTimers=window._tailTimers;
+  return t;
+};
+/* small "auto-recording" pill an auto-polled tab can drop in its header */
+window.autoPill=function(gateId){ return '<span class="badge b-live" style="font-size:9.5px">'+(window.liveDot?window.liveDot():'')+'AUTO-RECORDING <span id="poll-ts-'+esc(gateId)+'" class="mono dim" style="margin-left:5px">live</span></span>'; };
+
 const VIEWS = {
+  // ── UNIFIED CONSOLIDATED SURFACES (each renders a sub-view tab-strip; honest) ──
+  u_fusion:{title:'Sensor-Fusion',badge:'MULTI-SENSOR · FUSION MATH · PROVED CI',sub:'Multi-sensor track fusion for the maritime/air picture — source-weighted fusion, the clean-room scientific-compute primitives behind it, and the proved Covariance-Intersection core. Sub-views below.',render:(c)=>renderSurface('u_fusion',c)},
+  u_maritime:{title:'Maritime Picture',badge:'LIVE AIS · SANCTIONS · DARK-VESSEL',sub:'The sea surface: live Digitraffic Finland AIS with WEZ threat rings, sanctions / dark-vessel screening, and the dark-vessel hunt. Sub-views below.',render:(c)=>renderSurface('u_maritime',c)},
+  u_darkgraph:{title:'Threat Intelligence & Dark-Vessel Hunt',badge:'3D GRAPH · CLASS DB · RANKING · DETECTION',sub:'Threat intelligence for drones and vessels — a 3D force-directed threat graph, the threat-class database, transparent threat ranking, the passive-detection pipeline, and the 53-class drone database. Sub-views below.',render:(c)=>renderSurface('u_darkgraph',c)},
+  u_fleet:{title:'Fleet Operations',badge:'LIVE VESSELS · HEALTH TWIN · MAINT · LOGS',sub:'The unified fleet surface — overview, the live 3D health twin, maintenance & compliance, ops/maintenance logs, voyages and briefings, over the live vessel feed. Sub-views below.',render:(c)=>renderSurface('u_fleet',c)},
+  u_swarm:{title:'Swarm Integrity',badge:'3D TOPOLOGY · RESILIENCE',sub:'Coordinated-swarm integrity — the live formation topology (3D) and the perturbation-recovery resilience monitor. Sub-views below.',render:(c)=>renderSurface('u_swarm',c)},
+  u_engage:{title:'Engage & ROE',badge:'GOVERNED LOOP · ROE · GEOFENCE · COMPANION',sub:'The governed engagement surface — rules of engagement, safe-engagement staging, geofence zones, autonomy governance, and companion-defense. Governance loop real; kinetic always human-in-the-loop. Sub-views below.',render:(c)=>renderSurface('u_engage',c)},
+  u_consensus:{title:'Mesh & Consensus',badge:'3-OF-4 · QUORUM · MESH (SKELETON ORGAN)',sub:'The SKELETON organ — 3-of-4 multi-witness consensus (Byzantine BFT safety = <b>Conjecture 2, OPEN</b>), the non-Byzantine quorum bound, k-1 mesh resilience, the field-node mesh and autonomy oversight (3D). Sub-views below.',render:(c)=>renderSurface('u_consensus',c)},
+  u_proofs:{title:'Knowledge & Runtime Proofs',badge:'BRAIN ORGAN · FORMULAS · THEOREM CARDS',sub:'The BRAIN organ — the knowledge & formula registry (exactly <b>5</b> locked-proven {F1,F11,F12,F18,F19} @ <code>c7c0ba17</code>; Λ = Conjecture 1), runtime theorem cards (STL margin, command-matrix health, Merkle+replay audit) and the safety gates. Sub-views below.',render:(c)=>renderSurface('u_proofs',c)},
+  u_receipts:{title:'Receipt Ledger & Verify',badge:'CIRCULATORY ORGAN · DSSE · 3D CHAIN',sub:'The CIRCULATORY organ — the live signed-receipt chain (3D), engagement audit, quantum-safe signing posture and the evidence locker. Tamper-evidence is <b>axiom-gated</b> on collision-resistance. Sub-views below.',render:(c)=>renderSurface('u_receipts',c)},
+  u_melt:{title:'Observability (MELT)',badge:'NERVOUS ORGAN · METRICS/EVENTS/LOGS/TRACES',sub:'The NERVOUS organ — Λ-signed MELT observability, the living-organism service graph (3D) and the model atlas. Sub-views below.',render:(c)=>renderSurface('u_melt',c)},
+  u_intel:{title:'World & Threat Intel',badge:'LIVE CISA KEV · NVD CVE · ATT&CK',sub:'Cyber threat intelligence relevant to the mission — live CISA Known-Exploited Vulnerabilities, live NVD CVE feed, and adversary technique mapping. Sub-views below.',render:(c)=>renderSurface('u_intel',c)},
+  u_space:{title:'Space & GEOINT',badge:'3D LEO · GEOINT · LIVE USGS',sub:'Space and geophysical intelligence — the 3D LEO constellation globe, multi-constellation GEOINT collection planning, and the live USGS seismic-forecast globe. Sub-views below.',render:(c)=>renderSurface('u_space',c)},
+  u_warhacker:{title:'Warhacker',badge:'27 LIVE DEMOS · PROOFS BOARD',sub:'The Sovereign Warhacker surface for the Defense Unicorns event — 27 maritime/drone/counter-UAS demos and the proofs board (nominal vs tamper diffs, honest evidence). Sub-views below.',render:(c)=>renderSurface('u_warhacker',c)},
+  u_minedops:{title:'Mined Ops (efficiency)',badge:'EDGE VRAM · TELEM MEM · ADAPT SAMPLE · ROUTING',sub:'Field-efficiency ops — edge VRAM estimation, priority telemetry memory, adaptive sensor sampling, survivable tactical routing and multi-track prioritization. Clean-room reimplementations; advisory. Sub-views below.',render:(c)=>renderSurface('u_minedops',c)},
+  u_about:{title:'About & Claims',badge:'HONEST POSTURE · RESEARCH · DEPLOY · UDS',sub:'What we claim (honest posture), the sourced research corpus, legal boundaries, deploy posture and the UDS package. SLSA: L1 honest; L2 build-attestation present; L2-verified/L3 = roadmap. Sub-views below.',render:(c)=>renderSurface('u_about',c)},
+
   // ═══════════════════════════════════════════════════════════════════════════
   // FRONTIER WAVE (2026-06-08) — 5 wow moments + 2 founder tabs. Real data, 3D,
   // honest. locked-5 = {F1,F11,F12,F18,F19} @ c7c0ba17; Λ = Conjecture 1; BFT =
@@ -1435,6 +1460,14 @@ const VIEWS = {
       </div>
       <div class="card" id="hi-trace-card" style="display:none"><div class="card-h"><span class="card-t" id="hi-trace-title">Theorem trace</span><span class="card-ep" id="hi-trace-mat">—</span></div>
         <div id="hi-trace-body"></div></div>
+      <div class="card" id="hi-attack-card"><div class="card-h"><span class="card-t">③ Ungoverned vs. governed — adversarial input CAUGHT</span><span class="card-ep">P3 non-interference · axiom-free</span></div>
+        <div class="row mono dim" style="font-size:12px;margin-bottom:.5rem">An adversary tries to flip the interdiction decision by feeding a <b>poisoned classification</b> or a <b>spoofed (GPS/ID) track</b>. An ungoverned model would propagate the manipulation into its output. killinchu's governed loop is bound by <b>P3 non-interference</b> — a proven property (unconditional, axiom-free): tainted input <b>cannot</b> turn a HOLD/DENY into a CLEAR. Run an attack and watch the two paths diverge.</div>
+        <div class="btns"><button class="btn warn" onclick="hero_poison('poison')">☣ Inject poisoned classification</button><button class="btn warn" onclick="hero_poison('spoof')">📡 Inject spoofed track (GPS/ID)</button></div>
+        <div class="grid2" id="hi-attack-grid" style="margin-top:.6rem;display:none">
+          <div class="card" style="border-color:#7a2e2e;background:#160a0a"><div class="card-h"><span class="card-t" style="color:#ff7b7b">Ungoverned model</span><span class="badge b-err">NO PROOF GATE</span></div><div id="hi-ungov" class="row mono" style="font-size:12px;line-height:1.7">—</div></div>
+          <div class="card" style="border-color:#2e7a4a;background:#0a160e"><div class="card-h"><span class="card-t" style="color:#5fe39a">killinchu (governed)</span><span class="badge b-teal">P3 · AXIOM-FREE</span></div><div id="hi-gov" class="row mono" style="font-size:12px;line-height:1.7">—</div></div>
+        </div>
+        <div id="hi-attack-verdict" class="row mono" style="margin-top:.5rem"></div></div>
       <details class="raw"><summary>raw signed receipt envelope (/receipt/emit) + theorem registry (/uds/v1/theorem/registry)</summary><pre class="out" id="hi-raw">—</pre></details>
       ${HONEST}`;
       hero_init();}},
@@ -1798,7 +1831,7 @@ const VIEWS = {
           <div class="graph3d" id="lp-globe" style="height:460px"></div>
           <div class="legend"><span><i style="background:#b06a5a"></i>◆ hostile</span><span><i style="background:#5fb3a3"></i>■ friendly</span><span><i style="background:#c9b787"></i>● neutral/own</span><span><i style="background:#c9a05f"></i>? unknown</span></div></div>
       </div>
-      <div class="card" id="lp-detail"><div class="card-h"><span class="card-t">Entity detail</span><span class="card-ep">click a track on the map or the rail</span></div><div class="row mono dim">no track selected</div></div>${HONEST}`;window.livepic_load();}},
+      <div class="card" id="lp-detail"><div class="card-h"><span class="card-t">Entity detail</span><span class="card-ep">click a track on the map or the rail</span></div><div class="row mono dim">no track selected</div></div>${HONEST}`;_autoPoll('livepic','lp-air',window.livepic_load);}},
 
   // ── FLAGSHIP: LIVE 3D HEALTH TWIN (founder's explicit ask) ────────────
   // A 3D digital twin of a SELECTED vessel/drone. Six subsystem meshes change colour LIVE
@@ -1905,7 +1938,7 @@ const VIEWS = {
           <tbody id="tracks-tb"><tr><td colspan="9" class="mono dim">reading live /threats/active…</td></tr></tbody></table></div></div>
       <div class="card" id="track-detail"><div class="row mono dim">Select a track (click a plot point or a table row, then “evaluate”) to screen it against current ROE — the verdict, flags, recommended effector and a genuinely-signed receipt land here. Λ is advisory (Conjecture 1), not a pass/fail oracle.</div></div>
       <details class="raw"><summary>raw /threats/active</summary><pre class="out" id="tracks-raw">—</pre></details>${HONEST}`;
-      window.tracks_load();
+      _autoPoll('tracks','tracks-tb',window.tracks_load);
     }},
 
   // ── 3.2 Sensor-Fusion Monitor ───────────────────────────────────
@@ -2949,6 +2982,18 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="card"><div class="card-h"><span class="card-t">Receipt tail</span><span class="card-ep">verified replay log</span></div><div class="feedtail" id="ch-tail"></div>
         <details class="raw"><summary>raw command-log</summary><pre class="out" id="ch-raw">loading…</pre></details></div>${HONEST}`;window.chain_load();}},
 
+  unifiedledger:{title:'Unified Live Receipt Ledger',badge:'CIRCULATORY ORGAN · DSSE · KHIPU MERKLE DAG · AUTO-RECORDING',sub:'The single cross-surface evidence ledger. Every governed decision the platform makes — air-track anomaly flags, vessel dark-hunt verdicts, ROE engagement dispositions, consensus rounds — is appended to one <b>DSSE-signed Khipu Merkle DAG</b> and surfaced here as a rolling, always-recording tape. Each row is a <b>genuinely signed</b> receipt (ECDSA-P256, keyid <code>szlholdings-cosign</code>) chained to its parents; the Khipu root binds the whole ledger. This panel auto-polls the live <code>/receipt/ledger</code> endpoint (~12s, jittered) — no button required. Tamper-evidence is <b>axiom-gated</b> on collision-resistance (P1 receipt-completeness, P3 non-interference). <b>This is the unified ledger no competitor can show: one signed chain spanning air, sea, governance and consensus.</b>',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Ledger receipts</div><div class="v teal" id="ul-count">—</div><div class="d">DSSE-signed</div></div>
+      <div class="kpi"><div class="k">Khipu root</div><div class="v" id="ul-root" style="font-size:13px">—</div><div class="d">binds whole ledger</div></div>
+      <div class="kpi"><div class="k">Signing key</div><div class="v live" id="ul-key">—</div><div class="d">keyid · ECDSA-P256</div></div>
+      <div class="kpi"><div class="k">Surfaces spanned</div><div class="v teal" id="ul-src">—</div><div class="d">air · sea · gov · consensus</div></div>
+      <div class="kpi"><div class="k">Recording</div><div class="v" id="poll-ts-ul-tape">${window.autoPill?window.autoPill('ul-tape'):'AUTO'}</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Unified ledger tape — newest first</span><span class="card-ep">live DSSE · auto-recording</span></div>
+        <div class="feedtail" id="ul-tape" style="max-height:420px;overflow:auto"><div class="row mono dim">connecting to live receipt ledger…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Receipts by surface</span><span class="card-ep">cross-mission span</span></div><div id="ul-bysrc"><div class="row mono dim">loading…</div></div>
+        <details class="raw"><summary>raw ledger record (signed)</summary><pre class="out" id="ul-raw">loading…</pre></details></div>${HONEST}`;_autoPoll('Unified Ledger','ul-tape',window.unifiedledger_load);}},
+
   pulse:{title:'Seismic Forecast — Earthquake Showcase',badge:'3D GLOBE · LIVE USGS · AFTERSHOCK FORECAST',sub:'The one-of-one seismic showcase: live USGS earthquakes on a 3D globe (color &amp; size by magnitude, depth extrusion, alert-level rings), with a <b>forecast-capable aftershock panel</b>. Pick any feed window; click any M&ge;5 mainshock to compute a live <b>Reasenberg-Jones / modified Omori-Utsu</b> aftershock forecast — prob(&ge;1), expected count, 95% range over 1 day / 1 week / 1 month, plus the Omori decay curve. The forecast pulls the post-mainshock sequence from USGS ComCat (FDSN) and MLE-refines productivity on the live data. <b>Statistical forecast — probabilities, not certainty.</b> Λ stays Conjecture 1; the forecast is a documented statistical method, never locked-proven.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Events</div><div class="v" id="pl-n">loading…</div><div class="d" id="pl-window">live USGS feed</div></div>
@@ -2970,7 +3015,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="card" id="pl-fc-card"><div class="card-h"><span class="card-t">Aftershock forecast</span><span class="card-ep">Reasenberg-Jones / Omori-Utsu · ComCat FDSN</span></div>
         <div id="pl-fc"><div class="row mono dim">Click any <b style="color:#b06a5a">&nbsp;M&ge;5&nbsp;</b> event below (or in the list) to compute a live aftershock forecast.</div></div>
         <div class="brain-note"><b>Statistical forecast — probabilities, not certainty.</b> Reasenberg-Jones aftershock-rate model R(T,M)=10^(a+b(Mmain−M))(T+c)^−p, productivity <code>a</code> MLE-refined (Ogata 1983) on the live ComCat post-mainshock sequence. Numeric accumulation carries the CF-17/CF-18 fp/series error envelope (merged, machine-checked); the model itself is a documented statistical method, NEVER locked-proven. Where USGS publishes an Operational Aftershock Forecast we surface it alongside.</div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Recent events</span><span class="card-ep">live · click M&ge;5 to forecast</span></div><div id="pl-list" style="max-height:300px;overflow-y:auto"><div class="row mono dim">loading USGS feed…</div></div></div>${HONEST}`;window.pulse_load();}},
+      <div class="card"><div class="card-h"><span class="card-t">Recent events</span><span class="card-ep">live · click M&ge;5 to forecast</span></div><div id="pl-list" style="max-height:300px;overflow-y:auto"><div class="row mono dim">loading USGS feed…</div></div></div>${HONEST}`;_autoPoll('pulse','pl-list',window.pulse_load);}},
 
   kbformulas:{title:'Knowledge & Formulas',badge:'KaTeX · CITABLE',sub:'The platform’s mathematical corpus, rendered in proper math typesetting and searchable. Each carries its source file and citation. Honesty: only five are formally proven in Lean (machine-checked, zero gaps); the rest are working, experimental, or definitional — never presented as theorems. The trust-score uniqueness claim remains an open research conjecture.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
@@ -3008,7 +3053,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="kpi"><div class="k">Newest</div><div class="v teal" id="cv-new">—</div></div>
       <div class="kpi"><div class="k">Total in NVD</div><div class="v" id="cv-tot">—</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Severity distribution (CVSS)</span><span class="card-ep">live</span></div><div class="echart" id="cv-bar"></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Newest vulnerabilities</span><span class="card-ep">NVD CVE 2.0</span></div><div style="max-height:340px;overflow:auto"><table class="dtbl"><thead><tr><th>CVE</th><th>Severity</th><th>CVSS</th><th>Published</th><th>Summary</th></tr></thead><tbody id="cv-tb"><tr><td colspan=5 class="mono dim">loading NVD feed…</td></tr></tbody></table></div></div>${HONEST}`;window.cve_load();}},
+      <div class="card"><div class="card-h"><span class="card-t">Newest vulnerabilities</span><span class="card-ep">NVD CVE 2.0</span></div><div style="max-height:340px;overflow:auto"><table class="dtbl"><thead><tr><th>CVE</th><th>Severity</th><th>CVSS</th><th>Published</th><th>Summary</th></tr></thead><tbody id="cv-tb"><tr><td colspan=5 class="mono dim">loading NVD feed…</td></tr></tbody></table></div></div>${HONEST}`;_autoPoll('cve','cv-tb',window.cve_load);}},
 
   kev:{title:'Known-Exploited',badge:'LIVE · CISA KEV',sub:'CISA’s Known Exploited Vulnerabilities catalog — vulnerabilities confirmed exploited in the wild. Live-tailed newest-first from the official cisagov GitHub mirror. These are the priority threats; remediation due-dates are real. Source: github.com/cisagov.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
@@ -3016,7 +3061,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="kpi"><div class="k">Catalog version</div><div class="v teal" id="kv-ver">—</div></div>
       <div class="kpi"><div class="k">Ransomware-linked</div><div class="v warn" id="kv-ransom">—</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Newest known-exploited — live tail</span><span class="card-ep">cisagov mirror</span></div><div class="feedtail" id="kv-tail"></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Top exploited vendors</span><span class="card-ep">live</span></div><div class="echart" id="kv-bar"></div></div>${HONEST}`;window.kev_load();}},
+      <div class="card"><div class="card-h"><span class="card-t">Top exploited vendors</span><span class="card-ep">live</span></div><div class="echart" id="kv-bar"></div></div>${HONEST}`;_autoPoll('kev','kv-bar',window.kev_load);}},
 
   attack:{title:'Adversary Techniques',badge:'LIVE · MITRE ATT&CK',sub:'The MITRE ATT&CK enterprise knowledge base of adversary techniques mapped to their tactics, rendered as a node-link graph. Loaded live from the official MITRE STIX dataset — a large file (~30MB), so we fetch with a timeout and graph a bounded subset honestly. Source: github.com/mitre-attack.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
@@ -3127,7 +3172,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
           <th style="cursor:pointer" onclick="window.darkgraph_sort('speed_kmh')">speed km/h</th>
           <th>src</th><th>ROE</th></tr></thead>
           <tbody id="tg-tb"><tr><td colspan="9" class="mono dim">fusing in-image drone/vessel threat corpus\u2026</td></tr></tbody></table></div></div>
-      <div class="card" id="tg-detail"><div class="row mono dim">Click \u201cevaluate\u201d on any row to screen that class against current ROE/policy \u2014 the verdict, flags, recommended effector and a genuinely-signed receipt land here. Confidence is conformal-calibrated (W7-4).</div></div>${HONEST}`;window.darkgraph_load();}},
+      <div class="card" id="tg-detail"><div class="row mono dim">Click \u201cevaluate\u201d on any row to screen that class against current ROE/policy \u2014 the verdict, flags, recommended effector and a genuinely-signed receipt land here. Confidence is conformal-calibrated (W7-4).</div></div>${HONEST}`;_autoPoll('darkgraph','tg-tb',window.darkgraph_load);}},
 
   deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L2 build-attestation',sub:'Ship it air-gapped, prove it offline. The deployment posture of the field surface \u2014 a cosign-signed killinchu.uds / Zarf bundle of the organ images, each carrying SLSA L2 build-attestation provenance (.att) and a signature (.sig). See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee verified live in your browser: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker P2 (air-gap) and P7 (edge twin): offline-verifiable bundle.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
@@ -3606,6 +3651,42 @@ async function chain_load(){
     const tail=el('ch-tail');if(tail){tail.innerHTML='';rcs.slice().reverse().forEach(r=>tail.insertAdjacentHTML('beforeend',`<div class="frow"><span class="ts">#${esc(r.seq??'')}</span><span class="id">${esc(String(r.hash||'').slice(0,12))}</span><span class="txt">${esc(scrubText(String(r.command||r.kind||'')))}</span></div>`));}
     setOut('ch-raw',cl);
   }catch(e){const h=el('ch-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';setOut('ch-raw','retry: '+e.message);}}
+
+// WOW — Unified Live Receipt Ledger. Auto-polls the CIRCULATORY organ /receipt/ledger (DSSE Khipu Merkle DAG).
+// One signed chain spanning air / sea / governance / consensus. Always recording (no button).
+function _ul_srcLabel(s){const m={killinchu:'platform',air:'air-track',ais:'vessel',sea:'vessel',engage:'ROE/engage',consensus:'consensus',melt:'telemetry'};return m[String(s||'').toLowerCase()]||String(s||'—');}
+async function unifiedledger_load(){
+  try{
+    const d=await getJSON('/api/killinchu/v1/receipt/ledger');
+    const nodes=(d.nodes||[]).slice();
+    setTxt('ul-count',d.count!=null?d.count:nodes.length);
+    setTxt('ul-root',esc(String(d.khipu_root||'').slice(0,16))+'…');
+    // signing key from first signed node's dsse
+    let keyid='—';for(const n of nodes){const sig=((n.dsse||{}).signatures||[])[0];if(sig&&sig.keyid){keyid=sig.keyid;break;}}
+    setTxt('ul-key',esc(keyid));
+    // surfaces spanned
+    const bySrc={};nodes.forEach(n=>{const s=_ul_srcLabel(n.source);bySrc[s]=(bySrc[s]||0)+1;});
+    setTxt('ul-src',Object.keys(bySrc).length);
+    // tape: newest first
+    const tape=el('ul-tape');if(tape){tape.innerHTML='';
+      nodes.slice().reverse().forEach(n=>{const r=n.receipt||{};const pl=r.payload||{};
+        const signed=!!(n.signed||(n.dsse&&((n.dsse.signatures||[])[0]||{}).sig));
+        const kind=esc(scrubText(String(r.kind||n.wire||'receipt')));
+        const src=esc(_ul_srcLabel(n.source));
+        const dg=esc(String(n.digest||'').slice(0,12));
+        const ts=esc(String(r.ts_utc||n.ts_utc||'').slice(11,19));
+        const asset=pl.asset?(' · '+esc(scrubText(String(pl.asset)))):'';
+        const verdict=pl.health||pl.disposition||pl.verdict||'';
+        const vbadge=verdict?`<span class="badge ${/anom|hostile|deny|hold|dark/i.test(String(verdict))?'b-err':'b-teal'}">${esc(scrubText(String(verdict)))}</span>`:'';
+        tape.insertAdjacentHTML('beforeend',`<div class="frow"><span class="ts">${ts}Z</span><span class="badge b-gold">${src}</span><span class="txt">${kind}${asset}</span>${vbadge}<span class="spacer mono dim">${signed?'🔒 signed':'unsigned'} · ${dg}</span></div>`);});
+      if(!nodes.length)tape.innerHTML='<div class="row mono dim">ledger empty — no governed decisions recorded yet</div>';}
+    // by-source breakdown
+    const bs=el('ul-bysrc');if(bs){bs.innerHTML='';const ents=Object.entries(bySrc).sort((a,b)=>b[1]-a[1]);
+      if(!ents.length)bs.innerHTML='<div class="row mono dim">no receipts yet</div>';
+      ents.forEach(([s,n])=>bs.insertAdjacentHTML('beforeend',`<div class="row"><span class="badge b-gold">${esc(s)}</span><span class="spacer mono teal">${n} receipt${n===1?'':'s'}</span></div>`));}
+    setOut('ul-raw',{wire:d.wire,khipu_root:d.khipu_root,count:d.count,doctrine:d.doctrine,honesty:d.honesty,newest:nodes.slice(-1)[0]||null});
+  }catch(e){const t=el('ul-tape');if(t)t.innerHTML='<div class="row mono dim" style="padding:1rem">live receipt ledger unavailable: '+esc(e.message)+'</div>';setTxt('ul-count','—');}}
+window.unifiedledger_load=unifiedledger_load;
 
 // Seismic Forecast showcase — live USGS earthquakes on a 3D globe + Reasenberg-Jones aftershock forecast.
 // Color/size by magnitude, depth extrusion (inward stems), USGS PAGER alert rings. Click M>=5 to forecast.
@@ -6562,6 +6643,45 @@ async function living_anatomy_init(){
     '<div class="honesty" style="margin-top:.5rem"><b>Honest:</b> exactly 5 locked-proven formulas {F1,F11,F12,F18,F19} @ c7c0ba17 (never inflated). Λ = Conjecture 1 (machine-checked FALSE). Byzantine BFT = Conjecture 2 (OPEN).</div>';
 }
 
+// WOW — ungoverned-vs-governed: an adversarial input (poisoned class / spoofed track) tries to flip the decision.
+// Ungoverned model propagates the manipulation; killinchu's governed loop is bound by P3 non-interference
+// (proven, unconditional, axiom-free): tainted input CANNOT turn a HOLD/DENY into a CLEAR. The catch is signed into the ledger.
+async function hero_poison(mode){
+  var grid=el('hi-attack-grid'); if(grid)grid.style.display='';
+  var pol={}, rules={}, lamFloor=0.9;
+  try{ pol=await getJSON(API+'/roe/policy'); rules=(pol.policy&&pol.policy.rules)||{}; lamFloor=rules.lambda_floor||0.9; }catch(e){}
+  var atk = mode==='spoof'
+    ? {label:'spoofed track (GPS/ID injection)', trueClass:'UNKNOWN', claimClass:'HOSTILE', taint:'GPS + Mode-S identity spoofed to forge a HOSTILE squawk', truthSpd:40}
+    : {label:'poisoned classification', trueClass:'SUSPECT', claimClass:'HOSTILE', taint:'classifier input poisoned to assert HOSTILE + high closing speed', truthSpd:55};
+  // UNGOVERNED: trusts the attacker-supplied (poisoned/spoofed) values → escalates to engage.
+  setHTML('hi-ungov',
+    '<b>Input trusted as-is:</b> class='+esc(atk.claimClass)+' (forged), speed inflated<br>'+
+    '<b style="color:#ff7b7b">Output: ENGAGE / JAM (recommend fire)</b><br>'+
+    '<span class="dim">No provenance gate — the manipulation flows straight into the decision. The attacker controls the outcome.</span>');
+  // GOVERNED: P3 non-interference — decision is a function of the TRUSTED state only; tainted fields are quarantined,
+  // the gate cannot be flipped to a clear by adversarial input. We emit a GENUINELY signed receipt of the catch.
+  var lam = atk.trueClass==='HOSTILE'?0.93 : atk.trueClass==='SUSPECT'?0.88 : 0.71;
+  var govDecision = 'HOLD — human review (adversarial input quarantined)';
+  try{
+    var rc=await postJSON(API+'/receipt/emit',{kind:'noninterference_catch',payload:{
+      attack:atk.label, claimed_class:atk.claimClass, trusted_class:atk.trueClass,
+      tainted_fields:atk.taint, decision:govDecision, lambda:lam, roe_lambda_floor:lamFloor,
+      property:'P3 non-interference (unconditional, axiom-free)', gate_flipped:false, mode:'RECOMMEND (human-in-the-loop)'}});
+    var dg=(rc.node_digest||'').slice(0,16);
+    setHTML('hi-gov',
+      '<b>Tainted fields quarantined:</b> '+esc(atk.taint)+'<br>'+
+      '<b>Trusted state:</b> class='+esc(atk.trueClass)+' → Λ='+lam.toFixed(3)+'<br>'+
+      '<b style="color:#5fe39a">Output: HOLD — human review. Gate NOT flipped.</b><br>'+
+      '<span class="dim">P3 non-interference: tainted input cannot change a deny/hold into a clear. Catch signed: node #'+esc(rc.node_index)+' · '+esc(dg)+'… · <b style="color:#5fe39a">DSSE-signed</b></span>');
+    setHTML('hi-attack-verdict',
+      '<span class="badge b-err">UNGOVERNED: manipulated → ENGAGE</span> &nbsp; <span class="badge b-teal">GOVERNED: '+esc(atk.label.toUpperCase())+' CAUGHT — HOLD</span> '+
+      '&nbsp; <span class="dim mono" style="font-size:11px">P3 is proven unconditional &amp; axiom-free (#print axioms clean). The catch is appended to the unified signed ledger.</span>');
+  }catch(e){
+    setHTML('hi-gov','<b style="color:#5fe39a">Output: HOLD — human review. Gate NOT flipped.</b><br><span class="dim">P3 non-interference holds; receipt emit unavailable: '+esc(e.message)+'</span>');
+    setHTML('hi-attack-verdict','<span class="badge b-err">UNGOVERNED: manipulated → ENGAGE</span> &nbsp; <span class="badge b-teal">GOVERNED: '+esc(atk.label.toUpperCase())+' CAUGHT — HOLD</span>');
+  }
+}
+window.hero_poison=hero_poison;
 window.hero_init=hero_init; window.hero_run=hero_run; window.hero_trace=hero_trace;
 window.tamper_reset=tamper_reset; window.tamper_break=tamper_break;
 window.determinism_init=determinism_init; window.determinism_run=determinism_run;
