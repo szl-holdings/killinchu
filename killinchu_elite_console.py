@@ -6317,16 +6317,27 @@ function fleet_c2_globe(assets){
     color:a.health.color, label:a.name+' · '+a.kind+' · health '+a.health.status+' (inferred)', _a:a};});
   try{ killGlobe(); }catch(e){}
   box.innerHTML='';
+  var bw=box.clientWidth||box.offsetWidth||box.parentNode.clientWidth||640;
+  var bh=box.clientHeight||box.offsetHeight||380;
   _globe=Globe()(box)
-    .width(box.clientWidth).height(box.clientHeight)
+    .width(bw).height(bh)
     .backgroundColor('#03060c')
     .showGlobe(true).showAtmosphere(true).atmosphereColor('#3a6ea5').atmosphereAltitude(0.18)
-    .globeImageUrl('').pointsData(pts)
+    .globeImageUrl('/vendor/earth-night.jpg')
+    .pointsData(pts)
     .pointLat('lat').pointLng('lng').pointColor('color').pointAltitude('size').pointRadius(0.4)
     .pointLabel('label')
     .onPointClick(function(p){fleet_c2_asset(p._a);});
+  // frame the camera so the globe + asset cloud are visible immediately (same as the live-picture globe)
+  try{
+    var cLat=20,cLng=-30;
+    if(pts.length){var sLat=0,sLng=0;pts.forEach(function(p){sLat+=p.lat;sLng+=p.lng;});cLat=sLat/pts.length;cLng=sLng/pts.length;}
+    _globe.pointOfView({lat:cLat,lng:cLng,altitude:2.3},0);
+  }catch(e){}
   try{ _globe.controls().autoRotate=true; _globe.controls().autoRotateSpeed=0.35; }catch(e){}
-  setTimeout(function(){try{_globe.width(box.clientWidth).height(box.clientHeight);}catch(e){}},60);
+  // re-fit after layout settles (mirrors the working pl-globe 300ms re-fit; covers tab-activation 0-size race)
+  setTimeout(function(){try{var w=box.clientWidth||bw,h=box.clientHeight||bh;_globe.width(w).height(h);}catch(e){}},120);
+  setTimeout(function(){try{var w=box.clientWidth||bw,h=box.clientHeight||bh;_globe.width(w).height(h);}catch(e){}},600);
 }
 async function fleet_c2_asset(a){
   var h=a.health;
