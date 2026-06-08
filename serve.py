@@ -102,6 +102,15 @@ _OTEL_ENABLED = False
 
 app = FastAPI(title="Killinchu — Andean Drone Intelligence", version="1.0.0")
 
+# ── Evidence & Research layer (evidence-research-185) — curated + live arXiv/GitHub citations.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
+try:
+    import szl_evidence_research as _szl_evidence_research
+    _szl_evidence_research.register(app, ns="killinchu")
+    print("[killinchu] Evidence & Research registered: /api/killinchu/v1/evidence/research", file=__import__("sys").stderr)
+except Exception as _szl_ev_e:  # pragma: no cover
+    print(f"[killinchu] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
+
 # ── BE hardening (Greene) — szl_be_hardening ──
 # Backend hardening: pydantic validation, 60/min/IP rate limit, real OpenAPI at
 # /api/killinchu/openapi.json, /healthz + /readyz (Khipu chain check), JSON logs
