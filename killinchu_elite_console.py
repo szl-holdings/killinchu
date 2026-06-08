@@ -353,6 +353,41 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
      Konva (Konva) — 2D schematic canvas; Sigma+Graphology (Sigma/graphology) +
      Dagre (dagre) — receipt-chain DAG. All UMD globals, 0 runtime CDN. -->
 <script src="/vendor/three.min.js"></script>
+<!-- THREE.Timer shim (0-CDN): vendored three.min.js (r160 core) does NOT export the Timer
+     class that globe.gl expects (added to three core in r170+). globe.gl calls
+     `new THREE.Timer().update()/.getDelta()`; without it -> "z0.Timer is not a constructor"
+     and the globe canvases (fleet_c2 / pulse / constellations) blank intermittently.
+     Faithful re-implementation of three's Timer API (delta/elapsed in seconds). -->
+<script>
+(function(){
+  if(typeof THREE==='undefined'||THREE.Timer) return;
+  function Timer(){
+    this._previousTime=0; this._currentTime=0;
+    this._delta=0; this._elapsed=0; this._timescale=1;
+    this._usePageVisibility=false;
+  }
+  Timer.prototype.getDelta=function(){ return this._delta; };
+  Timer.prototype.getElapsed=function(){ return this._elapsed; };
+  Timer.prototype.getTimescale=function(){ return this._timescale; };
+  Timer.prototype.setTimescale=function(t){ this._timescale=t; return this; };
+  Timer.prototype.reset=function(){ this._currentTime=(typeof performance!=='undefined'?performance.now():Date.now()); return this; };
+  Timer.prototype.dispose=function(){ return this; };
+  Timer.prototype.connect=function(){ return this; };
+  Timer.prototype.disconnect=function(){ return this; };
+  Timer.prototype.update=function(timestamp){
+    this._previousTime=this._currentTime;
+    this._currentTime=(timestamp!==undefined?timestamp:(typeof performance!=='undefined'?performance.now():Date.now()));
+    // delta/elapsed in SECONDS, scaled, with a sane clamp to avoid huge first-frame jumps
+    var d=(this._currentTime-this._previousTime)/1000;
+    if(!isFinite(d)||d<0) d=0;
+    if(d>0.2) d=0.2;
+    this._delta=d*this._timescale;
+    this._elapsed+=this._delta;
+    return this;
+  };
+  THREE.Timer=Timer;
+})();
+</script>
 <script src="/vendor/deck.min.js"></script>
 <script src="/vendor/konva.min.js"></script>
 <script src="/vendor/graphology.min.js"></script>
@@ -865,7 +900,11 @@ function lineForecast(id,labels,actual,forecast){mkChart(id,{type:'line',data:{l
   options:{scales:{x:{grid:{color:GRID},ticks:{color:DIM,font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:6}},y:{grid:{color:GRID},ticks:{color:DIM,font:{size:9}}}},
   plugins:{legend:{display:true,labels:{color:'#9a9a9a',boxWidth:18,font:{size:9}}},tooltip:{enabled:true}},responsive:true,maintainAspectRatio:false}});}
 let _fg=null;
-function mesh3d(id,nodes,links,_try){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight).graphData({nodes,links}).nodeLabel('name').nodeColor(n=>n.color||TEAL).nodeVal(n=>n.val||4).linkColor(()=>'rgba(201,183,135,0.45)').linkWidth(1.2).linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(()=>TEAL).showNavInfo(false);setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);}catch(e){}
+function mesh3d(id,nodes,links,_try){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight).graphData({nodes,links}).nodeLabel('name').nodeColor(n=>n.color||TEAL).nodeVal(n=>n.val||4).linkColor(()=>'rgba(201,183,135,0.45)').linkWidth(1.2).linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(()=>TEAL).showNavInfo(false);
+  /* FRAMING: center+fit all nodes once the force sim settles (onEngineStop) + a 1500ms fallback. */
+  _fg.onEngineStop(function(){try{_fg.width(host.clientWidth).height(host.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}});
+  setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}},1500);
+  setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);}catch(e){}
   /* GL pool can be momentarily exhausted on software-GL; if no WebGL canvas appeared, re-init once. */
   if(!host.querySelector('canvas')&&!_try){try{_fg&&_fg._destructor&&_fg._destructor();}catch(e2){}_fg=null;host.innerHTML='';setTimeout(()=>mesh3d(id,nodes,links,1),120);}
   },300);}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
@@ -966,7 +1005,9 @@ function dag3d(id,nodes,links,opts){const host=el(id);if(!host||!window.ForceGra
     .linkColor(()=>'rgba(95,179,163,0.55)').linkWidth(1).linkDirectionalParticles(1).linkDirectionalParticleSpeed(0.012).linkDirectionalParticleColor(()=>TEAL)
     .showNavInfo(false).cooldownTicks(opts.cooldown||120);
     if(opts.onNode)_fg.onNodeClick(opts.onNode);
-    setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600);}catch(e){}},400);
+    /* FRAMING: center+fit on engine settle + 1500ms fallback. */
+    _fg.onEngineStop(function(){try{_fg.width(host.clientWidth).height(host.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}});
+    setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}},1500);
   }catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
 // cytoscape 2D graph in house style
 function cyGraph(id,elements,layout){const host=el(id);if(!host||!window.cytoscape)return null;killCy();host.innerHTML='';
@@ -4681,7 +4722,9 @@ function mesh3dClick(id,nodes,links,onNode){
       .linkColor(function(){return 'rgba(201,183,135,0.45)';}).linkWidth(1.2)
       .linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(function(){return TEAL;})
       .showNavInfo(false).onNodeClick(function(n){ try{ onNode&&onNode(n); }catch(e){} });
-    setTimeout(function(){ try{ _fg.width(host.clientWidth).height(host.clientHeight); _fg.zoomToFit&&_fg.zoomToFit(500); }catch(e){} },350);
+    /* FRAMING: center+fit on engine settle + 1500ms fallback. */
+    _fg.onEngineStop(function(){try{_fg.width(host.clientWidth).height(host.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}});
+    setTimeout(function(){ try{ _fg.width(host.clientWidth).height(host.clientHeight); _fg.zoomToFit&&_fg.zoomToFit(600,60); }catch(e){} },1500);
   }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+esc(e.message)+'</div>'; }
 }
 
@@ -6237,6 +6280,9 @@ function hero_render_graph(receipt){
     .linkWidth(1.2)
     .linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006)
     .onNodeClick(function(n){hero_trace(n);});
+  /* FRAMING: center+fit on engine settle + 1500ms fallback. */
+  _fg.onEngineStop(function(){try{_fg.width(box.clientWidth).height(box.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}});
+  setTimeout(function(){try{_fg.width(box.clientWidth).height(box.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}},1500);
   setTimeout(function(){try{_fg.width(box.clientWidth).height(box.clientHeight);}catch(e){}},60);
 }
 function hero_trace(n){
@@ -6318,6 +6364,9 @@ function tamper_render(n, brokenIdx, root){
     .linkWidth(function(l){return l.broken?0.2:1.4;})
     .linkDirectionalParticles(function(l){return l.broken?0:2;})
     .linkDirectionalParticleSpeed(0.006);
+  /* FRAMING: center+fit on engine settle + 1500ms fallback. */
+  _fg.onEngineStop(function(){try{_fg.width(box.clientWidth).height(box.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}});
+  setTimeout(function(){try{_fg.width(box.clientWidth).height(box.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}},1500);
   setTimeout(function(){try{_fg.width(box.clientWidth).height(box.clientHeight);}catch(e){}},60);
 }
 
