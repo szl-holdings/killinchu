@@ -55,7 +55,7 @@ Tabs → backing endpoints
 
 Honesty
 -------
-* SLSA Level 2 build provenance (signed, hash-pinned; no FedRAMP / Iron Bank / CMMC).
+* SLSA L1 build provenance (honest), L2 on roadmap (no L2-verified / L3 / FedRAMP / Iron Bank / CMMC).
 * Λ = Conjecture 1 — NEVER a theorem. 749/14/163 @ c7c0ba17.
 * DSSE receipts are REAL ECDSA-P256-SHA256 when SZL_COSIGN_PRIVATE_PEM is set,
   else an explicit honest PLACEHOLDER (never a fabricated signature).
@@ -291,7 +291,7 @@ def register(
                 "3-of-4 BFT Khipu consensus quorum (Policy/Reasoning/a11oy/Killinchu)",
                 "PQC hybrid signing (ML-DSA-65 + ECDSA-P256)",
             ],
-            "slsa": "SLSA Level 2 (signed build provenance; no FedRAMP / Iron Bank / CMMC)",
+            "slsa": "SLSA L1 (honest), L2 on roadmap (signed build provenance; NOT L2-verified / L3 / FedRAMP / Iron Bank / CMMC)",
             "lambda_status": "Conjecture 1 — NOT a theorem",
             "section_889": _SECTION_889,
             "no_fedramp_iron_bank_cmmc": True,
@@ -727,8 +727,8 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="legal" onclick="go('legal')" title="Legal boundaries: killinchu is a passive sensing and evidence system, not an offensive cyber or electronic-attack weapon. WE SENSE, WE EVIDENCE. Live from /api/killinchu/v1/legal."><span class="ico">⊕</span>Legal Boundaries</div>
     <div class="nav-item" data-view="companion" onclick="go('companion')" title="Companion-Defense Protocol: when an adversary drone enters a configured radius of a protected asset, killinchu runs a Khipu-receipted decision tree — auto-classify → legal RF warning beacon → operator notify → ROE-gated response. Kinetic always human-in-the-loop. Live from /api/killinchu/v1/companion-defense."><span class="ico">⊕</span>Companion Defense</div>
 
-    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
-    <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>5 formulas formally proven<br>Build provenance: SLSA L2<br>Drones + Maritime · signed receipts</div>
+    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; locked-proven formulas = 5 {F1,F11,F12,F18,F19}; SLSA L1 honest / L2 roadmap; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
+    <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>5 formulas LOCKED-proven (+ CI-green frontier)<br>Build provenance: SLSA L1 (honest), L2 roadmap<br>Drones + Maritime · signed receipts</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -1160,8 +1160,8 @@ async function verifyReceipt(env, pubPem, tamper){
 }
 
 // Internal doctrine (NOT shown to operator): Trust score = Λ (F23) = Conjecture 1, never a theorem;
-// proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2; receipts = real DSSE ECDSA-P256-SHA256, keyid szlholdings-cosign.
-const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads a live killinchu service — no mock data. The <b>trust score</b> is a documented <b>conjecture</b>, not a proven guarantee; <b>5</b> of our formulas are formally proven. Build provenance is <b>SLSA Level 2</b> (no FedRAMP / Iron Bank / CMMC claims). Decision receipts are <b>genuinely signed</b> (ECDSA-P256) and verifiable offline against our public key. Drone track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
+// proved formulas = 5 {F1,F11,F12,F18,F19} (locked) + experimental CI-green Wave 5-14 + CUT-2; SLSA L1 honest / L2 roadmap; receipts = real DSSE ECDSA-P256-SHA256, keyid szlholdings-cosign.
+const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads a live killinchu service — no mock data. The <b>trust score</b> is a documented <b>conjecture</b>, not a proven guarantee; <b>5</b> of our formulas are LOCKED-proven (a larger set is experimental CI-green). Build provenance is <b>SLSA L1 (honest), L2 on roadmap</b> (no L2-verified / L3 / FedRAMP / Iron Bank / CMMC claims). Decision receipts are <b>genuinely signed</b> (ECDSA-P256) and verifiable offline against our public key. Drone track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
 
 
 // ===================== VESSELS — AIS REPLAY SAMPLE SET (NOT a live feed) =====================
@@ -2406,6 +2406,11 @@ const VIEWS = {
         </div>
         <div class="card"><div class="card-h"><span class="card-t">Check Detail</span></div><div id="lambda-axes"><div class="row mono dim">click to evaluate</div></div></div>
         <details class="raw"><summary>raw /counter-uas/evaluate (incl. signed receipt)</summary><pre class="out" id="lambda-receipt">—</pre></details>
+        <div class="card" style="border-left:3px solid #e0a82e"><div class="card-h"><span class="card-t">Is Λ the only honest trust score? — the uniqueness question</span><span class="card-ep">formal status · lutar-lean</span></div>
+          <div style="font-size:12.5px;line-height:1.75;color:var(--paragraph)">
+            <div style="margin-bottom:.5rem"><span class="badge" style="color:#e0a82e;border:1px solid #e0a82e">Conjecture 1</span> <b>Unconditional uniqueness is OPEN — machine-checked FALSE.</b> Under base axioms A1–A5 alone, Λ is not the unique aggregator (counterexample Round13.maxAgg_ne_Λ: max/min aggregation also satisfy A1–A5). The bare claim “Λ is unique” stays a conjecture — never a theorem.</div>
+            <div style="margin-bottom:.5rem"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3">CUT-2 · CONDITIONAL · axiom-free</span> <b>Add one honest hypothesis and it becomes a theorem.</b> lambda_unique_of_separable (Wave 12, PR #202): under {A1,A2,A3,A5} PLUS slice-multiplicativity (separability), Λ is the UNIQUE aggregator — kernel-checked, NO new axiom. This lifts Λ off bare conjecture, conditionally only.</div>
+          </div></div>
         ${HONEST}`;
       lambda_run(false);
     }},
@@ -2757,7 +2762,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="card"><div class="card-h"><span class="card-t">Live earthquake arcs → a11oy</span><span class="card-ep">USGS all_day.geojson</span></div><div class="globe3d" id="pl-globe"></div><div class="brain-note">Source: USGS Earthquake Hazards Program (earthquake.usgs.gov), past-day feed. Arc color = magnitude.</div></div>
       <div class="card"><div class="card-h"><span class="card-t">Recent events</span><span class="card-ep">live</span></div><div id="pl-list" style="max-height:260px;overflow-y:auto"><div class="row mono dim">loading USGS feed…</div></div></div>${HONEST}`;window.pulse_load();}},
 
-  kbformulas:{title:'Knowledge & Formulas',badge:'KaTeX · CITABLE',sub:'The platform’s mathematical corpus, rendered in proper math typesetting and searchable. Each carries its source file and citation. Honesty: only five are formally proven in Lean (machine-checked, zero gaps); the rest are working, experimental, or definitional — never presented as theorems. The trust-score uniqueness claim remains an open research conjecture.',
+  kbformulas:{title:'Knowledge & Formulas',badge:'KaTeX · 5 LOCKED + CI-GREEN (thru Wave 14)',sub:'The platform’s mathematical corpus, rendered in proper math typesetting and searchable. Each carries its source file and citation. Honesty: exactly FIVE are LOCKED-proven in the Doctrine-v11 Lean kernel (machine-checked, zero gaps) — this number never moves. A larger experimental set is kernel-verified and CI-green on main @ b910c276 (Wave 5–14 + CUT-2), never folded into the locked five. The trust-score uniqueness claim stays an open research conjecture (Conjecture 1) and is proven only CONDITIONALLY (CUT-2, separability, axiom-free).',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Formulas</div><div class="v" id="kf-n">—</div><div class="d">rendered (KaTeX)</div></div>
       <div class="kpi"><div class="k">Formally proven</div><div class="v teal">5</div><div class="d">Lean, machine-checked</div></div>
@@ -2765,6 +2770,14 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="kpi"><div class="k">Source files</div><div class="v teal" id="kf-src">—</div></div></div>
       <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Proof status</span><span class="card-ep">honest</span></div><div class="chartbox"><canvas id="kf-donut"></canvas></div><div class="legend"><span><i style="background:#5fb3a3"></i>proven (5, locked)</span><span><i style="background:#c9b787"></i>working / open</span><span><i style="background:#b06a5a"></i>conjecture</span></div></div>
       <div class="card"><div class="card-h"><span class="card-t">The five proven (Lean, sorry-free)</span><span class="card-ep">locked</span></div><div id="kf-proven"><div class="row mono dim">loading…</div></div></div></div>
+      <div class="card" style="border-left:3px solid #5fb3a3"><div class="card-h"><span class="card-t">Newly-proven frontier — Wave 11–14 + CUT-2</span><span class="card-ep">kernel-clean · CI-green on main @ b910c276 · never in the locked five</span></div>
+        <div style="font-size:12px;line-height:1.7;color:var(--paragraph)">
+          <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3;min-width:96px;text-align:center">Wave 11 · PR201</span><span>CF-1 graph-automorphism distance invariance · CF-2 KV-cache slot bound · CF-3 Ouroboros early-exit · CF-5 Neyman–Pearson immune-optimality (+2 position-aware) — 24 theorems, no new axiom.</span></div>
+          <div class="row"><span class="badge" style="color:#e0a82e;border:1px solid #e0a82e;min-width:96px;text-align:center">CUT-2 · PR202</span><span><b>Λ uniqueness CONDITIONAL on separability, axiom-free.</b> lambda_unique_of_separable: under {A1,A2,A3,A5}+slice-multiplicativity, Λ is unique — kernel-clean, NO new axiom. Λ unconditional STILL = Conjecture 1.</span></div>
+          <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3;min-width:96px;text-align:center">Wave 12 · PR202</span><span>CF-13 DEQ input-Lipschitz well-posedness (dist(z*(x),z*(y)) ≤ Lx/(1−K)·dist) · CF-17 floating-point summation error bound.</span></div>
+          <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3;min-width:96px;text-align:center">Wave 13 · PR203</span><span>Deterministic replay-root existence · single-vote single-valuedness (a NON-Byzantine shadow — BFT safety stays Conjecture 2) · harmonic-mean bottleneck.</span></div>
+          <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3;min-width:96px;text-align:center">Wave 14 · PR204</span><span>CF-18 Mādhava/alternating-series remainder bound · CF-19 Reed–Solomon MDS distance LOWER bound (equality stays open) · CF-20 VCG truthfulness core · CF-21 log-sum & Gibbs inequality (Cover–Thomas). Does NOT repair DPO klDivergence/pinsker, which stay false-as-stated.</span></div>
+        </div></div>
       <div class="card"><div class="card-h"><span class="card-t">Formula corpus — rendered &amp; searchable</span><span class="card-ep" id="kf-count">—</span></div>
         <input id="kf-search" placeholder="search formulas by id, source, or LaTeX…" oninput="window.kbf_filter(this.value)" style="width:100%;padding:.6rem .8rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:12px;margin-bottom:.8rem"/>
         <div id="kf-list" style="max-height:520px;overflow:auto"><div class="row mono dim">loading knowledge base…</div></div></div>${HONEST}`;window.kbformulas_load();}},
@@ -2779,9 +2792,10 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
     render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Honest claims</span><span class="card-ep">live</span></div><div id="ho-host"><div class="row mono dim">loading…</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">What we do NOT claim</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>The trust score is NOT a proven-unique function — it is a research conjecture.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Builds are SLSA Level 2.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L2-verified, NOT L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Provenance is SLSA L1 (honest) with L2 on the roadmap.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>NOT a third-party audit. Compliance coverage is self-evidenced with hashes.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are formally proven; the rest are open or experimental.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are LOCKED-proven (F1,F11,F12,F18,F19). A larger set is experimental kernel-verified / CI-green (Wave 5–14 + CUT-2), NEVER folded into the locked five; the rest stay open or conjecture.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>Λ uniqueness is NOT proven unconditionally (Conjecture 1, counterexample machine-checked). It is proven only CONDITIONALLY (CUT-2 · separability · axiom-free). Byzantine BFT safety stays Conjecture 2.</span></div>
         <div class="row"><span class="badge b-live">YES</span><span>killinchu signs decision receipts with a REAL key — verify them yourself under Verify Signed Receipt.</span></div>
       </div>
       <details class="raw"><summary>raw honesty record</summary><pre class="out" id="o-honest">loading…</pre></details>${HONEST}`;window.honest_load();}},
@@ -2817,7 +2831,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
      REAL killinchu endpoints (drones, vessels, tracks, receipts), governed by the
      proven formulas. Viz vendored (3d-force-graph / globe.gl MIT vasturiano;
      echarts-gl Apache-2.0) — no CDN, sovereign. Honesty: Λ=Conjecture 1 (advisory);
-     locked-proven=5; trust interval = CONFORMAL not Hoeffding; SLSA L2; AIS=sample/
+     locked-proven=5; trust interval = CONFORMAL not Hoeffding; SLSA L1 honest / L2 roadmap; AIS=sample/
      replay; no fabricated data; no external fetch (live USGS allowed, labelled).
      ========================================================================== */
   fieldnet:{title:'Field Net',badge:'3D ENTITY-LINK · EDGE-PARTICLE LIVE FLOW',sub:'The whole maritime/air field as one live, animated 3D entity-link graph — drones, vessels, comms-relays, payloads, mission-tasks and anomaly events fused into a single explorable map, with edge particles tracing live event flow. Click any node for its provenance panel: kinematics, the gate verdict, the trust score (advisory conjecture), and its signed-receipt chip. Reimplements the vasturiano 3d-force-graph interaction model (MIT) on killinchu\u2019s real /threats/active, /fleet/vessels and /swarm/topology data. The field-net health score is label-invariant (graph theorem). Answers Warhacker P1 (autonomous-system oversight): every governed object is on one auditable surface. Drone tracks are <b>simulated over real adversary signatures</b>; vessels are <b>sample/replay</b>.',
@@ -2911,10 +2925,10 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
           <tbody id="tg-tb"><tr><td colspan="9" class="mono dim">fusing in-image drone/vessel threat corpus\u2026</td></tr></tbody></table></div></div>
       <div class="card" id="tg-detail"><div class="row mono dim">Click \u201cevaluate\u201d on any row to screen that class against current ROE/policy \u2014 the verdict, flags, recommended effector and a genuinely-signed receipt land here. Confidence is conformal-calibrated (W7-4).</div></div>${HONEST}`;window.darkgraph_load();}},
 
-  deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L2',sub:'Ship it air-gapped, prove it offline. The deployment posture of the field surface \u2014 a cosign-signed killinchu.uds / Zarf bundle of the organ images, each carrying SLSA Build L2 provenance (.att) and a signature (.sig). See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee verified live in your browser: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker P2 (air-gap) and P7 (edge twin): offline-verifiable bundle.',
+  deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L1 (honest)',sub:'Ship it air-gapped, prove it offline. The deployment posture of the field surface \u2014 a cosign-signed killinchu.uds / Zarf bundle of the organ images, each carrying SLSA L1 build provenance (.att; honest \u2014 L2 on roadmap, NOT L2-verified) and a signature (.sig). See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee verified live in your browser: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker P2 (air-gap) and P7 (edge twin): offline-verifiable bundle.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Organ images</div><div class="v" id="dp-n">\u2014</div><div class="d">in the bundle</div></div>
-      <div class="kpi"><div class="k">SLSA level</div><div class="v teal">Build L2</div><div class="d">.att provenance</div></div>
+      <div class="kpi"><div class="k">SLSA level</div><div class="v teal">L1 (honest)</div><div class="d">.att provenance · L2 roadmap</div></div>
       <div class="kpi"><div class="k">Signed</div><div class="v teal">cosign</div><div class="d">.sig on GHCR</div></div>
       <div class="kpi"><div class="k">Verify-yourself</div><div class="v" id="dp-ag">\u2014</div><div class="d">in-browser P5 / W5-4</div></div></div>
       <div class="grid2">
@@ -3406,7 +3420,7 @@ async function gate_try(action){try{setOut('g-try','inspecting…');
 // What we claim (a11oy honest record)
 async function honest_load(){try{const d=await orgGet('a11oy','/api/a11oy/v1/honest');setHTML('ho-host','');
   addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">5</span></div>`);
-  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA Level 2</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L1 (honest) · L2 roadmap</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust score</span><span class="spacer b-err badge">research conjecture</span></div>`);
   addHTML('ho-host',`<div class="row"><span>killinchu decision receipts</span><span class="spacer b-live badge">genuinely signed (real key)</span></div>`);
   setOut('o-honest',d);}catch(e){setHTML('ho-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
@@ -4392,7 +4406,7 @@ function dvh_anomaly(scored){
    KILLINCHU FRONTIER TAB LOADERS (3D · LIVE) — maritime/air field surface.
    Leader interaction models reimplemented as OUR OWN code on REAL killinchu
    endpoints, governed by the proven formulas. Honesty: Λ=Conjecture 1 (advisory);
-   locked-proven=5; trust interval = CONFORMAL (W7-4) not Hoeffding; SLSA L2;
+   locked-proven=5; trust interval = CONFORMAL (W7-4) not Hoeffding; SLSA L1 honest / L2 roadmap;
    no fabricated data (drone tracks simulated over real signatures; vessels =
    sample/replay; live USGS labelled); NO external fetch beyond allowed USGS.
    Reuses console base helpers: getJSON/postJSON/getPublic/el/esc/setTxt/setHTML/
@@ -5144,7 +5158,7 @@ async function deploy_load(){
       'cosign verify ghcr.io/szl-holdings/killinchu@<digest> \\\n'+
       '  --certificate-identity-regexp "github.com/szl-holdings" \\\n'+
       '  --certificate-oidc-issuer https://token.actions.githubusercontent.com\n\n'+
-      '# 2) SLSA Build L2 provenance attestation (.att):\n'+
+      '# 2) SLSA L1 build provenance attestation (.att; honest — L2 on roadmap):\n'+
       'slsa-verifier verify-image ghcr.io/szl-holdings/killinchu@<digest> \\\n'+
       '  --source-uri github.com/szl-holdings/killinchu\n\n'+
       '# 3) Receipt DSSE signature (ECDSA P-256, keyid szlholdings-cosign) \u2014 verify a live receipt:\n'+
