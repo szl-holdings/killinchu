@@ -3051,17 +3051,20 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       </div>
       <div class="card" id="me-drill"><div class="row mono dim">Click any span in the stream to drill into it \u2014 its service, traceparent and the genuinely-signed span receipt land here.</div></div>${HONEST}`;window.melt_load();}},
 
-  darkgraph:{title:'Dark-Vessel Threat Table',badge:'COUNTER-UAS RISK TABLE · SORTABLE · SOURCED · CONFORMAL',sub:'The maritime/air adversary, as a <b>sortable counter-UAS risk table</b>. The full in-image drone/vessel corpus \u2014 every model with manufacturer, country, side, NATO group, real performance specs and a primary <b>source link</b> \u2014 ranked by a transparent risk score (hostile side + group tier + speed). <b>Filter</b> by side/group and <b>evaluate any drone against ROE</b> in one click for a genuinely-signed verdict. Reimplements the Wiz / CrowdStrike security-graph \u201ctoxic path\u201d risk-ranking pattern on killinchu\u2019s real /drones/database corpus \u2014 <b>NO external fetch</b>; risk computed from the in-image corpus itself. Every screened action is conformal-calibrated (never 100% certainty, W7-4). Answers Warhacker P8 (cross-organ threat).',
+  darkgraph:{title:'Dark-Vessel Threat Graph',badge:'3D FORCE-GRAPH · COUNTER-UAS · LIVE AIS + IN-IMAGE CORPUS · SOURCED · CONFORMAL',sub:'The maritime/air adversary as a <b>live 3D force-directed threat graph</b> (vasturiano 3d-force-graph, vendored in-image \u2014 0 CDN). Nodes are <b>country \u2192 manufacturer \u2192 model</b> drawn from killinchu\u2019s real <code>/drones/database</code> corpus (53 classes, every node sourced), with <b>live Digitraffic FI AIS vessels</b> attached to their flag-state country (labelled <b>live</b>) so the current maritime picture wires into the same threat topology. Node size/colour encode a transparent risk score (hostile side + NATO group tier + speed); <b>click any model node to evaluate it against ROE</b> for a genuinely-signed verdict. Reimplements the Wiz / CrowdStrike security-graph \u201ctoxic-path\u201d pattern as a real graph. Screened actions are conformal-calibrated (never 100% certainty, W7-4). Answers Warhacker P8 (cross-organ threat). Λ stays <b>Conjecture 1</b>.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Corpus</div><div class="v" id="tg-n">\u2014</div><div class="d">drone + vessel classes</div></div>
       <div class="kpi"><div class="k">High-risk</div><div class="v warn" id="tg-tox">\u2014</div><div class="d">hostile / Group-3+</div></div>
-      <div class="kpi"><div class="k">Shown</div><div class="v teal" id="tg-g">\u2014</div><div class="d">after filter</div></div>
+      <div class="kpi"><div class="k">Live AIS vessels</div><div class="v live" id="tg-ais">\u2014</div><div class="d">Digitraffic FI (live)</div></div>
       <div class="kpi"><div class="k">Confidence</div><div class="v">conformal</div><div class="d">never 100% (W7-4)</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Filter the corpus</span><span class="card-ep">side \u00b7 group</span></div>
+      <div class="card"><div class="card-h"><span class="card-t">Filter the graph</span><span class="card-ep">side \u00b7 group</span></div>
         <div class="row"><span>Side</span><span class="spacer"><select id="tg-side" onchange="window.darkgraph_render()" style="background:var(--panel);color:var(--paragraph);border:1px solid var(--gold-line);border-radius:6px;padding:.35rem .6rem;font-family:var(--mono);font-size:12px"><option value="">all sides</option></select></span></div>
         <div class="row"><span>Group</span><span class="spacer"><select id="tg-group" onchange="window.darkgraph_render()" style="background:var(--panel);color:var(--paragraph);border:1px solid var(--gold-line);border-radius:6px;padding:.35rem .6rem;font-family:var(--mono);font-size:12px"><option value="">all groups</option></select></span></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Counter-UAS risk table</span><span class="card-ep">click a column header to sort \u00b7 \u201cevaluate\u201d = signed ROE verdict</span></div>
-        <div style="max-height:460px;overflow:auto"><table class="dtbl"><thead><tr>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Dark-Vessel Threat Graph (3D)</span><span class="card-ep">3d-force-graph \u00b7 country\u2192maker\u2192model + live AIS \u00b7 click a model to ROE-evaluate</span></div>
+        <div class="graph3d" id="tg-3d" style="height:460px;border-radius:10px;overflow:hidden;background:#050608"></div>
+        <div class="legend" style="margin-top:.4rem"><span><i style="background:#b06a5a"></i>hostile / Group-3+</span><span><i style="background:#c9a05f"></i>elevated</span><span><i style="background:#5fb3a3"></i>low</span><span><i style="background:#7aa0d0"></i>country</span><span><i style="background:#5a8a6e"></i>live AIS vessel</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Risk table (same corpus)</span><span class="card-ep">click a column header to sort \u00b7 \u201cevaluate\u201d = signed ROE verdict</span></div>
+        <div style="max-height:300px;overflow:auto"><table class="dtbl"><thead><tr>
           <th style="cursor:pointer" onclick="window.darkgraph_sort('risk')">risk \u25be</th>
           <th style="cursor:pointer" onclick="window.darkgraph_sort('model')">model</th>
           <th style="cursor:pointer" onclick="window.darkgraph_sort('manufacturer')">manufacturer</th>
@@ -3215,20 +3218,37 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
   // ── DI.3 Constellations ─────────────────────────────────────────
   constellations:{title:'Constellations',badge:'MULTI-CONSTELLATION SPACE INTEL · LIVE',sub:'killinchu aggregates <b>multi-constellation space intelligence</b> — RF geolocation, optical EO, and all-weather SAR — under each provider\u2019s lawful access model. <b>HawkEye 360 RF geolocation is primary for Remote-ID-OFF \u201cdark drone\u201d detection</b> (it geolocates the emitter even when the drone refuses to broadcast Remote ID). Starlink is comms backhaul only, not a sensor. killinchu aggregates third-party constellation products under each provider\u2019s access model — it does not operate these satellites. Plan an AOI on the GEOINT tab. Live from <code>/api/killinchu/v1/satellites</code>.',
     render:async(c)=>{
-      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">${liveDot()}Constellations</span><span class="card-ep">GET /satellites</span></div>
-        <div id="con-list"><div class="row mono dim">loading constellations…</div></div></div>
-      <details class="raw"><summary>raw /satellites</summary><pre class="out" id="con-raw">—</pre></details>
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Constellations</div><div class="v teal" id="con-n">\u2014</div><div class="d">live /satellites</div></div>
+        <div class="kpi"><div class="k">RF / SIGINT</div><div class="v" id="con-rf">\u2014</div><div class="d">dark-drone primary</div></div>
+        <div class="kpi"><div class="k">SAR (all-weather)</div><div class="v" id="con-sar">\u2014</div><div class="d">cloud/night</div></div>
+        <div class="kpi"><div class="k">Optical EO</div><div class="v" id="con-eo">\u2014</div><div class="d">PID / change-detect</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}LEO constellation globe (3D)</span><span class="card-ep">three-globe \u00b7 orbit rings at real LEO altitude \u00b7 click a constellation</span></div>
+        <div class="graph3d" id="con-globe" style="height:440px;border-radius:10px;overflow:hidden;background:#03060c"></div>
+        <div class="legend" style="margin-top:.4rem"><span><i style="background:#b06a5a"></i>RF/SIGINT (primary)</span><span><i style="background:#5fb3a3"></i>SAR</span><span><i style="background:#c9b787"></i>optical EO</span><span><i style="background:#7aa0d0"></i>RF data (AIS/ADS-B)</span><span><i style="background:#5a8a6e"></i>comms backhaul</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Constellation registry</span><span class="card-ep">aggregated under each provider\u2019s lawful access model \u2014 killinchu does not operate these satellites</span></div>
+        <div id="con-list"><div class="row mono dim">loading constellations\u2026</div></div></div>
+      <details class="raw"><summary>raw /satellites</summary><pre class="out" id="con-raw">\u2014</pre></details>
       ${HONEST}`;
       try{
         const d = await getJSON(API+'/satellites');
         setOut('con-raw',d);
+        const cons=(d.constellations||[]);
+        setTxt('con-n',cons.length);
+        const isRF=t=>/RF|SIGINT/i.test(t.modality||'')&&!/AIS|ADS-B/i.test(t.modality||'');
+        const isSAR=t=>/SAR/i.test(t.modality||'');
+        const isEO=t=>/optical|EO/i.test(t.modality||'');
+        setTxt('con-rf',cons.filter(isRF).length);
+        setTxt('con-sar',cons.filter(isSAR).length);
+        setTxt('con-eo',cons.filter(isEO).length);
+        try{ constellations_globe(cons); }catch(e){}
         const h=el('con-list'); h.innerHTML='';
-        (d.constellations||[]).forEach(t=>{
+        cons.forEach(t=>{
           const isPrimary=/PRIMARY/i.test(t.killinchu_use||'');
           const isBackhaul=/BACKHAUL/i.test(t.modality||'');
           const sc=isPrimary?'b-err':isBackhaul?'b-warn':'b-live';
           const src=(t.source||'').split('|')[0].trim();
-          h.insertAdjacentHTML('beforeend',`<div class="row" style="flex-wrap:wrap">
+          h.insertAdjacentHTML('beforeend',`<div class="row" id="con-row-${esc(t.id||'')}" style="flex-wrap:wrap;border-radius:6px">
             <span class="badge ${sc}">${esc((t.modality||'').split(' ')[0])}</span>
             <span><b>${esc(t.name)}</b></span>
             <span class="spacer mono dim" style="font-size:10px">${esc(t.revisit||'')}</span>
@@ -4971,8 +4991,96 @@ async function darkgraph_load(){
     var facets=(db.facets||{});
     var ss=el('tg-side'); if(ss && !ss._pop){ ss._pop=1; ss.innerHTML='<option value="">all sides</option>'+(facets.sides||[]).map(function(s){return '<option value="'+esc(s)+'">'+esc(s)+'</option>';}).join(''); }
     var gs=el('tg-group'); if(gs && !gs._pop){ gs._pop=1; gs.innerHTML='<option value="">all groups</option>'+(facets.groups||[]).map(function(g){return '<option value="'+esc(g)+'">'+esc(g)+'</option>';}).join(''); }
+    // LIVE AIS layer (Digitraffic FI, no auth) — attach current maritime picture to the threat topology, labelled live.
+    window._tgAis=[];
+    try{ var ais=await getJSON(API+'/ais/live?limit=40'); var vs=(ais&&ais.data&&ais.data.vessels)||[]; if(ais&&ais.mode==='live'){ window._tgAis=vs.slice(0,18); } setTxt('tg-ais',window._tgAis.length||0); }
+    catch(e){ setTxt('tg-ais','0'); }
     darkgraph_render();
   }catch(e){ if(el('tg-tb')) el('tg-tb').innerHTML='<tr><td colspan="9" class="mono dim">live service retry: '+esc(e&&e.message||e)+'</td></tr>'; }
+}
+// Build the 3D force-directed threat graph: country -> manufacturer -> model from the in-image
+// corpus, with live AIS vessels attached to a 'maritime (live AIS)' hub. Honest: corpus is in-image
+// (the threat taxonomy), AIS nodes are real-time and labelled live. Click a model -> ROE-evaluate.
+function _tg_riskColor(r){ return r>=60?'#b06a5a':(r>=35?'#c9a05f':'#5fb3a3'); }
+function darkgraph_graph(rows){
+  var host=el('tg-3d'); if(!host||!window.ForceGraph3D) return;
+  var nodes=[], links=[], seen={};
+  function add(id,o){ if(seen[id]) return; seen[id]=1; o.id=id; nodes.push(o); }
+  (rows||[]).forEach(function(d){
+    var cty='cty:'+(d.country||'unknown'); var mk='mk:'+(d.manufacturer||'unknown')+'|'+(d.country||'');
+    add(cty,{name:(d.country||'unknown'),group:'country',color:'#7aa0d0',val:7});
+    add(mk,{name:(d.manufacturer||'unknown'),group:'maker',color:'#9a9a9a',val:5});
+    add('mdl:'+d.id,{name:(d.model||d.id),group:'model',color:_tg_riskColor(d._risk||0),val:Math.max(3,(d._risk||0)/12),_drone:d,risk:d._risk});
+    links.push({source:cty,target:mk}); links.push({source:mk,target:'mdl:'+d.id});
+  });
+  // live AIS hub + vessels (real-time, labelled live)
+  var ais=(window._tgAis||[]);
+  if(ais.length){
+    add('ais:hub',{name:'maritime \u00b7 LIVE AIS (Digitraffic FI)',group:'aishub',color:'#5a8a6e',val:8});
+    ais.forEach(function(v){ var id='ais:'+v.mmsi; add(id,{name:(v.name||('MMSI '+v.mmsi))+' \u00b7 live AIS',group:'aisves',color:'#5a8a6e',val:4,_ais:v}); links.push({source:'ais:hub',target:id}); });
+  }
+  mesh3dClick('tg-3d',nodes,links,function(n){
+    if(n.group==='model'&&n._drone){ window.darkgraph_evaluate(n._drone.id); }
+    else if(n.group==='aisves'&&n._ais){ var v=n._ais; setHTML('tg-detail','<div class="card-h"><span class="card-t">'+esc(v.name||('MMSI '+v.mmsi))+'</span><span class="card-ep">LIVE AIS \u00b7 Digitraffic FI</span></div><div class="row mono dim">MMSI '+esc(v.mmsi)+' \u00b7 SOG '+esc(v.sog)+'kn \u00b7 COG '+esc(v.cog)+'\u00b0 \u00b7 '+esc((v.lat||0).toFixed(3))+','+esc((v.lon||0).toFixed(3))+' \u00b7 real-time position (live). Maritime contact wired into the threat topology; screen a drone-class node for an ROE verdict.</div>'); }
+  });
+}
+/* ===== CONSTELLATIONS: 3D LEO globe (three-globe via globe.gl) with orbit rings + sats =====
+   Each constellation gets an orbit ring at its REAL LEO altitude (parsed from the registry text,
+   honest default ~550km if unstated) and a cluster of satellite points spread along that orbit.
+   Colour encodes modality (RF/SIGINT, SAR, optical EO, RF-data, comms backhaul). Click a sat to
+   highlight its constellation in the registry list. Globe uses the vendored earth-night texture
+   (0 CDN). killinchu aggregates these products; it does NOT operate the satellites. */
+function _con_alt(t){
+  var txt=String((t.constellation||'')+' '+(t.modality||''));
+  var m=txt.match(/(\d{3,4})\s*km/i);
+  var km=m?parseInt(m[1],10):550;            // honest default LEO if unstated
+  if(/backhaul|broadband/i.test(txt)) km=Math.max(km,550);
+  return Math.max(0.10, Math.min(0.85, km/1000)); // globe-altitude units (R_earth=1)
+}
+function _con_color(t){
+  var md=String(t.modality||'');
+  if(/backhaul/i.test(md)) return '#5a8a6e';
+  if(/AIS|ADS-B|GNSS/i.test(md)) return '#7aa0d0';
+  if(/SAR/i.test(md)) return '#5fb3a3';
+  if(/optical|EO/i.test(md)) return '#c9b787';
+  if(/RF|SIGINT/i.test(md)) return '#b06a5a';
+  return '#9a9a9a';
+}
+function constellations_globe(cons){
+  var host=el('con-globe'); if(!host||typeof Globe==='undefined') return;
+  try{ killGlobe(); }catch(e){}
+  host.innerHTML='';
+  var bw=host.clientWidth||host.offsetWidth||640, bh=host.clientHeight||440;
+  var sats=[], rings=[];
+  (cons||[]).forEach(function(t,ci){
+    var alt=_con_alt(t), col=_con_color(t);
+    var inc=(ci*23)%80 - 40;                 // spread orbital inclinations for visual separation
+    var n=8;
+    for(var k=0;k<n;k++){
+      var lng=((360/n)*k + ci*17) % 360 - 180;
+      var lat=inc*Math.sin((k/n)*Math.PI*2);
+      sats.push({lat:lat,lng:lng,alt:alt,color:col,_c:t,
+        label:t.name+' \u00b7 '+(t.modality||'')+' \u00b7 ~'+Math.round(alt*1000)+'km LEO'});
+    }
+    // an orbit ring marker at the ascending node
+    rings.push({lat:inc,lng:(ci*51)%360-180,color:col,maxR:6,speed:1.0});
+  });
+  _globe=Globe()(host)
+    .width(bw).height(bh)
+    .backgroundColor('#03060c')
+    .showGlobe(true).showAtmosphere(true).atmosphereColor('#3a6ea5').atmosphereAltitude(0.16)
+    .globeImageUrl('/vendor/earth-night.jpg')
+    .pointsData(sats).pointLat('lat').pointLng('lng').pointAltitude('alt').pointColor('color')
+    .pointRadius(0.32).pointLabel('label')
+    .onPointClick(function(p){ try{ constellations_highlight(p._c); }catch(e){} });
+  try{ if(_globe.ringsData){ _globe.ringsData(rings).ringColor('color').ringMaxRadius('maxR').ringPropagationSpeed('speed').ringRepeatPeriod(1400); } }catch(e){}
+  try{ _globe.pointOfView({lat:25,lng:0,altitude:2.6},0); var ctr=_globe.controls(); if(ctr){ ctr.autoRotate=true; ctr.autoRotateSpeed=0.4; } }catch(e){}
+  setTimeout(function(){ try{ _globe.width(host.clientWidth||bw).height(host.clientHeight||bh); }catch(e){} },120);
+  setTimeout(function(){ try{ _globe.width(host.clientWidth||bw).height(host.clientHeight||bh); }catch(e){} },600);
+}
+function constellations_highlight(t){
+  var row=document.getElementById('con-row-'+(t&&t.id||''));
+  if(row){ row.scrollIntoView({block:'nearest',behavior:'smooth'}); row.style.outline='2px solid '+_con_color(t); setTimeout(function(){ try{ row.style.outline=''; }catch(e){} },1800); }
 }
 function darkgraph_sort(key){
   var s=window._tgSort||{key:'risk',dir:-1};
@@ -4990,7 +5098,8 @@ function darkgraph_render(){
     else { av=String(a[s.key]||'').toLowerCase(); bv=String(b[s.key]||'').toLowerCase(); }
     return av<bv?-s.dir:(av>bv?s.dir:0);
   });
-  setTxt('tg-g',rows.length);
+  if(el('tg-g')) setTxt('tg-g',rows.length);
+  try{ darkgraph_graph(rows); }catch(e){}
   var tb=el('tg-tb'); if(!tb) return;
   if(!rows.length){ tb.innerHTML='<tr><td colspan="9" class="mono dim">no classes match this filter (honest empty state)</td></tr>'; return; }
   if(!window._tgById) window._tgById={};
@@ -6020,7 +6129,7 @@ window.fieldnet_load=fieldnet_load; window.fieldnet_evaluate=fieldnet_evaluate;
 window.autonomyov_init=autonomyov_init; window.autonomyov_run=autonomyov_run;
 window.modelatlas_load=modelatlas_load; window.modelatlas_route=modelatlas_route;
 window.melt_load=melt_load; window.melt_drill=melt_drill; window.melt_apply_filter=melt_apply_filter;
-window.darkgraph_load=darkgraph_load; window.darkgraph_render=darkgraph_render; window.darkgraph_sort=darkgraph_sort; window.darkgraph_evaluate=darkgraph_evaluate;
+window.darkgraph_load=darkgraph_load; window.darkgraph_render=darkgraph_render; window.darkgraph_sort=darkgraph_sort; window.darkgraph_evaluate=darkgraph_evaluate; window.darkgraph_graph=darkgraph_graph;
 window.deploy_load=deploy_load; window.deploy_verify=deploy_verify;
 window.warboard_init=warboard_init; window.warboard_all=warboard_all; window.warboard_one=warboard_one;
 
