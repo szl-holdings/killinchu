@@ -335,6 +335,22 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>killinchu — Counter-UAS Governance · SZL Holdings</title>
 <meta name="description" content="killinchu is SZL Holdings' counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint."/>
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="killinchu · SZL Holdings" />
+<meta property="og:url" content="https://killinchu.a11oy.net/" />
+<meta property="og:title" content="killinchu · Counter-UAS Governance" />
+<meta property="og:description" content="killinchu is SZL Holdings&#x27; counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint." />
+<meta property="og:image" content="https://killinchu.a11oy.net/og-card.png" />
+<meta property="og:image:secure_url" content="https://killinchu.a11oy.net/og-card.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="killinchu — counter-UAS governance: live track board, governed ROE, signed receipts" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="killinchu · Counter-UAS Governance" />
+<meta name="twitter:description" content="killinchu is SZL Holdings&#x27; counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint." />
+<meta name="twitter:image" content="https://killinchu.a11oy.net/og-card.png" />
+<meta name="twitter:image:alt" content="killinchu — counter-UAS governance: live track board, governed ROE, signed receipts" />
 <!-- SOVEREIGN: self-hosted fonts (0 runtime CDN; no fonts.googleapis.com / fonts.gstatic.com). Served from /vendor/fonts/. -->
 <link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
 <!-- VENDORED viz libs (no-CDN, sovereign / air-gap ready). Chart.js 4.4.1, 3d-force-graph 1.73.4,
