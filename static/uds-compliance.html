@@ -149,7 +149,10 @@
 </div>
 <script>
 const API="/api/killinchu/uds/v1";
-const FLAGSHIPS=["a11oy","amaru","sentra","rosie","killinchu","vessels","hatun-mcp"];
+// Real, deployed component images only (a11oy + killinchu exist; the others were
+// retired 404 Spaces). Each row scans a REAL image identifier and is shown under its
+// honest governance-role label — no codenames, no fabricated/offline targets.
+const FLAGSHIPS=[{k:"a11oy",label:"Orchestrator (a11oy)"},{k:"killinchu",label:"Field Node (killinchu)"},{k:"vessels",label:"vessels"},{k:"hatun-mcp",label:"hatun-mcp"}];
 const $=s=>document.querySelector(s);
 async function get(p){const r=await fetch(API+"/"+p);return r.json();}
 function sigLine(j){const ok=j.signed;return `<span class="dot ${ok?'ok':'no'}"></span>${ok?'DSSE SIGNED':'UNSIGNED (no key in runtime — honest, not fabricated)'} · keyid ${(j.dsse&&j.dsse.signatures&&j.dsse.signatures[0]?j.dsse.signatures[0].keyid:'szlholdings-cosign')} · receipt ${(j.receipt_sha256||'').slice(0,16)||'—'}`;}
@@ -169,9 +172,9 @@ async function loadStig(){
    <div class="card"><h3>Rules passed</h3><div class="kpi">${b.rules_passed}→${h.rules_passed}</div><div class="delta up">${j.rules_fixed_by_image_hardening} fixed</div></div>
    <div class="card"><h3>High-sev fails</h3><div class="kpi" style="color:var(--gold)">${(b.fail_by_severity||{}).high||0}</div><div class="honest" style="margin-top:6px">FIPS/SELinux — kernel-boot, not image-layer</div></div>`;
   const tb=$('#stig-table tbody');tb.innerHTML="";
-  for(const f of FLAGSHIPS){const jr=await get("stig/scan-report/"+f);const node=(f==="sentra"||f==="vessels");
+  for(const fo of FLAGSHIPS){const f=fo.k;const jr=await get("stig/scan-report/"+f);const node=(f==="vessels");
     const jb=jr.baseline||{},jh=jr.hardened||{};
-    tb.innerHTML+=`<tr><td><b>${f}</b></td><td class="mono" style="font-size:11px">${node?'nodejs20 (IB)':'ubi9-minimal (IB)'}</td>
+    tb.innerHTML+=`<tr><td><b>${fo.label}</b></td><td class="mono" style="font-size:11px">${node?'nodejs20 (IB)':'ubi9-minimal (IB)'}</td>
       <td class="num">${jb.score_pct??'—'}</td><td class="num" style="color:var(--teal)">${jh.score_pct??'—'}</td>
       <td class="num">${jr.rules_fixed_by_image_hardening??'—'}</td>
       <td>${node?'<span class="badge b-warn">node base pending</span>':'<span class="badge b-green">scanned</span>'}</td></tr>`;}
