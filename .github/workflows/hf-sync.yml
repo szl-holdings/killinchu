@@ -1,22 +1,29 @@
 name: Sync to HuggingFace Space
 
-# hf-sync: keep the HuggingFace Space card (README.md) byte-identical with the
-# canonical GitHub README on szl-holdings/killinchu.
+# hf-sync: keep the HuggingFace Space in lockstep with canonical GitHub main on
+# szl-holdings/killinchu, split into two INDEPENDENT concerns that each trigger
+# only on their own changes:
 #
-# DESIGN
-#   * The GitHub README already carries the full, correct HF Space front-matter
-#     (enforced on every push by readme-frontmatter-check.yml). Therefore this
-#     job pushes the README VERBATIM — no front-matter strip/re-inject. That
-#     guarantees true byte-for-byte parity and removes the prior hazard where a
-#     hardcoded (and drifted) front-matter block silently rewrote the card.
-#   * SAFETY GUARD: before overwriting, the current Space README is fetched and
-#     its byte-count compared with the incoming one. A blind one-way push that
-#     would sharply shrink the card (new < old * MIN_RATIO) is REFUSED, so an
-#     accidental gutting can never silently delete content. Override for an
-#     intentional large reduction via workflow_dispatch with force=true.
-#   * Credential: HF_WRITE_TOKEN (HuggingFace write token with org-write to
-#     SZLHOLDINGS). The legacy HF_TOKEN secret is retired.
-#   * The deployed app files are mirrored in a separate, additive step below.
+#   * README sync (sync-readme job) — fires on README.md (or this workflow)
+#     pushes. Pushes the Space card (README.md) VERBATIM, byte-for-byte. The
+#     GitHub README already carries the full HF Space front-matter (enforced by
+#     readme-frontmatter-check.yml), so no front-matter strip/re-inject. A
+#     SAFETY GUARD refuses a blind push that would sharply shrink the card
+#     (new < old * MIN_RATIO); override an intentional reduction via
+#     workflow_dispatch force=true.
+#
+#   * App-file mirror (mirror-app job) — fires ONLY on pushes that touch the
+#     deployed app files (serve.py, Dockerfile, killinchu_elite_console.py,
+#     killinchu_cannonico.py). A README-only push no longer re-pushes app code
+#     or forces a no-op Space commit. PARENT must factory-rebuild the Space
+#     after this job runs. Idempotent: identical content is a no-op.
+#
+# A lightweight detect job computes which file groups changed (git diff, no
+# third-party actions — org policy allows only github-owned/verified actions)
+# and gates the two jobs. workflow_dispatch runs both.
+#
+# Credential: HF_WRITE_TOKEN (HuggingFace write token with org-write to
+# SZLHOLDINGS). The legacy HF_TOKEN secret is retired.
 
 on:
   push:
@@ -24,6 +31,10 @@ on:
     paths:
       - "README.md"
       - ".github/workflows/hf-sync.yml"
+      - "serve.py"
+      - "Dockerfile"
+      - "killinchu_elite_console.py"
+      - "killinchu_cannonico.py"
   workflow_dispatch:
     inputs:
       force:
@@ -35,7 +46,67 @@ permissions:
   contents: read
 
 jobs:
-  sync-to-hub:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      readme: ${{ steps.filter.outputs.readme }}
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          lfs: false
+      - name: Detect which file groups changed
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # A manual run cannot diff against a previous commit; run both concerns.
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "readme=true" >> "$GITHUB_OUTPUT"
+            echo "app=true" >> "$GITHUB_OUTPUT"
+            echo "workflow_dispatch: running both README sync and app mirror."
+            exit 0
+          fi
+
+          base="${BEFORE:-}"
+          # First push to a branch (all-zero before) or a missing base commit:
+          # fall back to the immediate parent, then to the single-commit view.
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            base="$(git rev-parse "${SHA}^" 2>/dev/null || true)"
+          fi
+
+          if [ -n "$base" ]; then
+            changed="$(git diff --name-only "$base" "$SHA")"
+          else
+            changed="$(git show --name-only --pretty=format: "$SHA")"
+          fi
+          echo "Changed files:"
+          echo "$changed"
+
+          readme=false
+          app=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              README.md|.github/workflows/hf-sync.yml) readme=true ;;
+            esac
+            case "$f" in
+              serve.py|Dockerfile|killinchu_elite_console.py|killinchu_cannonico.py) app=true ;;
+            esac
+          done <<< "$changed"
+
+          echo "readme=$readme" >> "$GITHUB_OUTPUT"
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          echo "Decision: readme=$readme app=$app"
+
+  sync-readme:
+    needs: detect
+    if: needs.detect.outputs.readme == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -126,11 +197,26 @@ jobs:
           print("HF commit:", commit.oid, "->", space, "(%d bytes)" % len(new))
           PYEOF
 
-      # ADDITIVE: the README-only sync above cannot make an app route live. This
-      # step mirrors the deployed app files (serve.py, Dockerfile, and the two
-      # route modules) from canonical GitHub main to the Space so the Space code
-      # never drifts behind GitHub. Idempotent: identical content is a no-op.
-      # PARENT must factory-rebuild the Space after this runs.
+  # ADDITIVE: the README-only sync above cannot make an app route live. This
+  # job mirrors the deployed app files (serve.py, Dockerfile, and the two
+  # route modules) from canonical GitHub main to the Space so the Space code
+  # never drifts behind GitHub. It runs ONLY when those files actually change.
+  # Idempotent: identical content is a no-op. PARENT must factory-rebuild the
+  # Space after this job runs.
+  mirror-app:
+    needs: detect
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 1
+          lfs: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Install huggingface_hub
+        run: pip install --quiet "huggingface_hub>=0.25"
       - name: Mirror app files (serve.py + Dockerfile + route modules) to the Space
         env:
           HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
