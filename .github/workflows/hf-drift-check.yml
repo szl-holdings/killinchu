@@ -1,0 +1,114 @@
+name: HF README drift check
+
+# hf-drift-check: detect when the HuggingFace Space card (README.md) has drifted
+# away from the canonical GitHub README on szl-holdings/killinchu.
+#
+# WHY
+#   hf-sync.yml is one-way (GitHub -> HF) and only fires when README.md (or the
+#   sync workflow itself) is pushed. If someone edits the Space card directly on
+#   huggingface.co, the two silently diverge until the next GitHub push happens
+#   to clobber it. This scheduled job catches that drift proactively.
+#
+# BEHAVIOUR
+#   * Daily (and on demand) it fetches the live Space card and compares it,
+#     byte-for-byte, with the canonical GitHub README. hf-sync pushes the README
+#     verbatim, so in steady state the two are byte-identical; any difference is
+#     real drift.
+#   * On drift it FAILS LOUDLY and writes a diff to the job summary so a human
+#     can reconcile. It NEVER auto-overwrites either side (respects the
+#     anti-shrink / no-silent-clobber principle) — reconciliation is a human
+#     decision: re-run hf-sync to push GitHub -> HF, or copy the Space edit back
+#     into GitHub if the Space is the intended source of truth.
+
+on:
+  schedule:
+    - cron: "17 6 * * *" # daily ~06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-drift-check
+  cancel-in-progress: true
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 1
+          lfs: false
+      - name: Compare GitHub README with the live HuggingFace Space card
+        env:
+          SPACE_ID: SZLHOLDINGS/killinchu
+          # Optional: authenticate the raw fetch to dodge anonymous rate limits
+          # and keep working if the Space ever goes private. Read-only.
+          HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          RAW_URL="https://huggingface.co/spaces/${SPACE_ID}/raw/main/README.md"
+          echo "Fetching live Space card: $RAW_URL"
+
+          auth=()
+          if [ -n "${HF_TOKEN:-}" ]; then
+            auth=(-H "Authorization: Bearer ${HF_TOKEN}")
+          fi
+
+          code=$(curl -sS --retry 3 --retry-delay 5 -o hf_README.md \
+                   -w '%{http_code}' "${auth[@]}" "$RAW_URL")
+          if [ "$code" != "200" ]; then
+            echo "::error title=HF fetch failed::Could not fetch the Space card (HTTP $code) from $RAW_URL"
+            {
+              echo "## HF README drift check — could not run"
+              echo
+              echo "Failed to fetch the live HuggingFace Space card (HTTP \`$code\`) from"
+              echo "\`$RAW_URL\`. The Space may be down, renamed, or made private."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          gh_bytes=$(wc -c < README.md)
+          hf_bytes=$(wc -c < hf_README.md)
+
+          if cmp -s README.md hf_README.md; then
+            echo "In sync: GitHub README and HF Space card are byte-identical ($gh_bytes bytes)."
+            {
+              echo "## HF README drift check — in sync"
+              echo
+              echo "The GitHub \`README.md\` and the live HuggingFace Space card are"
+              echo "byte-identical (\`$gh_bytes\` bytes)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Drift detected — report and fail; never auto-clobber.
+          {
+            echo "## HF README drift detected"
+            echo
+            echo "The HuggingFace Space card has **diverged** from the canonical"
+            echo "GitHub \`README.md\`. This usually means someone edited the Space"
+            echo "card directly on huggingface.co."
+            echo
+            echo "| Source | Bytes |"
+            echo "| --- | --- |"
+            echo "| GitHub \`main\` (\`README.md\`) | $gh_bytes |"
+            echo "| HF Space ([raw card]($RAW_URL)) | $hf_bytes |"
+            echo
+            echo "### Diff (\`-\` GitHub  vs  \`+\` HF Space)"
+            echo
+            echo '```diff'
+            diff -u README.md hf_README.md | head -300 || true
+            echo '```'
+            echo
+            echo "**How to reconcile (no auto-overwrite happens here):**"
+            echo "- If GitHub is correct: run the \`Sync to HuggingFace Space\` workflow"
+            echo "  (\`hf-sync\`) via *workflow_dispatch* to push GitHub → HF."
+            echo "- If the Space edit is intended: copy it back into GitHub"
+            echo "  \`README.md\` and commit, so the canonical source matches."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::error title=HF README drift::GitHub README ($gh_bytes B) differs from the HF Space card ($hf_bytes B). See the job summary to reconcile."
+          exit 1
