@@ -55,7 +55,7 @@ Tabs → backing endpoints
 
 Honesty
 -------
-* SLSA Level 2 build provenance (signed, hash-pinned; no FedRAMP / Iron Bank / CMMC).
+* SLSA L2 build-attestation present; build provenance signed, hash-pinned; no FedRAMP / Iron Bank / CMMC).
 * Λ = Conjecture 1 — NEVER a theorem. 749/14/163 @ c7c0ba17.
 * DSSE receipts are REAL ECDSA-P256-SHA256 when SZL_COSIGN_PRIVATE_PEM is set,
   else an explicit honest PLACEHOLDER (never a fabricated signature).
@@ -291,7 +291,7 @@ def register(
                 "3-of-4 BFT Khipu consensus quorum (Policy/Reasoning/a11oy/Killinchu)",
                 "PQC hybrid signing (ML-DSA-65 + ECDSA-P256)",
             ],
-            "slsa": "SLSA Level 2 (signed build provenance; no FedRAMP / Iron Bank / CMMC)",
+            "slsa": "SLSA L2 build-attestation present (signed build provenance; L2-verified/L3/FedRAMP / Iron Bank / CMMC)",
             "lambda_status": "Conjecture 1 — NOT a theorem",
             "section_889": _SECTION_889,
             "no_fedramp_iron_bank_cmmc": True,
@@ -734,8 +734,8 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="legal" onclick="go('legal')" title="Legal boundaries: killinchu is a passive sensing and evidence system, not an offensive cyber or electronic-attack weapon. WE SENSE, WE EVIDENCE. Live from /api/killinchu/v1/legal."><span class="ico">⊕</span>Legal Boundaries</div>
     <div class="nav-item" data-view="companion" onclick="go('companion')" title="Companion-Defense Protocol: when an adversary drone enters a configured radius of a protected asset, killinchu runs a Khipu-receipted decision tree — auto-classify → legal RF warning beacon → operator notify → ROE-gated response. Kinetic always human-in-the-loop. Live from /api/killinchu/v1/companion-defense."><span class="ico">⊕</span>Companion Defense</div>
 
-    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
-    <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>5 formulas formally proven<br>Build provenance: SLSA L2<br>Drones + Maritime · signed receipts</div>
+    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA L2 build-attestation present; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
+    <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>5 formulas formally proven<br>Build provenance: SLSA L2 build-attestation present<br>Drones + Maritime · signed receipts</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -1168,8 +1168,8 @@ async function verifyReceipt(env, pubPem, tamper){
 }
 
 // Internal doctrine (NOT shown to operator): Trust score = Λ (F23) = Conjecture 1, never a theorem;
-// proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA Build L2; receipts = real DSSE ECDSA-P256-SHA256, keyid szlholdings-cosign.
-const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads a live killinchu service — no mock data. The <b>trust score</b> is a documented <b>conjecture</b>, not a proven guarantee; <b>5</b> of our formulas are formally proven. Build provenance is <b>SLSA Level 2</b> (no FedRAMP / Iron Bank / CMMC claims). Decision receipts are <b>genuinely signed</b> (ECDSA-P256) and verifiable offline against our public key. Drone track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
+// proved formulas = 5 {F1,F11,F12,F18,F19}; SLSA L2 build-attestation present; receipts = real DSSE ECDSA-P256-SHA256, keyid szlholdings-cosign.
+const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads a live killinchu service — no mock data. The <b>trust score</b> is a documented <b>conjecture</b>, not a proven guarantee; <b>5</b> of our formulas are formally proven. Build provenance is <b>SLSA L2 build-attestation present</b> (no FedRAMP / Iron Bank / CMMC claims). Decision receipts are <b>genuinely signed</b> (ECDSA-P256) and verifiable offline against our public key. Drone track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
 
 
 // ===================== VESSELS — AIS REPLAY SAMPLE SET (NOT a live feed) =====================
@@ -2941,7 +2941,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
     render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Honest claims</span><span class="card-ep">live</span></div><div id="ho-host"><div class="row mono dim">loading…</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">What we do NOT claim</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>The trust score is NOT a proven-unique function — it is a research conjecture.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Builds are SLSA Level 2.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L2-verified, NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Posture: SLSA L1 honest + L2 build-attestation present; L2-verified / L3 = roadmap.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>NOT a third-party audit. Compliance coverage is self-evidenced with hashes.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are formally proven; the rest are open or experimental.</span></div>
         <div class="row"><span class="badge b-live">YES</span><span>killinchu signs decision receipts with a REAL key — verify them yourself under Verify Signed Receipt.</span></div>
@@ -2979,7 +2979,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
      REAL killinchu endpoints (drones, vessels, tracks, receipts), governed by the
      proven formulas. Viz vendored (3d-force-graph / globe.gl MIT vasturiano;
      echarts-gl Apache-2.0) — no CDN, sovereign. Honesty: Λ=Conjecture 1 (advisory);
-     locked-proven=5; trust interval = CONFORMAL not Hoeffding; SLSA L2; AIS=sample/
+     locked-proven=5; trust interval = CONFORMAL not Hoeffding; SLSA L2 build-attestation present; AIS=sample/
      replay; no fabricated data; no external fetch (live USGS allowed, labelled).
      ========================================================================== */
   fieldnet:{title:'Field Net',badge:'3D ENTITY-LINK · EDGE-PARTICLE LIVE FLOW',sub:'The whole maritime/air field as one live, animated 3D entity-link graph — drones, vessels, comms-relays, payloads, mission-tasks and anomaly events fused into a single explorable map, with edge particles tracing live event flow. Click any node for its provenance panel: kinematics, the gate verdict, the trust score (advisory conjecture), and its signed-receipt chip. Reimplements the vasturiano 3d-force-graph interaction model (MIT) on killinchu\u2019s real /threats/active, /fleet/vessels and /swarm/topology data. The field-net health score is label-invariant (graph theorem). Answers Warhacker P1 (autonomous-system oversight): every governed object is on one auditable surface. Drone tracks are <b>simulated over real adversary signatures</b>; vessels are <b>sample/replay</b>.',
@@ -3076,7 +3076,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
           <tbody id="tg-tb"><tr><td colspan="9" class="mono dim">fusing in-image drone/vessel threat corpus\u2026</td></tr></tbody></table></div></div>
       <div class="card" id="tg-detail"><div class="row mono dim">Click \u201cevaluate\u201d on any row to screen that class against current ROE/policy \u2014 the verdict, flags, recommended effector and a genuinely-signed receipt land here. Confidence is conformal-calibrated (W7-4).</div></div>${HONEST}`;window.darkgraph_load();}},
 
-  deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L2',sub:'Ship it air-gapped, prove it offline. The deployment posture of the field surface \u2014 a cosign-signed killinchu.uds / Zarf bundle of the organ images, each carrying SLSA Build L2 provenance (.att) and a signature (.sig). See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee verified live in your browser: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker P2 (air-gap) and P7 (edge twin): offline-verifiable bundle.',
+  deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L2 build-attestation',sub:'Ship it air-gapped, prove it offline. The deployment posture of the field surface \u2014 a cosign-signed killinchu.uds / Zarf bundle of the organ images, each carrying SLSA L2 build-attestation provenance (.att) and a signature (.sig). See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee verified live in your browser: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker P2 (air-gap) and P7 (edge twin): offline-verifiable bundle.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Organ images</div><div class="v" id="dp-n">\u2014</div><div class="d">in the bundle</div></div>
       <div class="kpi"><div class="k">SLSA level</div><div class="v teal">Build L2</div><div class="d">.att provenance</div></div>
@@ -3642,7 +3642,7 @@ async function gate_try(action){try{setOut('g-try','inspecting…');
 // What we claim (a11oy honest record)
 async function honest_load(){try{const d=await orgGet('a11oy','/api/a11oy/v1/honest');setHTML('ho-host','');
   addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">5</span></div>`);
-  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA Level 2</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L2 build-attestation present</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust score</span><span class="spacer b-err badge">research conjecture</span></div>`);
   addHTML('ho-host',`<div class="row"><span>killinchu decision receipts</span><span class="spacer b-live badge">genuinely signed (real key)</span></div>`);
   setOut('o-honest',d);}catch(e){setHTML('ho-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
@@ -4635,7 +4635,7 @@ function dvh_anomaly(scored){
    KILLINCHU FRONTIER TAB LOADERS (3D · LIVE) — maritime/air field surface.
    Leader interaction models reimplemented as OUR OWN code on REAL killinchu
    endpoints, governed by the proven formulas. Honesty: Λ=Conjecture 1 (advisory);
-   locked-proven=5; trust interval = CONFORMAL (W7-4) not Hoeffding; SLSA L2;
+   locked-proven=5; trust interval = CONFORMAL (W7-4) not Hoeffding; SLSA L2 build-attestation present;
    no fabricated data (drone tracks simulated over real signatures; vessels =
    sample/replay; live USGS labelled); NO external fetch beyond allowed USGS.
    Reuses console base helpers: getJSON/postJSON/getPublic/el/esc/setTxt/setHTML/
@@ -5476,7 +5476,7 @@ async function deploy_load(){
       'cosign verify ghcr.io/szl-holdings/killinchu@<digest> \\\n'+
       '  --certificate-identity-regexp "github.com/szl-holdings" \\\n'+
       '  --certificate-oidc-issuer https://token.actions.githubusercontent.com\n\n'+
-      '# 2) SLSA Build L2 provenance attestation (.att):\n'+
+      '# 2) SLSA L2 build-attestation provenance attestation (.att):\n'+
       'slsa-verifier verify-image ghcr.io/szl-holdings/killinchu@<digest> \\\n'+
       '  --source-uri github.com/szl-holdings/killinchu\n\n'+
       '# 3) Receipt DSSE signature (ECDSA P-256, keyid szlholdings-cosign) \u2014 verify a live receipt:\n'+
