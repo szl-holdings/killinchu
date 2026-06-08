@@ -6,7 +6,7 @@
      Optimized for 1280px+ workstation + the RTX 4060 Ti tower display. Single UDS
      front door: every call hits /api/killinchu/uds/v1/*. No build step, no external CDN
      (Cesium loaded from the Space's own /cesium/ bundle, same as the SPA). Honesty
-     preserved: drone positions SIMULATED, geofence STATIC SNAPSHOT, Yachay
+     preserved: drone positions SIMULATED, geofence STATIC SNAPSHOT, Reasoning role
      organ_signed=false, Rekor not_submitted, fail-WARNING never fail-open.
      Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1 is NOT a theorem. -->
 <meta charset="UTF-8"/>
@@ -185,8 +185,8 @@
           <label for="actsel">Operator action</label>
           <select id="actsel">
             <option value="threat_assess">Threat assess — classify track</option>
-            <option value="effector_recommend">Effector recommend — Chapaq dual-use gate</option>
-            <option value="mission_plan">Mission plan — Yachay F7 + Yuyay-13</option>
+            <option value="effector_recommend">Effector recommend — Policy dual-use gate</option>
+            <option value="mission_plan">Mission plan — Reasoning F7 + Yuyay-13</option>
             <option value="swarm_coordinate">Swarm coordinate — boids + ORCA</option>
             <option value="geofence_check">Geofence check — airspace class</option>
           </select>
@@ -205,7 +205,7 @@
         <div class="honest" id="gpuhonest"></div>
       </div>
 
-      <div class="foot">drone positions SIMULATED (seeded) · geofence STATIC SNAPSHOT · Yachay per-organ signature PLACEHOLDER (honest) · fail-WARNING never fail-open</div>
+      <div class="foot">drone positions SIMULATED (seeded) · geofence STATIC SNAPSHOT · Reasoning per-role signature PLACEHOLDER (honest) · fail-WARNING never fail-open</div>
     </div>
 
     <!-- ============ CENTER: Cesium globe + kill-move chain ============ -->
@@ -259,10 +259,10 @@
   "use strict";
   var BASE = "/api/killinchu/uds/v1";
   var ORGANS = [
-    {k:"sentra",   ic:"🛡️", nm:"Chapaq",  role:"Immune Officer", badge:"signed"},
-    {k:"amaru",    ic:"🧠", nm:"Yachay",   role:"Cortex Officer", badge:"placeholder"},
-    {k:"a11oy",    ic:"📜", nm:"a11oy",    role:"Policy Officer", badge:"signed"},
-    {k:"killinchu",ic:"🦅", nm:"Killinchu", role:"Field Operative", badge:"signed"}
+    {k:"policy",      ic:"📜", nm:"Policy",                role:"Policy gate", badge:"signed"},
+    {k:"reasoning",   ic:"🧠", nm:"Reasoning",             role:"13-axis Λ cortex", badge:"placeholder"},
+    {k:"orchestrator",ic:"🎛️", nm:"Orchestrator (a11oy)",  role:"Policy orchestration", badge:"signed"},
+    {k:"field_node",  ic:"🦅", nm:"Field Node (killinchu)",role:"Field surface", badge:"signed"}
   ];
   var lastSha = null;
   function el(id){return document.getElementById(id);}
