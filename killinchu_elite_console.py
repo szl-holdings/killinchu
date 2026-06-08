@@ -2438,24 +2438,23 @@ const VIEWS = {
         let online=0; organs.forEach(([,o])=>{if(o.status==='ok')online++;});
         const total = (q.total!=null)?q.total:organs.length;
         const needed = (q.needed!=null)?q.needed:Math.floor(total/2)+1;
-        // Consensus holds when a strict majority is reachable. Critically this does
-        // NOT require amaru — quorum_without_amaru proves the system survives amaru
-        // being fully decommissioned. Fall back to quorum_possible / online math.
-        const holds = (q.quorum_without_amaru!=null) ? q.quorum_without_amaru
-                    : (q.quorum_possible!=null) ? q.quorum_possible
+        // Consensus holds when a strict majority of the four governance ROLES is
+        // reachable. The math is symmetric (no privileged role); fault_tolerant means
+        // quorum still holds after losing ANY one role (n=4 > 3t, t=1).
+        const holds = (q.quorum_possible!=null) ? q.quorum_possible
                     : (d.quorum_possible!=null) ? d.quorum_possible
                     : (online>=needed);
         el('k-quorum').textContent = holds ? 'CONSENSUS HOLDS' : 'NO QUORUM';
         el('k-quorum').className = 'v '+(holds?'live':'warn');
         if(el('bft-count')) el('bft-count').textContent=online;
         bftKonva('bft-konva',organs,needed);
-        // Honest messaging: explain WHY it still holds even if a node is offline.
-        const amaruOff = q.amaru_offline===true || (d.organs&&d.organs.amaru&&d.organs.amaru.status!=='ok');
+        // Honest messaging: a strict majority of the four governance roles is reachable.
+        const faultTol = (q.fault_tolerant===true);
         let note='';
-        if(holds && amaruOff){
-          note = `<span class="badge b-live">CONSENSUS HOLDS</span> ${online} of ${total} systems online — a majority (need ${needed}) is reachable. The Reasoning node is offline and is being decommissioned; consensus does <b>not</b> depend on it.`;
+        if(holds && faultTol){
+          note = `<span class="badge b-live">CONSENSUS HOLDS</span> ${online} of ${total} governance roles online — majority threshold of ${needed} met, and quorum survives losing any one role (fault-tolerant, t=1).`;
         } else if(holds){
-          note = `<span class="badge b-live">CONSENSUS HOLDS</span> ${online} of ${total} systems online — majority threshold of ${needed} met.`;
+          note = `<span class="badge b-live">CONSENSUS HOLDS</span> ${online} of ${total} governance roles online — majority threshold of ${needed} met.`;
         } else {
           note = `<span class="badge b-warn">NO QUORUM</span> only ${online} of ${total} systems online — need at least ${needed} to proceed. Actions are held (fail-closed).`;
         }
