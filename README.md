@@ -46,7 +46,7 @@ ecosystem-stage: "operational"
 - **Primary face — the full application:** https://szlholdings-killinchu.hf.space/elite
 - Space URL: https://szlholdings-killinchu.hf.space
 - Health: `curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
-- Docs: https://docs.szlholdings.com/flagships/killinchu
+- Docs: https://szl-holdings.github.io/docs-site/flagships/killinchu
 - Release: [v1.0.0](https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0)
 
 ---
