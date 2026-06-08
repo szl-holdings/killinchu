@@ -1,0 +1,43 @@
+{
+  "_comment": "Allowlist for the GitHub<->HF-Space module-drift guard (killinchu). ignore_paths/ignore_extensions are excluded entirely (built SPA bundles, vendored Cesium + binary assets). accepted_divergences are KNOWN, pre-existing GitHub<->HF divergences recorded so the guard lands green; each is still printed as a warning every run. Remove an entry once the file is reconciled so any FUTURE re-divergence fails the job.",
+  "ignore_paths": [
+    "static/assets/**",
+    "static/cesium/**"
+  ],
+  "ignore_extensions": [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".ico",
+    ".svg",
+    ".wasm",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".mp4",
+    ".mp3",
+    ".pdf",
+    ".zip",
+    ".gz",
+    ".br",
+    ".map"
+  ],
+  "accepted_divergences": {
+    "LEGAL_BOUNDARIES.md": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T15:35:23Z | hf 2026-06-01T06:13:14.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "killinchu_protocols.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T19:37:09Z | hf 2026-06-01T06:13:14.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "operator_shell_v4.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T00:03:07Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "src/killinchu/__init__.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T00:04:43Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "src/killinchu/dsse.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T00:04:43Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "src/killinchu/edge.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T00:04:43Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "src/killinchu/khipu.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T00:04:43Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "src/killinchu/lambda_calc.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T00:04:43Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "src/killinchu/simulator.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T00:04:43Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "static/cookbook/legal/LEGAL_BOUNDARIES.md": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T15:35:23Z | hf 2026-06-01T13:27:41.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "static/index.html": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T21:22:58Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "szl_be_hardening.py": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-04T19:37:09Z | hf 2026-06-07T14:21:19.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "szl_dsse.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T19:37:09Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails"
+  }
+}
