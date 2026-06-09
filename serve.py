@@ -2026,32 +2026,14 @@ except Exception as _elite_e:
 # Policy). NO fabricated data; honest empty states. Mounted BEFORE SPA catch-all.
 # Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1+L2 attested.
 # ===========================================================================
-_POSTURE_DIAG = {"phase": "start", "error": None, "traceback": None, "status": None}
 try:
-    _POSTURE_DIAG["phase"] = "import"
     import killinchu_posture_topology as _posture
-    _POSTURE_DIAG["phase"] = "register"
     _posture_status = _posture.register(app, ns="killinchu", emit_receipt=_emit_receipt)
-    _POSTURE_DIAG["phase"] = "done"
-    _POSTURE_DIAG["status"] = _posture_status
     print(f"[killinchu] Posture & Topology registered: {len(_posture_status.get('registered', []))} routes (scipy={_posture_status.get('scipy')} networkx={_posture_status.get('networkx')})", file=sys.stderr)
 except Exception as _posture_e:
     import traceback as _posture_tb
-    _POSTURE_DIAG["error"] = repr(_posture_e)
-    _POSTURE_DIAG["traceback"] = _posture_tb.format_exc()
     print(f"[killinchu] Posture & Topology NOT registered: {_posture_e!r}", file=sys.stderr)
     _posture_tb.print_exc()
-# TEMP DIAG (DEV-WIRE-K): front-inserted route to read live import/register status.
-try:
-    from fastapi.routing import APIRoute as _PDRoute
-    from fastapi.responses import JSONResponse as _PDJR
-    async def _posture_diag_handler() -> _PDJR:
-        return _PDJR(_POSTURE_DIAG)
-    app.router.routes.insert(0, _PDRoute("/api/killinchu/v1/_posture_diag",
-                                         _posture_diag_handler, methods=["GET"],
-                                         name="killinchu_posture_diag"))
-except Exception:
-    pass
 # ── end POSTURE & TOPOLOGY ────────────────────────────────────────
 
 # ===========================================================================
