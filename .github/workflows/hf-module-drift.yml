@@ -12,11 +12,15 @@ name: HF Space module-drift guard
 # in .github/hf-module-drift-allow.json (printed as warnings every run); any NEW
 # drift fails the job. Sibling of shared-file-drift.yml / dockerfile-copy-guard.
 
+# 2026-06-08 FIX (flood remediation): dropped the `push` and `pull_request`
+# triggers. This guard exists to catch HF-SIDE edits that land with NO GitHub
+# push (its own comment below) — so a push/PR trigger added nothing but noise:
+# every routine deploy fired it and any transient HF rebuild (502/503) during
+# the run counted as drift, flooding failure notifications. It is now
+# schedule-only (weekly) + manual dispatch, which is exactly the cadence its
+# purpose requires. The substantive check (NEW drift fails; allowlisted/known
+# drift warns) is UNCHANGED — nothing weakened, only the noisy cadence removed.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   schedule:
     - cron: '52 6 * * 1'  # Mondays 06:52 UTC (HF-side edits land with no GitHub push)
   workflow_dispatch:
@@ -56,3 +60,4 @@ jobs:
           name: hf-module-drift-report
           path: hf-module-drift-report.out.json
           if-no-files-found: ignore
+
