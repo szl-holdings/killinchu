@@ -4,10 +4,10 @@
 **Tags:** wire-d, dsse, signing, cross-organ  
 **Doctrine v11 — 749/14/163**  
 **Maintained by:** Yachay <yachay@szlholdings.dev>  
-*Co-Authored-By: Perplexity Computer Agent*
+*ORCID 0009-0001-0110-4173*
 
 ## Intent
-Sign any own-fleet mission command with the live Wire-D ECDSA-P256 DSSE signer and verify it from another organ (e.g. Rosie/Sentra).
+Sign any own-fleet mission command with the live Wire-D ECDSA-P256 DSSE signer and verify it from another role (e.g. the Operator or Policy role — retired internal codenames `rosie`/`sentra` — whose capability lives inside a11oy).
 
 ## Steps
 1. Build the command object {drone_id, command, params, ts_utc, operator}.
