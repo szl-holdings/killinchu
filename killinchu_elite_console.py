@@ -7119,27 +7119,53 @@ function _inferHealth(a){
   return {score:Math.max(0,score),status:status,reasons:reasons,
     color:status==='nominal'?'#39d98a':(status==='needs-attention'?'#f5c451':'#ff5c5c')};
 }
+// Fetch with a hard timeout. The /air/live feed proxies a slow public OSINT source
+// (adsb.lol) and can take ~15s — or hang — on a cold call. We must NEVER gate the 3D
+// globe behind that await, or the globe silently never mounts (the fleet_c2 regression:
+// init entered, hung on await getJSON('/air/live'), fleet_c2_globe() never reached).
+async function _fcFetchJSON(p, ms){
+  ms = ms || 9000;
+  var ctrl = (typeof AbortController!=='undefined') ? new AbortController() : null;
+  var to = setTimeout(function(){ try{ ctrl && ctrl.abort(); }catch(e){} }, ms);
+  try{
+    const r = await fetch(p, ctrl?{signal:ctrl.signal}:undefined);
+    if(!r.ok) throw new Error('HTTP '+r.status+' '+p);
+    const ct = r.headers.get('content-type')||'';
+    if(ct.includes('text/html')) throw new Error('HTML fallback (route missing)');
+    return await r.json();
+  } finally { clearTimeout(to); }
+}
 async function fleet_c2_init(){
+  // STEP 1 — mount the globe IMMEDIATELY (before any feed await) so a canvas always
+  // appears on view-activation regardless of how slow/hung the live feed is. This is the
+  // core fix: the globe instantiation must not depend on the (slow, sometimes hanging)
+  // ADS-B/AIS fetch completing.
+  _fcAssets = [];
+  try{ fleet_c2_globe([]); }catch(e){}
+  // STEP 2 — pull the live feeds with a hard timeout, then repopulate the globe.
   var assets=[], feedLive=true;
   try{
-    var air=await getJSON(API+'/air/live'); var ac=(air.data&&(air.data.ac||air.data.aircraft))||[];
+    var air=await _fcFetchJSON(API+'/air/live', 12000); var ac=(air.data&&(air.data.ac||air.data.aircraft))||[];
     if(air.mode!=='live')feedLive=false;
     ac.slice(0,40).forEach(function(a){assets.push({kind:'air',id:a.hex,name:a.flight||a.hex,lat:a.lat,lon:a.lon,
       alt_baro:a.alt_baro,gs:a.gs,track:a.track,squawk:a.squawk});});
   }catch(e){feedLive=false;}
   try{
-    var ais=await getJSON(API+'/ais/live'); var vs=(ais.data&&ais.data.vessels)||[];
+    var ais=await _fcFetchJSON(API+'/ais/live', 9000); var vs=(ais.data&&ais.data.vessels)||[];
     if(ais.mode!=='live')feedLive=false;
     vs.slice(0,40).forEach(function(v){assets.push({kind:'vessel',id:'AIS-'+v.mmsi,name:v.name||('MMSI '+v.mmsi),
       lat:v.lat,lon:v.lon,sog:v.sog,cog:v.cog,heading:v.heading,mmsi:v.mmsi});});
   }catch(e){}
+  // The user may have navigated away during the (slow) feed await — bail if so.
+  if(!el('fc-globe')) return;
   assets=assets.filter(function(a){return a.lat!=null&&a.lon!=null;});
   assets.forEach(function(a){a.health=_inferHealth(a);});
   _fcAssets=assets;
   var ok=assets.filter(function(a){return a.health.status==='nominal';}).length;
   var flagged=assets.filter(function(a){return a.health.status==='anomalous';});
   setTxt('fc-n',assets.length); setTxt('fc-ok',ok); setTxt('fc-flag',flagged.length);
-  setTxt('fc-feed',feedLive?'live':'fallback'); el('fc-feed').style.color=feedLive?'#39d98a':'#f5c451';
+  setTxt('fc-feed',feedLive?'live':'fallback');
+  var feedEl=el('fc-feed'); if(feedEl) feedEl.style.color=feedLive?'#39d98a':'#f5c451';
   // emit signed receipt for the first flagged anomaly (the moat)
   var lastReceipt=null;
   if(flagged.length){ try{
@@ -7149,7 +7175,23 @@ async function fleet_c2_init(){
       detector:'telemetry plausibility (inferred, not platform sensors)'}});
   }catch(e){} }
   setHTML('fc-raw',esc(JSON.stringify({feed_live:feedLive,assets:assets.length,flagged:flagged.length,last_anomaly_receipt:lastReceipt},null,2)));
-  fleet_c2_globe(assets);
+  // STEP 3 — feed-driven points onto the ALREADY-MOUNTED globe (no teardown → no canvas flicker).
+  fleet_c2_setPoints(assets);
+}
+// Push asset points onto the live globe instance without tearing it down. If the globe
+// somehow isn't mounted yet (e.g. it lost its GL context), rebuild it with the assets.
+function fleet_c2_setPoints(assets){
+  var box=el('fc-globe');
+  if(!_globe || !box || !box.querySelector('canvas')){ fleet_c2_globe(assets); return; }
+  var pts=assets.map(function(a){return {lat:a.lat,lng:a.lon,size:a.kind==='air'?0.14:0.10,
+    color:a.health.color, label:a.name+' \u00b7 '+a.kind+' \u00b7 health '+a.health.status+' (inferred)', _a:a};});
+  try{ _globe.pointsData(pts); }catch(e){ fleet_c2_globe(assets); return; }
+  // re-frame onto the asset cloud now that we have real positions
+  try{
+    var cLat=20,cLng=-30;
+    if(pts.length){var sLat=0,sLng=0;pts.forEach(function(p){sLat+=p.lat;sLng+=p.lng;});cLat=sLat/pts.length;cLng=sLng/pts.length;}
+    _globe.pointOfView({lat:cLat,lng:cLng,altitude:2.55},600);
+  }catch(e){}
 }
 function fleet_c2_globe(assets,_try){
   var box=el('fc-globe'); if(!box||typeof Globe==='undefined')return;
@@ -7275,7 +7317,7 @@ window.hero_init=hero_init; window.hero_run=hero_run; window.hero_trace=hero_tra
 window.tamper_reset=tamper_reset; window.tamper_break=tamper_break;
 window.determinism_init=determinism_init; window.determinism_run=determinism_run;
 window.uds_init=uds_init; window.uds_cot=uds_cot;
-window.fleet_c2_init=fleet_c2_init; window.fleet_c2_globe=fleet_c2_globe; window.fleet_c2_asset=fleet_c2_asset; window.fleet_c2_command=fleet_c2_command;
+window.fleet_c2_init=fleet_c2_init; window.fleet_c2_globe=fleet_c2_globe; window.fleet_c2_setPoints=fleet_c2_setPoints; window.fleet_c2_asset=fleet_c2_asset; window.fleet_c2_command=fleet_c2_command;
 window.living_anatomy_init=living_anatomy_init;
 
 // ===================== ROUTER =====================
