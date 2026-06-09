@@ -5,7 +5,7 @@
   "app_version": "uds-v0.1.0",
   "packaged_artifact": "szl-0.1.0.tgz",
   "helm_version": "v3.21.0+ge0878d4",
-  "lint_status": "PASS \u2014 1 chart(s) linted, 0 chart(s) failed (1 INFO: icon recommended)",
+  "lint_status": "PASS — 1 chart(s) linted, 0 chart(s) failed (1 INFO: icon recommended)",
   "rendered_objects": {
     "Deployment": 7,
     "Service": 7,
@@ -81,5 +81,6 @@
   "big_bang_reference": "https://repo1.dso.mil/big-bang/bigbang",
   "install_command": "helm install bigbang-szl ./charts/szl --namespace szl-system --create-namespace",
   "kustomize_overlay": "bigbang/ (kubectl kustomize ./bigbang -> 50 objects, exit 0)",
-  "honesty": "Chart + overlay are REAL and render/lint clean (verified with helm 3.21 + kubectl kustomize). Authservice/Keycloak are configured-not-deployed (Big Bang core owns them). Flux GitOps wrapper is honest roadmap."
+  "honesty": "Chart + overlay are REAL and render/lint clean (verified with helm 3.21 + kubectl kustomize). Authservice/Keycloak are configured-not-deployed (Big Bang core owns them). Flux GitOps wrapper is honest roadmap.",
+  "sub_chart_inventory_note": "Sub-chart directory names amaru/sentra/rosie are RETIRED internal codenames kept only as Helm chart-dir identifiers (renaming would break chart refs); they map to honest roles Provenance Anchor/Policy/Operator whose capability lives inside a11oy. Only a11oy and killinchu are shipping products today."
 }
