@@ -42,7 +42,7 @@ Content-Type: application/json
 ```json
 {
   "status": "acknowledged",
-  "message": "Public flagships don't store user PII. Khipu chain receipts are auditable, not PII. Personal data deletion via rosie /api/rosie/v2/unay/erase (separate handler for operator session memory). Audit-trail receipt of this deletion request signed and returned.",
+  "message": "Public flagships don't store user PII. Khipu chain receipts are auditable, not PII. Operator-session-memory deletion is handled by the Operator role inside a11oy (POST /api/a11oy/v2/unay/erase). Audit-trail receipt of this deletion request signed and returned.",
   "receipt": {
     "payload": {
       "type": "gdpr_erase_request",
@@ -70,7 +70,7 @@ Content-Type: application/json
 |---|---|---|
 | PII from HF Space callers | **No** | HF Spaces are unauthenticated; no accounts, no cookies |
 | Khipu chain receipts | Yes (audit trail) | Receipts are cryptographic audit records, not PII; deletion would break chain integrity |
-| Operator session memory (rosie only) | rosie only | Route to `POST /api/rosie/v2/unay/erase` for operator session data |
+| Operator session memory (Operator role) | Operator role only | Route to `POST /api/a11oy/v2/unay/erase` (the Operator role surfaces inside a11oy) for operator session data |
 | GitHub interaction data | GitHub (not us) | Contact GitHub directly for their data deletion |
 
 ---
@@ -117,7 +117,7 @@ async def gdpr_erase(body: EraseRequest):
         "status": "acknowledged",
         "message": (
             "Public flagships don't store user PII; Khipu chain receipts are auditable not PII. "
-            "Personal data deletion via rosie /api/rosie/v2/unay/erase (separate handler). "
+            "Operator-session-memory deletion via the Operator role inside a11oy (/api/a11oy/v2/unay/erase). "
             "Audit-trail receipt of deletion request signed."
         ),
         "receipt": receipt,
@@ -126,12 +126,12 @@ async def gdpr_erase(body: EraseRequest):
 
 ---
 
-## Routing to rosie
+## Routing to the Operator role (inside a11oy)
 
-For operator session memory (if applicable), route the request to rosie:
+The "Operator" role (retired internal codename `rosie`) is not a standalone Space; it surfaces inside a11oy. For operator session memory (if applicable), route the request to the live a11oy product:
 
 ```http
-POST https://SZLHOLDINGS-rosie.hf.space/api/rosie/v2/unay/erase
+POST https://szlholdings-a11oy.hf.space/api/a11oy/v2/unay/erase
 Content-Type: application/json
 
 {
