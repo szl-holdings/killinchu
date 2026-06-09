@@ -1,5 +1,5 @@
 # API Contract — killinchu v1.0
-**Doctrine v11 LOCKED 749/14/163 | SLSA L1 + L2 | Version: 1.0.0**  
+**Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest · L2 roadmap | Version: 1.0.0**  
 **Updated:** 2026-06-03
 
 This document is the canonical API contract for the `killinchu` flagship.
@@ -73,9 +73,12 @@ Returns honest doctrine disclosure for compliance auditors.
 }
 ```
 
-### GET `/api/killinchu/v4/fleet` (a11oy only) / `/api/killinchu/v1/brain` (amaru, rosie)
+### GET `/api/killinchu/v4/fleet` (a11oy only) / `/api/killinchu/v1/brain` (Provenance Anchor / Operator roles, in a11oy)
 
-Flagship-specific endpoints (see per-flagship docs below).
+Product-specific endpoints (see per-product docs below). The honest roles
+Provenance Anchor and Operator (retired internal codenames `amaru`/`rosie`)
+are not separately shipping products — that capability lives inside a11oy.
+Only a11oy and killinchu ship today.
 
 ## Response Headers
 
@@ -95,7 +98,7 @@ Flagship-specific endpoints (see per-flagship docs below).
 
 ## SLSA Level
 
-**SLSA L1 + L2.** The signed SLSA provenance attestation is independently verified via `cosign verify-attestation --type slsaprovenance` (keyless Fulcio + Rekor, strict per-organ identity). L3 (hardened, isolated builder) is not claimed.
+**SLSA L1 honest; L2 roadmap.** Images are cosign-signed and verifiable via `cosign verify` (keyless Fulcio + Rekor, strict per-organ identity). L2 (attested build-service provenance, `cosign verify-attestation --type slsaprovenance`) is on the roadmap and **not yet claimed as achieved today**. L3 (hardened, isolated builder) is not claimed.
 
 ## Section 889 Compliance
 
@@ -103,4 +106,4 @@ This flagship does NOT use prohibited components from:
 Huawei, ZTE, Hytera, Hikvision, or Dahua.
 
 **Signed-off-by: Yachay <yachay@szlholdings.ai>**  
-**Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>**
+**ORCID 0009-0001-0110-4173**
