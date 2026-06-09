@@ -694,6 +694,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item nav-pinned" data-view="determinism_demo" onclick="go('determinism_demo')" title="Run the same governed decision 5x: byte-identical Merkle roots. Honest label A5 (measured)."><span class="ico">&#8801;</span>Determinism — Run 5x</div>
     <div class="nav-item nav-pinned" data-view="uds_package" onclick="go('uds_package')" title="killinchu as a UDS-pattern package: UDS Package CR, Pepr-style capability, Zarf flavors, Lula/OSCAL tying Lambda-gate + receipts to NIST 800-53 as claims-with-evidence."><span class="ico">&#11042;</span>UDS Package</div>
     <div class="nav-item nav-pinned" data-view="u_warhacker" onclick="go('u_warhacker')" title="Sovereign Warhacker: 27 maritime/drone/counter-UAS live demos + proofs board."><span class="ico">&#10026;</span>Warhacker (27 demos)</div>
+    <div class="nav-item nav-pinned" data-view="readiness" onclick="go('readiness')" title="Operational Readiness: deployed-vs-repo truth read live from the deployed app, the GitHub repo API and the Hugging Face Space API. Every value labelled live/cached/unreachable; nothing fabricated."><span class="ico">&#10003;</span>Operational Readiness</div>
 
     <div class="nav-group">&#9312; MARITIME &middot; NAVY</div>
     <div class="nav-item" data-view="u_maritime" onclick="go('u_maritime')" title="Live AIS maritime picture + sanctions/dark-vessel screening + dark-vessel hunt."><span class="ico">&#9875;</span>Maritime Picture</div>
@@ -1719,6 +1720,7 @@ const VIEWS = {
 
 
   evidence:{title:'Evidence & Research',badge:'CURATED CITATIONS · LIVE arXiv + GitHub',sub:'Every headline claim below is grounded in real, resolvable sources — official standards, public datasets and GitHub repositories. Paper lists and repo stats are fetched <b>live</b> from the arXiv + GitHub APIs and labelled live/cached; if a feed is down the panel degrades to the curated citations, never to invented figures.',render:async(c)=>{window.evidence_render(c);}}, // evidence-tab-patch-185
+  readiness:{title:'Operational Readiness',badge:'LIVE · deployed-vs-repo truth',sub:'Live operational truth for this organ, read from three independent real surfaces: the deployed app\u2019s own /healthz + /version, the public GitHub repository API, and the Hugging Face Space API — every value labelled live/cached/unreachable. The centrepiece is the <b>deployed-vs-repo parity</b>: the deployment\u2019s reported build commit is compared against repo HEAD via the GitHub compare API for an honest <b>behind_by</b> delta, and the doctrine anchor (kernel_commit) is surfaced verbatim, never equated with HEAD. Nothing here is fabricated.',render:async(c)=>{window.readiness_render(c);}}, // readiness-tab-patch
 
   // ── WAVE9/10 PROVEN THEOREMS (EXPERIMENTAL · CI-green on main) ──
   w910stl:{title:'STL Runtime Monitor (ρ margin)',badge:'RA-1 · two-sided Donzé–Maler · /wave910/stl-robustness',sub:'A Signal-Temporal-Logic runtime monitor that does not just say pass/fail — it computes the <b>signed robustness margin ρ</b>: how far the signal is from violating the rule, <b>computed in-image</b>. The PROVEN guarantee is <b>two-sided</b>: <code>Sat ⇒ ρ≥0</code> and <code>ρ&gt;0 ⇒ Sat</code> (and <code>ρ&lt;0 ⇒ violation</code>) — <b>NOT</b> the naive iff <code>Sat ↔ ρ&gt;0</code>, which is FALSE at the ρ=0 boundary. Strengthens the Sensor-Fusion / monitor surface with a sound margin. Λ stays <b>Conjecture 1</b>.',
@@ -6565,6 +6567,94 @@ window.evidence_render=async function(c){
   }catch(e){ c.innerHTML='<div class="card"><div class="dim">evidence layer unavailable: '+esc(e.message||e)+'</div></div>'; }
 };
 /* end evidence-tab-patch-185 */
+/* readiness-tab-patch — live Operational Readiness layer (killinchu /elite tab) */
+window.__rd_ns="killinchu";
+window.__RD_COL={good:['#4fb37f','#5fe39a'],warn:['#c0a05a','#e6c87a'],bad:['#c06a5a','#ff7b6b'],info:['#5aa0d0','#7ab8e6'],dim:['#6b6b6b','#9a9a9a']};
+window.rd_badge=function(text,kind,title){ var c=window.__RD_COL[kind||'dim']; return '<span class="badge" style="border:1px solid '+c[0]+';color:'+c[1]+'"'+(title?(' title="'+esc(title)+'"'):'')+'>'+esc(text)+'</span>'; };
+window.rd_kind=function(s){ s=String(s==null?'':s).toLowerCase();
+  if(['current','match','success','live','passing','ok','running','reachable','true'].indexOf(s)>=0) return 'good';
+  if(['behind','drift','pending','unstable','cached','queued','in_progress','waiting'].indexOf(s)>=0) return 'warn';
+  if(['failure','unreachable','error','timed_out','startup_error','cancelled','false','sleeping','paused'].indexOf(s)>=0) return 'bad';
+  return 'dim'; };
+window.rd_ago=function(iso){ if(!iso) return ''; var t=Date.parse(iso); if(isNaN(t)) return ''; var s=Math.round((Date.now()-t)/1000); if(s<0)s=0; if(s<5)return 'just now'; if(s<60)return s+'s ago'; var m=Math.floor(s/60); if(m<60)return m+'m ago'; var h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; };
+window.rd_livebadge=function(lv){
+  if(!lv) return window.rd_badge('\u2026 checking','dim','liveness not checked');
+  var st=(lv.http_status!=null)?(' '+lv.http_status):'';
+  if(lv.reachable){
+    if(lv.mode==='cached') return window.rd_badge('\u25cf cached'+st,'info','reachable (from cache \u00b7 '+(lv.checked_at||'')+')');
+    return window.rd_badge('\u25cf live'+st,'good','reachable now ('+(lv.checked_at||'')+')');
+  }
+  return window.rd_badge('\u25cf unreachable','bad','unreachable: '+(lv.error||'no HTTP response')+' ('+(lv.checked_at||'')+')');
+};
+window.rd_modebadge=function(mode){ if(!mode||mode==='live') return ''; return ' '+window.rd_badge(mode,window.rd_kind(mode),'value served '+mode); };
+window.rd_kvrows=function(fields){ var h=''; (fields||[]).forEach(function(f){
+    var v=f.v; if(v===true)v='yes'; else if(v===false)v='no';
+    h+='<div class="row" style="display:flex;gap:.6rem;align-items:baseline"><span class="dim" style="min-width:190px;display:inline-block">'+esc(f.k)+'</span><span style="word-break:break-word">'+esc(String(v==null?'\u2014':v))+window.rd_modebadge(f.mode)+'</span></div>';
+  }); return h; };
+window.rd_section_body=function(sec){
+  var h='';
+  if(sec.kind==='endpoints'){
+    (sec.endpoints||[]).forEach(function(e){
+      h+='<div class="row" style="display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap"><span class="badge">'+esc(e.role||'')+'</span> '+window.rd_livebadge(e.liveness)+' <a href="'+esc(e.url||'#')+'" target="_blank" rel="noopener">'+esc(e.title||e.url||'')+'</a></div>';
+    });
+    h+='<div class="dim" style="font-size:11px;margin-top:.25rem">surface reachability: '+esc(String(sec.reachable))+'/'+esc(String(sec.total))+' reachable</div>';
+  } else if(sec.kind==='kv'){
+    h+=window.rd_kvrows(sec.fields);
+    var links=[]; if(sec.repo_url) links.push('<a href="'+esc(sec.repo_url)+'" target="_blank" rel="noopener">repo \u2197</a>'); if(sec.space_url) links.push('<a href="'+esc(sec.space_url)+'" target="_blank" rel="noopener">space \u2197</a>'); if(sec.ci&&sec.ci.url) links.push('<a href="'+esc(sec.ci.url)+'" target="_blank" rel="noopener">CI run \u2197</a>'); if(sec.release&&sec.release.url) links.push('<a href="'+esc(sec.release.url)+'" target="_blank" rel="noopener">release \u2197</a>');
+    if(links.length) h+='<div class="dim" style="font-size:11px;margin-top:.35rem">'+links.join(' \u00b7 ')+'</div>';
+    if(sec.fetched_at) h+='<div class="dim" style="font-size:11px;margin-top:.1rem">read '+esc(window.rd_ago(sec.fetched_at)||sec.fetched_at)+'</div>';
+  } else if(sec.kind==='parity'){
+    var b=sec.build||{};
+    h+='<div class="row"><b>Build</b> '+window.rd_badge(b.status||'unknown',window.rd_kind(b.status),'')+' <span class="dim">'+esc(b.detail||'')+'</span></div>';
+    h+='<div class="dim" style="font-size:11px;margin:.1rem 0 .5rem">deployed '+esc(String(b.deployed_git_sha||'\u2014').slice(0,12))+' vs '+esc(b.branch||'main')+' HEAD '+esc(String(b.repo_head_sha||'\u2014').slice(0,12))+(b.behind_by!=null?(' \u00b7 behind_by '+esc(String(b.behind_by))):'')+'</div>';
+    var rl=sec.release||{};
+    h+='<div class="row"><b>Release</b> '+window.rd_badge(rl.status||'unknown',window.rd_kind(rl.status),'')+' <span class="dim">deployed v'+esc(String(rl.deployed_version||'\u2014'))+' vs latest release '+esc(String(rl.latest_release_tag||'none'))+'</span>'+(rl.release_url?(' <a href="'+esc(rl.release_url)+'" target="_blank" rel="noopener">\u2197</a>'):'')+'</div>';
+    var da=sec.doctrine_anchor||{};
+    h+='<div class="row" style="margin-top:.4rem"><b>Doctrine anchor</b> <span class="badge">'+esc(String(da.deployed_kernel_commit||'\u2014'))+'</span> <span class="dim">doctrine '+esc(String(da.doctrine||'\u2014'))+' \u00b7 lock '+esc(String(da.lock||'\u2014'))+'</span></div>';
+    h+='<div class="dim" style="font-size:11px;margin:.1rem 0 .5rem">'+esc(da.note||'')+'</div>';
+    var hf=sec.hf_space||{};
+    h+='<div class="row"><b>HF Space</b> '+window.rd_badge(hf.status||'unknown',window.rd_kind(hf.status),'')+' <span class="dim">stage '+esc(String(hf.stage||'\u2014'))+' \u00b7 build sha '+esc(String(hf.deployed_hf_space_sha||'\u2014').slice(0,12))+' vs live '+esc(String(hf.live_hf_space_sha||'\u2014').slice(0,12))+'</span></div>';
+  }
+  return h;
+};
+window.rd_section=function(sec){
+  var h='<div class="card" id="rd-sec-'+esc(sec.id)+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><div><b>'+esc(sec.title||sec.id)+'</b>'+(sec.target?(' <span class="dim">\u2014 '+esc(sec.target)+'</span>'):'')+'</div>';
+  h+='<button class="btn rd-live-btn" data-rd="'+esc(sec.id)+'" title="force a fresh live re-read of this section" style="font-size:10px;padding:.12rem .5rem">\u21bb Re-check live</button></div>';
+  h+='<div id="rd-body-'+esc(sec.id)+'" style="margin-top:.5rem">'+window.rd_section_body(sec)+'</div></div>';
+  return h;
+};
+window.readiness_section_live=async function(id,btn){
+  var body=document.getElementById('rd-body-'+id); if(!body) return;
+  var old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='\u27f3 re-reading\u2026'; }
+  try{
+    var r=await fetch('/api/'+window.__rd_ns+'/v1/readiness/'+id+'/live');
+    var d=await r.json(); if(d.section) body.innerHTML=window.rd_section_body(d.section);
+  }catch(e){
+    var note=document.createElement('div'); note.className='dim'; note.style.marginTop='.25rem';
+    note.textContent='re-read failed: '+((e&&e.message)||e)+' \u2014 showing last-known values'; body.appendChild(note);
+  }finally{ if(btn){ btn.disabled=false; btn.textContent=old||'\u21bb Re-check live'; } }
+};
+window.readiness_render=async function(c){
+  c.innerHTML='<div class="card"><div class="dim">reading live deployment, repo and Space\u2026</div></div>';
+  try{
+    var r=await fetch('/api/'+window.__rd_ns+'/v1/readiness');
+    var d=await r.json(); var h='';
+    if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
+    var s=d.summary||{};
+    h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
+    h+=window.rd_badge('endpoints '+esc(String(s.endpoints_reachable))+'/'+esc(String(s.endpoints_total)),(s.endpoints_reachable===s.endpoints_total&&s.endpoints_total)?'good':'warn','reachable deployment surfaces');
+    var bstat=s.build_status||'unknown'; var bextra=(s.build_behind_by!=null&&s.build_behind_by>0)?(' '+s.build_behind_by+' behind'):''; h+=' '+window.rd_badge('build: '+bstat+bextra,window.rd_kind(bstat),'deployed build vs repo HEAD');
+    h+=' '+window.rd_badge('CI: '+(s.ci||'\u2014'),window.rd_kind(s.ci),'latest GitHub Actions conclusion');
+    h+=' '+window.rd_badge('HF: '+(s.hf_stage||'\u2014'),window.rd_kind(s.hf_stage),'Hugging Face Space runtime stage');
+    h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">organ <b>'+esc(d.organ||'')+'</b> \u00b7 <a href="'+esc(d.repo_url||'#')+'" target="_blank" rel="noopener">'+esc(d.repo||'')+'</a> \u00b7 deployment '+esc(d.deployment||'')+' \u00b7 checked '+esc(window.rd_ago(d.checked_at)||'just now')+'</div></div>';
+    (d.sections||[]).forEach(function(sec){ h+=window.rd_section(sec); });
+    c.innerHTML=h||'<div class="card"><div class="dim">no readiness sections.</div></div>';
+    Array.prototype.forEach.call(c.querySelectorAll('.rd-live-btn'),function(b){
+      b.addEventListener('click',function(){ window.readiness_section_live(b.getAttribute('data-rd'),b); });
+    });
+  }catch(e){ c.innerHTML='<div class="card"><div class="dim">readiness layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
+};
+/* end readiness-tab-patch */
 window.warhacker_init=warhacker_init; window.warhacker_run=warhacker_run; window.warhacker_all=warhacker_all;
 window.fieldnet_load=fieldnet_load; window.fieldnet_evaluate=fieldnet_evaluate;
 window.autonomyov_init=autonomyov_init; window.autonomyov_run=autonomyov_run;

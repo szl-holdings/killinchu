@@ -70,6 +70,11 @@ COPY serve.py ./serve.py
 # without this per-file COPY the import fails and /api/killinchu/v1/evidence/research 404s.
 ARG EVIDENCE_FIX_BUST=1780922329
 COPY szl_evidence_research.py ./szl_evidence_research.py
+# Operational Readiness backend (deployed-vs-repo reality, live/cached/unreachable).
+# serve.py imports this try/except-guarded; without this per-file COPY the import
+# fails and /api/killinchu/v1/readiness 404s (falls through to the SPA shell).
+ARG READINESS_FIX_BUST=1
+COPY szl_readiness.py ./szl_readiness.py
 # dev3 HF assets instill (Knowledge & Formulas / Evidence) — app-agnostic, server-side fetch, 0 CDN.
 COPY a11oy_hf_assets.py ./a11oy_hf_assets.py
 COPY drones_db.json ./drones_db.json
