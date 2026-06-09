@@ -312,18 +312,19 @@ L3 is **not** claimed.
 
 ## 🔌 UDS Mesh — the nervous system
 
-This organ is part of the **SZL UDS mesh**: a 7-organ trace + receipt substrate
-(brain `rosie` · heart `a11oy` · blood `amaru` · immune `sentra` · nervous/courier
-`killinchu` · skeleton `vessels` · wires = W3C `traceparent`).
+This product is part of the **SZL UDS mesh**: a trace + receipt substrate. Only two
+products ship (a11oy, killinchu); the other nodes are roadmap **roles** (the retired
+codenames `rosie`/`sentra`/`amaru` map to Operator / Policy / Provenance Anchor and
+surface inside a11oy — they are not standalone live products).
 
 ```mermaid
 flowchart LR
     classDef live fill:#0f3a2e,stroke:#5ad1c0,color:#e8eef7;
     classDef inproc fill:#2a3550,stroke:#7aa2ff,color:#e8eef7;
     classDef roadmap fill:#3a2f0f,stroke:#e0c060,color:#e8eef7;
-    ROSIE["🧠 rosie<br/>brain"]:::inproc -->|Wire C| A11OY["❤️ a11oy<br/>heart / fabric"]:::live
-    A11OY -->|Wire B| SENTRA["🛡️ sentra<br/>immune"]:::live
-    A11OY -->|Wire E| AMARU["🩸 amaru<br/>blood"]:::inproc
+    ROSIE["🧠 Operator role<br/>(in a11oy)"]:::roadmap -->|Wire C| A11OY["❤️ a11oy<br/>heart / fabric"]:::live
+    A11OY -->|Wire B| SENTRA["🛡️ Policy role<br/>(in a11oy)"]:::roadmap
+    A11OY -->|Wire E| AMARU["🩸 Provenance Anchor role<br/>(in a11oy)"]:::roadmap
     A11OY -->|Wire F| VESSELS["🦴 vessels<br/>skeleton"]:::roadmap
     KILLINCHU["📡 killinchu<br/>courier"]:::roadmap -.->|relay| RECEIPTS["📜 receipts<br/>DSSE Khipu"]:::inproc
     A11OY -->|traceparent embedded| RECEIPTS
