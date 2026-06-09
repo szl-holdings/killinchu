@@ -37,7 +37,7 @@ import time
 import sqlite3
 import urllib.request
 import urllib.error
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 # NOTE: `from __future__ import annotations` (above) stringifies every annotation,
@@ -504,19 +504,34 @@ def run_crawl(mode: str = "crawl") -> Dict[str, Any]:
     fetched_at = _now_iso()
 
     if payload is None:
-        # Upstream down — fall back to last-good snapshot honestly.
+        # Upstream down — record an HONEST degraded event so the timeline reflects
+        # the failed scrape, then fall back to the last-good snapshot if one exists.
+        # We NEVER fabricate a snapshot/facts here; only the failure is recorded.
         rows = st.query("SELECT id, source, source_url, fetched_at, record_count FROM snapshots ORDER BY id DESC LIMIT 1")
-        if rows:
-            last = rows[0]
+        last = rows[0] if rows else None
+        detail = f"adsb.lol military ADS-B unreachable: {err}"
+        if last:
+            detail += (f" · serving last-good snapshot #{last['id']} "
+                       f"({last['record_count']} records @ {last['fetched_at']})")
+        else:
+            detail += " · no prior snapshot to serve"
+        event_id = st.insert_returning_id(
+            "INSERT INTO events(snapshot_id, kind, title, detail, severity, source, source_url, ts) "
+            "VALUES(?,?,?,?,?,?,?,?)",
+            (None, "degraded", f"intel feed scrape failed ({mode})", detail,
+             "warn", "adsb.lol/mil", _MIL_ADSB_URL, fetched_at),
+        )
+        if last:
             return _envelope("cached", {
                 "error": err,
+                "event_id": event_id,
                 "snapshot_id": last["id"],
                 "record_count": last["record_count"],
                 "last_fetched_at": last["fetched_at"],
-                "events_created": 0,
+                "events_created": 1,
                 "note": "live upstream unreachable; serving last-good snapshot from DB",
             }, _adsb_citation())
-        return _envelope("degraded", {"error": err, "events_created": 0,
+        return _envelope("degraded", {"error": err, "event_id": event_id, "events_created": 1,
                                        "note": "live upstream unreachable and no prior snapshot"}, _adsb_citation())
 
     ac = payload.get("ac") or payload.get("aircraft") or []
@@ -636,6 +651,164 @@ def _evaluate_watchlists(st: _Store, snap_id: int, event_id: int, count: int,
 
 
 # ---------------------------------------------------------------------------
+# Auto-crawl scheduler — keeps the intel feed updating itself on a schedule.
+#
+# An in-process asyncio task periodically runs the SAME run_crawl() the manual
+# /crawl/run endpoint uses, so the timeline + alerts refresh and watchlist
+# triggers fire with no human in the loop. Honest by construction: it reuses
+# run_crawl(), which records a degraded event (never fabricates) when the
+# upstream is unreachable.
+#
+# Env-configurable (all optional):
+#   KILLINCHU_AUTO_CRAWL                  enable/disable (default on; "0"/"false" off)
+#   KILLINCHU_CRAWL_INTERVAL_SECONDS      base interval between runs (default 300, floor 30)
+#   KILLINCHU_CRAWL_JITTER_SECONDS        +/- random jitter per cycle (default min(30, interval/4))
+#   KILLINCHU_CRAWL_INITIAL_DELAY_SECONDS delay before the first run (default 15)
+#   KILLINCHU_CRAWL_MAX_BACKOFF_SECONDS   cap for exponential backoff on failures (default 6*interval)
+# ---------------------------------------------------------------------------
+_SCHED_STARTED = False
+_sched_lock = threading.Lock()  # non-reentrant: guards against overlapping runs
+_sched_state: Dict[str, Any] = {
+    "enabled": None,
+    "interval_seconds": None,
+    "jitter_seconds": None,
+    "running": False,
+    "runs": 0,
+    "last_run_at": None,
+    "last_status": None,
+    "last_error": None,
+    "consecutive_failures": 0,
+    "next_run_at": None,
+}
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    v = os.environ.get(name)
+    if v is None or not v.strip():
+        return default
+    return v.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(str(os.environ.get(name, "")).strip())
+    except Exception:
+        return default
+
+
+def scheduler_config() -> Dict[str, Any]:
+    """Resolve the auto-crawl config from the environment (honest, bounded)."""
+    interval = max(30, _env_int("KILLINCHU_CRAWL_INTERVAL_SECONDS", 300))
+    jitter = max(0, _env_int("KILLINCHU_CRAWL_JITTER_SECONDS", min(30, interval // 4)))
+    initial = max(0, _env_int("KILLINCHU_CRAWL_INITIAL_DELAY_SECONDS", 15))
+    max_backoff = max(interval, _env_int("KILLINCHU_CRAWL_MAX_BACKOFF_SECONDS", interval * 6))
+    return {
+        "enabled": _env_bool("KILLINCHU_AUTO_CRAWL", True),
+        "interval": interval,
+        "jitter": jitter,
+        "initial": initial,
+        "max_backoff": max_backoff,
+    }
+
+
+def run_crawl_guarded(mode: str = "auto") -> Optional[Dict[str, Any]]:
+    """Run one crawl unless one is already in flight (no pile-up).
+
+    Returns the run_crawl() envelope, or None if a run was already in progress
+    and this call was skipped. The lock is non-blocking so a slow run never
+    causes scheduled cycles to queue up.
+    """
+    if not _sched_lock.acquire(blocking=False):
+        return None
+    try:
+        return run_crawl(mode=mode)
+    finally:
+        _sched_lock.release()
+
+
+async def _scheduler_loop() -> None:
+    """Periodic auto-crawl loop with jitter + exponential backoff on failure."""
+    import asyncio
+    import random
+
+    cfg = scheduler_config()
+    _sched_state["enabled"] = True
+    _sched_state["interval_seconds"] = cfg["interval"]
+    _sched_state["jitter_seconds"] = cfg["jitter"]
+    print(f"[killinchu-backend] auto-crawl loop started "
+          f"interval={cfg['interval']}s jitter={cfg['jitter']}s "
+          f"initial_delay={cfg['initial']}s", file=sys.stderr)
+
+    await asyncio.sleep(cfg["initial"])
+
+    while True:
+        cfg = scheduler_config()  # re-read each cycle so tuning needs no code change
+        _sched_state["interval_seconds"] = cfg["interval"]
+        _sched_state["jitter_seconds"] = cfg["jitter"]
+        _sched_state["running"] = True
+        started = _now_iso()
+        try:
+            # run_crawl is blocking (urllib + sqlite); keep the event loop free.
+            res = await asyncio.to_thread(run_crawl_guarded, "auto")
+            if res is None:
+                _sched_state["last_status"] = "skipped"  # overlap guard fired
+            else:
+                status = res.get("status")
+                _sched_state["runs"] += 1
+                _sched_state["last_run_at"] = started
+                _sched_state["last_status"] = status
+                if status == "live":
+                    _sched_state["consecutive_failures"] = 0
+                    _sched_state["last_error"] = None
+                else:
+                    # 'cached'/'degraded' = the scrape did not get fresh data.
+                    _sched_state["consecutive_failures"] += 1
+                    _sched_state["last_error"] = (res.get("data") or {}).get("error")
+        except Exception as e:  # never let the loop die
+            _sched_state["consecutive_failures"] += 1
+            _sched_state["last_status"] = "error"
+            _sched_state["last_error"] = repr(e)
+            print(f"[killinchu-backend] auto-crawl cycle error: {e!r}", file=sys.stderr)
+        finally:
+            _sched_state["running"] = False
+
+        cf = _sched_state["consecutive_failures"]
+        if cf > 0:
+            delay = min(cfg["max_backoff"], cfg["interval"] * (2 ** min(cf, 6)))
+        else:
+            delay = cfg["interval"]
+        if cfg["jitter"]:
+            delay += random.uniform(-cfg["jitter"], cfg["jitter"])
+        delay = max(5.0, delay)
+        try:
+            _sched_state["next_run_at"] = (
+                datetime.now(timezone.utc) + timedelta(seconds=delay)
+            ).isoformat()
+        except Exception:
+            _sched_state["next_run_at"] = None
+        await asyncio.sleep(delay)
+
+
+def start_scheduler(app) -> str:
+    """Wire the auto-crawl loop onto the app's startup (idempotent, guarded)."""
+    global _SCHED_STARTED
+    cfg = scheduler_config()
+    if not cfg["enabled"]:
+        _sched_state["enabled"] = False
+        return "auto-crawl disabled (KILLINCHU_AUTO_CRAWL)"
+    if _SCHED_STARTED:
+        return "auto-crawl already wired"
+    _SCHED_STARTED = True
+
+    @app.on_event("startup")
+    async def _kc_auto_crawl_startup():  # pragma: no cover - runtime only
+        import asyncio
+        asyncio.create_task(_scheduler_loop())
+
+    return f"auto-crawl wired interval={cfg['interval']}s jitter={cfg['jitter']}s"
+
+
+# ---------------------------------------------------------------------------
 # FastAPI registration
 # ---------------------------------------------------------------------------
 def register(app, ns: str = "killinchu") -> str:
@@ -679,6 +852,23 @@ def register(app, ns: str = "killinchu") -> str:
     # -- crawl/run (manual) ------------------------------------------------
     async def crawl_run(request: Request) -> JSONResponse:
         return JSONResponse(run_crawl(mode="crawl"))
+
+    # -- crawl/status (auto-crawl scheduler health) ------------------------
+    async def crawl_status(request: Request) -> JSONResponse:
+        cfg = scheduler_config()
+        data = {
+            "config": {
+                "enabled": cfg["enabled"],
+                "interval_seconds": cfg["interval"],
+                "jitter_seconds": cfg["jitter"],
+                "initial_delay_seconds": cfg["initial"],
+                "max_backoff_seconds": cfg["max_backoff"],
+            },
+            "scheduler": dict(_sched_state),
+            "wired": _SCHED_STARTED,
+        }
+        status = "ok" if (cfg["enabled"] and _SCHED_STARTED) else "disabled"
+        return JSONResponse(_envelope(status, data, []))
 
     # -- timeline ----------------------------------------------------------
     async def timeline(request: Request) -> JSONResponse:
@@ -807,6 +997,7 @@ def register(app, ns: str = "killinchu") -> str:
     app.add_api_route(f"{base}/db/health", db_health, methods=["GET"])
     app.add_api_route(f"{base}/live", live, methods=["POST"])
     app.add_api_route(f"{base}/crawl/run", crawl_run, methods=["POST"])
+    app.add_api_route(f"{base}/crawl/status", crawl_status, methods=["GET"])
     app.add_api_route(f"{base}/timeline", timeline, methods=["GET"])
     app.add_api_route(f"{base}/alerts/recent", alerts_recent, methods=["GET"])
     app.add_api_route(f"{base}/watchlists", watchlists_list, methods=["GET"])
@@ -814,7 +1005,15 @@ def register(app, ns: str = "killinchu") -> str:
     app.add_api_route(f"{base}/watchlists/{{wid}}", watchlists_update, methods=["PUT"])
     app.add_api_route(f"{base}/watchlists/{{wid}}", watchlists_delete, methods=["DELETE"])
 
-    return f"killinchu-backend-wired backend={st.backend} durable={st.ok()}"
+    # Start the self-updating auto-crawl scheduler (guarded so a failure here
+    # never blocks route registration).
+    try:
+        sched_status = start_scheduler(app)
+    except Exception as e:  # pragma: no cover - defensive
+        sched_status = f"auto-crawl NOT wired ({e!r})"
+        print(f"[killinchu-backend] {sched_status}", file=sys.stderr)
+
+    return f"killinchu-backend-wired backend={st.backend} durable={st.ok()} | {sched_status}"
 
 
 # Used by serve.py /healthz to add uptime + db ping without shadowing the route.
