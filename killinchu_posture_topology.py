@@ -690,8 +690,34 @@ def register(app: FastAPI, ns: str = "killinchu",
         }
         return JSONResponse(out)
 
-    for path in ("posture/drift", "topology/health", "attack-surface/graph", "zerotrust/mesh"):
+    _paths = ("posture/drift", "topology/health", "attack-surface/graph", "zerotrust/mesh")
+    _wanted = {f"/api/{ns}/v1/{p}" for p in _paths}
+    for path in _paths:
         registered.append(f"GET /api/{ns}/v1/{path}")
+
+    # FRONT-INSERT so these GET routes beat the SPA "/{full_path:path}" catch-all
+    # AND survive any later `app.router.routes.clear()+extend(...)` reordering done
+    # by sibling modules (e.g. killinchu_frontier_patch, FLEET front-insert). The
+    # @app.get decorators above already APPEND the routes; here we lift those exact
+    # route objects to position 0 (no duplication — we remove the appended copies
+    # first, then re-insert in declared order). This is the proven precedence
+    # pattern used elsewhere in serve.py. ADDITIVE — never crashes the app.
+    try:
+        _mine = [r for r in app.router.routes
+                 if getattr(r, "path", None) in _wanted
+                 and "GET" in (getattr(r, "methods", None) or set())]
+        if _mine:
+            _mine_ids = {id(r) for r in _mine}
+            app.router.routes[:] = [r for r in app.router.routes if id(r) not in _mine_ids]
+            # preserve declared order at the front
+            _ordered = sorted(_mine, key=lambda r: list(_wanted).index(r.path)
+                              if r.path in _wanted else 0)
+            for r in reversed(_ordered):
+                app.router.routes.insert(0, r)
+    except Exception:
+        # If anything about route introspection changes upstream, the appended
+        # @app.get routes still work whenever no later clear()+extend reorders them.
+        pass
 
     return {"module": "killinchu_posture_topology", "registered": registered,
             "scipy": _HAVE_SCIPY, "networkx": _HAVE_NX}
