@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re as _re
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
@@ -76,6 +77,20 @@ except Exception:  # pragma: no cover
 # Three.js twin and to a trust axis in the Λ aggregate.
 # ---------------------------------------------------------------------------
 SUBSYSTEMS = ["hull", "propulsion", "comms", "sensors", "nav", "payload"]
+
+# DOCTRINE — honest subsystem provenance (hatun_willay). COMMS/NAV/SENSORS are
+# computed from the REAL live kinematic track (ADS-B / AIS) and are LIVE-derived.
+# HULL/PROPULSION/PAYLOAD have NO public telemetry feed that exposes them, so they
+# are INFERRED/SIMULATED from a deterministic per-platform seed — clearly labelled,
+# NEVER presented as measured. This is the doctrine; do not relabel inferred as live.
+_SUBSYS_PROVENANCE = {
+    "comms":     "LIVE-derived",   # real COG/HDG coherence + RAIM from the live track
+    "nav":       "LIVE-derived",   # real nav-status + position-continuity (teleport) from the live track
+    "sensors":   "LIVE-derived",   # real field-completeness + fix-freshness from the live track
+    "hull":      "INFERRED/SIMULATED — no public telemetry feed exposes hull integrity",
+    "propulsion":"INFERRED/SIMULATED — thermal margin is simulated; SOG plausibility IS live",
+    "payload":   "INFERRED/SIMULATED — firmware/payload currency; no public feed exposes this",
+}
 
 # Deterministic per-platform pseudo-state: same platform id → same firmware/age/wear
 # seed → same baseline report. Live kinematics then override the dynamic axes.
@@ -132,12 +147,14 @@ def _subsystem(platform_id: str, axis: str, signals: dict) -> dict:
 
     elif axis == "propulsion":
         sog = signals.get("sog")
-        # plausibility envelope: ships 0-40 kn. >40 implausible (spoof or fault).
+        kind = signals.get("_kind", "vessel")
+        # plausibility envelope is KIND-specific: vessels 40 kn, drones 120, aircraft 700.
+        env = {"vessel": 40.0, "drone": 120.0, "aircraft": 700.0}.get(kind, 60.0)
         thermal = round(0.45 + 0.5 * _seed_axis(platform_id, "prop_thermal"), 3)
-        metric = "thermal margin / SOG plausibility"
-        value = {"sog_kn": sog, "thermal_margin": thermal}
-        if sog is not None and sog > 40.0:
-            status, nonconf, action = "needs-fix", 0.6, f"SOG {sog} kn exceeds 40-kn envelope — drive fault or spoof; verify."
+        metric = "thermal margin (INFERRED) / SOG plausibility (LIVE)"
+        value = {"sog_kn": sog, "envelope_kn": env, "thermal_margin": thermal}
+        if sog is not None and sog > env:
+            status, nonconf, action = "needs-fix", 0.6, f"ground speed {sog} kn exceeds {kind} {env}-kn envelope — drive fault or spoof; verify."
         elif thermal < 0.55:
             status, nonconf, action = "needs-fix", round(1.0 - thermal, 4), "Thermal margin low; reduce load / inspect cooling."
         else:
@@ -211,10 +228,13 @@ def _subsystem(platform_id: str, axis: str, signals: dict) -> dict:
 
     # per-axis trust = 1 - nonconformity, floored
     trust = round(max(0.0, 1.0 - nonconf), 4)
+    prov = _SUBSYS_PROVENANCE.get(axis, "INFERRED/SIMULATED")
     return {
         "subsystem": axis, "status": status, "metric": metric, "value": value,
         "nonconformity": round(nonconf, 4), "trust": trust, "action": action,
         "label": live_flag,
+        "provenance": prov,
+        "derived": prov.startswith("LIVE"),
     }
 
 
@@ -260,13 +280,26 @@ def _platform_state(platform_id: str, signals: dict) -> dict:
             "first_fail": None if passed else {"axis": "A_local", "reason": "hacked or Λ<0.90"},
         }
 
+    # ---- REAL compromise cross-reference (kinematic + KEV/NVD + OFAC SDN) ----
+    kind = signals.get("_kind", "vessel")
+    compromise = _compromise_signal(platform_id, kind, signals)
+    # a compromised verdict escalates COMMS/NAV to hacked in the headline ordering
+    if compromise["state"] == "compromised":
+        for s in subs:
+            if s["subsystem"] in ("comms", "nav") and s["status"] not in ("hacked", "damaged"):
+                s["status"] = "hacked"
+                s["action"] = "Compromise signal fired (see compromise.checks_fired). Quarantine link; verify."
+
     # overall worst-case status for the headline color
     order = {"damaged": 0, "hacked": 1, "needs-fix": 2, "needs-upgrade": 3, "nominal": 4}
     headline = min((s["status"] for s in subs), key=lambda st: order.get(st, 4))
+    if compromise["state"] == "compromised" and order.get(headline, 4) > 1:
+        headline = "hacked"
 
     return {
         "platform_id": platform_id,
-        "kind": signals.get("_kind", "vessel"),
+        "kind": kind,
+        "compromise": compromise,
         "name": signals.get("_name", platform_id),
         "label": signals.get("_label", "sample"),
         "subsystems": subs,
@@ -319,6 +352,7 @@ def _signals_from_ais(v: dict) -> dict:
     mmsi = str(v.get("mmsi"))
     sig = {
         "_kind": "vessel", "_label": "live", "_name": v.get("name") or f"MMSI {mmsi}",
+        "_mmsi": mmsi,
         "sog": v.get("sog"), "cog": v.get("cog"), "heading": v.get("heading"),
         "navStat": v.get("navStat", 15), "lat": v.get("lat"), "lon": v.get("lon"),
         "raim": v.get("raim"), "posAcc": v.get("posAcc"),
@@ -333,25 +367,379 @@ def _signals_from_ais(v: dict) -> dict:
     return sig
 
 
+# ---------------------------------------------------------------------------
+# Live MILITARY ADS-B aircraft → selectable twin. Real hex/callsign/registration/
+# type/position/speed/track. COMMS/NAV/SENSORS health is computed from the real
+# kinematic track exactly like vessels (course/track-vs-heading coherence is
+# approximated from track continuity; teleport jumps + fix age tracked per hex).
+# ---------------------------------------------------------------------------
+_LAST_FIX_AIR: dict[str, dict] = {}
+
+
+def _signals_from_air(a: dict) -> dict:
+    """Map a live ADS-B aircraft fix → the same signal schema the formulas use.
+    Honest: every value is the real ADS-B field; nothing fabricated. Aircraft do
+    not broadcast AIS COG/RAIM, so we derive comms coherence from ground-track
+    continuity (track vs. previous track) and flag stale/teleport fixes."""
+    hexid = str(a.get("hex"))
+    track = a.get("track")
+    gs = a.get("gs")
+    sig = {
+        "_kind": "aircraft", "_label": "live",
+        "_name": (a.get("flight") or a.get("r") or f"ICAO {hexid}"),
+        "sog": gs,                       # ground speed (kn) — real
+        "cog": track,                    # ground track (deg) — real
+        "heading": a.get("true_heading") if a.get("true_heading") is not None else track,
+        "navStat": 0,                    # airborne under positive control (assumed nominal)
+        "lat": a.get("lat"), "lon": a.get("lon"),
+        "raim": None, "posAcc": (a.get("nic") is not None and (a.get("nic") or 0) >= 7) or None,
+        "_alt_baro": a.get("alt_baro"), "_squawk": a.get("squawk"),
+        "_type": a.get("t"), "_reg": a.get("r"), "_hex": hexid,
+    }
+    # aircraft kinematic envelope is much higher than ships; the _subsystem propulsion
+    # rule uses a ship 40-kn envelope, so for aircraft we DON'T pass sog into that rule
+    # as an over-envelope trigger (handled by _envelope_for_kind in the compromise engine).
+    prev = _LAST_FIX_AIR.get(hexid)
+    now = time.time()
+    if prev and a.get("lat") is not None and a.get("lon") is not None:
+        sig["_jump_nm"] = _haversine_nm(prev["lat"], prev["lon"], a["lat"], a["lon"])
+        sig["_age_s"] = round(now - prev["ts"], 1)
+        # track-continuity coherence proxy (large instantaneous track flip at speed = anomaly)
+        if prev.get("track") is not None and track is not None:
+            sig["_track_flip_deg"] = round(abs(((track - prev["track"] + 180) % 360) - 180), 1)
+    if a.get("lat") is not None:
+        _LAST_FIX_AIR[hexid] = {"lat": a["lat"], "lon": a["lon"], "ts": now, "track": track}
+    return sig
+
+
 def _live_platforms(limit: int = 12) -> tuple[list[dict], str]:
-    """Return (platforms, label). label='live' if AIS reached, else 'sample-only'."""
+    """Return (platforms, label). label='live' if AIS or ADS-B reached.
+    Live military ADS-B aircraft + live AIS vessels become selectable twins; the
+    SAMPLE drones (clearly labelled) always remain so the twin is never empty."""
     plats: list[dict] = []
-    label = "sample-only"
+    got_air = got_ais = False
     if _lf is not None:
+        # --- live MILITARY ADS-B aircraft (real hex / callsign / type) ---
         try:
-            data = _lf._fetch_ais(limit, 59.5, 22.0, 3.0)
+            air = _lf._fetch_air(max(6, limit))
+            for a in air.get("aircraft", []):
+                if a.get("hex") is None or a.get("lat") is None:
+                    continue
+                nm = (a.get("flight") or a.get("r") or f"ICAO {a.get('hex')}")
+                plats.append({
+                    "id": f"ADSB-{a.get('hex')}", "name": nm,
+                    "kind": "aircraft", "label": "live", "_air": a,
+                })
+            got_air = any(p["kind"] == "aircraft" for p in plats)
+        except Exception:
+            got_air = False
+        # --- live AIS vessels (real MMSI) ---
+        try:
+            data = _lf._fetch_ais(max(6, limit), 59.5, 22.0, 3.0)
             for v in data.get("vessels", []):
                 plats.append({
                     "id": f"AIS-{v.get('mmsi')}", "name": v.get("name") or f"MMSI {v.get('mmsi')}",
                     "kind": "vessel", "label": "live", "_ais": v,
                 })
-            if plats:
-                label = "live"
+            got_ais = any(p["kind"] == "vessel" for p in plats)
         except Exception:
-            label = "sample-only"
+            got_ais = False
+    label = "live" if (got_air or got_ais) else "sample-only"
     for d in SAMPLE_DRONES:
-        plats.append({"id": d["id"], "name": d["name"], "kind": "drone", "label": "sample", "_sample": d})
+        plats.append({"id": d["id"], "name": d["name"], "kind": "drone",
+                      "label": "sample" if label == "live" else "SAMPLE (feed unreachable)",
+                      "_sample": d})
     return plats, label
+
+
+# ===========================================================================
+# REAL COMPROMISE SIGNAL — honest, source-cited threat cross-reference.
+#
+# Three independent checks, each emits evidence with the source URL + timestamp:
+#  (a) KINEMATIC SPOOF (per-platform, REAL): teleport jump vs last fix, speed >
+#      kind-specific envelope, RAIM-off-while-claiming-accuracy, COG/HDG (or
+#      track-flip) incoherence — all from the live track this module already holds.
+#  (b) FIRMWARE-FAMILY ADVISORY (ecosystem, REAL feed, HONESTLY scoped): match
+#      common UAS/drone-autopilot CVE keywords against the LIVE CISA KEV catalog
+#      and NVD 2.0. We NEVER claim this specific platform RUNS the vulnerable
+#      firmware (no public feed exposes that) — we report the real CVEs as an
+#      ECOSYSTEM advisory for the platform's autopilot family, with the CVE id +
+#      source URL. No fabricated CVE match: only real feed hits are surfaced.
+#  (c) SANCTIONS / DARK-VESSEL SCREENING (vessels, REAL feed): screen the
+#      vessel name + MMSI against the LIVE U.S. Treasury OFAC SDN list. If the
+#      OFAC feed is unreachable we say so (no fabricated hit). Dark-vessel
+#      behaviour (AIS gap / stale fix) is flagged from the live track.
+#
+# Output: compromise_score in [0,1] (geometric-style escalation), state
+# (clear|watch|compromised), and the list of fired checks with evidence.
+# ===========================================================================
+
+# Common drone / UAS autopilot firmware families. Keyword match against the live
+# KEV/NVD feeds — these are REAL ecosystems (ArduPilot, PX4/Pixhawk, MAVLink,
+# DJI, Parrot). The match is an ECOSYSTEM advisory, never a per-unit claim.
+# Specific, unambiguous UAS/autopilot firmware-family product names. We match these as
+# substrings. Short ambiguous tokens ("uas") are matched as WHOLE WORDS only (see
+# _UAS_FW_WORDS) so we never report a fabricated hit from an unrelated substring such as
+# "Aquasecurity" or "IGEL OS". Doctrine: only report REAL feed hits.
+_UAS_FW_KEYWORDS = [
+    "ardupilot", "px4", "pixhawk", "mavlink", "betaflight",
+    "cleanflight", "inav", "unmanned aircraft", "unmanned aerial",
+]
+_UAS_FW_WORDS = ["uas", "uav", "dji", "parrot"]  # matched on word boundaries only
+_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+_KEV_MIRROR = "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json"
+_NVD_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+_OFAC_SDN_URL = "https://www.treasury.gov/ofac/downloads/sdn.csv"
+
+_THREAT_CACHE: dict[str, dict] = {}
+_THREAT_TTL = {"kev": 6 * 3600, "nvd": 1800, "ofac": 6 * 3600}
+
+
+def _kind_speed_envelope(kind: str) -> float:
+    # plausible max ground speed (kn). vessels ~40, aircraft ~700 (Mach ~1.1 @ alt),
+    # drone ~120. Beyond this = implausible (spoof or sensor fault).
+    return {"vessel": 40.0, "aircraft": 700.0, "drone": 120.0}.get(kind, 60.0)
+
+
+def _kev_uas_hits() -> dict:
+    """LIVE CISA KEV catalog filtered to UAS/autopilot keywords. Real feed only."""
+    now = time.time()
+    ent = _THREAT_CACHE.get("kev")
+    if ent and (now - ent["ts"]) < _THREAT_TTL["kev"]:
+        return ent["data"]
+    hits, src_url, fetched = [], _KEV_URL, None
+    raw = None
+    try:
+        if _lf is not None:
+            fr = _lf.get_feed("kev")  # reuse cached, snapshot-fallback feed accessor
+            raw = (fr or {}).get("data")
+            src_url = (fr or {}).get("source_url") or _KEV_MIRROR
+            fetched = (fr or {}).get("fetched_at")
+    except Exception:
+        raw = None
+    if not isinstance(raw, dict):
+        return {"available": False, "hits": [], "source": "CISA KEV", "source_url": _KEV_URL,
+                "note": "CISA KEV feed unreachable — no firmware-family advisory (honest; no fabricated CVE)."}
+    for v in raw.get("vulnerabilities", []):
+        blob = " ".join(str(v.get(k, "")) for k in
+                        ("vendorProject", "product", "vulnerabilityName", "shortDescription")).lower()
+        matched = [kw for kw in _UAS_FW_KEYWORDS if kw in blob]
+        matched += [kw for kw in _UAS_FW_WORDS if _re.search(r"\b" + _re.escape(kw) + r"\b", blob)]
+        if matched:
+            hits.append({"cve": v.get("cveID"), "vendor": v.get("vendorProject"),
+                         "product": v.get("product"), "name": v.get("vulnerabilityName"),
+                         "matched_keywords": matched, "dateAdded": v.get("dateAdded")})
+    out = {"available": True, "hits": hits, "source": "CISA Known Exploited Vulnerabilities catalog",
+           "source_url": _KEV_URL, "fetched_at": fetched,
+           "catalog_count": raw.get("count") or len(raw.get("vulnerabilities", []))}
+    _THREAT_CACHE["kev"] = {"data": out, "ts": now}
+    return out
+
+
+def _nvd_uas_hits() -> dict:
+    """LIVE NVD 2.0 keyword search for autopilot-family CVEs. Real feed only."""
+    now = time.time()
+    ent = _THREAT_CACHE.get("nvd")
+    if ent and (now - ent["ts"]) < _THREAT_TTL["nvd"]:
+        return ent["data"]
+    hits = []
+    ok = False
+    for kw in ("ardupilot", "px4", "mavlink"):
+        try:
+            url = f"{_NVD_URL}?keywordSearch={kw}&resultsPerPage=20"
+            d = _lf._http_get(url, timeout=18) if (_lf and hasattr(_lf, "_http_get")) else None
+            if isinstance(d, dict):
+                ok = True
+                for it in d.get("vulnerabilities", []):
+                    c = it.get("cve", {})
+                    desc = next((x.get("value") for x in c.get("descriptions", [])
+                                 if x.get("lang") == "en"), "")
+                    hits.append({"cve": c.get("id"), "family": kw, "desc": (desc or "")[:160],
+                                 "published": c.get("published")})
+        except Exception:
+            continue
+    if not ok:
+        return {"available": False, "hits": [], "source": "NVD CVE API 2.0", "source_url": _NVD_URL,
+                "note": "NVD 2.0 unreachable — no firmware-family advisory (honest; no fabricated CVE)."}
+    # de-dup by cve id
+    seen, uniq = set(), []
+    for h in hits:
+        if h["cve"] and h["cve"] not in seen:
+            seen.add(h["cve"]); uniq.append(h)
+    out = {"available": True, "hits": uniq[:25], "source": "U.S. National Vulnerability Database (NVD CVE API 2.0)",
+           "source_url": _NVD_URL, "fetched_at": datetime.now(timezone.utc).isoformat()}
+    _THREAT_CACHE["nvd"] = {"data": out, "ts": now}
+    return out
+
+
+def _ofac_sdn_screen(name: str, mmsi: Optional[str]) -> dict:
+    """Screen a vessel name (and MMSI) against the LIVE U.S. Treasury OFAC SDN list.
+    Real feed. If unreachable, returns available=False (no fabricated hit)."""
+    if not name:
+        return {"available": True, "hit": False, "source": "OFAC SDN", "source_url": _OFAC_SDN_URL,
+                "note": "no vessel name to screen"}
+    now = time.time()
+    ent = _THREAT_CACHE.get("ofac")
+    rows = None
+    if ent and (now - ent["ts"]) < _THREAT_TTL["ofac"]:
+        rows = ent["data"]
+    if rows is None:
+        try:
+            raw = _lf._http_get_raw(_OFAC_SDN_URL, timeout=30) if (_lf and hasattr(_lf, "_http_get_raw")) else None
+            if raw:
+                txt = raw.decode("latin-1", "replace")
+                rows = []
+                for line in txt.splitlines():
+                    # SDN.csv: ent_num,"SDN_Name","SDN_Type","Program",...  (vessels: type "vessel")
+                    parts = line.split(',')
+                    if len(parts) >= 4:
+                        nm = parts[1].strip().strip('"')
+                        typ = parts[2].strip().strip('"')
+                        prog = parts[3].strip().strip('"')
+                        if nm:
+                            rows.append((nm.upper(), typ, prog))
+                _THREAT_CACHE["ofac"] = {"data": rows, "ts": now}
+        except Exception:
+            rows = None
+    if rows is None:
+        return {"available": False, "hit": False, "source": "U.S. Treasury OFAC SDN list",
+                "source_url": _OFAC_SDN_URL,
+                "note": "OFAC SDN feed unreachable — screening skipped (honest; no fabricated hit)."}
+    needle = name.upper().strip()
+    matches = []
+    if len(needle) >= 4:
+        for nm, typ, prog in rows:
+            if needle == nm or (needle in nm and "vessel" in typ.lower()):
+                matches.append({"sdn_name": nm, "type": typ, "program": prog})
+        # also exact-substring on long names to catch vessel re-flaggings
+        if not matches:
+            for nm, typ, prog in rows:
+                if needle in nm and len(needle) >= 6:
+                    matches.append({"sdn_name": nm, "type": typ, "program": prog})
+    return {"available": True, "hit": bool(matches), "matches": matches[:5],
+            "screened": name, "mmsi": mmsi,
+            "source": "U.S. Treasury OFAC Specially Designated Nationals (SDN) list",
+            "source_url": _OFAC_SDN_URL,
+            "list_size": len(rows),
+            "note": "Live OFAC SDN exact/again-substring name screen. Advisory — confirm against full OFAC search before action."}
+
+
+def _compromise_signal(platform_id: str, kind: str, signals: dict) -> dict:
+    """Compute the honest compromise score + evidence for one platform."""
+    checks: list[dict] = []
+    score = 0.0
+    ts = datetime.now(timezone.utc).isoformat()
+
+    # ---- (a) KINEMATIC SPOOF (per-platform, REAL track) ----
+    jump = signals.get("_jump_nm")
+    age = signals.get("_age_s")
+    sog = signals.get("sog")
+    cog = signals.get("cog")
+    hdg = signals.get("heading")
+    raim = signals.get("raim")
+    posAcc = signals.get("posAcc")
+    env = _kind_speed_envelope(kind)
+    # teleport (only if we have two fixes within a plausible window)
+    if jump is not None and age is not None and age > 0:
+        implied_kn = (jump / age) * 3600.0
+        if jump > 20.0 and implied_kn > env * 1.5:
+            checks.append({"check": "kinematic.teleport", "fired": True,
+                           "evidence": f"position jumped {jump} nm in {age}s (implied {round(implied_kn)} kn > {round(env*1.5)} kn envelope) — likely GPS/AIS spoof",
+                           "source": "live track (this module, in-process fix history)",
+                           "source_url": "ADS-B/AIS live feed", "ts": ts})
+            score = max(score, min(1.0, jump / 50.0))
+    # over-envelope speed
+    if sog is not None and sog > env:
+        checks.append({"check": "kinematic.over_envelope_speed", "fired": True,
+                       "evidence": f"ground speed {sog} kn exceeds {kind} plausibility envelope {env} kn — drive fault or spoof",
+                       "source": "live track", "source_url": "ADS-B/AIS live feed", "ts": ts})
+        score = max(score, 0.6)
+    # RAIM off while claiming high positional accuracy
+    if raim is False and posAcc is True:
+        checks.append({"check": "kinematic.raim_off_high_acc", "fired": True,
+                       "evidence": "RAIM (receiver autonomous integrity monitoring) OFF while broadcasting HIGH position accuracy — classic spoof signature",
+                       "source": "live track (AIS posAcc/raim bits)", "source_url": "AIS live feed", "ts": ts})
+        score = max(score, 0.7)
+    # COG/HDG incoherence at speed (vessels) or track-flip (aircraft)
+    if cog is not None and hdg is not None and (sog or 0) > 3:
+        mismatch = abs(((cog - hdg + 180) % 360) - 180)
+        if mismatch > 60:
+            checks.append({"check": "kinematic.cog_hdg_incoherent", "fired": True,
+                           "evidence": f"course-over-ground vs heading delta {round(mismatch,1)}° (>60°) at {sog} kn — link/heading-sensor incoherence",
+                           "source": "live track", "source_url": "ADS-B/AIS live feed", "ts": ts})
+            score = max(score, min(1.0, mismatch / 120.0))
+    flip = signals.get("_track_flip_deg")
+    if flip is not None and flip > 90 and (sog or 0) > 100:
+        checks.append({"check": "kinematic.track_discontinuity", "fired": True,
+                       "evidence": f"ground-track flipped {flip}° between consecutive fixes at {sog} kn — implausible for an airframe; possible spoof",
+                       "source": "live track (ADS-B track history)", "source_url": "ADS-B live feed", "ts": ts})
+        score = max(score, min(1.0, flip / 180.0))
+
+    # ---- (b) FIRMWARE-FAMILY ADVISORY (ecosystem, REAL KEV/NVD) ----
+    fw_advisory = None
+    if kind in ("drone", "aircraft"):
+        kev = _kev_uas_hits()
+        nvd = _nvd_uas_hits()
+        kev_hits = kev.get("hits", []) if kev.get("available") else []
+        nvd_hits = nvd.get("hits", []) if nvd.get("available") else []
+        if kev_hits or nvd_hits:
+            checks.append({"check": "firmware.family_advisory", "fired": True,
+                           "evidence": (f"{len(kev_hits)} CISA-KEV + {len(nvd_hits)} NVD CVE(s) affect common UAS/autopilot firmware "
+                                        "families (ArduPilot/PX4/MAVLink/DJI). ECOSYSTEM advisory — NOT a claim that THIS unit runs the vulnerable build (no public telemetry exposes per-unit firmware)."),
+                           "kev": kev_hits[:8], "nvd": nvd_hits[:8],
+                           "source": "CISA KEV + NVD 2.0 (live)",
+                           "source_url": kev.get("source_url", _KEV_URL),
+                           "nvd_source_url": _NVD_URL,
+                           "fetched_at": kev.get("fetched_at"), "ts": ts})
+            # advisory only nudges the score (it is ecosystem-level, not per-unit)
+            score = max(score, 0.25 if (kev_hits or nvd_hits) else 0.0)
+        fw_advisory = {"kev_available": kev.get("available"), "nvd_available": nvd.get("available"),
+                       "kev_note": kev.get("note"), "nvd_note": nvd.get("note")}
+
+    # ---- (c) SANCTIONS / DARK-VESSEL SCREENING (vessels, REAL OFAC SDN) ----
+    sanctions = None
+    if kind == "vessel":
+        nm = signals.get("_name") or ""
+        mmsi = str(signals.get("_mmsi") or "")
+        # only screen real ship names (skip the "MMSI 12345" placeholder where AIS gave no name)
+        screen_name = nm if (nm and not nm.upper().startswith("MMSI")) else ""
+        sanctions = _ofac_sdn_screen(screen_name, mmsi or None)
+        if sanctions.get("hit"):
+            checks.append({"check": "sanctions.ofac_sdn_hit", "fired": True,
+                           "evidence": f"vessel name '{screen_name}' matches OFAC SDN entry/entries: " +
+                                       "; ".join(m["sdn_name"] + " [" + m["program"] + "]" for m in sanctions.get("matches", [])[:3]),
+                           "matches": sanctions.get("matches"),
+                           "source": sanctions.get("source"), "source_url": sanctions.get("source_url"), "ts": ts})
+            score = max(score, 0.85)
+        # dark-vessel behaviour from the live track (stale fix / AIS gap)
+        if age is not None and age > 600:
+            checks.append({"check": "darkvessel.ais_gap", "fired": True,
+                           "evidence": f"AIS fix age {age}s (>600s) — vessel went dark between reports (dark-vessel behaviour)",
+                           "source": "live track (AIS fix age)", "source_url": "AIS live feed", "ts": ts})
+            score = max(score, 0.5)
+
+    fired = [c for c in checks if c.get("fired")]
+    if score >= 0.7:
+        state = "compromised"
+    elif score >= 0.3 or fired:
+        state = "watch"
+    else:
+        state = "clear"
+    return {
+        "compromise_score": round(score, 4),
+        "state": state,
+        "checks_fired": fired,
+        "checks_evaluated": ["kinematic.teleport", "kinematic.over_envelope_speed",
+                             "kinematic.raim_off_high_acc", "kinematic.cog_hdg_incoherent",
+                             "kinematic.track_discontinuity",
+                             "firmware.family_advisory", "sanctions.ofac_sdn_hit", "darkvessel.ais_gap"],
+        "firmware_feeds": fw_advisory,
+        "sanctions": sanctions,
+        "honesty": ("Kinematic checks are per-platform from the REAL live track. Firmware advisory is an "
+                    "ECOSYSTEM-level KEV/NVD match (NOT a per-unit firmware claim). Sanctions screening is "
+                    "a LIVE OFAC SDN name screen (advisory). No fabricated CVE or sanctions hit — unreachable feeds say so."),
+        "ts_utc": ts,
+    }
 
 
 def register(app: FastAPI, ns: str = "killinchu",
@@ -362,11 +750,19 @@ def register(app: FastAPI, ns: str = "killinchu",
     async def twin_platforms(limit: int = 12):
         plats, label = _live_platforms(limit)
         out = [{"id": p["id"], "name": p["name"], "kind": p["kind"], "label": p["label"]} for p in plats]
+        n_air = sum(1 for p in plats if p["kind"] == "aircraft")
+        n_ves = sum(1 for p in plats if p["kind"] == "vessel")
         return {
             "flagship": "killinchu", "feed_label": label, "count": len(out),
+            "counts": {"aircraft": n_air, "vessel": n_ves, "sample_drone": len(SAMPLE_DRONES)},
             "platforms": out,
-            "honesty": ("Live AIS vessels (Digitraffic FI, no auth) + sample drones." if label == "live"
-                        else "Live AIS unreachable — sample platforms only (LABELLED sample)."),
+            "sources": {
+                "aircraft": "Military ADS-B (api.adsb.lol/v2/mil → adsb.fi → airplanes.live), no auth (ODbL)",
+                "vessel": "AIS (meri.digitraffic.fi/api/ais/v1/locations), no auth (CC BY 4.0)",
+            },
+            "honesty": (("Live MILITARY ADS-B aircraft (real ICAO hex / callsign / type) + live AIS vessels "
+                         "(real MMSI) + clearly-LABELLED sample drones.") if label == "live"
+                        else "Live feeds unreachable — sample platforms only (LABELLED 'SAMPLE (feed unreachable)')."),
             "lambda": "Conjecture 1 (NOT a theorem)", "doctrine": "v11",
             "ts_utc": datetime.now(timezone.utc).isoformat(),
         }
@@ -380,11 +776,13 @@ def register(app: FastAPI, ns: str = "killinchu",
             match = next((p for p in plats if p["kind"] == "drone"), plats[0] if plats else None)
         if match is None:
             return {"error": "no platforms available", "feed_label": label}
-        if "_ais" in match:
+        if "_air" in match:
+            signals = _signals_from_air(match["_air"])
+        elif "_ais" in match:
             signals = _signals_from_ais(match["_ais"])
         else:
             d = match["_sample"]
-            signals = {"_kind": "drone", "_label": "sample", "_name": d["name"], **{k: v for k, v in d.items() if not k.startswith("_") and k not in ("id", "name", "kind")}}
+            signals = {"_kind": "drone", "_label": match.get("label", "sample"), "_name": d["name"], **{k: v for k, v in d.items() if not k.startswith("_") and k not in ("id", "name", "kind")}}
         state = _platform_state(match["id"], signals)
         if emit_receipt:
             try:
@@ -409,14 +807,139 @@ def register(app: FastAPI, ns: str = "killinchu",
                 "lambda": "geometric-mean trust aggregate (Conjecture 1, NOT a theorem)",
                 "yuyay_gate": "13-axis CONJUNCTIVE truth gate (pass = all(score>=floor))",
             },
-            "honesty": "live AIS labelled live; sample drones labelled sample; hacked/needs-fix are probabilistic, signed by Λ, NOT guarantees.",
+            "subsystem_provenance": _SUBSYS_PROVENANCE,
+            "compromise_feeds": {
+                "kinematic": "per-platform from the live ADS-B/AIS track (REAL)",
+                "firmware_family": {"source": "CISA KEV + NVD 2.0", "kev_url": _KEV_URL, "nvd_url": _NVD_URL,
+                                    "scope": "ECOSYSTEM advisory (NOT per-unit firmware claim)"},
+                "sanctions": {"source": "U.S. Treasury OFAC SDN", "url": _OFAC_SDN_URL, "scope": "vessel name screen (advisory)"},
+            },
+            "remediate_endpoint": f"/api/{ns}/v1/twin/remediate (POST)",
+            "honesty": ("Live ADS-B/AIS labelled live; sample drones labelled sample; COMMS/NAV/SENSORS are "
+                        "LIVE-derived from real kinematics; HULL/PROPULSION/PAYLOAD are INFERRED/SIMULATED (no public "
+                        "telemetry feed exposes them). hacked/needs-fix are probabilistic, signed by Λ, NOT guarantees. "
+                        "The governed fix-loop is real + provable; the effector is SIMULATED — killinchu cannot push "
+                        "firmware or recall a real asset."),
             "yuyay_wired": _yuyay_score is not None,
             "live_feeds_wired": _lf is not None,
             "doctrine": "v11",
         }
 
+    # -----------------------------------------------------------------------
+    # GOVERNED FIX-LOOP: POST /twin/remediate {platform, action}.
+    # Runs the action through ROE → Λ-gate → emits a SIGNED DSSE receipt.
+    # The GOVERNANCE is real + provable. The EFFECTOR is a command demonstration:
+    # killinchu does NOT and CANNOT push firmware / recall / isolate a real asset.
+    # -----------------------------------------------------------------------
+    _ACTIONS = {
+        "upgrade": {"intent": "schedule OTA firmware upgrade", "reversible": True,  "min_lambda": 0.80},
+        "patch":   {"intent": "apply security patch to autopilot family", "reversible": True,  "min_lambda": 0.80},
+        "recall":  {"intent": "recall platform to base / RTB", "reversible": True,  "min_lambda": 0.70},
+        "isolate": {"intent": "isolate / quarantine compromised link", "reversible": True, "min_lambda": 0.0},
+    }
+    # Lean theorem reference for the governance gate (locked-proven set = {F1,F11,F12,F18,F19}).
+    _LEAN_REF = {
+        "gate_monotone": "Lutar.lean §Λ-gate — conjunctive 13-axis gate is monotone (deny-by-default).",
+        "locked_proven": ["F1", "F11", "F12", "F18", "F19"],
+        "lambda_status": "Λ = Conjecture 1 (NOT a theorem); BFT = Conjecture 2 (conditional, proven Wave23).",
+    }
+
+    @app.post(f"/api/{ns}/v1/twin/remediate")
+    async def twin_remediate(body: dict | None = None):
+        body = body or {}
+        platform = str(body.get("platform", "")).strip()
+        action = str(body.get("action", "")).strip().lower()
+        if action not in _ACTIONS:
+            return {"error": "unknown action", "allowed": sorted(_ACTIONS.keys()),
+                    "usage": "POST {platform, action: upgrade|patch|recall|isolate}"}
+        plats, feed_label = _live_platforms(12)
+        match = next((p for p in plats if p["id"] == platform), None)
+        if match is None:
+            return {"error": "platform not found", "platform": platform, "feed_label": feed_label}
+        if "_air" in match:
+            signals = _signals_from_air(match["_air"])
+        elif "_ais" in match:
+            signals = _signals_from_ais(match["_ais"])
+        else:
+            d = match["_sample"]
+            signals = {"_kind": "drone", "_label": match.get("label", "sample"), "_name": d["name"],
+                       **{k: v for k, v in d.items() if not k.startswith("_") and k not in ("id", "name", "kind")}}
+        state = _platform_state(match["id"], signals)
+        spec = _ACTIONS[action]
+        lam = state["lambda"]
+        compromised = state["compromise"]["state"] == "compromised"
+
+        # ---- ROE (rules of engagement) checks ----
+        roe = []
+        # R1: reversibility — all four actions are reversible/advisory (no kinetic effect)
+        roe.append({"rule": "R1.reversibility", "pass": bool(spec["reversible"]),
+                    "detail": "action is reversible / advisory (no kinetic effect)"})
+        # R2: Λ floor for the action (isolate is always permitted as a containment action)
+        r2 = lam >= spec["min_lambda"]
+        roe.append({"rule": "R2.lambda_floor", "pass": bool(r2),
+                    "detail": f"Λ={lam} vs action floor {spec['min_lambda']}"})
+        # R3: isolate REQUIRES a fired compromise signal (deny-by-default containment)
+        if action == "isolate":
+            r3 = compromised or bool(state["compromise"]["checks_fired"])
+            roe.append({"rule": "R3.isolate_requires_evidence", "pass": bool(r3),
+                        "detail": "isolate requires ≥1 fired compromise check (deny-by-default)"})
+        # R4: upgrade/patch require the platform NOT be actively hacked-in-flight (verify first)
+        if action in ("upgrade", "patch"):
+            r4 = not compromised
+            roe.append({"rule": "R4.no_inflight_compromise", "pass": bool(r4),
+                        "detail": "do not OTA a platform with an active compromise signal — verify/isolate first"})
+        roe_pass = all(r["pass"] for r in roe)
+
+        # ---- Λ-gate (13-axis conjunctive, deny-by-default) ----
+        gate_pass = bool(state["yuyay_gate"]["authorized"]) if action != "isolate" else True
+        # isolate is a containment action: permitted even when the gate denies engagement.
+        authorized = roe_pass and gate_pass
+        decision = "AUTHORIZED" if authorized else "DENIED"
+
+        payload = {
+            "platform_id": match["id"], "platform_name": match["name"], "kind": match["kind"],
+            "action": action, "intent": spec["intent"],
+            "decision": decision,
+            "lambda": lam, "compromise_state": state["compromise"]["state"],
+            "compromise_score": state["compromise"]["compromise_score"],
+            "roe": roe, "roe_pass": roe_pass,
+            "lambda_gate": {"authorized": gate_pass, "rule": state["yuyay_gate"]["rule"]},
+            "lean_theorem_ref": _LEAN_REF,
+            "effector": ("SIMULATED — command demonstration only. killinchu does NOT and CANNOT push "
+                         "firmware, recall, isolate, or otherwise actuate a real asset. The GOVERNANCE "
+                         "(ROE + Λ-gate + signed receipt) is real and provable; the effect is not applied."),
+            "feed_label": feed_label,
+            "ts_utc": datetime.now(timezone.utc).isoformat(),
+        }
+        receipt_node = None
+        if emit_receipt:
+            try:
+                receipt_node = emit_receipt("twin_remediate", payload)
+            except Exception:
+                receipt_node = None
+        out = {
+            "ok": True, "decision": decision, "authorized": authorized,
+            "request": {"platform": match["id"], "action": action},
+            "governance": payload,
+        }
+        if receipt_node:
+            out["receipt"] = {
+                "index": receipt_node.get("index"),
+                "digest": receipt_node.get("digest"),
+                "signed": receipt_node.get("signed", False),
+                "dsse": receipt_node.get("dsse"),
+                "parents": receipt_node.get("parents"),
+            }
+            out["receipt_honesty"] = ("DSSE ECDSA-P256-SHA256 over the cosign keypair when the Space secret "
+                                      "is set; otherwise an honest UNSIGNED receipt (never a fabricated signature). "
+                                      "Verify offline with `cosign verify-blob --key cosign.pub` or POST /khipu/verify.")
+        else:
+            out["receipt"] = {"signed": False, "note": "receipt chain not wired in this context"}
+        return out
+
     for r in (f"/api/{ns}/v1/twin/platforms", f"/api/{ns}/v1/twin/state", f"/api/{ns}/v1/twin/_self"):
         registered.append("GET " + r)
+    registered.append(f"POST /api/{ns}/v1/twin/remediate")
     return {"registered": True, "registered_count": len(registered), "routes": registered}
 
 
