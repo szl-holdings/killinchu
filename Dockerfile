@@ -392,6 +392,19 @@ COPY killinchu_resweep_ops.py ./killinchu_resweep_ops.py
 # Pure-stdlib, additive; locked-proven stays EXACTLY 5 {F1,F11,F12,F18,F19}; Λ = Conjecture 1.
 COPY killinchu_wave910.py ./killinchu_wave910.py
 
+# ADDITIVE (DEV-WIRE-K R1, Opus 4.8, 2026-06-09): Posture & Drift + Topology &
+# Health + Attack-Surface + Zero-Trust surfaces. serve.py imports
+# killinchu_posture_topology via try/except and front-inserts GET
+# /api/killinchu/v1/{posture/drift,topology/health,attack-surface/graph,
+# zerotrust/mesh}. This Dockerfile NEVER uses `COPY . .` — every file is explicit;
+# WITHOUT this line `import killinchu_posture_topology` fails (ModuleNotFoundError)
+# and all four routes 404. Real PSI+KS(scipy.stats.ks_2samp)+vendored-ADWIN drift
+# on live ADS-B; real graph metrics (Fiedler λ2 etc.) via networkx/numpy fallback;
+# Attack-Surface + Zero-Trust mesh from REAL deploy/uds-package.yaml. NO fabricated
+# data; honest empty states; organ role names (Operator/Provenance Anchor/Policy);
+# locked-proven stays EXACTLY 5 {F1,F11,F12,F18,F19}; Λ = Conjecture 1.
+COPY killinchu_posture_topology.py ./killinchu_posture_topology.py
+
 CMD ["python", "serve.py"]
 
 
