@@ -1,28 +1,33 @@
-# Hand off to Rosie for an operator decision when the gate fails
+# Hand off to the Operator role for an operator decision when the gate fails
 
 **Recipe ID:** `recipe-cross-organ-rosie-handoff`  
-**Tags:** rosie, handoff, wire-i, operator  
+**Tags:** operator, handoff, wire-i  
 **Doctrine v11 — 749/14/163**  
 **Maintained by:** Yachay <yachay@szlholdings.dev>  
-*Co-Authored-By: Perplexity Computer Agent*
+*Attribution: ORCID 0009-0001-0110-4173*
+
+> The "Operator" role (retired internal codename `rosie`) is not a standalone
+> shipping product or Space; it is a roadmap role that surfaces inside a11oy. The
+> killinchu endpoints below are the live, served killinchu API surface that invoke
+> the operator-companion behaviour.
 
 ## Intent
-When the Yuyay gate returns REVIEW or classifier confidence is low, hand off to the Rosie operator-companion for human-in-the-loop reasoning.
+When the Yuyay gate returns REVIEW or classifier confidence is low, hand off to the Operator role (operator-companion) for human-in-the-loop reasoning.
 
 ## Steps
 1. Detect REVIEW (gate) or top classifier confidence < 0.7 (possibly novel airframe).
-2. POST /api/killinchu/v1/identify/with-rosie with the signature -> Rosie consults only on low confidence.
+2. POST /api/killinchu/v1/identify/with-rosie with the signature -> the Operator role consults only on low confidence.
 3. Or POST /api/killinchu/v1/rosie-companion/brain-jack with the decision context for deeper reasoning.
-4. Rosie is CO-PILOT, not pilot: she proposes; Killinchu + the 2-person Yuyay gate decide.
-5. Both the identify result and Rosie's reasoning carry cross-linked Khipu receipts. Attach disclaimer.
+4. The Operator role is CO-PILOT, not pilot: it proposes; Killinchu + the 2-person Yuyay gate decide.
+5. Both the identify result and the Operator reasoning carry cross-linked Khipu receipts. Attach disclaimer.
 
-## Live endpoints driven
+## Live endpoints driven (served by killinchu)
 - `/api/killinchu/v1/identify/with-rosie`
 - `/api/killinchu/v1/rosie-companion/brain-jack`
 - `/api/killinchu/v1/rosie-companion`
 
 ## Sources
-- https://szlholdings-rosie.hf.space
+- Live product: https://szlholdings-killinchu.hf.space (the Operator role surfaces inside a11oy: https://szlholdings-a11oy.hf.space)
 
 ## LEGAL BOUNDARIES (drone-domain action)
 
