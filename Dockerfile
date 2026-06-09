@@ -404,6 +404,12 @@ COPY killinchu_wave910.py ./killinchu_wave910.py
 # data; honest empty states; organ role names (Operator/Provenance Anchor/Policy);
 # locked-proven stays EXACTLY 5 {F1,F11,F12,F18,F19}; Λ = Conjecture 1.
 COPY killinchu_posture_topology.py ./killinchu_posture_topology.py
+# ADDITIVE (DEV-WIRE-K R1): the REAL UDS Package CR consumed by the Attack-Surface
+# and Zero-Trust mesh endpoints (killinchu_posture_topology._load_uds_package reads
+# /app/deploy/uds-package.yaml). This Dockerfile NEVER uses `COPY . .`; WITHOUT this
+# line the file is absent in-image and both tabs honestly render the empty state
+# instead of the real allow/expose graph. Real allow rules only — no invented CVEs.
+COPY deploy/uds-package.yaml ./deploy/uds-package.yaml
 
 CMD ["python", "serve.py"]
 
