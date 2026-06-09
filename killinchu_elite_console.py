@@ -420,6 +420,17 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <script src="/vendor/pub-sub-es.min.js"></script>
 <script src="/vendor/regl-scatterplot.min.js"></script>
 <script src="/vendor/plot.umd.min.js"></script>
+<!-- SOVEREIGN: vendored anvaka graph stack (Andrei Kashcha, BSD-3/MIT) for deterministic
+     seeded force-directed layout in the Posture/Topology/Attack-Surface/Zero-Trust graphs.
+     0 runtime CDN — served from static/vendor/anvaka/*. Byte-identical with a11oy.
+     Globals: createGraph, ngraphCreateLayout, ngraphPath, ngraphEvents, panzoom, Viva.
+     Full LICENSE + ATTRIBUTION ship beside the files in static/vendor/anvaka/. -->
+<script src="/vendor/anvaka/ngraph.events.umd.js"></script>
+<script src="/vendor/anvaka/ngraph.graph.min.js"></script>
+<script src="/vendor/anvaka/ngraph.forcelayout.min.js"></script>
+<script src="/vendor/anvaka/ngraph.path.min.js"></script>
+<script src="/vendor/anvaka/panzoom.min.js"></script>
+<script src="/vendor/anvaka/vivagraph.min.js"></script>
 <style>
 /* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
@@ -727,6 +738,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-group" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9315; GOVERNED CORE &middot; UDS</div>
     <div class="nav-item" data-view="lambda" onclick="go('lambda')" title="13-axis Trust score monitor. Lambda = Conjecture 1 (advisory, not a theorem)."><span class="ico">&#9672;</span>Trust Score Monitor (Λ)</div>
     <div class="nav-item" data-view="u_consensus" onclick="go('u_consensus')" title="SKELETON organ: 3-of-4 consensus (BFT safety = Conjecture 2 OPEN unconditionally; CONDITIONAL agreement proven axiom-free, Wave23), quorum, mesh resilience, field net, oversight."><span class="ico">&#8859;</span>Mesh &amp; Consensus</div>
+    <div class="nav-item" data-view="u_posture" onclick="go('u_posture')" title="Runtime assurance: real model/data-drift (PSI + KS + ADWIN) on live telemetry, real graph-theoretic topology &amp; health metrics (clustering / centrality / Fiedler lambda2), the attack-surface exposure graph and the zero-trust mesh — all from real telemetry + the real UDS Package CR. Honest verdicts and empty states."><span class="ico">&#9202;</span>Posture, Topology &amp; Zero-Trust</div>
     <div class="nav-item" data-view="u_receipts" onclick="go('u_receipts')" title="CIRCULATORY organ: live signed-receipt chain (3D), audit, quantum-safe signing, evidence."><span class="ico">&#9939;</span>Receipt Ledger &amp; Verify</div>
     <div class="nav-item" data-view="u_proofs" onclick="go('u_proofs')" title="BRAIN organ: knowledge &amp; formulas (exactly 5 locked), runtime theorem cards, safety gates."><span class="ico">&#8721;</span>Knowledge &amp; Runtime Proofs</div>
     <div class="nav-item" data-view="u_melt" onclick="go('u_melt')" title="NERVOUS organ: MELT observability, living-organism service graph (3D), model atlas."><span class="ico">&#8779;</span>Observability (MELT)</div>
@@ -1386,7 +1398,8 @@ window._SUBMAP = {
   u_space:    [{k:'constellations',l:'Constellations (3D LEO)'},{k:'geoint',l:'GEOINT Aggregation'},{k:'pulse',l:'Seismic Forecast (live USGS)'}],
   u_warhacker:[{k:'warhacker',l:'Maritime/Drone Warhacker (27)'},{k:'warboard',l:'Warhacker Proofs Board'}],
   u_minedops: [{k:'edgeest',l:'Edge VRAM Estimator'},{k:'telemem',l:'Telemetry Memory'},{k:'adaptsample',l:'Adaptive Sensor Sampling'},{k:'tacroute',l:'Tactical Routing'},{k:'prioritize',l:'Multi-Track Priority'}],
-  u_about:    [{k:'honest',l:'What We Claim'},{k:'research',l:'Research Corpus'},{k:'legal',l:'Legal Boundaries'},{k:'deploy',l:'Deploy Posture'},{k:'uds_package',l:'UDS Package'}]
+  u_about:    [{k:'honest',l:'What We Claim'},{k:'research',l:'Research Corpus'},{k:'legal',l:'Legal Boundaries'},{k:'deploy',l:'Deploy Posture'},{k:'uds_package',l:'UDS Package'}],
+  u_posture:  [{k:'posture_drift',l:'Posture & Drift'},{k:'topology_health',l:'Topology & Health'},{k:'attack_surface',l:'Attack-Surface Graph'},{k:'zerotrust_mesh',l:'Zero-Trust Mesh'}]
 };
 window._curSurface=null;
 /* render a sub-view (an original VIEWS key) into the consolidated sub-body, with a compact header */
@@ -1542,6 +1555,155 @@ async function rosie_watch_render(c){
   }catch(e){_osErr(c,e);}
 }
 
+/* ===== POSTURE & TOPOLOGY (DEV-WIRE-K R1) — real drift detectors + graph metrics =====
+   Endpoints (all ADDITIVE, mounted by killinchu_posture_topology.register):
+     GET /api/killinchu/v1/posture/drift        PSI + KS(scipy/numpy) + ADWIN on live ADS-B
+     GET /api/killinchu/v1/topology/health       real graph metrics (clustering/centrality/Fiedler)
+     GET /api/killinchu/v1/attack-surface/graph   exposure graph from REAL uds-package.yaml
+     GET /api/killinchu/v1/zerotrust/mesh         mesh from REAL UDS allow rules
+   All honest: verdict thresholded, organ nodes = role names, honest empty states.
+   Graph layout = deterministic seeded ngraph.forcelayout (vendored, 0-CDN) -> SVG. */
+const PT_BASE='/api/killinchu/v1';
+function _ptMode(m){return _osMode(m||'cached');}
+/* deterministic seeded force layout via the vendored anvaka ngraph stack (no CDN).
+   Returns {id:{x,y}} normalized into a WxH box. Falls back to a circle layout if
+   ngraphCreateLayout/createGraph globals are not present (so a vendor lag is honest, not broken). */
+function _ptLayout(nodeIds, edges, W, H){
+  var pos={};
+  try{
+    if(window.createGraph && window.ngraphCreateLayout){
+      var g=window.createGraph();
+      nodeIds.forEach(function(id){ g.addNode(id); });
+      edges.forEach(function(e){ var s=e.source!=null?e.source:e[0], t=e.target!=null?e.target:e[1]; if(s!=null&&t!=null) g.addLink(s,t); });
+      var layout=window.ngraphCreateLayout(g,{springLength:42,springCoefficient:0.0008,gravity:-9,dragCoefficient:0.02,seed:42});
+      for(var i=0;i<320;i++){ layout.step(); }
+      var minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+      nodeIds.forEach(function(id){ var p=layout.getNodePosition(id); if(p.x<minx)minx=p.x; if(p.y<miny)miny=p.y; if(p.x>maxx)maxx=p.x; if(p.y>maxy)maxy=p.y; });
+      var sx=(maxx-minx)||1, sy=(maxy-miny)||1, pad=40;
+      nodeIds.forEach(function(id){ var p=layout.getNodePosition(id);
+        pos[id]={x:pad+(W-2*pad)*(p.x-minx)/sx, y:pad+(H-2*pad)*(p.y-miny)/sy}; });
+      return {pos:pos, engine:'anvaka ngraph.forcelayout (vendored, seeded)'};
+    }
+  }catch(e){}
+  // honest fallback: deterministic circle
+  var cx=W/2,cy=H/2,R=Math.min(W,H)/2-50;
+  nodeIds.forEach(function(id,i){ var a=2*Math.PI*i/Math.max(1,nodeIds.length); pos[id]={x:cx+R*Math.cos(a),y:cy+R*Math.sin(a)}; });
+  return {pos:pos, engine:'circle fallback (anvaka global not loaded)'};
+}
+function _ptSvgGraph(nodes, edges, opt){
+  opt=opt||{}; var W=opt.W||760,H=opt.H||470;
+  var ids=nodes.map(function(n){return n.id;});
+  var lay=_ptLayout(ids, edges, W, H); var P=lay.pos;
+  var lines=edges.map(function(e){ var s=e.source!=null?e.source:e[0], t=e.target!=null?e.target:e[1]; var a=P[s],b=P[t]; if(!a||!b) return '';
+    var dir=e.direction||''; var col=dir==='ingress'?'#ff9b9b':(dir==='egress'?'#5cc8ff':'#2a6f63');
+    return '<line x1="'+a.x.toFixed(1)+'" y1="'+a.y.toFixed(1)+'" x2="'+b.x.toFixed(1)+'" y2="'+b.y.toFixed(1)+'" stroke="'+col+'" stroke-width="1.4" stroke-opacity="0.5"/>';}).join('');
+  var circ=nodes.map(function(n){ var p=P[n.id]; if(!p) return '';
+    var col=opt.color?opt.color(n):'#5fe39a'; var r=opt.radius?opt.radius(n):8;
+    var lbl=esc(scrubText(String(n.role||n.id)).slice(0,22));
+    return '<g><circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+r+'" fill="'+col+'" fill-opacity="0.9" stroke="#0a0a0a" stroke-width="1"/><text x="'+p.x.toFixed(1)+'" y="'+(p.y-r-3).toFixed(1)+'" fill="#e8e8e8" font-size="9.5" text-anchor="middle" font-family="monospace">'+lbl+'</text></g>';}).join('');
+  return '<div style="overflow:auto"><svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px;background:#050505;border-radius:10px">'+lines+circ+'</svg></div><div class="mono dim" style="font-size:10px;margin-top:.3rem">layout: '+esc(lay.engine)+'</div>';
+}
+
+async function posture_drift_render(c){
+  c.innerHTML='<div class="card"><div class="row mono dim">&#8635; computing PSI + KS + ADWIN on live telemetry…</div></div>';
+  _autoPoll('posture_drift','pd-gate',async function(){
+    try{var b=await getJSON(PT_BASE+'/posture/drift');
+      var vcol=b.verdict==='DRIFT DETECTED'?'#ff5c5c':'#5fe39a';
+      var th=b.thresholds||{};
+      var rows=(b.features||[]).map(function(f){
+        if(f.state==='no-data'){ return '<tr style="border-top:1px solid #161616"><td style="padding:.4rem .5rem;color:var(--cream)">'+esc(f.feature)+'</td><td colspan="5" class="mono dim" style="padding:.4rem .5rem">no-data (honest)</td></tr>'; }
+        var pcol=f.psi_band==='significant'?'#ff5c5c':(f.psi_band==='moderate'?'#f5b301':'#5fe39a');
+        var kcol=f.ks_alert?'#ff5c5c':'#5fe39a';
+        return '<tr style="border-top:1px solid #161616"><td style="padding:.4rem .5rem;color:var(--cream)">'+esc(f.feature)+'</td>'+
+          '<td class="mono" style="padding:.4rem .5rem;color:'+pcol+'">'+f.psi+' <span class="dim" style="font-size:10px">('+esc(f.psi_band)+')</span></td>'+
+          '<td class="mono" style="padding:.4rem .5rem;color:'+kcol+'">'+f.ks_stat+'</td>'+
+          '<td class="mono" style="padding:.4rem .5rem;color:'+kcol+'">'+f.ks_p+'</td>'+
+          '<td class="mono" style="padding:.4rem .5rem;color:'+(f.adwin_drift?'#ff5c5c':'var(--dim)')+'">'+(f.adwin_drift?'SHIFT':'stable')+'</td>'+
+          '<td class="mono dim" style="padding:.4rem .5rem;font-size:10px">ref '+f.ref_n+' / live '+f.live_n+'</td></tr>';
+      }).join('');
+      var trig=(b.triggering_detectors||[]).map(function(t){return _osChip(t,'#2a0e0e','#ff7b7b');}).join('')||'<span class="mono dim">no detector fired — distribution STABLE</span>';
+      c.innerHTML=_osKpis([
+        ['Verdict',esc(b.verdict),vcol,'honestly thresholded'],
+        ['Triggers',(b.triggering_detectors||[]).length,vcol,'detectors fired'],
+        ['KS backend',esc((b.features&&b.features[0]&&b.features[0].ks_backend)||(b.scipy_available?'scipy':'numpy')),'var(--cream)',b.scipy_available?'scipy.stats.ks_2samp':'numpy Kolmogorov'],
+        ['Live feed',_ptMode(b.live_mode),'','adsb.lol ADS-B']
+      ])+
+      '<div class="card" id="pd-gate" style="border-color:'+vcol+'55"><div class="card-h"><span class="card-t" style="color:'+vcol+'">&#9888; '+esc(b.verdict)+'</span><span class="card-ep">'+window.autoPill('pd-gate')+'</span></div>'+
+      '<div class="row mono" style="font-size:11px;color:var(--dim);margin:.2rem 0 .6rem">thresholds: PSI moderate&ge;'+th.psi_moderate+' · PSI significant&ge;'+th.psi_significant+' · KS &alpha;='+th.ks_alpha+' · detectors: '+esc((b.detectors||[]).join(', '))+'</div>'+
+      '<div class="row" style="margin-bottom:.6rem">'+trig+'</div>'+
+      '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:var(--dim);font-family:var(--mono);font-size:11px"><th style="padding:.4rem .5rem">Feature</th><th style="padding:.4rem .5rem">PSI</th><th style="padding:.4rem .5rem">KS stat</th><th style="padding:.4rem .5rem">KS p</th><th style="padding:.4rem .5rem">ADWIN</th><th style="padding:.4rem .5rem">n</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      '<div class="row mono dim" style="font-size:11px;margin-top:.6rem">data source: '+esc(b.data_source||'')+'</div></div>'+
+      _osHonest({note:b.honesty,provenance:'Reference snapshot is real captured telemetry; live = adsb.lol.'});
+    }catch(e){ c.innerHTML='<div class="card" id="pd-gate"><div class="row mono" style="color:#ff7b7b">posture/drift error: '+esc(String(e&&e.message||e))+'</div></div>'; }
+  });
+}
+async function topology_health_render(c){
+  c.innerHTML='<div class="card"><div class="row mono dim">&#8635; computing graph metrics…</div></div>';
+  _autoPoll('topology_health','th-gate',async function(){
+    try{var b=await getJSON(PT_BASE+'/topology/health'); var m=b.metrics||{};
+      var hcol={nominal:'#5fe39a',anomalous:'#ff5c5c',unknown:'#f5b301'};
+      var kcol={organ:'#b39ddb',service:'#5cc8ff',track:'#5fe39a'};
+      var svg=_ptSvgGraph(b.nodes||[], b.edges||[], {H:460,
+        color:function(n){ return n.kind==='track'?(hcol[n.health]||'#888'):(kcol[n.kind]||'#5fe39a'); },
+        radius:function(n){ return n.kind==='organ'?11:(n.kind==='service'?9:6); }});
+      var central=(m.top_central_nodes||[]).map(function(t){return '<tr style="border-top:1px solid #161616"><td style="padding:.35rem .5rem;color:var(--cream)">'+esc(scrubText(String(t.role||t.id)))+'</td><td class="mono" style="padding:.35rem .5rem">'+t.betweenness+'</td><td class="mono" style="padding:.35rem .5rem">'+t.degree_centrality+'</td></tr>';}).join('');
+      c.innerHTML=_osKpis([
+        ['Nodes',m.node_count,'var(--teal)','organs+services+tracks'],
+        ['Avg clustering',m.avg_clustering_coefficient,'var(--cream)','coefficient'],
+        ['Avg path len',m.avg_shortest_path_length==null?'n/a':m.avg_shortest_path_length,'var(--cream)','giant component'],
+        ['Components',m.connected_components,m.connected_components===1?'#5fe39a':'#f5b301',''],
+        ['Fiedler &lambda;2',m.fiedler_lambda2,m.connected?'#5fe39a':'#ff5c5c',m.connected?'connected':'DISCONNECTED'],
+        ['Backend',esc(b.metric_backend||''),'var(--dim)','metric engine']
+      ])+
+      '<div class="card" id="th-gate"><div class="card-h"><span class="card-t">&#10050; Topology &amp; Health graph</span><span class="card-ep">'+window.autoPill('th-gate')+'</span></div>'+svg+
+      '<div class="mono dim" style="font-size:11px;margin-top:.4rem">organs (purple) = Operator / Provenance Anchor / Policy · services (blue) · live tracks (green=nominal, red=anomalous, gold=unknown) · live: '+_ptMode(b.live_mode)+'</div></div>'+
+      (central?'<div class="card"><div class="card-h"><span class="card-t">Top betweenness-central nodes</span></div><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:var(--dim);font-family:var(--mono);font-size:11px"><th style="padding:.35rem .5rem">Node</th><th style="padding:.35rem .5rem">Betweenness</th><th style="padding:.35rem .5rem">Degree-cent</th></tr></thead><tbody>'+central+'</tbody></table></div>':'')+
+      _osHonest({note:b.honesty,provenance:'Graph metrics computed live ('+esc(b.metric_backend||'')+').'});
+    }catch(e){ c.innerHTML='<div class="card" id="th-gate"><div class="row mono" style="color:#ff7b7b">topology/health error: '+esc(String(e&&e.message||e))+'</div></div>'; }
+  });
+}
+async function attack_surface_render(c){
+  c.innerHTML='<div class="card"><div class="row mono dim">&#8635; reading UDS Package CR exposures…</div></div>';
+  try{var b=await getJSON(PT_BASE+'/attack-surface/graph');
+    if(b.empty){ c.innerHTML='<div class="card"><div class="row mono dim" style="line-height:1.8">'+esc(b.empty_state||'No exposures discovered.')+'<br><span style="font-size:11px">Honest empty state — no invented exposures.</span></div>'+_osHonest({note:b.honesty,provenance:b.data_source})+'</div>'; return; }
+    var kcol={app:'#b39ddb',exposure:'#ff5c5c',ingress:'#f5b301'};
+    var svg=_ptSvgGraph(b.nodes||[], b.edges||[], {H:440,
+      color:function(n){ return kcol[n.kind]||'#5fe39a'; },
+      radius:function(n){ return n.kind==='app'?13:9; }});
+    var exp=(b.exposures||[]).map(function(x){return _osChip(x,'#2a0e0e','#ff7b7b');}).join('');
+    c.innerHTML=_osKpis([
+      ['Exposures',(b.exposures||[]).length,'#ff7b7b','ingress + expose rules'],
+      ['Nodes',(b.nodes||[]).length,'var(--cream)',''],
+      ['Source','UDS CR','var(--teal)','deploy/uds-package.yaml']
+    ])+
+    '<div class="card"><div class="card-h"><span class="card-t">&#10847; Attack-Surface graph</span><span class="card-ep">real allow/expose rules</span></div>'+svg+
+    '<div class="row" style="margin-top:.5rem">'+exp+'</div>'+
+    '<div class="mono dim" style="font-size:11px;margin-top:.4rem">data source: '+esc(b.data_source||'')+' · purple = killinchu surface · red = exposure · gold = ingress</div></div>'+
+    _osHonest({note:b.honesty,provenance:b.data_source});
+  }catch(e){ c.innerHTML='<div class="card"><div class="row mono" style="color:#ff7b7b">attack-surface error: '+esc(String(e&&e.message||e))+'</div></div>'; }
+}
+async function zerotrust_mesh_render(c){
+  c.innerHTML='<div class="card"><div class="row mono dim">&#8635; reading UDS allow rules…</div></div>';
+  try{var b=await getJSON(PT_BASE+'/zerotrust/mesh');
+    if(b.empty){ c.innerHTML='<div class="card"><div class="row mono dim" style="line-height:1.8">'+esc(b.empty_state||'No allow rules found.')+'<br><span style="font-size:11px">Honest empty state.</span></div>'+_osHonest({note:b.honesty,provenance:b.data_source})+'</div>'; return; }
+    var kcol={app:'#b39ddb',peer:'#5cc8ff'};
+    var svg=_ptSvgGraph(b.nodes||[], b.edges||[], {H:430,
+      color:function(n){ return kcol[n.kind]||'#5fe39a'; },
+      radius:function(n){ return n.kind==='app'?13:9; }});
+    var rows=(b.edges||[]).map(function(e){var col=e.direction==='ingress'?'#ff9b9b':'#5cc8ff';
+      return '<tr style="border-top:1px solid #161616"><td style="padding:.35rem .5rem">'+_osChip(e.direction,col+'18',col)+'</td><td class="mono" style="padding:.35rem .5rem;color:var(--cream)">'+esc(String(e.source).replace("ns:",""))+' &rarr; '+esc(String(e.target).replace("ns:",""))+'</td><td class="mono" style="padding:.35rem .5rem">:'+esc(String(e.port))+'</td><td class="mono dim" style="padding:.35rem .5rem;font-size:10px">'+esc(scrubText(String(e.policy||'')))+'</td><td class="mono dim" style="padding:.35rem .5rem;font-size:10px">'+esc(e.mtls||'')+'</td></tr>';}).join('');
+    c.innerHTML=_osKpis([
+      ['Allow edges',(b.edges||[]).length,'var(--teal)','ingress + egress'],
+      ['Peers',(b.nodes||[]).length-1,'var(--cream)',''],
+      ['Mesh',esc(b.mesh_mode||''),'#b39ddb','mTLS']
+    ])+
+    '<div class="card"><div class="card-h"><span class="card-t">&#8859; Zero-Trust mesh</span><span class="card-ep">real UDS allow rules</span></div>'+svg+
+    '<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:.5rem"><thead><tr style="text-align:left;color:var(--dim);font-family:var(--mono);font-size:11px"><th style="padding:.35rem .5rem">Dir</th><th style="padding:.35rem .5rem">Edge</th><th style="padding:.35rem .5rem">Port</th><th style="padding:.35rem .5rem">Policy</th><th style="padding:.35rem .5rem">mTLS</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="mono dim" style="font-size:11px;margin-top:.4rem">data source: '+esc(b.data_source||'')+' · public role names only (no banned codenames)</div></div>'+
+    _osHonest({note:b.honesty,provenance:b.data_source});
+  }catch(e){ c.innerHTML='<div class="card"><div class="row mono" style="color:#ff7b7b">zerotrust/mesh error: '+esc(String(e&&e.message||e))+'</div></div>'; }
+}
+
 const VIEWS = {
 
   amaru_counter_uas:{title:'Counter-UAS Intel · OSINT Ingest',badge:'LIVE WEB INGEST · sha256 PROVENANCE',sub:'Ingests <b>real public-web</b> counter-UAS and drone-incident reporting (live), normalizes it into the killinchu schema and stamps a <b>sha256 provenance chain</b> — make it our own. <b>Honest:</b> this is a console OSINT capability, not the staged UDS mesh module; fields are third-party claims.',render:(c)=>amaru_counter_uas_render(c)},
@@ -1570,6 +1732,13 @@ const VIEWS = {
   u_space:{title:'Space & GEOINT',badge:'3D LEO · GEOINT · LIVE USGS',sub:'Space and geophysical intelligence — the 3D LEO constellation globe, multi-constellation GEOINT collection planning, and the live USGS seismic-forecast globe. Sub-views below.',render:(c)=>renderSurface('u_space',c)},
   u_warhacker:{title:'Warhacker',badge:'27 LIVE DEMOS · PROOFS BOARD',sub:'The Sovereign Warhacker surface for the Defense Unicorns event — 27 maritime/drone/counter-UAS demos and the proofs board (nominal vs tamper diffs, honest evidence). Sub-views below.',render:(c)=>renderSurface('u_warhacker',c)},
   u_minedops:{title:'Mined Ops (efficiency)',badge:'EDGE VRAM · TELEM MEM · ADAPT SAMPLE · ROUTING',sub:'Field-efficiency ops — edge VRAM estimation, priority telemetry memory, adaptive sensor sampling, survivable tactical routing and multi-track prioritization. Clean-room reimplementations; advisory. Sub-views below.',render:(c)=>renderSurface('u_minedops',c)},
+  // ── POSTURE & TOPOLOGY sub-views (DEV-WIRE-K R1) — real drift detectors + graph metrics ──
+  posture_drift:{title:'Posture & Drift',badge:'PSI + KS (scipy) + ADWIN · LIVE TELEMETRY',sub:'Real concept/data-drift detection on the <b>live ADS-B telemetry</b> (alt_baro / ground-speed / track) vs an in-image captured reference window. <b>PSI</b> (bands 0.10 / 0.25), <b>two-sample KS</b> (<code>scipy.stats.ks_2samp</code>, else identical numpy Kolmogorov asymptotic, &alpha;=0.05) and a <b>vendored ADWIN</b> streaming detector. Verdict is honestly thresholded <b>DRIFT DETECTED / STABLE</b> with the exact triggering detector named. Reference window is real captured telemetry — not fabricated. &Lambda; = Conjecture 1.',render:(c)=>posture_drift_render(c)},
+  topology_health:{title:'Topology & Health',badge:'CLUSTERING · CENTRALITY · FIEDLER λ2 · DAG',sub:'Real graph metrics over the governed-organism topology (organs by honest role names — <b>Operator / Provenance Anchor / Policy</b> — plus services and the <b>live</b> track fleet): average clustering coefficient, average shortest-path length on the giant component, betweenness/degree centrality, connected components and the <b>Fiedler &lambda;2</b> algebraic connectivity. networkx where present, else a numpy BFS/Brandes/Laplacian fallback. Track health is honestly <i>unknown</i> when a telemetry field is missing. Layout = vendored anvaka <code>ngraph.forcelayout</code> (seeded, 0-CDN).',render:(c)=>topology_health_render(c)},
+  attack_surface:{title:'Attack-Surface Graph',badge:'REAL UDS CR · ALLOW/EXPOSE · BLAST RADIUS',sub:'The exposure graph built from the <b>real</b> <code>deploy/uds-package.yaml</code> UDS Package CR — actual ingress allow rules and expose entries only, with blast-radius reachability. <b>No invented CVEs or exposures</b>; honest empty state when the CR declares none. Layout = vendored anvaka <code>ngraph.forcelayout</code> (seeded, 0-CDN).',render:(c)=>attack_surface_render(c)},
+  zerotrust_mesh:{title:'Zero-Trust Mesh',badge:'REAL UDS ALLOW · ISTIO AMBIENT mTLS',sub:'The zero-trust service mesh derived from the <b>real</b> UDS Package CR <code>spec.network.allow</code> rules — every ingress/egress edge, port, policy and mTLS posture (Istio ambient). Peer namespaces surface under <b>honest public role names</b> (no banned codenames). Honest empty state when no allow rules exist. Layout = vendored anvaka <code>ngraph.forcelayout</code> (seeded, 0-CDN). &Lambda; = Conjecture 1.',render:(c)=>zerotrust_mesh_render(c)},
+  u_posture:{title:'Posture, Topology & Zero-Trust',badge:'DRIFT · GRAPH METRICS · ATTACK SURFACE · MESH',sub:'The runtime-assurance surface — real model/data-drift detection (PSI + KS + ADWIN) on live telemetry, real graph-theoretic topology & health metrics, the attack-surface exposure graph and the zero-trust mesh, all derived from <b>real</b> telemetry and the <b>real</b> UDS Package CR. Honest verdicts, honest empty states, organs by role names. Sub-views below.',render:(c)=>renderSurface('u_posture',c)},
+
   u_about:{title:'About & Claims',badge:'HONEST POSTURE · RESEARCH · DEPLOY · UDS',sub:'What we claim (honest posture), the sourced research corpus, legal boundaries, deploy posture and the UDS package. SLSA: L1 honest; L2 build-attestation present; L2-verified/L3 = roadmap. Sub-views below. <b>Governed Post-Determinism (GPD)</b> is SZL\u2019s own framework: the unit of agreement shifts from identical output to certified semantic admissibility, proven on SZL\u2019s stack (\u039b-gate, Khipu BFT quorum, DSSE signed receipts, Lean). Grounded entirely in SZL\u2019s prior DOI-stamped published work (Zenodo, Apr\u2013May 2026).',render:(c)=>renderSurface('u_about',c)},
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -6504,22 +6673,6 @@ window.ev_tick=function(root){
     var ago=window.ev_ago(n.getAttribute('data-checked')); if(ago) n.textContent='· checked '+ago;
   });
 };
-/* evidence-autorecheck-539 — bounded, staggered background re-probe of cited-source badges.
-   Reuses the focused /sources/live sweep via window.evidence_recheck(id); one claim per tick
-   so it never bursts; pauses while the tab is hidden and self-clears once it leaves the DOM. */
-window.ev_start_autorecheck=function(root,ids){
-  if(window.__ev_auto){ clearInterval(window.__ev_auto); window.__ev_auto=null; }
-  if(!ids||!ids.length) return;
-  var PERIOD=180000;                                       /* re-probe each claim roughly every 3 min */
-  var STEP=Math.max(15000,Math.floor(PERIOD/ids.length));  /* stagger: one claim per tick, never a burst */
-  var i=0;
-  window.__ev_auto=setInterval(function(){
-    if(!document.body.contains(root)){ clearInterval(window.__ev_auto); window.__ev_auto=null; return; } /* tab left DOM → stop */
-    if(document.hidden) return;                            /* tab not visible → pause, don't hammer backend */
-    var id=ids[i%ids.length]; i++;
-    if(document.getElementById('ev-sources-'+id)) window.evidence_recheck(id); /* honest live/cached/unreachable badges */
-  },STEP);
-};
 /* re-check one claim's curated sources via the focused /sources/live sweep; update badges in place */
 window.evidence_recheck=async function(id,btn){
   var box=document.getElementById('ev-sources-'+id); if(!box) return;
@@ -6582,9 +6735,6 @@ window.evidence_render=async function(c){
     window.__ev_timer=setInterval(function(){
       if(document.body.contains(c)){ window.ev_tick(c); } else { clearInterval(window.__ev_timer); window.__ev_timer=null; }
     },15000);
-    /* evidence-autorecheck-539 — keep the live/cached/unreachable badges current without manual clicks */
-    var __ev_ids=Array.prototype.map.call(c.querySelectorAll('.ev-recheck-btn'),function(b){ return b.getAttribute('data-ev'); }).filter(Boolean);
-    window.ev_start_autorecheck(c,__ev_ids);
   }catch(e){ c.innerHTML='<div class="card"><div class="dim">evidence layer unavailable: '+esc(e.message||e)+'</div></div>'; }
 };
 /* end evidence-tab-patch-185 */
