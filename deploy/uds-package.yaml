@@ -32,13 +32,13 @@ spec:
           app: killinchu
         remoteGenerated: Anywhere
         port: 443
-        description: "HF Space egress + rosie companion + drone telemetry outbound"
+        description: "HF Space egress + Operator-role companion (k8s ns 'rosie' = retired internal codename for the Operator role; capability lives inside a11oy) + drone telemetry outbound"
       - direction: Egress
         selector:
           app: killinchu
         remoteNamespace: rosie
         port: 7860
-        description: "Wire D: killinchu -> rosie (drone fleet state mirror)"
+        description: "Wire D: killinchu -> Operator role (k8s ns 'rosie' is the retired internal codename) drone fleet state mirror"
       - direction: Ingress
         selector:
           app: killinchu
@@ -50,7 +50,7 @@ spec:
           app: killinchu
         remoteNamespace: rosie
         port: 7860
-        description: "Rosie drone fleet mirror pull"
+        description: "Operator-role (retired codename 'rosie') drone fleet mirror pull"
   expose:
     - service: killinchu-svc
       selector:
