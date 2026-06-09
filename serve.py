@@ -2015,6 +2015,28 @@ except Exception as _elite_e:
 # ── end ELITE ────────────────────────────────────────────────────────────────
 
 # ===========================================================================
+# ADDITIVE: POSTURE & TOPOLOGY surface (DEV-WIRE-K R1). Real drift detectors
+# (PSI + KS via scipy.stats.ks_2samp, ~30-line vendored ADWIN) on live ADS-B
+# telemetry, real graph metrics (clustering / centrality / Fiedler lambda2 /
+# DAG integrity) for Topology & Health, Attack-Surface exposure graph and
+# Zero-Trust mesh derived from REAL deploy/uds-package.yaml allow rules.
+# Honest DRIFT DETECTED/STABLE verdict + named triggering detector + thresholds
+# (PSI 0.1/0.25, KS p<0.05). scipy/networkx/yaml OPTIONAL with pure-python
+# fallbacks. Organ nodes use honest role names (Operator / Provenance Anchor /
+# Policy). NO fabricated data; honest empty states. Mounted BEFORE SPA catch-all.
+# Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1+L2 attested.
+# ===========================================================================
+try:
+    import killinchu_posture_topology as _posture
+    _posture_status = _posture.register(app, ns="killinchu", emit_receipt=_emit_receipt)
+    print(f"[killinchu] Posture & Topology registered: {len(_posture_status.get('registered', []))} routes (scipy={_posture_status.get('scipy')} networkx={_posture_status.get('networkx')})", file=sys.stderr)
+except Exception as _posture_e:
+    import traceback as _posture_tb
+    print(f"[killinchu] Posture & Topology NOT registered: {_posture_e!r}", file=sys.stderr)
+    _posture_tb.print_exc()
+# ── end POSTURE & TOPOLOGY ────────────────────────────────────────
+
+# ===========================================================================
 # ADDITIVE: FLEET (Vessels) commercial-fleet surface (GAP-1 + GAP-2).
 # Serves the REAL platform seed-data/vessels/* datasets VERBATIM as static JSON
 # endpoints under /api/killinchu/v1/fleet/*, plus the vessels-vertical "Voyage
