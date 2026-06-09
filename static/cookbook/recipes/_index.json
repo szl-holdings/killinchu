@@ -54,7 +54,7 @@
  },
  {
   "id": "recipe-threat-assess",
-  "title": "Score a target via Sentra integration (dual-use check)",
+  "title": "Score a target via the Policy role (dual-use check)",
   "tags": [
    "threat",
    "sentra",
@@ -164,7 +164,7 @@
  },
  {
   "id": "recipe-cross-organ-rosie-handoff",
-  "title": "Hand off to Rosie for an operator decision when the gate fails",
+  "title": "Hand off to the Operator role for an operator decision when the gate fails",
   "tags": [
    "rosie",
    "handoff",
