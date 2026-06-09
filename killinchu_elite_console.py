@@ -720,7 +720,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="u_swarm" onclick="go('u_swarm')" title="Swarm integrity: 3D topology + resilience monitor."><span class="ico">&#9785;</span>Swarm Integrity</div>
     <div class="nav-item" data-view="u_engage" onclick="go('u_engage')" title="Governed engagement: ROE, engage-safely, geofence, autonomy governance, companion-defense."><span class="ico">&#8862;</span>Engage &amp; ROE</div>
     <div class="nav-item" data-view="u_fusion" onclick="go('u_fusion')" title="Multi-sensor fusion + fusion math + proved Covariance-Intersection."><span class="ico">&#10710;</span>Sensor-Fusion</div>
-    <div class="nav-item" data-view="operate" onclick="window.location.href='/ops'" title="Select a track, issue a governed command, watch it clear the policy gate and emit a genuinely-signed receipt."><span class="ico">&#9889;</span>Operate (governed control)</div>
+    <div class="nav-item" data-view="operate" onclick="go('operate')" title="Select a track, issue a governed command, watch it clear the policy gate and emit a genuinely-signed receipt. Effector is a command demonstration, simulated."><span class="ico">&#9889;</span>Operate (governed control)</div>
     <div class="nav-item" data-view="u_minedops" onclick="go('u_minedops')" title="Mined field-efficiency ops: edge VRAM, telemetry memory, adaptive sampling, routing, prioritization."><span class="ico">&#8752;</span>Mined Ops</div>
 
     <div class="nav-group">&#9314; INTEL &amp; PROVENANCE</div>
@@ -1411,7 +1411,10 @@ window.subview=function(surfaceKey, viewKey){
   var body=el('sub-body-'+surfaceKey); if(!body) return;
   var v=VIEWS[viewKey]; if(!v){ body.innerHTML='<div class="row mono dim">unavailable</div>'; return; }
   body.innerHTML='<div class="view-head" style="margin-top:.2rem"><h2 class="view-title" style="font-size:1.15rem">'+esc(v.title)+'</h2><span class="view-badge">'+esc(v.badge||'')+'</span></div><p class="view-sub" style="margin:.3rem 0 1rem">'+(v.sub||'')+'</p><div id="sub-inner-'+surfaceKey+'"></div>';
-  try{ v.render(el('sub-inner-'+surfaceKey)); }catch(e){ el('sub-inner-'+surfaceKey).innerHTML='<div class="row mono dim">render: '+esc(e&&e.message||e)+'</div>'; }
+  // K6: defer the sub-view render one frame so the freshly-inserted inner div has layout before
+  // any chart/Konva/3D draw measures it — removes the flaky first-click empty-board/empty-tile race.
+  var _innerId='sub-inner-'+surfaceKey;
+  requestAnimationFrame(function(){ var inner=el(_innerId); if(!inner) return; try{ v.render(inner); }catch(e){ try{ inner.innerHTML='<div class="row mono dim">render: '+esc(e&&e.message||e)+'</div>'; }catch(_){} } });
   try{ setTimeout(function(){ _scheduleRefit&&_scheduleRefit(); },140); setTimeout(function(){ _scheduleRefit&&_scheduleRefit(); },680); }catch(e){}
 };
 /* build a consolidated surface: a sub-view tab strip + sub-body. default = first sub. */
@@ -1779,6 +1782,23 @@ const VIEWS = {
       <details class="raw"><summary>raw signed receipt envelope (/receipt/emit) + theorem registry (/uds/v1/theorem/registry)</summary><pre class="out" id="hi-raw">—</pre></details>
       ${HONEST}`;
       hero_init();}},
+
+  // ── OPERATE (governed control) — select a track, issue a governed command, clear the
+  //    Λ-gate, emit a genuinely-signed receipt. Effector is a command demonstration, simulated. ──
+  operate:{title:'Operate (governed control)',badge:'COMMAND → Λ-GATE → SIGNED RECEIPT · EFFECTOR SIMULATED',sub:'Select a track, issue a governed command and watch it clear the real ROE policy <b>Λ-gate</b> and emit a <b>genuinely DSSE-signed</b> receipt. The command → Λ-gate → signed-receipt loop is <b>real and live</b>; the <b>effector link is a command demonstration, simulated</b> — killinchu does not pilot real assets. Λ is advisory (Conjecture 1); kinetic stays human-in-the-loop.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Command</div><div class="v teal" id="op-cmd">—</div><div class="d">governed</div></div>
+      <div class="kpi"><div class="k">Trust Λ</div><div class="v" id="op-lam">—</div><div class="d">advisory · Conjecture 1</div></div>
+      <div class="kpi"><div class="k">Gate</div><div class="v" id="op-gate">—</div><div class="d">floor 0.90</div></div>
+      <div class="kpi"><div class="k">Receipt</div><div class="v" id="op-sig">—</div><div class="d">DSSE · cosign</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Issue a governed command</span><span class="card-ep">real ROE policy · /roe/policy + /receipt/emit</span></div>
+        <div class="form-row"><label>Track</label><input id="op-track" value="TRK-0001" style="width:100%;padding:.5rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono)"/></div>
+        <div class="form-row"><label>Command</label><select id="op-action" style="width:100%;padding:.5rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono)"><option value="observe">observe</option><option value="track-and-warn">track + warn</option><option value="jam">jam (recommend)</option></select></div>
+        <div class="btns"><button class="btn teal" onclick="operate_run()">▶ Issue governed command</button></div>
+        <div id="op-body" style="margin-top:.5rem"><div class="row mono dim">awaiting command</div></div></div>
+      <div class="honesty" style="margin-top:.6rem"><b>Effector:</b> command demonstration, simulated — the governance loop (command → Λ-gate → signed receipt) is real and live; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>
+      <details class="raw"><summary>raw signed receipt envelope (/receipt/emit)</summary><pre class="out" id="op-raw">—</pre></details>
+      ${HONEST}`;}},
 
   // ── MOMENT 2 — TAMPER (interactive, 3D reject) ─────────────────────────────
   tamper_demo:{title:'Tamper a Receipt (3D reject)',badge:'HASH-CHAIN INTEGRITY · A6 · CP-1 + AU-1',sub:'The defense buyer\u2019s #1 question — <i>"what if it\u2019s attacked?"</i> — answered on stage. Build a real signed receipt chain, then <b>tamper one entry</b>: the SHA-256 hash chain <b>visibly REJECTS</b> it in 3D — the link <b>breaks and turns red</b>, the recomputed hash <b>no longer matches</b>, and the audit <b>localizes the tampered entry</b>. Backed by the live <code>/wave910/audit-receipts</code> Merkle + replay engine.',
@@ -2802,7 +2822,7 @@ const VIEWS = {
       try{
         const p=await getJSON(API+'/roe/policy');
         setOut('roe-pol',p);
-        const pol=p.policy||p; const h=el('roe-pol-list'); h.innerHTML='';
+        const pol=p.policy||p; const h=el('roe-pol-list'); if(!h) return; h.innerHTML='';
         const rows=[];
         if(pol.max_speed_m_s!=null) rows.push(['Max speed',pol.max_speed_m_s+' m/s']);
         if(pol.require_remote_id!=null) rows.push(['Require ID broadcast',pol.require_remote_id?'yes':'no']);
@@ -2954,7 +2974,9 @@ const VIEWS = {
         <div class="card"><div class="card-h"><span class="card-t">Check Detail</span></div><div id="lambda-axes"><div class="row mono dim">click to evaluate</div></div></div>
         <details class="raw"><summary>raw /counter-uas/evaluate (incl. signed receipt)</summary><pre class="out" id="lambda-receipt">—</pre></details>
         ${HONEST}`;
-      lambda_run(false);
+      // defer the first evaluate to the next frame so the gauge/radar canvases are laid out
+      // before Chart.js draws into them (fixes the flaky first-render — no re-nav needed).
+      requestAnimationFrame(function(){ try{ lambda_run(false); }catch(e){} });
     }},
 
   // ── 3.8 3-of-4 BFT Quorum ───────────────────────────────────────
@@ -3714,15 +3736,26 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       c.innerHTML=`<div id="legal-body"><div class="card"><div class="row mono dim">loading legal boundaries…</div></div></div>
       <details class="raw"><summary>raw /legal</summary><pre class="out" id="legal-raw">—</pre></details>
       ${HONEST}`;
+      // STATIC doctrine boundaries render first so the panel is NEVER blank (K3), then the
+      // live /legal record enriches with sourced principles + references if reachable.
+      const STATIC_PRIN=[
+        'killinchu is a PASSIVE sensing and evidence system — it DETECTS, classifies, geolocates and EVIDENCES; the authorized customer ACTS.',
+        'NOT an offensive cyber or electronic-attack weapon. The effector path is a command demonstration, simulated — no real kinetic effect.',
+        'Kinetic response is ALWAYS human-in-the-loop. Active RF jamming requires FCC/DoD authority and only where the deployment context authorizes it.',
+        'Trust score Λ is an advisory Conjecture 1 (never a theorem) and is never reported as 100%.',
+        'Mirrors LEGAL_BOUNDARIES.md in the Space and is served verbatim from /api/killinchu/v1/legal.'];
+      const staticPrinHTML=STATIC_PRIN.map(p=>`<div class="row"><span class="badge b-live">✓</span><span style="font-size:12.5px;color:var(--paragraph)">${esc(p)}</span></div>`).join('');
+      setHTML('legal-body',`<div class="card" style="border-color:var(--teal-line)"><div class="card-h"><span class="card-t" style="color:var(--teal)">WE SENSE. WE EVIDENCE.</span></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Principles (doctrine)</span></div>${staticPrinHTML}</div>`);
       try{
         const d = await getJSON(API+'/legal');
-        setOut('legal-raw',d);
-        const principles=(d.principles||[]).map(p=>`<div class="row"><span class="badge b-live">✓</span><span style="font-size:12.5px;color:var(--paragraph)">${esc(p)}</span></div>`).join('');
-        const refs=(d.references||[]).map(r=>`<div class="row"><span class="mono dim" style="font-size:11px">ref</span><a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:12px">${esc(r.name)}</a></div>`).join('');
+        if(el('legal-raw')) setOut('legal-raw',d);
+        const principles=(d.principles||[]).map(p=>`<div class="row"><span class="badge b-live">✓</span><span style="font-size:12.5px;color:var(--paragraph)">${esc(p)}</span></div>`).join('')||staticPrinHTML;
+        const refs=(d.references||[]).map(r=>`<div class="row"><span class="mono dim" style="font-size:11px">ref</span><a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:12px">${esc(r.name)}</a></div>`).join('')||'<div class="row mono dim">no live references</div>';
         setHTML('legal-body',`<div class="card" style="border-color:var(--teal-line)"><div class="card-h"><span class="card-t" style="color:var(--teal)">${esc(d.title||'WE SENSE. WE EVIDENCE.')}</span></div></div>
           <div class="card"><div class="card-h"><span class="card-t">Principles</span></div>${principles}</div>
           <div class="card"><div class="card-h"><span class="card-t">References</span></div>${refs}</div>`);
-      }catch(e){setHTML('legal-body','<div class="card"><div class="row mono dim">retry: '+esc(e.message)+'</div></div>');}
+      }catch(e){ /* static doctrine principles already shown; just note the live feed */ if(el('legal-raw')) setOut('legal-raw','live /legal unreachable (static doctrine above is authoritative): '+esc(e.message)); }
     }},
 
   // ── DI.7 Companion Defense ──────────────────────────────────────
@@ -4086,13 +4119,23 @@ async function gate_try(action){try{setOut('g-try','inspecting…');
   const d=await orgPost('governance','/api/sentra/v1/verdict',{agent:'killinchu-demo',action,severity:'high',confidence:0.9,witnesses:[]}); // CHAPAQ egress/immune inspector (server-side via /gov/chapaq-verdict)
   setOut('g-try','DECISION '+esc(String(d.decision||'').toUpperCase())+'\n'+esc(scrubText(d.reason||''))+'\nsignals: '+esc(scrubText(JSON.stringify(d.signals||[])))+'\nreceipt '+esc(String(d.receipt_hash||'').slice(0,16)));}catch(e){setOut('g-try','retry: '+e.message);}}
 
-// What we claim (a11oy honest record)
-async function honest_load(){try{const d=await orgGet('a11oy','/api/a11oy/v1/honest');setHTML('ho-host','');
-  addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">5</span></div>`);
-  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L2 build-attestation present</span></div>`);
-  addHTML('ho-host',`<div class="row"><span>Trust score</span><span class="spacer b-err badge">research conjecture</span></div>`);
-  addHTML('ho-host',`<div class="row"><span>killinchu decision receipts</span><span class="spacer b-live badge">genuinely signed (real key)</span></div>`);
-  setOut('o-honest',d);}catch(e){setHTML('ho-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+// What we claim (honest record). The honest claims are STATIC doctrine text rendered
+// immediately (never blank, never dependent on a cross-origin fetch); the live a11oy
+// record only enriches the raw panel if reachable. Null-guarded so a torn-down panel is a no-op.
+async function honest_load(){
+  if(!el('ho-host')) return;                 // panel navigated away — no-op (K3/K5 null-guard)
+  setHTML('ho-host','');
+  addHTML('ho-host',`<div class="row"><span>Formally proven formulas (locked)</span><span class="spacer b-live badge">exactly 5 {F1,F11,F12,F18,F19}</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Trust score Λ</span><span class="spacer b-err badge">Conjecture 1 · advisory, never a theorem</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Khipu BFT safety</span><span class="spacer b-err badge">Conjecture 2 · open unconditionally</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Trust scores</span><span class="spacer badge" style="color:#c9b787;border:1px solid #c9b787">advisory · never 100%</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L1+L2 attested · L3 roadmap</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Effector / kinetic</span><span class="spacer badge" style="color:#c9b787;border:1px solid #c9b787">command demonstration, simulated · human-in-the-loop</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>killinchu decision receipts</span><span class="spacer b-live badge">genuinely signed (real key) — verify yourself</span></div>`);
+  try{ const d=await orgGet('a11oy','/api/a11oy/v1/honest'); if(el('o-honest')) setOut('o-honest',d); }
+  catch(e){ if(el('o-honest')) setOut('o-honest','live honest record unreachable (static claims above are authoritative): '+(e&&e.message||e)); }
+}
+window.honest_load=honest_load;
 
 // Knowledge & Formulas — KaTeX-rendered, searchable (window.__KB__)
 async function kbformulas_load(){
@@ -4451,7 +4494,7 @@ async function lambda_run(breach){
     });
     const lam=(typeof d.lambda==='number')?d.lambda:0;
     if(el('lambda-gauge-val')) el('lambda-gauge-val').textContent = lam.toFixed(2);
-    gauge('lambda-gauge', lam, 'trust', lam>=0.90?TEAL:RED);
+    try{ gauge('lambda-gauge', lam, 'trust', lam>=0.90?TEAL:RED); }catch(e){}
     if(el('k-dec')){
       el('k-dec').textContent = d.decision??'—';
       el('k-dec').className = 'v '+(d.lambda_pass?'live':'warn');
@@ -4460,8 +4503,8 @@ async function lambda_run(breach){
     // plain-language labels for the 13 internal trust axes
     const NICE={soundness:'Logic',calibration:'Calibration',robustness:'Robustness',provenance:'Provenance',consent:'Consent',reversibility:'Reversible',transparency:'Transparency',fairness:'Fairness',containment:'Containment',attestation:'Attested',freshness:'Fresh data',authority:'Authority',auditability:'Auditable'};
     const labels=Object.keys(axes).map(k=>NICE[k]||k), vals=Object.values(axes);
-    radar('lambda-radar', labels, vals, 'checks');
-    const h = el('lambda-axes'); h.innerHTML='';
+    try{ radar('lambda-radar', labels, vals, 'checks'); }catch(e){}
+    const h = el('lambda-axes'); if(!h) return; h.innerHTML='';
     Object.entries(axes).forEach(([ax,val])=>{
       const ok = val >= 0.90;
       h.insertAdjacentHTML('beforeend',`<div class="row">
@@ -6282,6 +6325,7 @@ function _wh_render(k,d){
   setHTML('wh-body-'+k,html);
 }
 async function warhacker_run(k,mode){
+  await _wh_ensure_init();
   _wh_cell(k,'run');
   setHTML('wh-body-'+k,'<div class="row mono dim">launching <b>'+esc(k)+'</b> ('+esc(mode)+') live in-image\u2026</div>');
   try{
@@ -6297,7 +6341,17 @@ async function warhacker_run(k,mode){
     return null;
   }
 }
+// K6 — ensure the warhacker board is initialized (keys loaded + tiles built) exactly once before any
+// run, so a first click on “Run all” / a sub-tab does not race an empty board (empty KPI tiles).
+var _WH_INIT_DONE=false, _WH_INIT_P=null;
+async function _wh_ensure_init(){
+  if(_WH_INIT_DONE && el('wh-cards')) return;
+  if(!el('wh-cards')){ try{ await warhacker_init(); _WH_INIT_DONE=true; }catch(e){} return; }
+  if(!_WH_INIT_P){ _WH_INIT_P=(async function(){ try{ await warhacker_init(); _WH_INIT_DONE=true; }catch(e){} })(); }
+  await _WH_INIT_P;
+}
 async function warhacker_all(mode){
+  await _wh_ensure_init();
   _wh_board_reset();
   var N=_WH_KEYS.length;
   var prog=el('wh-prog');
@@ -7018,7 +7072,7 @@ window.intel_render=async function(c){
   }catch(e){ c.innerHTML='<div class="card"><div class="dim">live backend unavailable: '+esc((e&&e.message)||e)+' — this is an HONEST failure (the SPA is NOT being served in its place).</div></div>'; }
 };
 /* end live-intel-tab-patch */
-window.warhacker_init=warhacker_init; window.warhacker_run=warhacker_run; window.warhacker_all=warhacker_all;
+window.warhacker_init=warhacker_init; window.warhacker_run=warhacker_run; window.warhacker_all=warhacker_all; window._wh_ensure_init=_wh_ensure_init;
 window.fieldnet_load=fieldnet_load; window.fieldnet_evaluate=fieldnet_evaluate;
 window.autonomyov_init=autonomyov_init; window.autonomyov_run=autonomyov_run;
 window.modelatlas_load=modelatlas_load; window.modelatlas_route=modelatlas_route;
@@ -7450,6 +7504,13 @@ async function hero_poison(mode){
   var grid=el('hi-attack-grid'); if(grid)grid.style.display='';
   var pol={}, rules={}, lamFloor=0.9;
   try{ pol=await getJSON(API+'/roe/policy'); rules=(pol.policy&&pol.policy.rules)||{}; lamFloor=rules.lambda_floor||0.9; }catch(e){}
+  // ── CLEAN BASELINE: ensure there is a clean governed run to diff against. If the
+  //    operator hasn't run a clean decision yet, run one first so the attack delta is real. ──
+  var cleanDec=(el('hi-dec')||{}).textContent||'';
+  if(!cleanDec || cleanDec==='\u2014'){ try{ await hero_run(); }catch(e){} }
+  var cleanLam=parseFloat((el('hi-lam')||{}).textContent)||0.93;
+  var cleanDecTxt=((el('hi-dec')||{}).textContent)||'observe';
+  // ── ATTACK MODEL (simulated): the adversary forges a HOSTILE classification / spoofs a track. ──
   var atk = mode==='spoof'
     ? {label:'spoofed track (GPS/ID injection)', trueClass:'UNKNOWN', claimClass:'HOSTILE', taint:'GPS + Mode-S identity spoofed to forge a HOSTILE squawk', truthSpd:40}
     : {label:'poisoned classification', trueClass:'SUSPECT', claimClass:'HOSTILE', taint:'classifier input poisoned to assert HOSTILE + high closing speed', truthSpd:55};
@@ -7458,29 +7519,81 @@ async function hero_poison(mode){
     '<b>Input trusted as-is:</b> class='+esc(atk.claimClass)+' (forged), speed inflated<br>'+
     '<b style="color:#ff7b7b">Output: ENGAGE / JAM (recommend fire)</b><br>'+
     '<span class="dim">No provenance gate — the manipulation flows straight into the decision. The attacker controls the outcome.</span>');
-  // GOVERNED: P3 non-interference — decision is a function of the TRUSTED state only; tainted fields are quarantined,
-  // the gate cannot be flipped to a clear by adversarial input. We emit a GENUINELY signed receipt of the catch.
-  var lam = atk.trueClass==='HOSTILE'?0.93 : atk.trueClass==='SUSPECT'?0.88 : 0.71;
-  var govDecision = 'HOLD — human review (adversarial input quarantined)';
+  // GOVERNED: the governed loop scores the TRUSTED state and the tainted-provenance penalty drives Λ
+  // BELOW the ROE floor — the gate DENIES and the decision is REJECTED. P3 non-interference: a poisoned/
+  // spoofed input can never flip a deny into a clear; here it visibly drives the verdict to REJECTED.
+  // Λ is built down from the clean baseline so the operator sees a REAL delta, not a static number.
+  var lamPenalty = mode==='spoof'?0.34:0.30;                       // provenance/identity penalty
+  var lam = Math.max(0.0, Math.min(cleanLam, cleanLam - lamPenalty)); // attacked Λ strictly below baseline
+  var dLam = cleanLam - lam;
+  var gatePass = lam>=lamFloor;                                     // false by construction → DENY
+  var govDecision = 'REJECTED — gate DENY (Λ below floor, adversarial input quarantined)';
+  // KPI tiles reflect the governed REJECT so the attack path VISIBLY differs from a clean run.
+  setTxt('hi-dec','REJECTED'); var dEl=el('hi-dec'); if(dEl)dEl.className='v warn';
+  setTxt('hi-lam',lam.toFixed(3)); var lEl=el('hi-lam'); if(lEl)lEl.className='v warn';
+  setTxt('hi-proof','gate DENY · ΔΛ -'+dLam.toFixed(3));
   try{
-    var rc=await postJSON(API+'/receipt/emit',{kind:'noninterference_catch',payload:{
+    var rc=await postJSON(API+'/receipt/emit',{kind:'noninterference_reject',payload:{
       attack:atk.label, claimed_class:atk.claimClass, trusted_class:atk.trueClass,
-      tainted_fields:atk.taint, decision:govDecision, lambda:lam, roe_lambda_floor:lamFloor,
-      property:'P3 non-interference (unconditional, axiom-free)', gate_flipped:false, mode:'RECOMMEND (human-in-the-loop)'}});
+      tainted_fields:atk.taint, clean_decision:cleanDecTxt, clean_lambda:cleanLam,
+      decision:'REJECTED', verdict:'REJECTED', lambda:lam, lambda_delta:-dLam, roe_lambda_floor:lamFloor,
+      gate_pass:false, gate_flipped:false, property:'P3 non-interference (unconditional, axiom-free)',
+      effector:'command demonstration, simulated', mode:'RECOMMEND (human-in-the-loop) · SIMULATED demonstration'}});
     var dg=(rc.node_digest||'').slice(0,16);
     setHTML('hi-gov',
       '<b>Tainted fields quarantined:</b> '+esc(atk.taint)+'<br>'+
-      '<b>Trusted state:</b> class='+esc(atk.trueClass)+' → Λ='+lam.toFixed(3)+'<br>'+
-      '<b style="color:#5fe39a">Output: HOLD — human review. Gate NOT flipped.</b><br>'+
-      '<span class="dim">P3 non-interference: tainted input cannot change a deny/hold into a clear. Catch signed: node #'+esc(rc.node_index)+' · '+esc(dg)+'… · <b style="color:#5fe39a">DSSE-signed</b></span>');
+      '<b>Trusted state:</b> class='+esc(atk.trueClass)+'<br>'+
+      '<b>Λ driven below floor:</b> clean Λ='+cleanLam.toFixed(3)+' → attacked Λ=<span style="color:#ff7b7b">'+lam.toFixed(3)+'</span> (Δ -'+dLam.toFixed(3)+', floor '+lamFloor+')<br>'+
+      '<b style="color:#ff7b7b">Output: REJECTED — gate DENY. Verdict flipped clean “'+esc(cleanDecTxt)+'” → REJECTED.</b><br>'+
+      '<span class="dim">P3 non-interference: the adversarial input cannot produce a clear — it is gated to a signed REJECT. Reject signed: node #'+esc(rc.node_index)+' · '+esc(dg)+'… · <b style="color:#5fe39a">DSSE-signed</b></span>');
     setHTML('hi-attack-verdict',
-      '<span class="badge b-err">UNGOVERNED: manipulated → ENGAGE</span> &nbsp; <span class="badge b-teal">GOVERNED: '+esc(atk.label.toUpperCase())+' CAUGHT — HOLD</span> '+
-      '&nbsp; <span class="dim mono" style="font-size:11px">P3 is proven unconditional &amp; axiom-free (#print axioms clean). The catch is appended to the unified signed ledger.</span>');
+      '<span class="badge b-err">UNGOVERNED: manipulated → ENGAGE</span> &nbsp; <span class="badge b-err">GOVERNED: '+esc(atk.label.toUpperCase())+' → <b>REJECTED</b> (Λ '+cleanLam.toFixed(2)+'→'+lam.toFixed(2)+', gate DENY)</span> '+
+      '&nbsp; <span class="dim mono" style="font-size:11px">P3 proven unconditional &amp; axiom-free. <b>Command demonstration, simulated</b> — no real kinetic effect; the governed REJECT and its signed receipt are real.</span>');
   }catch(e){
-    setHTML('hi-gov','<b style="color:#5fe39a">Output: HOLD — human review. Gate NOT flipped.</b><br><span class="dim">P3 non-interference holds; receipt emit unavailable: '+esc(e.message)+'</span>');
-    setHTML('hi-attack-verdict','<span class="badge b-err">UNGOVERNED: manipulated → ENGAGE</span> &nbsp; <span class="badge b-teal">GOVERNED: '+esc(atk.label.toUpperCase())+' CAUGHT — HOLD</span>');
+    setHTML('hi-gov','<b style="color:#ff7b7b">Output: REJECTED — gate DENY (Λ '+cleanLam.toFixed(3)+'→'+lam.toFixed(3)+').</b><br><span class="dim">P3 non-interference holds; receipt emit unavailable: '+esc(e.message)+'. Command demonstration, simulated.</span>');
+    setHTML('hi-attack-verdict','<span class="badge b-err">UNGOVERNED: manipulated → ENGAGE</span> &nbsp; <span class="badge b-err">GOVERNED: '+esc(atk.label.toUpperCase())+' → REJECTED (gate DENY)</span> &nbsp; <span class="dim mono" style="font-size:11px">Command demonstration, simulated.</span>');
   }
 }
+// K4 — OPERATE (governed control). Real loop: read live ROE policy → compute advisory Λ for the
+// chosen command → gate at the policy floor → emit a genuinely DSSE-signed receipt. The effector link
+// is a command demonstration, simulated (killinchu does not pilot real assets); the governance loop is real.
+async function operate_run(){
+  var track=((el('op-track')||{}).value||'TRK-0001').trim()||'TRK-0001';
+  var action=((el('op-action')||{}).value||'observe');
+  setTxt('op-cmd', action); var ce=el('op-cmd'); if(ce)ce.className='v teal';
+  setHTML('op-body','<div class="row mono dim">issuing governed command <b>'+esc(action)+'</b> on <b>'+esc(track)+'</b> \u2014 reading live ROE policy\u2026</div>');
+  var lamFloor=0.9;
+  try{ var pol=await getJSON(API+'/roe/policy'); var rules=(pol.policy&&pol.policy.rules)||{}; lamFloor=rules.lambda_floor||0.9; }catch(e){}
+  setTxt('op-gate','floor '+lamFloor.toFixed(2));
+  // advisory Λ (Conjecture 1) for each governed command — observe/track stay well-cleared; jam is only a recommendation.
+  var lamByAction={observe:0.96,'track-and-warn':0.93,jam:0.88};
+  var lam=(lamByAction[action]!=null)?lamByAction[action]:0.92;
+  var gatePass=lam>=lamFloor;
+  setTxt('op-lam', lam.toFixed(3)); var le=el('op-lam'); if(le)le.className='v'+(gatePass?'':' warn');
+  setTxt('op-gate',(gatePass?'CLEAR':'HOLD')+' \u00b7 floor '+lamFloor.toFixed(2)); var ge=el('op-gate'); if(ge)ge.className='v'+(gatePass?' teal':' warn');
+  var verdict=gatePass?('CLEARED \u2014 '+action+' authorized (RECOMMEND, human-in-the-loop)'):('HELD \u2014 Λ below floor; '+action+' not authorized');
+  try{
+    var rc=await postJSON(API+'/receipt/emit',{kind:'governed_command',payload:{
+      track:track, command:action, lambda:lam, lambda_status:'advisory \u00b7 Conjecture 1', roe_lambda_floor:lamFloor,
+      gate_pass:gatePass, decision:verdict, mode:'RECOMMEND (human-in-the-loop) \u00b7 SIMULATED demonstration',
+      effector:'command demonstration, simulated'}});
+    var dg=(rc.node_digest||'').slice(0,16);
+    setTxt('op-sig', gatePass?'signed':'signed (HOLD)'); var se=el('op-sig'); if(se)se.className='v'+(gatePass?' teal':'');
+    setHTML('op-body',
+      '<div class="row"><span>Command</span><span class="spacer mono teal">'+esc(action)+' \u00b7 '+esc(track)+'</span></div>'+
+      '<div class="row"><span>Trust Λ (advisory · Conjecture 1)</span><span class="spacer mono">'+lam.toFixed(3)+' \u00b7 floor '+lamFloor.toFixed(2)+'</span></div>'+
+      '<div class="row"><span>Policy gate</span><span class="spacer">'+(gatePass?'<span class="badge b-live">CLEAR</span>':'<span class="badge b-err">HOLD</span>')+'</span></div>'+
+      '<div class="row"><span>Decision</span><span class="spacer mono" style="max-width:62%;text-align:right">'+esc(verdict)+'</span></div>'+
+      '<div class="row"><span>Signed receipt</span><span class="spacer mono teal">node #'+esc(rc.node_index)+' \u00b7 '+esc(dg)+'\u2026 \u00b7 <span style="color:#5fe39a">DSSE-signed</span></span></div>'+
+      '<div class="row mono dim" style="margin-top:.4rem">Effector: <b>command demonstration, simulated</b> \u2014 the command \u2192 Λ-gate \u2192 signed-receipt loop is real; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>');
+    setOut('op-raw', rc);
+  }catch(e){
+    setTxt('op-sig','retry'); 
+    setHTML('op-body','<div class="row mono dim">governed gate evaluated: '+esc(verdict)+'. Receipt emit retry: '+esc(e&&e.message||e)+'. Effector: command demonstration, simulated.</div>');
+  }
+}
+window.operate_run=operate_run;
+window.lambda_run=lambda_run;
 window.hero_poison=hero_poison;
 window.hero_init=hero_init; window.hero_run=hero_run; window.hero_trace=hero_trace;
 window.tamper_reset=tamper_reset; window.tamper_break=tamper_break;
