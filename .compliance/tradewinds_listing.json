@@ -16,7 +16,7 @@
     "capabilities": [
       "Counter-UAS detection (Remote-ID ASTM F3411, ADS-B 1090ES, MAVLink) — real protocol decoders, no mocks",
       "Airspace awareness + swarm topology from real adversary signatures",
-      "AI governance gate (Sentra immune filter -> Amaru 13-axis cortex || a11oy Λ-policy -> Killinchu field action)",
+      "AI governance gate (Policy immune filter -> Provenance Anchor 13-axis cortex || a11oy Λ-policy -> Killinchu field action; honest roles — retired internal codenames sentra/amaru — whose capability lives inside a11oy; only a11oy and killinchu ship today)",
       "Provenance: DSSE/cosign ECDSA-P256 signed Khipu append-only audit DAG",
       "Airgap delivery via UDS Zarf bundle + Big Bang Helm chart"
     ],
