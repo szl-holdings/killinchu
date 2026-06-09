@@ -1721,6 +1721,7 @@ const VIEWS = {
 
   evidence:{title:'Evidence & Research',badge:'CURATED CITATIONS · LIVE arXiv + GitHub',sub:'Every headline claim below is grounded in real, resolvable sources — official standards, public datasets and GitHub repositories. Paper lists and repo stats are fetched <b>live</b> from the arXiv + GitHub APIs and labelled live/cached; if a feed is down the panel degrades to the curated citations, never to invented figures.',render:async(c)=>{window.evidence_render(c);}}, // evidence-tab-patch-185
   readiness:{title:'Operational Readiness',badge:'LIVE · deployed-vs-repo truth',sub:'Live operational truth for this organ, read from three independent real surfaces: the deployed app\u2019s own /healthz + /version, the public GitHub repository API, and the Hugging Face Space API — every value labelled live/cached/unreachable. The centrepiece is the <b>deployed-vs-repo parity</b>: the deployment\u2019s reported build commit is compared against repo HEAD via the GitHub compare API for an honest <b>behind_by</b> delta, and the doctrine anchor (kernel_commit) is surfaced verbatim, never equated with HEAD. Nothing here is fabricated.',render:async(c)=>{window.readiness_render(c);}}, // readiness-tab-patch
+  contracting:{title:'Contracting Readiness',badge:'LIVE · SAM/CAGE + SBIR/STTR · web-sourced',sub:'Federal-contracting posture grounded in real, web-sourced eligibility criteria. Every <b>requirement</b> is read from an authoritative source (sam.gov, sbir.gov, the eCFR, the DoD DSIP) and carries that source URL plus the date it was retrieved; each source is probed live for reachability. The org\u2019s own registration facts (UEI, CAGE, SAM status, employee count, ownership) are never invented — each is flagged <b>needs founder input</b> or <b>needs founder action</b>, unless an operator supplied it via a secure env var (then <b>confirmed</b>). A flagged unknown is the correct answer.',render:async(c)=>{window.contracting_render(c);}}, // contracting-tab-patch
   live_intel:{title:'Live Intel (persistent backend)',badge:'REAL · Postgres-first · /api/killinchu',sub:'The live data layer for killinchu, read from the <b>real persistent backend</b> (Postgres-first, durable-SQLite fallback). The crawl scrapes a real public OSINT feed (adsb.lol military ADS-B), persists snapshots/facts/events to the database, and evaluates your watchlist triggers into notifications. Every panel is labelled <b>REAL / DEGRADED</b> from the deployed backend\u2019s own Doctrine v11 envelope (status + citations + fetchedAt) and the active DB backend — nothing here is fabricated, and no panel silently falls back to the SPA. ADS-B is an unauthenticated broadcast CLAIM, not attested truth.',render:async(c)=>{window.intel_render(c);}}, // live-intel-tab-patch
 
   // ── WAVE9/10 PROVEN THEOREMS (EXPERIMENTAL · CI-green on main) ──
@@ -6656,6 +6657,91 @@ window.readiness_render=async function(c){
   }catch(e){ c.innerHTML='<div class="card"><div class="dim">readiness layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
 };
 /* end readiness-tab-patch */
+/* contracting-tab-patch — SAM/CAGE + SBIR/STTR contracting readiness (killinchu /elite tab).
+   Web-sourced eligibility criteria, honest verified/confirmed/needs_founder_input/
+   needs_founder_action labels, source liveness probes, 0 fabricated org values.
+   Reads /api/{ns}/v1/contracting live. */
+window.__ct_ns="killinchu";
+window.__CT_STATUS={
+  verified:{label:'verified',color:'#5fe39a',desc:'web-verified external rule'},
+  confirmed:{label:'confirmed',color:'#5fe39a',desc:'operator-supplied value'},
+  needs_founder_input:{label:'needs founder input',color:'#e6c87a',desc:'org fact the system cannot see'},
+  needs_founder_action:{label:'needs founder action',color:'#e6b15a',desc:'real-world step only the founder can take'}
+};
+window.ct_badge=function(text,color,title){ return '<span class="badge" style="border:1px solid '+color+';color:'+color+'"'+(title?(' title="'+esc(title)+'"'):'')+'>'+esc(text)+'</span>'; };
+window.ct_status_badge=function(st){ var m=window.__CT_STATUS[st]||{label:st||'unknown',color:'#9a9a9a',desc:''}; return window.ct_badge(m.label,m.color,m.desc); };
+window.ct_live_badge=function(lv){ if(!lv) return window.ct_badge('\u2026 checking','#9a9a9a','source not yet probed'); var st=(lv.http_status!=null)?(' '+lv.http_status):''; if(lv.reachable){ if(lv.mode==='cached') return window.ct_badge('\u25cf cached'+st,'#7ab8e6','reachable (from cache)'); return window.ct_badge('\u25cf live'+st,'#5fe39a','reachable now'); } return window.ct_badge('\u25cf unreachable','#ff7b6b','unreachable: '+(lv.error||'no HTTP response')); };
+window.ct_source=function(src){ if(!src) return ''; var u=src.url||'#'; var r=src.retrieved?(' \u00b7 retrieved '+esc(src.retrieved)):''; return '<div class="dim" style="font-size:11px;margin-top:.15rem">source: <a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(src.title||u)+'</a> '+window.ct_live_badge(src.liveness)+r+'</div>'; };
+window.ct_item=function(it){
+  var col=(window.__CT_STATUS[it.status]||{}).color||'#9a9a9a';
+  var h='<div class="row" style="display:block;padding:.5rem 0;border-top:1px solid rgba(255,255,255,.06)">';
+  h+='<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center"><b>'+esc(it.label)+'</b> '+window.ct_status_badge(it.status);
+  if(it.value){ h+=' '+window.ct_badge('= '+String(it.value),'#5fe39a','operator-supplied value'); }
+  h+='</div>';
+  h+='<div class="dim" style="font-size:12px;margin-top:.2rem">'+esc(it.requirement)+'</div>';
+  if(it.note){ h+='<div style="font-size:12px;margin-top:.2rem;color:'+col+'">'+esc(it.note)+'</div>'; }
+  h+=window.ct_source(it.source);
+  h+='</div>';
+  return h;
+};
+window.ct_area=function(a){
+  var c=a.counts||{};
+  var h='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><b>'+esc(a.title)+'</b>';
+  h+='<button class="btn" data-ct="'+esc(a.id)+'" title="force a fresh live re-read of these sources" style="font-size:10px;padding:.12rem .5rem">\u21bb re-check sources</button></div>';
+  h+='<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin:.35rem 0 .4rem">';
+  if(c.verified) h+=window.ct_status_badge('verified');
+  if(c.confirmed) h+=window.ct_status_badge('confirmed');
+  if(c.needs_founder_input) h+=window.ct_badge('input \u00d7'+c.needs_founder_input,window.__CT_STATUS.needs_founder_input.color,'needs founder input');
+  if(c.needs_founder_action) h+=window.ct_badge('action \u00d7'+c.needs_founder_action,window.__CT_STATUS.needs_founder_action.color,'needs founder action');
+  h+='</div>';
+  h+='<div class="dim" style="font-size:12px;margin-bottom:.3rem">'+esc(a.intro)+'</div>';
+  h+='<div id="ct-area-'+esc(a.id)+'">'+(a.items||[]).map(window.ct_item).join('')+'</div>';
+  h+='</div>';
+  return h;
+};
+window.contracting_area_live=async function(id,btn){
+  var host=document.getElementById('ct-area-'+id); if(!host) return;
+  var old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='\u27f3 re-reading\u2026'; }
+  try{
+    var r=await fetch('/api/'+window.__ct_ns+'/v1/contracting/'+id+'/live');
+    var d=await r.json(); if(d.area&&d.area.items){ host.innerHTML=d.area.items.map(window.ct_item).join(''); }
+  }catch(e){
+    var note=document.createElement('div'); note.className='dim'; note.style.marginTop='.25rem';
+    note.textContent='re-read failed: '+((e&&e.message)||e)+' \u2014 showing last-known values'; host.appendChild(note);
+  }finally{ if(btn){ btn.disabled=false; btn.textContent=old||'\u21bb re-check sources'; } }
+};
+window.contracting_render=async function(c){
+  c.innerHTML='<div class="card"><div class="dim">reading contracting-eligibility criteria + probing sources\u2026</div></div>';
+  try{
+    var r=await fetch('/api/'+window.__ct_ns+'/v1/contracting');
+    var d=await r.json(); var h='';
+    if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
+    var s=d.summary||{};
+    h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
+    h+=window.ct_badge('verified rules '+(s.verified_rules||0),'#5fe39a','web-verified + operator-confirmed lines');
+    h+=' '+window.ct_badge('founder open '+(s.founder_open||0),'#e6c87a','lines needing founder input or action');
+    h+=' '+window.ct_badge('sources '+(s.sources_reachable||0)+'/'+(s.sources_total||0),(s.sources_reachable===s.sources_total&&s.sources_total)?'#5fe39a':'#e6c87a','source URLs reachable now');
+    h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">'+esc(d.subject||'')+' \u00b7 criteria retrieved '+esc(d.criteria_retrieved||'\u2014')+' \u00b7 checked '+esc(window.rd_ago(d.checked_at)||'just now')+'</div>';
+    h+='<div class="dim" style="font-size:11px;margin-top:.2rem">'+esc(d.scope||'')+'</div></div>';
+    (d.areas||[]).forEach(function(a){ h+=window.ct_area(a); });
+    var fa=d.founder_actions||[];
+    if(fa.length){
+      h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Founder action list</b><span class="dim">'+fa.length+' steps</span></div>';
+      fa.forEach(function(a,i){
+        h+='<div class="row" style="display:block;padding:.45rem 0;border-top:1px solid rgba(255,255,255,.06)"><div><b>'+(i+1)+'.</b> '+esc(a.step)+'</div>';
+        h+='<div class="dim" style="font-size:12px;margin-top:.15rem">'+esc(a.why||'');
+        if(a.source_url){ h+=' \u00b7 <a href="'+esc(a.source_url)+'" target="_blank" rel="noopener">source \u2197</a>'; }
+        h+='</div></div>';
+      });
+      h+='</div>';
+    }
+    c.innerHTML=h||'<div class="card"><div class="dim">no contracting criteria.</div></div>';
+    Array.prototype.forEach.call(c.querySelectorAll('[data-ct]'),function(b){
+      b.addEventListener('click',function(){ window.contracting_area_live(b.getAttribute('data-ct'),b); });
+    });
+  }catch(e){ c.innerHTML='<div class="card"><div class="dim">contracting layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
+};
+/* end contracting-tab-patch */
 /* live-intel-tab-patch — live persistent-backend layer (killinchu /elite tab).
    Reads the REAL /api/killinchu/{db/health,timeline,alerts/recent,watchlists} endpoints.
    Honest REAL/DEGRADED labels from the Doctrine v11 envelope (status) + active DB backend.

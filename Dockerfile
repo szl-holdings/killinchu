@@ -81,6 +81,11 @@ COPY szl_evidence_research.py ./szl_evidence_research.py
 # fails and /api/killinchu/v1/readiness 404s (falls through to the SPA shell).
 ARG READINESS_FIX_BUST=1
 COPY szl_readiness.py ./szl_readiness.py
+# Contracting Readiness backend (SAM/CAGE + SBIR/STTR eligibility, web-sourced,
+# honest verified/confirmed/needs_founder_input/needs_founder_action labels, source
+# liveness probes, 0 fabricated org values). serve.py imports this try/except-guarded;
+# without this per-file COPY the import fails and /api/killinchu/v1/contracting 404s.
+COPY szl_contracting.py ./szl_contracting.py
 # Real persistent backend (Postgres-first, durable-SQLite fallback). serve.py imports
 # this try/except-guarded; without this per-file COPY the import fails and
 # /api/killinchu/{live,crawl/run,timeline,alerts/recent,watchlists} 404 to the SPA.
