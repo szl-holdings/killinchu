@@ -1126,6 +1126,39 @@ async def research_kb() -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (live knowledge console — 2026-06-09): serve the generated,
+# kernel-derived knowledge corpus at /knowledge.json so the /elite console's
+# loadKnowledge() renders LIVE theorem / formula / axiom panels instead of
+# silently falling back to {} (the SPA catch-all would otherwise return the
+# index.html shell, which is non-JSON, so getPublic('/knowledge.json') threw).
+# Same taxonomy + byte-identical to a11oy's knowledge.json
+# (axioms / theorems / formulas / frameworks) so killinchu never drifts from the
+# kernel. Honesty doctrine v11 preserved verbatim from the corpus: Conjecture 1
+# OPEN, locked-proven = exactly 5 {F1,F11,F12,F18,F19} @ c7c0ba17, conditional
+# uniqueness = Theorem U. Registered BEFORE the /{full_path:path} SPA catch-all
+# so it wins ordered route matching. Never fabricates kernel claims.
+# ---------------------------------------------------------------------------
+_KNOWLEDGE_JSON = _APP_ROOT / "knowledge.json"
+
+
+@app.get("/knowledge.json")
+async def knowledge_json() -> Response:
+    """The generated knowledge corpus (axioms/theorems/formulas/frameworks).
+
+    Served as a real JSON document; without this explicit route the path falls
+    through to the SPA history catch-all (index.html), which is why the elite
+    console used to render empty knowledge panels.
+    """
+    if _KNOWLEDGE_JSON.is_file():
+        return FileResponse(str(_KNOWLEDGE_JSON), media_type="application/json")
+    # Honest fallback — never fabricate the kernel corpus.
+    return JSONResponse(
+        {"error": "knowledge.json not bundled with this deploy", "doctrine": DOCTRINE},
+        status_code=503,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Sample test vectors (for the live decoder UIs — real, verified frames)
 # ---------------------------------------------------------------------------
 @app.get("/api/killinchu/v1/samples")

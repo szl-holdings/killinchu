@@ -76,6 +76,16 @@ COPY static/ ./static/
 # NO CDN. Doctrine v11 LOCKED 749/14/163. Trust Gate = Conjecture.
 COPY cathedral.html ./cathedral.html
 
+# ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
+# knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to
+# a11oy's knowledge.json. serve.py serves it at /knowledge.json so the /elite
+# console's loadKnowledge() renders LIVE panels instead of falling back to {}.
+# COPYed to BOTH the static root (the SPA catch-all serves /app/static/*) AND
+# /app root (the explicit serve.py route reads /app/knowledge.json) — mirrors
+# a11oy so the surfaces never drift from the kernel. Honesty v11 preserved.
+COPY knowledge.json ./knowledge.json
+COPY knowledge.json ./static/knowledge.json
+
 # Copy serve orchestrator + real drone DB + real protocol decoders.
 # ADDITIVE (Unified Operator Shell v4, 2026-06-01, Yachay / Perplexity Computer Agent):
 # v4 endpoint module + self-contained desktop shell. Per-file COPY (no `COPY . .`).
