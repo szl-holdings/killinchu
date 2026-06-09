@@ -33,6 +33,26 @@ regexes = [
   '''(?i)(keyid|key[_-]?id|signing_key_id|listingkey)["']?\s*[:=]\s*["'`]?[A-Za-z0-9._-]+["'`]?''',
   # Explicit placeholder / unsigned stub markers.
   '''PLACEHOLDER-NOT-SIGNED''',
+  # In-image SECURITY-DEMO HMAC keys for the Warhacker synthetic demos
+  # (killinchu_warhacker_demos.py). These are NOT credentials for any real
+  # system or external service: they are fixed, human-readable demo constants
+  # used to compute HMAC tags over SYNTHETIC drone/MAVLink/kill-chain demo data
+  # generated in-process at request time (see _RID_KEY/_MAVLINK_KEY/_KC_KEY).
+  # Scoped tightly to the `kc-...-key...` literal so real secrets stay detected.
+  '''(?i)_(?:rid|mavlink|kc)_key\s*=\s*["']kc-[a-z0-9-]*key[a-z0-9-]*["']''',
+  '''kc-(?:remoteid-operator|mavlink-signing|killchain-step)-key[a-z0-9-]*''',
+  # Environment-variable NAMES (not values): e.g. "api_env_var": "ANTHROPIC_API_KEY".
+  # These name an env var the runtime reads the real key from; the literal is a
+  # config label, never key material. Matches all-caps *_API_KEY / *_TOKEN names.
+  '''(?i)(api_env_var|env_var|env)["' ]*[:=]["' ]*["'][A-Z][A-Z0-9_]*(API_KEY|_KEY|_TOKEN|_SECRET)["']''',
+  # Demo PROBLEM SLUGS in the Warhacker catalog: "key": "mavlink-injection" etc.
+  # These are human-readable demo identifiers, not credentials.
+  '''["']key["']\s*:\s*["'][a-z][a-z-]+["']''',
+  # Descriptor field, not a secret: "key_source": "ephemeral-in-process".
+  '''["']key_source["']\s*:\s*["'][a-z][a-z-]+["']''',
+  # Front-end API base-URL constants are route paths, not credentials:
+  #   const API="/api/killinchu/uds/v1";
+  '''(?i)const\s+API\s*=\s*["']/[a-z0-9/_.-]+["']''',
 ]
 
 # Test fixtures legitimately carry mock key identifiers and stub signatures.
@@ -42,9 +62,14 @@ paths = [
   # not an SZL credential and is overridden at runtime per Cesium's own docs.
   # We exempt only this vendored path; JWT detection stays active everywhere else.
   '''static/cesium/.*''',
+  # Vendored third-party minified JS bundles (deck.gl, etc.). Minified library
+  # code carries object property names like `key:` that the generic-api-key
+  # heuristic flags; this is upstream code, not SZL credentials.
+  '''static/vendor/.*''',
+  # Test fixtures / mocks legitimately carry mock keys and stub signatures.
+  # Anchored to match both top-level `tests/` and nested `*/tests/` paths.
+  '''(^|.*/)tests?/.*''',
   '''.*\.test\.ts$''',
   '''.*__tests__/.*''',
   '''.*_test\.py$''',
-  '''.*/test/.*''',
-  '''.*/tests/.*''',
 ]
