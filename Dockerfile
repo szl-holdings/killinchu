@@ -56,6 +56,16 @@ RUN pip install --no-cache-dir "dilithium-py>=1.0.0"
 # in szl_shared_formulas/kalman.py (real linear-algebra filter, no mocks).
 RUN pip install --no-cache-dir "numpy>=1.26,<3.0"
 
+# ADDITIVE (DEV-WIRE-K R1, Opus 4.8, 2026-06-09): scipy for exact KS two-sample
+# (scipy.stats.ks_2samp) in the Posture & Drift detectors; networkx for real graph
+# metrics (clustering / centrality / Fiedler lambda2 / DAG integrity) in Topology &
+# Health; PyYAML to parse the REAL deploy/uds-package.yaml allow rules for the
+# Attack-Surface and Zero-Trust mesh graphs. ALL THREE ARE OPTIONAL — killinchu_posture
+# _topology.py ships pure-python/numpy fallbacks (identical Kolmogorov asymptotic KS,
+# numpy-based graph metrics, hand-rolled YAML reader) so a rebuild lag never breaks the
+# surface. `|| true` keeps the build green if a wheel is unavailable.
+RUN pip install --no-cache-dir "scipy>=1.11" "networkx>=3.0" "PyYAML>=6.0" || true
+
 # Copy the pre-built SPA to the static root.
 # index.html + assets/* served directly at / and /assets/*; unknown GET -> index.html.
 COPY static/ ./static/
@@ -392,3 +402,4 @@ CMD ["python", "serve.py"]
 
 # Build cache-bust 2026-06-07T05:00Z (MINED ops squad): COPY killinchu_mined_ops.py
 # into /app so serve.py can import+register the 4 mined operational/efficiency surfaces.
+
