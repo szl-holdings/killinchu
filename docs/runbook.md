@@ -1,14 +1,16 @@
 # SZL Holdings — On-Call Runbook
-**Doctrine v11 LOCKED 749/14/163 | SLSA L1 + L2 | Generated: 2026-06-03**
+**Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest / L2 roadmap | Generated: 2026-06-03**
 
 ## Quick Reference
 
-| Flagship | Space URL | Lambda | Honest | Critical Endpoint |
+Only the two shipping products run live HF Spaces. (The retired codename Spaces
+`szlholdings-{sentra,amaru,rosie}.hf.space` are **not deployed** — those roles
+(Policy / Provenance Anchor / Operator) are roadmap and surface inside a11oy; do not
+monitor or curl them.)
+
+| Product | Space URL | Lambda | Honest | Critical Endpoint |
 |----------|-----------|--------|--------|-------------------|
 | a11oy | https://szlholdings-a11oy.hf.space | /v1/lambda | /v1/honest | /api/a11oy/v4/fleet |
-| sentra | https://szlholdings-sentra.hf.space | /api/sentra/v1/lambda | /api/sentra/v1/honest | /api/sentra/v1/verdict |
-| amaru | https://szlholdings-amaru.hf.space | /api/amaru/v1/lambda | /api/amaru/v1/honest | /api/amaru/v1/brain |
-| rosie | https://szlholdings-rosie.hf.space | /api/rosie/v1/lambda | /api/rosie/v1/honest | /api/rosie/v1/brain |
 | killinchu | https://szlholdings-killinchu.hf.space | /api/killinchu/v1/lambda | /api/killinchu/v1/honest | /api/killinchu/v1/lambda |
 
 ## Incident Playbooks
