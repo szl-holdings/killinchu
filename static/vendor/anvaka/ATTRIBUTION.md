@@ -14,24 +14,32 @@ layer; the rendering/layout primitives stay attributed to Andrei Kashcha.
 | `ngraph.events.umd.js` | [anvaka/ngraph.events](https://github.com/anvaka/ngraph.events) `index.js` (ESM source, wrapped UMD) | BSD-3-Clause | `ngraphEvents` | © 2013-2026 Andrei Kashcha |
 | `panzoom.min.js` | [anvaka/panzoom](https://github.com/anvaka/panzoom) `dist/` | MIT | `panzoom` | © 2016-2026 Andrei Kashcha |
 | `vivagraph.min.js` | [anvaka/VivaGraphJS](https://github.com/anvaka/VivaGraphJS) `dist/vivagraph.min.js` | BSD-3-Clause | `Viva` | © 2011-2026 Andrei Kashcha |
+| `three.map.control.min.js` | [anvaka/three.map.control](https://github.com/anvaka/three.map.control) v1.6.0 (npm) | MIT | `threeMapControls` / `PanZoomControls` | © 2016-2026 Andrei Kashcha |
+| `ngraph.three.min.js` | [anvaka/ngraph.three](https://github.com/anvaka/ngraph.three) v0.0.16 (npm) | MIT | `ngraphThree` | © 2013-2026 Andrei Kashcha |
+| `ngraph.cw.min.js` | [anvaka/ngraph.cw](https://github.com/anvaka/ngraph.cw) v2.0.0 (npm) | MIT | `ngraphCW` | © 2013-2026 Andrei Kashcha |
+| `w-gl.min.js` | [anvaka/w-gl](https://github.com/anvaka/w-gl) v0.22.0 `build/wgl.js` (UMD) | MIT | `wgl` (`.createScene/.WireCollection/.PointCollection/.mapControls`) | © 2017-2026 Andrei Kashcha |
 
 Each library's full LICENSE text is kept beside its vendored file as `LICENSE.<lib>`.
 
-## Deferred to a later round (NOT vendored in R1)
-These anvaka libraries ship only as CommonJS-with-deep-`require()`-trees or as
-un-built TypeScript source. Without an npm/bundler step in the offline build sandbox
-they cannot be turned into a single self-contained browser global safely, so they are
-**deferred** rather than shipped half-wired:
+## Build provenance (the four formerly-deferred libs)
+`three.map.control`, `ngraph.three`, and `ngraph.cw` ship upstream only as
+CommonJS-with-`require()`-trees; `w-gl` ships as `index.ts` + a prebuilt UMD `build/wgl.js`.
+To turn them into single self-contained **browser globals** (0-CDN) they were bundled
+**once, offline, at build time** with `esbuild@0.21.5 --bundle --minify --format=iife`:
 
-- **ngraph.three** (`index.js` requires `three`, `ngraph.merge`, `ngraph.forcelayout3d`,
-  `three.trackball`) — deep require tree.
-- **three.map.control** (`index.js` requires `wheel`, `ngraph.events`, `amator`,
-  `./lib/kinetic`) — deep require tree.
-- **ngraph.cw** (`index.js` requires `ngraph.random`) — small but unbundled.
-- **w-gl** (`index.ts` + `src/` TypeScript only, no prebuilt `build/`/`dist/`) — needs a
-  TS bundler.
+- `three.map.control.min.js` — bundles `wheel`, `ngraph.events`, `amator`, `./lib/kinetic`
+  inline; **`three` is marked `--external`** (provided in-image as `window.THREE`, never
+  re-bundled → no duplicate three.js, no CDN).
+- `ngraph.cw.min.js` — bundles `ngraph.random` inline; fully self-contained.
+- `ngraph.three.min.js` — bundles `ngraph.merge`, `ngraph.forcelayout3d`, `ngraph.physics.*`,
+  `three.trackball` inline; **`three` is `--external`** (in-image global).
+- `w-gl.min.js` — the upstream prebuilt UMD `build/wgl.js` copied verbatim (global `wgl`).
 
-3D tabs are instead driven by the already-vendored **`ngraph.forcelayout`
-`{dimensions:3}`** deterministic layout (the core "upgrade engine") rendered with the
-already-in-image **`three.min.js` + `3d-force-graph.min.js`** — fully 0-CDN. Re-vendor the
-four deferred libs once a one-time offline bundle pass is available.
+This is a one-time build-time transform of permissively-licensed (MIT/BSD-3) source; the
+runtime carries **zero network dependency** and the libraries remain attributed to the author.
+
+3D tabs already use the in-image **`three.min.js` + 3d-force-graph + globe.gl** engines with the
+vendored **`ngraph.forcelayout {dimensions:3}`** deterministic layout; `three.map.control` adds
+map-style pan/zoom camera control, `ngraph.three` adds the three.js graph-render glue, `w-gl`
+adds a high-performance WebGL line/point renderer for dense track/constellation surfaces, and
+`ngraph.cw` adds Chinese-Whispers community clustering for graph node coloring — all 0-CDN.
