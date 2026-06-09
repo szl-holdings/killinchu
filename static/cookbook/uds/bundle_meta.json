@@ -6,8 +6,8 @@
  "target_ref": "uds-v0.3.0",
  "kind": "UDSBundle",
  "port": 7860,
- "description": "Killinchu \u2014 Andean Drone Intelligence (counter-UAS sense-and-evidence). UDS-deployable module of the SZL governed-AI substrate.",
- "deploy_order": "amaru -> a11oy -> sentra -> rosie (killinchu rides on UDS Core + szl-receipts)",
+ "description": "Killinchu — Andean Drone Intelligence (counter-UAS sense-and-evidence). UDS-deployable module of the SZL governed-AI substrate.",
+ "deploy_order": "provenance-anchor -> a11oy -> policy -> operator (killinchu rides on UDS Core + szl-receipts; honest roles — retired internal codenames amaru/sentra/rosie — whose capability lives inside a11oy; only a11oy and killinchu ship today)",
  "uds_core": {
   "version": "1.5.0-upstream",
   "components": [
@@ -36,7 +36,7 @@
   ]
  },
  "cosign": {
-  "status": "PENDING \u2014 STAGED",
+  "status": "PENDING — STAGED",
   "honest_note": "HONEST (Doctrine v11, RELEASE_NOTES_v0.4.0): the killinchu Zarf PACKAGE artifact is NOT yet cosign-signed. At uds-v0.3.0 only the vessels module ships a signed Zarf package; the other modules publish SBOM JSON only. `cosign verify` on the bundle artifact WILL FAIL until the org key (U5) is provisioned and the image is pushed (FA-001). The runtime RECEIPTS, however, are REAL: every Khipu receipt is ECDSA-P256-SHA256 DSSE-signed live via /khipu/sign.",
   "public_key_url": "https://github.com/szl-holdings/.github/blob/main/cosign.pub",
   "keyid": "szlholdings-cosign",
@@ -60,10 +60,10 @@
   ]
  },
  "verify": {
-  "runtime_receipts": "REAL \u2014 ECDSA-P256-SHA256 DSSE; POST /khipu/verify validates against the embedded cosign public key.",
-  "bundle_artifact": "PENDING \u2014 see cosign.status; honest until FA-001 + U5 complete.",
+  "runtime_receipts": "REAL — ECDSA-P256-SHA256 DSSE; POST /khipu/verify validates against the embedded cosign public key.",
+  "bundle_artifact": "PENDING — see cosign.status; honest until FA-001 + U5 complete.",
   "doctrine": "v11",
-  "slsa": "L1 (honest; L2 for signed runtime receipts; L3 the defined target)"
+  "slsa": "L1 (honest; L2 for signed runtime receipts is roadmap, not yet claimed; L3 is a roadmap target, not claimed)"
  },
  "doctrine": "v11",
  "numbers": {
@@ -72,13 +72,13 @@
   "sorries": 163
  },
  "maintainer": "Yachay <yachay@szlholdings.dev>",
- "co_author": "Perplexity Computer Agent",
  "sources": [
   "https://github.com/szl-holdings/uds-bundles",
   "https://github.com/defenseunicorns/uds-cli",
   "https://docs.defenseunicorns.com/",
   "https://docs.sigstore.dev/cosign/verifying/verify/"
  ],
- "metadata_sha256": "93df1805ba826ede4c9f91693e5aad6cdff58a490d4596f6c6dc648b5c850436",
- "sha256_note": "SHA-256 over the canonical JSON of THIS metadata record (self-describing digest). The signed .tar.zst package SHA is PENDING publication (see cosign.status)."
+ "metadata_sha256": "d24fb3640d7b03ce60c891c48d0e80210e154e9c4e1858be38b5b0a093c3ae03",
+ "sha256_note": "SHA-256 over canonical JSON (sort_keys, no spaces) of this metadata record excluding the metadata_sha256/sha256_note fields. Recomputed after the DEV-C R2 doctrine-honesty edit (codename->role reframe, SLSA L3 marked roadmap). The signed .tar.zst package SHA is PENDING publication (see cosign.status).",
+ "orcid": "0009-0001-0110-4173"
 }
