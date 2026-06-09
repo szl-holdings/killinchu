@@ -36,6 +36,12 @@ RUN pip install --no-cache-dir \
 # BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
 RUN pip install --no-cache-dir "slowapi>=0.1.9"
 
+# Real persistent backend: psycopg (v3) so killinchu_backend is genuinely Postgres-first
+# when a DATABASE_URL is configured. Pure-python wheel; if absent the backend still runs
+# on durable SQLite (HF Spaces has no Postgres). `|| true` so a wheel hiccup can never
+# break the image build — the backend degrades to SQLite, never crashes.
+RUN pip install --no-cache-dir "psycopg[binary]>=3.1" || pip install --no-cache-dir "psycopg>=3.1" || true
+
 # ADDITIVE (Yachay / Provenance Hardening): cryptography for DSSE+Cosign Khipu signing.
 RUN pip install --no-cache-dir "cryptography>=42.0"
 # ADDITIVE (Formulas real-edge-v2, Opus 4.8, 2026-06-03): numpy is REQUIRED for the real
@@ -75,6 +81,11 @@ COPY szl_evidence_research.py ./szl_evidence_research.py
 # fails and /api/killinchu/v1/readiness 404s (falls through to the SPA shell).
 ARG READINESS_FIX_BUST=1
 COPY szl_readiness.py ./szl_readiness.py
+# Real persistent backend (Postgres-first, durable-SQLite fallback). serve.py imports
+# this try/except-guarded; without this per-file COPY the import fails and
+# /api/killinchu/{live,crawl/run,timeline,alerts/recent,watchlists} 404 to the SPA.
+ARG KILLINCHU_BACKEND_BUST=1
+COPY killinchu_backend.py ./killinchu_backend.py
 # dev3 HF assets instill (Knowledge & Formulas / Evidence) — app-agnostic, server-side fetch, 0 CDN.
 COPY a11oy_hf_assets.py ./a11oy_hf_assets.py
 COPY drones_db.json ./drones_db.json

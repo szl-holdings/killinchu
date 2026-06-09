@@ -1721,6 +1721,7 @@ const VIEWS = {
 
   evidence:{title:'Evidence & Research',badge:'CURATED CITATIONS · LIVE arXiv + GitHub',sub:'Every headline claim below is grounded in real, resolvable sources — official standards, public datasets and GitHub repositories. Paper lists and repo stats are fetched <b>live</b> from the arXiv + GitHub APIs and labelled live/cached; if a feed is down the panel degrades to the curated citations, never to invented figures.',render:async(c)=>{window.evidence_render(c);}}, // evidence-tab-patch-185
   readiness:{title:'Operational Readiness',badge:'LIVE · deployed-vs-repo truth',sub:'Live operational truth for this organ, read from three independent real surfaces: the deployed app\u2019s own /healthz + /version, the public GitHub repository API, and the Hugging Face Space API — every value labelled live/cached/unreachable. The centrepiece is the <b>deployed-vs-repo parity</b>: the deployment\u2019s reported build commit is compared against repo HEAD via the GitHub compare API for an honest <b>behind_by</b> delta, and the doctrine anchor (kernel_commit) is surfaced verbatim, never equated with HEAD. Nothing here is fabricated.',render:async(c)=>{window.readiness_render(c);}}, // readiness-tab-patch
+  live_intel:{title:'Live Intel (persistent backend)',badge:'REAL · Postgres-first · /api/killinchu',sub:'The live data layer for killinchu, read from the <b>real persistent backend</b> (Postgres-first, durable-SQLite fallback). The crawl scrapes a real public OSINT feed (adsb.lol military ADS-B), persists snapshots/facts/events to the database, and evaluates your watchlist triggers into notifications. Every panel is labelled <b>REAL / DEGRADED</b> from the deployed backend\u2019s own Doctrine v11 envelope (status + citations + fetchedAt) and the active DB backend — nothing here is fabricated, and no panel silently falls back to the SPA. ADS-B is an unauthenticated broadcast CLAIM, not attested truth.',render:async(c)=>{window.intel_render(c);}}, // live-intel-tab-patch
 
   // ── WAVE9/10 PROVEN THEOREMS (EXPERIMENTAL · CI-green on main) ──
   w910stl:{title:'STL Runtime Monitor (ρ margin)',badge:'RA-1 · two-sided Donzé–Maler · /wave910/stl-robustness',sub:'A Signal-Temporal-Logic runtime monitor that does not just say pass/fail — it computes the <b>signed robustness margin ρ</b>: how far the signal is from violating the rule, <b>computed in-image</b>. The PROVEN guarantee is <b>two-sided</b>: <code>Sat ⇒ ρ≥0</code> and <code>ρ&gt;0 ⇒ Sat</code> (and <code>ρ&lt;0 ⇒ violation</code>) — <b>NOT</b> the naive iff <code>Sat ↔ ρ&gt;0</code>, which is FALSE at the ρ=0 boundary. Strengthens the Sensor-Fusion / monitor surface with a sound margin. Λ stays <b>Conjecture 1</b>.',
@@ -6655,6 +6656,113 @@ window.readiness_render=async function(c){
   }catch(e){ c.innerHTML='<div class="card"><div class="dim">readiness layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
 };
 /* end readiness-tab-patch */
+/* live-intel-tab-patch — live persistent-backend layer (killinchu /elite tab).
+   Reads the REAL /api/killinchu/{db/health,timeline,alerts/recent,watchlists} endpoints.
+   Honest REAL/DEGRADED labels from the Doctrine v11 envelope (status) + active DB backend.
+   No fabricated data; no silent fallback to the SPA. */
+window.__intel_ns="killinchu";
+window.__INTEL_COL={good:['#4fb37f','#5fe39a'],warn:['#c0a05a','#e6c87a'],bad:['#c06a5a','#ff7b6b'],info:['#5aa0d0','#7ab8e6'],dim:['#6b6b6b','#9a9a9a']};
+window.intel_badge=function(text,kind,title){ var c=window.__INTEL_COL[kind||'dim']; return '<span class="badge" style="border:1px solid '+c[0]+';color:'+c[1]+'"'+(title?(' title="'+esc(title)+'"'):'')+'>'+esc(text)+'</span>'; };
+window.intel_status_kind=function(s){ s=String(s==null?'':s).toLowerCase();
+  if(s==='live'||s==='ok') return 'good';
+  if(s==='cached') return 'info';
+  if(s==='degraded'||s==='error') return 'bad';
+  return 'dim'; };
+/* overall REAL/DEMO/DEGRADED chip from an envelope (honest) */
+window.intel_real_chip=function(env,db){
+  var st=(env&&env.status)||'';
+  var durable=db&&db.durable;
+  if(durable&&(st==='ok'||st==='live'||st==='cached')) return window.intel_badge('REAL','good','served by the real persistent backend ('+esc((db&&db.backend)||'')+')');
+  if(st==='degraded'||!durable) return window.intel_badge('DEGRADED','bad','backend unreachable or no durable store — NOT serving the SPA, showing honest empty state');
+  if(st==='error') return window.intel_badge('DEGRADED','bad','backend error');
+  return window.intel_badge('…','dim','checking');
+};
+window.intel_fetch=async function(path,opts){
+  var r=await fetch('/api/'+window.__intel_ns+path,opts||{});
+  var d=await r.json(); d.__http=r.status; return d;
+};
+window.intel_run=async function(kind,btn){
+  var old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='⟳ '+(kind==='live'?'loading live…':'crawling…'); }
+  try{
+    await window.intel_fetch('/'+(kind==='live'?'live':'crawl/run'),{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    await window.intel_render(document.getElementById('intel-root'));
+  }catch(e){ alert('failed: '+((e&&e.message)||e)); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=old; } }
+};
+window.intel_wl_create=async function(){
+  var name=(document.getElementById('intel-wl-name')||{}).value||'';
+  var field=(document.getElementById('intel-wl-field')||{}).value||'count';
+  var op=(document.getElementById('intel-wl-op')||{}).value||'gte';
+  var thr=(document.getElementById('intel-wl-thr')||{}).value||'';
+  if(!name.trim()){ alert('name is required'); return; }
+  var body={name:name.trim(),enabled:true,triggers:[]};
+  if(field.trim()&&thr.trim()!=='') body.triggers.push({field:field.trim(),op:op,threshold:thr});
+  try{ await window.intel_fetch('/watchlists',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    await window.intel_render(document.getElementById('intel-root')); }
+  catch(e){ alert('create failed: '+((e&&e.message)||e)); }
+};
+window.intel_wl_delete=async function(id){
+  if(!confirm('Delete watchlist #'+id+'?')) return;
+  try{ await window.intel_fetch('/watchlists/'+id,{method:'DELETE'}); await window.intel_render(document.getElementById('intel-root')); }
+  catch(e){ alert('delete failed: '+((e&&e.message)||e)); }
+};
+window.intel_render=async function(c){
+  if(!c) return;
+  c.id='intel-root';
+  c.innerHTML='<div class="card"><div class="dim">reading the live persistent backend\u2026</div></div>';
+  try{
+    var hl=await window.intel_fetch('/db/health');
+    var db=(hl&&hl.db)||{};
+    var tl=await window.intel_fetch('/timeline?limit=25');
+    var al=await window.intel_fetch('/alerts/recent?limit=25');
+    var wl=await window.intel_fetch('/watchlists');
+    var h='';
+    /* header / backend truth */
+    h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
+    h+=window.intel_real_chip(hl,db);
+    h+=' '+window.intel_badge('backend: '+((db.backend)||'?'),db.durable?'good':'bad','active DB backend (postgres-first; durable-sqlite fallback)');
+    h+=' '+window.intel_badge('postgres-first','info','prefers Postgres when DATABASE_URL is set');
+    if(db.ping_ms!=null) h+=' '+window.intel_badge('db ping '+esc(String(db.ping_ms))+'ms',db.ping_ok?'good':'bad','last SELECT 1 latency');
+    h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">store: '+esc(db.dsn_kind||'')+(db.init_error?(' \u00b7 '+esc(db.init_error)):'')+' \u00b7 fetched '+esc((hl&&hl.fetchedAt)||'')+'</div>';
+    h+='<div class="btns" style="margin-top:.55rem"><button class="btn teal" onclick="window.intel_run(\'crawl\',this)">▶ Run crawl (scrape + persist)</button> <button class="btn" onclick="window.intel_run(\'live\',this)">⟳ Load live (cached scrape)</button></div></div>';
+    /* timeline */
+    h+='<div class="card"><div class="card-h"><span class="card-t">Timeline (events)</span><span class="card-ep">/api/killinchu/timeline</span></div>';
+    h+='<div style="margin:.2rem 0 .4rem">'+window.intel_badge(String(tl.status||''),window.intel_status_kind(tl.status),'envelope status')+' '+window.intel_badge((tl.count||0)+' events','dim')+'</div>';
+    (tl.events||[]).forEach(function(e){
+      h+='<div class="row"><span class="badge">'+esc(e.kind||'')+'</span> <b>'+esc(e.title||'')+'</b> <span class="dim">'+esc(e.detail||'')+'</span> <span class="dim" style="font-size:11px">'+esc(window.rd_ago?window.rd_ago(e.ts):'')+'</span>'+(e.source_url?(' <a href="'+esc(e.source_url)+'" target="_blank" rel="noopener">src</a>'):'')+'</div>';
+    });
+    if(!((tl.events||[]).length)) h+='<div class="dim">no events yet — run a crawl to populate the database (honest empty state, not the SPA).</div>';
+    h+='</div>';
+    /* alerts */
+    h+='<div class="card"><div class="card-h"><span class="card-t">Recent alerts (watchlist hits)</span><span class="card-ep">/api/killinchu/alerts/recent</span></div>';
+    h+='<div style="margin:.2rem 0 .4rem">'+window.intel_badge(String(al.status||''),window.intel_status_kind(al.status),'envelope status')+' '+window.intel_badge((al.count||0)+' alerts','dim')+'</div>';
+    (al.alerts||[]).forEach(function(a){
+      h+='<div class="row">'+window.intel_badge(esc(a.severity||'warn'),(a.severity==='warn'?'warn':'info'))+' <b>'+esc(a.title||'')+'</b> <span class="dim">'+esc(a.detail||'')+'</span> <span class="dim" style="font-size:11px">'+esc(window.rd_ago?window.rd_ago(a.ts):'')+'</span></div>';
+    });
+    if(!((al.alerts||[]).length)) h+='<div class="dim">no alerts — define a watchlist trigger below, then run a crawl.</div>';
+    h+='</div>';
+    /* watchlists CRUD */
+    h+='<div class="card"><div class="card-h"><span class="card-t">Watchlists</span><span class="card-ep">/api/killinchu/watchlists (CRUD)</span></div>';
+    h+='<div style="margin:.2rem 0 .4rem">'+window.intel_badge(String(wl.status||''),window.intel_status_kind(wl.status),'envelope status')+' '+window.intel_badge((wl.count||0)+' watchlists','dim')+'</div>';
+    (wl.watchlists||[]).forEach(function(w){
+      if(!w) return;
+      h+='<div class="row"><span class="badge">#'+esc(String(w.id))+'</span> <b>'+esc(w.name||'')+'</b> '+window.intel_badge(w.enabled?'enabled':'disabled',w.enabled?'good':'dim')+' <span class="dim">'+esc(w.description||'')+'</span>';
+      (w.triggers||[]).forEach(function(t){ h+=' <span class="badge" title="trigger">'+esc(t.field)+' '+esc(t.op)+' '+esc(t.threshold)+'</span>'; });
+      h+=' <button class="btn" style="font-size:10px;padding:.12rem .5rem" onclick="window.intel_wl_delete('+esc(String(w.id))+')">✕ delete</button></div>';
+    });
+    if(!((wl.watchlists||[]).length)) h+='<div class="dim">no watchlists yet.</div>';
+    h+='<div class="form-row" style="margin-top:.5rem;display:flex;gap:.4rem;flex-wrap:wrap;align-items:flex-end">';
+    h+='<div><label class="dim" style="font-size:11px">Name</label><br><input id="intel-wl-name" placeholder="e.g. Heavy mil activity"/></div>';
+    h+='<div><label class="dim" style="font-size:11px">Field</label><br><input id="intel-wl-field" value="count" title="count or type:&lt;airframe&gt;"/></div>';
+    h+='<div><label class="dim" style="font-size:11px">Op</label><br><select id="intel-wl-op"><option>gte</option><option>gt</option><option>lte</option><option>lt</option><option>eq</option></select></div>';
+    h+='<div><label class="dim" style="font-size:11px">Threshold</label><br><input id="intel-wl-thr" value="5" style="width:80px"/></div>';
+    h+='<button class="btn teal" onclick="window.intel_wl_create()">+ Add watchlist</button></div>';
+    h+='<div class="dim" style="font-size:11px;margin-top:.3rem">Triggers evaluate on every crawl. Fields: <code>count</code> (military aircraft observed) or <code>type:&lt;airframe&gt;</code> (per-type count). A hit writes a real notification (alert).</div>';
+    h+='</div>';
+    c.innerHTML=h;
+  }catch(e){ c.innerHTML='<div class="card"><div class="dim">live backend unavailable: '+esc((e&&e.message)||e)+' — this is an HONEST failure (the SPA is NOT being served in its place).</div></div>'; }
+};
+/* end live-intel-tab-patch */
 window.warhacker_init=warhacker_init; window.warhacker_run=warhacker_run; window.warhacker_all=warhacker_all;
 window.fieldnet_load=fieldnet_load; window.fieldnet_evaluate=fieldnet_evaluate;
 window.autonomyov_init=autonomyov_init; window.autonomyov_run=autonomyov_run;

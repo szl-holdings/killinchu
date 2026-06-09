@@ -140,6 +140,23 @@ except Exception as _be_e:
     _be_tb.print_exc()
 # ── BE hardening (Greene) — szl_be_hardening ── end
 
+# ── Real persistent backend (killinchu-backend) — Postgres-first, durable-SQLite
+# fallback. Gives killinchu a live data layer at /api/killinchu/{live,crawl/run,
+# timeline,alerts/recent,watchlists}. Persists to Postgres (when DATABASE_URL is set
+# AND psycopg is installed) else durable SQLite. Every endpoint returns the Doctrine
+# v11 envelope {status, citations, fetchedAt} with honest live/cached/degraded labels.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all).
+try:
+    import killinchu_backend as _kc_backend
+    _kc_be_status = _kc_backend.register(app, ns="killinchu")
+    import sys as _kc_be_sys
+    print(f"[killinchu] persistent backend registered: {_kc_be_status}", file=_kc_be_sys.stderr)
+except Exception as _kc_be_e:
+    import sys as _kc_be_sys
+    print(f"[killinchu] persistent backend NOT registered: {_kc_be_e!r}", file=_kc_be_sys.stderr)
+    _kc_backend = None
+# ── Real persistent backend (killinchu-backend) ── end
+
 
 # ---------------------------------------------------------------------------
 # ADDITIVE (Formulas → Ecosystem echo, Opus 4.8, 2026-06-03, Yachay).
@@ -566,7 +583,15 @@ if ASSETS_DIR.exists():
 # ---------------------------------------------------------------------------
 @app.get("/api/killinchu/healthz")
 async def healthz() -> JSONResponse:
-    return JSONResponse({
+    # ADDITIVE: real uptime + last DB ping from the persistent backend (guarded —
+    # if the backend module is absent, healthz still returns its full doctrine envelope).
+    _be_health: dict = {}
+    try:
+        if _kc_backend is not None:
+            _be_health = _kc_backend.health_fields()
+    except Exception:
+        _be_health = {}
+    _payload = {
         "status": "ok",
         "service": "killinchu",
         "version": "1.0.0",
@@ -591,7 +616,9 @@ async def healthz() -> JSONResponse:
         "decoders": ["OpenDroneID/ASTM F3411", "ADS-B Mode-S 1090ES (pyModeS v3)", "MAVLink v1/v2 (pymavlink)"],
         "hatun_willay": True,
         "pivoted_from": "vessels",
-    })
+    }
+    _payload.update(_be_health)
+    return JSONResponse(_payload)
 
 
 @app.get("/api/killinchu/readyz")
