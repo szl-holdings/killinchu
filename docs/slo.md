@@ -1,5 +1,5 @@
-# SLI/SLO/Error Budget — SZL Holdings Flagship Services
-**Doctrine v11 LOCKED 749/14/163 | SLSA L1 + L2 | Generated: 2026-06-03**
+# SLI/SLO/Error Budget — SZL Holdings shipping products (a11oy, killinchu)
+**Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest / L2 roadmap | Generated: 2026-06-03**
 
 ## Service Level Indicators (SLIs)
 
@@ -17,11 +17,12 @@
 | a11oy | / (root) | 99.5% availability | 30-day rolling | 3.65 hours downtime |
 | a11oy | /v1/lambda | 99.5% + correct doctrine | 30-day rolling | 3.65 hours |
 | a11oy | /v1/honest | 99.5% + correct disclosure | 30-day rolling | 3.65 hours |
-| sentra | /api/sentra/v1/lambda | 99.5% availability | 30-day rolling | 3.65 hours |
-| sentra | /api/sentra/v1/verdict | 99.5% + non-empty response | 30-day rolling | 3.65 hours |
-| amaru | /api/amaru/v1/brain | 99.0% availability | 30-day rolling | 7.2 hours |
-| rosie | /api/rosie/v1/lambda | 99.5% availability | 30-day rolling | 3.65 hours |
 | killinchu | /api/killinchu/v1/lambda | 99.5% availability | 30-day rolling | 3.65 hours |
+
+> SLOs are tracked only for the two shipping products (a11oy, killinchu). The
+> retired codename Spaces (sentra/amaru/rosie) are not deployed; the Policy /
+> Provenance Anchor / Operator roles are roadmap and surface inside a11oy, so they
+> carry no standalone SLO.
 
 ## Notes on HF Space Constraints
 
