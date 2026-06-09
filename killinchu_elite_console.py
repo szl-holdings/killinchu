@@ -6477,6 +6477,44 @@ window.ev_livebadge=function(lv){
   }
   return '<span class="badge" style="border:1px solid #c06a5a;color:#ff7b6b" title="unreachable: '+esc(lv.error||'no HTTP response')+' ('+esc(lv.checked_at||'')+')">● unreachable</span>';
 };
+/* relative "checked Xm ago" from an ISO timestamp — honest, empty when no real timestamp */
+window.ev_ago=function(iso){
+  if(!iso) return '';
+  var t=Date.parse(iso); if(isNaN(t)) return '';
+  var s=Math.round((Date.now()-t)/1000); if(s<0) s=0;
+  if(s<5) return 'just now';
+  if(s<60) return s+'s ago';
+  var m=Math.floor(s/60); if(m<60) return m+'m ago';
+  var h=Math.floor(m/60); if(h<24) return h+'h ago';
+  return Math.floor(h/24)+'d ago';
+};
+/* one cited-source row (shared by initial render + in-place re-check) */
+window.ev_source_row=function(s){
+  var lv=s.liveness||null; var ca=(lv&&lv.checked_at)||''; var ago=window.ev_ago(ca);
+  var agohtml=ca?(' <span class="dim ev-checked" data-checked="'+esc(ca)+'" title="last reachability check: '+esc(ca)+'">· checked '+esc(ago)+'</span>'):'';
+  return '<div class="row"><span class="badge">'+esc(s.kind||'src')+'</span> '+window.ev_livebadge(lv)+agohtml+' <a href="'+esc(s.url||'#')+'" target="_blank" rel="noopener">'+esc(s.title||'')+'</a>'+(s.note?(' <span class="dim">— '+esc(s.note)+'</span>'):'')+'</div>';
+};
+/* re-tick the relative "checked Xm ago" labels in place — no network */
+window.ev_tick=function(root){
+  Array.prototype.forEach.call((root||document).querySelectorAll('.ev-checked'),function(n){
+    var ago=window.ev_ago(n.getAttribute('data-checked')); if(ago) n.textContent='· checked '+ago;
+  });
+};
+/* re-check one claim's curated sources via the focused /sources/live sweep; update badges in place */
+window.evidence_recheck=async function(id,btn){
+  var box=document.getElementById('ev-sources-'+id); if(!box) return;
+  var old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='⟳ re-checking…'; }
+  try{
+    var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research/'+id+'/sources/live');
+    var d=await r.json(); var rows=d.sources||[]; var h='';
+    rows.forEach(function(s){ h+=window.ev_source_row(s); });
+    if(d.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">source liveness: '+esc(String(d.sources_reachable))+'/'+esc(String(d.sources_total))+' reachable · swept '+esc(window.ev_ago(d.checked_at)||'just now')+'</div>';
+    box.innerHTML=h; window.ev_tick(box);
+  }catch(e){
+    var note=document.createElement('div'); note.className='dim'; note.style.marginTop='.25rem';
+    note.textContent='re-check failed: '+((e&&e.message)||e)+' — showing last-known badges'; box.appendChild(note);
+  }finally{ if(btn){ btn.disabled=false; btn.textContent=old||'⟳ Re-check sources'; } }
+};
 window.evidence_live=async function(id){
   var box=document.getElementById('ev-live-'+id); if(!box) return;
   box.innerHTML='<div class="dim">fetching live arXiv + GitHub…</div>';
@@ -6504,11 +6542,11 @@ window.evidence_render=async function(c){
     if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
     (d.claims||[]).forEach(function(cl){
       h+='<div class="card"><div><b>'+esc(cl.claim||'')+'</b>'+(cl.maturity?(' <span class="badge">'+esc(cl.maturity)+'</span>'):'')+(cl.tab?(' <span class="dim">→ '+esc(cl.tab)+' tab</span>'):'')+'</div>';
-      h+='<div class="dim" style="margin:.45rem 0 .25rem">Cited sources</div>';
-      (cl.sources||[]).forEach(function(s){
-        h+='<div class="row"><span class="badge">'+esc(s.kind||'src')+'</span> '+window.ev_livebadge(s.liveness)+' <a href="'+esc(s.url||'#')+'" target="_blank" rel="noopener">'+esc(s.title||'')+'</a>'+(s.note?(' <span class="dim">— '+esc(s.note)+'</span>'):'')+'</div>';
-      });
+      h+='<div class="dim" style="margin:.45rem 0 .25rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">Cited sources <button class="btn ev-recheck-btn" data-ev="'+esc(cl.id)+'" title="re-probe these source URLs now" style="font-size:10px;padding:.12rem .5rem">⟳ Re-check sources</button></div>';
+      h+='<div id="ev-sources-'+esc(cl.id)+'">';
+      (cl.sources||[]).forEach(function(s){ h+=window.ev_source_row(s); });
       if(cl.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">source liveness: '+esc(String(cl.sources_reachable))+'/'+esc(String(cl.sources_total))+' reachable</div>';
+      h+='</div>';
       h+='<div style="margin-top:.55rem"><button class="btn ev-live-btn" data-ev="'+esc(cl.id)+'">⟳ Load live arXiv + GitHub</button></div>';
       h+='<div id="ev-live-'+esc(cl.id)+'" style="margin-top:.5rem"></div></div>';
     });
@@ -6516,6 +6554,14 @@ window.evidence_render=async function(c){
     Array.prototype.forEach.call(c.querySelectorAll('.ev-live-btn'),function(b){
       b.addEventListener('click',function(){ window.evidence_live(b.getAttribute('data-ev')); });
     });
+    Array.prototype.forEach.call(c.querySelectorAll('.ev-recheck-btn'),function(b){
+      b.addEventListener('click',function(){ window.evidence_recheck(b.getAttribute('data-ev'),b); });
+    });
+    window.ev_tick(c);
+    if(window.__ev_timer) clearInterval(window.__ev_timer);
+    window.__ev_timer=setInterval(function(){
+      if(document.body.contains(c)){ window.ev_tick(c); } else { clearInterval(window.__ev_timer); window.__ev_timer=null; }
+    },15000);
   }catch(e){ c.innerHTML='<div class="card"><div class="dim">evidence layer unavailable: '+esc(e.message||e)+'</div></div>'; }
 };
 /* end evidence-tab-patch-185 */
