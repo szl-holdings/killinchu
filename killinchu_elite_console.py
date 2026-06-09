@@ -431,6 +431,14 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <script src="/vendor/anvaka/ngraph.path.min.js"></script>
 <script src="/vendor/anvaka/panzoom.min.js"></script>
 <script src="/vendor/anvaka/vivagraph.min.js"></script>
+<!-- Formerly-deferred anvaka libs, now vendored 0-CDN (bundled offline; see
+     static/vendor/anvaka/ATTRIBUTION.md §Build provenance). three.map.control +
+     ngraph.three load AFTER the in-image three.min.js (window.THREE, external -> not re-bundled).
+     Globals added: ngraphCW (Chinese-Whispers clustering), threeMapControls, ngraphThree, wgl. -->
+<script src="/vendor/anvaka/ngraph.cw.min.js"></script>
+<script src="/vendor/anvaka/three.map.control.min.js"></script>
+<script src="/vendor/anvaka/ngraph.three.min.js"></script>
+<script src="/vendor/anvaka/w-gl.min.js"></script>
 <style>
 /* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
@@ -1593,18 +1601,51 @@ function _ptLayout(nodeIds, edges, W, H){
   nodeIds.forEach(function(id,i){ var a=2*Math.PI*i/Math.max(1,nodeIds.length); pos[id]={x:cx+R*Math.cos(a),y:cy+R*Math.sin(a)}; });
   return {pos:pos, engine:'circle fallback (anvaka global not loaded)'};
 }
+function _ptCommunities(ids, edges){
+  // Chinese-Whispers community detection via vendored anvaka ngraph.cw (0-CDN).
+  // Honest: returns {ok:false} when the lib is absent so callers degrade gracefully.
+  try{
+    var mkGraph = window.createGraph || (window.ngraph && window.ngraph.graph);
+    if(typeof window.ngraphCW!=='function' || !mkGraph) return {ok:false, reason:'ngraphCW/ngraph.graph absent'};
+    var g=mkGraph();
+    ids.forEach(function(id){ g.addNode(id); });
+    edges.forEach(function(e){ var s=e.source!=null?e.source:e[0], t=e.target!=null?e.target:e[1]; if(s!=null&&t!=null) g.addLink(s,t); });
+    var cw=window.ngraphCW(g);
+    if(!cw || typeof cw.getClass!=='function') return {ok:false, reason:'ngraphCW returned no API'};
+    if(typeof cw.step==='function'){ for(var i=0;i<10;i++){ cw.step(); if(cw.getChangeRate && cw.getChangeRate()===0) break; } }
+    var map={};
+    g.forEachNode(function(node){
+      var cls=cw.getClass(node.id);
+      if(cls==null) cls=node.id;
+      map[node.id]=cls;
+    });
+    // re-index class ids to small integers for stable palette indexing
+    var seen={}, n=0, out={};
+    ids.forEach(function(id){ var c=map[id]; if(seen[c]===undefined){ seen[c]=n++; } out[id]=seen[c]; });
+    return {ok:true, comm:out, count:n};
+  }catch(err){ return {ok:false, reason:String(err&&err.message||err)}; }
+}
+var _CW_PALETTE=['#5cc8ff','#5fe39a','#f5b301','#b39ddb','#ff9b9b','#7fd1c4','#e0a3ff','#ffd27f','#9adb5f','#ff7bd1'];
 function _ptSvgGraph(nodes, edges, opt){
   opt=opt||{}; var W=opt.W||760,H=opt.H||470;
   var ids=nodes.map(function(n){return n.id;});
   var lay=_ptLayout(ids, edges, W, H); var P=lay.pos;
+  // Additive: cluster overlay via vendored ngraph.cw (Chinese-Whispers). Honest fallback if lib absent.
+  var comm = opt.cluster===false ? {ok:false,reason:'disabled by caller'} : _ptCommunities(ids, edges);
   var lines=edges.map(function(e){ var s=e.source!=null?e.source:e[0], t=e.target!=null?e.target:e[1]; var a=P[s],b=P[t]; if(!a||!b) return '';
     var dir=e.direction||''; var col=dir==='ingress'?'#ff9b9b':(dir==='egress'?'#5cc8ff':'#2a6f63');
     return '<line x1="'+a.x.toFixed(1)+'" y1="'+a.y.toFixed(1)+'" x2="'+b.x.toFixed(1)+'" y2="'+b.y.toFixed(1)+'" stroke="'+col+'" stroke-width="1.4" stroke-opacity="0.5"/>';}).join('');
   var circ=nodes.map(function(n){ var p=P[n.id]; if(!p) return '';
     var col=opt.color?opt.color(n):'#5fe39a'; var r=opt.radius?opt.radius(n):8;
+    var ring='';
+    if(comm.ok && comm.comm[n.id]!=null){ var cc=_CW_PALETTE[comm.comm[n.id]%_CW_PALETTE.length];
+      ring='<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+(r+3.5)+'" fill="none" stroke="'+cc+'" stroke-width="1.6" stroke-opacity="0.85"/>'; }
     var lbl=esc(scrubText(String(n.role||n.id)).slice(0,22));
-    return '<g><circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+r+'" fill="'+col+'" fill-opacity="0.9" stroke="#0a0a0a" stroke-width="1"/><text x="'+p.x.toFixed(1)+'" y="'+(p.y-r-3).toFixed(1)+'" fill="#e8e8e8" font-size="9.5" text-anchor="middle" font-family="monospace">'+lbl+'</text></g>';}).join('');
-  return '<div style="overflow:auto"><svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px;background:#050505;border-radius:10px">'+lines+circ+'</svg></div><div class="mono dim" style="font-size:10px;margin-top:.3rem">layout: '+esc(lay.engine)+'</div>';
+    return '<g>'+ring+'<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+r+'" fill="'+col+'" fill-opacity="0.9" stroke="#0a0a0a" stroke-width="1"/><text x="'+p.x.toFixed(1)+'" y="'+(p.y-r-3).toFixed(1)+'" fill="#e8e8e8" font-size="9.5" text-anchor="middle" font-family="monospace">'+lbl+'</text></g>';}).join('');
+  var cwNote = comm.ok
+    ? ('<span style="color:#7fd1c4"> · '+comm.count+' communities (ngraph.cw Chinese-Whispers, ring color)</span>')
+    : ('<span class="dim"> · cluster overlay off ('+esc(comm.reason||'lib absent')+')</span>');
+  return '<div style="overflow:auto"><svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px;background:#050505;border-radius:10px">'+lines+circ+'</svg></div><div class="mono dim" style="font-size:10px;margin-top:.3rem">layout: '+esc(lay.engine)+cwNote+'</div>';
 }
 
 async function posture_drift_render(c){
