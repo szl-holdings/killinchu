@@ -326,6 +326,9 @@ COPY web/console.js ./web/console.js
 # Receipts are signed with the persistent cosign ECDSA-P256-SHA256 key (szl_dsse).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 COPY szl_agentic_loop.py ./szl_agentic_loop.py
+# szl_anatomy_routes: backs the canonical formula MCP tools (list_formulas/run_formula/
+# formula_proof_status) in szl_agentic_loop; byte-identical with a11oy. Deps: szl_formulas only.
+COPY szl_anatomy_routes.py ./szl_anatomy_routes.py
 
 # Formula-wiring module (ADDITIVE 2026-06-06): registers the kernel-verified theorem
 # mechanisms as live executable checks + the /api/<ns>/v1/formulas/* endpoints
