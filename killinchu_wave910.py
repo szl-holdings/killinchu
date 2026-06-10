@@ -14,7 +14,7 @@ Wave10 PR #200) as **EXPERIMENTAL · CI-green on main** (kernel-verified, NOT lo
 
 HONESTY DOCTRINE — never violated
 ---------------------------------
-* Locked-proven = EXACTLY 5 {F1,F11,F12,F18,F19}. This module is EXPERIMENTAL scope and
+* Locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}. This module is EXPERIMENTAL scope and
   NEVER touches that count. Λ (F23) stays Conjecture 1 (advisory, NOT proven).
 * These are EXPERIMENTAL · CI-green on main — NOT promoted to locked. Each card carries
   the verbatim `#print axioms` from the proof reports + the cited classical source.
@@ -54,7 +54,7 @@ except Exception:  # pragma: no cover
 # ---------------------------------------------------------------------------
 MAIN_SHA = "66735bf"  # Wave9 PR #199 merged into main; Wave10 branched from here (PR #200)
 CHIP = "EXPERIMENTAL · CI-green on main"
-LOCKED_PROVEN = ["F1", "F11", "F12", "F18", "F19"]  # NEVER more than 5
+LOCKED_PROVEN = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]  # EXACTLY 8 (PR#219 merged 2026-06-10, theorem locked_count_eight no-axiom)
 LAMBDA_STATUS = "Conjecture 1 (advisory, NOT proven)"
 
 
@@ -669,7 +669,7 @@ def index_payload(ns: str = "killinchu") -> dict:
         "lambda_status": LAMBDA_STATUS,
         "cards": _cards(),
         "count": len(_cards()),
-        "honesty": ("locked-proven = EXACTLY 5 {F1,F11,F12,F18,F19}; these Wave9/10 theorems "
+        "honesty": ("locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; these Wave9/10 theorems "
                     "are EXPERIMENTAL · CI-green on main, never promoted to locked; "
                     "Λ = Conjecture 1; sovereign 0-CDN; no user-visible codenames."),
         "source_reports": ["team/WAVE9_PROOF_REPORT.md", "team/WAVE10_PROOF_REPORT.md"],
@@ -697,7 +697,7 @@ def self_test() -> dict:
     }
     return {
         "chip": CHIP, "main_sha": MAIN_SHA,
-        "locked_proven_count": len(LOCKED_PROVEN),  # MUST be 5
+        "locked_proven_count": len(LOCKED_PROVEN),  # MUST be 8
         "lambda_status": LAMBDA_STATUS,
         "results": {
             "RA-1_stl_robustness": stl,
@@ -785,6 +785,6 @@ __all__ = ["register", "index_payload", "self_test", "stl_robustness",
            "covariance_intersection", "gershgorin", "mesh_resilience",
            "audit_receipts", "quorum_consensus"]
 
-# Doctrine: locked-proven = EXACTLY 5 {F1,F11,F12,F18,F19}; Wave9/10 = EXPERIMENTAL · CI-green
+# Doctrine: locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Wave9/10 = EXPERIMENTAL · CI-green
 # on main (NOT locked); Λ = Conjecture 1 (advisory). Sovereign 0-CDN; no user-visible codenames.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
