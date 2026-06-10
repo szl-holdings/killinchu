@@ -4,6 +4,18 @@
 # szl_formulas.py — PORTABLE canonical-formula registry + Codex-Kernel composer.
 # ADDITIVE, self-contained, pure. Inlined from szl-cookbook recipes
 #   canonical-formulas-v1 + codex-kernel-composer-v1 so each HF Space carries one file.
+# ---------------------------------------------------------------------------
+# DEVELOPER ORIENTATION (added by Perplexity Computer Agent, 2026-06)
+# Purpose:       Pure, typed canonical formula registry for all SZL Doctrine v11
+#                formulas. Also contains the Codex-Kernel composer (governance contracts).
+# Key entry pts: lambda_aggregate(), dsse_envelope(), khipu_merkle_root(),
+#                pac_bayes_mcallester(), kochen_specker_18vector_witness()
+# Related mods:  szl_dsse.py (signing), szl_khipu.py (DAG store),
+#                szl_lambda_tripwire.py (halt logic), szl_be_hardening.py (persistence)
+# Doctrine note: Λ uniqueness = Conjecture 1 (NOT proven). See CAUCHY_ND sorry
+#                in Lutar/Uniqueness.lean:120. Never label it 'Theorem'.
+#                All PROOF-STATUS tags in docstrings are authoritative.
+# ---------------------------------------------------------------------------
 
 """
 canonical-formulas-v1 — SZL Holdings Canonical Formula Registry
@@ -46,9 +58,12 @@ ADDITIVE — pure functions, zero bandaid.
 """
 from __future__ import annotations
 
+import base64
+import json
 import math
+import os
 from hashlib import sha256
-from typing import List, Literal, Sequence, TypedDict
+from typing import List, Literal, Optional, Sequence, TypedDict
 
 # ---------------------------------------------------------------------------
 # Global epsilon for all floating-point tolerance checks.
@@ -278,28 +293,308 @@ def khipu_merkle_root(receipts: List[Receipt]) -> bytes:
 # ===========================================================================
 class DSSE(TypedDict):
     payloadType: str
-    payload: str           # base64-ish hex of payload
+    payload: str           # base64(payload bytes) per DSSE spec (was hex — fixed Tier A)
     signatures: List[dict]
+
+
+_DSSE_PAYLOAD_TYPE = "application/vnd.szl+json"
+
+
+def _dsse_pae(payload_type: str, payload: bytes) -> bytes:
+    """Pre-Authentication Encoding per DSSE spec.
+
+    PAE(type, body) = "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body
+    Reference: https://github.com/secure-systems-lab/dsse/blob/master/protocol.md
+    LEN is the byte length of the UTF-8 encoding of each argument.
+    """
+    type_bytes = payload_type.encode("utf-8")
+    return (
+        b"DSSEv1 "
+        + str(len(type_bytes)).encode()
+        + b" "
+        + type_bytes
+        + b" "
+        + str(len(payload)).encode()
+        + b" "
+        + payload
+    )
 
 
 def dsse_envelope(payload: bytes, signer: str) -> DSSE:
     """Build a DSSE (Dead-Simple-Signing-Envelope) with a PLACEHOLDER signature.
+
+    This is a structurally-valid DSSE envelope with a PLACEHOLDER signature.
+    Real signature implementation deferred to Tier B (Sigstore SDK).
+    See GitHub issue #203 (szl-holdings/a11oy) for Tier B tracking.
 
     PAE (Pre-Authentication Encoding) per the DSSE spec is used to bind the
     payloadType + payload before signing. The signature here is an HONEST
     PLACEHOLDER (sha256 of the PAE, prefixed 'PLACEHOLDER:') — Doctrine v11
     forbids claiming a real Sigstore signature where none is minted.
 
+    STRUCTURAL FIXES (Tier A, Doctrine v11 → v11):
+    - payload now base64-encoded (was hex — DSSE spec requires base64)
+    - PAE uses dynamic len(payloadType) (was hardcoded to 24)
+    - sig field is base64(placeholder_bytes) for wire-format compliance
+    - keyid renamed to 'placeholder-doctrine-v11' (honest labeling)
+
+    REAL SIGNING (Tier B): dsse_envelope_real() below mints a genuine Sigstore
+    keyless signature. It is only feasible inside a GitHub Actions job with
+    `id-token: write` (ambient OIDC). Use sign_dsse_or_placeholder() to get the
+    real signature when that context exists and fall back to THIS honest
+    placeholder everywhere else (HF Space, the box) — never a fabricated sig.
+
     THEOREM: DSSE spec (secure-systems-lab/dsse); in-toto/SCITT provenance.
-    PROOF-STATUS: PROVEN structure (dsse-pae.test.ts); signature = PLACEHOLDER.
+    PROOF-STATUS: PROVEN structure (PAE per spec); signature = PLACEHOLDER.
     """
-    pae = f"DSSEv1 {len('application/vnd.szl+json')} application/vnd.szl+json {len(payload)} ".encode() + payload
-    placeholder = "PLACEHOLDER:" + sha256(pae).hexdigest()
+    pae = _dsse_pae(_DSSE_PAYLOAD_TYPE, payload)
+    # Honest placeholder: SHA-256 of PAE, but NOT a signature.
+    # Any party who can compute SHA-256 can reproduce this — no authentication.
+    placeholder_bytes = b"PLACEHOLDER:" + sha256(pae).digest()
     return DSSE(
-        payloadType="application/vnd.szl+json",
-        payload=payload.hex(),
-        signatures=[{"keyid": signer, "sig": placeholder}],
+        payloadType=_DSSE_PAYLOAD_TYPE,
+        payload=base64.b64encode(payload).decode(),
+        signatures=[{
+            "keyid": "placeholder-doctrine-v11",
+            "sig": base64.b64encode(placeholder_bytes).decode(),
+        }],
     )
+
+
+# ===========================================================================
+# 8b. dsse_envelope_real — Tier B: GENUINE Sigstore keyless DSSE signature
+# ===========================================================================
+# Issue #203 (szl-holdings/a11oy), Tier B. Replaces the PLACEHOLDER signature
+# above with a REAL Sigstore keyless signature: a GitHub OIDC token is exchanged
+# at Fulcio for a short-lived ECDSA-P256 signing certificate, the DSSE statement
+# is signed, and the signature is recorded in the Rekor transparency log. The
+# whole flow is only possible inside CI (a context with an ambient OIDC token,
+# e.g. GitHub Actions with `permissions: id-token: write`). Outside CI there is
+# no ambient identity to mint a cert from, so we DECLINE rather than fabricate —
+# Doctrine v11 forbids claiming a real signature where none was minted.
+#
+# Honesty boundary (unchanged): this does NOT raise the SLSA claim. SLSA wording
+# stays L1; this only upgrades the receipt SIGNATURE from placeholder to real.
+
+# GitHub Actions OIDC issuer — the only identity issuer this signing path trusts.
+_SIGSTORE_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
+
+
+class DsseSigningUnavailable(RuntimeError):
+    """Raised when real Sigstore keyless signing cannot run in this runtime.
+
+    Two honest causes: the `sigstore` Python SDK is not installed, or there is
+    no ambient OIDC credential (i.e. we are not inside a CI job with
+    `id-token: write`). Callers MUST treat this as 'keep the honest placeholder',
+    never as 'fabricate a signature'.
+    """
+
+
+def _detect_oidc_token(identity_token: Optional[str] = None) -> Optional[str]:
+    """Best-effort discovery of an ambient OIDC token (CI only).
+
+    Order: explicit arg -> SIGSTORE_IDENTITY_TOKEN env -> sigstore's
+    detect_credential() (reads ACTIONS_ID_TOKEN_REQUEST_URL/TOKEN in GH Actions).
+    Returns None when no ambient identity exists (the normal non-CI case).
+    """
+    if identity_token:
+        return identity_token
+    env_token = os.environ.get("SIGSTORE_IDENTITY_TOKEN")
+    if env_token:
+        return env_token
+    try:
+        from sigstore.oidc import detect_credential  # type: ignore
+    except Exception:
+        return None
+    try:
+        return detect_credential()
+    except Exception:
+        return None
+
+
+def real_signing_available(identity_token: Optional[str] = None) -> bool:
+    """True iff a genuine Sigstore keyless signature could be minted right now.
+
+    Requires BOTH the sigstore SDK to import AND an ambient OIDC token. Pure
+    predicate — performs no network calls and mints nothing.
+    """
+    try:
+        import sigstore  # noqa: F401
+    except Exception:
+        return False
+    return bool(_detect_oidc_token(identity_token))
+
+
+def dsse_envelope_real(
+    payload: bytes,
+    payload_type: str = _DSSE_PAYLOAD_TYPE,
+    *,
+    subject_name: str = "szl-governance-receipt",
+    identity_token: Optional[str] = None,
+) -> dict:
+    """Build a DSSE envelope with a GENUINE Sigstore keyless signature (Tier B).
+
+    The flow (all REAL, no mocks):
+      1. Obtain an ambient OIDC token (GitHub Actions `id-token: write`).
+      2. Exchange it at Fulcio for a short-lived ECDSA-P256 signing certificate.
+      3. Wrap `payload` as an in-toto v1 Statement (subject = sha256(payload),
+         the original bytes preserved base64 in the predicate) and sign it as a
+         DSSE envelope.
+      4. Record the signature in the Rekor transparency log.
+
+    Returns the signed DSSE envelope (spec shape: payloadType / payload /
+    signatures) enriched with a `_sigstore` block carrying the full Sigstore
+    bundle (cert chain + Rekor inclusion), so any third party can verify it
+    offline with verify_dsse_real() or the `sigstore` CLI.
+
+    Raises DsseSigningUnavailable when the SDK is missing or no ambient OIDC
+    token exists (i.e. not in CI). NEVER fabricates a signature.
+
+    THEOREM: DSSE spec + Sigstore keyless (Fulcio ephemeral cert, Rekor tlog).
+    PROOF-STATUS: REAL signature (verifiable against Rekor); CI-only by design.
+    """
+    raw_token = _detect_oidc_token(identity_token)
+    if not raw_token:
+        raise DsseSigningUnavailable(
+            "no ambient OIDC credential: real Sigstore keyless signing requires a "
+            "CI context with `id-token: write` (e.g. GitHub Actions). Keep the "
+            "dsse_envelope() placeholder in non-CI runtimes."
+        )
+    try:
+        from cryptography.hazmat.primitives.serialization import Encoding
+        from sigstore.dsse import DigestSet, StatementBuilder, Subject
+        from sigstore.models import ClientTrustConfig
+        from sigstore.oidc import IdentityToken
+        from sigstore.sign import SigningContext
+    except Exception as exc:  # pragma: no cover - exercised only without the SDK
+        raise DsseSigningUnavailable(
+            f"sigstore SDK not importable ({exc}); add `sigstore>=2.0.0` to the "
+            "signing component's requirements. Refusing to fabricate a signature."
+        ) from exc
+
+    identity = IdentityToken(raw_token)
+    digest = sha256(payload).hexdigest()
+    statement = (
+        StatementBuilder()
+        .subjects([Subject(name=subject_name, digest=DigestSet(root={"sha256": digest}))])
+        .predicate_type("https://szl-holdings.dev/attestations/governance-receipt/v1")
+        .predicate({
+            "dsse_payload_type": payload_type,
+            "payload_b64": base64.b64encode(payload).decode(),
+            "doctrine": "v11",
+        })
+        .build()
+    )
+
+    trust_config = ClientTrustConfig.production()
+    signing_ctx = SigningContext.from_trust_config(trust_config)
+    with signing_ctx.signer(identity) as signer:
+        bundle = signer.sign_dsse(statement)
+
+    bundle_json = json.loads(bundle.to_json())
+    dsse_part = bundle_json.get("dsseEnvelope", {})
+
+    # Rekor inclusion data lives in the bundle's verificationMaterial. Read it from
+    # the canonical JSON (camelCase, public) rather than a private SDK attribute,
+    # so the recorded log index / integrated time stay correct across SDK versions.
+    tlog_entries = (bundle_json.get("verificationMaterial", {}) or {}).get("tlogEntries", []) or []
+    tlog0 = tlog_entries[0] if tlog_entries else {}
+    rekor_log_index = tlog0.get("logIndex")
+    rekor_integrated_time = tlog0.get("integratedTime")
+
+    cert = bundle.signing_certificate
+    cert_fpr = sha256(cert.public_bytes(Encoding.DER)).hexdigest()
+
+    return {
+        "payloadType": dsse_part.get("payloadType"),
+        "payload": dsse_part.get("payload"),
+        "signatures": dsse_part.get("signatures", []),
+        "_mode": "SIGSTORE-KEYLESS",
+        "_note": (
+            "REAL Sigstore keyless DSSE signature (ephemeral Fulcio ECDSA-P256 cert "
+            "+ Rekor transparency entry). Verify with verify_dsse_real() or the "
+            "`sigstore` CLI. SLSA claim is unchanged (still L1)."
+        ),
+        "_szl": {
+            "dsse_payload_type": payload_type,
+            "payload_sha256": digest,
+            "subject": subject_name,
+        },
+        "_sigstore": {
+            "bundle": bundle_json,
+            "certificate_fpr_sha256": cert_fpr,
+            "rekor_log_index": rekor_log_index,
+            "rekor_integrated_time": rekor_integrated_time,
+            "oidc_issuer": _SIGSTORE_OIDC_ISSUER,
+        },
+    }
+
+
+def sign_dsse_or_placeholder(
+    payload: bytes,
+    payload_type: str = _DSSE_PAYLOAD_TYPE,
+    *,
+    subject_name: str = "szl-governance-receipt",
+    identity_token: Optional[str] = None,
+) -> dict:
+    """Real Sigstore keyless signature when CI can mint one; honest placeholder
+    otherwise.
+
+    This is the single entry point callers should use: it tries
+    dsse_envelope_real() and, on DsseSigningUnavailable (no SDK / no OIDC), falls
+    back to the dsse_envelope() PLACEHOLDER with a disclosed reason. The shape is
+    always a DSSE envelope; `_mode` is "SIGSTORE-KEYLESS" or "PLACEHOLDER".
+    """
+    try:
+        return dsse_envelope_real(
+            payload, payload_type, subject_name=subject_name,
+            identity_token=identity_token,
+        )
+    except DsseSigningUnavailable as exc:
+        env = dict(dsse_envelope(payload, signer=subject_name))
+        env["_mode"] = "PLACEHOLDER"
+        env["_note"] = (
+            "Honest PLACEHOLDER signature (NOT authenticated). Real Sigstore "
+            f"keyless signing unavailable here: {exc}"
+        )
+        return env
+
+
+def verify_dsse_real(
+    envelope: dict,
+    *,
+    identity: str,
+    issuer: str = _SIGSTORE_OIDC_ISSUER,
+) -> dict:
+    """Independently verify a dsse_envelope_real() envelope against Rekor.
+
+    Re-derives trust from the embedded Sigstore bundle: validates the Fulcio
+    certificate chain, the Rekor inclusion proof, and the DSSE signature, and
+    pins the signer identity (the GitHub Actions workflow SAN) + OIDC issuer.
+
+    `identity` is the expected certificate SAN, e.g.
+    "https://github.com/szl-holdings/a11oy/.github/workflows/dsse-receipts.yml@refs/heads/main".
+    Raises on any failure (never returns a false-positive).
+    """
+    sigstore_block = (envelope or {}).get("_sigstore") or {}
+    bundle_json = sigstore_block.get("bundle")
+    if not bundle_json:
+        raise ValueError("envelope has no _sigstore.bundle to verify (not a real signature)")
+    from sigstore.models import Bundle
+    from sigstore.verify import Verifier
+    from sigstore.verify.policy import Identity
+
+    bundle = Bundle.from_json(json.dumps(bundle_json))
+    verifier = Verifier.production()
+    policy = Identity(identity=identity, issuer=issuer)
+    payload_type, payload = verifier.verify_dsse(bundle, policy)
+    return {
+        "verified": True,
+        "payloadType": payload_type,
+        "payload_len": len(payload),
+        "rekor_log_index": sigstore_block.get("rekor_log_index"),
+        "certificate_fpr_sha256": sigstore_block.get("certificate_fpr_sha256"),
+    }
 
 
 # ===========================================================================
@@ -468,8 +763,13 @@ def css_ingress_verify(envelope: DSSE, css_root: bytes) -> bool:
     THEOREM: Calderbank-Shor (1996) Phys. Rev. A 54:1098; Steane (1996) PRL 77:793.
     PROOF-STATUS: PROVEN structure; root-prefix commitment is exact.
     """
-    payload_hex = envelope.get("payload", "")
-    commit = sha256(bytes.fromhex(payload_hex) if payload_hex else b"").digest()
+    # payload field is base64-encoded per DSSE spec (Tier A fix).
+    payload_b64 = envelope.get("payload", "")
+    try:
+        payload_bytes = base64.b64decode(payload_b64) if payload_b64 else b""
+    except Exception:
+        payload_bytes = b""
+    commit = sha256(payload_bytes).digest()
     # ingress accepts iff the commitment shares the css_root's leading 4 bytes
     return commit[:4] == css_root[:4]
 
@@ -562,6 +862,7 @@ REGISTRY = {
     "reidemeister_invariant": reidemeister_invariant,
     "khipu_merkle_root": khipu_merkle_root,
     "dsse_envelope": dsse_envelope,
+    "dsse_envelope_real": dsse_envelope_real,
     "gleason_quantum_lambda": gleason_quantum_lambda,
     "hoeffding_tail": hoeffding_tail,
     "pinsker_kl_bound": pinsker_kl_bound,
@@ -587,6 +888,7 @@ PROOF_STATUS = {
     "reidemeister_invariant": "AXIOM(r1/r2/audit_reidemeister_invariance)",
     "khipu_merkle_root": "PROVEN(TH11 SummationInvariant)",
     "dsse_envelope": "PROVEN(structure); signature PLACEHOLDER",
+    "dsse_envelope_real": "REAL(Sigstore keyless: Fulcio cert + Rekor); CI-only",
     "gleason_quantum_lambda": "AXIOM(gleason_length_mod_8)",
     "hoeffding_tail": "PROVEN(MomentSubGaussian)",
     "pinsker_kl_bound": "AXIOM(pinsker)",
@@ -861,13 +1163,13 @@ def verify_chain(chain: ReceiptChain, calls: List[FormulaCall]) -> bool:
     lam = lambda_aggregate(good_scalars) if good_scalars else 0.0
     return _approx(lam, chain["lambda_aggregate"])
 
-# =============================================================================
-# INN-HONEYCOMB: SLO Burn Rate Formula (Honeycomb-lift — high-cardinality SLO)
-# Lift #10/10 from LEADER_SCRAPE_60. Doctrine v11 LOCKED 749/14/163.
-# Signed-off-by: Yachay <yachay@szlholdings.ai>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-# =============================================================================
 
+
+
+# ---------------------------------------------------------------------------
+# Ported from killinchu (drift-heal union-merge, 2026-06-10): SLO budget burn-rate.
+# Kept so the shared canonical module is a true superset across both apps.
+# ---------------------------------------------------------------------------
 def slo_burn_rate(error_rate: float, window_seconds: int, budget_seconds: int) -> dict:
     """Honeycomb-lift: SLO budget burn rate (high-cardinality observability pattern).
     
