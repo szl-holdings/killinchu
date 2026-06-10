@@ -443,6 +443,49 @@ COPY killinchu_posture_topology.py ./killinchu_posture_topology.py
 # instead of the real allow/expose graph. Real allow rules only — no invented CVEs.
 COPY deploy/uds-package.yaml ./deploy/uds-package.yaml
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (SZL Enterprise Connector Framework, 2026-06-10, founder directive):
+# per-file COPY of the connector framework (this Dockerfile NEVER uses `COPY . .`).
+# serve.py imports szl_connectors_serve (try/except); without these COPYs the import
+# fails and /api/killinchu/connectors + /integrations 404. Shared byte-identical w/ a11oy.
+# Cache-bust: szl-connectors-2026-06-10
+COPY szl_connectors/__init__.py ./szl_connectors/__init__.py
+COPY szl_connectors/base.py ./szl_connectors/base.py
+COPY szl_connectors/bindings.py ./szl_connectors/bindings.py
+COPY szl_connectors/comms/__init__.py ./szl_connectors/comms/__init__.py
+COPY szl_connectors/comms/comms_connectors.py ./szl_connectors/comms/comms_connectors.py
+COPY szl_connectors/crm/__init__.py ./szl_connectors/crm/__init__.py
+COPY szl_connectors/crm/crm_connectors.py ./szl_connectors/crm/crm_connectors.py
+COPY szl_connectors/data_sources/__init__.py ./szl_connectors/data_sources/__init__.py
+COPY szl_connectors/data_sources/geo.py ./szl_connectors/data_sources/geo.py
+COPY szl_connectors/data_sources/macro.py ./szl_connectors/data_sources/macro.py
+COPY szl_connectors/data_sources/maritime_air.py ./szl_connectors/data_sources/maritime_air.py
+COPY szl_connectors/data_sources/research.py ./szl_connectors/data_sources/research.py
+COPY szl_connectors/data_sources/security.py ./szl_connectors/data_sources/security.py
+COPY szl_connectors/erp/__init__.py ./szl_connectors/erp/__init__.py
+COPY szl_connectors/erp/erpnext.py ./szl_connectors/erp/erpnext.py
+COPY szl_connectors/erp/odoo.py ./szl_connectors/erp/odoo.py
+COPY szl_connectors/erp/others.py ./szl_connectors/erp/others.py
+COPY szl_connectors/erp/sap_s4.py ./szl_connectors/erp/sap_s4.py
+COPY szl_connectors/governance.py ./szl_connectors/governance.py
+COPY szl_connectors/identity/__init__.py ./szl_connectors/identity/__init__.py
+COPY szl_connectors/identity/identity_connectors.py ./szl_connectors/identity/identity_connectors.py
+COPY szl_connectors/itsm/__init__.py ./szl_connectors/itsm/__init__.py
+COPY szl_connectors/itsm/itsm_connectors.py ./szl_connectors/itsm/itsm_connectors.py
+COPY szl_connectors/oauth.py ./szl_connectors/oauth.py
+COPY szl_connectors/observability/__init__.py ./szl_connectors/observability/__init__.py
+COPY szl_connectors/observability/observability_connectors.py ./szl_connectors/observability/observability_connectors.py
+COPY szl_connectors/ready.py ./szl_connectors/ready.py
+COPY szl_connectors/registry.py ./szl_connectors/registry.py
+COPY szl_connectors/storage/__init__.py ./szl_connectors/storage/__init__.py
+COPY szl_connectors/storage/storage_connectors.py ./szl_connectors/storage/storage_connectors.py
+COPY szl_connectors/warehouse/__init__.py ./szl_connectors/warehouse/__init__.py
+COPY szl_connectors/warehouse/warehouse_connectors.py ./szl_connectors/warehouse/warehouse_connectors.py
+COPY szl_connectors_serve.py ./szl_connectors_serve.py
+COPY szl_connector_mcp.py ./szl_connector_mcp.py
+COPY pages/integrations.html ./pages/integrations.html
+COPY serve.py ./serve.py
+
 CMD ["python", "serve.py"]
 
 
