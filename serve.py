@@ -2071,6 +2071,78 @@ except Exception as _elite_e:
 # ── end ELITE ────────────────────────────────────────────────────────────────
 
 # ===========================================================================
+# ADDITIVE (2026-06-10, Yachay + Perplexity Computer Agent): OPERATOR WIDGET.
+# The SAME floating governed-operator surface ("Chaski") consolidated onto a11oy
+# is mounted here on killinchu too, so /elite and every killinchu HTML surface
+# carries it. Byte-identical asset to a11oy (/vendor/a11oy-operator-widget.js),
+# self-hosted in-image (0 CDN). It auto-detects the killinchu origin and routes
+# reasoning/agent calls to the a11oy substrate (killinchu has no a11oy.code
+# orchestrator of its own) while reading the LOCAL killinchu v4 ledger. Honest
+# when unreachable. NO character codenames. Doctrine v11 LOCKED 749/14/163.
+# Lambda = Conjecture 1. ADDITIVE ONLY (one <script defer> before </body>).
+# ===========================================================================
+try:
+    from fastapi.responses import Response as _OPW_KC_Resp
+    from starlette.middleware.base import BaseHTTPMiddleware as _OPW_KC_Base
+    from starlette.responses import Response as _OPW_KC_SResp
+    _OPW_KC_VENDOR = Path("/app/static-vendor")
+    _OPW_KC_FILES = {
+        "a11oy-operator-widget.js": "application/javascript; charset=utf-8",
+        "a11oy-operator-widget.css": "text/css; charset=utf-8",
+    }
+
+    @app.get("/vendor/{fname}")
+    async def _opw_kc_vendor(fname: str):
+        ct = _OPW_KC_FILES.get(fname)
+        if ct is None:
+            return JSONResponse({"error": "vendor asset not allowlisted", "file": fname}, status_code=404)
+        f = _OPW_KC_VENDOR / fname
+        if not f.is_file():
+            return JSONResponse({"error": "vendor asset missing on disk", "file": fname}, status_code=404)
+        return _OPW_KC_Resp(content=f.read_bytes(), media_type=ct,
+                            headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+    _OPW_KC_TAG = b'<script src="/vendor/a11oy-operator-widget.js" data-surface="killinchu" defer></script>'
+    _OPW_KC_MARK = b'a11oy-operator-widget.js'
+
+    class _OperatorWidgetInjectorKC(_OPW_KC_Base):
+        async def dispatch(self, request, call_next):
+            resp = await call_next(request)
+            try:
+                ct = (resp.headers.get("content-type") or "").lower()
+                if "text/html" not in ct:
+                    return resp
+                p = request.url.path
+                if p.startswith("/vendor/") or p.startswith("/api/") or p.startswith("/assets/"):
+                    return resp
+                body = b""
+                async for chunk in resp.body_iterator:
+                    body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
+                if _OPW_KC_MARK in body:
+                    new_body = body
+                elif b"</body>" in body:
+                    new_body = body.replace(b"</body>", _OPW_KC_TAG + b"</body>", 1)
+                elif b"</html>" in body:
+                    new_body = body.replace(b"</html>", _OPW_KC_TAG + b"</html>", 1)
+                else:
+                    new_body = body + _OPW_KC_TAG
+                headers = dict(resp.headers)
+                headers.pop("content-length", None)
+                return _OPW_KC_SResp(content=new_body, status_code=resp.status_code,
+                                     headers=headers, media_type="text/html")
+            except Exception:
+                return resp
+
+    app.add_middleware(_OperatorWidgetInjectorKC)
+    print("[killinchu] OPERATOR WIDGET injector registered: /vendor/a11oy-operator-widget.js "
+          "appended to every served HTML surface (Chaski, 0 CDN, live-wired)", file=sys.stderr)
+except Exception as _opw_kc_e:  # never crash the app — additive only
+    import traceback as _opw_kc_tb
+    print(f"[killinchu] OPERATOR WIDGET injector NOT registered: {_opw_kc_e!r}", file=sys.stderr)
+    _opw_kc_tb.print_exc()
+# === end OPERATOR WIDGET (killinchu) ===
+
+# ===========================================================================
 # ADDITIVE: POSTURE & TOPOLOGY surface (DEV-WIRE-K R1). Real drift detectors
 # (PSI + KS via scipy.stats.ks_2samp, ~30-line vendored ADWIN) on live ADS-B
 # telemetry, real graph metrics (clustering / centrality / Fiedler lambda2 /
