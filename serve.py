@@ -122,6 +122,20 @@ try:
 except Exception as _szl_rd_e:  # pragma: no cover
     print(f"[killinchu] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
 
+# ── Research & Sources layer (research-sources-patch, Task #662) — every /elite
+# tab gains a panel of vetted REAL upstream sources (UDS/Zarf/Pepr repos,
+# supply-chain standards, threat feeds, domain feeds, Lean/proof refs, per-subject
+# arXiv literature). Static list never claims reachability; /research/{tab}/live
+# probes each URL (HEAD->GET, cached) for an honest live/unreachable verdict.
+# NO fabricated sources; fix-before-cite feeds omitted. Additive, try/except-guarded,
+# registered EARLY (before the SPA catch-all). Pure stdlib.
+try:
+    import killinchu_research_sources as _kc_research
+    _kc_research.register(app, ns="killinchu")
+    print("[killinchu] Research & Sources registered: /api/killinchu/v1/research", file=__import__("sys").stderr)
+except Exception as _kc_rs_e:  # pragma: no cover
+    print(f"[killinchu] Research & Sources NOT registered: {_kc_rs_e!r}", file=__import__("sys").stderr)
+
 # ── Contracting Readiness layer (contracting-tab-patch) — SAM/CAGE + SBIR/STTR
 # federal-contracting posture grounded in real web-sourced eligibility criteria
 # (each line carries a source URL + retrieval date, probed live for reachability)

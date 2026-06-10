@@ -105,6 +105,13 @@ COPY szl_evidence_research.py ./szl_evidence_research.py
 # fails and /api/killinchu/v1/readiness 404s (falls through to the SPA shell).
 ARG READINESS_FIX_BUST=1
 COPY szl_readiness.py ./szl_readiness.py
+# Research & Sources backend (Task #662, research-sources-patch) — per-tab vetted
+# REAL upstream sources (UDS/Zarf/Pepr, supply-chain standards, threat/domain feeds,
+# Lean/proof refs, per-subject arXiv) with an honest live reachability probe. serve.py
+# imports this try/except-guarded; without this per-file COPY the import fails and
+# /api/killinchu/v1/research 404s (falls through to the SPA shell).
+ARG RESEARCH_SOURCES_BUST=1
+COPY killinchu_research_sources.py ./killinchu_research_sources.py
 # Contracting Readiness backend (SAM/CAGE + SBIR/STTR eligibility, web-sourced,
 # honest verified/confirmed/needs_founder_input/needs_founder_action labels, source
 # liveness probes, 0 fabricated org values). serve.py imports this try/except-guarded;

@@ -1446,7 +1446,7 @@ window.subview=function(surfaceKey, viewKey){
   // K6: defer the sub-view render one frame so the freshly-inserted inner div has layout before
   // any chart/Konva/3D draw measures it — removes the flaky first-click empty-board/empty-tile race.
   var _innerId='sub-inner-'+surfaceKey;
-  requestAnimationFrame(function(){ var inner=el(_innerId); if(!inner) return; try{ v.render(inner); }catch(e){ try{ inner.innerHTML='<div class="row mono dim">render: '+esc(e&&e.message||e)+'</div>'; }catch(_){} } });
+  requestAnimationFrame(function(){ var inner=el(_innerId); if(!inner) return; try{ v.render(inner); }catch(e){ try{ inner.innerHTML='<div class="row mono dim">render: '+esc(e&&e.message||e)+'</div>'; }catch(_){} } try{ window.__renderResearch&&window.__renderResearch(inner, viewKey); }catch(_r){} });
   try{ setTimeout(function(){ _scheduleRefit&&_scheduleRefit(); },140); setTimeout(function(){ _scheduleRefit&&_scheduleRefit(); },680); }catch(e){}
 };
 /* build a consolidated surface: a sub-view tab strip + sub-body. default = first sub. */
@@ -1478,6 +1478,56 @@ window._autoPoll=function(label, gateId, fn){
 };
 /* small "auto-recording" pill an auto-polled tab can drop in its header */
 window.autoPill=function(gateId){ return '<span class="badge b-live" style="font-size:9.5px">'+(window.liveDot?window.liveDot():'')+'AUTO-RECORDING <span id="poll-ts-'+esc(gateId)+'" class="mono dim" style="margin-left:5px">live</span></span>'; };
+
+/* ── Research & Sources panel (research-sources-patch, Task #662) — every tab gains
+   vetted REAL upstream sources (UDS/Zarf/Pepr repos, supply-chain standards, threat &
+   domain feeds, Lean/proof refs, per-subject arXiv) with an HONEST live reachability
+   probe. One-shot fetches (no setInterval), idempotent, nav-away guarded. Backed by
+   /api/killinchu/v1/research/{tab} (+ /live). ── */
+window.__renderResearch=function(container, tabKey){
+  try{
+    if(!container||!tabKey) return;
+    if(container.querySelector&&container.querySelector('.research-sources-panel')) return; // idempotent
+    var rsEsc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+    var panel=document.createElement('div');
+    panel.className='research-sources-panel';
+    panel.style.cssText='margin-top:1.4rem;border-top:1px solid var(--gold-line,#3a3320);padding-top:.9rem';
+    var rid='rs-'+String(tabKey).replace(/[^a-z0-9_]/gi,'')+'-'+Math.random().toString(36).slice(2,7);
+    panel.innerHTML='<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem">'
+      +'<span style="font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--gold,#d8b25a)">RESEARCH &amp; SOURCES</span>'
+      +'<span class="mono dim" style="font-size:10px">vetted upstream · honest live probe</span>'
+      +'<span id="'+rid+'-st" class="mono dim" style="font-size:10px;margin-left:auto">checking…</span></div>'
+      +'<div id="'+rid+'-body" class="mono" style="font-size:11px;line-height:1.5;opacity:.9">loading sources…</div>';
+    container.appendChild(panel);
+    var kindColor={arxiv:'#7fb2ff',repo:'#9d8cff',docs:'#6fcf97',standard:'#f2c94c',feed:'#56ccf2',knowledge:'#bb6bd9'};
+    fetch('/api/killinchu/v1/research/'+encodeURIComponent(tabKey)).then(function(r){return r.json();}).then(function(j){
+      var body=document.getElementById(rid+'-body'); if(!body) return;
+      var srcs=(j&&j.sources)||[];
+      if(!srcs.length){ body.innerHTML='<span class="dim">no sources mapped</span>'; return; }
+      body.innerHTML=srcs.map(function(s){
+        var col=kindColor[s.kind]||'#888';
+        return '<div data-sid="'+rsEsc(s.id)+'" style="margin:.28rem 0;display:flex;gap:.5rem;align-items:flex-start">'
+          +'<span class="rs-dot" title="probing…" style="flex:none;width:7px;height:7px;border-radius:50%;background:#666;margin-top:5px"></span>'
+          +'<span style="flex:none;font-size:9px;text-transform:uppercase;color:'+col+';border:1px solid '+col+'55;border-radius:3px;padding:0 4px;margin-top:1px">'+rsEsc(s.kind)+'</span>'
+          +'<span style="flex:1"><a href="'+rsEsc(s.url)+'" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline">'+rsEsc(s.title)+'</a>'
+          +'<span class="dim" style="display:block;font-size:10px;opacity:.7">'+rsEsc(s.note||'')+'</span></span></div>';
+      }).join('');
+      var stat=document.getElementById(rid+'-st');
+      fetch('/api/killinchu/v1/research/'+encodeURIComponent(tabKey)+'/live').then(function(r){return r.json();}).then(function(lj){
+        if(!document.getElementById(rid+'-body')) return; // nav-away guard
+        var m={}; ((lj&&lj.sources)||[]).forEach(function(s){m[s.id]=s;});
+        var rows=body.querySelectorAll('[data-sid]');
+        for(var i=0;i<rows.length;i++){
+          var s=m[rows[i].getAttribute('data-sid')]; if(!s) continue;
+          var dot=rows[i].querySelector('.rs-dot'); if(!dot) continue;
+          dot.style.background=s.reachable?'#27ae60':'#eb5757';
+          dot.title=(s.reachable?'LIVE':'UNREACHABLE')+' · HTTP '+(s.http_status||0)+' · '+(s.checked_at||'');
+        }
+        if(stat&&lj&&lj.summary){ stat.textContent=lj.summary.live+'/'+lj.summary.total+' live · probed '+new Date().toLocaleTimeString(); }
+      }).catch(function(){ var st=document.getElementById(rid+'-st'); if(st) st.textContent='probe unavailable'; });
+    }).catch(function(e){ var body=document.getElementById(rid+'-body'); if(body) body.innerHTML='<span class="dim">sources unavailable: '+rsEsc(e&&e.message||e)+'</span>'; });
+  }catch(e){}
+};
 
 
 /* ===== OSINT (amaru ingest + rosie orchestration) — Forge / Task #386 ===== */
@@ -7716,6 +7766,7 @@ function go(view){
   const c = el('content');
   c.innerHTML=`<div class="view-head"><h1 class="view-title">${esc(v.title)}</h1><span class="view-badge">${esc(v.badge)}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
   v.render(el('vbody'));
+  try{ window.__renderResearch&&window.__renderResearch(el('vbody'), view); }catch(_r){}
   if(history.replaceState) history.replaceState(null,'','#'+view);
   if(window.innerWidth<=820) toggleSide(false);
   // re-fit any viz the view just mounted to its clamp()'d container (centered, in-frame)
