@@ -386,6 +386,15 @@ COPY szl_alloy_models.py ./szl_alloy_models.py
 # COPY (this Dockerfile never uses `COPY . .`).
 COPY a11oy_agent_loop.py ./a11oy_agent_loop.py
 COPY a11oy_org_rag.py ./a11oy_org_rag.py
+# EGRESS FIX (2026-06-10): the org-RAG full build runs INSIDE this HF Space,
+# which can reach huggingface.co but NOT api.github.com (Space egress is
+# GitHub-blocked). Bundle the REAL highest-value files of the four GitHub-only
+# corpus categories (thesis/formulas/doctrine/lean) in-image so a11oy_org_rag.py
+# ingests them when GitHub is unreachable. corpus/INDEX.json records each file's
+# real origin repo+path+blob_sha+commit_sha; chunks cite bundled:<repo>@<sha>:<path>
+# (real files, honest provenance, NOT fabricated). BYTE-IDENTICAL across a11oy &
+# killinchu. Per-file/dir COPY (this Dockerfile does not use COPY . .).
+COPY corpus/ ./corpus/
 COPY a11oy_mcp_client.py ./a11oy_mcp_client.py
 # ADDITIVE (MINED ops upgrades, 2026-06-07): four license-vetted operational/efficiency
 # surfaces (pattern-mined clean-room WITH NOTICE: al-jshen/compute MIT, gpu-bartender MIT,
