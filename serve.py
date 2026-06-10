@@ -2107,6 +2107,19 @@ try:
 
     class _OperatorWidgetInjectorKC(_OPW_KC_Base):
         async def dispatch(self, request, call_next):
+            # Serve the vendored widget asset DIRECTLY from the middleware so it
+            # can never be shadowed by a SPA catch-all / inserted route. The
+            # middleware runs before routing, so this is the most robust path.
+            _wp = request.url.path
+            if _wp in ("/vendor/a11oy-operator-widget.js", "/vendor/a11oy-operator-widget.css"):
+                _fn = _wp.rsplit("/", 1)[-1]
+                _ct = _OPW_KC_FILES.get(_fn)
+                _f = _OPW_KC_VENDOR / _fn
+                if _ct and _f.is_file():
+                    return _OPW_KC_Resp(content=_f.read_bytes(), media_type=_ct,
+                                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+                return _OPW_KC_Resp(content=b'/* operator widget asset missing on disk */',
+                                    media_type="application/javascript; charset=utf-8", status_code=404)
             resp = await call_next(request)
             try:
                 ct = (resp.headers.get("content-type") or "").lower()
