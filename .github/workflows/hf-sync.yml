@@ -15,8 +15,9 @@ name: Sync to HuggingFace Space
 #   * App-file mirror (mirror-app job) — fires ONLY on pushes that touch the
 #     deployed app files listed in the APP_FILES env below (serve.py, Dockerfile,
 #     and the route modules). A README-only push no longer re-pushes app code or
-#     forces a no-op Space commit. PARENT must factory-rebuild the Space after
-#     this job runs. Idempotent: identical content is a no-op.
+#     forces a no-op Space commit. After mirroring, this job triggers a
+#     HuggingFace factory rebuild via the HF API so the new code actually goes
+#     live with no manual step. Idempotent: identical content is a no-op.
 #
 # A lightweight detect job computes which file groups changed (git diff, no
 # third-party actions — org policy allows only github-owned/verified actions)
@@ -218,8 +219,9 @@ jobs:
   # job mirrors the deployed app files (env.APP_FILES: serve.py, Dockerfile, and
   # the route modules) from canonical GitHub main to the Space so the Space code
   # never drifts behind GitHub. It runs ONLY when those files actually change.
-  # Idempotent: identical content is a no-op. PARENT must factory-rebuild the
-  # Space after this job runs.
+  # Idempotent: identical content is a no-op. After mirroring it triggers a
+  # HuggingFace factory rebuild (api.restart_space factory_reboot=True) so the
+  # mirrored code actually goes live with no manual step.
   mirror-app:
     needs: detect
     if: needs.detect.outputs.app == 'true'
@@ -247,22 +249,51 @@ jobs:
           fi
           python3 <<'PYEOF'
           import os
-          from huggingface_hub import HfApi, CommitOperationAdd
+          from huggingface_hub import HfApi, CommitOperationAdd, hf_hub_download
 
-          api = HfApi(token=os.environ["HF_TOKEN"])
+          token = os.environ["HF_TOKEN"]
+          api = HfApi(token=token)
           space = os.environ["SPACE_ID"]
           files = os.environ["APP_FILES"].split()
           if not files:
               raise SystemExit("::error::APP_FILES is empty — nothing to mirror.")
+
+          # Only queue files that actually differ from the Space so an unchanged
+          # mirror does not trigger a needless factory rebuild.
           ops = []
           for f in files:
               with open(f, "rb") as fh:
-                  ops.append(CommitOperationAdd(path_in_repo=f, path_or_fileobj=fh.read()))
+                  new = fh.read()
+              old = None
+              try:
+                  p = hf_hub_download(repo_id=space, repo_type="space",
+                                      filename=f, token=token)
+                  with open(p, "rb") as ofh:
+                      old = ofh.read()
+              except Exception as e:
+                  print("::warning::Could not fetch current Space file %s (treating as new): %s"
+                        % (f, repr(e)[:120]))
+              if old is not None and old == new:
+                  print("Unchanged on Space, skipping:", f)
+                  continue
+              ops.append(CommitOperationAdd(path_in_repo=f, path_or_fileobj=new))
               print("Queued:", f)
+
+          if not ops:
+              print("All app files already byte-identical on the Space; no commit and no factory rebuild needed.")
+              raise SystemExit(0)
+
           commit = api.create_commit(
               repo_id=space, repo_type="space", operations=ops,
               commit_message="chore: mirror app files (serve.py + Dockerfile + route modules) from GitHub main",
-              commit_description="Keeps Space app code in lockstep with canonical GitHub main. Factory-rebuild after this commit.",
+              commit_description="Keeps Space app code in lockstep with canonical GitHub main; triggers a factory rebuild so the mirrored code goes live.",
           )
           print("HF commit:", commit.oid, "->", space)
+
+          # A Space commit lands the new files but does NOT rebuild the running
+          # Docker container, so the mirrored code would not actually serve until
+          # someone manually triggered a factory rebuild. Trigger it here so the
+          # automation has no manual last step.
+          api.restart_space(repo_id=space, factory_reboot=True)
+          print("Triggered HuggingFace factory rebuild for", space)
           PYEOF
