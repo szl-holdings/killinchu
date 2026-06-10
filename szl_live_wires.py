@@ -24,7 +24,7 @@ brain-jack receipts. Empty buffer ⇒ idle wire (no pulse). NO mocks, NO fabrica
 Signatures are honestly labelled PLACEHOLDER until Sigstore CI is wired.
 """
 from __future__ import annotations
-import json, time, hashlib, os
+import json, time, hashlib, os, asyncio
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -339,7 +339,7 @@ def register(app, ns: str) -> None:
                        json.dumps({"schema": "szl.wire_heartbeat/v1", "ns": ns,
                                    "wires": {k: round(v, 3) for k, v in _EMA.items()},
                                    "ts": _now()}) + "\n\n")
-            time.sleep(0.5)
+            await asyncio.sleep(0.5)
 
     @app.get(f"/api/{ns}/v1/wires/stream")
     async def _wires_stream():  # noqa
