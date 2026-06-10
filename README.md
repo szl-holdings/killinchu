@@ -37,7 +37,7 @@ ecosystem-stage: "operational"
 [![Khipu Conjecture 2](https://img.shields.io/badge/Khipu%20BFT-Conjecture%202%20(Wave23%20conditional)-B79BD6?style=flat-square)](https://github.com/szl-holdings/khipu-consensus)
 
 **LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
-**Proof posture (two-tier):** 5 locked-proven `{F1, F11, F12, F18, F19}` + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · ~1323 decls / 22 unique axioms — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1**; Byzantine BFT safety is **Khipu Conjecture 2 (open)**. Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
+**Proof posture (two-tier):** 8 locked-proven `{F1, F4, F7, F11, F12, F18, F19, F22}` + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · ~1323 decls / 22 unique axioms — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1**; Byzantine BFT safety is **Khipu Conjecture 2 (open)**. Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
 [Live demo](#live) · [What it does](#what-it-does) · [Quickstart](#quickstart) · [Verify](#verify-it-yourself) · [Cookbook](#try-the-cookbook) · [Architecture](#architecture) · [API surface](#api-surface) · [Parity vs. leaders](#parity-vs-leaders) · [Why vs Anduril](#why-killinchu-vs-anduril-lattice) · [Honest status](#honest-status) · [Cite](#citation)
 
@@ -267,7 +267,7 @@ Five pillars, each mapped to a component SZL runs in production with an honest p
 - **Semantic Quorum Assurance** — Khipu BFT quorum + Wave23 conditional safety theorem (`khipu_quorum_safety_conditional`, agreement under non-equivocation). *Conditional theorem; unconditional Byzantine safety = Conjecture 2 (open).*
 - **Epistemic State Replication** — YAWAR append-only receipt bus + deterministic replay + Verifiable Semantic Rollback. *Receipts/replay live; full ESR semantics = open R&D (roadmap).*
 
-**Honest posture:** locked-proven = exactly 5 {F1, F11, F12, F18, F19}; Λ (trust score) = **Conjecture 1** (unconditional uniqueness machine-checked false; conditional uniqueness holds); Semantic Quorum Assurance safety = Wave23 **conditional** (unconditional = Conjecture 2); full Epistemic State Replication = **open R&D**.
+**Honest posture:** locked-proven = exactly 8 {F1, F4, F7, F11, F12, F18, F19, F22}; Λ (trust score) = **Conjecture 1** (unconditional uniqueness machine-checked false; conditional uniqueness holds); Semantic Quorum Assurance safety = Wave23 **conditional** (unconditional = Conjecture 2); full Epistemic State Replication = **open R&D**.
 
 **Foundation — SZL's own prior art only (no external citation):** *The Loop Is the Product* v1/v2 ([Zenodo 19867281](https://doi.org/10.5281/zenodo.19867281), [19934129](https://doi.org/10.5281/zenodo.19934129)), *Lineage-Aware RAG / Prisca-GraphRAG v5* ([20020846](https://doi.org/10.5281/zenodo.20020846)), *Sealed Constitutional Guardrails v6* ([20020845](https://doi.org/10.5281/zenodo.20020845)), *The Lutar Omega Formalism v4* ([20020841](https://doi.org/10.5281/zenodo.20020841)), *SZL Doctrine v2 — 9 Canonical Axes* ([20174600](https://doi.org/10.5281/zenodo.20174600)) — all Stephen P. Lutar, ORCID 0009-0001-0110-4173.
 
@@ -293,7 +293,7 @@ See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platfo
 | Real protocol decoders | ✅ — ASTM F3411-22a / pyModeS / pymavlink (no mocks) |
 | Spoofing vulnerability | ⚠️ **Explicit** — broadcast protocols are unauthenticated; every field is a claim, not ground truth |
 | Lean 749/14/163 @ `c7c0ba17` | ✅ |
-| Locked-proven PURIQ formulas | ✅ Exactly **5** — F1, F11, F12, F18, F19 (Lean 4, depend on **no** axioms; machine-enforced `locked_count_five`) |
+| Locked-proven PURIQ formulas | ✅ Exactly **8** — F1, F4, F7, F11, F12, F18, F19, F22 (Lean 4; the count is the no-axiom theorem `locked_count_eight`; F4 Khipu DAG acyclicity, F7 Chaski FIFO ordering, F22 Khipu emit append-only monotonicity newly proven) |
 | Experimental theorems (main `@c7c0ba17`) | ✅ CI-green, **~185 machine-checked theorems** across **Waves 11–22** (+ agentic P1–P6 + coder; all `#print axioms ⊆ {propext, Classical.choice, Quot.sound}`). **NOT** in the locked count. Wave 11 CF-1/2/3/5; Wave 12 CUT-2 + CF-13 + CF-17; Wave 13 replay-root + single-valued NON-Byzantine vote (BFT safety stays Conjecture 2) + HM-bottleneck; Waves 14–22 incl. CF-18/19/20/21 (CF-19 RS-MDS lower bound only). Λ-uniqueness CONDITIONAL on separability (CUT-2, axiom-free); unconditional = Conjecture 1. Khipu BFT safety = Conjecture 2. Key: M2 tamper-evidence. |
 | Λ-uniqueness | ⚠️ **Conjecture 1** — never a theorem |
 | SLSA L3 | ❌ Not claimed |
@@ -409,6 +409,6 @@ We are a precision substrate, not a vibes company.
 
 > Not affiliated with Defense Unicorns. SZL mark USPTO Serial 99831122. No production ATO claimed.
 
-<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA L1 honest · L2 build-attested (container provenance, Sigstore keyless) · L3 / FedRAMP / Iron Bank / CMMC / ATO roadmap · 5 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Khipu Conjecture 2 open · Apache-2.0</sub>
+<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA L1 honest · L2 build-attested (container provenance, Sigstore keyless) · L3 / FedRAMP / Iron Bank / CMMC / ATO roadmap · 8 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Khipu Conjecture 2 open · Apache-2.0</sub>
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
