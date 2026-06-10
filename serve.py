@@ -635,7 +635,7 @@ async def healthz() -> JSONResponse:
         "base_path": "/",
         "doctrine": DOCTRINE,
         "declarations": 749,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "axioms": 14,
         "axioms_raw": 15,
         "sorries": 163,
@@ -645,7 +645,7 @@ async def healthz() -> JSONResponse:
         "slsa": "L1 (honest; L2 in roadmap via Wire D)",
         "receipt_signature": "REAL — ECDSA-P256-SHA256 DSSE; live at /khipu/sign + /api/killinchu/khipu/sign (Wire D shipped)",
         "signing_available": True,
-        "numbers": {"declarations": 749, "axioms": 14, "sorries": 163, "putnam_sorries": 51, "baseline_sorries": 112, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
+        "numbers": {"declarations": 749, "axioms": 14, "sorries": 163, "putnam_sorries": 51, "baseline_sorries": 112, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "drones_in_database": len(_DRONES),
         "khipu_root": _khipu_root(),
         "khipu_nodes": len(_KHIPU_DAG),
@@ -677,7 +677,7 @@ async def honest() -> JSONResponse:
         "space": "killinchu",
         "doctrine": DOCTRINE,
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "trust_axes": 13,
         "lambda_status": "Conjecture 1 (OPEN) — NOT a theorem unconditionally (open CAUCHY_ND sorry + missing symmetry axiom); conditional uniqueness = Theorem U (U₁/U₂) modulo Decidable ≈Λ",
@@ -1102,7 +1102,7 @@ async def lambda_axes(request: Request) -> JSONResponse:
         "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
         "uniqueness": "Conjecture 1 (OPEN), not a Theorem unconditionally (open CAUCHY_ND sorry + missing symmetry axiom); conditional uniqueness = Theorem U (TheoremU_LambdaUnique, corollaries U₁/U₂) modulo the kernel Decidable ≈Λ relation (instDecidableLambdaEquiv), strict = only under the Anchored/Normalized gauge",
         "declarations": 749,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "axioms_unique": 14,
         "sorries_total": 163,
         "kernel_commit": "c7c0ba17",
@@ -1257,7 +1257,7 @@ async def vessels_healthz_alias() -> JSONResponse:
         "redirect": KILLINCHU_REDIRECT,
         "killinchu_healthz": "/api/killinchu/healthz",
         "declarations": 749, "axioms": 14, "sorries": 163, "hatun_willay": True,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
     })
 
 
@@ -1910,7 +1910,7 @@ async def _kc_pr_brain_route():
     return JSONResponse({
         "space": "killinchu", "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "role": "Drone Intelligence / sovereign sensing",
         "lambda_floor": 0.90,
         "honesty": "szl_brain unavailable in this build; honest stub returned.",
@@ -1948,7 +1948,7 @@ async def _kc_pr_mesh_state():
         "mesh_organs": ["a11oy", "amaru", "sentra", "killinchu", "rosie"],
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "honesty": "szl_wire unavailable; honest stub mesh state returned.",
     }))
 
@@ -1970,7 +1970,7 @@ async def killinchu_api_health() -> JSONResponse:
         "counts": "749/14/163",
         "counts_experimental": "1304/22",
         "lean_sha": "c7c0ba17",
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
         "slsa": "L1 (honest)",
         "section_889": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
@@ -2266,7 +2266,7 @@ async def killinchu_doctrine_v3():
     return _JR({
         "flagship": "killinchu", "doctrine": "v11", "kernel_commit": "c7c0ba17",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 (honest)",
         "role": "C-UAS / Andean drone classification",
         "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
@@ -2838,7 +2838,7 @@ async def killinchu_doctrine_inline():
     return JSONResponse({
         "flagship": "killinchu", "doctrine": "v11", "kernel_commit": "c7c0ba17",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 (honest)",
         "role": "C-UAS / Andean drone classification",
         "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
