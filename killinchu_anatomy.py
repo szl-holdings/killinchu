@@ -17,7 +17,7 @@
 #
 # Quechua organ names KEPT (architectural IP) + plain-English function paired.
 # Vendor/model codenames ("Rosie"-type) DROPPED. Honesty labels intact:
-# locked_proven = 5; Λ = Conjecture 1 (unconditional FALSE); SLSA L1 honest.
+# locked_proven = 8 (locked_count_eight: F1,F4,F7,F11,F12,F18,F19,F22); Λ = Conjecture 1 (unconditional FALSE); SLSA L1 honest.
 # Real signing reuses szl_dsse cosign ECDSA-P256-SHA256 when the key is present;
 # otherwise an HONEST unsigned placeholder (no fabricated signature).
 #
@@ -276,7 +276,7 @@ def run_organism_pipeline(proposal: dict, tamper: bool = False) -> dict:
         "score_vector": [{"axis": v["axis"], "score": v["score"], "pass": v["pass"]}
                          for v in yuyay["score_vector"]],
         "lambda": "Conjecture 1 (NOT a theorem; unconditional uniqueness FALSE)",
-        "locked_proven": 5, "doctrine": "v11",
+        "locked_proven": 8, "doctrine": "v11",
     }
 
     # RUWAY + CHAPAQ -> YAWAR commit (only ceremonial writer)
@@ -340,7 +340,7 @@ def run_organism_pipeline(proposal: dict, tamper: bool = False) -> dict:
         "decision": decision, "yuyay_pass": yuyay["pass"],
         "signed_receipt": signed, "verify": verify, "tamper": tamper_result,
         "spans": spans, "yawar_bus_len": len(_YAWAR),
-        "honesty": {"locked_proven": 5, "lambda": "Conjecture 1 (unconditional FALSE)",
+        "honesty": {"locked_proven": 8, "lambda": "Conjecture 1 (unconditional FALSE)",
                     "slsa": "L1 honest / L2 roadmap"},
     }
     _RUN_INDEX[run_id] = record
@@ -368,7 +368,7 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
                 {"organ": "HATUN", "system": "SOVEREIGN", "fn": "orchestrator + seal to a HUMAN principal"},
                 {"organ": "NERVOUS (OTel/VSP)", "system": "NERVES", "fn": "W3C TraceContext span lineage; deadman reflex arc"},
             ],
-            "lambda": "Conjecture 1 (NOT a theorem; unconditional FALSE)", "locked_proven": 5,
+            "lambda": "Conjecture 1 (NOT a theorem; unconditional FALSE)", "locked_proven": 8,
             "doctrine": "v11", "source": "ANATOMY_DOCTRINE.md (CC-BY-4.0, ORCID 0009-0001-0110-4173)",
         })
 
