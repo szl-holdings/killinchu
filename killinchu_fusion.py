@@ -165,18 +165,19 @@ LAMBDA_FLOOR = float(os.environ.get("KILLINCHU_LAMBDA_FLOOR", "0.90"))
 # Every GOVERNED decision in a UDS mission chain is backed by a named Lutar-Lean
 # theorem / conjecture, carried with an HONEST maturity label. The maturity
 # vocabulary is fixed and NEVER inflated:
-#   "locked"      — one of the EXACTLY 5 locked-proven formulas {F1,F11,F12,F18,F19}
+#   "locked"      — one of the EXACTLY 8 locked-proven formulas {F1,F4,F7,F11,F12,F18,F19,F22}
 #                   at kernel SHA c7c0ba17 (axiom-clean under #print axioms).
 #   "conditional" — proven under an explicit hypothesis (e.g. CUT-1/CUT-2, CF-22
-#                   on the simplex); CI-green experimental, NOT folded into locked-5.
+#                   on the simplex); CI-green experimental, NOT folded into locked-8.
 #   "conjecture"  — stated, NOT a theorem. Λ = Conjecture 1 (machine-checked FALSE
 #                   as an unconditional in-tree axiom). Byzantine BFT = Conjecture 2
 #                   (OPEN). These are NEVER asserted as proven.
-# Kernel SHAs: locked-5 live at c7c0ba17 (the locked kernel); experimental-tier
+# Kernel SHAs: locked-8 live at c7c0ba17 (the locked kernel); experimental-tier
 # theorems live on main 044eb098. We cite the correct SHA per maturity tier.
-LOCKED_KERNEL_SHA = "c7c0ba17"          # the 5 locked-proven formulas live here
+LOCKED_KERNEL_SHA = "c7c0ba17"          # the 8 locked-proven formulas live here
 EXPERIMENTAL_KERNEL_SHA = "044eb098"    # main; CI-green experimental tier
-LOCKED_FIVE = ("F1", "F11", "F12", "F18", "F19")  # EXACTLY 5 — never inflate
+LOCKED_FIVE = ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22")  # EXACTLY 8 — never inflate (PR#219 merged 2026-06-10, theorem locked_count_eight no-axiom). Name kept for back-compat; canonical locked set.
+LOCKED_EIGHT = LOCKED_FIVE  # canonical alias
 
 # decision-class -> theorem_ref. Maturity is honest per the doctrine above.
 THEOREM_REGISTRY: dict[str, dict[str, Any]] = {
@@ -209,24 +210,24 @@ THEOREM_REGISTRY: dict[str, dict[str, Any]] = {
         "kernel_sha": EXPERIMENTAL_KERNEL_SHA,
         "honest_note": ("KL>=0 PROVEN conditionally ON the simplex (CF-22). The "
                         "unconditional in-tree DPO axiom klDivergence_nonneg stays "
-                        "FALSE-as-stated. Experimental CI-green, NOT in locked-5."),
+                        "FALSE-as-stated. Experimental CI-green, NOT in locked-8."),
     },
     "pinsker": {
         "theorem": "CF-23 (binary Pinsker inequality)",
         "lean": "Lutar/Wave17/BinaryPinsker.lean::binary_pinsker",
         "maturity": "conditional",
         "kernel_sha": EXPERIMENTAL_KERNEL_SHA,
-        "honest_note": "Full binary Pinsker PROVEN (CF-23), experimental CI-green — NOT in locked-5.",
+        "honest_note": "Full binary Pinsker PROVEN (CF-23), experimental CI-green — NOT in locked-8.",
     },
     # The Orchestrator (a11oy ThresholdPolicySeverity) decision maps to one of the
-    # locked-5 governance formulas (F12, the threshold-policy lemma) at c7c0ba17.
+    # locked-8 governance formulas (F12, the threshold-policy lemma) at c7c0ba17.
     "threshold_policy": {
         "theorem": "F12 (ThresholdPolicySeverity admissibility) — locked",
         "lean": "Lutar/Locked/F12.lean::threshold_policy_severity_admissible",
         "maturity": "locked",
         "kernel_sha": LOCKED_KERNEL_SHA,
-        "honest_note": ("F12 is one of the EXACTLY 5 locked-proven formulas "
-                        "{F1,F11,F12,F18,F19} at " + LOCKED_KERNEL_SHA + ", axiom-clean."),
+        "honest_note": ("F12 is one of the EXACTLY 8 locked-proven formulas "
+                        "{F1,F4,F7,F11,F12,F18,F19,F22} at " + LOCKED_KERNEL_SHA + ", axiom-clean."),
     },
 }
 
@@ -252,7 +253,7 @@ def _theorem_ref(decision_class: str) -> dict[str, Any]:
 
 def _lake_receipt(decision_classes: list[str]) -> dict[str, Any]:
     """Build the lake_receipt: which kernel SHA each cited theorem lives at, plus
-    the honest #print-axioms-clean assertion. locked-5 = EXACTLY 5 @ c7c0ba17;
+    the honest #print-axioms-clean assertion. locked-8 = EXACTLY 8 @ c7c0ba17;
     experimental tier on main 044eb098. No claim is inflated."""
     cited = []
     for dc in decision_classes:
@@ -262,7 +263,7 @@ def _lake_receipt(decision_classes: list[str]) -> dict[str, Any]:
         cited.append({
             "decision_class": dc, "theorem": t["theorem"],
             "maturity": t["maturity"], "kernel_sha": t["kernel_sha"],
-            # #print axioms is clean ONLY for the locked-5 (axiom-free). Experimental
+            # #print axioms is clean ONLY for the locked-8 (axiom-free). Experimental
             # theorems are CI-green but we do NOT claim axiom-clean for them.
             "axioms_clean": (t["maturity"] == "locked"),
         })
@@ -270,12 +271,12 @@ def _lake_receipt(decision_classes: list[str]) -> dict[str, Any]:
         "locked_kernel_sha": LOCKED_KERNEL_SHA,
         "experimental_kernel_sha": EXPERIMENTAL_KERNEL_SHA,
         "locked_proven_formulas": list(LOCKED_FIVE),
-        "locked_proven_count": len(LOCKED_FIVE),  # EXACTLY 5 — never inflate
+        "locked_proven_count": len(LOCKED_FIVE),  # EXACTLY 8 — never inflate
         "print_axioms_assertion": (
-            "#print axioms over the locked-5 {F1,F11,F12,F18,F19} @ " + LOCKED_KERNEL_SHA +
+            "#print axioms over the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} @ " + LOCKED_KERNEL_SHA +
             " reports NO sorryAx / NO extra axioms (axiom-clean). Experimental-tier "
             "theorems (CF-22/CF-23/CUT-2) on main " + EXPERIMENTAL_KERNEL_SHA +
-            " are CI-green but NOT folded into the locked-5 and NOT asserted axiom-clean. "
+            " are CI-green but NOT folded into the locked-8 and NOT asserted axiom-clean. "
             "Λ = Conjecture 1 (machine-checked FALSE). Byzantine BFT = Conjecture 2 (OPEN)."),
         "cited": cited,
         "lean_sha": LEAN_SHA,
@@ -953,10 +954,10 @@ def register(app, space: str = "killinchu") -> dict[str, Any]:
             "theorem_registry": THEOREM_REGISTRY,
             "role_theorem": ROLE_THEOREM,
             "lake_receipt": _lake_receipt(list(THEOREM_REGISTRY.keys())),
-            "honesty": ("locked-proven = EXACTLY 5 {F1,F11,F12,F18,F19} @ " + LOCKED_KERNEL_SHA +
+            "honesty": ("locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ " + LOCKED_KERNEL_SHA +
                         "; Λ = Conjecture 1 (machine-checked FALSE); Byzantine BFT = Conjecture 2 "
                         "(OPEN); CF-22/CF-23/CUT-2 = conditional experimental (CI-green on main " +
-                        EXPERIMENTAL_KERNEL_SHA + "), NOT folded into the locked-5."),
+                        EXPERIMENTAL_KERNEL_SHA + "), NOT folded into the locked-8 set."),
             "doctrine": _doctrine_string(),
         })
     registered.append(f"{base}/theorem/registry")
@@ -978,8 +979,8 @@ def register(app, space: str = "killinchu") -> dict[str, Any]:
         "COMPLIANCE HONESTY: The OSCAL component-definition states CLAIMS WITH LIVE EVIDENCE,\n"
         "not an Authorization To Operate (ATO) or certification. The trust score Λ is\n"
         "Conjecture 1 (machine-checked FALSE as an unconditional axiom) — ADVISORY, never a\n"
-        "theorem. Byzantine quorum safety is Conjecture 2 (OPEN). Exactly 5 formulas are\n"
-        "locked-proven {F1,F11,F12,F18,F19} @ kernel c7c0ba17.\n\n"
+        "theorem. Byzantine quorum safety is Conjecture 2 (OPEN). Exactly 8 formulas are\n"
+        "locked-proven {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17.\n\n"
         "THIRD-PARTY ATTRIBUTIONS (patterns / tooling):\n"
         " - Pepr (Apache-2.0, defenseunicorns/pepr) — capability idiom mirrored; our code is original.\n"
         " - Zarf (Apache-2.0, zarf-dev/zarf) — package layout idiom.\n"
@@ -1002,7 +1003,7 @@ def register(app, space: str = "killinchu") -> dict[str, Any]:
         "    remarks: >-\n"
         "      Claims-with-evidence. NOT an ATO. Trust score (Lambda) is Conjecture 1 — advisory,\n"
         "      machine-checked FALSE as an unconditional axiom; never a theorem. Byzantine quorum\n"
-        "      safety = Conjecture 2 (OPEN). Exactly 5 locked-proven formulas @ kernel c7c0ba17.\n"
+        "      safety = Conjecture 2 (OPEN). Exactly 8 locked-proven formulas @ kernel c7c0ba17.\n"
         "  components:\n"
         "    - uuid: 8f1d2c00-0000-4a00-9000-killinchu000c\n"
         "      type: service\n"
@@ -1028,7 +1029,7 @@ def register(app, space: str = "killinchu") -> dict[str, Any]:
         "              props: [ { name: implementation-status, value: partial } ]   # honest: ADVISORY, not theorem-backed\n"
         "            - uuid: 8f1d2c00-0000-4a00-9000-cm3\n"
         "              control-id: cm-3\n"
-        "              description: 'Configuration change control: locked-5 formulas pinned by kernel sha (lake_receipt.locked_proven_count == 5 @ c7c0ba17).'\n"
+        "              description: 'Configuration change control: locked-8 formulas pinned by kernel sha (lake_receipt.locked_proven_count == 8 @ c7c0ba17).'\n"
         "              props: [ { name: implementation-status, value: implemented } ]\n"
         "            - uuid: 8f1d2c00-0000-4a00-9000-au3\n"
         "              control-id: au-3\n"
@@ -1064,9 +1065,9 @@ def register(app, space: str = "killinchu") -> dict[str, Any]:
         "ac4":  _lula_val("8f1d2c00-0000-4a00-9000-ac4", "AC-4 info flow (Lambda-gate advisory present)",
                           f"{_UDS_BASE_URL}/uds/v1/healthz", "GET",
                           "default = false\n      # honest: asserts the ADVISORY gate theorem_ref is present (Lambda = Conjecture 1)\n      validate { input.probe.quorum.theorem_ref.maturity != \"\" }"),
-        "cm3":  _lula_val("8f1d2c00-0000-4a00-9000-cm3", "CM-3 config change control (locked-5 pinned)",
+        "cm3":  _lula_val("8f1d2c00-0000-4a00-9000-cm3", "CM-3 config change control (locked-8 pinned)",
                           f"{_UDS_BASE_URL}/uds/v1/theorem/registry", "GET",
-                          "default = false\n      validate { input.probe.lake_receipt.locked_proven_count == 5 }"),
+                          "default = false\n      validate { input.probe.lake_receipt.locked_proven_count == 8 }"),
         "au3":  _lula_val("8f1d2c00-0000-4a00-9000-au3", "AU-3 audit record content (theorem_ref provenance)",
                           f"{_UDS_BASE_URL}/uds/v1/healthz", "GET",
                           "default = false\n      validate { input.probe.quorum.theorem_ref.theorem != \"\" }"),
