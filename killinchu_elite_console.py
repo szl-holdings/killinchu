@@ -5135,7 +5135,7 @@ async function engage_load(){
 }
 window.engage_load=engage_load;
 async function engage_select(){
-  const tid=el('eng-track').value; const t=(window.__eng_drones||[]).find(x=>x.track_id===tid); if(!t)return;
+  const _et=el('eng-track'); if(!_et)return; const tid=_et.value; const t=(window.__eng_drones||[]).find(x=>x.track_id===tid); if(!t)return;
   _eng_track=t; _eng_pid=false;
   elS('eng-step-pid').className='eng-step'; elS('eng-step-commit').className='eng-step'; elS('eng-deconflict').innerHTML='';
   elS('eng-rec-body').innerHTML='<div class="row mono dim">evaluating defeat options through the live ROE gate…</div>';
