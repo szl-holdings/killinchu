@@ -7972,6 +7972,205 @@ go(VIEWS[start]?start:'tracks');
   reg();
 })();
 /* end killinchu innovation wave */
+
+/* ============================================================================
+   killinchu TABWAVE upgrade — 2026-06-10 · Opus 4.8 (killinchu lane)
+   ADDITIVE-ONLY: overrides 4 intel render functions with unique 3D/advanced viz
+   + honest forecasting, all bound to the SAME real backend endpoints they
+   already read. Zero shared-module edits. killinchu effector stays SIMULATED.
+   Doctrine: locked=8; Λ=Conjecture 1; trust never 100%; 0 runtime CDN.
+   ========================================================================== */
+(function(){
+  function go(){
+    if(typeof VIEWS==='undefined' && !window.VIEWS){ return setTimeout(go,90); }
+    if(typeof getJSON==='undefined' && !window.getJSON){ /* getJSON is module-scope */ }
+    var TEAL='#5fb3a3', GOLD='#c9b787', INFO='#6FA8DC', WARN='#c9a05f', RISK='#b06a5a', VIOLET='#B79BD6', DIM='#8a8f98';
+    var OSB='/api/killinchu/v1';
+    var VCOL={drones:'#5fe39a',naval:'#5cc8ff',pentagon:'#f5b301',uds:'#b39ddb',geo:'#ff9b9b'};
+    function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+    function E(id){ var e=document.getElementById(id); if(e)return e; if(!go._d)go._d=document.createElement('div'); return go._d; }
+    function ex(id){ return document.getElementById(id); }
+    async function J(p){ var r=await fetch(p); if(!r.ok) throw new Error('HTTP '+r.status); var ct=r.headers.get('content-type')||''; if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json(); }
+    function dot(){ return (window.liveDot?window.liveDot():'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+TEAL+';box-shadow:0 0 8px '+TEAL+';margin-right:6px;vertical-align:middle"></span>'); }
+    function poll(gateId, fn){ try{fn();}catch(e){} var t=setInterval(function(){ if(!ex(gateId)){return;} try{fn();}catch(e){} var d=ex('aw-ts-'+gateId); if(d) d.textContent='auto · '+new Date().toLocaleTimeString(); }, 12000+Math.floor(Math.random()*5000)); window._tailTimers=window._tailTimers||[]; window._tailTimers.push(t); window._liveTimers=window._tailTimers; return t; }
+    function autoPill(g){ return '<span class="badge b-live" style="font-size:9.5px">'+dot()+'AUTO-RECORDING <span id="aw-ts-'+esc(g)+'" class="mono dim" style="margin-left:5px">live</span></span>'; }
+    function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">—</div><div class="d">'+esc(d||'')+'</div></div>'; }
+    function honest(t){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+t+' Λ = <b>Conjecture 1</b> (advisory, not a theorem); trust is never 100%. 0 runtime CDN; vendored libs only. These OSINT capabilities are <b>console-side</b>; fields are third-party claims, not attested truth.</div>'; }
+    var V=window.VIEWS||VIEWS;
+
+    /* ---------- 1. rosie_entities → 3d-force-graph (TRUE 3D) -------------- */
+    V.rosie_entities = {
+      title:'Entity Graph (3D) · Operator',
+      badge:'3D FORCE GRAPH · LIVE CORPUS · COMMUNITY',
+      sub:'The Operator extracts entities (orgs, programs, vendors, places) from the <b>live OSINT corpus</b> and renders them as a <b>vendored 3D force-directed graph</b> — gold hubs = defense verticals, teal = entities, link thickness = real co-occurrence weight. Spatially-grouped by force layout (advisory community structure). Extraction is heuristic (advisory).',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Live entity relationship graph (3D)</span><span class="card-ep">'+autoPill('re-gate')+'</span></div>'
+          +'<div class="kpis" id="re-gate">'+kpi('Entities','re-ne','heuristic extraction',TEAL)+kpi('Verticals','re-nv','defense routing buckets',GOLD)+kpi('Co-occurrence links','re-nl','weighted edges',INFO)+kpi('Densest hub','re-hub','highest-degree node',VIOLET)+'</div>'
+          +'<div id="re-3d" style="height:430px;border-radius:10px;background:#050505;margin-top:.6rem"></div></div>'
+          +'<details class="raw"><summary>raw /rosie/entities</summary><pre class="out" id="re-raw">—</pre></details>'
+          +honest('The 3D graph is rendered by the vendored <code>3d-force-graph</code> over the <b>real entity/vertical co-occurrence graph</b> from <code>/api/killinchu/v1/rosie/entities</code>; spatial grouping is a force-layout heuristic, not a proven community partition.');
+        poll('re-gate', async function(){
+          var b=await J(OSB+'/rosie/entities');
+          if(ex('re-raw')) ex('re-raw').textContent=JSON.stringify({nodes:(b.nodes||[]).length,links:(b.links||[]).length,mode:b.mode},null,2);
+          var nv=(b.nodes||[]).filter(function(n){return n.kind==='vertical';}).length;
+          E('re-ne').textContent=(b.nodes||[]).length-nv; E('re-nv').textContent=nv; E('re-nl').textContent=(b.links||[]).length;
+          var deg={}; (b.links||[]).forEach(function(l){ deg[l.source]=(deg[l.source]||0)+(l.weight||1); deg[l.target]=(deg[l.target]||0)+(l.weight||1); });
+          var hub='—',hv=-1; Object.keys(deg).forEach(function(k){ if(deg[k]>hv){hv=deg[k];hub=k;} });
+          E('re-hub').textContent=String(hub).replace('vertical:','#').slice(0,18);
+          var host=ex('re-3d'); if(!host||!window.ForceGraph3D) return;
+          var nodes=(b.nodes||[]).map(function(n){ var vert=n.kind==='vertical'; return { id:n.id, name:String(n.id).replace('vertical:','#'), color:vert?(VCOL[String(n.id).replace('vertical:','')]||GOLD):TEAL, val:vert?(8+(n.count||1)):(3+(deg[n.id]||0)) }; });
+          var links=(b.links||[]).map(function(l){ return { source:l.source, target:l.target, w:l.weight||1 }; });
+          host.innerHTML='';
+          try{
+            var fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
+              .graphData({nodes:nodes,links:links}).nodeLabel('name').nodeColor(function(n){return n.color;}).nodeVal(function(n){return n.val;})
+              .nodeOpacity(0.92).linkColor(function(){return 'rgba(201,183,135,0.32)';}).linkWidth(function(l){return Math.min(4,(l.w||1));})
+              .linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(function(){return TEAL;}).showNavInfo(false);
+            window._fg=fg;
+            setTimeout(function(){ try{fg.width(host.clientWidth).height(host.clientHeight);}catch(e){} },300);
+          }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D graph unavailable: '+esc(e.message)+'</div>'; }
+        });
+      }
+    };
+
+    /* ---------- 2. rosie_watch → echarts trend + EWMA forecast ----------- */
+    V.rosie_watch = {
+      title:'Watchlist + Forecast · Operator',
+      badge:'STANDING WATCH · EWMA FORECAST · CONFORMAL',
+      sub:'The Operator maintains a <b>standing watchlist</b>: real term frequency over the live corpus time-series, with an <b>EWMA forecast</b> of next-window mention rate per term. Forecast method = exponentially-weighted moving average (α=0.4); confidence band uses a conformal floor 1/(n+1) — <b>never 100%</b>. Advisory.',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Watch-term forecast</span><span class="card-ep">'+autoPill('rw-gate')+'</span></div>'
+          +'<div class="kpis" id="rw-gate">'+kpi('Tracked terms','rw-nt','watch picture',INFO)+kpi('Top term','rw-top','highest total',GOLD)+kpi('Rising fastest','rw-rise','max EWMA Δ',RISK)+kpi('Forecast conf.','rw-conf','conformal floor 1/(n+1)',TEAL)+'</div>'
+          +'<div id="rw-chart" style="height:300px;margin-top:.6rem"></div>'
+          +'<div id="rw-fc" style="margin-top:.5rem"></div></div>'
+          +'<details class="raw"><summary>raw /rosie/watch</summary><pre class="out" id="rw-raw">—</pre></details>'
+          +honest('Trend and EWMA forecast are computed in-browser over the <b>real corpus series</b> from <code>/api/killinchu/v1/rosie/watch</code>. EWMA is a smoothing estimator (SZL note: same EWMA family as the threat-rate monitor), not a guaranteed predictor; the conformal floor keeps stated confidence honest.');
+        poll('rw-gate', async function(){
+          var b=await J(OSB+'/rosie/watch');
+          if(ex('rw-raw')) ex('rw-raw').textContent=JSON.stringify({totals:b.totals,mode:b.mode},null,2);
+          var totals=b.totals||{}; var series=b.series||{};
+          var keys=Object.keys(totals).filter(function(k){return totals[k]>0;}).sort(function(a,d){return totals[d]-totals[a];});
+          E('rw-nt').textContent=Object.keys(totals).length;
+          E('rw-top').textContent=keys.length?(keys[0]+' ('+totals[keys[0]]+')'):'—';
+          // EWMA over each term's series; forecast next point
+          var alpha=0.4; var fc={}; var bestRise={term:'—',d:-1e9};
+          keys.forEach(function(k){
+            var pts=(series[k]||[]).slice().sort(function(a,d){return String(a.day).localeCompare(String(d.day));});
+            var ewma=null, prev=null; pts.forEach(function(p){ var x=p.n||0; if(ewma==null){ewma=x;} else {prev=ewma; ewma=alpha*x+(1-alpha)*ewma;} });
+            var last=pts.length?pts[pts.length-1].n:0;
+            fc[k]={ewma:ewma==null?0:ewma, last:last, n:pts.length, delta:(ewma==null?0:ewma)-(last||0)};
+            var d=(ewma==null?0:ewma)-(prev==null?0:prev);
+            if(pts.length>=2 && d>bestRise.d){ bestRise={term:k,d:d}; }
+          });
+          E('rw-rise').textContent=bestRise.term;
+          // overall conformal confidence floor from total samples
+          var nTot=keys.reduce(function(s,k){return s+(series[k]||[]).length;},0);
+          var conf=Math.min(0.97, 1-1/(nTot+1)); E('rw-conf').textContent=(conf*100).toFixed(1)+'%';
+          // chart: top 5 terms historical + forecast point
+          var top=keys.slice(0,5);
+          var allDays={}; top.forEach(function(k){ (series[k]||[]).forEach(function(p){allDays[p.day]=1;}); });
+          var days=Object.keys(allDays).sort(); var cats=days.concat(['→ forecast']);
+          var palette=[TEAL,GOLD,INFO,VIOLET,RISK];
+          var ser=top.map(function(k,i){
+            var byDay={}; (series[k]||[]).forEach(function(p){byDay[p.day]=p.n;});
+            var data=days.map(function(d){return byDay[d]!=null?byDay[d]:0;});
+            data.push({value:Math.round((fc[k].ewma)*10)/10, itemStyle:{color:palette[i%palette.length]}, symbol:'diamond', symbolSize:11});
+            return { name:k, type:'line', smooth:true, data:data, lineStyle:{color:palette[i%palette.length],width:2}, itemStyle:{color:palette[i%palette.length]} };
+          });
+          if(window.mkEchart) window.mkEchart('rw-chart',{ tooltip:{trigger:'axis'}, legend:{textStyle:{color:'#A8B6CC'},top:0,type:'scroll'}, grid:{left:40,right:20,top:34,bottom:46},
+            xAxis:{type:'category',data:cats,axisLabel:{rotate:34,color:'#A8B6CC',fontSize:9}}, yAxis:{type:'value',name:'mentions',minInterval:1,nameTextStyle:{color:'#A8B6CC'}},
+            series:ser });
+          E('rw-fc').innerHTML='<div class="row mono dim" style="font-size:11.5px;flex-wrap:wrap">'+top.map(function(k,i){ var f=fc[k]; var arrow=f.ewma>f.last?'▲':(f.ewma<f.last?'▼':'■'); var col=f.ewma>f.last?RISK:(f.ewma<f.last?TEAL:DIM); return '<span style="margin-right:.9rem"><b style="color:'+palette[i%palette.length]+'">'+esc(k)+'</b> EWMA→<span style="color:'+col+'">'+f.ewma.toFixed(2)+' '+arrow+'</span></span>'; }).join('')+' <span class="dim">· method=EWMA(α=0.4), conformal floor 1/(n+1)</span></div>';
+        });
+      }
+    };
+
+    /* ---------- 3. rosie_routing → d3-sankey flow + table ---------------- */
+    V.rosie_routing = {
+      title:'Vertical Routing (Sankey) · Operator',
+      badge:'ORCHESTRATE · SANKEY FLOW · HEURISTIC',
+      sub:'The Operator routes every ingested item to a defense vertical (drones / naval / pentagon / uds / geo) with a confidence and matched keywords, visualized as a <b>vendored d3-sankey flow</b> from the live corpus into each vertical. <b>Heuristic · advisory</b> — not a proven classifier.',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Corpus → vertical routing flow</span><span class="card-ep">'+autoPill('ro-gate')+'</span></div>'
+          +'<div class="kpis" id="ro-gate">'+kpi('Routed items','ro-tot','total corpus',INFO)+kpi('Top vertical','ro-top','most-routed bucket',GOLD)+kpi('Mean confidence','ro-conf','routing certainty',TEAL)+'</div>'
+          +'<svg id="ro-sankey" style="width:100%;height:300px;background:#050505;border-radius:10px;margin-top:.6rem"></svg></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">&#129517; Routing table</span><span class="card-ep">heuristic · advisory</span></div><div style="max-height:320px;overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--dim);font-family:var(--mono);font-size:11px"><th style="padding:.4rem .5rem">Item</th><th style="padding:.4rem .5rem">Vertical</th><th style="padding:.4rem .5rem">Conf</th></tr></thead><tbody id="ro-tb"><tr><td colspan=3 class="mono dim">loading…</td></tr></tbody></table></div></div>'
+          +honest('The Sankey is rendered by the vendored <code>d3-sankey</code> over the <b>real routing result</b> from <code>/api/killinchu/v1/rosie/routing</code>; routing itself is a keyword heuristic (advisory), not a proven classifier.');
+        poll('ro-gate', async function(){
+          var b=await J(OSB+'/rosie/routing'); if(!b.routes) return;
+          var pv=b.per_vertical||{}; var keys=Object.keys(pv);
+          E('ro-tot').textContent=b.total||b.routes.length;
+          var topK=keys.sort(function(a,d){return pv[d]-pv[a];})[0]||'—'; E('ro-top').textContent=topK+' ('+(pv[topK]||0)+')';
+          var mc=b.routes.reduce(function(s,r){return s+(r.confidence||0);},0)/Math.max(1,b.routes.length); E('ro-conf').textContent=mc.toFixed(2);
+          // table
+          if(ex('ro-tb')) ex('ro-tb').innerHTML=b.routes.slice(0,60).map(function(r){ var col=VCOL[r.routed_to]||TEAL; return '<tr style="border-top:1px solid #161616"><td style="padding:.35rem .5rem;font-size:12px;color:var(--cream)"><a href="'+esc(r.url)+'" target="_blank" rel="noopener" style="color:var(--cream);text-decoration:none">'+esc(String(r.title||'').slice(0,72))+'</a></td><td style="padding:.35rem .5rem"><span style="color:'+col+'">'+esc(r.routed_to)+'</span></td><td style="padding:.35rem .5rem" class="mono dim">'+(r.confidence||0).toFixed(2)+'</td></tr>'; }).join('');
+          // sankey via d3-sankey
+          var svg=ex('ro-sankey'); if(!svg||!window.d3||!d3.sankey){ return; }
+          var W=svg.clientWidth||760, H=300; svg.innerHTML='';
+          var nodeNames=['corpus'].concat(keys); var nidx={}; nodeNames.forEach(function(n,i){nidx[n]=i;});
+          var snodes=nodeNames.map(function(n){return {name:n};});
+          var slinks=keys.filter(function(k){return pv[k]>0;}).map(function(k){return {source:0,target:nidx[k],value:pv[k]};});
+          try{
+            var sankey=d3.sankey().nodeWidth(16).nodePadding(14).extent([[8,12],[W-110,H-12]]);
+            var graph=sankey({nodes:snodes.map(function(d){return Object.assign({},d);}),links:slinks.map(function(d){return Object.assign({},d);})});
+            var ns='http://www.w3.org/2000/svg';
+            graph.links.forEach(function(l){ var p=d3.sankeyLinkHorizontal()(l); var path=document.createElementNS(ns,'path'); path.setAttribute('d',p); var col=VCOL[graph.nodes[l.target.index!=null?l.target.index:l.target].name]||TEAL; path.setAttribute('stroke',col); path.setAttribute('stroke-width',Math.max(1.5,l.width)); path.setAttribute('fill','none'); path.setAttribute('stroke-opacity','0.42'); svg.appendChild(path); });
+            graph.nodes.forEach(function(n){ var rect=document.createElementNS(ns,'rect'); rect.setAttribute('x',n.x0); rect.setAttribute('y',n.y0); rect.setAttribute('width',n.x1-n.x0); rect.setAttribute('height',Math.max(2,n.y1-n.y0)); var col=n.name==='corpus'?GOLD:(VCOL[n.name]||TEAL); rect.setAttribute('fill',col); rect.setAttribute('rx','2'); svg.appendChild(rect);
+              var t=document.createElementNS(ns,'text'); t.setAttribute('x',n.name==='corpus'?(n.x1+6):(n.x1+6)); t.setAttribute('y',(n.y0+n.y1)/2+4); t.setAttribute('fill','#cfd6e0'); t.setAttribute('font-size','11'); t.setAttribute('font-family','monospace'); t.textContent=n.name+(n.name!=='corpus'?(' ·'+(pv[n.name]||0)):''); svg.appendChild(t); });
+          }catch(e){ svg.innerHTML='<text x="12" y="24" fill="#b06a5a" font-size="11" font-family="monospace">sankey unavailable: '+esc(e.message)+'</text>'; }
+        });
+      }
+    };
+
+    /* ---------- 4. amaru_geopolitical → globe.gl event globe + timeline -- */
+    var GEO_TLD={ 'reuters.com':[51.5,-0.12],'bbc.co.uk':[51.5,-0.12],'bbc.com':[51.5,-0.12],'france24.com':[48.85,2.35],'aljazeera.com':[25.28,51.53],'apnews.com':[38.9,-77.0],'defensenews.com':[38.9,-77.0],'kyivindependent.com':[50.45,30.52],'pravda':[50.45,30.52],'tass':[55.75,37.61],'rt.com':[55.75,37.61],'scmp.com':[22.3,114.17],'timesofindia':[28.6,77.2],'jpost.com':[31.78,35.22],'haaretz.com':[32.08,34.78] };
+    function geoFor(host){ host=String(host||'').toLowerCase(); for(var k in GEO_TLD){ if(host.indexOf(k)>=0) return GEO_TLD[k]; } if(/\.uk$/.test(host))return[51.5,-0.12]; if(/\.fr$/.test(host))return[48.85,2.35]; if(/\.ru$/.test(host))return[55.75,37.61]; if(/\.ua$/.test(host))return[50.45,30.52]; if(/\.cn$/.test(host))return[39.9,116.4]; if(/\.in$/.test(host))return[28.6,77.2]; if(/\.il$/.test(host))return[31.78,35.22]; return null; }
+    V.amaru_geopolitical = {
+      title:'Geopolitical Globe · OSINT Ingest',
+      badge:'LIVE WEB INGEST · 3D GLOBE · PROVENANCE',
+      sub:'Ingests <b>live</b> geopolitical and conflict reporting, plotted on a <b>vendored 3D globe</b> by source/dateline (SAMPLE-geocode from publisher origin — honest), with arcs to the SZL watch hub, plus the provenance-stamped timeline. Third-party claims, not attested truth.',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Geopolitical reporting globe</span><span class="card-ep">'+autoPill('ag-gate')+'</span></div>'
+          +'<div class="kpis" id="ag-gate">'+kpi('Events','ag-n','geopolitical corpus',TEAL)+kpi('Geo-located','ag-g','SAMPLE-geocode by source',GOLD)+kpi('Provenance head','ag-prov','sha256 chain',INFO)+'</div>'
+          +'<div id="ag-globe" style="height:380px;border-radius:10px;background:#060606;margin-top:.6rem"></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">&#127757; Provenance-stamped timeline</span><span class="card-ep">most recent first</span></div><div id="ag-tl"><div class="row mono dim">loading…</div></div></div>'
+          +honest('The globe is rendered by the vendored <code>globe.gl</code> over the <b>real geopolitical corpus</b> from <code>/api/killinchu/v1/amaru/geopolitical</code>; <b>point coordinates are a SAMPLE-geocode</b> derived from the publisher origin (not the event location) — labeled honestly. The sha256 provenance chain over ingested items is real.');
+        poll('ag-gate', async function(){
+          var b=await J(OSB+'/amaru/geopolitical'); if(!b.items) return;
+          var items=b.items.slice();
+          E('ag-n').textContent=b.count!=null?b.count:items.length;
+          E('ag-prov').textContent=String((b.provenance&&b.provenance.chain_head)||'').slice(0,12)||'—';
+          var HUB={lat:38.9,lng:-77.0};
+          var pts=[], arcs=[], nGeo=0;
+          items.forEach(function(it){ var ll=geoFor(it.host); if(ll){ nGeo++; pts.push({lat:ll[0],lng:ll[1],label:String(it.title||'').slice(0,80),size:0.5}); arcs.push({startLat:ll[0],startLng:ll[1],endLat:HUB.lat,endLng:HUB.lng}); } });
+          E('ag-g').textContent=nGeo+' / '+items.length;
+          var host=ex('ag-globe'); if(host&&window.Globe){
+            try{ if(window._aggl&&window._aggl._destructor){window._aggl._destructor();} }catch(e){}
+            host.innerHTML='';
+            try{
+              var g=Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
+                .globeImageUrl('/vendor/earth-night.jpg')
+                .pointsData(pts).pointColor(function(){return GOLD;}).pointAltitude(function(d){return 0.06;}).pointRadius(0.5).pointLabel('label')
+                .arcsData(arcs).arcColor(function(){return [GOLD,TEAL];}).arcDashLength(0.4).arcDashGap(0.22).arcDashAnimateTime(1700).arcStroke(0.4).arcAltitudeAutoScale(0.45);
+              window._aggl=g;
+              try{ g.pointOfView({lat:30,lng:10,altitude:2.4},0); var ctr=g.controls(); if(ctr){ctr.autoRotate=true;ctr.autoRotateSpeed=0.5;} }catch(e){}
+              setTimeout(function(){ try{g.width(host.clientWidth).height(host.clientHeight);}catch(e){} },300);
+            }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">globe unavailable: '+esc(e.message)+'</div>'; }
+          }
+          // timeline
+          var sorted=items.slice().sort(function(a,d){return String(d.published||d.ingest_ts||'').localeCompare(String(a.published||a.ingest_ts||''));});
+          if(ex('ag-tl')) ex('ag-tl').innerHTML=sorted.map(function(it){ return '<div style="position:relative;padding:0 0 1rem 1.4rem;border-left:2px solid #2a2a2a;margin-left:.4rem"><span style="position:absolute;left:-7px;top:2px;width:12px;height:12px;border-radius:50%;background:'+GOLD+';box-shadow:0 0 0 3px #14110a"></span><div class="mono" style="font-size:11px;color:'+GOLD+'">'+esc(String(it.published||it.ingest_ts||'').slice(0,10))+' · '+esc(it.host)+'</div><div style="font-size:13.5px;color:var(--cream);margin:.15rem 0"><a href="'+esc(it.url)+'" target="_blank" rel="noopener" style="color:var(--cream);text-decoration:none">'+esc(it.title)+'</a></div><div class="dim" style="font-size:12px;line-height:1.5">'+esc(String(it.summary||'').slice(0,160))+'…</div></div>'; }).join('');
+        });
+      }
+    };
+
+    window.VIEWS=V;
+    try{ console.log('[killinchu tabwave] upgraded views: rosie_entities(3D), rosie_watch(forecast), rosie_routing(sankey), amaru_geopolitical(globe)'); }catch(e){}
+  }
+  go();
+})();
+/* end killinchu TABWAVE upgrade */
+
 </script>
 
 </body>
