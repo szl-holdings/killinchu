@@ -92,6 +92,10 @@ COPY knowledge.json ./static/knowledge.json
 COPY operator_shell_v4.py ./operator_shell_v4.py
 COPY web/operator.html ./web/operator.html
 COPY serve.py ./serve.py
+# OPERATOR WIDGET (2026-06-10): byte-identical to a11oy. Self-hosted in-image
+# (0 CDN), served at /vendor/a11oy-operator-widget.js by serve.py. NO codenames.
+COPY static-vendor/a11oy-operator-widget.js ./static-vendor/a11oy-operator-widget.js
+COPY static-vendor/a11oy-operator-widget.css ./static-vendor/a11oy-operator-widget.css
 # Evidence & Research backend (curated + live arXiv/GitHub). serve.py imports this;
 # without this per-file COPY the import fails and /api/killinchu/v1/evidence/research 404s.
 ARG EVIDENCE_FIX_BUST=1780922329
