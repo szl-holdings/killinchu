@@ -8007,8 +8007,8 @@ go(VIEWS[start]?start:'tracks');
         c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Live entity relationship graph (3D)</span><span class="card-ep">'+autoPill('re-gate')+'</span></div>'
           +'<div class="kpis" id="re-gate">'+kpi('Entities','re-ne','heuristic extraction',TEAL)+kpi('Verticals','re-nv','defense routing buckets',GOLD)+kpi('Co-occurrence links','re-nl','weighted edges',INFO)+kpi('Densest hub','re-hub','highest-degree node',VIOLET)+'</div>'
           +'<div id="re-3d" style="height:430px;border-radius:10px;background:#050505;margin-top:.6rem"></div></div>'
-          +'<details class="raw"><summary>raw /rosie/entities</summary><pre class="out" id="re-raw">—</pre></details>'
-          +honest('The 3D graph is rendered by the vendored <code>3d-force-graph</code> over the <b>real entity/vertical co-occurrence graph</b> from <code>/api/killinchu/v1/rosie/entities</code>; spatial grouping is a force-layout heuristic, not a proven community partition.');
+          +'<details class="raw"><summary>raw entity-graph response</summary><pre class="out" id="re-raw">—</pre></details>'
+          +honest('The 3D graph is rendered by the vendored <code>3d-force-graph</code> over the <b>real entity/vertical co-occurrence graph</b> from the Operator OSINT entity-graph endpoint; spatial grouping is a force-layout heuristic, not a proven community partition.');
         poll('re-gate', async function(){
           var b=await J(OSB+'/rosie/entities');
           if(ex('re-raw')) ex('re-raw').textContent=JSON.stringify({nodes:(b.nodes||[]).length,links:(b.links||[]).length,mode:b.mode},null,2);
@@ -8043,8 +8043,8 @@ go(VIEWS[start]?start:'tracks');
           +'<div class="kpis" id="rw-gate">'+kpi('Tracked terms','rw-nt','watch picture',INFO)+kpi('Top term','rw-top','highest total',GOLD)+kpi('Rising fastest','rw-rise','max EWMA Δ',RISK)+kpi('Forecast conf.','rw-conf','conformal floor 1/(n+1)',TEAL)+'</div>'
           +'<div id="rw-chart" style="height:300px;margin-top:.6rem"></div>'
           +'<div id="rw-fc" style="margin-top:.5rem"></div></div>'
-          +'<details class="raw"><summary>raw /rosie/watch</summary><pre class="out" id="rw-raw">—</pre></details>'
-          +honest('Trend and EWMA forecast are computed in-browser over the <b>real corpus series</b> from <code>/api/killinchu/v1/rosie/watch</code>. EWMA is a smoothing estimator (SZL note: same EWMA family as the threat-rate monitor), not a guaranteed predictor; the conformal floor keeps stated confidence honest.');
+          +'<details class="raw"><summary>raw watchlist response</summary><pre class="out" id="rw-raw">—</pre></details>'
+          +honest('Trend and EWMA forecast are computed in-browser over the <b>real corpus series</b> from the Operator watchlist endpoint. EWMA is a smoothing estimator (SZL note: same EWMA family as the threat-rate monitor), not a guaranteed predictor; the conformal floor keeps stated confidence honest.');
         poll('rw-gate', async function(){
           var b=await J(OSB+'/rosie/watch');
           if(ex('rw-raw')) ex('rw-raw').textContent=JSON.stringify({totals:b.totals,mode:b.mode},null,2);
@@ -8095,7 +8095,7 @@ go(VIEWS[start]?start:'tracks');
           +'<div class="kpis" id="ro-gate">'+kpi('Routed items','ro-tot','total corpus',INFO)+kpi('Top vertical','ro-top','most-routed bucket',GOLD)+kpi('Mean confidence','ro-conf','routing certainty',TEAL)+'</div>'
           +'<svg id="ro-sankey" style="width:100%;height:300px;background:#050505;border-radius:10px;margin-top:.6rem"></svg></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">&#129517; Routing table</span><span class="card-ep">heuristic · advisory</span></div><div style="max-height:320px;overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--dim);font-family:var(--mono);font-size:11px"><th style="padding:.4rem .5rem">Item</th><th style="padding:.4rem .5rem">Vertical</th><th style="padding:.4rem .5rem">Conf</th></tr></thead><tbody id="ro-tb"><tr><td colspan=3 class="mono dim">loading…</td></tr></tbody></table></div></div>'
-          +honest('The Sankey is rendered by the vendored <code>d3-sankey</code> over the <b>real routing result</b> from <code>/api/killinchu/v1/rosie/routing</code>; routing itself is a keyword heuristic (advisory), not a proven classifier.');
+          +honest('The Sankey is rendered by the vendored <code>d3-sankey</code> over the <b>real routing result</b> from the Operator routing endpoint; routing itself is a keyword heuristic (advisory), not a proven classifier.');
         poll('ro-gate', async function(){
           var b=await J(OSB+'/rosie/routing'); if(!b.routes) return;
           var pv=b.per_vertical||{}; var keys=Object.keys(pv);
@@ -8134,7 +8134,7 @@ go(VIEWS[start]?start:'tracks');
           +'<div class="kpis" id="ag-gate">'+kpi('Events','ag-n','geopolitical corpus',TEAL)+kpi('Geo-located','ag-g','SAMPLE-geocode by source',GOLD)+kpi('Provenance head','ag-prov','sha256 chain',INFO)+'</div>'
           +'<div id="ag-globe" style="height:380px;border-radius:10px;background:#060606;margin-top:.6rem"></div></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">&#127757; Provenance-stamped timeline</span><span class="card-ep">most recent first</span></div><div id="ag-tl"><div class="row mono dim">loading…</div></div></div>'
-          +honest('The globe is rendered by the vendored <code>globe.gl</code> over the <b>real geopolitical corpus</b> from <code>/api/killinchu/v1/amaru/geopolitical</code>; <b>point coordinates are a SAMPLE-geocode</b> derived from the publisher origin (not the event location) — labeled honestly. The sha256 provenance chain over ingested items is real.');
+          +honest('The globe is rendered by the vendored <code>globe.gl</code> over the <b>real geopolitical corpus</b> from the OSINT-ingest geopolitical endpoint; <b>point coordinates are a SAMPLE-geocode</b> derived from the publisher origin (not the event location) — labeled honestly. The sha256 provenance chain over ingested items is real.');
         poll('ag-gate', async function(){
           var b=await J(OSB+'/amaru/geopolitical'); if(!b.items) return;
           var items=b.items.slice();
