@@ -1736,7 +1736,7 @@ async function zerotrust_mesh_render(c){
       color:function(n){ return kcol[n.kind]||'#5fe39a'; },
       radius:function(n){ return n.kind==='app'?13:9; }});
     var rows=(b.edges||[]).map(function(e){var col=e.direction==='ingress'?'#ff9b9b':'#5cc8ff';
-      return '<tr style="border-top:1px solid #161616"><td style="padding:.35rem .5rem">'+_osChip(e.direction,col+'18',col)+'</td><td class="mono" style="padding:.35rem .5rem;color:var(--cream)">'+esc(String(e.source).replace("ns:",""))+' &rarr; '+esc(String(e.target).replace("ns:",""))+'</td><td class="mono" style="padding:.35rem .5rem">:'+esc(String(e.port))+'</td><td class="mono dim" style="padding:.35rem .5rem;font-size:10px">'+esc(scrubText(String(e.policy||'')))+'</td><td class="mono dim" style="padding:.35rem .5rem;font-size:10px">'+esc(e.mtls||'')+'</td></tr>';}).join('');
+      return '<tr style="border-top:1px solid #161616"><td style="padding:.35rem .5rem">'+_osChip(e.direction,col+'18',col)+'</td><td class="mono" style="padding:.35rem .5rem;color:var(--cream)">'+esc(scrubText(String(e.source).replace("ns:","")))+' &rarr; '+esc(scrubText(String(e.target).replace("ns:","")))+'</td><td class="mono" style="padding:.35rem .5rem">:'+esc(String(e.port))+'</td><td class="mono dim" style="padding:.35rem .5rem;font-size:10px">'+esc(scrubText(String(e.policy||'')))+'</td><td class="mono dim" style="padding:.35rem .5rem;font-size:10px">'+esc(e.mtls||'')+'</td></tr>';}).join('');
     c.innerHTML=_osKpis([
       ['Allow edges',(b.edges||[]).length,'var(--teal)','ingress + egress'],
       ['Peers',(b.nodes||[]).length-1,'var(--cream)',''],
