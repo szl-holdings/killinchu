@@ -330,7 +330,7 @@ def _seal_and_receipt(chain, host, mode, decision, event):
 
 _LAMBDA_STATUS = ("Λ = Conjecture 1 (advisory; uniqueness conditional/CI-green on main @ 958c09f9, "
                   "unconditional FALSE). The conjunctive GATE itself is P2 gate-soundness PROVEN. "
-                  "locked-proven = 5 {F1,F11,F12,F18,F19}; SLSA L1 honest / L2 roadmap; sovereign (0 CDN); "
+                  "locked-proven = 8 {F1,F4,F7,F11,F12,F18,F19,F22}; SLSA L1 honest / L2 roadmap; sovereign (0 CDN); "
                   "no fabricated numbers; no AGI.")
 
 
@@ -1257,7 +1257,7 @@ def _demo_roe_violation(mode, host):
 # CRYPTOGRAPHICALLY (nominal chain root differs from tamper; chain breaks).
 # Patterns reimplemented from MIT/Apache/NOSA refs (Union-Find, Gershgorin,
 # covariance intersection, RFC-6962 Merkle, DSSE Apache-2.0). Sample/replay
-# telemetry is LABELED. Honesty doctrine: locked-proven = 5 {F1,F11,F12,F18,F19};
+# telemetry is LABELED. Honesty doctrine: locked-proven = 8 {F1,F4,F7,F11,F12,F18,F19,F22};
 # Λ = Conjecture 1; SLSA L1 honest / L2 roadmap; sovereign 0 CDN.
 # ===========================================================================
 
