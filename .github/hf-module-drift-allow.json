@@ -27,6 +27,7 @@
   ],
   "accepted_divergences": {
     "LEGAL_BOUNDARIES.md": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T15:35:23Z | hf 2026-06-01T06:13:14.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "a11oy_org_rag.py": "GitHub-ahead drift from the 2026-06-10 'Instill locked-8 (byte-identical shared module)' push (ahead: github; github 2026-06-10T13:22:01Z | hf 2026-06-10T06:02:27.000Z); GitHub is source-of-truth and the live HF Space mirrors README + front-door only, so this shared module reaches the Space on the next Docker rebuild -- seeded 2026-06-10, reconcile then remove this entry so re-divergence fails",
     "killinchu_protocols.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T19:37:09Z | hf 2026-06-01T06:13:14.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
     "operator_shell_v4.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T00:03:07Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
     "src/killinchu/__init__.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T00:04:43Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
@@ -37,7 +38,9 @@
     "src/killinchu/simulator.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T00:04:43Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
     "static/cookbook/legal/LEGAL_BOUNDARIES.md": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-05T15:35:23Z | hf 2026-06-01T13:27:41.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
     "static/index.html": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T21:22:58Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "static/vendor/anvaka/w-gl.min.js": "GitHub-ahead drift from the 2026-06-10 anvaka 3D/graph vendoring + org-rag corpus push (ahead: github; github 2026-06-10T06:00:44Z | hf 2026-06-09T22:45:55.000Z); newly-vendored 3D-Chaski lib, GitHub is source-of-truth and the live HF Space mirrors README + front-door only, so it reaches the Space on the next Docker rebuild -- seeded 2026-06-10, reconcile then remove this entry so re-divergence fails",
     "szl_be_hardening.py": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-04T19:37:09Z | hf 2026-06-07T14:21:19.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "szl_dsse.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T19:37:09Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails"
+    "szl_dsse.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T19:37:09Z | hf 2026-06-04T18:13:49.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+    "szl_formula_wiring.py": "GitHub-ahead drift from the 2026-06-10 'Instill locked-8 (byte-identical shared module)' push (ahead: github; github 2026-06-10T13:21:53Z | hf 2026-06-06T11:18:15.000Z); GitHub is source-of-truth and the live HF Space mirrors README + front-door only, so this shared module reaches the Space on the next Docker rebuild -- seeded 2026-06-10, reconcile then remove this entry so re-divergence fails"
   }
 }
