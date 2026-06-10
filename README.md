@@ -24,14 +24,17 @@ ecosystem-stage: "operational"
 
 # killinchu 🦅
 
-> **Detect. Classify. Defeat under human authority. Counter-UAS edge organ with a DSSE Khipu receipt for every interdiction decision.**
+> **Governed autonomy with a checkable receipt for every decision.**
+> Detect. Classify. Defeat under human authority — a counter-UAS edge organ with a DSSE Khipu receipt for every interdiction decision.
 
 > **53 drone fingerprints · 13-axis Λ-gate · DSSE-signed verdicts · human-on-the-loop**
 
-[![SLSA L1 honest · L2 roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20roadmap-2C5F2D?style=flat-square)](https://github.com/szl-holdings/killinchu)
+[![SLSA L1 honest · L2 build-attested · L3 roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20build--attested%20%C2%B7%20L3%20roadmap-c9b787?style=flat-square)](https://github.com/szl-holdings/killinchu)
 [![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
 [![CI](https://github.com/szl-holdings/killinchu/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/killinchu/actions)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-5fb3a3?style=flat-square)](LICENSE)
+[![Λ Conjecture 1](https://img.shields.io/badge/%CE%9B-Conjecture%201%20(conditional%20Theorem%20U)-B79BD6?style=flat-square)](https://github.com/szl-holdings/lutar-lean/blob/main/BOUNTY.md)
+[![Khipu Conjecture 2](https://img.shields.io/badge/Khipu%20BFT-Conjecture%202%20(Wave23%20conditional)-B79BD6?style=flat-square)](https://github.com/szl-holdings/khipu-consensus)
 
 **LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
 **Proof posture (two-tier):** 5 locked-proven `{F1, F11, F12, F18, F19}` + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · ~1323 decls / 22 unique axioms — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1**; Byzantine BFT safety is **Khipu Conjecture 2 (open)**. Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
@@ -116,9 +119,10 @@ verdict = gate.evaluate(receipt)             # -> signed verdict + receipt id
 curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit
 # => "c7c0ba17"
 
-# 2. Verify the image signature — SLSA Build L1 (honest): cosign keyless-signed,
-#    Rekor-anchored. SLSA L2 verified build-provenance (isolated builders) is on
-#    the roadmap; we do NOT claim L2-verified today.
+# 2. Verify image signature + build-provenance attestation. SLSA L1 honest ·
+#    L2 build-attested: container provenance via attest-build-provenance
+#    (Sigstore keyless, Fulcio + Rekor). Verify with `cosign verify-attestation`.
+#    SLSA L3 is roadmap; we do NOT claim L3 today.
 cosign verify \
   ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
   --certificate-identity-regexp='^https://github.com/szl-holdings/' \
@@ -222,7 +226,7 @@ The full, canonical endpoint list is on the [docs site](https://szl-holdings.git
 | Protocol decoders | ✅ (proprietary) | ✅ **open-source** (ASTM/ADS-B/MAVLink) | Open, auditable |
 | Signed verdicts per interdiction | — | ✅ **DSSE receipt per decision** | Each block is a verifiable artifact |
 | Human-on-the-loop gate | ✅ | ✅ operator confirmation | — |
-| Supply-chain provenance | — | ✅ **cosign keyless-signed, Rekor-anchored (SLSA Build L1, honest)** | SLSA L2 verified-provenance on roadmap |
+| Supply-chain provenance | — | ✅ **cosign keyless + build-attested (SLSA L1 honest · L2 build-attested)** | container provenance via attest-build-provenance, Rekor-anchored; SLSA L3 roadmap |
 | Air-gap deployment | ✅ | ✅ **UDS bundle** | Open-source |
 | BFT receipt quorum | — | ✅ | — |
 
@@ -239,7 +243,7 @@ must *audit* the decision path, not trust a black box.
 | Licensing | **Apache-2.0, fully open source** | Proprietary, closed |
 | Decision governance | **13-axis Λ-gate, formally specified (Lean); Λ = Conjecture 1, never overclaimed** | ML autonomy, internal |
 | Verdict provenance | **DSSE-signed receipts in a SHA-256 Khipu DAG; `cosign verify-blob`** | Vendor-internal logging |
-| Supply-chain attestation | **SLSA L1 honest; cosign-signed images, verifiable via `cosign verify`; L2 roadmap, not yet claimed** | Not publicly verifiable |
+| Supply-chain attestation | **SLSA L1 honest · L2 build-attested (container provenance, Sigstore keyless); `cosign verify-attestation`; L3 roadmap** | Not publicly verifiable |
 | Human authority | **Human-on-the-loop required; defensive scope locked in doctrine** | Human-on-the-loop |
 | Protocol decoders | **Real ASTM F3411 RID / Mode-S ADS-B / MAVLink (no mocks)** | Proprietary sensor fusion |
 | Honest posture | **`/honest` self-discloses every claim limit + unsigned/placeholder state** | Marketing-led |
@@ -272,7 +276,7 @@ See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platfo
 ## Doctrine
 - **Doctrine v11 LOCKED** — 749/14/163 · kernel `c7c0ba17` (never bumped)
 - **Λ = Conjecture 1** (NOT a theorem) — depends on the open CAUCHY_ND sorry + a missing symmetry axiom
-- **SLSA L1 honest** (cosign-signed images, verifiable via `cosign verify`) · L2 (attested build-service provenance) is roadmap, not yet claimed · **Section 889 = exactly 5 vendors** (Huawei, ZTE, Hytera, Hikvision, Dahua)
+- **SLSA L1 honest · L2 build-attested** (container build-provenance via attest-build-provenance, Sigstore keyless; verify with `cosign verify-attestation`) · L3 roadmap · **Section 889 = exactly 5 vendors** (Huawei, ZTE, Hytera, Hikvision, Dahua)
 - No Iron Bank / FedRAMP / CMMC / SWFT / Mission Owner claims
 
 ---
@@ -282,8 +286,8 @@ See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platfo
 | Claim | Status |
 |---|---|
 | Live HF Space (HTTP 200) | ✅ |
-| SLSA Build **L1 (honest)** | ✅ — cosign keyless-signed image, Rekor-anchored, verifiable via `cosign verify`. |
-| SLSA Build **L2** | 🛣️ **Roadmap** — verified build-provenance attestation under isolated builders. **Not claimed as achieved today.** |
+| SLSA **L1 honest · L2 build-attested** | ✅ — cosign keyless-signed image + container build-provenance attestation (attest-build-provenance, Sigstore keyless), Rekor-anchored, verifiable via `cosign verify-attestation`. |
+| SLSA **L3** | 🛣️ **Roadmap** — hardened/isolated builder + non-falsifiable provenance. **Not claimed as achieved today.** |
 | cosign keyless signed | ✅ (GitHub Sigstore instance) |
 | 53 drone fingerprints | ✅ |
 | Real protocol decoders | ✅ — ASTM F3411-22a / pyModeS / pymavlink (no mocks) |
@@ -297,16 +301,15 @@ See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platfo
 
 ---
 
-## SLSA L1 honest build provenance (verify)
+## SLSA L1 honest · L2 build-attested provenance (verify)
 
-Every `ghcr.io/szl-holdings/killinchu` image is cosign-signed (private Fulcio; no public Rekor). SLSA L1 honest. L2 (isolated, attested build-service provenance) is roadmap via Wire D; not yet claimed. Verify the cosign signature:
+Every `ghcr.io/szl-holdings/killinchu` image is cosign keyless-signed and carries a container build-provenance attestation (attest-build-provenance, Sigstore keyless — Fulcio + Rekor). SLSA L1 honest · L2 build-attested. SLSA L3 (hardened/isolated builder) is roadmap; not claimed. Verify the attestation:
 
 ```bash
 gh attestation verify oci://ghcr.io/szl-holdings/killinchu:uds-v0.2.0 --owner szl-holdings
 ```
 
-L2 (isolated, attested build-service provenance) is roadmap via Wire D; not yet claimed.
-L3 is **not** claimed.
+SLSA L3 (hardened/isolated builder + non-falsifiable provenance) is roadmap; not claimed.
 
 ---
 
@@ -314,7 +317,7 @@ L3 is **not** claimed.
 
 This product is part of the **SZL UDS mesh**: a trace + receipt substrate. Only two
 products ship (a11oy, killinchu); the other nodes are roadmap **roles** (the retired
-codenames `rosie`/`sentra`/`amaru` map to Operator / Policy / Provenance Anchor and
+codenames map to the honest roles **Operator / Policy / Provenance Anchor** and
 surface inside a11oy — they are not standalone live products).
 
 ```mermaid
@@ -322,9 +325,9 @@ flowchart LR
     classDef live fill:#0f3a2e,stroke:#5ad1c0,color:#e8eef7;
     classDef inproc fill:#2a3550,stroke:#7aa2ff,color:#e8eef7;
     classDef roadmap fill:#3a2f0f,stroke:#e0c060,color:#e8eef7;
-    ROSIE["🧠 Operator role<br/>(in a11oy)"]:::roadmap -->|Wire C| A11OY["❤️ a11oy<br/>heart / fabric"]:::live
-    A11OY -->|Wire B| SENTRA["🛡️ Policy role<br/>(in a11oy)"]:::roadmap
-    A11OY -->|Wire E| AMARU["🩸 Provenance Anchor role<br/>(in a11oy)"]:::roadmap
+    OPERATOR["🧠 Operator role<br/>(in a11oy)"]:::roadmap -->|Wire C| A11OY["❤️ a11oy<br/>heart / fabric"]:::live
+    A11OY -->|Wire B| POLICY["🛡️ Policy role<br/>(in a11oy)"]:::roadmap
+    A11OY -->|Wire E| PROVENANCE["🩸 Provenance Anchor role<br/>(in a11oy)"]:::roadmap
     A11OY -->|Wire F| VESSELS["🦴 vessels<br/>skeleton"]:::roadmap
     KILLINCHU["📡 killinchu<br/>courier"]:::roadmap -.->|relay| RECEIPTS["📜 receipts<br/>DSSE Khipu"]:::inproc
     A11OY -->|traceparent embedded| RECEIPTS
@@ -339,7 +342,7 @@ Honesty over checklist.
 
 → Full diagram + wire-status table: **[docs-site / mesh](https://szl-holdings.github.io/docs-site/mesh)**
 
-<sub>Λ Conjecture 1 (not a theorem) · 749/14/163 v11 LOCKED · SLSA L1 honest · Section 889 = 5 vendors</sub>
+<sub>Λ Conjecture 1 (not a theorem) · 749/14/163 v11 LOCKED · SLSA L1 honest · L2 build-attested · L3 roadmap · Section 889 = 5 vendors</sub>
 
 ---
 
@@ -404,6 +407,8 @@ We are a precision substrate, not a vibes company.
 
 ---
 
-<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA Build L1 honest (L2 roadmap; L3 / FedRAMP / Iron Bank / CMMC not claimed) · 5 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Khipu Conjecture 2 open · Apache-2.0</sub>
+> Not affiliated with Defense Unicorns. SZL mark USPTO Serial 99831122. No production ATO claimed.
+
+<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA L1 honest · L2 build-attested (container provenance, Sigstore keyless) · L3 / FedRAMP / Iron Bank / CMMC / ATO roadmap · 5 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Khipu Conjecture 2 open · Apache-2.0</sub>
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
