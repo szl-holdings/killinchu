@@ -1,7 +1,7 @@
 /* ============================================================================
  * killinchu_cathedral.js — killinchu front-door sovereign 3D hero (vendored Three.js).
  * Field node (edge) tethered to the a11oy brain-sun upstream (substrate reaches the edge).
- * Honesty: locked proven = 5; Λ = Conjecture 1; Trust Gate = Conjecture;
+ * Honesty: locked proven = 8; Λ = Conjecture 1; Trust Gate = Conjecture;
  * conformal (never 100%) not Hoeffding; SLSA L1 honest / L2 roadmap.
  * Live /healthz + khipu ledger for a real edge-Λ constellation; honest fallback.
  * Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
@@ -20,7 +20,7 @@ const A11OY = {
   id:'a11oy', title:'a11oy — Command Platform (the substrate)',
   plain:'The upstream governance brain. killinchu is its deployed field node at the edge.',
   functions:['one governance substrate (reasoning / policy / operator are internal)','13-axis Trust Score aggregate (geometric mean, floor 0.90)','signed Khipu receipts for every governed action'],
-  proof:['Locked proven kernel = 5 {F1,F11,F12,F18,F19} @ c7c0ba17 — machine-enforced count','Λ-Aggregator uniqueness (F23) = Conjecture 1 — NOT a theorem'],
+  proof:['Locked proven kernel = 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 — machine-enforced count (theorem locked_count_eight, no-axiom)','Λ-Aggregator uniqueness (F23) = Conjecture 1 — NOT a theorem'],
   url:'https://szlholdings-a11oy.hf.space'
 };
 
