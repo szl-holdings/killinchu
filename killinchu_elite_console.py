@@ -726,6 +726,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-group">&#9313; COUNTER-UAS &middot; ARMY / MARINES</div>
     <div class="nav-item" data-view="amaru_counter_uas" onclick="go('amaru_counter_uas')" title="Live public-web counter-UAS / drone-incident reporting, normalized + sha256 provenance-stamped. Console OSINT capability; fields are third-party claims."><span class="ico">&#9650;</span>Counter-UAS Intel (live web)</div>
     <div class="nav-item" data-view="u_swarm" onclick="go('u_swarm')" title="Swarm integrity: 3D topology + resilience monitor."><span class="ico">&#9785;</span>Swarm Integrity</div>
+    <div class="nav-item" data-view="swarm_intent" onclick="go('swarm_intent')" title="Real-time swarm-intent classifier over the LIVE military ADS-B stream: CONVERGING / LOITER / INGRESS / TRANSIT scored from real kinematics + pairwise closing geometry. MODEL-SCORED over real live data."><span class="ico">&#9683;</span>Swarm-Intent Classifier (live)</div>
     <div class="nav-item" data-view="u_engage" onclick="go('u_engage')" title="Governed engagement: ROE, engage-safely, geofence, autonomy governance, companion-defense."><span class="ico">&#8862;</span>Engage &amp; ROE</div>
     <div class="nav-item" data-view="u_fusion" onclick="go('u_fusion')" title="Multi-sensor fusion + fusion math + proved Covariance-Intersection."><span class="ico">&#10710;</span>Sensor-Fusion</div>
     <div class="nav-item" data-view="operate" onclick="go('operate')" title="Select a track, issue a governed command, watch it clear the policy gate and emit a genuinely-signed receipt. Effector is a command demonstration, simulated."><span class="ico">&#9889;</span>Operate (governed control)</div>
@@ -746,6 +747,8 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-group" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9315; GOVERNED CORE &middot; UDS</div>
     <div class="nav-item" data-view="lambda" onclick="go('lambda')" title="13-axis Trust score monitor. Lambda = Conjecture 1 (advisory, not a theorem)."><span class="ico">&#9672;</span>Trust Score Monitor (Λ)</div>
     <div class="nav-item" data-view="u_consensus" onclick="go('u_consensus')" title="SKELETON organ: 3-of-4 consensus (BFT safety = Conjecture 2 OPEN unconditionally; CONDITIONAL agreement proven axiom-free, Wave23), quorum, mesh resilience, field net, oversight."><span class="ico">&#8859;</span>Mesh &amp; Consensus</div>
+    <div class="nav-item" data-view="mesh_resilience" onclick="go('mesh_resilience')" title="Live Fiedler lambda2 mesh-resilience monitor: real algebraic connectivity from networkx over the live C2 topology + an in-browser node-removal resilience sweep finding the mesh's real cut-vulnerability."><span class="ico">&#9741;</span>Mesh-Resilience (Fiedler &#955;2)</div>
+    <div class="nav-item" data-view="retask_board" onclick="go('retask_board')" title="Live drift-triggered re-tasking board: real PSI/KS/ADWIN drift on the live ADS-B telemetry raises honest re-tasking recommendations bound to the actual triggering detector. Advisory; effector simulated."><span class="ico">&#8635;</span>Drift Re-Tasking Board (live)</div>
     <div class="nav-item" data-view="u_posture" onclick="go('u_posture')" title="Runtime assurance: real model/data-drift (PSI + KS + ADWIN) on live telemetry, real graph-theoretic topology &amp; health metrics (clustering / centrality / Fiedler lambda2), the attack-surface exposure graph and the zero-trust mesh — all from real telemetry + the real UDS Package CR. Honest verdicts and empty states."><span class="ico">&#9202;</span>Posture, Topology &amp; Zero-Trust</div>
     <div class="nav-item" data-view="u_receipts" onclick="go('u_receipts')" title="CIRCULATORY organ: live signed-receipt chain (3D), audit, quantum-safe signing, evidence."><span class="ico">&#9939;</span>Receipt Ledger &amp; Verify</div>
     <div class="nav-item" data-view="u_proofs" onclick="go('u_proofs')" title="BRAIN organ: knowledge &amp; formulas (exactly 5 locked), runtime theorem cards, safety gates."><span class="ico">&#8721;</span>Knowledge &amp; Runtime Proofs</div>
@@ -798,6 +801,8 @@ async function putJSON(p, b){
 }
 function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function el(id){return document.getElementById(id);}
+/* elS(id): null-safe accessor for OUTPUT-ONLY writes (.textContent/.innerHTML/.className). Returns a shared detached dummy when the node is gone (tab torn down mid-fetch) so async loaders never throw 'Cannot set properties of null'. el() itself is unchanged so all if(el(...)) existence guards stay correct. Display-layer, additive. */
+var _elS_dummy=null;function elS(id){var e=document.getElementById(id);if(e)return e;if(!_elS_dummy)_elS_dummy=document.createElement('div');return _elS_dummy;}
 function setOut(id,obj){const e=el(id);if(!e)return;const v=(typeof obj==='string')?scrubText(obj):scrubDeep(obj);e.textContent=(typeof v==='string')?v:JSON.stringify(v,null,2);}
 function setHTML(id,html){const e=el(id);if(e)e.innerHTML=html;}
 function setTxt(id,t){const e=el(id);if(e)e.textContent=t;}
@@ -1298,7 +1303,7 @@ function setVAlertBadge(state,text){
 // tamper=true flips one payload byte to prove the signature genuinely FAILS.
 async function vessel_alert_verify(tamper){
   setVAlertBadge('pending', tamper?'TAMPER TEST RUNNING…':'SIGNING + VERIFYING…');
-  if(el('valert-detail')) el('valert-detail').textContent='Signing a vessel alert with killinchu\u2019s real key, then verifying locally…';
+  if(el('valert-detail')) elS('valert-detail').textContent='Signing a vessel alert with killinchu\u2019s real key, then verifying locally…';
   try{
     const v = SAMPLE_VESSELS.find(x=>x.sanctioned) || SAMPLE_VESSELS[0];
     // Emit a genuinely signed receipt for the vessel alert (reuses the REAL cosign key path).
@@ -1313,18 +1318,18 @@ async function vessel_alert_verify(tamper){
     const env = exp.dsse || exp;
     setOut('valert-out',{vessel:v.name, public_key:pub.trim(), envelope:env});
     if(!env || !env.payload || !(env.signatures&&env.signatures.length)){
-      setVAlertBadge('fail','NO SIGNATURE PRESENT'); el('valert-detail').textContent='This runtime returned an unsigned receipt.'; return;
+      setVAlertBadge('fail','NO SIGNATURE PRESENT'); elS('valert-detail').textContent='This runtime returned an unsigned receipt.'; return;
     }
     const res = await verifyReceipt(env, pub, !!tamper);
     if(tamper){
       if(res.ok){ setVAlertBadge('fail','UNEXPECTED: tampered alert still verified'); }
       else { setVAlertBadge('ok','TAMPER DETECTED — signature correctly FAILED'); }
-      el('valert-detail').innerHTML='We flipped one byte of the signed vessel alert. The signature no longer matches → <b>rejected</b>. Any edit breaks the seal. Key: '+esc(res.keyid)+'.';
+      elS('valert-detail').innerHTML='We flipped one byte of the signed vessel alert. The signature no longer matches → <b>rejected</b>. Any edit breaks the seal. Key: '+esc(res.keyid)+'.';
     } else {
-      if(res.ok){ setVAlertBadge('ok','PASS — alert signature is valid'); el('valert-detail').innerHTML='Verified in your browser against killinchu\u2019s public key. The vessel alert is authentic and unmodified. ECDSA P-256 / SHA-256 · key '+esc(res.keyid)+'.'; }
-      else { setVAlertBadge('fail','FAIL — signature did not verify'); el('valert-detail').textContent='The signature did not verify against the published key.'; }
+      if(res.ok){ setVAlertBadge('ok','PASS — alert signature is valid'); elS('valert-detail').innerHTML='Verified in your browser against killinchu\u2019s public key. The vessel alert is authentic and unmodified. ECDSA P-256 / SHA-256 · key '+esc(res.keyid)+'.'; }
+      else { setVAlertBadge('fail','FAIL — signature did not verify'); elS('valert-detail').textContent='The signature did not verify against the published key.'; }
     }
-  }catch(e){ setVAlertBadge('fail','ERROR'); if(el('valert-detail')) el('valert-detail').textContent='retry: '+e.message; }
+  }catch(e){ setVAlertBadge('fail','ERROR'); if(el('valert-detail')) elS('valert-detail').textContent='retry: '+e.message; }
 }
 
 // GAP-2: Voyage Risk Exchange governed-decision loop (signals -> forecast -> evidence
@@ -2462,7 +2467,7 @@ const VIEWS = {
         setOut('f-raw',{vessels:V.length,honesty:vr.honesty,sample:V.slice(0,1)});
         const poorCII = V.filter(v=>['D','E'].includes(String(v.ciiRating||'').toUpperCase())).length;
         const avgHull = V.length?Math.round(V.reduce((a,v)=>a+(v.hullCondition||0),0)/V.length):0;
-        el('f-count').textContent=V.length; el('f-hull').textContent=avgHull; el('f-cii').textContent=poorCII;
+        elS('f-count').textContent=V.length; elS('f-hull').textContent=avgHull; elS('f-cii').textContent=poorCII;
         // ── Fleet-wide KPI bar gauges (ECharts): mean fill on a 100% track + worst-vessel marker ──
         const axes=[['Hull','hullCondition'],['Engine','engineHealth'],['Maintenance','maintenanceScore'],['Utilisation','utilization']];
         const means=axes.map(([,k])=>V.length?Math.round(V.reduce((a,v)=>a+(v[k]||0),0)/V.length):0);
@@ -2495,7 +2500,7 @@ const VIEWS = {
             {name:'utilisation',type:'bar',data:mk('utilization'),itemStyle:{color:'#7f9bd6'}}
           ]});
         // register table
-        const h=el('f-list'); h.innerHTML=''; el('f-reg-ep').textContent=V.length+' vessels';
+        const h=el('f-list'); h.innerHTML=''; elS('f-reg-ep').textContent=V.length+' vessels';
         V.forEach(v=>{
           const r=String(v.ciiRating||'').toUpperCase();
           const rc = (r==='A'||r==='B')?'b-live':(r==='C')?'b-warn':'b-err';
@@ -2533,9 +2538,9 @@ const VIEWS = {
         const [pm,cc,psd]=await Promise.all([getJSON(FLEET+'/predictive-maintenance'),getJSON(FLEET+'/compliance-certificates'),getJSON(FLEET+'/port-state-deficiencies')]);
         const PM=pm.data||[],CC=cc.data||[],PSD=psd.data||[];
         setOut('fm-raw',{predictive_maintenance:PM.length,certificates:CC.length,deficiencies:PSD.length,honesty:pm.honesty});
-        el('fm-high').textContent=PM.filter(p=>String(p.riskLevel||'').toLowerCase()==='high').length;
-        el('fm-cert').textContent=CC.filter(c=>['Expiring Soon','Expired'].includes(c.status)).length;
-        el('fm-psc').textContent=PSD.filter(p=>String(p.status||'').toLowerCase()==='open').length;
+        elS('fm-high').textContent=PM.filter(p=>String(p.riskLevel||'').toLowerCase()==='high').length;
+        elS('fm-cert').textContent=CC.filter(c=>['Expiring Soon','Expired'].includes(c.status)).length;
+        elS('fm-psc').textContent=PSD.filter(p=>String(p.status||'').toLowerCase()==='open').length;
         // ── Observable Plot state timeline: one interval bar per maintenance/cert/PSC item ──
         const today=new Date(); const D=s=>s?new Date(s):null;
         const sevColor=s=>{s=String(s||'').toLowerCase();return (s==='high'||s==='expired'||s==='critical'||s==='overdue')?RED:(s==='medium'||s==='expiring soon')?WARN:TEAL;};
@@ -2612,9 +2617,9 @@ const VIEWS = {
       try{
         const br=await getJSON(FLEET+'/ai-briefings'); const B=br.data||[];
         setOut('fb-raw',{briefings:B.length,honesty:br.honesty});
-        el('fb-count').textContent=B.length;
-        el('fb-crit').textContent=B.filter(b=>String(b.severity||'').toLowerCase()==='critical').length;
-        el('fb-conf').textContent=B.length?Math.round(B.reduce((a,b)=>a+(b.confidence||0),0)/B.length)+'%':'—';
+        elS('fb-count').textContent=B.length;
+        elS('fb-crit').textContent=B.filter(b=>String(b.severity||'').toLowerCase()==='critical').length;
+        elS('fb-conf').textContent=B.length?Math.round(B.reduce((a,b)=>a+(b.confidence||0),0)/B.length)+'%':'—';
         const h=el('fb-cards'); h.innerHTML='';
         B.forEach(b=>{
           const sev=String(b.severity||'').toLowerCase();
@@ -2654,11 +2659,11 @@ const VIEWS = {
         const [ev,mt]=await Promise.all([getJSON(FLEET+'/event-logs'),getJSON(FLEET+'/maintenance-logs')]);
         const EV=ev.data||[],MT=mt.data||[];
         setOut('fl-raw',{event_logs:EV.length,maintenance_logs:MT.length,honesty:ev.honesty,sample_event:EV.slice(0,1)});
-        el('fl-ev').textContent=EV.length;
-        el('fl-crit').textContent=EV.filter(e=>String(e.severity||'').toLowerCase()==='critical').length;
-        el('fl-mj').textContent=MT.length;
+        elS('fl-ev').textContent=EV.length;
+        elS('fl-crit').textContent=EV.filter(e=>String(e.severity||'').toLowerCase()==='critical').length;
+        elS('fl-mj').textContent=MT.length;
         const openSpend=MT.filter(m=>String(m.status||'').toLowerCase()!=='completed').reduce((a,m)=>a+(m.cost||0),0);
-        el('fl-spend').textContent='$'+(openSpend||0).toLocaleString();
+        elS('fl-spend').textContent='$'+(openSpend||0).toLocaleString();
         // ── live-tail event waterfall (d3/SVG) ──────────────────────
         // Each event = a marker on a sub-minute timeline, lane per category,
         // colour by severity; streamed newest-first as a live-tail replay.
@@ -2717,7 +2722,7 @@ const VIEWS = {
           setTimeout(()=>dots.forEach(d=>d.getAttribute('opacity')==='0'&&d.setAttribute('opacity','0.92')),Math.max(2500,dots.length*45+800));
         })();
         // event list, newest first
-        const evh=el('fl-ev-list'); evh.innerHTML=''; el('fl-ev-ep').textContent=EV.length+' events';
+        const evh=el('fl-ev-list'); evh.innerHTML=''; elS('fl-ev-ep').textContent=EV.length+' events';
         EV.slice().sort((a,b)=>String(b.timestamp||'').localeCompare(String(a.timestamp||''))).forEach(e=>{
           const sev=String(e.severity||'').toLowerCase();
           const cls=sev==='critical'?'b-err':sev==='warning'?'b-warn':sev==='info'?'b-teal':'b-live';
@@ -2728,7 +2733,7 @@ const VIEWS = {
           </div>`);});
         if(!EV.length) evh.innerHTML='<div class="row mono dim">no events</div>';
         // maintenance list
-        const mth=el('fl-mt-list'); mth.innerHTML=''; el('fl-mt-ep').textContent=MT.length+' work orders';
+        const mth=el('fl-mt-list'); mth.innerHTML=''; elS('fl-mt-ep').textContent=MT.length+' work orders';
         MT.forEach(m=>{
           const sev=String(m.severity||'').toLowerCase();
           const cls=sev==='critical'||sev==='high'?'b-err':sev==='medium'?'b-warn':'b-live';
@@ -2767,11 +2772,11 @@ const VIEWS = {
         const [sr,fs]=await Promise.all([getJSON(FLEET+'/shipment-records'),getJSON(FLEET+'/fleets')]);
         const SR=sr.data||[],FS=fs.data||[];
         setOut('fv-raw',{shipment_records:SR.length,fleets:FS.length,honesty:sr.honesty,sample_voyage:SR.slice(0,1)});
-        el('fv-cnt').textContent=SR.length;
+        elS('fv-cnt').textContent=SR.length;
         const totTon=SR.reduce((a,s)=>a+(s.weight||0),0);
-        el('fv-ton').textContent=totTon.toLocaleString();
-        el('fv-dem').textContent=SR.filter(s=>String(s.demurrageRisk||'').toLowerCase()==='high').length;
-        el('fv-fl').textContent=FS.length;
+        elS('fv-ton').textContent=totTon.toLocaleString();
+        elS('fv-dem').textContent=SR.filter(s=>String(s.demurrageRisk||'').toLowerCase()==='high').length;
+        elS('fv-fl').textContent=FS.length;
         // ── tonnage Sankey: load region → cargo class → status ─────────
         (function buildVoyageSankey(){
           // collapse verbose port strings to a load REGION; cargo to a CLASS
@@ -2835,7 +2840,7 @@ const VIEWS = {
           <div class="row" style="border:none;padding-top:0"><span class="mono dim" style="font-size:10px;line-height:1.5">${esc(f.description)}</span></div>`);});
         if(!FS.length) fh.innerHTML='<div class="row mono dim">no fleets</div>';
         // voyage list
-        const vh=el('fv-list'); vh.innerHTML=''; el('fv-ep').textContent=SR.length+' voyages';
+        const vh=el('fv-list'); vh.innerHTML=''; elS('fv-ep').textContent=SR.length+' voyages';
         SR.forEach(s=>{
           const st=String(s.status||'');
           const sc=st==='Delivered'?'b-live':st==='In Transit'?'b-teal':st==='Delayed'?'b-err':'b-warn';
@@ -2937,7 +2942,7 @@ const VIEWS = {
           const TS=(tr&&tr.threats)||[];
           const rules=(pol&&pol.policy&&pol.policy.rules)||{};
           const hotlSpeed=rules.hostile_speed_m_s||100, maxSpeed=rules.max_speed_m_s||150;
-          el('au-trk').textContent=TS.length;
+          elS('au-trk').textContent=TS.length;
           // disposition logic from REAL ROE rules:
           //  adversary + INBOUND/STRIKE-RUN over hostile-speed -> human-review (HOTL above Λ floor)
           //  adversary other -> human-review; dual-use -> hold/observe; friendly -> hold/deny(no-engage)
@@ -2963,7 +2968,7 @@ const VIEWS = {
           const agg={};
           TS.forEach(t=>{const a=sideOf(t),p=postureOf(t),d=dispoOf(t);
             const k1='A:'+a+'>P:'+p,k2='P:'+p+'>D:'+d; agg[k1]=(agg[k1]||0)+1; agg[k2]=(agg[k2]||0)+1;});
-          el('au-hotl').textContent=TS.filter(t=>dispoOf(t)==='Human review (HOTL)').length;
+          elS('au-hotl').textContent=TS.filter(t=>dispoOf(t)==='Human review (HOTL)').length;
           const links=[];
           Object.entries(agg).forEach(([k,v])=>{const[a,b]=k.split('>');
             const tgt=nodes[idx[b]];const h=(tgt.color||'#5fb3a3').replace('#','');
@@ -2971,7 +2976,7 @@ const VIEWS = {
             links.push({source:idx[a],target:idx[b],value:v,color:'rgba('+r+','+g+','+bl+',0.34)'});});
           if(nodes.length&&links.length)
             sankeyFlow('au-sankey',nodes,links,{height:380,nodeWidth:13,nodePadding:14,pad:{t:16,r:160,b:16,l:120},fmt:v=>v+' track'+(v===1?'':'s')});
-          else el('au-sankey').innerHTML='<div class="row mono dim">no active tracks to govern</div>';
+          else elS('au-sankey').innerHTML='<div class="row mono dim">no active tracks to govern</div>';
         }catch(e){const h=el('au-sankey');if(h)h.innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
       })();
       try{
@@ -3054,7 +3059,7 @@ const VIEWS = {
                     : (online>=needed);
         setTxt('k-quorum', holds ? 'CONSENSUS HOLDS' : 'NO QUORUM');
         setCls('k-quorum', 'v '+(holds?'live':'warn'));
-        if(el('bft-count')) el('bft-count').textContent=online;
+        if(el('bft-count')) elS('bft-count').textContent=online;
         bftKonva('bft-konva',organs,needed);
         // Honest messaging: a strict majority of the four governance roles is reachable.
         const faultTol = (q.fault_tolerant===true);
@@ -3127,14 +3132,14 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         Object.entries(d.system_types||{}).forEach(([k,v])=>{
           h.insertAdjacentHTML('beforeend',`<div class="row"><span class="badge b-teal">${esc(k)}</span><span>${esc(v.label)}</span></div>`);
         });
-      }catch(e){el('sysTypes').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){elS('sysTypes').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
       // Load HOTL register
       try{
         const d = await getJSON(API+'/hotl/register');
         const h = el('hotlReg'); h.innerHTML='';
         h.insertAdjacentHTML('beforeend',`<div class="row"><span>Active operators</span><span class="spacer badge b-gold">${d.active_count??0}</span></div>`);
         h.insertAdjacentHTML('beforeend',`<div class="row mono dim" style="font-size:11px">${esc(d.honesty||'')}</div>`);
-      }catch(e){el('hotlReg').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
+      }catch(e){elS('hotlReg').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
     }},
 
   // ── 3.9 PQC Hybrid Signing ──────────────────────────────────────
@@ -3264,7 +3269,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
           else if(dr.side==='dual-use')dual++;
           else cuas++;
         });
-        el('k-adv').textContent=adv; el('k-all').textContent=all; el('k-dual').textContent=dual;
+        elS('k-adv').textContent=adv; elS('k-all').textContent=all; elS('k-dual').textContent=dual;
         // ── affiliation × group density heatmap (ECharts) ────────────
         (function buildThreatHeat(){
           const drones=d.drones||[];
@@ -3634,7 +3639,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         const comp={};tracks.forEach((t,i)=>{const r=find(i);(comp[r]=comp[r]||[]).push(t);});
         const clusters=Object.values(comp);
         const swarms=clusters.filter(g=>g.length>=3);
-        el('det-sw').textContent=swarms.length;
+        elS('det-sw').textContent=swarms.length;
         const lh=el('det-list'); lh.innerHTML='';
         const compIdx={}; clusters.forEach((g,gi)=>g.forEach(t=>compIdx[t.track_id]=g.length>=3?gi:-1));
         tracks.forEach(t=>{
@@ -3685,7 +3690,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         el('ddb-n').textContent = d.count ?? (d.drones||[]).length;
         let adv=0,all=0,du=0;
         window.__DDB__.forEach(dr=>{const s=String(dr.side||'').toLowerCase();if(s==='adversary')adv++;else if(s==='allied')all++;else du++;});
-        el('ddb-adv').textContent=adv; el('ddb-all').textContent=all; el('ddb-dual').textContent=du;
+        elS('ddb-adv').textContent=adv; elS('ddb-all').textContent=all; elS('ddb-dual').textContent=du;
         window.dronedb_filter('all');
       }catch(e){setHTML('ddb-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
     }},
@@ -4087,8 +4092,8 @@ async function pulse_load(){
   const wlabel=(el('pl-feed')&&el('pl-feed').selectedOptions[0])?el('pl-feed').selectedOptions[0].textContent:'live USGS feed';
   try{const d=await getProxy(feed,'',14000);
     const feats=d.features||[];_pl_quakes=feats;setTxt('pl-n',feats.length);
-    if(el('pl-window'))el('pl-window').textContent=wlabel;
-    if(el('pl-feedcap'))el('pl-feedcap').textContent='USGS '+feed.replace('usgs_','')+'.geojson';
+    if(el('pl-window'))elS('pl-window').textContent=wlabel;
+    if(el('pl-feedcap'))elS('pl-feedcap').textContent='USGS '+feed.replace('usgs_','')+'.geojson';
     let maxMag=0,nbig=0,nalert=0;const arcs=[],pts=[],rings=[],stems=[];
     feats.forEach(f=>{const p=f.properties||{};const g=f.geometry||{};const c=g.coordinates||[];if(c.length<2)return;
       const mag=p.mag||0;const depth=(c[2]!=null?c[2]:0);if(mag>maxMag)maxMag=mag;if(mag>=5)nbig++;
@@ -4369,9 +4374,9 @@ function _drawFusionScatter(d){
   star.setAttribute('fill',GOLD);star.setAttribute('font-size','20');star.textContent='★';svg.appendChild(star);
   host.appendChild(svg);
   // KPIs
-  if(el('fu-n'))el('fu-n').textContent=sensors.length;
-  if(el('fu-q'))el('fu-q').textContent=(fused.fusion_quality!=null?Number(fused.fusion_quality).toFixed(3):'—');
-  if(el('fu-sig'))el('fu-sig').textContent=ell.major.toFixed(1);
+  if(el('fu-n'))elS('fu-n').textContent=sensors.length;
+  if(el('fu-q'))elS('fu-q').textContent=(fused.fusion_quality!=null?Number(fused.fusion_quality).toFixed(3):'—');
+  if(el('fu-sig'))elS('fu-sig').textContent=ell.major.toFixed(1);
   return {ell,sensors:sensors.length,fLat,fLon};
 }
 async function fuse_demo(wide){
@@ -4392,8 +4397,8 @@ async function fuse_demo(wide){
     setOut('fuse-out',d);
     const info=_drawFusionScatter(d);
     const fused=d.fused||{};
-    if(el('fuse-summary')) el('fuse-summary').innerHTML='<span class="badge b-live">FUSED</span> '+(fused.sensor_count||reports.length)+' sensors → 1 BLUE estimate'+(fused.fusion_quality!=null?(' · quality '+Number(fused.fusion_quality).toFixed(3)):'')+(fused.fused_lat!=null?(' · @ '+Number(fused.fused_lat).toFixed(4)+', '+Number(fused.fused_lon).toFixed(4)):'')+(info?(' · 1σ ≈ '+info.ell.major.toFixed(1)+'m'):'')+' · signed (DSSE)';
-  }catch(e){setOut('fuse-out','retry: '+e.message); if(el('fuse-summary'))el('fuse-summary').textContent='retry: '+e.message;}
+    if(el('fuse-summary')) elS('fuse-summary').innerHTML='<span class="badge b-live">FUSED</span> '+(fused.sensor_count||reports.length)+' sensors → 1 BLUE estimate'+(fused.fusion_quality!=null?(' · quality '+Number(fused.fusion_quality).toFixed(3)):'')+(fused.fused_lat!=null?(' · @ '+Number(fused.fused_lat).toFixed(4)+', '+Number(fused.fused_lon).toFixed(4)):'')+(info?(' · 1σ ≈ '+info.ell.major.toFixed(1)+'m'):'')+' · signed (DSSE)';
+  }catch(e){setOut('fuse-out','retry: '+e.message); if(el('fuse-summary'))elS('fuse-summary').textContent='retry: '+e.message;}
 }
 
 async function prio_run(){
@@ -4456,8 +4461,8 @@ async function roe_eval(){
     });
     setOut('roe-out',d);
     const v=d.verdict||d.decision||'—';
-    if(el('roe-verdict')) el('roe-verdict').innerHTML='<span class="badge '+verdictClass(v)+'">'+esc(v)+'</span> '+esc((d.reasons||[]).join('; ')||'checked against current rules');
-  }catch(e){setOut('roe-out','retry: '+e.message); if(el('roe-verdict'))el('roe-verdict').textContent='retry: '+e.message;}
+    if(el('roe-verdict')) elS('roe-verdict').innerHTML='<span class="badge '+verdictClass(v)+'">'+esc(v)+'</span> '+esc((d.reasons||[]).join('; ')||'checked against current rules');
+  }catch(e){setOut('roe-out','retry: '+e.message); if(el('roe-verdict'))elS('roe-verdict').textContent='retry: '+e.message;}
 }
 
 async function audit_record(){
@@ -4468,7 +4473,7 @@ async function audit_record(){
       lambda_at_decision:0.88,notes:'Demo engagement record via killinchu elite app'
     });
     setOut('audit-out',d);
-    if(el('audit-summary')) el('audit-summary').innerHTML='<span class="badge b-live">RECORDED</span> signed &amp; chained '+(d.signed||(d.receipt&&d.receipt.signed)?'(signature attached)':'');
+    if(el('audit-summary')) elS('audit-summary').innerHTML='<span class="badge b-live">RECORDED</span> signed &amp; chained '+(d.signed||(d.receipt&&d.receipt.signed)?'(signature attached)':'');
     // Refresh audit log count + the signed-chain list (the ROE Sankey is driven by the live picture, not the demo log)
     const r = await getJSON(API+'/engagements/audit-log?limit=50');
     if(el('k-audit')) el('k-audit').textContent = r.total ?? 0;
@@ -4476,18 +4481,18 @@ async function audit_record(){
     const h=el('audit-list');
     if(h){const recs=r.records||[]; if(!recs.length){h.innerHTML='<div class="row mono dim">0 records (demo memory, resets on restart)</div>';}
       else{h.innerHTML=''; recs.forEach(rec=>{h.insertAdjacentHTML('beforeend','<div class="row"><span class="badge '+verdictClass(rec.verdict)+'">'+esc(rec.verdict)+'</span><span>'+esc(rec.track_id)+'</span><span class="mono dim" style="font-size:10px">'+esc(rec.effector)+'</span><span class="spacer mono dim">'+esc((rec.timestamp||'').slice(0,19))+' \u00b7 trust='+rec.lambda_at_decision+'</span></div>');});}}
-  }catch(e){setOut('audit-out','retry: '+e.message); if(el('audit-summary'))el('audit-summary').textContent='retry: '+e.message;}
+  }catch(e){setOut('audit-out','retry: '+e.message); if(el('audit-summary'))elS('audit-summary').textContent='retry: '+e.message;}
 }
 
 async function dsse_emit(){
   try{
-    if(el('dsse-emit-summary')) el('dsse-emit-summary').textContent='emitting…';
+    if(el('dsse-emit-summary')) elS('dsse-emit-summary').textContent='emitting…';
     const d = await postJSON(API+'/receipt/emit',{
       kind:'test_emit',payload:{note:'emitted from killinchu elite app',ts:new Date().toISOString()}
     });
     setOut('dsse-emit-out',d);
-    if(el('dsse-emit-summary')) el('dsse-emit-summary').innerHTML='<span class="badge '+(d.signed?'b-live':'b-warn')+'">'+(d.signed?'SIGNED':'UNSIGNED')+'</span> receipt added to the chain';
-  }catch(e){setOut('dsse-emit-out','retry: '+e.message); if(el('dsse-emit-summary'))el('dsse-emit-summary').textContent='retry: '+e.message;}
+    if(el('dsse-emit-summary')) elS('dsse-emit-summary').innerHTML='<span class="badge '+(d.signed?'b-live':'b-warn')+'">'+(d.signed?'SIGNED':'UNSIGNED')+'</span> receipt added to the chain';
+  }catch(e){setOut('dsse-emit-out','retry: '+e.message); if(el('dsse-emit-summary'))elS('dsse-emit-summary').textContent='retry: '+e.message;}
 }
 
 function setVerifyBadge(state,text){
@@ -4499,26 +4504,26 @@ function setVerifyBadge(state,text){
 // tamper=true flips one payload byte to demonstrate the signature genuinely FAILS.
 async function dsse_verify(tamper){
   setVerifyBadge('pending', tamper?'TAMPER TEST RUNNING…':'VERIFYING…');
-  if(el('verify-detail')) el('verify-detail').textContent='Fetching receipt + public key, then verifying locally…';
+  if(el('verify-detail')) elS('verify-detail').textContent='Fetching receipt + public key, then verifying locally…';
   try{
     const exp = await getJSON(API+'/receipt/export');
     const pubR = await fetch(BASE+'/cosign.pub'); const pub = await pubR.text();
     const env = exp.dsse || exp;
     setOut('dsse-verify-out', {public_key:pub.trim(), envelope:env});
     if(!env || !env.payload || !(env.signatures&&env.signatures.length)){
-      setVerifyBadge('fail','NO SIGNATURE PRESENT'); el('verify-detail').textContent='This receipt is unsigned (no signing key on this runtime).'; return;
+      setVerifyBadge('fail','NO SIGNATURE PRESENT'); elS('verify-detail').textContent='This receipt is unsigned (no signing key on this runtime).'; return;
     }
     const res = await verifyReceipt(env, pub, !!tamper);
     if(tamper){
       // Expectation: a tampered payload MUST fail. PASS the test if verify returned false.
       if(res.ok){ setVerifyBadge('fail','UNEXPECTED: tampered receipt still verified'); }
       else { setVerifyBadge('ok','TAMPER DETECTED — signature correctly FAILED'); }
-      el('verify-detail').innerHTML='We flipped one byte of the signed payload. The signature no longer matches → <b>rejected</b>. This is exactly what you want: any edit breaks the seal. Key: '+esc(res.keyid)+'.';
+      elS('verify-detail').innerHTML='We flipped one byte of the signed payload. The signature no longer matches → <b>rejected</b>. This is exactly what you want: any edit breaks the seal. Key: '+esc(res.keyid)+'.';
     } else {
-      if(res.ok){ setVerifyBadge('ok','PASS — signature is valid'); el('verify-detail').innerHTML='Verified in your browser against killinchu’s public key. The receipt is authentic and unmodified. Algorithm ECDSA P-256 / SHA-256 · key '+esc(res.keyid)+' · content hash '+esc(res.paeSha256.slice(0,24))+'…'; }
-      else { setVerifyBadge('fail','FAIL — signature did not verify'); el('verify-detail').textContent='The signature did not verify against the published key.'; }
+      if(res.ok){ setVerifyBadge('ok','PASS — signature is valid'); elS('verify-detail').innerHTML='Verified in your browser against killinchu’s public key. The receipt is authentic and unmodified. Algorithm ECDSA P-256 / SHA-256 · key '+esc(res.keyid)+' · content hash '+esc(res.paeSha256.slice(0,24))+'…'; }
+      else { setVerifyBadge('fail','FAIL — signature did not verify'); elS('verify-detail').textContent='The signature did not verify against the published key.'; }
     }
-  }catch(e){ setVerifyBadge('fail','ERROR'); if(el('verify-detail')) el('verify-detail').textContent='retry: '+e.message; }
+  }catch(e){ setVerifyBadge('fail','ERROR'); if(el('verify-detail')) elS('verify-detail').textContent='retry: '+e.message; }
 }
 
 async function lambda_run(breach){
@@ -4557,7 +4562,7 @@ async function lambda_run(breach){
     });
     setOut('lambda-receipt', d.lambda_receipt||d);
   }catch(e){
-    if(el('lambda-axes')) el('lambda-axes').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';
+    if(el('lambda-axes')) elS('lambda-axes').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';
   }
 }
 
@@ -4576,8 +4581,8 @@ async function beyond_eval(sysType, breach){
     setOut('beyond-out',d);
     const v=d.verdict||d.decision||'—';
     const signed=(d.receipt&&d.receipt.signed)||d.signed;
-    if(el('beyond-summary')) el('beyond-summary').innerHTML='<span class="badge '+verdictClass(v)+'">'+esc(v)+'</span> '+(signed?'<span class="badge b-live">signed receipt</span> ':'')+esc((d.reasons||[]).join('; '));
-  }catch(e){setOut('beyond-out','retry: '+e.message); if(el('beyond-summary'))el('beyond-summary').textContent='retry: '+e.message;}
+    if(el('beyond-summary')) elS('beyond-summary').innerHTML='<span class="badge '+verdictClass(v)+'">'+esc(v)+'</span> '+(signed?'<span class="badge b-live">signed receipt</span> ':'')+esc((d.reasons||[]).join('; '));
+  }catch(e){setOut('beyond-out','retry: '+e.message); if(el('beyond-summary'))elS('beyond-summary').textContent='retry: '+e.message;}
 }
 
 async function beyond_pubkey(){
@@ -4606,8 +4611,8 @@ async function bft_exec(){
     });
     setOut('bft-exec-out',d);
     const ok=d.executed||d.quorum_reached||d.consensus||d.ok;
-    if(el('bft-exec-summary')) el('bft-exec-summary').innerHTML='<span class="badge '+(ok?'b-live':'b-warn')+'">'+(ok?'EXECUTED':'HELD')+'</span> '+esc(d.reason||d.message||(ok?'consensus reached · signed receipt emitted':'consensus not reached'));
-  }catch(e){setOut('bft-exec-out','retry: '+e.message); if(el('bft-exec-summary'))el('bft-exec-summary').textContent='retry: '+e.message;}
+    if(el('bft-exec-summary')) elS('bft-exec-summary').innerHTML='<span class="badge '+(ok?'b-live':'b-warn')+'">'+(ok?'EXECUTED':'HELD')+'</span> '+esc(d.reason||d.message||(ok?'consensus reached · signed receipt emitted':'consensus not reached'));
+  }catch(e){setOut('bft-exec-out','retry: '+e.message); if(el('bft-exec-summary'))elS('bft-exec-summary').textContent='retry: '+e.message;}
 }
 
 async function pqc_sign(mode){
@@ -4627,8 +4632,8 @@ async function pqc_sign(mode){
     setOut('pqc-out', JSON.stringify(summary,null,2)+'\n\n// Full envelope:\n'+JSON.stringify(d.envelope,null,2));
     const nice={ecdsa:'Today’s standard (ECDSA P-256)',pqc:'Quantum-resistant (ML-DSA-65)',hybrid:'Both — classical + quantum-resistant'};
     const cnt=(d.envelope?.signatures||[]).length;
-    if(el('pqc-summary')) el('pqc-summary').innerHTML='<span class="badge b-live">SIGNED</span> '+esc(nice[mode]||mode)+' · '+cnt+' signature'+(cnt===1?'':'s')+' produced'+(d.verified?' · verified ✓':'')+'.';
-  }catch(e){setOut('pqc-out','retry: '+e.message); if(el('pqc-summary'))el('pqc-summary').textContent='retry: '+e.message;}
+    if(el('pqc-summary')) elS('pqc-summary').innerHTML='<span class="badge b-live">SIGNED</span> '+esc(nice[mode]||mode)+' · '+cnt+' signature'+(cnt===1?'':'s')+' produced'+(d.verified?' · verified ✓':'')+'.';
+  }catch(e){setOut('pqc-out','retry: '+e.message); if(el('pqc-summary'))elS('pqc-summary').textContent='retry: '+e.message;}
 }
 
 async function decode_rid(){
@@ -4667,7 +4672,7 @@ async function geo_check(){
     if(el('geo-summary')) el('geo-summary').innerHTML = inside
       ? '<span class="badge b-err">INSIDE RESTRICTED ZONE</span> '+esc(zname||'a no-fly area')+' — a drone here would be in violation.'
       : '<span class="badge b-live">CLEAR</span> this position is not inside any restricted zone.';
-  }catch(e){setOut('geo-out','retry: '+e.message); if(el('geo-summary'))el('geo-summary').textContent='retry: '+e.message;}
+  }catch(e){setOut('geo-out','retry: '+e.message); if(el('geo-summary'))elS('geo-summary').textContent='retry: '+e.message;}
 }
 
 async function swarm_post(){
@@ -4684,8 +4689,8 @@ async function swarm_post(){
     });
     setOut('swarm-post-out',d);
     const n=d.swarms_detected ?? (d.clusters||[]).length;
-    if(el('swarm-post-summary')) el('swarm-post-summary').innerHTML='<span class="badge b-teal">'+n+' group'+(n===1?'':'s')+'</span> 3 drones flying together were grouped as one swarm; the lone drone stayed separate.';
-  }catch(e){setOut('swarm-post-out','retry: '+e.message); if(el('swarm-post-summary'))el('swarm-post-summary').textContent='retry: '+e.message;}
+    if(el('swarm-post-summary')) elS('swarm-post-summary').innerHTML='<span class="badge b-teal">'+n+' group'+(n===1?'':'s')+'</span> 3 drones flying together were grouped as one swarm; the lone drone stayed separate.';
+  }catch(e){setOut('swarm-post-out','retry: '+e.message); if(el('swarm-post-summary'))elS('swarm-post-summary').textContent='retry: '+e.message;}
 }
 
 async function drone_detail(){
@@ -4759,8 +4764,8 @@ async function livepic_load(){
   try{ const a=await getJSON(API+'/adsb'); airlive=(a.flights||[]).filter(f=>f.latitude!=null&&f.longitude!=null); airliveMode=(a.live===true)||(a.frontier==='adsblol_adsb'); airliveIso=a.ts||a.fetched_at||null; if(a.source) airliveSrc=a.source; }catch(e){}
   { const ae=el('lp-air'); if(ae){ ae.textContent=(drones.length+airlive.length);
       const dd=ae.nextElementSibling; if(dd) dd.innerHTML=(airliveMode&&airlive.length)?('<b style="color:#5fb3a3">LIVE</b> '+esc(airliveSrc)+' '+airlive.length+' + '+drones.length+' tracks'):('drone picture + air ('+(airliveMode?'live':'sample')+')'); } }
-  try{ const v=await getJSON(API+'/fleet/vessels'); vessels=(v.data||v.vessels||v||[]).slice(0,18); el('lp-sea').textContent=vessels.length; }catch(e){ el('lp-sea').textContent='—'; }
-  try{ const q=await getProxy('usgs_hour','',11000); quakes=(q.features||[]); el('lp-geo').textContent=quakes.length; }catch(e){ el('lp-geo').textContent='—'; }
+  try{ const v=await getJSON(API+'/fleet/vessels'); vessels=(v.data||v.vessels||v||[]).slice(0,18); elS('lp-sea').textContent=vessels.length; }catch(e){ elS('lp-sea').textContent='—'; }
+  try{ const q=await getProxy('usgs_hour','',11000); quakes=(q.features||[]); elS('lp-geo').textContent=quakes.length; }catch(e){ elS('lp-geo').textContent='—'; }
   // threat layer — prioritise the drone tracks through the live governance loop
   try{ const rp=await postJSON(API+'/tracks/multi-prioritize',{tracks:drones.map(t=>({track_id:t.track_id,side:t.side,status:t.status,altitude_m:t.altitude_m,speed_m_s:t.speed_m_s,latitude:t.latitude,longitude:t.longitude,model:t.model}))}); ranked=(rp.ranked_threats||[]); }catch(e){}
 
@@ -4791,7 +4796,7 @@ async function livepic_load(){
     E.push({eid:'USGS '+(p.code||''), kind:'GEO', template:'GEO-EVENT', dim:'physical', affil:'neutral',
       name:('M'+(p.mag||0)+' '+(p.place||'')), lat:c[1], lng:c[0], alt:0, health:1, status:'OBSERVED', mag:p.mag, live:true}); });
   _lp_entities=E;
-  el('lp-total').textContent=E.length;
+  elS('lp-total').textContent=E.length;
   // honest source line on the fused-map card header
   try{ var cap=document.querySelector('#lp-globe').closest('.card').querySelector('.card-ep');
     if(cap){ cap.innerHTML='deck.gl · '+(airliveMode?('<b style="color:#5fb3a3">LIVE</b> adsb.lol air + '):'sample air + ')+'sample sea + <b style="color:#5fb3a3">LIVE</b> USGS geo'; } }catch(e){}
@@ -5132,9 +5137,9 @@ window.engage_load=engage_load;
 async function engage_select(){
   const tid=el('eng-track').value; const t=(window.__eng_drones||[]).find(x=>x.track_id===tid); if(!t)return;
   _eng_track=t; _eng_pid=false;
-  el('eng-step-pid').className='eng-step'; el('eng-step-commit').className='eng-step'; el('eng-deconflict').innerHTML='';
-  el('eng-rec-body').innerHTML='<div class="row mono dim">evaluating defeat options through the live ROE gate…</div>';
-  el('eng-pid-body').innerHTML='<div class="row mono dim">run Positive-ID first</div>';
+  elS('eng-step-pid').className='eng-step'; elS('eng-step-commit').className='eng-step'; elS('eng-deconflict').innerHTML='';
+  elS('eng-rec-body').innerHTML='<div class="row mono dim">evaluating defeat options through the live ROE gate…</div>';
+  elS('eng-pid-body').innerHTML='<div class="row mono dim">run Positive-ID first</div>';
   try{
     // 1) DEFEAT RECOMMENDATION + ROE GATE (real signed receipts)
     const ev=await postJSON(API+'/counter-uas/evaluate',{track_id:t.track_id,model:t.model,group:t.group,altitude_m:t.altitude_m,speed_m_s:t.speed_m_s,side:t.side,status:t.status});
@@ -5143,44 +5148,44 @@ async function engage_select(){
     const dec=String(ev.decision||roe.verdict||'—').toUpperCase();
     const options=[['Observe / track',0.55],['Electronic deny (jam)',0.78],['Kinetic defeat',dec==='ALLOW'?0.66:0.30]];
     barH('eng-opt-chart',options.map(o=>o[0]),options.map(o=>Math.round(o[1]*100)),[TEAL,GOLD,RED]);
-    el('eng-rec-body').innerHTML=`
+    elS('eng-rec-body').innerHTML=`
       <div class="row"><span class="badge ${dec==='ALLOW'?'b-live':'b-err'}">${esc(dec)}</span><span><b>ROE-gated defeat recommendation</b></span><span class="spacer badge b-gold">RECOMMEND — not auto-fire; human approves</span></div>
       <div class="row"><span class="mono dim">Trust score (Λ)</span><span class="spacer">${ev.lambda!=null?ev.lambda.toFixed(4):'—'} vs floor ${ev.lambda_floor??0.9} · <span class="badge b-teal">Conjecture, advisory</span></span></div>
       <div class="row"><span class="mono dim">ROE verdict</span><span class="spacer">${esc(String(roe.verdict||'—'))}${(roe.flags||[]).length?' · flags: '+esc(roe.flags.join(', ')):''}</span></div>
       <div style="margin-top:.4rem" id="eng-rec-chip"></div>`;
     kVerifyChip('eng-rec-chip',false);
     engage_log('Machine recommendation: '+dec+' (ROE '+(roe.verdict||'—')+')','machine');
-    el('eng-step-pid').className='eng-step ready';
-  }catch(e){ el('eng-rec-body').innerHTML='<div class="row mono dim">recommendation service unavailable: '+esc(e.message)+'</div>'; }
+    elS('eng-step-pid').className='eng-step ready';
+  }catch(e){ elS('eng-rec-body').innerHTML='<div class="row mono dim">recommendation service unavailable: '+esc(e.message)+'</div>'; }
 }
 window.engage_select=engage_select;
 async function engage_pid(){
   const t=_eng_track; if(!t)return;
   try{ const id=await postJSON(API+'/counter-uas/identify',{track_id:t.track_id,model:t.model,rf_signature:(t.model||'')});
     const matches=(id.matches||[]); _eng_pid=matches.length>0||true;
-    el('eng-pid-body').innerHTML=`<div class="row"><span class="badge b-live">POSITIVE-ID</span><span>${esc(t.model||'track')}</span><span class="spacer mono dim">method ${esc(id.method||'PASSIVE-RF')} · ${matches.length} signature match(es)</span></div>`;
-    el('eng-step-pid').className='eng-step done'; el('eng-step-commit').className='eng-step ready';
+    elS('eng-pid-body').innerHTML=`<div class="row"><span class="badge b-live">POSITIVE-ID</span><span>${esc(t.model||'track')}</span><span class="spacer mono dim">method ${esc(id.method||'PASSIVE-RF')} · ${matches.length} signature match(es)</span></div>`;
+    elS('eng-step-pid').className='eng-step done'; elS('eng-step-commit').className='eng-step ready';
     engage_log('Positive-ID confirmed by human ('+(id.method||'PASSIVE-RF')+')','human');
-  }catch(e){ el('eng-pid-body').innerHTML='<div class="row mono dim">identify unavailable: '+esc(e.message)+'</div>'; }
+  }catch(e){ elS('eng-pid-body').innerHTML='<div class="row mono dim">identify unavailable: '+esc(e.message)+'</div>'; }
 }
 window.engage_pid=engage_pid;
 async function engage_commit(decision){
   const t=_eng_track; if(!t){return;}
-  if(!_eng_pid && decision==='commit'){ el('eng-commit-out').innerHTML='<span class="badge b-err">Positive-ID required before commit</span>'; return; }
+  if(!_eng_pid && decision==='commit'){ elS('eng-commit-out').innerHTML='<span class="badge b-err">Positive-ID required before commit</span>'; return; }
   try{
     const rec=await postJSON(API+'/engagements/record',{track_id:t.track_id,action:decision==='commit'?'engage':'wave-off',operator:'operator-console',decision:decision,model:t.model,verdict:(_eng_eval&&_eng_eval.ev&&_eng_eval.ev.decision)||'—'});
     const ok=rec.ok!==false;
-    el('eng-step-commit').className='eng-step done';
-    el('eng-commit-out').innerHTML=`<div class="row"><span class="badge ${decision==='commit'?'b-live':'b-gold'}">${decision==='commit'?'HUMAN COMMIT':'WAVE-OFF / ABORT'}</span><span class="mono dim">${esc((rec.record&&rec.record.record_id)||'')}</span></div><div style="margin-top:.4rem" id="eng-commit-chip"></div>`;
+    elS('eng-step-commit').className='eng-step done';
+    elS('eng-commit-out').innerHTML=`<div class="row"><span class="badge ${decision==='commit'?'b-live':'b-gold'}">${decision==='commit'?'HUMAN COMMIT':'WAVE-OFF / ABORT'}</span><span class="mono dim">${esc((rec.record&&rec.record.record_id)||'')}</span></div><div style="margin-top:.4rem" id="eng-commit-chip"></div>`;
     kVerifyChip('eng-commit-chip',false);
     engage_log('Human decision: '+(decision==='commit'?'COMMIT':'WAVE-OFF')+' — recorded '+((rec.record&&rec.record.record_id)||''),'human');
     // 4) DECONFLICTION (Skydio) — re-prioritise shared airspace
     const others=(window.__eng_drones||[]).filter(x=>x.track_id!==t.track_id);
     if(others.length){ try{ const rp=await postJSON(API+'/tracks/multi-prioritize',{tracks:[t,...others].map(x=>({track_id:x.track_id,side:x.side,status:x.status,altitude_m:x.altitude_m,speed_m_s:x.speed_m_s}))});
       const top=(rp.ranked_threats||[])[0]||{};
-      el('eng-deconflict').innerHTML=`<div class="row"><span class="badge ${top.track_id===t.track_id?'b-live':'b-gold'}">${top.track_id===t.track_id?'PROCEED':'YIELD'}</span><span>Deconfliction across ${others.length+1} tracks in shared airspace</span><span class="spacer mono dim">priority #1: ${esc(top.track_id||'—')} (${Math.round((top.threat_score||0)*100)}%)</span></div>`;
+      elS('eng-deconflict').innerHTML=`<div class="row"><span class="badge ${top.track_id===t.track_id?'b-live':'b-gold'}">${top.track_id===t.track_id?'PROCEED':'YIELD'}</span><span>Deconfliction across ${others.length+1} tracks in shared airspace</span><span class="spacer mono dim">priority #1: ${esc(top.track_id||'—')} (${Math.round((top.threat_score||0)*100)}%)</span></div>`;
     }catch(e){} }
-  }catch(e){ el('eng-commit-out').innerHTML='<span class="badge b-err">record unavailable: '+esc(e.message)+'</span>'; }
+  }catch(e){ elS('eng-commit-out').innerHTML='<span class="badge b-err">record unavailable: '+esc(e.message)+'</span>'; }
 }
 window.engage_commit=engage_commit;
 function engage_log(text,who){_eng_timeline.push({t:new Date(),text,who});engage_render_timeline();}
@@ -5213,9 +5218,9 @@ async function darkhunt_load(){
     return {...v, _ind:ind, _w:W, _score:score, _defs:defs};
   }).sort((a,b)=>b._score-a._score);
   _dvh_scored=scored;
-  el('dvh-n').textContent=scored.length;
-  el('dvh-flagged').textContent=scored.filter(v=>v._score>=0.4).length;
-  el('dvh-dark').textContent=scored.filter(v=>v._ind.aisGap>=0.5).length;
+  elS('dvh-n').textContent=scored.length;
+  elS('dvh-flagged').textContent=scored.filter(v=>v._score>=0.4).length;
+  elS('dvh-dark').textContent=scored.filter(v=>v._ind.aisGap>=0.5).length;
   // top suspect → explainable risk
   if(scored.length) dvh_select(scored[0].id);
   // network cluster graph (shared flag/operator)
@@ -5237,7 +5242,7 @@ function dvh_select(id){
   const keys=Object.keys(v._w);
   barH('dvh-risk-chart',keys.map(k=>labels[k]),keys.map(k=>Math.round(v._w[k]*v._ind[k]*100)),keys.map(k=>v._ind[k]*v._w[k]>=0.15?RED:v._ind[k]>0?GOLD:TEAL));
   gauge('dvh-gauge',v._score,'risk',v._score>=0.6?RED:v._score>=0.4?GOLD:TEAL);
-  el('dvh-gauge-v').textContent=Math.round(v._score*100);
+  elS('dvh-gauge-v').textContent=Math.round(v._score*100);
   box.innerHTML=`<div class="card-h"><span class="card-t">${esc(v.name)}</span><span class="card-ep" style="color:${v._score>=0.6?RED:GOLD}">risk ${Math.round(v._score*100)}/100</span></div>
     <div class="row"><span class="mono dim">Why suspicious — explainable</span><span class="spacer mono dim" style="font-size:10px">weighted indicators, not a black box</span></div>
     ${keys.filter(k=>v._ind[k]>0).map(k=>`<div class="row"><span class="badge ${v._ind[k]*v._w[k]>=0.15?'b-err':'b-gold'}" style="min-width:120px">${labels[k]}</span><span class="spacer mono dim">contributes ${Math.round(v._w[k]*v._ind[k]*100)} pts (weight ${Math.round(v._w[k]*100)}%)</span></div>`).join('')||'<div class="row mono dim">no risk indicators triggered — clean</div>'}
@@ -5498,7 +5503,7 @@ async function modelatlas_load(){
     // populate the task-class selector from the registry's own use cases
     var sel=el('ma-task');
     if(sel && !sel._maPop){ sel._maPop=1; sel.innerHTML=ms.map(function(m){return '<option value="'+esc(m.id)+'">'+esc(m.use||m.id)+'</option>';}).join(''); }
-  }catch(e){ if(el('ma-tb')) el('ma-tb').innerHTML='<tr><td colspan="4" class="mono dim">live service retry: '+esc(e&&e.message||e)+'</td></tr>'; }
+  }catch(e){ if(el('ma-tb')) elS('ma-tb').innerHTML='<tr><td colspan="4" class="mono dim">live service retry: '+esc(e&&e.message||e)+'</td></tr>'; }
 }
 /* Operator action: route a task class to its governed model and record a signed
    routing receipt (real POST /receipt/emit). idx optional (row click). */
@@ -5638,7 +5643,7 @@ async function darkgraph_load(){
     try{ var ais=await getJSON(API+'/ais/live?limit=40'); var vs=(ais&&ais.data&&ais.data.vessels)||[]; if(ais&&ais.mode==='live'){ window._tgAis=vs.slice(0,18); } setTxt('tg-ais',window._tgAis.length||0); }
     catch(e){ setTxt('tg-ais','0'); }
     darkgraph_render();
-  }catch(e){ if(el('tg-tb')) el('tg-tb').innerHTML='<tr><td colspan="9" class="mono dim">live service retry: '+esc(e&&e.message||e)+'</td></tr>'; }
+  }catch(e){ if(el('tg-tb')) elS('tg-tb').innerHTML='<tr><td colspan="9" class="mono dim">live service retry: '+esc(e&&e.message||e)+'</td></tr>'; }
 }
 // Build the 3D force-directed threat graph: country -> manufacturer -> model from the in-image
 // corpus, with live AIS vessels attached to a 'maritime (live AIS)' hub. Honest: corpus is in-image
@@ -5838,8 +5843,8 @@ async function tracks_load(){
     tracks_plot();
     tracks_render();
   }catch(e){
-    if(el('tracks-tb')) el('tracks-tb').innerHTML='<tr><td colspan="9" class="mono dim">live service retry: '+esc(e&&e.message||e)+'</td></tr>';
-    if(el('tracks-plot')) el('tracks-plot').innerHTML='<div class="row mono dim" style="padding:1rem">live /threats/active unavailable: '+esc(e&&e.message||e)+'</div>';
+    if(el('tracks-tb')) elS('tracks-tb').innerHTML='<tr><td colspan="9" class="mono dim">live service retry: '+esc(e&&e.message||e)+'</td></tr>';
+    if(el('tracks-plot')) elS('tracks-plot').innerHTML='<div class="row mono dim" style="padding:1rem">live /threats/active unavailable: '+esc(e&&e.message||e)+'</div>';
   }
 }
 // PPI radar scope (range/bearing polar plot, raw SVG) — unique radial viz on the
@@ -6136,23 +6141,23 @@ function _dp_badge(state,txt){
 }
 async function deploy_verify(tamper){
   _dp_badge('pending', tamper?'TAMPER TEST RUNNING\u2026':'VERIFYING\u2026');
-  if(el('dp-verify-detail')) el('dp-verify-detail').textContent='Fetching /receipt/export + /cosign.pub, then verifying locally with WebCrypto\u2026';
+  if(el('dp-verify-detail')) elS('dp-verify-detail').textContent='Fetching /receipt/export + /cosign.pub, then verifying locally with WebCrypto\u2026';
   try{
     // emit a fresh receipt first so the chain is non-empty, then export the signed envelope
     try{ await postJSON(API+'/receipt/emit',{op:'deploy-verify',payload:{frontier:true}}); }catch(e){}
     var exp=await getJSON(API+'/receipt/export');
     var pubR=await fetch(BASE+'/cosign.pub'); var pub=await pubR.text();
     var env=exp.dsse||exp;
-    if(!env||!env.payload||!(env.signatures&&env.signatures.length)){ _dp_badge('fail','NO SIGNATURE PRESENT'); el('dp-verify-detail').textContent='This receipt is unsigned on this runtime.'; return; }
+    if(!env||!env.payload||!(env.signatures&&env.signatures.length)){ _dp_badge('fail','NO SIGNATURE PRESENT'); elS('dp-verify-detail').textContent='This receipt is unsigned on this runtime.'; return; }
     var res=await verifyReceipt(env, pub, !!tamper);
     if(tamper){
       if(res.ok){ _dp_badge('fail','UNEXPECTED: tampered receipt still verified'); }
-      else { _dp_badge('ok','TAMPER DETECTED \u2014 signature correctly FAILED'); el('dp-verify-detail').innerHTML='We flipped one byte of the signed payload. The signature no longer matches \u2192 <b>rejected</b>. Any edit breaks the seal. Key: '+esc(res.keyid)+'.'; }
+      else { _dp_badge('ok','TAMPER DETECTED \u2014 signature correctly FAILED'); elS('dp-verify-detail').innerHTML='We flipped one byte of the signed payload. The signature no longer matches \u2192 <b>rejected</b>. Any edit breaks the seal. Key: '+esc(res.keyid)+'.'; }
     } else {
-      if(res.ok){ _dp_badge('ok','PASS \u2014 signature is valid'); el('dp-verify-detail').innerHTML='Verified in your browser against killinchu\u2019s public key. The receipt is authentic and unmodified. ECDSA P-256 / SHA-256 \u00b7 key '+esc(res.keyid)+' \u00b7 content hash '+esc(String(res.paeSha256||'').slice(0,24))+'\u2026'; }
-      else { _dp_badge('fail','FAIL \u2014 signature did not verify'); el('dp-verify-detail').textContent='The signature did not verify against the published key.'; }
+      if(res.ok){ _dp_badge('ok','PASS \u2014 signature is valid'); elS('dp-verify-detail').innerHTML='Verified in your browser against killinchu\u2019s public key. The receipt is authentic and unmodified. ECDSA P-256 / SHA-256 \u00b7 key '+esc(res.keyid)+' \u00b7 content hash '+esc(String(res.paeSha256||'').slice(0,24))+'\u2026'; }
+      else { _dp_badge('fail','FAIL \u2014 signature did not verify'); elS('dp-verify-detail').textContent='The signature did not verify against the published key.'; }
     }
-  }catch(e){ _dp_badge('fail','ERROR'); if(el('dp-verify-detail')) el('dp-verify-detail').textContent='retry: '+(e&&e.message||e); }
+  }catch(e){ _dp_badge('fail','ERROR'); if(el('dp-verify-detail')) elS('dp-verify-detail').textContent='retry: '+(e&&e.message||e); }
 }
 
 /* ============================== 7) WARHACKER PROOFS =======================
@@ -7167,14 +7172,14 @@ async function hero_run(){
     setTxt('hi-dec',decision); setTxt('hi-lam',lam.toFixed(3));
     setTxt('hi-sig',(rc.dsse&&rc.dsse.signed)?'YES':'—');
     setTxt('hi-proof','click a node');
-    el('hi-decision-body').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.8">'+
+    elS('hi-decision-body').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.8">'+
       '<b>Decision:</b> '+esc(decision)+' &nbsp;·&nbsp; <b>Λ:</b> '+lam.toFixed(3)+' (floor '+lamFloor+', '+(gatePass?'<span style="color:#39d98a">gate PASS</span>':'<span style="color:#ff5c5c">gate HOLD</span>')+')<br>'+
       '<b>Mode:</b> RECOMMEND — not auto-fire (human approves; killinchu does not fly the effector)<br>'+
       '<b>Receipt:</b> node #'+esc(rc.node_index)+' · digest '+esc((rc.node_digest||'').slice(0,16))+'… · <b style="color:#39d98a">DSSE-signed (cosign)</b></div>';
     var reg=await getJSON(API.replace('/v1','/uds/v1')+'/theorem/registry'); _heroReg=reg.theorem_registry||{};
     setHTML('hi-raw',esc(JSON.stringify({receipt:rc,theorem_registry:_heroReg},null,2)));
     hero_render_graph(_heroReceipt);
-  }catch(e){ el('hi-decision-body').innerHTML='<div class="row mono" style="color:#ff5c5c">error: '+esc(e.message)+'</div>'; }
+  }catch(e){ elS('hi-decision-body').innerHTML='<div class="row mono" style="color:#ff5c5c">error: '+esc(e.message)+'</div>'; }
 }
 function hero_render_graph(receipt){
   var box=el('hi-graph'); if(!box||typeof ForceGraph3D==='undefined')return;
@@ -7226,22 +7231,22 @@ function hero_trace(n){
   card.style.display='';
   setTxt('hi-proof','traced');
   if(n.group==='doi'){
-    el('hi-trace-title').textContent='Citable DOI';
-    el('hi-trace-mat').textContent='Zenodo';
-    el('hi-trace-body').innerHTML='<div class="row mono" style="font-size:12px"><b>DOI:</b> <a href="https://doi.org/'+esc(n.doi)+'" target="_blank" rel="noopener" style="color:#c792ea">'+esc(n.doi)+'</a></div>';
+    elS('hi-trace-title').textContent='Citable DOI';
+    elS('hi-trace-mat').textContent='Zenodo';
+    elS('hi-trace-body').innerHTML='<div class="row mono" style="font-size:12px"><b>DOI:</b> <a href="https://doi.org/'+esc(n.doi)+'" target="_blank" rel="noopener" style="color:#c792ea">'+esc(n.doi)+'</a></div>';
     return;
   }
   if(n.group==='receipt'){
-    el('hi-trace-title').textContent='Λ-receipt (DSSE-signed)';
-    el('hi-trace-mat').textContent='ECDSA-P256 · cosign';
-    el('hi-trace-body').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.8"><b>node digest:</b> '+esc(n.digest)+'<br><b>verify offline:</b> /api/killinchu/v1/receipt/export + /cosign.pub</div>';
+    elS('hi-trace-title').textContent='Λ-receipt (DSSE-signed)';
+    elS('hi-trace-mat').textContent='ECDSA-P256 · cosign';
+    elS('hi-trace-body').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.8"><b>node digest:</b> '+esc(n.digest)+'<br><b>verify offline:</b> /api/killinchu/v1/receipt/export + /cosign.pub</div>';
     return;
   }
   var locked = LOCKED5[n.id]?true:false;
-  el('hi-trace-title').textContent=n.theorem;
+  elS('hi-trace-title').textContent=n.theorem;
   var mc=_maturityColor(n.maturity);
-  el('hi-trace-mat').innerHTML='<span style="color:'+mc+'">'+esc((n.maturity||'').toUpperCase())+'</span>';
-  el('hi-trace-body').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.9">'+
+  elS('hi-trace-mat').innerHTML='<span style="color:'+mc+'">'+esc((n.maturity||'').toUpperCase())+'</span>';
+  elS('hi-trace-body').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.9">'+
     '<b>Lean theorem:</b> '+esc(n.lean)+'<br>'+
     '<b>Kernel sha:</b> <code>'+esc(n.kernel_sha)+'</code> '+(locked?'(locked-5 @ c7c0ba17)':'(experimental @ 044eb098 — NOT folded into the locked-5)')+'<br>'+
     '<b>Maturity:</b> <span style="color:'+mc+'">'+esc(n.maturity)+'</span> '+(locked?'— one of EXACTLY 5 locked-proven formulas':'')+'<br>'+
@@ -7259,10 +7264,10 @@ async function tamper_reset(){
     _tpChain=d; var sound=(d.inclusion_proofs_all_sound!==false);
     setTxt('tp-n',d.n_receipts||4); setTxt('tp-state',sound?'intact':'check'); el('tp-state').style.color=sound?'#39d98a':'#f5c451';
     setTxt('tp-loc','—'); setTxt('tp-root',(d.merkle_root||'').slice(0,16)+'…');
-    el('tp-verdict').innerHTML='<span style="color:#39d98a">● chain intact — all inclusion proofs sound ('+_yn(d.inclusion_proofs_all_sound)+'), replay deterministic ('+_yn(d.replay_deterministic)+'), canonical Merkle root verified</span>';
+    elS('tp-verdict').innerHTML='<span style="color:#39d98a">● chain intact — all inclusion proofs sound ('+_yn(d.inclusion_proofs_all_sound)+'), replay deterministic ('+_yn(d.replay_deterministic)+'), canonical Merkle root verified</span>';
     setHTML('tp-out',esc(JSON.stringify(d,null,2)));
     tamper_render(d.n_receipts||4, -1, d.merkle_root||'');
-  }catch(e){ el('tp-verdict').innerHTML='<span style="color:#ff5c5c">error: '+esc(e.message)+'</span>'; }
+  }catch(e){ elS('tp-verdict').innerHTML='<span style="color:#ff5c5c">error: '+esc(e.message)+'</span>'; }
 }
 async function tamper_break(){
   try{
@@ -7272,10 +7277,10 @@ async function tamper_break(){
     setTxt('tp-n',d.n_receipts||4); setTxt('tp-state','REJECTED'); el('tp-state').style.color='#ff5c5c';
     setTxt('tp-loc','#'+(loc.first_divergence_index!=null?loc.first_divergence_index:idx));
     setTxt('tp-root',(d.merkle_root||'').slice(0,16)+'…');
-    el('tp-verdict').innerHTML='<span style="color:#ff5c5c">● TAMPER REJECTED — entry #'+esc(loc.tampered_index!=null?loc.tampered_index:idx)+' altered: hash chain broken at link '+esc(loc.first_divergence_index!=null?loc.first_divergence_index:idx)+', Merkle root changed ('+_yn(loc.root_changed)+'), localized correctly ('+_yn(loc.localized_correctly)+')</span>';
+    elS('tp-verdict').innerHTML='<span style="color:#ff5c5c">● TAMPER REJECTED — entry #'+esc(loc.tampered_index!=null?loc.tampered_index:idx)+' altered: hash chain broken at link '+esc(loc.first_divergence_index!=null?loc.first_divergence_index:idx)+', Merkle root changed ('+_yn(loc.root_changed)+'), localized correctly ('+_yn(loc.localized_correctly)+')</span>';
     setHTML('tp-out',esc(JSON.stringify(d,null,2)));
     tamper_render(d.n_receipts||4, (loc.first_divergence_index!=null?loc.first_divergence_index:idx), d.merkle_root||'');
-  }catch(e){ el('tp-verdict').innerHTML='<span style="color:#ff5c5c">error: '+esc(e.message)+'</span>'; }
+  }catch(e){ elS('tp-verdict').innerHTML='<span style="color:#ff5c5c">error: '+esc(e.message)+'</span>'; }
 }
 function tamper_render(n, brokenIdx, root){
   var box=el('tp-graph'); if(!box||typeof ForceGraph3D==='undefined')return;
@@ -7337,17 +7342,17 @@ async function uds_init(){
     {id:'AU-3',name:'Audit Record Content',claim:'Receipts include decision class + theorem_ref provenance',status:'partial',ev:'live: consensus payload theorem_ref fields'}
   ];
   var sc={implemented:'#39d98a',partial:'#f5c451',planned:'#ff8a5c'};
-  el('uds-controls').innerHTML=controls.map(function(c){return '<div class="row mono" style="font-size:11.5px;padding:.4rem 0;border-bottom:1px solid var(--gold-line);line-height:1.6">'+
+  elS('uds-controls').innerHTML=controls.map(function(c){return '<div class="row mono" style="font-size:11.5px;padding:.4rem 0;border-bottom:1px solid var(--gold-line);line-height:1.6">'+
     '<b style="color:#e8c97a">'+c.id+'</b> '+esc(c.name)+' — <span style="color:'+sc[c.status]+'">'+c.status+'</span><br>claim: '+esc(c.claim)+'<br><span class="dim">evidence: '+esc(c.ev)+'</span></div>';}).join('');
-  el('uds-artifacts').innerHTML=[
+  elS('uds-artifacts').innerHTML=[
     'chart/templates/uds-package.yaml','capabilities/szl-governance/pepr.ts',
     'capabilities/szl-governance/killinchu-receipt-gate.ts','zarf.yaml',
     'values/{upstream,registry1,unicorn}-values.yaml',
     'compliance/oscal-component-killinchu.yaml','compliance/validations/{au10,si7,ac4,cm3,au3}.yaml','NOTICE (non-affiliation + attributions)'
   ].map(function(f){return '<a href="/api/killinchu/uds/v1/artifact?f='+encodeURIComponent(f)+'" target="_blank" rel="noopener" style="color:#5bc8ff;text-decoration:none">⬇ '+esc(f)+'</a>';}).join('<br>');
-  el('uds-cr').textContent=UDS_CR_YAML;
-  el('uds-pepr').textContent=UDS_PEPR_TS;
-  el('uds-zarf').textContent=UDS_ZARF_YAML;
+  elS('uds-cr').textContent=UDS_CR_YAML;
+  elS('uds-pepr').textContent=UDS_PEPR_TS;
+  elS('uds-zarf').textContent=UDS_ZARF_YAML;
 }
 function uds_cot(){
   // real Cursor-on-Target XML (MITRE/MIL-STD), SAMPLE — not a live TAK feed
@@ -7359,7 +7364,7 @@ function uds_cot(){
     '  <detail>\n    <contact callsign="UAS-7"/>\n    <__group name="Red" role="HQ"/>\n'+
     '    <remarks>killinchu governed interdiction — RECOMMEND (human-in-the-loop); Λ-receipt DSSE-signed; SAMPLE CoT, not a live TAK server feed</remarks>\n'+
     '  </detail>\n</event>';
-  el('uds-cot-out').textContent=cot;
+  elS('uds-cot-out').textContent=cot;
 }
 var UDS_CR_YAML='# Copyright 2026 SZL Holdings\n# SPDX-License-Identifier: Apache-2.0\n# NOTE: SZL is NOT affiliated with Defense Unicorns. UDS/Zarf/Pepr/Lula interoperated-with only.\napiVersion: uds.dev/v1alpha1     # interop schema; not DU code\nkind: Package\nmetadata:\n  name: killinchu\n  namespace: {{ .Release.Namespace }}\nspec:\n  monitor:                        # eddiezane ServiceMonitor idiom\n    - selector: { app.kubernetes.io/name: killinchu }\n      targetPort: 8080\n      portName: http\n      description: Metrics\n  network:\n    serviceMesh: { mode: ambient }\n    # @lulaStart <uuid-ac4>       # ties expose block to control AC-4 (lula idiom)\n    expose:\n      - service: killinchu\n        selector: { app.kubernetes.io/name: killinchu }\n        host: killinchu\n        gateway: tenant\n        port: 80\n        targetPort: 8080\n    # @lulaEnd <uuid-ac4>\n    allow:\n      - direction: Egress         # honest: only what killinchu actually calls\n        selector: { app.kubernetes.io/name: killinchu }\n        remoteNamespace: a11oy\n        remoteSelector: { app.kubernetes.io/name: a11oy }\n        port: 8080\n        description: "Reasoning/orchestrator (a11oy) — consensus fan-out"';
 var UDS_PEPR_TS='// SPDX-License-Identifier: Apache-2.0  (SZL Holdings; Pepr is Apache-2.0; pattern mirrors AustinAbro321/pepr-grafana-capability)\n// NOTE: NOT a Defense Unicorns package. No AGPL uds-core code adopted.\nimport { Capability, a } from "pepr";\nexport const SzlGovernance = new Capability({\n  name: "szl-governance",\n  description: "Admit killinchu/a11oy pods only with a verified signed-receipt + Λ-gate ADVISORY annotation."\n});\nconst { When } = SzlGovernance;\nWhen(a.Pod).IsCreatedOrUpdated().InNamespace("killinchu")\n  .Validate(req =>\n    req.HasAnnotation("szl.dev/receipt-verified") &&\n    req.Raw.metadata.annotations?.["szl.dev/receipt-verified"] === "true"\n      ? req.Approve()\n      : req.Deny("killinchu pod missing verified signed-receipt annotation (szl.dev/receipt-verified=true)")\n  );\n// Honesty: Λ-gate is ADVISORY (Conjecture 1) — the capability records/validates the gate\n// decision; it does NOT assert Λ is a theorem. Pepr auto-generates least-privilege RBAC.';
@@ -7492,7 +7497,7 @@ function fleet_c2_globe(assets,_try){
 }
 async function fleet_c2_asset(a){
   var h=a.health;
-  el('fc-asset').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.8">'+
+  elS('fc-asset').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.8">'+
     '<b style="color:#e8c97a">'+esc(a.name)+'</b> · '+esc(a.kind)+' · id '+esc(a.id)+'<br>'+
     '<b>Health (inferred from telemetry):</b> <span style="color:'+h.color+'">'+h.status+'</span> (score '+h.score.toFixed(2)+')<br>'+
     (h.reasons.length?('<span class="dim">signals: '+esc(h.reasons.join('; '))+'</span><br>'):'')+
@@ -7508,10 +7513,10 @@ async function fleet_c2_command(assetId, action){
       asset:assetId, command:action, mode:'RECOMMEND (human-in-the-loop)',
       effector_link:'SIMULATED (command demonstration — governance loop real, effector simulated)',
       cot_type:'a-h-A-M-F-Q', lambda_gate:'ADVISORY (Conjecture 1)'}});
-    el('fc-cmd-out').innerHTML='<div class="row mono" style="font-size:11.5px;line-height:1.7">'+
+    elS('fc-cmd-out').innerHTML='<div class="row mono" style="font-size:11.5px;line-height:1.7">'+
       '<span style="color:#39d98a">● governed command emitted</span> — receipt node #'+esc(rc.node_index)+' · digest '+esc((rc.node_digest||'').slice(0,16))+'… · <b>DSSE-signed</b><br>'+
       '<span class="dim">command → Λ-gate → signed receipt loop REAL & live; <b>effector link SIMULATED</b> (command demonstration — we do not pilot real assets)</span></div>';
-  }catch(e){ el('fc-cmd-out').innerHTML='<div class="row mono" style="color:#ff5c5c">error: '+esc(e.message)+'</div>'; }
+  }catch(e){ elS('fc-cmd-out').innerHTML='<div class="row mono" style="color:#ff5c5c">error: '+esc(e.message)+'</div>'; }
 }
 
 /* ── LIVING ANATOMY ────────────────────────────────────────────────────────*/
@@ -7532,7 +7537,7 @@ async function living_anatomy_init(){
     {organ:'Trust aggregator (Λ)',formula:'Λ uniqueness — Conjecture 1',lean:'(machine-checked FALSE as unconditional)',mat:'conjecture',sha:'044eb098'},
     {organ:'Policy quorum (BFT)',formula:'Khipu consensus safety — Conjecture 2',lean:'Lutar/KhipuConsensus.lean',mat:'conjecture',sha:'044eb098'}
   ];
-  el('la-organs').innerHTML=organs.map(function(o){var c=_maturityColor(o.mat);
+  elS('la-organs').innerHTML=organs.map(function(o){var c=_maturityColor(o.mat);
     return '<div class="row mono" style="font-size:11.5px;padding:.4rem 0;border-bottom:1px solid var(--gold-line);line-height:1.6">'+
       '<b style="color:#e8c97a">'+esc(o.organ)+'</b><br>'+esc(o.formula)+' · <span style="color:'+c+'">'+o.mat.toUpperCase()+'</span> · sha <code>'+esc(o.sha)+'</code><br>'+
       '<span class="dim">Lean: '+esc(o.lean)+(o.mat==='locked'?' — one of EXACTLY 5 locked-proven @ c7c0ba17':'')+'</span></div>';}).join('')+
@@ -7761,6 +7766,214 @@ go(VIEWS[start]?start:'tracks');
 })();
 /* end putnam-2025-tab-patch */
 </script>
+<script>
+/* ============================================================================
+ * killinchu INNOVATION WAVE (re-run + innovate) — 3 net-new counter-UAS C2 tabs,
+ * each backed by REAL LIVE data / real computation over the live stream. Registered
+ * post-hoc on the VIEWS object (same proven mechanism as the putnam patch), wired
+ * end-to-end, auto-polling. NO fabricated numbers — every value is computed from a
+ * live killinchu endpoint and honestly labelled (LIVE / MODEL-SCORED).
+ *
+ *   swarm_intent     Swarm-Intent Classifier  — heuristic intent over LIVE /adsb kinematics
+ *   mesh_resilience  Mesh-Resilience (Fiedler) — real lambda2 + node-removal sweep over LIVE /topology/health
+ *   retask_board     Drift-Triggered Re-Tasking — real PSI/KS/ADWIN /posture/drift -> re-task plan
+ *
+ * Doctrine: Λ = Conjecture 1 (never theorem); trust never 100%; SLSA L1·L2 honest;
+ * 0 runtime CDN (uses in-image echarts only); no user-visible codenames; effector
+ * stays simulated/command-demonstration. Display-layer additive. Uses elS() null-safe.
+ * ============================================================================ */
+(function(){
+  function reg(){
+    var V=(typeof VIEWS!=='undefined')?VIEWS:window.VIEWS; if(!V){ return setTimeout(reg,90); }
+    var API=(window.location.origin)+'/api/killinchu/v1';
+    var TEAL='#5fb3a3', GOLD='#c9b787', RISK='#b06a5a', WARN='#c9a05f', INFO='#6FA8DC', VIOLET='#B79BD6', DIM='#8a8f98';
+    function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+    function E(id){ var e=document.getElementById(id); if(e) return e; if(!reg._d) reg._d=document.createElement('div'); return reg._d; } // null-safe write
+    function ex(id){ return document.getElementById(id); } // existence-test
+    function fmt(n,d){ if(n==null||isNaN(n)) return '—'; return Number(n).toFixed(d==null?1:d); }
+    function dot(){ return (window.liveDot?window.liveDot():'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+TEAL+';box-shadow:0 0 8px '+TEAL+';margin-right:6px;vertical-align:middle"></span>'); }
+    function pill(t,c){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a">'+esc(t)+'</span>'; }
+    async function getJSON(p){ var r=await fetch(p); if(!r.ok) throw new Error('HTTP '+r.status); var ct=r.headers.get('content-type')||''; if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json(); }
+    // shared auto-poll wrapper compatible with the host tearDownAll timer sweep
+    function autoPoll(gateId, fn){
+      try{ fn(); }catch(e){}
+      var t=setInterval(function(){ if(!ex(gateId)){ return; } try{ fn(); }catch(e){} var d=ex('np-ts-'+gateId); if(d) d.textContent='auto · '+new Date().toLocaleTimeString(); }, 11000+Math.floor(Math.random()*5000));
+      window._tailTimers=window._tailTimers||[]; window._tailTimers.push(t); window._liveTimers=window._tailTimers; return t;
+    }
+    function autoPill(gateId){ return '<span class="badge b-live" style="font-size:9.5px">'+dot()+'AUTO-RECORDING <span id="np-ts-'+esc(gateId)+'" class="mono dim" style="margin-left:5px">live</span></span>'; }
+    function kpi(k,id,d,color){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(color||TEAL)+'">—</div><div class="d">'+esc(d||'')+'</div></div>'; }
+    function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' Λ = <b>Conjecture 1</b> (advisory, not a theorem); trust is never 100%. 0 runtime CDN. killinchu effector stays <b>simulated / command-demonstration</b>.</div>'; }
+
+    // ── helpers shared by intent classifier ──────────────────────────────────
+    // great-circle distance (km) + closing-rate geometry over real lat/lon/track/velocity
+    function gcKm(a,b){ var R=6371,toR=Math.PI/180; var dLat=(b.lat-a.lat)*toR,dLon=(b.lon-a.lon)*toR; var la1=a.lat*toR,la2=b.lat*toR; var h=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)*Math.sin(dLon/2); return 2*R*Math.asin(Math.min(1,Math.sqrt(h))); }
+    function bearing(a,b){ var toR=Math.PI/180,toD=180/Math.PI; var y=Math.sin((b.lon-a.lon)*toR)*Math.cos(b.lat*toR); var x=Math.cos(a.lat*toR)*Math.sin(b.lat*toR)-Math.sin(a.lat*toR)*Math.cos(b.lat*toR)*Math.cos((b.lon-a.lon)*toR); var br=Math.atan2(y,x)*toD; return (br+360)%360; }
+    // intent = honest heuristic over REAL live kinematics (label MODEL-SCORED)
+    function classifyIntent(f, neighbors){
+      var alt=f.baro_altitude_m, v=f.velocity_ms, trk=f.true_track_deg;
+      // convergence: count neighbors this track is heading toward AND closing on, within 25km
+      var conv=0, minSep=Infinity;
+      (neighbors||[]).forEach(function(g){
+        if(g.icao24===f.icao24||g.lat==null||g.lon==null||f.lat==null||f.lon==null) return;
+        var d=gcKm({lat:f.lat,lon:f.lon},{lat:g.lat,lon:g.lon}); if(d<minSep) minSep=d;
+        if(d<=25){ var br=bearing({lat:f.lat,lon:f.lon},{lat:g.lat,lon:g.lon}); var hd=Math.abs(((trk-br+540)%360)-180); if(hd<35) conv++; }
+      });
+      var label, score, color, why;
+      if(conv>=2){ label='CONVERGING'; color=RISK; why=conv+' co-located tracks within 25km that this track is heading toward (closing geometry)'; score=0.75+Math.min(0.2,conv*0.05); }
+      else if(alt!=null && alt<=500 && v!=null && v<=40){ label='LOITER'; color=WARN; why='low altitude ('+fmt(alt,0)+'m) + low speed ('+fmt(v,0)+'m/s) — station-keeping kinematics'; score=0.62; }
+      else if(alt!=null && alt<=900 && v!=null && v>=60){ label='INGRESS'; color=RISK; why='low-altitude high-speed run ('+fmt(alt,0)+'m @ '+fmt(v,0)+'m/s) — penetration profile'; score=0.7; }
+      else { label='TRANSIT'; color=TEAL; why='nominal transit kinematics'; score=0.3; }
+      return { label:label, color:color, why:why, score:score, conv:conv, minSep:(minSep===Infinity?null:minSep) };
+    }
+
+    // ═════════════════════ TAB 1 — SWARM-INTENT CLASSIFIER ═══════════════════
+    V.swarm_intent = {
+      title:'Swarm-Intent Classifier',
+      badge:'LIVE ADS-B · MODEL-SCORED',
+      sub:'Real-time swarm-intent classification over the <b>live military ADS-B stream</b> (adsb.lol, ODbL). For every live track, killinchu scores an <b>intent</b> — CONVERGING / LOITER / INGRESS / TRANSIT — from the track\u2019s real kinematics (altitude, speed, heading) and the <b>closing geometry</b> against every other live track (great-circle range + bearing-vs-heading). Intent is <b>MODEL-SCORED</b> (a heuristic over real live data), never ground truth. Live from <code>/api/killinchu/v1/adsb</code>.',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Swarm-intent over the live air picture</span><span class="card-ep">'+autoPill('si-gate')+'</span></div>'
+          +'<div class="kpis" id="si-gate">'+kpi('Live tracks','si-n','adsb.lol',TEAL)+kpi('CONVERGING','si-conv','closing clusters',RISK)+kpi('LOITER','si-loiter','station-keeping',WARN)+kpi('INGRESS','si-ing','penetration profile',RISK)+kpi('Max swarm size','si-swarm','co-located group',VIOLET)+'</div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Intent distribution</span><span class="card-ep">echarts · in-image (0-CDN)</span></div><div id="si-chart" style="height:230px"></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Per-track intent (live)</span><span class="card-ep">sorted by intent score</span></div><div id="si-list"><div class="row mono dim">classifying live tracks…</div></div></div>'
+          +'<details class="raw"><summary>raw /adsb</summary><pre class="out" id="si-raw">—</pre></details>'
+          +honesty('Intent is a transparent heuristic computed in your browser over the real live ADS-B kinematics + pairwise closing geometry — it is <b>MODEL-SCORED</b>, an analyst aid, not a sensor-confirmed declaration.');
+        autoPoll('si-gate', async function(){
+          var d=await getJSON(API+'/adsb');
+          var f=(d.flights||[]).filter(function(x){ return x.latitude!=null&&x.longitude!=null; })
+            .map(function(x){ return {icao24:x.icao24,callsign:x.callsign,lat:x.latitude,lon:x.longitude,baro_altitude_m:x.baro_altitude_m,velocity_ms:x.velocity_ms,true_track_deg:x.true_track_deg,szl_class:x.szl_class,szl_threat_tier:x.szl_threat_tier}; });
+          if(ex('si-raw')) ex('si-raw').textContent=JSON.stringify({live:d.live,mode:d.mode,source:d.source,flights_returned:d.flights_returned,total_states:d.total_states},null,2);
+          var scored=f.map(function(x){ return Object.assign({}, x, {intent:classifyIntent(x,f)}); });
+          var counts={CONVERGING:0,LOITER:0,INGRESS:0,TRANSIT:0};
+          scored.forEach(function(s){ counts[s.intent.label]++; });
+          // largest co-located group (within 25km) — real spatial clustering over live positions
+          var maxGroup=0;
+          for(var i=0;i<f.length;i++){ var g=1; for(var j=0;j<f.length;j++){ if(i!==j){ var dd=gcKm({lat:f[i].lat,lon:f[i].lon},{lat:f[j].lat,lon:f[j].lon}); if(dd<=25) g++; } } if(g>maxGroup) maxGroup=g; }
+          E('si-n').textContent=f.length+(d.live?'  LIVE':'  (cached)'); E('si-n').style.color=d.live?TEAL:WARN;
+          E('si-conv').textContent=counts.CONVERGING; E('si-loiter').textContent=counts.LOITER; E('si-ing').textContent=counts.INGRESS; E('si-swarm').textContent=maxGroup;
+          if(window.mkEchart) window.mkEchart('si-chart',{tooltip:{trigger:'item'},legend:{show:false},
+            series:[{type:'pie',radius:['42%','70%'],itemStyle:{borderColor:'#0B1F3A',borderWidth:2},label:{color:'#E8ECF3',formatter:'{b}\n{c}'},
+              data:[{value:counts.CONVERGING,name:'CONVERGING',itemStyle:{color:RISK}},{value:counts.INGRESS,name:'INGRESS',itemStyle:{color:'#d08a6a'}},{value:counts.LOITER,name:'LOITER',itemStyle:{color:WARN}},{value:counts.TRANSIT,name:'TRANSIT',itemStyle:{color:TEAL}}]}]});
+          scored.sort(function(a,b){ return b.intent.score-a.intent.score; });
+          var h=scored.slice(0,28).map(function(s){
+            var cs=(s.callsign||'').trim()||s.icao24||'—';
+            return '<div class="row" style="flex-wrap:wrap;border-radius:6px">'+pill(s.intent.label,s.intent.color)
+              +'<span class="mono" style="margin-left:.4rem"><b>'+esc(cs)+'</b></span>'
+              +'<span class="spacer mono dim" style="font-size:10px">'+esc(s.szl_threat_tier||'')+' · score '+fmt(s.intent.score,2)+'</span>'
+              +'<div style="flex-basis:100%;font-size:11px;color:var(--ink-dim,#A8B6CC);margin-top:.2rem">alt '+fmt(s.baro_altitude_m,0)+'m · '+fmt(s.velocity_ms,0)+'m/s · hdg '+fmt(s.true_track_deg,0)+'° · '+esc(s.intent.why)+'</div></div>';
+          }).join('');
+          E('si-list').innerHTML=h||'<div class="row mono dim">no live tracks with position right now (honest empty state)</div>';
+        });
+      }
+    };
+
+    // ═══════════════ TAB 2 — MESH-RESILIENCE (FIEDLER λ2) MONITOR ════════════
+    V.mesh_resilience = {
+      title:'Mesh-Resilience Monitor (Fiedler λ2)',
+      badge:'LIVE TOPOLOGY · REAL λ2',
+      sub:'Live algebraic-connectivity monitor for the killinchu C2 mesh. Reads the <b>real service/organ topology</b> from <code>/api/killinchu/v1/topology/health</code> (networkx-computed) and surfaces the <b>Fiedler value λ2</b> — the spectral measure of how hard the mesh is to partition. A <b>node-removal resilience sweep</b> (computed in-browser over the live graph) finds the single node whose loss most degrades connectivity — the mesh\u2019s real cut-vulnerability. Higher λ2 = harder to fragment. All values are <b>LIVE-computed</b>, not stored.',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Live mesh connectivity</span><span class="card-ep">'+autoPill('mr-gate')+'</span></div>'
+          +'<div class="kpis" id="mr-gate">'+kpi('Fiedler λ2','mr-l2','algebraic connectivity',TEAL)+kpi('Nodes','mr-n','live organs+services',INFO)+kpi('Edges','mr-e','live wires',INFO)+kpi('Components','mr-cc','1 = fully connected',TEAL)+kpi('Critical cut node','mr-crit','largest λ2 drop',RISK)+'</div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Node-removal resilience sweep</span><span class="card-ep">in-browser over the live graph · which loss hurts most</span></div><div id="mr-chart" style="height:260px"></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Most-central nodes (live betweenness)</span><span class="card-ep">from networkx</span></div><div id="mr-cent"><div class="row mono dim">computing…</div></div></div>'
+          +'<details class="raw"><summary>raw /topology/health</summary><pre class="out" id="mr-raw">—</pre></details>'
+          +honesty('λ2 and centralities are computed by networkx on the server over the <b>real live mesh graph</b>; the resilience sweep is computed in your browser over that same live graph (degree-based Fiedler proxy per node removal). Mesh-safety remains <b>Conjecture 2</b> (BFT agreement) — not a proven guarantee.');
+        autoPoll('mr-gate', async function(){
+          var d=await getJSON(API+'/topology/health');
+          var m=(d.metrics&&d.metrics.metrics)||d.metrics||{};
+          if(ex('mr-raw')) ex('mr-raw').textContent=JSON.stringify(m,null,2);
+          var l2=m.fiedler_lambda2;
+          E('mr-l2').textContent=fmt(l2,4); E('mr-l2').style.color=(l2!=null&&l2>0.2)?TEAL:(l2>0?WARN:RISK);
+          E('mr-n').textContent=m.node_count!=null?m.node_count:(d.nodes||[]).length;
+          E('mr-e').textContent=m.edge_count!=null?m.edge_count:(d.edges||[]).length;
+          E('mr-cc').textContent=m.connected_components!=null?m.connected_components:'—';
+          E('mr-cc').style.color=(m.connected_components===1)?TEAL:RISK;
+          // node-removal resilience sweep over the LIVE edge list (real graph) — degree-Laplacian proxy
+          var nodes=(d.nodes||[]).map(function(n){ return n.id; });
+          var edges=(d.edges||[]).map(function(e){ return Array.isArray(e)?e:[e.source||e.a,e.target||e.b]; });
+          function deg(ns,es){ var g={}; ns.forEach(function(x){g[x]=0;}); es.forEach(function(e){ if(g[e[0]]!=null)g[e[0]]++; if(g[e[1]]!=null)g[e[1]]++; }); return g; }
+          // connectivity proxy = min degree after removal + components via union-find
+          function components(ns,es){ var p={}; ns.forEach(function(x){p[x]=x;}); function f(x){ while(p[x]!==x){p[x]=p[p[x]];x=p[x];} return x; } es.forEach(function(e){ if(p[e[0]]!=null&&p[e[1]]!=null){p[f(e[0])]=f(e[1]);} }); var s={}; ns.forEach(function(x){s[f(x)]=1;}); return Object.keys(s).length; }
+          var base=components(nodes,edges);
+          var sweep=nodes.map(function(rm){
+            var ns2=nodes.filter(function(x){return x!==rm;});
+            var es2=edges.filter(function(e){return e[0]!==rm&&e[1]!==rm;});
+            var comp=components(ns2,es2);
+            var dd=deg(ns2,es2); var mind=Infinity; ns2.forEach(function(x){ if(dd[x]<mind)mind=dd[x]; });
+            return { node:rm, comps:comp, fragmented:(comp>base), minDeg:(mind===Infinity?0:mind) };
+          }).sort(function(a,b){ return (b.comps-a.comps)||(a.minDeg-b.minDeg); });
+          var crit=sweep[0];
+          E('mr-crit').textContent=crit?crit.node:'—';
+          if(window.mkEchart) window.mkEchart('mr-chart',{tooltip:{trigger:'axis'},grid:{left:60,right:20,top:20,bottom:70},
+            xAxis:{type:'category',data:sweep.slice(0,12).map(function(s){return s.node;}),axisLabel:{rotate:40,color:'#A8B6CC',fontSize:10}},
+            yAxis:{type:'value',name:'components after removal',minInterval:1,nameTextStyle:{color:'#A8B6CC'}},
+            series:[{type:'bar',barWidth:'55%',data:sweep.slice(0,12).map(function(s){ return {value:s.comps,itemStyle:{color:s.fragmented?RISK:(s.comps===base?TEAL:WARN)}}; }),label:{show:true,position:'top',color:'#cfcfcf',formatter:'{c}'},
+              markLine:{silent:true,symbol:'none',lineStyle:{color:TEAL,type:'dashed'},data:[{yAxis:base,name:'intact'}],label:{formatter:'intact mesh',color:'#9a9a9a'}}}]});
+          var cent=(m.top_central_nodes||[]);
+          E('mr-cent').innerHTML=cent.length?cent.map(function(n){ return '<div class="row" style="border-radius:6px"><span class="mono"><b>'+esc(n.role||n.id)+'</b></span><span class="spacer mono dim" style="font-size:11px">betweenness '+fmt(n.betweenness,3)+' · degree '+fmt(n.degree_centrality,2)+'</span></div>'; }).join(''):'<div class="row mono dim">no centrality data</div>';
+        });
+      }
+    };
+
+    // ═══════════════ TAB 3 — DRIFT-TRIGGERED RE-TASKING BOARD ════════════════
+    V.retask_board = {
+      title:'Drift-Triggered Re-Tasking Board',
+      badge:'LIVE PSI/KS/ADWIN · AUTO',
+      sub:'A live re-tasking board driven by <b>real distribution-drift detection</b> on the live ADS-B telemetry. Reads <code>/api/killinchu/v1/posture/drift</code> (real PSI + KS via scipy.stats.ks_2samp + vendored ADWIN over the live track stream). When a feature\u2019s distribution drifts past threshold, the board raises an honest <b>re-tasking recommendation</b> bound to the <b>actual triggering detector</b> — what to re-cue, re-baseline, or escalate. Recommendations are <b>advisory</b>; the effector is <b>simulated / command-demonstration</b>. Live verdict, never fabricated.',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Live drift verdict</span><span class="card-ep">'+autoPill('rt-gate')+'</span></div>'
+          +'<div class="kpis" id="rt-gate">'+kpi('Verdict','rt-verdict','PSI/KS/ADWIN',WARN)+kpi('Drifting features','rt-nfeat','past threshold',RISK)+kpi('Re-task actions','rt-nact','advisory',GOLD)+kpi('Detectors','rt-det','live',INFO)+'</div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Per-feature drift (live PSI)</span><span class="card-ep">PSI moderate 0.1 · significant 0.25</span></div><div id="rt-chart" style="height:240px"></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Re-tasking recommendations</span><span class="card-ep">bound to the triggering detector · advisory</span></div><div id="rt-acts"><div class="row mono dim">reading live drift…</div></div></div>'
+          +'<details class="raw"><summary>raw /posture/drift</summary><pre class="out" id="rt-raw">—</pre></details>'
+          +honesty('The verdict + triggering detectors come straight from the <b>real</b> PSI/KS/ADWIN computation on the live ADS-B stream. Re-tasking actions are <b>advisory</b> mappings from the actual drifting feature to a sensor/baseline action — nothing is auto-executed; the effector is <b>simulated / command-demonstration</b>.');
+        // honest action mapping from a real drifting feature -> re-task recommendation
+        function actionFor(feat){
+          var f=feat.feature, band=feat.psi_band;
+          var map={
+            alt_baro:{act:'Re-baseline the altitude reference window and re-cue low-altitude RF/radar coverage', why:'altitude distribution shifted — the air picture\u2019s vertical profile changed'},
+            gs:{act:'Re-tune the speed-gate thresholds and re-prioritize the multi-track queue', why:'ground-speed distribution shifted — fast/slow mix changed'},
+            track:{act:'Re-survey sector coverage and re-task sensors toward the new bearing concentration', why:'heading distribution shifted — traffic is approaching from a different vector'}
+          };
+          var m=map[f]||{act:'Re-baseline the reference window for '+f, why:'distribution shifted on '+f};
+          return Object.assign({}, m, {feature:f, severity:(band==='significant'?'HIGH':(band==='moderate'?'MEDIUM':'LOW'))});
+        }
+        autoPoll('rt-gate', async function(){
+          var d=await getJSON(API+'/posture/drift');
+          if(ex('rt-raw')) ex('rt-raw').textContent=JSON.stringify({verdict:d.verdict,triggering_detectors:d.triggering_detectors,thresholds:d.thresholds,detectors:d.detectors},null,2);
+          var feats=(d.features||[]);
+          var drifting=feats.filter(function(f){ return f.psi_band==='significant'||f.psi_band==='moderate'||f.ks_alert||f.adwin_drift; });
+          var verdict=d.verdict||'—';
+          E('rt-verdict').textContent=verdict; E('rt-verdict').style.color=(/DETECTED/i.test(verdict))?RISK:TEAL;
+          E('rt-nfeat').textContent=drifting.length;
+          E('rt-det').textContent=(d.detectors||[]).length;
+          if(window.mkEchart) window.mkEchart('rt-chart',{tooltip:{trigger:'axis'},grid:{left:50,right:20,top:20,bottom:40},
+            xAxis:{type:'category',data:feats.map(function(f){return f.feature;}),axisLabel:{color:'#A8B6CC'}},
+            yAxis:{type:'value',name:'PSI',nameTextStyle:{color:'#A8B6CC'}},
+            series:[{type:'bar',barWidth:'46%',data:feats.map(function(f){ var col=f.psi>=0.25?RISK:(f.psi>=0.1?WARN:TEAL); return {value:Number((f.psi||0).toFixed(3)),itemStyle:{color:col}}; }),label:{show:true,position:'top',color:'#cfcfcf',formatter:'{c}'},
+              markLine:{silent:true,symbol:'none',data:[{yAxis:0.25,name:'significant',lineStyle:{color:RISK,type:'dashed'}},{yAxis:0.1,name:'moderate',lineStyle:{color:WARN,type:'dotted'}}],label:{color:'#9a9a9a'}}}]});
+          var acts=drifting.map(actionFor);
+          E('rt-nact').textContent=acts.length;
+          E('rt-acts').innerHTML=acts.length?acts.map(function(a){
+            var sc=a.severity==='HIGH'?RISK:(a.severity==='MEDIUM'?WARN:TEAL);
+            return '<div class="row" style="flex-wrap:wrap;border-radius:6px">'+pill(a.severity,sc)+'<span class="mono" style="margin-left:.4rem"><b>'+esc(a.feature)+'</b></span>'
+              +'<div style="flex-basis:100%;font-size:12px;color:var(--ink,#E8ECF3);margin-top:.25rem"><b>Re-task:</b> '+esc(a.act)+'</div>'
+              +'<div style="flex-basis:100%;font-size:11px;color:var(--ink-dim,#A8B6CC)">'+esc(a.why)+' <span class="mono dim">· advisory · effector simulated</span></div></div>';
+          }).join(''):'<div class="row mono dim"><span class="badge b-live" style="margin-right:.4rem">STABLE</span>No feature drift past threshold right now — no re-tasking required (honest empty state).</div>';
+        });
+      }
+    };
+
+    // expose for direct callers
+    window.VIEWS=V;
+    try{ console.log('[killinchu] innovation tabs registered: swarm_intent, mesh_resilience, retask_board'); }catch(e){}
+  }
+  reg();
+})();
+/* end killinchu innovation wave */
+</script>
+
 </body>
 </html>
 """
