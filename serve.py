@@ -230,6 +230,29 @@ except Exception as _klf_e:  # additive: never break the Space
     print(f"[killinchu] live feeds NOT mounted ({_klf_e!r}); app unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (SZL Enterprise Connector Framework, 2026-06-10, founder directive).
+# Meshes killinchu into any enterprise CRM/ERP/platform the instant creds are
+# provided, AND is live-connected NOW to free/no-signup sources. Honest state
+# only (CONNECTED/READY/SAMPLE/ERROR). Every write() Lambda-gated + DSSE-receipted.
+#   GET  /api/killinchu/connectors            52-connector manifest + scoreboard
+#   GET  /api/killinchu/connectors/{id}/health
+#   GET  /api/killinchu/connectors/{id}/read
+#   POST /api/killinchu/connectors/{id}/write  (Lambda-gate + DSSE receipt)
+#   GET/POST .../oauth/start | .../oauth/callback (PKCE, signed-state)
+#   GET  /integrations                         Enterprise Mesh tab (0 CDN)
+# Registered EARLY (before the /{full_path:path} catch-all).
+# ---------------------------------------------------------------------------
+_szl_connectors_serve = None
+_szl_connectors_status = "connectors-not-wired"
+try:
+    import szl_connectors_serve as _szl_connectors_serve
+    _szl_connectors_status = _szl_connectors_serve.register(app, ns="killinchu")
+    print(f"[killinchu] enterprise connectors wired ({_szl_connectors_status})", file=sys.stderr)
+except Exception as _szc_e:  # additive: never break the Space
+    _szl_connectors_status = f"connectors-not-wired:{_szc_e!r}"
+    print(f"[killinchu] enterprise connectors NOT mounted ({_szc_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (Anatomy engine, 2026-06-06, founder directive). The SZL Agent Body
 # anatomy as the SHARED HONEST ENGINE. Ties killinchu's governed command ->
 # YUYAY 13-axis conjunctive gate -> RUWAY+SENTRA -> Λ-signed YAWAR receipt ->
