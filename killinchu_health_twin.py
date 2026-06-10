@@ -837,10 +837,10 @@ def register(app: FastAPI, ns: str = "killinchu",
         "recall":  {"intent": "recall platform to base / RTB", "reversible": True,  "min_lambda": 0.70},
         "isolate": {"intent": "isolate / quarantine compromised link", "reversible": True, "min_lambda": 0.0},
     }
-    # Lean theorem reference for the governance gate (locked-proven set = {F1,F11,F12,F18,F19}).
+    # Lean theorem reference for the governance gate (locked-proven set = {F1,F4,F7,F11,F12,F18,F19,F22}).
     _LEAN_REF = {
         "gate_monotone": "Lutar.lean §Λ-gate — conjunctive 13-axis gate is monotone (deny-by-default).",
-        "locked_proven": ["F1", "F11", "F12", "F18", "F19"],
+        "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
         "lambda_status": "Λ = Conjecture 1 (NOT a theorem); BFT = Conjecture 2 (conditional, proven Wave23).",
     }
 
