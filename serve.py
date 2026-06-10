@@ -337,7 +337,7 @@ async def _killinchu_resweep_diag():
 #   POST /api/killinchu/v1/wave910/quorum-consensus        C1 BDB + CN-1 quorum
 #   GET  /api/killinchu/v1/wave910/index                   manifest (id/name/chip/axioms)
 #   GET  /api/killinchu/v1/wave910/selftest                run all on in-image demo data
-# locked-proven stays EXACTLY 5 {F1,F11,F12,F18,F19}; Λ stays Conjecture 1; no fabricated data.
+# locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ stays Conjecture 1; no fabricated data.
 # ---------------------------------------------------------------------------
 _killinchu_wave910 = None
 _killinchu_wave910_status = "wave910-not-wired"
@@ -1134,7 +1134,7 @@ async def research_kb() -> JSONResponse:
 # Same taxonomy + byte-identical to a11oy's knowledge.json
 # (axioms / theorems / formulas / frameworks) so killinchu never drifts from the
 # kernel. Honesty doctrine v11 preserved verbatim from the corpus: Conjecture 1
-# OPEN, locked-proven = exactly 5 {F1,F11,F12,F18,F19} @ c7c0ba17, conditional
+# OPEN, locked-proven = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17, conditional
 # uniqueness = Theorem U. Registered BEFORE the /{full_path:path} SPA catch-all
 # so it wins ordered route matching. Never fabricates kernel claims.
 # ---------------------------------------------------------------------------
