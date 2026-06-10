@@ -377,6 +377,16 @@ COPY killinchu_ops_control.py ./killinchu_ops_control.py
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY szl_llm_registry.py ./szl_llm_registry.py
 COPY szl_alloy_models.py ./szl_alloy_models.py
+# ADDITIVE (a11oy Code agentic core, 2026-06-10): the GENUINELY-agentic loop + agentic
+# RAG + MCP client are SHARED canonical modules forged in a11oy and shipped BYTE-IDENTICAL
+# into killinchu for drift-free parity. killinchu does NOT host a11oy_code_orchestrator.py
+# (a11oy-specific), so nothing here imports them at boot, but they MUST be present and
+# byte-identical with a11oy. All three are stdlib-only at import time (szl_brain/szl_rag/
+# httpx/faiss are lazy + guarded). szl_rag.py is already COPY'd above (line ~189). Per-file
+# COPY (this Dockerfile never uses `COPY . .`).
+COPY a11oy_agent_loop.py ./a11oy_agent_loop.py
+COPY a11oy_org_rag.py ./a11oy_org_rag.py
+COPY a11oy_mcp_client.py ./a11oy_mcp_client.py
 # ADDITIVE (MINED ops upgrades, 2026-06-07): four license-vetted operational/efficiency
 # surfaces (pattern-mined clean-room WITH NOTICE: al-jshen/compute MIT, gpu-bartender MIT,
 # MLRC-deep-thinking MIT, kvpress Apache-2.0). serve.py imports killinchu_mined_ops via
