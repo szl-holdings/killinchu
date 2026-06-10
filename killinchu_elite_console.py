@@ -114,7 +114,7 @@ _BORROWED: list[dict[str, Any]] = [
         "flagship": "a11oy",
         "role": "orchestrator / receipt substrate",
         "borrowed_anatomy": "DSSE receipt substrate + Khipu Merkle DAG + LLM-hub access + formula set + 3-of-4 quorum",
-        "borrowed_formulas": ["F1", "F11", "F12", "F18", "F19"],
+        "borrowed_formulas": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
         "how_applied": (
             "Every counter-UAS interdiction emits an a11oy-style DSSE ECDSA-P256 receipt "
             "chained into the Khipu DAG (receipts.in ≡ receipts.out). The PROVED formula set "

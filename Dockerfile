@@ -425,7 +425,7 @@ COPY killinchu_resweep_ops.py ./killinchu_resweep_ops.py
 # {stl-robustness,covariance-intersection,gershgorin,mesh-resilience,audit-receipts,
 # quorum-consensus} + GET .../index + .../selftest. Per-file COPY (this Dockerfile NEVER
 # uses `COPY . .`); without it `import killinchu_wave910` fails and every wave910 route 404s.
-# Pure-stdlib, additive; locked-proven stays EXACTLY 5 {F1,F11,F12,F18,F19}; Λ = Conjecture 1.
+# Pure-stdlib, additive; locked-proven stays EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1.
 COPY killinchu_wave910.py ./killinchu_wave910.py
 
 # ADDITIVE (DEV-WIRE-K R1, Opus 4.8, 2026-06-09): Posture & Drift + Topology &
@@ -438,7 +438,7 @@ COPY killinchu_wave910.py ./killinchu_wave910.py
 # on live ADS-B; real graph metrics (Fiedler λ2 etc.) via networkx/numpy fallback;
 # Attack-Surface + Zero-Trust mesh from REAL deploy/uds-package.yaml. NO fabricated
 # data; honest empty states; organ role names (Operator/Provenance Anchor/Policy);
-# locked-proven stays EXACTLY 5 {F1,F11,F12,F18,F19}; Λ = Conjecture 1.
+# locked-proven stays EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1.
 COPY killinchu_posture_topology.py ./killinchu_posture_topology.py
 # ADDITIVE (DEV-WIRE-K R1): the REAL UDS Package CR consumed by the Attack-Surface
 # and Zero-Trust mesh endpoints (killinchu_posture_topology._load_uds_package reads
