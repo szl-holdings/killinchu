@@ -80,5 +80,36 @@ image signature (L1) — use `verify-attestation` to confirm L2. L3 is not claim
 
 ---
 
-*Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>*
+## 9. HF Space and GitHub `main` are SEPARATE repos — deploy-sync gap
+
+The HF Space (`szlholdings-killinchu.hf.space`) git repo is **distinct** from
+the GitHub mirror. A merge to GitHub `main` does **not** update the Space — the
+Space serve.py must be pushed separately and the Space rebuilt.
+
+Symptom seen 2026-06-05: `/beyond`, `/elite`, and the
+`/api/killinchu/v1/{autonomy,hotl,swarm}` + `/borrowed-powers` routes returned
+**404 on the live Space** while GitHub `main` had them wired and passing. The
+modules and Dockerfile COPYs were present in BOTH repos, so the instinct was
+"register() throws at runtime." It does NOT.
+
+Diagnosis method that settled it (no HF token needed):
+1. `curl .../api/killinchu/openapi.json` on the live Space → count `paths`.
+   Live = **231**; a faithful local repro of the Dockerfile env = **250**.
+   The 404 routes were simply absent from the deployed openapi.
+2. The inline `/api/killinchu/v1/doctrine` route (same serve.py, just above the
+   register blocks) returned **200** on the Space — proving the deployed
+   serve.py was an OLDER serve.py that stopped before the register blocks.
+
+So: **404 on a Space route whose code exists on `main` ⇒ first check the Space's
+deployed openapi path count vs. a local repro, before suspecting a runtime
+exception.** register() failing would still leave a `NOT registered: <repr>`
+line + traceback in the Space RUN logs; absence of routes from openapi with a
+clean boot points to a stale deploy, not an exception.
+
+Fix is always: push `main` to the Space + factory rebuild + re-probe (retry 3-6x
+for transient egress flake; a `000` is egress, not a crashed app).
+
+---
+
+*Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>*
 *Doctrine v11 LOCKED · 749/14/163.*
