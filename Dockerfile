@@ -105,6 +105,7 @@ COPY szl_evidence_research.py ./szl_evidence_research.py
 # fails and /api/killinchu/v1/readiness 404s (falls through to the SPA shell).
 ARG READINESS_FIX_BUST=1
 COPY szl_readiness.py ./szl_readiness.py
+COPY szl_quantum_bio.py ./szl_quantum_bio.py
 # Research & Sources backend (Task #662, research-sources-patch) — per-tab vetted
 # REAL upstream sources (UDS/Zarf/Pepr, supply-chain standards, threat/domain feeds,
 # Lean/proof refs, per-subject arXiv) with an honest live reachability probe. serve.py
