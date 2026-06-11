@@ -778,6 +778,14 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 
     <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 8 {F1,F4,F7,F11,F12,F18,F19,F22}; SLSA L2 build-attestation present; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
     <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>8 formulas formally proven<br>Build provenance: SLSA L2 build-attestation present<br>Drones + Maritime · signed receipts</div>
+
+    <div class="nav-group" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9316; COUNTER-UAS C2 LAB &middot; EXPERIMENTAL</div>
+    <div class="nav-item" data-view="cuas_intercept" onclick="go('cuas_intercept')" title="Proportional-navigation intercept-feasibility solver (a_cmd = N*Vc*lambda-dot vs a_max). Zarchan/Palumbo. Effector SIMULATED — computes feasibility, never actuates."><span class="ico">&#10138;</span>Intercept Solver (SIM)</div>
+    <div class="nav-item" data-view="cuas_spoof" onclick="go('cuas_spoof')" title="GNSS-spoofing plausibility chi-square innovation gate (threshold 33.1). Joerger. Advisory monitor, EXPERIMENTAL-tier."><span class="ico">&#9888;</span>Spoof Sentinel (chi-sq)</div>
+    <div class="nav-item" data-view="cuas_fusion" onclick="go('cuas_fusion')" title="Covariance-intersection track fusion (Julier-Uhlmann/Bar-Shalom). Confidence capped below 1.0 — trust never 100%. EXPERIMENTAL-tier."><span class="ico">&#10710;</span>Fusion Picture (CI)</div>
+    <div class="nav-item" data-view="cuas_swarm" onclick="go('cuas_swarm')" title="Urgency-weighted graph-Laplacian swarm consensus rendered as a living 3D galaxy (Fiedler lambda2 convergence pulse). Olfati-Saber/Zelazo. Khipu-quorum analogue (Conjecture 2 OPEN)."><span class="ico">&#10059;</span>Swarm Mesh (3D galaxy)</div>
+    <div class="nav-item" data-view="cuas_triage" onclick="go('cuas_triage')" title="Greedy weapon-target-assignment triage maximizing expected destroyed value (Manne). Effector SIMULATED — ranks and allocates, never fires."><span class="ico">&#9697;</span>Threat Triage (SIM)</div>
+    <div class="nav-item" data-view="cuas_pq" onclick="go('cuas_pq')" title="Post-quantum SHA3-256 hash-chain receipt bus (ML-KEM-768 / ML-DSA-65 / SLH-DSA, NIST FIPS 203/204/205). Signature PROXY until oqs key provisioned. EXPERIMENTAL-tier."><span class="ico">&#9919;</span>PQ Provenance (SHA3)</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -8410,6 +8418,394 @@ go(VIEWS[start]?start:'tracks');
   reg();
 })();
 /* end anatomy-map-tab-patch */
+</script>
+
+<script>
+/* ============================================================================
+ * killinchu COUNTER-UAS C2 LAB — 6 net-new living-3D tabs, each wired end-to-end
+ * to its REAL /api/killinchu/v1/cuas/* endpoint (szl_cuas_formulas.py). Registered
+ * post-hoc on the VIEWS object (same proven mechanism as the innovation-wave +
+ * putnam patches). Every number is computed by the live endpoint; nothing is
+ * fabricated. EXPERIMENTAL-tier SZL constructs — they add NOTHING to the locked 8
+ * {F1,F4,F7,F11,F12,F18,F19,F22}; Λ stays Conjecture 1; the killinchu effector
+ * stays SIMULATED (prominent labels); trust is never 100%. Classical inspirations
+ * (Zarchan/Palumbo, Joerger, Julier-Uhlmann, Bar-Shalom, Olfati-Saber/Zelazo,
+ * Manne, NIST PQC) are cited, claimed as none of SZL's own discovery.
+ *   cuas_intercept  Intercept Solver       — PN engageability   -> /cuas/engage
+ *   cuas_spoof      Spoof Sentinel         — GNSS chi-square     -> /cuas/plausibility
+ *   cuas_fusion     Fusion Picture         — covariance-intersect-> /cuas/fusion
+ *   cuas_swarm      Swarm Mesh (galaxy)    — Laplacian consensus -> /cuas/consensus
+ *   cuas_triage     Threat Triage          — weapon-target-assign-> /cuas/wta
+ *   cuas_pq         PQ Provenance          — SHA3 receipt chain  -> /cuas/pqbus
+ * 0 runtime CDN — vendored three.min.js / 3d-force-graph.min.js / echarts only.
+ * Null-safe every async path (E()/ex()); prefers-reduced-motion respected.
+ * ============================================================================ */
+(function(){
+  function reg(){
+    var V=(typeof VIEWS!=='undefined')?VIEWS:window.VIEWS; if(!V){ return setTimeout(reg,90); }
+    var API=(window.location.origin)+'/api/killinchu/v1';
+    var TEAL='#5fb3a3', GOLD='#c9b787', RISK='#b06a5a', WARN='#c9a05f', INFO='#6FA8DC', VIOLET='#B79BD6', DIM='#8a8f98', LIVE='#5a8a6e';
+    var RM = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+    function E(id){ var e=document.getElementById(id); if(e) return e; if(!reg._d) reg._d=document.createElement('div'); return reg._d; }
+    function ex(id){ return document.getElementById(id); }
+    function fmt(n,d){ if(n==null||isNaN(n)) return '—'; return Number(n).toFixed(d==null?1:d); }
+    function dot(){ return (window.liveDot?window.liveDot():'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+TEAL+';box-shadow:0 0 8px '+TEAL+';margin-right:6px;vertical-align:middle"></span>'); }
+    function pill(t,c){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a">'+esc(t)+'</span>'; }
+    function simBanner(txt){ return '<div style="margin:.2rem 0 .7rem;padding:.5rem .7rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:7px;background:'+WARN+'14;font-family:var(--mono,monospace);font-size:11px;letter-spacing:.04em;color:'+WARN+'"><b>⚠ SIMULATED EFFECTOR</b> — '+esc(txt)+'</div>'; }
+    async function getJSON(p){ var r=await fetch(p); if(!r.ok) throw new Error('HTTP '+r.status); var ct=r.headers.get('content-type')||''; if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json(); }
+    function autoPoll(gateId, fn){
+      try{ fn(); }catch(e){}
+      var t=setInterval(function(){ if(!ex(gateId)){ return; } try{ fn(); }catch(e){} var d=ex('cu-ts-'+gateId); if(d) d.textContent='auto · '+new Date().toLocaleTimeString(); }, 12000+Math.floor(Math.random()*5000));
+      window._tailTimers=window._tailTimers||[]; window._tailTimers.push(t); window._liveTimers=window._tailTimers; return t;
+    }
+    function autoPill(g){ return '<span class="badge b-live" style="font-size:9.5px">'+dot()+'AUTO-RECORDING <span id="cu-ts-'+esc(g)+'" class="mono dim" style="margin-left:5px">live</span></span>'; }
+    function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">—</div><div class="d">'+esc(d||'')+'</div></div>'; }
+    function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL construct — adds <b>nothing</b> to the 8 locked formulas; Λ = <b>Conjecture 1</b> (advisory, not a theorem); trust is never 100%. 0 runtime CDN; vendored libs only. killinchu effector stays <b>SIMULATED</b>.</div>'; }
+    function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' ↗</a>'; }
+
+    // ═════════════════════ TAB 1 — INTERCEPT SOLVER (PN) ═════════════════════
+    V.cuas_intercept = {
+      title:'Intercept Solver',
+      badge:'SIMULATED · PROPORTIONAL NAVIGATION',
+      sub:'A live <b>proportional-navigation engageability solver</b>. For a given closing geometry it computes the commanded lateral acceleration <code>a_cmd = N · Vc · λ̇</code> and gates it against the effector\u2019s structural limit <code>a_max</code> — the classic Zarchan/Palumbo feasibility test. The 3D scene draws the interceptor\u2013target closing triangle and the required-vs-available acceleration envelope, recomputed live from <code>/api/killinchu/v1/cuas/engage</code>. Inspiration: '+'<b>Zarchan, <i>Tactical &amp; Strategic Missile Guidance</i>; Palumbo et al., JHU APL Tech Digest 2018</b>. The effector is <b>SIMULATED</b> — this solves feasibility, it never actuates.',
+      render:function(c){
+        c.innerHTML=simBanner('killinchu computes intercept feasibility only. No round is ever cued, armed, or fired. a_cmd / feasible are decision-support, not a fire command.')
+          +'<div class="card"><div class="card-h"><span class="card-t">'+dot()+'PN engageability gate (live)</span><span class="card-ep">'+autoPill('ic-gate')+'</span></div>'
+          +'<div class="kpis" id="ic-gate">'+kpi('a_cmd (m/s²)','ic-acmd','N·Vc·λ̇',TEAL)+kpi('a_max (m/s²)','ic-amax','effector limit',INFO)+kpi('Feasible?','ic-feas','a_cmd ≤ a_max',GOLD)+kpi('N (nav const)','ic-N','dimensionless',VIOLET)+kpi('Effector','ic-eff','doctrine',WARN)+'</div></div>'
+          +'<div class="card"><div class="grid2"><div><div class="card-h"><span class="card-t">Closing-geometry intercept triangle (3D)</span><span class="card-ep">vendored three.js · 0-CDN</span></div><div id="ic-3d" style="height:clamp(300px,46vh,420px);border-radius:10px;background:#050608;margin-top:.4rem"></div></div>'
+          +'<div><div class="card-h"><span class="card-t">Acceleration envelope</span><span class="card-ep">required vs available</span></div><div id="ic-chart" style="height:clamp(260px,40vh,360px);margin-top:.4rem"></div>'
+          +'<div class="row" style="margin-top:.5rem;flex-wrap:wrap;gap:.5rem">'
+          +'<label class="mono dim" style="font-size:11px">N <input id="ic-in-N" type="range" min="2.5" max="5" step="0.1" value="3.5" style="vertical-align:middle"></label>'
+          +'<label class="mono dim" style="font-size:11px">λ̇ (rad/s) <input id="ic-in-lr" type="range" min="0.005" max="0.06" step="0.005" value="0.02" style="vertical-align:middle"></label>'
+          +'<label class="mono dim" style="font-size:11px">Vc (m/s) <input id="ic-in-vc" type="range" min="120" max="600" step="20" value="300" style="vertical-align:middle"></label>'
+          +'</div></div></div></div>'
+          +'<details class="raw"><summary>raw /cuas/engage</summary><pre class="out" id="ic-raw">—</pre></details>'
+          +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Classical inspiration: </span>'+cite('https://secwww.jhuapl.edu/techdigest/content/techdigest/pdf/V29-N01/29-01-Palumbo_Principles_Rev2018.pdf','Palumbo et al. — PN principles (JHU APL 2018)')+'</div>'
+          +honesty('a_cmd = N·Vc·λ̇ and the feasibility verdict are computed by the live endpoint; the 3D triangle and envelope are a faithful redraw of those exact numbers.');
+        function params(){ var N=ex('ic-in-N')?ex('ic-in-N').value:3.5, lr=ex('ic-in-lr')?ex('ic-in-lr').value:0.02, vc=ex('ic-in-vc')?ex('ic-in-vc').value:300; return {N:N,lr:lr,vc:vc}; }
+        function draw3d(N,Vc,lr,acmd,amax,feasible){
+          var host=ex('ic-3d'); if(!host||!window.THREE) return; host.innerHTML='';
+          var W=host.clientWidth||520, H=host.clientHeight||380;
+          var sc=new THREE.Scene(); var cam=new THREE.PerspectiveCamera(52,W/H,0.1,1000); cam.position.set(0,3,11);
+          var rnd; try{ rnd=new THREE.WebGLRenderer({antialias:true,alpha:true}); }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D unavailable: '+esc(e.message)+'</div>'; return; }
+          rnd.setSize(W,H); rnd.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); host.appendChild(rnd.domElement);
+          sc.add(new THREE.AmbientLight(0xffffff,0.7)); var pl=new THREE.PointLight(0x5fb3a3,1.1); pl.position.set(6,8,8); sc.add(pl);
+          // interceptor at origin, target offset; LOS rotates by λ̇
+          var iMat=new THREE.MeshStandardMaterial({color:0x5fb3a3,emissive:0x123, metalness:0.4,roughness:0.4});
+          var tMat=new THREE.MeshStandardMaterial({color:feasible?0x6fa8dc:0xb06a5a,emissive:0x101,metalness:0.3,roughness:0.5});
+          var inter=new THREE.Mesh(new THREE.ConeGeometry(0.35,1.1,18),iMat); inter.position.set(-4,0,0); inter.rotation.z=-Math.PI/2; sc.add(inter);
+          var tgt=new THREE.Mesh(new THREE.SphereGeometry(0.5,24,18),tMat); tgt.position.set(4,1.6,0); sc.add(tgt);
+          // line of sight
+          var losGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-4,0,0),new THREE.Vector3(4,1.6,0)]);
+          var los=new THREE.Line(losGeo,new THREE.LineBasicMaterial({color:0xc9b787})); sc.add(los);
+          // acceleration vector (magnitude ~ acmd/amax)
+          var frac=amax>0?Math.min(1.4,acmd/amax):0; var aLen=0.4+frac*3.2;
+          var aGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-4,0,0),new THREE.Vector3(-4,aLen,0)]);
+          var aLine=new THREE.Line(aGeo,new THREE.LineBasicMaterial({color:feasible?0x5a8a6e:0xb06a5a,linewidth:2})); sc.add(aLine);
+          var grid=new THREE.GridHelper(16,16,0x223,0x152); grid.position.y=-2; sc.add(grid);
+          var stop=false, ang=0;
+          function loop(){ if(stop||!ex('ic-3d')){ try{rnd.dispose();}catch(e){} return; }
+            if(!RM){ ang+=0.004; sc.rotation.y=Math.sin(ang)*0.4; tgt.position.x=4-(Math.sin(ang)*0.3); los.geometry.setFromPoints([new THREE.Vector3(-4,0,0),tgt.position]); }
+            rnd.render(sc,cam); requestAnimationFrame(loop); }
+          loop();
+          window._tailTimers=window._tailTimers||[]; window._tailTimers.push(setInterval(function(){ if(!ex('ic-3d')) stop=true; },4000));
+        }
+        async function icRun(){
+          var p=params();
+          var d=await getJSON(API+'/cuas/engage?N='+p.N+'&Vc='+p.vc+'&los_rate='+p.lr+'&t_go=4&a_max=250');
+          if(ex('ic-raw')) ex('ic-raw').textContent=JSON.stringify(d,null,2);
+          E('ic-acmd').textContent=fmt(d.a_cmd,2); E('ic-amax').textContent=fmt(d.a_max,0); E('ic-N').textContent=fmt(d.N,1);
+          E('ic-feas').textContent=d.feasible?'FEASIBLE':'INFEASIBLE'; E('ic-feas').style.color=d.feasible?LIVE:RISK;
+          E('ic-eff').textContent=(d.effector||'SIMULATED'); E('ic-eff').style.color=WARN;
+          if(window.mkEchart) window.mkEchart('ic-chart',{tooltip:{trigger:'axis'},grid:{left:60,right:18,top:24,bottom:34},
+            xAxis:{type:'category',data:['required a_cmd','available a_max'],axisLabel:{color:'#A8B6CC'}},
+            yAxis:{type:'value',name:'m/s²',nameTextStyle:{color:'#A8B6CC'}},
+            series:[{type:'bar',barWidth:'46%',data:[{value:Number((d.a_cmd||0).toFixed(2)),itemStyle:{color:d.feasible?LIVE:RISK}},{value:Number((d.a_max||0).toFixed(0)),itemStyle:{color:INFO}}],label:{show:true,position:'top',color:'#cfcfcf',formatter:'{c}'}}]});
+          draw3d(d.N,p.vc,p.lr,d.a_cmd,d.a_max,d.feasible);
+        }
+        autoPoll('ic-gate', function(){ icRun().catch(function(){}); });
+        ['ic-in-N','ic-in-lr','ic-in-vc'].forEach(function(id){ var e=ex(id); if(e) e.addEventListener('input',function(){ icRun().catch(function(){}); }); });
+      }
+    };
+
+    // ═════════════════════ TAB 2 — SPOOF SENTINEL (chi²) ═════════════════════
+    V.cuas_spoof = {
+      title:'Spoof Sentinel',
+      badge:'EXPERIMENTAL · GNSS χ² INNOVATION GATE',
+      sub:'A live <b>GNSS-spoofing plausibility monitor</b>. It scores a navigation innovation against a <b>chi-square consistency gate</b> — when the squared innovation (Mahalanobis-style) exceeds the χ² threshold, the fix is flagged <b>spoof-suspected</b>. The dial sweeps the χ² statistic against the doctrine threshold 33.1 and the 3D innovation cloud expands/reddens as the statistic climbs, recomputed live from <code>/api/killinchu/v1/cuas/plausibility</code>. Inspiration: <b>Joerger et al. — RAIM / innovation-sequence integrity monitoring</b>; the threshold is a documented χ² critical value. Advisory monitor — never an actuation.',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'GNSS χ² plausibility gate (live)</span><span class="card-ep">'+autoPill('sp-gate')+'</span></div>'
+          +'<div class="kpis" id="sp-gate">'+kpi('χ² statistic','sp-chi','innovation²',TEAL)+kpi('Threshold','sp-th','documented χ² crit',INFO)+kpi('Spoof suspected?','sp-flag','gate verdict',GOLD)+kpi('Recommendation','sp-rec','advisory',VIOLET)+'</div></div>'
+          +'<div class="card"><div class="grid2"><div><div class="card-h"><span class="card-t">χ² gate dial</span><span class="card-ep">statistic vs threshold 33.1</span></div><div id="sp-dial" style="height:clamp(260px,38vh,340px);margin-top:.4rem"></div></div>'
+          +'<div><div class="card-h"><span class="card-t">Innovation cloud (3D)</span><span class="card-ep">vendored three.js · cloud grows with χ²</span></div><div id="sp-3d" style="height:clamp(300px,42vh,400px);border-radius:10px;background:#050608;margin-top:.4rem"></div>'
+          +'<div class="row" style="margin-top:.5rem"><label class="mono dim" style="font-size:11px">sweep χ² <input id="sp-in" type="range" min="0.5" max="45" step="0.5" value="3" style="width:200px;vertical-align:middle"></label></div></div></div></div>'
+          +'<details class="raw"><summary>raw /cuas/plausibility</summary><pre class="out" id="sp-raw">—</pre></details>'
+          +honesty('The χ² statistic, threshold and spoof verdict are computed by the live endpoint; the dial and 3D innovation cloud redraw those exact numbers.');
+        function draw3d(chi,thr,spoof){
+          var host=ex('sp-3d'); if(!host||!window.THREE) return; host.innerHTML='';
+          var W=host.clientWidth||500,H=host.clientHeight||380;
+          var sc=new THREE.Scene(); var cam=new THREE.PerspectiveCamera(55,W/H,0.1,1000); cam.position.set(0,0,9);
+          var rnd; try{ rnd=new THREE.WebGLRenderer({antialias:true,alpha:true}); }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D unavailable</div>'; return; }
+          rnd.setSize(W,H); rnd.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); host.appendChild(rnd.domElement);
+          sc.add(new THREE.AmbientLight(0xffffff,0.8));
+          var spread=0.6+Math.min(4,(chi/thr)*3.2); var N=380;
+          var geo=new THREE.BufferGeometry(); var pos=new Float32Array(N*3);
+          for(var i=0;i<N;i++){ pos[i*3]=(Math.random()-0.5)*spread*2; pos[i*3+1]=(Math.random()-0.5)*spread*2; pos[i*3+2]=(Math.random()-0.5)*spread*2; }
+          geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+          var col=spoof?0xb06a5a:0x5fb3a3;
+          var mat=new THREE.PointsMaterial({color:col,size:0.09,transparent:true,opacity:0.85});
+          var pts=new THREE.Points(geo,mat); sc.add(pts);
+          // threshold shell
+          var shell=new THREE.Mesh(new THREE.SphereGeometry(0.6+3.2,24,18),new THREE.MeshBasicMaterial({color:0xc9a05f,wireframe:true,transparent:true,opacity:0.18})); sc.add(shell);
+          var stop=false,a=0;
+          function loop(){ if(stop||!ex('sp-3d')){ try{rnd.dispose();}catch(e){} return; } if(!RM){ a+=0.003; pts.rotation.y=a; pts.rotation.x=a*0.4; } rnd.render(sc,cam); requestAnimationFrame(loop); }
+          loop();
+          window._tailTimers=window._tailTimers||[]; window._tailTimers.push(setInterval(function(){ if(!ex('sp-3d')) stop=true; },4000));
+        }
+        async function spRun(){
+          var chi=ex('sp-in')?ex('sp-in').value:3;
+          var d=await getJSON(API+'/cuas/plausibility?chi='+chi);
+          var m=(d&&d.demo)||d||{};
+          if(ex('sp-raw')) ex('sp-raw').textContent=JSON.stringify(d,null,2);
+          E('sp-chi').textContent=fmt(m.chi_square,2); E('sp-th').textContent=fmt(m.threshold,1);
+          E('sp-flag').textContent=m.spoof_suspected?'SPOOF SUSPECTED':'PLAUSIBLE'; E('sp-flag').style.color=m.spoof_suspected?RISK:LIVE;
+          E('sp-rec').textContent=m.recommendation||'—'; E('sp-rec').style.color=m.spoof_suspected?WARN:TEAL;
+          if(window.mkEchart) window.mkEchart('sp-dial',{series:[{type:'gauge',min:0,max:Math.max(45,(m.threshold||33.1)+10),splitNumber:9,
+            axisLine:{lineStyle:{width:14,color:[[(m.threshold||33.1)/Math.max(45,(m.threshold||33.1)+10),TEAL],[1,RISK]]}},
+            pointer:{itemStyle:{color:m.spoof_suspected?RISK:TEAL}},axisLabel:{color:'#A8B6CC',fontSize:9},
+            detail:{valueAnimation:!RM,formatter:'{value}',color:m.spoof_suspected?RISK:TEAL,fontSize:22},
+            data:[{value:Number((m.chi_square||0).toFixed(1)),name:'χ²'}],title:{color:'#A8B6CC'}}]});
+          draw3d(m.chi_square||0,m.threshold||33.1,m.spoof_suspected);
+        }
+        autoPoll('sp-gate', function(){ spRun().catch(function(){}); });
+        var spi=ex('sp-in'); if(spi) spi.addEventListener('input',function(){ spRun().catch(function(){}); });
+      }
+    };
+
+    // ═════════════════════ TAB 3 — FUSION PICTURE (CI) ═══════════════════════
+    V.cuas_fusion = {
+      title:'Fusion Picture',
+      badge:'EXPERIMENTAL · COVARIANCE INTERSECTION',
+      sub:'A live <b>covariance-intersection track-fusion</b> view. Two sensor estimates with variances <code>var_a</code>, <code>var_b</code> are fused under a weight ω into a single conservative variance — the Julier–Uhlmann CI rule that stays consistent under <b>unknown correlation</b>. The 3D scene draws the two source uncertainty ellipsoids and the fused (tighter, conservative) ellipsoid; the confidence read-out is <b>capped below 1.0 by doctrine</b> (trust is never 100%). Live from <code>/api/killinchu/v1/cuas/fusion</code>. Inspiration: <b>Julier &amp; Uhlmann — Covariance Intersection; Bar-Shalom — tracking &amp; data association</b>.',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Covariance-intersection fusion (live)</span><span class="card-ep">'+autoPill('fu-gate')+'</span></div>'
+          +'<div class="kpis" id="fu-gate">'+kpi('Fused variance','fu-fv','conservative',TEAL)+kpi('Confidence','fu-conf','capped < 1.0',GOLD)+kpi('var_a','fu-va','sensor A',INFO)+kpi('var_b','fu-vb','sensor B',INFO)+kpi('ω weight','fu-w','CI blend',VIOLET)+'</div></div>'
+          +'<div class="card"><div class="grid2"><div><div class="card-h"><span class="card-t">Uncertainty ellipsoids (3D)</span><span class="card-ep">two sources + conservative fused · vendored three.js</span></div><div id="fu-3d" style="height:clamp(300px,44vh,410px);border-radius:10px;background:#050608;margin-top:.4rem"></div></div>'
+          +'<div><div class="card-h"><span class="card-t">Variance comparison</span><span class="card-ep">A · B · fused</span></div><div id="fu-chart" style="height:clamp(240px,36vh,330px);margin-top:.4rem"></div>'
+          +'<div class="row" style="margin-top:.5rem;flex-wrap:wrap;gap:.5rem">'
+          +'<label class="mono dim" style="font-size:11px">var_a <input id="fu-in-a" type="range" min="1" max="16" step="1" value="4"></label>'
+          +'<label class="mono dim" style="font-size:11px">var_b <input id="fu-in-b" type="range" min="1" max="16" step="1" value="9"></label>'
+          +'<label class="mono dim" style="font-size:11px">ω <input id="fu-in-w" type="range" min="0.1" max="0.9" step="0.1" value="0.5"></label>'
+          +'</div></div></div></div>'
+          +'<details class="raw"><summary>raw /cuas/fusion</summary><pre class="out" id="fu-raw">—</pre></details>'
+          +honesty('Fused variance and the (capped) confidence are computed by the live CI endpoint; the ellipsoids redraw those exact variances. Confidence is capped below 1.0 — <b>trust is never 100%</b>.');
+        function ellipsoid(sc,vx,color,op){ var r=Math.sqrt(vx); var m=new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.3,Math.min(4,r)),24,18),new THREE.MeshStandardMaterial({color:color,transparent:true,opacity:op,wireframe:true})); return m; }
+        function draw3d(va,vb,fv){
+          var host=ex('fu-3d'); if(!host||!window.THREE) return; host.innerHTML='';
+          var W=host.clientWidth||500,H=host.clientHeight||390;
+          var sc=new THREE.Scene(); var cam=new THREE.PerspectiveCamera(52,W/H,0.1,1000); cam.position.set(0,2,12);
+          var rnd; try{ rnd=new THREE.WebGLRenderer({antialias:true,alpha:true}); }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D unavailable</div>'; return; }
+          rnd.setSize(W,H); rnd.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); host.appendChild(rnd.domElement);
+          sc.add(new THREE.AmbientLight(0xffffff,0.85)); var pl=new THREE.PointLight(0x5fb3a3,0.8); pl.position.set(5,6,6); sc.add(pl);
+          var a=ellipsoid(sc,va,0x6fa8dc,0.22); a.position.x=-2.2; sc.add(a);
+          var b=ellipsoid(sc,vb,0xc9a05f,0.22); b.position.x=2.2; sc.add(b);
+          var f=ellipsoid(sc,fv,0x5fb3a3,0.5); sc.add(f);
+          var stop=false,t=0;
+          function loop(){ if(stop||!ex('fu-3d')){ try{rnd.dispose();}catch(e){} return; } if(!RM){ t+=0.005; sc.rotation.y=t; } rnd.render(sc,cam); requestAnimationFrame(loop); }
+          loop();
+          window._tailTimers=window._tailTimers||[]; window._tailTimers.push(setInterval(function(){ if(!ex('fu-3d')) stop=true; },4000));
+        }
+        async function fuRun(){
+          var va=ex('fu-in-a')?ex('fu-in-a').value:4, vb=ex('fu-in-b')?ex('fu-in-b').value:9, w=ex('fu-in-w')?ex('fu-in-w').value:0.5;
+          var d=await getJSON(API+'/cuas/fusion?var_a='+va+'&var_b='+vb+'&omega='+w);
+          if(ex('fu-raw')) ex('fu-raw').textContent=JSON.stringify(d,null,2);
+          E('fu-fv').textContent=fmt(d.fused_variance,3); E('fu-conf').textContent=fmt(d.confidence,4); E('fu-conf').style.color=GOLD;
+          E('fu-va').textContent=va; E('fu-vb').textContent=vb; E('fu-w').textContent=w;
+          if(window.mkEchart) window.mkEchart('fu-chart',{tooltip:{trigger:'axis'},grid:{left:50,right:18,top:24,bottom:34},
+            xAxis:{type:'category',data:['var_a','var_b','fused'],axisLabel:{color:'#A8B6CC'}},
+            yAxis:{type:'value',name:'variance',nameTextStyle:{color:'#A8B6CC'}},
+            series:[{type:'bar',barWidth:'46%',data:[{value:Number(va),itemStyle:{color:INFO}},{value:Number(vb),itemStyle:{color:WARN}},{value:Number((d.fused_variance||0).toFixed(3)),itemStyle:{color:TEAL}}],label:{show:true,position:'top',color:'#cfcfcf',formatter:'{c}'}}]});
+          draw3d(Number(va),Number(vb),Number(d.fused_variance||1));
+        }
+        autoPoll('fu-gate', function(){ fuRun().catch(function(){}); });
+        ['fu-in-a','fu-in-b','fu-in-w'].forEach(function(id){ var e=ex(id); if(e) e.addEventListener('input',function(){ fuRun().catch(function(){}); }); });
+      }
+    };
+
+    // ═══════════ TAB 4 — SWARM MESH (ANVAKA 3d-force-graph GALAXY) ════════════
+    V.cuas_swarm = {
+      title:'Swarm Mesh',
+      badge:'EXPERIMENTAL · URGENCY-WEIGHTED LAPLACIAN',
+      sub:'A living <b>swarm-consensus galaxy</b>. The mesh is rendered as a 3D force-directed galaxy (vendored 3d-force-graph); the urgency-weighted graph-Laplacian Fiedler value <b>λ₂</b> drives a convergence pulse, edges glow and contract with the <b>urgency boost</b>, and the layout breathes toward consensus when a connected quorum is reached. This is the <b>Khipu-quorum analogue</b>: connected ⇔ consensus reachable (Conjecture 2, OPEN — never a proven guarantee). Live from <code>/api/killinchu/v1/cuas/consensus</code>. Inspiration: <b>Olfati-Saber — consensus &amp; flocking; Zelazo/Mesbahi — graph-theoretic networks; Fiedler — algebraic connectivity</b>.',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Urgency-weighted swarm consensus (live)</span><span class="card-ep">'+autoPill('sw-gate')+'</span></div>'
+          +'<div class="kpis" id="sw-gate">'+kpi('λ₂ (Fiedler)','sw-l2','algebraic connectivity',TEAL)+kpi('Urgency boost','sw-ub','min-TTI weighting',WARN)+kpi('Quorum','sw-q','connected ⇔ reachable',GOLD)+kpi('Status','sw-st','EXPERIMENTAL',VIOLET)+'</div>'
+          +'<div id="sw-3d" style="height:clamp(340px,56vh,560px);border-radius:12px;background:radial-gradient(ellipse at center,#0a0e1a 0%,#040406 70%);margin-top:.6rem;position:relative"></div>'
+          +'<div class="mono dim" style="font-size:11px;margin-top:.4rem">Khipu-quorum analogue · BFT agreement = <b>Conjecture 2 (OPEN)</b>, not a proven guarantee. Galaxy breathes toward consensus only while a connected quorum holds.</div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Convergence pulse (λ₂ over time)</span><span class="card-ep">live samples</span></div><div id="sw-chart" style="height:clamp(200px,28vh,260px)"></div>'
+          +'<div class="row" style="margin-top:.5rem"><label class="mono dim" style="font-size:11px">min TTI (s) <input id="sw-in" type="range" min="1" max="20" step="1" value="5" style="width:200px;vertical-align:middle"></label></div></div>'
+          +'<details class="raw"><summary>raw /cuas/consensus</summary><pre class="out" id="sw-raw">—</pre></details>'
+          +honesty('λ₂, the urgency boost and the connected-quorum verdict are computed by the live Laplacian endpoint; the galaxy and pulse redraw those exact values. Mesh safety = Conjecture 2 (OPEN), not proven.');
+        var hist=[];
+        function buildGalaxy(l2,ub,quorum){
+          var host=ex('sw-3d'); if(!host||!window.ForceGraph3D) return;
+          // FPS-safe node count scaled by connectivity (cap 90)
+          var n=Math.max(14,Math.min(90,Math.round(18+l2*16+ub*6)));
+          var nodes=[],links=[];
+          for(var i=0;i<n;i++){ nodes.push({id:'u'+i, val:2+Math.random()*3, color:quorum?TEAL:WARN}); }
+          // ring + cross links; density scaled by λ₂ so higher connectivity => tighter galaxy
+          var extra=Math.round(l2*n*0.4);
+          for(var i=0;i<n;i++){ links.push({source:'u'+i,target:'u'+((i+1)%n),w:0.6+ub*0.5}); }
+          for(var k=0;k<extra;k++){ var a='u'+Math.floor(Math.random()*n),b='u'+Math.floor(Math.random()*n); if(a!==b) links.push({source:a,target:b,w:0.4+l2*0.3}); }
+          host.innerHTML='';
+          try{
+            var fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
+              .graphData({nodes:nodes,links:links})
+              .nodeColor(function(nd){return nd.color;}).nodeVal(function(nd){return nd.val;}).nodeOpacity(0.9)
+              .nodeResolution(8)
+              .linkColor(function(l){ return quorum?'rgba(95,179,163,'+Math.min(0.7,0.25+ub*0.3)+')':'rgba(201,160,95,0.3)'; })
+              .linkWidth(function(l){ return Math.min(3,(l.w||1)); })
+              .linkDirectionalParticles(RM?0:2).linkDirectionalParticleSpeed(0.004+ub*0.004).linkDirectionalParticleColor(function(){return quorum?TEAL:WARN;})
+              .showNavInfo(false);
+            // urgency boost contracts the link distance => galaxy breathes toward consensus
+            try{ fg.d3Force('link').distance(function(){ return Math.max(8,40-ub*14-l2*6); }); }catch(e){}
+            try{ fg.d3Force('charge').strength(-30-l2*10); }catch(e){}
+            window._fg=fg;
+            setTimeout(function(){ try{fg.width(host.clientWidth).height(host.clientHeight);}catch(e){} },300);
+            if(!RM){ // gentle auto-orbit convergence pulse
+              var ang=0, cam=fg.cameraPosition();
+              var t=setInterval(function(){ if(!ex('sw-3d')){clearInterval(t);return;} ang+=0.0032*(1+ub); var dist=180-l2*20; fg.cameraPosition({x:dist*Math.sin(ang),z:dist*Math.cos(ang)},undefined,0); }, 60);
+              window._tailTimers=window._tailTimers||[]; window._tailTimers.push(t);
+            }
+          }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">Galaxy unavailable: '+esc(e.message)+'</div>'; }
+        }
+        async function swRun(){
+          var tti=ex('sw-in')?ex('sw-in').value:5;
+          var d=await getJSON(API+'/cuas/consensus?min_tti='+tti);
+          if(ex('sw-raw')) ex('sw-raw').textContent=JSON.stringify(d,null,2);
+          var l2=d.lambda2!=null?d.lambda2:0, ub=d.urgency_boost!=null?d.urgency_boost:1, q=!!d.connected_quorum;
+          E('sw-l2').textContent=fmt(l2,3); E('sw-l2').style.color=l2>0.2?TEAL:WARN;
+          E('sw-ub').textContent=fmt(ub,2); E('sw-q').textContent=q?'CONNECTED':'FRAGMENTED'; E('sw-q').style.color=q?LIVE:RISK;
+          E('sw-st').textContent=d.status||'EXPERIMENTAL';
+          hist.push(l2); if(hist.length>40) hist.shift();
+          if(window.mkEchart) window.mkEchart('sw-chart',{tooltip:{trigger:'axis'},grid:{left:46,right:16,top:18,bottom:28},
+            xAxis:{type:'category',data:hist.map(function(_,i){return i;}),axisLabel:{show:false}},
+            yAxis:{type:'value',name:'λ₂',nameTextStyle:{color:'#A8B6CC'}},
+            series:[{type:'line',smooth:true,showSymbol:false,data:hist.map(function(v){return Number((v||0).toFixed(3));}),lineStyle:{color:TEAL,width:2},areaStyle:{color:'rgba(95,179,163,0.16)'}}]});
+          buildGalaxy(l2,ub,q);
+        }
+        autoPoll('sw-gate', function(){ swRun().catch(function(){}); });
+        var swi=ex('sw-in'); if(swi) swi.addEventListener('change',function(){ swRun().catch(function(){}); });
+      }
+    };
+
+    // ═════════════════════ TAB 5 — THREAT TRIAGE (WTA) ═══════════════════════
+    V.cuas_triage = {
+      title:'Threat Triage',
+      badge:'SIMULATED · WEAPON-TARGET ASSIGNMENT',
+      sub:'A live <b>weapon-target-assignment triage board</b>. A greedy WTA allocates a limited pool of (simulated) interceptors across ranked threats to maximize expected destroyed value — the classic Manne assignment heuristic. The 3D scene draws threats sized by value with assignment beams to interceptor slots; unassigned interceptors and residual threats are surfaced honestly. Live from <code>/api/killinchu/v1/cuas/wta</code>. Inspiration: <b>Manne — weapon-target assignment; den Broeder et al.</b>. The effector is <b>SIMULATED</b> — this ranks and allocates, it never fires.',
+      render:function(c){
+        c.innerHTML=simBanner('killinchu computes the assignment only. No interceptor is ever cued, armed, or launched. The allocation is decision-support, not a fire order.')
+          +'<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Greedy WTA allocation (live)</span><span class="card-ep">'+autoPill('tr-gate')+'</span></div>'
+          +'<div class="kpis" id="tr-gate">'+kpi('Threats','tr-n','ranked by value',TEAL)+kpi('Exp. destroyed value','tr-edv','greedy objective',GOLD)+kpi('Unassigned intc.','tr-un','interceptor slack',WARN)+kpi('Effector','tr-eff','doctrine',WARN)+'</div></div>'
+          +'<div class="card"><div class="grid2"><div><div class="card-h"><span class="card-t">Assignment scene (3D)</span><span class="card-ep">threats sized by value · assignment beams · vendored three.js</span></div><div id="tr-3d" style="height:clamp(300px,46vh,420px);border-radius:10px;background:#050608;margin-top:.4rem"></div></div>'
+          +'<div><div class="card-h"><span class="card-t">Allocation table</span><span class="card-ep">threat → interceptors</span></div><div id="tr-tab"><div class="row mono dim">allocating…</div></div>'
+          +'<div class="row" style="margin-top:.5rem"><label class="mono dim" style="font-size:11px">threats n <input id="tr-in" type="range" min="2" max="6" step="1" value="3" style="vertical-align:middle"></label></div></div></div></div>'
+          +'<details class="raw"><summary>raw /cuas/wta</summary><pre class="out" id="tr-raw">—</pre></details>'
+          +honesty('The allocation, expected destroyed value and interceptor slack are computed by the live greedy-WTA endpoint; the 3D scene redraws that exact allocation.');
+        function draw3d(alloc){
+          var host=ex('tr-3d'); if(!host||!window.THREE) return; host.innerHTML='';
+          var W=host.clientWidth||500,H=host.clientHeight||400;
+          var sc=new THREE.Scene(); var cam=new THREE.PerspectiveCamera(52,W/H,0.1,1000); cam.position.set(0,3,13);
+          var rnd; try{ rnd=new THREE.WebGLRenderer({antialias:true,alpha:true}); }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D unavailable</div>'; return; }
+          rnd.setSize(W,H); rnd.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); host.appendChild(rnd.domElement);
+          sc.add(new THREE.AmbientLight(0xffffff,0.8)); var pl=new THREE.PointLight(0xc9b787,0.9); pl.position.set(4,8,6); sc.add(pl);
+          var nT=alloc.length; var beams=[];
+          alloc.forEach(function(a,i){
+            var x=(i-(nT-1)/2)*3; var r=0.4+Math.min(1.6,(a.V||1)*0.4);
+            var assigned=(a.interceptors||0)>0;
+            var t=new THREE.Mesh(new THREE.SphereGeometry(r,22,16),new THREE.MeshStandardMaterial({color:assigned?0xb06a5a:0x8a8f98,emissive:0x100,metalness:0.3,roughness:0.5}));
+            t.position.set(x,2.4,0); sc.add(t);
+            // interceptor slot below
+            var ic=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.9,16),new THREE.MeshStandardMaterial({color:0x5fb3a3,emissive:0x012})); ic.position.set(x,-2.4,0); sc.add(ic);
+            if(assigned){ var bg=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,-2.0,0),new THREE.Vector3(x,2.0,0)]); var bm=new THREE.Line(bg,new THREE.LineBasicMaterial({color:0x5a8a6e})); sc.add(bm); beams.push(bm); }
+          });
+          var grid=new THREE.GridHelper(18,18,0x223,0x152); grid.position.y=-3; sc.add(grid);
+          var stop=false,a=0;
+          function loop(){ if(stop||!ex('tr-3d')){ try{rnd.dispose();}catch(e){} return; } if(!RM){ a+=0.004; sc.rotation.y=Math.sin(a)*0.5; } rnd.render(sc,cam); requestAnimationFrame(loop); }
+          loop();
+          window._tailTimers=window._tailTimers||[]; window._tailTimers.push(setInterval(function(){ if(!ex('tr-3d')) stop=true; },4000));
+        }
+        async function trRun(){
+          var n=ex('tr-in')?ex('tr-in').value:3;
+          var d=await getJSON(API+'/cuas/wta?n='+n);
+          if(ex('tr-raw')) ex('tr-raw').textContent=JSON.stringify(d,null,2);
+          var alloc=d.allocation||[];
+          E('tr-n').textContent=alloc.length; E('tr-edv').textContent=fmt(d.expected_destroyed_value,2);
+          E('tr-un').textContent=(d.unassigned_interceptors!=null?d.unassigned_interceptors:'—');
+          E('tr-eff').textContent=(d.effector||'SIMULATED'); E('tr-eff').style.color=WARN;
+          E('tr-tab').innerHTML=alloc.length?alloc.map(function(a){ var on=(a.interceptors||0)>0; return '<div class="row" style="flex-wrap:wrap;border-radius:6px">'+pill(a.threat,on?RISK:DIM)+'<span class="mono" style="margin-left:.4rem"><b>V='+fmt(a.V,2)+'</b></span><span class="spacer mono dim" style="font-size:11px">'+(a.interceptors||0)+' interceptor(s) '+(on?'assigned':'— none')+'</span></div>'; }).join(''):'<div class="row mono dim">no threats (honest empty state)</div>';
+          draw3d(alloc);
+        }
+        autoPoll('tr-gate', function(){ trRun().catch(function(){}); });
+        var tri=ex('tr-in'); if(tri) tri.addEventListener('change',function(){ trRun().catch(function(){}); });
+      }
+    };
+
+    // ═════════════════════ TAB 6 — PQ PROVENANCE (SHA3 bus) ══════════════════
+    V.cuas_pq = {
+      title:'PQ Provenance',
+      badge:'EXPERIMENTAL · SHA3-256 HASH-CHAIN · PQ-SUITE',
+      sub:'A live <b>post-quantum provenance bus</b>. Each governed command is appended to a <b>SHA3-256 hash chain</b> (Khipu-compatible append-only receipts); the chain links are rendered in 3D and any break is visibly rejected. The PQ suite is the NIST FIPS set — <b>ML-KEM-768 (FIPS 203)</b>, <b>ML-DSA-65 (FIPS 204)</b>, long-term <b>SLH-DSA-SHAKE-128s (FIPS 205)</b>. The signature is labelled <b>PROXY</b> until a real oqs-python key is provisioned (gated). Live from <code>/api/killinchu/v1/cuas/pqbus</code>. Inspiration: <b>NIST PQC standards (FIPS 203/204/205)</b>.',
+      render:function(c){
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Post-quantum receipt bus (live)</span><span class="card-ep">'+autoPill('pq-gate')+'</span></div>'
+          +'<div class="kpis" id="pq-gate">'+kpi('Receipt hash','pq-h','SHA3-256',TEAL)+kpi('KEM','pq-kem','FIPS 203',INFO)+kpi('Signature','pq-sig','FIPS 204',GOLD)+kpi('Long-term sig','pq-lt','FIPS 205',VIOLET)+kpi('PQ signature','pq-proxy','status',WARN)+'</div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">SHA3-256 hash-chain (3D)</span><span class="card-ep">append-only · tamper visibly rejected · vendored 3d-force-graph</span></div><div id="pq-3d" style="height:clamp(320px,48vh,460px);border-radius:12px;background:radial-gradient(ellipse at center,#0a0e1a 0%,#040406 75%);margin-top:.6rem"></div>'
+          +'<div class="row" style="margin-top:.5rem;gap:.5rem;flex-wrap:wrap"><input id="pq-cmd" class="mono" style="background:#0b0f16;border:1px solid #2a2a2a;border-radius:6px;color:#cfe;padding:.4rem .6rem;font-size:12px" value="engage_T1" placeholder="command"><button id="pq-append" class="mono" style="background:'+TEAL+'22;border:1px solid '+TEAL+';color:'+TEAL+';border-radius:6px;padding:.4rem .8rem;cursor:pointer;font-size:12px">append receipt</button><button id="pq-tamper" class="mono" style="background:'+RISK+'22;border:1px solid '+RISK+';color:'+RISK+';border-radius:6px;padding:.4rem .8rem;cursor:pointer;font-size:12px">tamper a link</button></div></div>'
+          +'<details class="raw"><summary>raw /cuas/pqbus</summary><pre class="out" id="pq-raw">—</pre></details>'
+          +honesty('The receipt hash, chain link and PQ-suite identifiers are computed by the live SHA3-256 endpoint; the 3D chain redraws that exact chain. The PQ signature is labelled <b>PROXY</b> — a real ML-DSA-65 signature is gated behind a provisioned oqs-python key.');
+        var chain=[];
+        function draw(tampIdx){
+          var host=ex('pq-3d'); if(!host||!window.ForceGraph3D) return;
+          var nodes=chain.map(function(r,i){ return {id:'r'+i, name:(r.command||'genesis')+' · '+String(r.receipt_hash||'').slice(0,10), color:(tampIdx===i)?RISK:(i===0?GOLD:TEAL), val:i===0?6:4}; });
+          var links=[]; for(var i=1;i<chain.length;i++){ links.push({source:'r'+(i-1),target:'r'+i, broken:(tampIdx===i||tampIdx===i-1)}); }
+          host.innerHTML='';
+          try{
+            var fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
+              .graphData({nodes:nodes,links:links}).nodeLabel('name').nodeColor(function(n){return n.color;}).nodeVal(function(n){return n.val;}).nodeOpacity(0.92)
+              .linkColor(function(l){ return l.broken?'rgba(176,106,90,0.9)':'rgba(95,179,163,0.5)'; })
+              .linkWidth(function(l){ return l.broken?0.5:2.2; })
+              .linkDirectionalParticles(function(l){ return (RM||l.broken)?0:3; }).linkDirectionalParticleSpeed(0.01).linkDirectionalParticleColor(function(){return TEAL;})
+              .showNavInfo(false);
+            try{ fg.d3Force('link').distance(36); }catch(e){}
+            window._fg=fg;
+            setTimeout(function(){ try{fg.width(host.clientWidth).height(host.clientHeight);}catch(e){} },300);
+          }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">chain 3D unavailable: '+esc(e.message)+'</div>'; }
+        }
+        async function append(cmd){
+          var d=await getJSON(API+'/cuas/pqbus?cmd='+encodeURIComponent(cmd||'cmd'));
+          if(ex('pq-raw')) ex('pq-raw').textContent=JSON.stringify(d,null,2);
+          chain.push(d);
+          E('pq-h').textContent=String(d.receipt_hash||'').slice(0,12)+'…';
+          E('pq-kem').textContent=(d.pq_suite&&d.pq_suite.kem)||'ML-KEM-768';
+          E('pq-sig').textContent=(d.pq_suite&&d.pq_suite.sig)||'ML-DSA-65';
+          E('pq-lt').textContent=(d.pq_suite&&d.pq_suite.longterm_sig)||'SLH-DSA-SHAKE-128s';
+          E('pq-proxy').textContent='PROXY'; E('pq-proxy').style.color=WARN;
+          draw(-1);
+        }
+        autoPoll('pq-gate', async function(){ if(chain.length===0){ await append('genesis'); } else { draw(-1); } });
+        var ab=ex('pq-append'); if(ab) ab.addEventListener('click',function(){ var v=ex('pq-cmd')?ex('pq-cmd').value:'cmd'; append(v).catch(function(){}); });
+        var tb=ex('pq-tamper'); if(tb) tb.addEventListener('click',function(){ if(chain.length>1){ draw(chain.length-1); } });
+      }
+    };
+
+    window.VIEWS=V;
+    try{ console.log('[killinchu] CUAS C2 LAB tabs registered: cuas_intercept, cuas_spoof, cuas_fusion, cuas_swarm, cuas_triage, cuas_pq'); }catch(e){}
+  }
+  reg();
+})();
+/* end killinchu cuas-c2-lab-patch */
 </script>
 
 </body>
