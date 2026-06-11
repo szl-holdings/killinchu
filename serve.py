@@ -395,6 +395,40 @@ async def _killinchu_wave910_diag():
     from fastapi.responses import JSONResponse as _JR
     return _JR({"status": _killinchu_wave910_status, "traceback": _killinchu_wave910_tb})
 
+# ---------------------------------------------------------------------------
+# Flow Compartments capability (yarqa, ENGINEERING METHOD / CFD tier — NOT a
+# locked theorem and NEVER counted among the locked 8). Feeds a maritime wake
+# velocity field (SAMPLE/SIMULATED — no verified live field) into
+# yarqa.compartmentalize and emits the receipt into the EXISTING Khipu chain
+# (szl_khipu_lmdb). Pure register(app, ns)-style; registered EARLY (before the
+# /{full_path:path} catch-all). Additive — never breaks the Space.
+#   GET  /api/killinchu/v1/flow/index            capability manifest (honest tier)
+#   GET  /api/killinchu/v1/flow/field            SAMPLE/SIMULATED wake velocity field
+#   POST /api/killinchu/v1/flow/compartmentalize run yarqa + signed receipt digest
+#   GET  /api/killinchu/v1/flow/selftest         end-to-end eyes-on selftest
+#   GET  /flow-compartments                       self-contained mobile/tablet tab
+# locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; yarqa NEVER counted;
+# locked-8 NOT routed through yarqa; a11oy<->killinchu stays on the real receipt/mesh bus.
+# ---------------------------------------------------------------------------
+_killinchu_flow = None
+_killinchu_flow_status = "flow-compartments-not-wired"
+_killinchu_flow_tb = ""
+try:
+    import killinchu_flow_compartments as _killinchu_flow
+    _killinchu_flow_status = _killinchu_flow.register(app, ns="killinchu")
+    print(f"[killinchu] Flow Compartments wired ({_killinchu_flow_status}) — engineering method (CFD), NOT a locked theorem", file=sys.stderr)
+except Exception as _kf_e:  # additive: never break the Space
+    import traceback as _kf_tb
+    _killinchu_flow_tb = _kf_tb.format_exc()
+    _killinchu_flow_status = f"flow-compartments-not-wired:{_kf_e!r}"
+    print(f"[killinchu] Flow Compartments NOT mounted ({_kf_e!r}); app unaffected", file=sys.stderr)
+    print(_killinchu_flow_tb, file=sys.stderr)
+
+@app.get("/api/killinchu/v1/flow/_diag")
+async def _killinchu_flow_diag():
+    from fastapi.responses import JSONResponse as _JR
+    return _JR({"status": _killinchu_flow_status, "traceback": _killinchu_flow_tb})
+
 # ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
 try:
     from vsp_otel.middleware import install as install_vsp; install_vsp(app)
