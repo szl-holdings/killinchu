@@ -296,7 +296,17 @@ jobs:
           # A Space commit lands the new files but does NOT rebuild the running
           # Docker container, so the mirrored code would not actually serve until
           # someone manually triggered a factory rebuild. Trigger it here so the
-          # automation has no manual last step.
-          api.restart_space(repo_id=space, factory_reboot=True)
-          print("Triggered HuggingFace factory rebuild for", space)
+          # automation has no manual last step, and surface the outcome clearly in
+          # the run log (request + result) so a silent failure can't hide.
+          try:
+              info = api.restart_space(repo_id=space, factory_reboot=True)
+          except Exception as e:
+              print("::error title=factory rebuild failed::Factory rebuild request FAILED for %s: %s"
+                    % (space, repr(e)[:200]))
+              print("::error::App files were mirrored to the Space, but the running container may still "
+                    "serve the OLD code. Re-run this job or trigger a manual factory rebuild.")
+              raise
+          stage = getattr(getattr(info, "runtime", None), "stage", None)
+          print("::notice title=factory rebuild requested::Triggered HuggingFace factory rebuild for %s "
+                "(runtime stage now: %s)" % (space, stage))
           PYEOF
