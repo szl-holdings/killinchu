@@ -122,6 +122,18 @@ try:
 except Exception as _szl_rd_e:  # pragma: no cover
     print(f"[killinchu] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
 
+# Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
+# generated OPEN conjectures from the real disclosure ledger (szl-lake khipu,
+# kind=conjecture-disclosure-anchor). Byte-identical module shared with a11oy. A
+# conjecture is NEVER a theorem; stays OPEN until independently verified; Conjecture 1
+# (Λ uniqueness) remains OPEN. Additive, try/except-guarded. Pure stdlib.
+try:
+    import szl_conjecture_factory as _szl_conjecture_factory
+    _szl_conjecture_factory.register(app, ns="killinchu")
+    print("[killinchu] Conjecture Factory registered: /api/killinchu/v1/conjecture-factory", file=__import__("sys").stderr)
+except Exception as _szl_cf_e:  # pragma: no cover
+    print(f"[killinchu] Conjecture Factory NOT registered: {_szl_cf_e!r}", file=__import__("sys").stderr)
+
 # Quantum-Bio Λ-v5 layer (quantum-bio-v5): SHARED with a11oy (byte-identical module).
 # VERIFIED quantum-biology models as real same-origin endpoints; Λ-v5 is an engineering
 # gate (PROPOSED), NOT the formal uniqueness Λ (Conjecture 1). For killinchu C2 this gives
