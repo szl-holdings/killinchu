@@ -1,0 +1,120 @@
+name: hf-sync paths guard
+
+# Guard: hf-sync.yml keeps the mirrored app-file list in ONE place
+# (`env.APP_FILES`), read by both the detect gate and the mirror-app job. But
+# GitHub forbids env/vars in `on.push.paths`, so the trigger list MUST be a
+# hand-maintained literal copy of the app entries in `env.APP_FILES`. If the two
+# lists fall out of step a file becomes mirrored-but-not-triggered (or
+# triggered-but-not-mirrored) and Space drift silently returns.
+#
+# This guard parses hf-sync.yml and FAILS if the app entries in `on.push.paths`
+# diverge from `env.APP_FILES`. It is self-contained: stdlib Python only, and
+# the single third-party action (actions/checkout) is github-owned and SHA-pinned
+# (org policy allows only github-owned/verified actions).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hf-sync.yml"
+      - ".github/workflows/hf-sync-paths-guard.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/hf-sync.yml"
+      - ".github/workflows/hf-sync-paths-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paths-in-step:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 1
+          lfs: false
+      - name: Verify on.push.paths app entries match env.APP_FILES
+        run: |
+          set -euo pipefail
+          python3 <<'PYEOF'
+          import re, sys, pathlib
+
+          WF = ".github/workflows/hf-sync.yml"
+          # Entries in on.push.paths that intentionally trigger the README sync
+          # (NOT app files). Everything else under on.push.paths is an app entry
+          # and must equal env.APP_FILES exactly. If you change which files drive
+          # the README sync, update this set and the detect-job classifier in
+          # hf-sync.yml together.
+          README_TRIGGERS = {"README.md", ".github/workflows/hf-sync.yml"}
+
+          text = pathlib.Path(WF).read_text()
+          lines = text.splitlines()
+
+          # --- env.APP_FILES (space-separated, double-quoted) ---
+          app_files = None
+          for ln in lines:
+              m = re.match(r'^\s*APP_FILES:\s*"(.*)"\s*$', ln)
+              if m:
+                  app_files = m.group(1).split()
+                  break
+          if app_files is None:
+              print("::error::Could not find env.APP_FILES in", WF)
+              sys.exit(1)
+
+          # --- on.push.paths (literal list of '- "..."') ---
+          paths = []
+          in_paths = False
+          paths_indent = None
+          for ln in lines:
+              if not in_paths:
+                  m = re.match(r'^(\s*)paths:\s*$', ln)
+                  if m:
+                      in_paths = True
+                      paths_indent = len(m.group(1))
+                  continue
+              stripped = ln.strip()
+              if stripped == "" or stripped.startswith("#"):
+                  continue
+              m = re.match(r'^(\s*)-\s*(.+?)\s*$', ln)
+              if m and len(m.group(1)) > paths_indent:
+                  paths.append(m.group(2).strip().strip('"').strip("'"))
+              else:
+                  # A line indented at or above the 'paths:' key ends the block.
+                  if (len(ln) - len(ln.lstrip())) <= paths_indent:
+                      break
+          if not paths:
+              print("::error::Could not parse on.push.paths in", WF)
+              sys.exit(1)
+
+          app_set = set(app_files)
+          path_set = set(paths)
+          app_paths = path_set - README_TRIGGERS
+
+          print("env.APP_FILES (%d):" % len(app_files), " ".join(app_files))
+          print("on.push.paths app entries (%d):" % len(app_paths), " ".join(sorted(app_paths)))
+
+          errs = []
+          for f in sorted(app_set - app_paths):
+              errs.append("in env.APP_FILES but MISSING from on.push.paths: %s "
+                          "(file would be mirrored but never trigger the sync)" % f)
+          for f in sorted(app_paths - app_set):
+              errs.append("in on.push.paths but MISSING from env.APP_FILES: %s "
+                          "(push would trigger the sync but the file is never mirrored)" % f)
+          for f in sorted(README_TRIGGERS - path_set):
+              errs.append("README trigger missing from on.push.paths: %s" % f)
+          if len(app_files) != len(app_set):
+              errs.append("duplicate entries in env.APP_FILES")
+          if len(paths) != len(path_set):
+              errs.append("duplicate entries in on.push.paths")
+
+          if errs:
+              for e in errs:
+                  print("::error::" + e)
+              print("::error::hf-sync.yml on.push.paths and env.APP_FILES have fallen out of step. "
+                    "Add/remove the file in BOTH places (and the detect classifier + mirror-app list).")
+              sys.exit(1)
+
+          print("OK: on.push.paths app entries == env.APP_FILES (%d files)." % len(app_set))
+          PYEOF
