@@ -607,6 +607,65 @@ label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:
   .view-title{font-size:1.2rem;}
   .btns{gap:.4rem;}
 }
+/* ============ RESPONSIVE HARDENING v2 (2026-06 · VISUAL/LAYOUT ONLY) ============
+   Mobile-first polish across phone/tablet/desktop/large display. Additive only —
+   no content/doctrine changes. Breakpoints at 480 / 768 / 1024px. */
+/* (A) GLOBAL OVERFLOW + CANVAS GUARD */
+.graph3d canvas,.globe3d canvas,.cyto canvas,.echart canvas,.chartbox canvas,
+.graph3d svg,.globe3d svg,.cyto svg,.echart svg,.chartbox svg{max-width:100%!important;}
+img,svg,canvas,video{max-width:100%;}
+.graph3d,.globe3d,.cyto,.echart,.chartbox{max-width:100%;overflow:hidden;}
+/* (B) TABLES — wide track-board / formula / exponent tables scroll INSIDE their card */
+.tbl-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+@media (max-width:1024px){
+  .card>table,.card .dtbl,table.dtbl{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;}
+}
+/* (C) FLOATING WIDGET SAFE-AREA — deploy-injected reliability/Chaski badge */
+#a11oy-rel-badge,#killinchu-rel-badge,.szl-float{
+  right:calc(env(safe-area-inset-right,0px) + 12px)!important;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 12px)!important;
+  z-index:100!important;max-width:calc(100vw - 24px);}
+.szl-float-hidden{display:none!important;}
+.szl-float-dismiss{position:absolute;top:-8px;right:-8px;width:20px;height:20px;line-height:18px;
+  text-align:center;border-radius:50%;border:1px solid var(--gold-line);background:var(--panel);
+  color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer;z-index:1;padding:0;}
+@media (max-width:768px){
+  #a11oy-rel-badge,#killinchu-rel-badge{font-size:10px!important;padding:.3rem .5rem!important;}
+  .content{padding-bottom:4.5rem!important;}
+}
+/* (D) NAV — collapsible groups + comfortable touch targets on phone/tablet */
+@media (max-width:1024px){
+  .side{padding-bottom:2rem;}
+  .nav-group{margin:.5rem .4rem .25rem;padding:.55rem .55rem;cursor:pointer;position:relative;
+    border-radius:7px;display:flex;align-items:center;justify-content:space-between;min-height:40px;
+    background:var(--gold-soft);border:1px solid var(--gold-line);}
+  .nav-group::after{content:'▾';font-size:11px;color:var(--gold);transition:transform .18s;opacity:.8;}
+  .nav-group.collapsed::after{transform:rotate(-90deg);}
+  .nav-item.nav-hidden{display:none!important;}
+  .nav-item{min-height:44px;padding:.7rem .65rem;font-size:14px;}
+  .nav-item .ico{font-size:14px;width:18px;}
+}
+@media (max-width:768px){
+  .side{width:min(78vw,288px);padding-left:calc(env(safe-area-inset-left,0px) + .7rem);}
+  .menu-btn{min-width:44px;min-height:34px;padding:.35rem .6rem;font-size:14px;}
+  .topbar{padding-left:calc(env(safe-area-inset-left,0px) + .8rem);
+          padding-right:calc(env(safe-area-inset-right,0px) + .8rem);}
+}
+/* (E) TABLET (768–1024) */
+@media (min-width:769px) and (max-width:1024px){
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));}
+}
+/* (F) LANDSCAPE PHONE — cap viz height so a tall canvas doesn't eat the fold */
+@media (max-height:520px) and (orientation:landscape){
+  .graph3d,.graph3d.hero,.graph3d.tall,.globe3d,.cyto{height:min(82vh,300px)!important;}
+  .echart,.echart.tall{height:min(72vh,260px)!important;}
+  .chartbox,.chartbox.tall{height:min(64vh,220px)!important;}
+}
+/* (G) LARGE DISPLAY (>=1600px) */
+@media (min-width:1600px){
+  .content{max-width:1500px;margin-left:auto;margin-right:auto;}
+}
+/* ============ END RESPONSIVE HARDENING v2 ============ */
 .menu-btn{display:none;background:none;border:1px solid var(--gold-line);color:var(--gold);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-family:var(--mono);font-size:11px;}
 /* ===== VISUAL DASHBOARD TEMPLATE (charts / gauges / 3D) =====
    Heights use clamp(min, fold-relative, max) so the PRIMARY viz of each tab
@@ -1007,6 +1066,52 @@ function toggleSide(force){
   const mb=document.querySelector('.menu-btn');if(mb)mb.setAttribute('aria-expanded',String(open));
 }
 window.toggleSide=toggleSide;
+/* ===== RESPONSIVE HARDENING v2 SHIM (VISUAL/LAYOUT ONLY) =====
+   (1) Collapsible nav-groups on touch viewports so the long tab rail is scannable.
+   (2) Defensive hardening of any deploy-injected floating reliability/Chaski badge:
+       add a dismiss control + keep it inside the safe-area. No content changes. */
+(function szlRespHarden(){
+  var MQ='(max-width:1024px)';
+  function isTouch(){return window.matchMedia&&window.matchMedia(MQ).matches;}
+  function groupItems(g){var out=[],n=g.nextElementSibling;while(n&&!n.classList.contains('nav-group')){if(n.classList.contains('nav-item'))out.push(n);n=n.nextElementSibling;}return out;}
+  function setGroup(g,collapsed){g.classList.toggle('collapsed',collapsed);groupItems(g).forEach(function(it){it.classList.toggle('nav-hidden',collapsed&&isTouch());});}
+  function buildNavCollapse(){
+    var groups=document.querySelectorAll('.side .nav-group');
+    groups.forEach(function(g,i){
+      if(g.dataset.collapseBound)return; g.dataset.collapseBound='1';
+      g.setAttribute('role','button'); g.setAttribute('tabindex','0');
+      var hasActive=groupItems(g).some(function(it){return it.classList.contains('active');});
+      var startCollapsed=isTouch()&&i>0&&!hasActive;
+      setGroup(g,startCollapsed);
+      function toggle(){setGroup(g,!g.classList.contains('collapsed'));}
+      g.addEventListener('click',toggle);
+      g.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
+    });
+  }
+  function syncNavForViewport(){
+    var touch=isTouch();
+    document.querySelectorAll('.side .nav-group').forEach(function(g){
+      if(!touch){groupItems(g).forEach(function(it){it.classList.remove('nav-hidden');});}
+      else{groupItems(g).forEach(function(it){it.classList.toggle('nav-hidden',g.classList.contains('collapsed'));});}
+    });
+  }
+  function hardenFloat(){
+    var b=document.getElementById('a11oy-rel-badge')||document.getElementById('killinchu-rel-badge');
+    if(b&&!b.dataset.szlHardened){b.dataset.szlHardened='1';
+      if(getComputedStyle(b).position==='static')b.style.position='fixed';
+      if(!b.querySelector('.szl-float-dismiss')){
+        var x=document.createElement('button');x.className='szl-float-dismiss';x.type='button';
+        x.setAttribute('aria-label','Dismiss reliability badge');x.textContent='×';
+        x.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();b.classList.add('szl-float-hidden');});
+        b.style.position='fixed';b.appendChild(x);
+      }
+    }
+  }
+  function init(){buildNavCollapse();hardenFloat();}
+  if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
+  var t=0,iv=setInterval(function(){t++;buildNavCollapse();hardenFloat();if(t>10)clearInterval(iv);},700);
+  var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(syncNavForViewport,150);});
+})();
 // dag-mode 3d force graph (hash-chain hero)
 function dag3d(id,nodes,links,opts){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';opts=opts||{};
   try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
