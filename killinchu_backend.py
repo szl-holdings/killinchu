@@ -88,6 +88,10 @@ def _now_iso() -> str:
 #   KILLINCHU_NTFY_PRIORITY | NTFY_PRIORITY         — ntfy priority (default "high")
 #   KILLINCHU_NTFY_COOLDOWN                         — re-page window seconds (default 0)
 #   KILLINCHU_NTFY_BLOCKING                         — "1" sends synchronously (tests)
+#   KILLINCHU_NTFY_RECOVERY                         — "0"/"false" disables fire->clear
+#                                                     "recovered" notices (default on)
+#   KILLINCHU_NTFY_RECOVERY_PRIORITY                — priority for recovery notices
+#                                                     (default "low")
 # ---------------------------------------------------------------------------
 def _ntfy_config() -> Optional[Dict[str, Any]]:
     url = (
@@ -104,7 +108,21 @@ def _ntfy_config() -> Optional[Dict[str, Any]]:
         cooldown = float(os.environ.get("KILLINCHU_NTFY_COOLDOWN", "0") or "0")
     except Exception:
         cooldown = 0.0
-    return {"url": url, "token": token, "priority": priority, "cooldown": max(0.0, cooldown)}
+    recovery_raw = (os.environ.get("KILLINCHU_NTFY_RECOVERY") or "").strip().lower()
+    recovery = recovery_raw not in ("0", "false", "no", "off")
+    recovery_priority = (
+        os.environ.get("KILLINCHU_NTFY_RECOVERY_PRIORITY")
+        or os.environ.get("NTFY_RECOVERY_PRIORITY")
+        or "low"
+    ).strip()
+    return {
+        "url": url,
+        "token": token,
+        "priority": priority,
+        "cooldown": max(0.0, cooldown),
+        "recovery": recovery,
+        "recovery_priority": recovery_priority,
+    }
 
 
 # Edge-trigger / de-dupe state, keyed by (watchlist_id, trigger_id):
@@ -129,14 +147,15 @@ def _ntfy_send_raw(url: str, body: bytes, headers: Dict[str, str], timeout: floa
         return 0
 
 
-def _push_ntfy(title: str, message: str, cfg: Dict[str, Any]) -> None:
+def _push_ntfy(title: str, message: str, cfg: Dict[str, Any],
+               priority: Optional[str] = None, tags: str = "rotating_light") -> None:
     """Fire a single ntfy push for a watchlist alert. Never raises."""
     headers = {
         "User-Agent": _USER_AGENT,
         "Content-Type": "text/plain; charset=utf-8",
         "Title": title,
-        "Priority": cfg.get("priority") or "high",
-        "Tags": "rotating_light",
+        "Priority": priority or cfg.get("priority") or "high",
+        "Tags": tags,
     }
     if cfg.get("token"):
         headers["Authorization"] = "Bearer " + cfg["token"]
@@ -176,6 +195,37 @@ def _ntfy_mark(key: Tuple[int, int], firing: bool, pushed: bool, now_ts: float) 
         if pushed:
             last_push = now_ts
         _NTFY_STATE[key] = {"firing": firing, "last_push_ts": last_push}
+
+
+def _ntfy_was_firing(key: Tuple[int, int]) -> bool:
+    """True if this trigger was firing at the previous evaluation."""
+    with _NTFY_STATE_LOCK:
+        prev = _NTFY_STATE.get(key) or {}
+        return bool(prev.get("firing"))
+
+
+def _ntfy_clear(key: Tuple[int, int], cfg: Optional[Dict[str, Any]],
+                title: str, message: str, now_ts: float) -> None:
+    """Handle a not-firing evaluation for one trigger.
+
+    On a fire->clear EDGE (the trigger was firing at the previous evaluation),
+    send a single lower-priority "recovered" ntfy push, mirroring the box
+    monitors' RECOVERED notice — unless recovery notices are disabled. Recovery
+    is edge-triggered the same way a fire is: once the state is marked not-firing
+    it stays quiet while it remains clear. A no-op when no push channel is
+    configured (state is only tracked then).
+    """
+    if cfg is None:
+        return
+    if cfg.get("recovery") and _ntfy_was_firing(key):
+        _push_ntfy(
+            title,
+            message,
+            cfg,
+            priority=cfg.get("recovery_priority") or "low",
+            tags="white_check_mark",
+        )
+    _ntfy_mark(key, False, False, now_ts)
 
 
 # ---------------------------------------------------------------------------
@@ -601,16 +651,22 @@ def _evaluate_watchlists(st: _Store, snap_id: int, event_id: int, count: int,
         trigs = st.query("SELECT id, field, op, threshold FROM triggers WHERE watchlist_id=?", (wl["id"],))
         for tg in trigs:
             key = (int(wl["id"]), int(tg["id"]))
+            op = (tg["op"] or "gt").lower()
             actual = fact_map.get(tg["field"])
             thr = _coerce_num(tg["threshold"])
             if actual is None or thr is None:
                 # Un-evaluatable this snapshot: treat as not firing so the next
-                # real fire registers as a fresh clear->fire edge. (State is only
-                # tracked when a push channel is configured.)
-                if cfg is not None:
-                    _ntfy_mark(key, False, False, now_ts)
+                # real fire registers as a fresh clear->fire edge. If it was
+                # firing, this is a fire->clear edge — page a recovery notice.
+                # (State is only tracked when a push channel is configured.)
+                _ntfy_clear(
+                    key, cfg,
+                    f"killinchu · watchlist '{wl['name']}' recovered",
+                    f"{tg['field']} {op} {tg['threshold']} no longer evaluatable "
+                    f"(data unavailable)\nseverity info · {ts}",
+                    now_ts,
+                )
                 continue
-            op = (tg["op"] or "gt").lower()
             hit = (
                 (op == "gt" and actual > thr) or
                 (op == "gte" and actual >= thr) or
@@ -619,8 +675,15 @@ def _evaluate_watchlists(st: _Store, snap_id: int, event_id: int, count: int,
                 (op == "eq" and actual == thr)
             )
             if not hit:
-                if cfg is not None:
-                    _ntfy_mark(key, False, False, now_ts)
+                # Condition no longer met this snapshot. On a fire->clear edge
+                # (was firing, now clear) page a single recovery notice.
+                _ntfy_clear(
+                    key, cfg,
+                    f"killinchu · watchlist '{wl['name']}' recovered",
+                    f"{tg['field']} {op} {tg['threshold']} cleared (observed {actual:g})\n"
+                    f"severity info · source adsb.lol/mil · {ts}",
+                    now_ts,
+                )
                 continue
             nid = st.insert_returning_id(
                 "INSERT INTO notifications(watchlist_id, trigger_id, event_id, title, detail, severity, source, source_url, ts) "
