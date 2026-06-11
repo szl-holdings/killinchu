@@ -1479,6 +1479,59 @@ window._autoPoll=function(label, gateId, fn){
 /* small "auto-recording" pill an auto-polled tab can drop in its header */
 window.autoPill=function(gateId){ return '<span class="badge b-live" style="font-size:9.5px">'+(window.liveDot?window.liveDot():'')+'AUTO-RECORDING <span id="poll-ts-'+esc(gateId)+'" class="mono dim" style="margin-left:5px">live</span></span>'; };
 
+/* ── Auto-crawl scheduler status (Task #742) — surfaces the live intel feed's
+   self-refresh health from GET /api/killinchu/crawl/status. Honest by design:
+   a run that did not get fresh data (cached/degraded) is labelled DEGRADED, an
+   exception run ERROR, an overlap-guarded cycle SKIPPED — never shown healthy. ── */
+function _csRel(iso, future){
+  if(!iso) return '\u2014';
+  try{
+    var t=new Date(iso).getTime(); if(isNaN(t)) return esc(String(iso));
+    var s=Math.round((future?(t-Date.now()):(Date.now()-t))/1000);
+    if(future && s<=0) return 'due now';
+    s=Math.max(0,s); var u;
+    if(s<60) u=s+'s'; else if(s<3600) u=Math.round(s/60)+'m'; else if(s<86400) u=Math.round(s/3600)+'h'; else u=Math.round(s/86400)+'d';
+    return future?('in '+u):(u+' ago');
+  }catch(e){ return esc(String(iso)); }
+}
+function crawlStatusBanner(id){ return '<div class="card" id="'+esc(id)+'" style="border-color:var(--gold-line);margin-bottom:.8rem"><div class="row mono dim">&#8635; loading auto-refresh status\u2026</div></div>'; }
+async function crawlStatusLoad(id){
+  var box=el(id); if(!box) return;
+  try{
+    var j=await getJSON('/api/killinchu/crawl/status');
+    var cfg=(j&&j.config)||{}, sch=(j&&j.scheduler)||{}, wired=!!(j&&j.wired);
+    var enabled=(cfg.enabled!==false)&&wired;
+    var last=String(sch.last_status||'').toLowerCase();
+    var outcome, oc;
+    if(!sch.last_run_at){ outcome='NO RUN YET'; oc='#c9a05f'; }
+    else if(last==='live'){ outcome='OK'; oc='#5fb3a3'; }
+    else if(last==='error'){ outcome='ERROR'; oc='#ff7b7b'; }
+    else if(last==='skipped'){ outcome='SKIPPED'; oc='#c9a05f'; }
+    else { outcome='DEGRADED'; oc='#f5b301'; }   // cached / degraded — not fresh data
+    var schTxt=enabled?'ENABLED':(wired?'DISABLED':'NOT WIRED');
+    var schC=enabled?'#5fb3a3':'#ff7b7b';
+    var cf=sch.consecutive_failures||0;
+    var boTxt=cf>0?('backing off \u00b7 '+cf+' consecutive miss'+(cf===1?'':'es')):'nominal';
+    var boC=cf>0?'#f5b301':'var(--dim)';
+    var ivl=cfg.interval_seconds!=null?(cfg.interval_seconds+'s'):'\u2014';
+    var cell=function(label,val,color){ return '<div class="kpi" style="padding:.5rem .7rem"><div class="k">'+esc(label)+'</div><div class="v" style="font-size:1rem;color:'+(color||'var(--cream)')+'">'+val+'</div></div>'; };
+    var note=((outcome==='DEGRADED'||outcome==='ERROR')&&sch.last_error)
+      ? '<div class="row mono" style="font-size:11px;color:#f5b301;margin-top:.5rem;word-break:break-word">last issue: '+esc(String(sch.last_error))+'</div>'
+      : (outcome==='SKIPPED' ? '<div class="row mono dim" style="font-size:11px;margin-top:.5rem">a run was still in progress \u2014 this cycle was skipped to avoid pile-up</div>' : '');
+    box.innerHTML=
+      '<div class="card-h"><span class="card-t">&#8635; Live intel feed \u2014 auto-refresh</span><span class="card-ep">GET /api/killinchu/crawl/status \u00b7 adsb.lol military ADS-B</span></div>'+
+      '<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:.5rem;margin:0">'+
+        cell('Scheduler',schTxt,schC)+
+        cell('Last run',_csRel(sch.last_run_at,false),'var(--cream)')+
+        cell('Outcome',outcome,oc)+
+        cell('Next run',enabled?_csRel(sch.next_run_at,true):'\u2014','var(--cream)')+
+        cell('Backoff',boTxt,boC)+
+        cell('Interval',ivl,'var(--dim)')+
+      '</div>'+note;
+  }catch(e){ box.innerHTML='<div class="row mono" style="color:#ff7b7b">&#8635; auto-refresh status unavailable: '+esc(e&&e.message||e)+'</div>'; }
+}
+window.crawlStatusBanner=crawlStatusBanner; window.crawlStatusLoad=crawlStatusLoad;
+
 /* ── Research & Sources panel (research-sources-patch, Task #662) — every tab gains
    vetted REAL upstream sources (UDS/Zarf/Pepr repos, supply-chain standards, threat &
    domain feeds, Lean/proof refs, per-subject arXiv) with an HONEST live reachability
@@ -2264,7 +2317,7 @@ const VIEWS = {
 
   // ── BUILD WAVE: Live Picture (K-N1) ───────────────────────────────────
   livepic:{title:'Live Picture',badge:'COP · AIR+SEA FUSED · deck.gl',sub:'One map. Every track. Who is friendly, who is a threat, and what to do. A single fused <b>deck.gl</b> operating picture (ScatterplotLayer entities + PathLayer hostile-intent trails, no base-map tiles — sovereign, 0 off-origin) combines the drone threat picture, <b>live adsb.lol military ADS-B aircraft</b> (real positions, server-side fetch, ODbL, labelled live), sample vessels, and <b>live USGS</b> physical-world events — each object an entity carrying location, affiliation, identity and health, framed with MIL-STD-2525 affiliation colours (red = hostile, teal = friendly, gold = neutral/own, amber = unknown). The left rail follows the IMO 3-layer maritime-domain-awareness flow: Situational → Threat → Response. Click any track for its detail card and a per-track signed receipt. Air picture is <b>LIVE · adsb.lol (ODbL)</b> with honest fallback to last-good/empty (never fabricated); maritime tracks remain <b>sample/replay</b> (the dedicated Maritime tab carries the live Digitraffic AIS feed).',
-    render:async(c)=>{c.innerHTML=`<div class="kpis">
+    render:async(c)=>{c.innerHTML=`${crawlStatusBanner('cs-livepic')}<div class="kpis">
       <div class="kpi"><div class="k">Entities (fused)</div><div class="v live" id="lp-total">—</div><div class="d">air + sea + physical</div></div>
       <div class="kpi"><div class="k">Air tracks</div><div class="v" id="lp-air">—</div><div class="d">live drone picture</div></div>
       <div class="kpi"><div class="k">Sea (sample)</div><div class="v" id="lp-sea">—</div><div class="d">sample vessels</div></div>
@@ -2277,7 +2330,7 @@ const VIEWS = {
           <div class="graph3d" id="lp-globe" style="height:460px"></div>
           <div class="legend"><span><i style="background:#b06a5a"></i>◆ hostile</span><span><i style="background:#5fb3a3"></i>■ friendly</span><span><i style="background:#c9b787"></i>● neutral/own</span><span><i style="background:#c9a05f"></i>? unknown</span></div></div>
       </div>
-      <div class="card" id="lp-detail"><div class="card-h"><span class="card-t">Entity detail</span><span class="card-ep">click a track on the map or the rail</span></div><div class="row mono dim">no track selected</div></div>${HONEST}`;_autoPoll('livepic','lp-air',window.livepic_load);}},
+      <div class="card" id="lp-detail"><div class="card-h"><span class="card-t">Entity detail</span><span class="card-ep">click a track on the map or the rail</span></div><div class="row mono dim">no track selected</div></div>${HONEST}`;_autoPoll('livepic','lp-air',window.livepic_load);_autoPoll('cs-livepic','cs-livepic',function(){crawlStatusLoad('cs-livepic');});}},
 
   // ── FLAGSHIP: LIVE 3D HEALTH TWIN (founder's explicit ask) ────────────
   // A 3D digital twin of a SELECTED vessel/drone. Six subsystem meshes change colour LIVE
@@ -2363,7 +2416,7 @@ const VIEWS = {
   // ── 3.1 Live Track Board / COP ──────────────────────────────────
   tracks:{title:'Live Track Board',badge:'PPI RADAR SCOPE · RANGE/BEARING',sub:'Air picture as a true <b>PPI radar scope</b> (plan-position indicator, raw SVG): every contact is plotted by <b>range and bearing from the killinchu C2 station at the centre</b> — concentric rings are distance (km), spokes are compass bearing (N at top, clockwise), and each contact carries a short spoke for its heading. Threats are red, ISR/patrol amber, clear teal. Below is a sortable radar-track table from the live <code>/threats/active</code> feed. Click a contact (scope blip or table row) to select it and run a governed ROE evaluation that returns a genuinely-signed receipt. Simulated positions over real adversary signatures — not a live sensor feed.',
     render:async(c)=>{
-      c.innerHTML=`<div class="kpis">
+      c.innerHTML=`${crawlStatusBanner('cs-tracks')}<div class="kpis">
         <div class="kpi"><div class="k">Active threats</div><div class="v live" id="k-active">—</div><div class="d">above threat threshold</div></div>
         <div class="kpi"><div class="k">Total tracks</div><div class="v" id="k-total">—</div><div class="d">in air picture</div></div>
         <div class="kpi"><div class="k">Trust gate</div><div class="v teal">Conjecture</div><div class="d">advisory, not proven</div></div>
@@ -2387,6 +2440,7 @@ const VIEWS = {
       <div class="card" id="track-detail"><div class="row mono dim">Select a track (click a plot point or a table row, then “evaluate”) to screen it against current ROE — the verdict, flags, recommended effector and a genuinely-signed receipt land here. Λ is advisory (Conjecture 1), not a pass/fail oracle.</div></div>
       <details class="raw"><summary>raw /threats/active</summary><pre class="out" id="tracks-raw">—</pre></details>${HONEST}`;
       _autoPoll('tracks','tracks-tb',window.tracks_load);
+      _autoPoll('cs-tracks','cs-tracks',function(){crawlStatusLoad('cs-tracks');});
     }},
 
   // ── 3.2 Sensor-Fusion Monitor ───────────────────────────────────
