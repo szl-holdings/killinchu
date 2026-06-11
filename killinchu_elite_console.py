@@ -6910,7 +6910,13 @@ window.evidence_render=async function(c){
   window.ev_ensure_style();
   c.innerHTML='<div class="card"><div class="dim">loading curated evidence…</div></div>';
   try{
-    var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research');
+    // timeout-guarded fetch: a hung request must degrade to an honest retry, never an
+    // indefinite "loading…" (evidence-tab-hang-fix). 12s ceiling, then surface the state.
+    var _ev_ctl=('AbortController' in window)?new AbortController():null;
+    var _ev_to=setTimeout(function(){ try{ _ev_ctl&&_ev_ctl.abort(); }catch(_){} },12000);
+    var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research', _ev_ctl?{signal:_ev_ctl.signal}:undefined);
+    clearTimeout(_ev_to);
+    if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json(); var h='';
     if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
     h+='<div id="ev-autostat" class="dim" style="display:flex;align-items:center;gap:.45rem;font-size:11px;margin:.15rem 0 .55rem" title="Source reachability badges are silently re-probed in the background every '+Math.round((window.__EV_RECHECK_MS||180000)/1000)+'s while this tab is visible — honest live/cached/unreachable labels are unchanged."><span class="ev-autodot"></span><span class="ev-autolbl">auto-refreshing</span></div>';
@@ -7016,7 +7022,12 @@ window.readiness_section_live=async function(id,btn){
 window.readiness_render=async function(c){
   c.innerHTML='<div class="card"><div class="dim">reading live deployment, repo and Space\u2026</div></div>';
   try{
-    var r=await fetch('/api/'+window.__rd_ns+'/v1/readiness');
+    // timeout-guarded fetch (readiness-tab-hang-fix): never hang on "reading…".
+    var _rd_ctl=('AbortController' in window)?new AbortController():null;
+    var _rd_to=setTimeout(function(){ try{ _rd_ctl&&_rd_ctl.abort(); }catch(_){} },12000);
+    var r=await fetch('/api/'+window.__rd_ns+'/v1/readiness', _rd_ctl?{signal:_rd_ctl.signal}:undefined);
+    clearTimeout(_rd_to);
+    if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json(); var h='';
     if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
     var s=d.summary||{};
