@@ -122,6 +122,18 @@ try:
 except Exception as _szl_rd_e:  # pragma: no cover
     print(f"[killinchu] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
 
+# Quantum-Bio Λ-v5 layer (quantum-bio-v5): SHARED with a11oy (byte-identical module).
+# VERIFIED quantum-biology models as real same-origin endpoints; Λ-v5 is an engineering
+# gate (PROPOSED), NOT the formal uniqueness Λ (Conjecture 1). For killinchu C2 this gives
+# a coherent-AND-charged execution gate + magnetosensitive routing primitive. Additive,
+# try/except-guarded, pure stdlib (+optional numpy). Effector stays SIMULATED.
+try:
+    import szl_quantum_bio as _szl_quantum_bio
+    _szl_quantum_bio.register(app, ns="killinchu")
+    print("[killinchu] Quantum-Bio Λ-v5 registered: /api/killinchu/v1/qbio/*", file=__import__("sys").stderr)
+except Exception as _szl_qb_e:  # pragma: no cover
+    print(f"[killinchu] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
+
 # ── Research & Sources layer (research-sources-patch, Task #662) — every /elite
 # tab gains a panel of vetted REAL upstream sources (UDS/Zarf/Pepr repos,
 # supply-chain standards, threat feeds, domain feeds, Lean/proof refs, per-subject
