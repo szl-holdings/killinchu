@@ -616,6 +616,12 @@ try:
     _killinchu_osint_status = _killinchu_osint.register(app, ns="killinchu")
     import sys as _sys_os
     print(f"[killinchu] OSINT verticals (amaru/rosie) registered: {_killinchu_osint_status}", file=_sys_os.stderr)
+    # Keep all five amaru streams warm in the background so the console is never
+    # empty on first open and rosie's cross-vertical views always have a full
+    # corpus. Guarded/idempotent daemon thread; honors _TTL + _FRESH_MIN so it
+    # never hammers Tavily (KILLINCHU_OSINT_WARM=0 disables it).
+    _killinchu_osint_warming = _killinchu_osint.start_warmer()
+    print(f"[killinchu] OSINT background warmer started: {_killinchu_osint_warming}", file=_sys_os.stderr)
 except Exception as _os_e:
     import sys as _sys_os, traceback as _tb_os
     print(f"[killinchu] OSINT verticals NOT registered: {_os_e}", file=_sys_os.stderr)

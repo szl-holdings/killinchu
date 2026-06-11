@@ -546,6 +546,72 @@ def _merge_mode(modes: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Background warmer
+# ---------------------------------------------------------------------------
+# Keep all five amaru streams populated so the console is never empty on first
+# open and rosie's cross-vertical views (digest/routing/entities/correlate/
+# watch) always see a full corpus — not just whichever streams happened to be
+# hit by a user. A guarded daemon thread periodically warms every stream.
+#
+# Tavily-friendly by construction: it calls _ingest(stream, fresh=False), so the
+# existing _TTL freshness check decides whether to actually re-hit the search API
+# — a still-fresh stream is a pure no-op. The forced-refresh path (fresh=True,
+# guarded by _FRESH_MIN) is NEVER taken by the warmer. The loop interval defaults
+# to _TTL so each stream is re-scraped at most once per freshness window.
+_WARM_ENABLED = os.environ.get("KILLINCHU_OSINT_WARM", "1").strip().lower() \
+    not in ("0", "false", "no", "off")
+_WARM_INTERVAL = int(os.environ.get("KILLINCHU_OSINT_WARM_INTERVAL", str(_TTL)))
+# Small per-stream stagger so a warm cycle doesn't burst all five Tavily calls
+# back-to-back.
+_WARM_STAGGER = int(os.environ.get("KILLINCHU_OSINT_WARM_STAGGER", "5"))
+
+_WARM_STARTED = threading.Event()
+
+
+def _warm_once() -> dict:
+    """Warm every stream that is stale or empty. Uses fresh=False so the _TTL
+    freshness check (not the forced-refresh path) governs re-scrapes — this can
+    never drive Tavily into exhaustion. Returns each stream's resulting mode."""
+    modes: dict[str, str] = {}
+    for s in _STREAMS:
+        try:
+            modes[s] = _ingest(s, fresh=False).get("mode", "?")
+        except Exception as exc:  # one bad stream never stops the rest
+            modes[s] = "error:%s" % type(exc).__name__
+        if _WARM_STAGGER > 0:
+            time.sleep(_WARM_STAGGER)
+    return modes
+
+
+def _warm_loop() -> None:
+    # Warm immediately on boot so a cold Space populates its feeds on its own,
+    # then re-warm every interval (>=60s guard so a misconfigured interval can't
+    # become a hot loop).
+    interval = max(60, _WARM_INTERVAL)
+    while True:
+        try:
+            _warm_once()
+        except Exception:
+            pass
+        time.sleep(interval)
+
+
+def start_warmer() -> bool:
+    """Idempotently start the background warmer daemon thread. Returns True if it
+    started the thread, False if it was already running or is disabled
+    (KILLINCHU_OSINT_WARM=0)."""
+    if not _WARM_ENABLED:
+        return False
+    # Event.set() is atomic; the first caller wins, later/concurrent calls no-op.
+    if _WARM_STARTED.is_set():
+        return False
+    _WARM_STARTED.set()
+    threading.Thread(target=_warm_loop, name="killinchu-osint-warmer",
+                     daemon=True).start()
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 def register(app: FastAPI, ns: str = "killinchu") -> dict:
@@ -614,4 +680,4 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
             "amaru_streams": list(_STREAMS), "rosie_views": list(rosie_map)}
 
 
-__all__ = ["register"]
+__all__ = ["register", "start_warmer"]
