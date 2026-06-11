@@ -9129,6 +9129,7 @@ go(VIEWS[start]?start:'tracks');
 
 <!-- ===================================================================== -->
 <!-- ===================================================================== -->
+<!-- ===================================================================== -->
 <!-- SZL SOVEREIGNTY / ALLODIAL LATTICE (living-3D) - Allodial AI doctrine,    -->
 <!-- driven LIVE by /api/killinchu/v1/allodial/* (szl_allodial.py, byte-identical   -->
 <!-- a11oy<->killinchu). Hero = Denning 1976 control lattice as a 3D graph     -->
@@ -9284,10 +9285,11 @@ go(VIEWS[start]?start:'tracks');
                    {id:'allodium',name:'allodium \u2014 data+model (held)',val:6,color:TEAL},
                    {id:'overlord',name:'OVERLORD (feudal landlord)',val:8,color:RISK},
                    {id:'rent',name:'rented tenancy (revocable)',val:5,color:WARN}];
+        // Feudal side: tenant pays rent UP to the overlord (single directed edge keeps the graph a clean DAG;
+        // the overlord's revocation power is conveyed by the node label/color, not a back-edge that would create a cycle).
         var links=[{source:'land',target:'operator'},{source:'deed',target:'operator'},{source:'allodium',target:'operator'},
-                   {source:'rent',target:'overlord'},{source:'overlord',target:'rent'}];
-        // free force layout (NOT dagMode): the feudal rent<->overlord cycle is intentional, so no DAG hierarchy is imposed (avoids a benign 'cycle' warning)
-        if(window.dag3d) window.dag3d('lay-3d',nodes,links,{dist:60,labels:true,cooldown:120});
+                   {source:'rent',target:'overlord'}];
+        if(window.dag3d) window.dag3d('lay-3d',nodes,links,{dagMode:'td',dist:60,labels:true,cooldown:120});
         else { var h=ex('lay-3d'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">3d-force-graph not present \u2014 layer table above is authoritative (honest fallback)</div>'; }
       }catch(e){ setHTML('lay-table','<div class="row mono dim">retry: '+esc(e.message)+'</div>'); }
     })();
