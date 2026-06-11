@@ -187,6 +187,19 @@ try:
 except Exception as _szl_scaling_e:  # pragma: no cover
     print(f"[killinchu] Scaling formulas NOT registered: {_szl_scaling_e!r}", file=__import__("sys").stderr)
 
+# ── SZL Allodial AI sovereignty formulas (allodial-formula-patch) — control as a
+# Denning(1976) lattice (⊤ = allodial), Goguen-Meseguer(1982) non-interference,
+# EU-CSF SovScore + HHI/DCI sovereignty scoring. Every formula cites its real
+# author; SZL claims none as its own. EXPERIMENTAL/PROPOSED — adds NOTHING to the
+# locked 8; Λ stays Conjecture 1; trust never 100%. Shared module byte-identical
+# a11oy↔killinchu. Additive, try/except-guarded.
+try:
+    import szl_allodial as _szl_allodial
+    _szl_allodial.register(app, ns="killinchu")
+    print("[killinchu] Allodial formulas registered: /api/killinchu/v1/allodial/*", file=__import__("sys").stderr)
+except Exception as _szl_allodial_e:  # pragma: no cover
+    print(f"[killinchu] Allodial formulas NOT registered: {_szl_allodial_e!r}", file=__import__("sys").stderr)
+
 
 # ── Research & Sources layer (research-sources-patch, Task #662) — every /elite
 # tab gains a panel of vetted REAL upstream sources (UDS/Zarf/Pepr repos,
