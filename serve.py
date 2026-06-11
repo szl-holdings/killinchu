@@ -145,6 +145,23 @@ try:
 except Exception as _szl_uf_e:  # pragma: no cover
     print(f"[killinchu] Unified formulas NOT registered: {_szl_uf_e!r}", file=__import__("sys").stderr)
 
+# ── SZL Counter-UAS C2 formulas (cuas-formula-patch) — six OUR-OWN deterministic
+# constructs (proportional-navigation engageability, GNSS-plausibility chi-square,
+# covariance-intersection track-fusion, urgency-weighted graph-Laplacian swarm
+# consensus, weapon-target-assignment triage, post-quantum SHA3 receipt bus). Each
+# cites its classical inspiration (Zarchan/Palumbo, Joerger, Julier-Uhlmann,
+# Bar-Shalom, Olfati-Saber/Zelazo, Manne, NIST PQC) and claims none as SZL's own
+# discovery. EXPERIMENTAL-tier — adds NOTHING to the locked 8; Λ stays Conjecture 1;
+# effector stays SIMULATED; trust never 100%. Shared module byte-identical
+# a11oy↔killinchu. Additive, try/except-guarded, before the SPA catch-all.
+try:
+    import szl_cuas_formulas as _szl_cuas
+    _szl_cuas.register(app, ns="killinchu")
+    print("[killinchu] CUAS formulas registered: /api/killinchu/v1/cuas/*", file=__import__("sys").stderr)
+except Exception as _szl_cuas_e:  # pragma: no cover
+    print(f"[killinchu] CUAS formulas NOT registered: {_szl_cuas_e!r}", file=__import__("sys").stderr)
+
+
 # ── Research & Sources layer (research-sources-patch, Task #662) — every /elite
 # tab gains a panel of vetted REAL upstream sources (UDS/Zarf/Pepr repos,
 # supply-chain standards, threat feeds, domain feeds, Lean/proof refs, per-subject
