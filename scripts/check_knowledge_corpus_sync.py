@@ -27,7 +27,7 @@
 #   * Λ-uniqueness / Conjecture 1 stays OPEN: the Λ_uniqueness theorem (TH_L1) has
 #     maturity == "conjectured" (NEVER "proven"); proof_summary.conjecture lists
 #     "F23"; and "F23" is NOT in proof_summary.locked_ids. (Unconditional
-#     Λ-uniqueness is machine-FALSE under A1-A5; only the conditional theorem holds.)
+#     Λ-uniqueness (Conjecture 1) is machine-FALSE under A1-A5; only the conditional theorem holds.)
 #   * The locked kernel count is machine-pinned (proof_summary.locked_count_theorem
 #     present) — the exact number is NOT pinned here, it evolves with the kernel.
 #   * Theorem U (if the corpus mentions it) is qualified "conditional".
@@ -92,7 +92,7 @@ def validate_honesty(text, corpus, label):
             break
     if lam is None:
         errors.append(
-            f"{label}: Λ-uniqueness theorem (TH_L1) not found — cannot verify "
+            f"{label}: Λ-uniqueness entry (TH_L1, Conjecture 1) not found — cannot verify "
             f"Conjecture 1 honesty"
         )
     else:
