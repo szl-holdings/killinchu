@@ -6908,12 +6908,12 @@ window.ev_sweep=async function(){
 };
 window.evidence_render=async function(c){
   window.ev_ensure_style();
-  c.innerHTML='<div class="card"><div class="dim">loading curated evidence…</div></div>';
+  c.innerHTML='<div class="card"><div class="dim">loading curated evidence — probing live arXiv + GitHub sources (can take ~15–20s)…</div></div>';
   try{
     // timeout-guarded fetch: a hung request must degrade to an honest retry, never an
     // indefinite "loading…" (evidence-tab-hang-fix). 12s ceiling, then surface the state.
     var _ev_ctl=('AbortController' in window)?new AbortController():null;
-    var _ev_to=setTimeout(function(){ try{ _ev_ctl&&_ev_ctl.abort(); }catch(_){} },12000);
+    var _ev_to=setTimeout(function(){ try{ _ev_ctl&&_ev_ctl.abort(); }catch(_){} },28000); // evidence does live arXiv+GitHub calls server-side (~16s); generous ceiling so it completes, never hangs
     var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research', _ev_ctl?{signal:_ev_ctl.signal}:undefined);
     clearTimeout(_ev_to);
     if(!r.ok) throw new Error('HTTP '+r.status);
