@@ -19,6 +19,11 @@ name: HF README drift check
 #     anti-shrink / no-silent-clobber principle) — reconciliation is a human
 #     decision: re-run hf-sync to push GitHub -> HF, or copy the Space edit back
 #     into GitHub if the Space is the intended source of truth.
+#   * On drift (or a fetch failure) it ALSO pages the team's watched channel via
+#     the shared SLACK_WEBHOOK_URL secret (the a11oy-uptime ntfy topic, behind
+#     the szl-alert-relay), mirroring killinchu-api-health.yml — a failed
+#     scheduled run otherwise only emails the actor and can go unnoticed for
+#     days. The alert only fires on failure (no daily green-run noise).
 
 on:
   schedule:
@@ -41,6 +46,7 @@ jobs:
           fetch-depth: 1
           lfs: false
       - name: Compare GitHub README with the live HuggingFace Space card
+        id: compare
         env:
           SPACE_ID: SZLHOLDINGS/killinchu
           # Optional: authenticate the raw fetch to dodge anonymous rate limits
@@ -51,6 +57,10 @@ jobs:
 
           RAW_URL="https://huggingface.co/spaces/${SPACE_ID}/raw/main/README.md"
           echo "Fetching live Space card: $RAW_URL"
+          {
+            echo "space_id=${SPACE_ID}"
+            echo "raw_url=${RAW_URL}"
+          } >> "$GITHUB_OUTPUT"
 
           auth=()
           if [ -n "${HF_TOKEN:-}" ]; then
@@ -59,7 +69,9 @@ jobs:
 
           code=$(curl -sS --retry 3 --retry-delay 5 -o hf_README.md \
                    -w '%{http_code}' "${auth[@]}" "$RAW_URL")
+          echo "http_code=${code}" >> "$GITHUB_OUTPUT"
           if [ "$code" != "200" ]; then
+            echo "status=fetch-fail" >> "$GITHUB_OUTPUT"
             echo "::error title=HF fetch failed::Could not fetch the Space card (HTTP $code) from $RAW_URL"
             {
               echo "## HF README drift check — could not run"
@@ -67,13 +79,20 @@ jobs:
               echo "Failed to fetch the live HuggingFace Space card (HTTP \`$code\`) from"
               echo "\`$RAW_URL\`. The Space may be down, renamed, or made private."
             } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
+            # Do NOT fail here — the final gate fails the run, so the alert step
+            # (gated on this status) always gets a chance to run first.
+            exit 0
           fi
 
           gh_bytes=$(wc -c < README.md)
           hf_bytes=$(wc -c < hf_README.md)
+          {
+            echo "gh_bytes=${gh_bytes}"
+            echo "hf_bytes=${hf_bytes}"
+          } >> "$GITHUB_OUTPUT"
 
           if cmp -s README.md hf_README.md; then
+            echo "status=insync" >> "$GITHUB_OUTPUT"
             echo "In sync: GitHub README and HF Space card are byte-identical ($gh_bytes bytes)."
             {
               echo "## HF README drift check — in sync"
@@ -84,7 +103,8 @@ jobs:
             exit 0
           fi
 
-          # Drift detected — report and fail; never auto-clobber.
+          # Drift detected — report; never auto-clobber. The final gate fails.
+          echo "status=drift" >> "$GITHUB_OUTPUT"
           {
             echo "## HF README drift detected"
             echo
@@ -111,4 +131,61 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
           echo "::error title=HF README drift::GitHub README ($gh_bytes B) differs from the HF Space card ($hf_bytes B). See the job summary to reconcile."
-          exit 1
+          exit 0
+
+      - name: Alert the team on README drift (or fetch failure)
+        if: ${{ always() && steps.compare.outputs.status != 'insync' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          STATUS: ${{ steps.compare.outputs.status }}
+          SPACE_ID: ${{ steps.compare.outputs.space_id }}
+          RAW_URL: ${{ steps.compare.outputs.raw_url }}
+          HTTP_CODE: ${{ steps.compare.outputs.http_code }}
+          GH_BYTES: ${{ steps.compare.outputs.gh_bytes }}
+          HF_BYTES: ${{ steps.compare.outputs.hf_bytes }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run still stands as the signal."
+            exit 0
+          fi
+
+          # Compose with real newlines, then JSON-encode safely with jq
+          # (preinstalled on ubuntu-latest). The shared webhook is the team ntfy
+          # channel (via the szl-alert-relay); it renders the `text` field.
+          if [ "${STATUS:-}" = "fetch-fail" ]; then
+            text=":rotating_light: *HF README drift check could not run* — failed to fetch the live HuggingFace Space card (HTTP ${HTTP_CODE:-?}) for *${SPACE_ID:-SZLHOLDINGS/killinchu}* in ${REPO}.
+          The Space may be down, renamed, or made private.
+          *Card:* ${RAW_URL:-?}
+          *Run:* ${RUN_URL}"
+          else
+            text=":rotating_light: *HF README drift detected* — the HuggingFace Space card for *${SPACE_ID:-SZLHOLDINGS/killinchu}* has diverged from the canonical GitHub README in ${REPO}.
+          *Bytes:* GitHub=${GH_BYTES:-?} HF=${HF_BYTES:-?}
+          *Reconcile:* re-run hf-sync (GitHub → HF) or copy the Space edit back into GitHub README.md.
+          *Card:* ${RAW_URL:-?}
+          *Run:* ${RUN_URL}"
+          fi
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+          echo "Posting hf-drift-check alert to the shared webhook..."
+          code=$(curl -sS -o /tmp/resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Alert webhook POST failed (HTTP ${code}): $(cat /tmp/resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
+
+      - name: Fail the run on drift or fetch failure
+        if: always()
+        run: |
+          status="${{ steps.compare.outputs.status }}"
+          if [ "$status" != "insync" ]; then
+            echo "::error::HF README drift check failed (status=${status:-unknown}) — see the run summary to reconcile."
+            exit 1
+          fi
+          echo "HF README drift check passed — GitHub and HF Space card are in sync."
