@@ -1232,7 +1232,7 @@ async function verifyReceipt(env, pubPem, tamper){
 
 // Internal doctrine (NOT shown to operator): Trust score = Λ (F23) = Conjecture 1, never a theorem;
 // proved formulas = 8 {F1,F4,F7,F11,F12,F18,F19,F22}; SLSA L2 build-attestation present; receipts = real DSSE ECDSA-P256-SHA256, keyid szlholdings-cosign.
-const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads a live killinchu service — no mock data. The <b>trust score</b> is a documented <b>conjecture</b>, not a proven guarantee; <b>8</b> of our formulas are formally proven. Build provenance is <b>SLSA L2 build-attestation present</b> (no FedRAMP / Iron Bank / CMMC claims). Decision receipts are <b>genuinely signed</b> (ECDSA-P256) and verifiable offline against our public key. Drone track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
+const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads a live killinchu service — no mock data. The <b>trust score</b> is a documented <b>conjecture</b>, not a proven guarantee; <b>8</b> of our formulas are formally proven. Build provenance is <b>SLSA L2 build-attestation present</b> (no FedRAMP / Iron Bank / CMMC claims). Decision receipts are <b>hash-chained &amp; tamper-evident (Khipu DAG)</b>; the DSSE signature is a labelled <b>PLACEHOLDER</b> until the cosign key (<code>SZL_COSIGN_PRIVATE_PEM</code>) is provisioned on this Space — no signature is fabricated. Drone track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
 
 
 // ===================== VESSELS — AIS REPLAY SAMPLE SET (NOT a live feed) =====================
@@ -3491,7 +3491,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="kpi"><div class="k">Chain depth</div><div class="v" id="ch-depth">—</div><div class="d">real hash chain</div></div>
       <div class="kpi"><div class="k">Chain verified</div><div class="v live" id="ch-ver">—</div></div>
       <div class="kpi"><div class="k">Ledger receipts</div><div class="v teal" id="ch-led">—</div></div>
-      <div class="kpi"><div class="k">Signing</div><div class="v live">genuinely signed</div><div class="d">killinchu has a real key</div></div>
+      <div class="kpi"><div class="k">Signing</div><div class="v">hash-chained · signature PENDING</div><div class="d">DSSE signature is PLACEHOLDER until the cosign key (SZL_COSIGN_PRIVATE_PEM) is provisioned — not fabricated</div></div>
       <div class="kpi"><div class="k">Verify-on-read</div><div class="v teal">bounded steps</div><div class="d">cost independent of chain depth</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Live hash-chain — layered DAG (Sigma + dagre)</span><span class="card-ep">WebGL 2D · left→right · GENESIS at left</span></div><div class="graph3d hero" id="ch-3d" style="position:relative"></div><div class="brain-note" id="ch-cap">building chain…</div></div>
       <div class="card"><div class="card-h"><span class="card-t">Receipt tail</span><span class="card-ep">verified replay log</span></div><div class="feedtail" id="ch-tail"></div>
