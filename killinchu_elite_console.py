@@ -786,6 +786,9 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="cuas_swarm" onclick="go('cuas_swarm')" title="Urgency-weighted graph-Laplacian swarm consensus rendered as a living 3D galaxy (Fiedler lambda2 convergence pulse). Olfati-Saber/Zelazo. Khipu-quorum analogue (Conjecture 2 OPEN)."><span class="ico">&#10059;</span>Swarm Mesh (3D galaxy)</div>
     <div class="nav-item" data-view="cuas_triage" onclick="go('cuas_triage')" title="Greedy weapon-target-assignment triage maximizing expected destroyed value (Manne). Effector SIMULATED — ranks and allocates, never fires."><span class="ico">&#9697;</span>Threat Triage (SIM)</div>
     <div class="nav-item" data-view="cuas_pq" onclick="go('cuas_pq')" title="Post-quantum SHA3-256 hash-chain receipt bus (ML-KEM-768 / ML-DSA-65 / SLH-DSA, NIST FIPS 203/204/205). Signature PROXY until oqs key provisioned. EXPERIMENTAL-tier."><span class="ico">&#9919;</span>PQ Provenance (SHA3)</div>
+
+    <div class="nav-group" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9317; METABOLIC SCALING &middot; EXPERIMENTAL</div>
+    <div class="nav-item" data-view="scaling" onclick="go('scaling')" title="Allometric scaling: Kleiber 3/4 metabolic law, lifetime-heartbeats invariant, PROPOSED SZL-Phi unification, universal-exponent comparator, Kaplan-2020 compute allometry. Live from /api/killinchu/v1/scaling/*. EXPERIMENTAL-tier; Lambda stays Conjecture 1; SZL-Phi is PROPOSED, NOT the formal Lambda."><span class="ico">&#9878;</span>Metabolic Scaling</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -8910,6 +8913,215 @@ go(VIEWS[start]?start:'tracks');
   reg();
 })();
 /* end killinchu cuas-c2-lab-patch */
+</script>
+
+<script>
+/* ============================================================================
+ * SZL METABOLIC SCALING (living-3D) — Kleiber/WBE/MTE + quantum-metabolism
+ * bridge, unified into the PROPOSED SZL-Phi engineering gate. Each visual is
+ * wired to the REAL /api/killinchu/v1/scaling/* endpoints (szl_scaling.py,
+ * byte-identical a11oy<->killinchu). Registered post-hoc on the VIEWS object
+ * (same proven mechanism as the cuas-c2-lab patch). EXPERIMENTAL-tier: adds
+ * NOTHING to the locked 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Lambda stays
+ * Conjecture 1; SZL-Phi is PROPOSED, NOT the formal Lambda; trust never 100%.
+ * 0 runtime CDN — vendored echarts/three only. Null-safe every async path
+ * (E()/ex()/setHTML); prefers-reduced-motion respected. Every borrowed law is
+ * CITED to its real author; SZL claims none as its own discovery.
+ * ============================================================================ */
+(function(){
+  function reg(){
+    var V=(typeof VIEWS!=='undefined')?VIEWS:window.VIEWS; if(!V){ return setTimeout(reg,90); }
+    var SAPI=(window.location.origin)+'/api/killinchu/v1';
+    var TEAL='#5fb3a3', GOLD='#c9b787', RISK='#b06a5a', WARN='#c9a05f', INFO='#6FA8DC', VIOLET='#B79BD6', DIM='#8a8f98', LIVE='#5a8a6e';
+    var RM = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+    function E(id){ var e=document.getElementById(id); if(e) return e; if(!reg._d) reg._d=document.createElement('div'); return reg._d; }
+    function ex(id){ return document.getElementById(id); }
+    function setHTML(id,html){ var e=document.getElementById(id); if(e) e.innerHTML=html; }
+    function fmt(n,d){ if(n==null||isNaN(n)) return '\u2014'; return Number(n).toFixed(d==null?1:d); }
+    function dot(){ return (window.liveDot?window.liveDot():'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+TEAL+';box-shadow:0 0 8px '+TEAL+';margin-right:6px;vertical-align:middle"></span>'); }
+    function pill(t,c){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a">'+esc(t)+'</span>'; }
+    async function J(p){ var r=await fetch(p); if(!r.ok) throw new Error('HTTP '+r.status); var ct=r.headers.get('content-type')||''; if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json(); }
+    function autoPoll(gateId, fn){ try{fn();}catch(e){} var t=setInterval(function(){ if(!ex(gateId)){return;} try{fn();}catch(e){} var d=ex('sca-ts-'+gateId); if(d) d.textContent='auto \u00b7 '+new Date().toLocaleTimeString(); }, 12000+Math.floor(Math.random()*5000)); window._tailTimers=window._tailTimers||[]; window._tailTimers.push(t); window._liveTimers=window._tailTimers; return t; }
+    function autoPill(g){ return '<span class="badge b-live" style="font-size:9.5px">'+dot()+'AUTO-RECORDING <span id="sca-ts-'+esc(g)+'" class="mono dim" style="margin-left:5px">live</span></span>'; }
+    function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">\u2014</div><div class="d">'+esc(d||'')+'</div></div>'; }
+    function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' \u2197</a>'; }
+    function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL construct \u2014 adds <b>nothing</b> to the 8 locked formulas; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); SZL-\u03a6 is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed law is cited to its real author; SZL claims none as its own discovery.</div>'; }
+
+    var MASSES=[0.02,0.05,0.2,1,5,20,70,300,1000,3000,6000];
+    function massLabel(M){ if(M<=0.03) return 'mouse'; if(M>=60&&M<=80) return 'human'; if(M>=3000) return 'elephant'; return null; }
+
+    // ───────────── VISUAL 1 — KLEIBER LOG-LOG CURVE ─────────────
+    function renderKleiber(c){
+      c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Kleiber\u2019s law \u2014 metabolic rate vs body mass (live)</span><span class="card-ep">'+autoPill('kle-gate')+'</span></div>'
+        +'<div class="kpis" id="kle-gate">'+kpi('Slope (log-log)','kle-slope','B \u221d M^\u00be',TEAL)+kpi('Human 70 kg','kle-h','kcal/day',GOLD)+kpi('Mouse 20 g','kle-m','kcal/day',INFO)+kpi('Elephant 6 t','kle-e','kcal/day',VIOLET)+'</div>'
+        +'<div id="kle-chart" style="height:clamp(300px,46vh,440px);margin-top:.6rem"></div>'
+        +'<div class="mono dim" style="font-size:11px;margin-top:.4rem">Each point is a live <code>/scaling/kleiber?M=</code> call. The 3/4 slope on log-log axes is the WBE fractal-network prediction \u2014 verified by recomputation, not asserted.</div></div>'
+        +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Formula author: </span>'+cite('https://pdodds.w3.uvm.edu/files/papers/others/1932/kleiber1932a.pdf','Kleiber 1932, Hilgardia')+' &nbsp; '+cite('https://www.science.org/doi/10.1126/science.276.5309.122','West-Brown-Enquist 1997, Science 276:122 \u2014 DOI:10.1126/science.276.5309.122')+'</div>'
+        +'<details class="raw"><summary>raw /scaling/kleiber samples</summary><pre class="out" id="kle-raw">\u2014</pre></details>'
+        +honesty('B = B\u2080\u00b7M^\u00be (B\u2080\u224870 kcal/day, mammals) is <b>Kleiber 1932</b>; the 3/4 exponent is explained by <b>West, Brown &amp; Enquist 1997</b> (fractal distribution networks). The curve redraws exactly the values the live endpoint returns.');
+      autoPoll('kle-gate', async function(){
+        var pts=[]; var raw=[];
+        for(var i=0;i<MASSES.length;i++){ var d=await J(SAPI+'/scaling/kleiber?M='+MASSES[i]); pts.push([d.M_kg, d.B_kcal_day]); raw.push(d); }
+        if(ex('kle-raw')) ex('kle-raw').textContent=JSON.stringify(raw,null,2);
+        var x0=Math.log10(pts[0][0]), x1=Math.log10(pts[pts.length-1][0]);
+        var y0=Math.log10(pts[0][1]), y1=Math.log10(pts[pts.length-1][1]);
+        var slope=(y1-y0)/(x1-x0);
+        E('kle-slope').textContent=fmt(slope,3); E('kle-slope').style.color=(Math.abs(slope-0.75)<0.02)?LIVE:TEAL;
+        function at(M){ for(var i=0;i<raw.length;i++){ if(Math.abs(raw[i].M_kg-M)<1e-9) return raw[i].B_kcal_day; } return null; }
+        E('kle-h').textContent=fmt(at(70),0); E('kle-m').textContent=fmt(at(0.02),2); E('kle-e').textContent=fmt(at(6000),0);
+        if(window.mkEchart) window.mkEchart('kle-chart',{backgroundColor:'transparent',tooltip:{trigger:'item',formatter:function(p){ return 'M = '+p.value[0]+' kg<br/>B = '+fmt(p.value[1],1)+' kcal/day'; }},
+          grid:{left:64,right:24,top:24,bottom:48},
+          xAxis:{type:'log',name:'body mass M (kg)',nameLocation:'middle',nameGap:30,nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#A8B6CC'},splitLine:{lineStyle:{color:'#1c2230'}}},
+          yAxis:{type:'log',name:'metabolic rate B (kcal/day)',nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#A8B6CC'},splitLine:{lineStyle:{color:'#1c2230'}}},
+          series:[{type:'line',smooth:false,symbolSize:9,data:pts,lineStyle:{color:TEAL,width:2.4},itemStyle:{color:GOLD},
+            markPoint:{symbolSize:1,label:{show:true,formatter:function(p){return massLabel(p.value[0])||'';},color:GOLD,fontSize:11},
+              data:pts.filter(function(p){return massLabel(p[0]);}).map(function(p){return {coord:p};})}}]});
+      });
+    }
+
+    // ───────────── VISUAL 2 (HERO) — LIFETIME-HEARTBEATS INVARIANT ─────────────
+    function renderHeart(c){
+      c.innerHTML='<div class="hero" style="border:1px solid '+GOLD+'55;border-radius:14px;padding:1rem 1.1rem;background:radial-gradient(ellipse at top left,'+GOLD+'10,transparent 70%);margin-bottom:.8rem">'
+        +'<div class="card-t" style="font-size:15px">'+dot()+'The invariant no one can dream of \u2014 <b>lifetime heartbeats \u2248 constant</b></div>'
+        +'<div class="mono dim" style="font-size:12px;margin-top:.3rem">A mouse\u2019s heart races; an elephant\u2019s crawls. Yet both spend roughly the <b>same total number of beats</b> in a lifetime (\u2248 1\u20131.5 billion), because heart-rate \u221d M^(\u22121\u00bc) and lifespan \u221d M^(+\u00bc) cancel. Every number below is a live <code>/scaling/heart?M=</code> call.</div></div>'
+        +'<div class="card"><div class="card-h"><span class="card-t">Lifetime beats across mouse \u2192 human \u2192 elephant (live)</span><span class="card-ep">'+autoPill('hrt-gate')+'</span></div>'
+        +'<div class="kpis" id="hrt-gate">'+kpi('Mouse 20 g','hrt-m','\u00d710\u2079 beats',INFO)+kpi('Human 70 kg','hrt-h','\u00d710\u2079 beats',GOLD)+kpi('Elephant 6 t','hrt-e','\u00d710\u2079 beats',VIOLET)+kpi('mouse \u00f7 human','hrt-ratio','\u2248 1 (invariant)',TEAL)+'</div>'
+        +'<div id="hrt-chart" style="height:clamp(300px,44vh,420px);margin-top:.6rem"></div>'
+        +'<div class="mono dim" style="font-size:11px;margin-top:.4rem">Bars = lifetime beats (billions). They stay flat across 5 orders of magnitude in mass \u2014 the famous near-invariant.</div></div>'
+        +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Formula authors: </span>'+cite('https://www.science.org/doi/10.1126/science.276.5309.122','West-Brown-Enquist 1997 (M^\u00bc allometry)')+' &nbsp; '+cite('https://doi.org/10.1890/03-9000','Brown et al. 2004 MTE \u2014 DOI:10.1890/03-9000')+'</div>'
+        +'<details class="raw"><summary>raw /scaling/heart samples</summary><pre class="out" id="hrt-raw">\u2014</pre></details>'
+        +honesty('Heart-rate f = 241\u00b7M^(\u2212\u00bc) bpm and lifespan L = 11.8\u00b7M^(+\u00bc) yr are the <b>WBE/MTE</b> allometries; their product (lifetime beats) is near-mass-invariant by construction. Values are recomputed live, not asserted.');
+      autoPoll('hrt-gate', async function(){
+        var rows=[]; var raw=[];
+        for(var i=0;i<MASSES.length;i++){ var d=await J(SAPI+'/scaling/heart?M='+MASSES[i]); rows.push(d); raw.push(d); }
+        if(ex('hrt-raw')) ex('hrt-raw').textContent=JSON.stringify(raw,null,2);
+        function at(M){ for(var i=0;i<rows.length;i++){ if(Math.abs(rows[i].M_kg-M)<1e-9) return rows[i].lifetime_beats_billion; } return null; }
+        var bm=at(0.02), bh=at(70), be=at(6000);
+        E('hrt-m').textContent=fmt(bm,3); E('hrt-h').textContent=fmt(bh,3); E('hrt-e').textContent=fmt(be,3);
+        E('hrt-ratio').textContent=(bh? fmt(bm/bh,2):'\u2014'); E('hrt-ratio').style.color=LIVE;
+        if(window.mkEchart) window.mkEchart('hrt-chart',{backgroundColor:'transparent',tooltip:{trigger:'axis',formatter:function(a){ var p=a[0]; var r=rows[p.dataIndex]; return 'M = '+r.M_kg+' kg<br/>'+fmt(r.bpm,1)+' bpm \u00b7 '+fmt(r.lifespan_yr,1)+' yr<br/><b>'+fmt(r.lifetime_beats_billion,3)+' \u00d710\u2079 beats</b>'; }},
+          grid:{left:60,right:24,top:24,bottom:60},
+          xAxis:{type:'category',data:rows.map(function(r){var l=massLabel(r.M_kg); return l?(l+' ('+r.M_kg+'kg)'):(r.M_kg+'kg');}),axisLabel:{color:'#A8B6CC',rotate:38,fontSize:10}},
+          yAxis:{type:'value',name:'lifetime beats (\u00d710\u2079)',nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#A8B6CC'},splitLine:{lineStyle:{color:'#1c2230'}}},
+          series:[{type:'bar',barWidth:'52%',data:rows.map(function(r){ var l=massLabel(r.M_kg); return {value:Number((r.lifetime_beats_billion||0).toFixed(3)),itemStyle:{color:l?GOLD:TEAL}}; }),label:{show:true,position:'top',color:'#cfcfcf',fontSize:10,formatter:'{c}'}}]});
+      });
+    }
+
+    // ───────────── VISUAL 3 — SZL-PHI UNIFIED (PMF activation lift) ─────────────
+    function renderUnified(c){
+      c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'SZL-\u03a6 unified scaling \u2014 PMF activation lift (live)</span><span class="card-ep">'+autoPill('phi-gate')+'</span></div>'
+        +'<div style="margin:.2rem 0 .7rem;padding:.5rem .7rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:7px;background:'+WARN+'14;font-family:var(--mono,monospace);font-size:11px;letter-spacing:.03em;color:'+WARN+'"><b>PROPOSED engineering gate \u2014 NOT the formal \u039b.</b> \u039b = Conjecture 1. SZL-\u03a6 couples WBE network scaling \u00d7 MTE/PMF activation \u00d7 coherence; it is an SZL construct, claimed only as a unification of cited results.</div>'
+        +'<div class="kpis" id="phi-gate">'+kpi('\u03a6 (with PMF)','phi-w','\u0394p = 121.5 mV',TEAL)+kpi('\u03a6 (no PMF)','phi-n','\u0394p = 0',INFO)+kpi('PMF activation lift','phi-lift','\u03a6(pmf)/\u03a6(0)',GOLD)+kpi('Status','phi-st','doctrine',WARN)+'</div>'
+        +'<div class="grid2"><div><div class="card-h"><span class="card-t">\u03a6 term decomposition</span><span class="card-ep">network \u00d7 PMF-enhancement \u00d7 coherence</span></div><div id="phi-chart" style="height:clamp(260px,38vh,340px);margin-top:.4rem"></div></div>'
+        +'<div><div class="card-h"><span class="card-t">PMF activation lift (3D)</span><span class="card-ep">vendored three.js \u00b7 height \u221d lift</span></div><div id="phi-3d" style="height:clamp(260px,38vh,340px);border-radius:10px;background:#050608;margin-top:.4rem"></div></div></div></div>'
+        +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Cited lineage: </span>'+cite('https://pmc.ncbi.nlm.nih.gov/articles/PMC2842802/','Demetrius-Tuszynski 2010 (quantum metabolism / PMF) \u2014 DOI:10.1098/rsif.2009.0310')+' &nbsp; '+cite('https://doi.org/10.1890/03-9000','Brown et al. 2004 MTE')+'</div>'
+        +'<details class="raw"><summary>raw /scaling/unified</summary><pre class="out" id="phi-raw">\u2014</pre></details>'
+        +honesty('\u03a6 = \u03a6\u2080\u00b7M^\u00be\u00b7exp(+\u03b7\u0394p/kT)\u00b7(\u03c4c/\u03c4\u2080)^\u00bc. The PMF lift is \u03a6(\u0394p=121.5)/\u03a6(\u0394p=0) at the same temperature, isolating the proton-motive-force enhancement honestly. SZL-\u03a6 is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>.');
+      function draw3d(lift){
+        var host=ex('phi-3d'); if(!host||!window.THREE) return; host.innerHTML='';
+        var W=host.clientWidth||460,H=host.clientHeight||320;
+        var sc=new THREE.Scene(); var cam=new THREE.PerspectiveCamera(52,W/H,0.1,1000); cam.position.set(0,3,12);
+        var rnd; try{ rnd=new THREE.WebGLRenderer({antialias:true,alpha:true}); }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D unavailable: '+esc(e.message)+'</div>'; return; }
+        rnd.setSize(W,H); rnd.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); host.appendChild(rnd.domElement);
+        sc.add(new THREE.AmbientLight(0xffffff,0.8)); var pl=new THREE.PointLight(0x5fb3a3,1.0); pl.position.set(5,8,8); sc.add(pl);
+        var baseH=1.2, liftH=baseH*Math.max(1,Math.min(120,lift))/4;
+        var b1=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.6,baseH,28),new THREE.MeshStandardMaterial({color:0x6fa8dc,transparent:true,opacity:0.85})); b1.position.set(-2,baseH/2-2,0); sc.add(b1);
+        var b2=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.6,Math.min(8,liftH),28),new THREE.MeshStandardMaterial({color:0x5fb3a3,emissive:0x0a1, transparent:true,opacity:0.9})); b2.position.set(2,Math.min(8,liftH)/2-2,0); sc.add(b2);
+        var grid=new THREE.GridHelper(14,14,0x223,0x152); grid.position.y=-2; sc.add(grid);
+        var stop=false,a=0;
+        function loop(){ if(stop||!ex('phi-3d')){ try{rnd.dispose();}catch(e){} return; } if(!RM){ a+=0.005; sc.rotation.y=a; } rnd.render(sc,cam); requestAnimationFrame(loop); }
+        loop();
+        window._tailTimers=window._tailTimers||[]; window._tailTimers.push(setInterval(function(){ if(!ex('phi-3d')) stop=true; },4000));
+      }
+      autoPoll('phi-gate', async function(){
+        var dw=await J(SAPI+'/scaling/unified?M=70&T=310&dp=121.5&tau_c=6.05');
+        var dn=await J(SAPI+'/scaling/unified?M=70&T=310&dp=0&tau_c=6.05');
+        if(ex('phi-raw')) ex('phi-raw').textContent=JSON.stringify({with_pmf:dw,no_pmf:dn},null,2);
+        var pw=dw.phi||0, pn=dn.phi||0, lift=pn?pw/pn:0;
+        E('phi-w').textContent=fmt(pw,1); E('phi-n').textContent=fmt(pn,1);
+        E('phi-lift').textContent=(lift?('\u00d7'+fmt(lift,1)):'\u2014'); E('phi-lift').style.color=GOLD;
+        E('phi-st').textContent=dw.status||'PROPOSED'; E('phi-st').style.color=WARN;
+        var t=dw.terms||{};
+        if(window.mkEchart) window.mkEchart('phi-chart',{backgroundColor:'transparent',tooltip:{trigger:'axis'},grid:{left:60,right:18,top:24,bottom:54},
+          xAxis:{type:'category',data:['network M^\u00be','PMF enh.','coherence'],axisLabel:{color:'#A8B6CC',rotate:20,fontSize:10}},
+          yAxis:{type:'value',name:'term value',nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#A8B6CC'},splitLine:{lineStyle:{color:'#1c2230'}}},
+          series:[{type:'bar',barWidth:'46%',data:[{value:Number((t['network_M^beta']||0).toFixed(3)),itemStyle:{color:INFO}},{value:Number((t['pmf_enhancement_exp(eta*dp/kT)']||0).toFixed(3)),itemStyle:{color:TEAL}},{value:Number((t['coherence_(tau_c/tau0)^0.25']||0).toFixed(3)),itemStyle:{color:VIOLET}}],label:{show:true,position:'top',color:'#cfcfcf',fontSize:10,formatter:'{c}'}}]});
+        draw3d(lift);
+      });
+    }
+
+    // ───────────── VISUAL 4 — UNIVERSAL-EXPONENT COMPARATOR ─────────────
+    function renderExponents(c){
+      c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Universal scaling exponents across domains (live)</span><span class="card-ep">'+autoPill('exp-gate')+'</span></div>'
+        +'<div id="exp-chart" style="height:clamp(300px,46vh,440px);margin-top:.6rem"></div>'
+        +'<div id="exp-table" class="mono" style="font-size:11px;margin-top:.6rem"></div></div>'
+        +'<details class="raw"><summary>raw /scaling/exponents</summary><pre class="out" id="exp-raw">\u2014</pre></details>'
+        +honesty('Each exponent is attributed to its source domain and author (biology: Kleiber/WBE/MTE; urban: Bettencourt-West 2007; compute: Kaplan 2020). SZL asserts none of these as its own discovery \u2014 the comparator simply renders the live endpoint.');
+      autoPoll('exp-gate', async function(){
+        var d=await J(SAPI+'/scaling/exponents');
+        if(ex('exp-raw')) ex('exp-raw').textContent=JSON.stringify(d,null,2);
+        var rows=(d&&d.exponents)||[];
+        var cats=rows.map(function(r){ return r.quantity; });
+        var domColor={biology:TEAL,urban:GOLD,compute:VIOLET};
+        if(window.mkEchart) window.mkEchart('exp-chart',{backgroundColor:'transparent',tooltip:{trigger:'item',formatter:function(p){ var r=rows[p.dataIndex]; return r.domain+': '+r.quantity+'<br/>exponent = '+r.exponent+'<br/>'+r.cite; }},
+          grid:{left:200,right:30,top:20,bottom:40},
+          xAxis:{type:'value',name:'scaling exponent',nameLocation:'middle',nameGap:26,nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#A8B6CC'},splitLine:{lineStyle:{color:'#1c2230'}}},
+          yAxis:{type:'category',data:cats,axisLabel:{color:'#A8B6CC',fontSize:10}},
+          series:[{type:'bar',barWidth:'56%',data:rows.map(function(r){ return {value:r.exponent,itemStyle:{color:domColor[r.domain]||INFO}}; }),label:{show:true,position:'right',color:'#cfcfcf',fontSize:10,formatter:function(p){return p.value;}}}]});
+        var html='<table style="width:100%;border-collapse:collapse"><tr style="color:'+DIM+'"><th style="text-align:left;padding:3px 6px">domain</th><th style="text-align:left;padding:3px 6px">quantity</th><th style="text-align:right;padding:3px 6px">exponent</th><th style="text-align:left;padding:3px 6px">cite</th></tr>';
+        rows.forEach(function(r){ html+='<tr><td style="padding:3px 6px;color:'+(domColor[r.domain]||INFO)+'">'+esc(r.domain)+'</td><td style="padding:3px 6px">'+esc(r.quantity)+'</td><td style="padding:3px 6px;text-align:right;color:'+GOLD+'">'+esc(r.exponent)+'</td><td style="padding:3px 6px;color:'+DIM+'">'+esc(r.cite)+'</td></tr>'; });
+        html+='</table>'; setHTML('exp-table',html);
+      });
+    }
+
+    // ───────────── VISUAL 5 — COMPUTE ALLOMETRY (Kaplan 2020) ─────────────
+    function renderCompute(c){
+      c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Compute allometry \u2014 model loss vs parameters (live)</span><span class="card-ep">'+autoPill('cmp-gate')+'</span></div>'
+        +'<div style="margin:.2rem 0 .7rem;padding:.5rem .7rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:7px;background:'+WARN+'14;font-family:var(--mono,monospace);font-size:11px;color:'+WARN+'"><b>PROPOSED analogy.</b> SZL claims only the allometric <i>framing</i> (compute capability as a metabolic network), NOT the scaling law itself \u2014 that is Kaplan et al. 2020.</div>'
+        +'<div class="kpis" id="cmp-gate">'+kpi('Exponent \u03b1','cmp-a','L \u221d N^(\u2212\u03b1)',TEAL)+kpi('7B loss','cmp-7','predicted',INFO)+kpi('70B loss','cmp-70','predicted',GOLD)+kpi('700B loss','cmp-700','predicted',VIOLET)+'</div>'
+        +'<div id="cmp-chart" style="height:clamp(300px,44vh,420px);margin-top:.6rem"></div>'
+        +'<div class="mono dim" style="font-size:11px;margin-top:.4rem">Each point is a live <code>/scaling/compute?params=</code> call. Bigger model \u2192 lower loss, the same diminishing-returns allometry biology shows.</div></div>'
+        +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Formula author: </span>'+cite('https://arxiv.org/abs/2001.08361','Kaplan et al. 2020 \u2014 Scaling Laws for Neural Language Models, arXiv:2001.08361')+'</div>'
+        +'<details class="raw"><summary>raw /scaling/compute samples</summary><pre class="out" id="cmp-raw">\u2014</pre></details>'
+        +honesty('Predicted loss L(N) \u2248 L\u2080\u00b7N^(\u2212\u03b1), \u03b1\u22480.076 (<b>Kaplan et al. 2020</b>). The \u201ccapability metabolism\u201d framing is the SZL tie-in \u2014 a PROPOSED analogy, not a new law.');
+      var PARAMS=[0.1,0.5,1,3,7,13,30,70,175,400,700];
+      autoPoll('cmp-gate', async function(){
+        var pts=[]; var raw=[];
+        for(var i=0;i<PARAMS.length;i++){ var d=await J(SAPI+'/scaling/compute?params='+PARAMS[i]); pts.push([d.params_billions, d.predicted_loss]); raw.push(d); }
+        if(ex('cmp-raw')) ex('cmp-raw').textContent=JSON.stringify(raw,null,2);
+        var alpha=raw.length?raw[0].exponent_alpha:null;
+        E('cmp-a').textContent=fmt(alpha,3);
+        function at(P){ for(var i=0;i<raw.length;i++){ if(Math.abs(raw[i].params_billions-P)<1e-9) return raw[i].predicted_loss; } return null; }
+        E('cmp-7').textContent=fmt(at(7),3); E('cmp-70').textContent=fmt(at(70),3); E('cmp-700').textContent=fmt(at(700),3);
+        if(window.mkEchart) window.mkEchart('cmp-chart',{backgroundColor:'transparent',tooltip:{trigger:'item',formatter:function(p){ return p.value[0]+'B params<br/>loss = '+fmt(p.value[1],4); }},
+          grid:{left:64,right:24,top:24,bottom:48},
+          xAxis:{type:'log',name:'parameters (billions)',nameLocation:'middle',nameGap:30,nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#A8B6CC'},splitLine:{lineStyle:{color:'#1c2230'}}},
+          yAxis:{type:'value',name:'predicted loss L(N)',nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#A8B6CC'},splitLine:{lineStyle:{color:'#1c2230'}}},
+          series:[{type:'line',smooth:true,symbolSize:9,data:pts,lineStyle:{color:VIOLET,width:2.4},itemStyle:{color:GOLD},areaStyle:{color:'rgba(183,155,214,0.12)'}}]});
+      });
+    }
+
+    V.scaling = {
+      title:'Metabolic Scaling',
+      badge:'EXPERIMENTAL \u00b7 KLEIBER/WBE/MTE \u00b7 SZL-\u03a6 PROPOSED',
+      sub:'Living view of <b>allometric scaling</b>: Kleiber\u2019s 3/4-power metabolic law, the lifetime-heartbeats invariant, the PROPOSED <b>SZL-\u03a6</b> unification (network \u00d7 PMF activation \u00d7 coherence), the universal-exponent comparator, and the Kaplan-2020 compute-allometry analogue. All five visuals are recomputed live from <code>/api/killinchu/v1/scaling/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked 8; \u039b stays <b>Conjecture 1</b>; SZL-\u03a6 is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>. Every borrowed law cited to its real author.',
+      render:function(c){
+        c.innerHTML='<div class="row" id="sca-tabs" style="gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem"></div><div id="sca-body"></div>';
+        var tabs=[['kleiber','Kleiber curve',renderKleiber],['heart','Lifetime heartbeats \u2605',renderHeart],['unified','SZL-\u03a6 unified',renderUnified],['exponents','Exponent comparator',renderExponents],['compute','Compute allometry',renderCompute]];
+        function paint(idx){ var host=ex('sca-body'); if(!host) return; tabs.forEach(function(t,i){ var b=ex('sca-tab-'+i); if(b){ b.style.background=(i===idx)?TEAL+'22':'transparent'; b.style.color=(i===idx)?TEAL:DIM; b.style.borderColor=(i===idx)?TEAL:'#2a2a2a'; } }); host.innerHTML=''; var sub=document.createElement('div'); sub.id='sca-sub'; host.appendChild(sub); tabs[idx][2](sub); }
+        var bar=ex('sca-tabs');
+        tabs.forEach(function(t,i){ var b=document.createElement('button'); b.id='sca-tab-'+i; b.className='mono'; b.textContent=t[1]; b.style.cssText='border:1px solid #2a2a2a;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:12px;background:transparent;color:'+DIM; b.addEventListener('click',function(){ paint(i); }); if(bar) bar.appendChild(b); });
+        paint(1);
+      }
+    };
+
+    window.VIEWS=V;
+    try{ console.log('[killinchu] Scaling tab registered: scaling'); }catch(e){}
+  }
+  reg();
+})();
+/* end killinchu scaling-wire-patch */
 </script>
 
 </body>
