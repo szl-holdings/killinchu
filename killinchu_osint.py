@@ -67,6 +67,36 @@ _TTL = int(os.environ.get("KILLINCHU_OSINT_TTL", "900"))  # 15 min freshness win
 # unauthenticated endpoint from being driven into Tavily key/cost exhaustion.
 _FRESH_MIN = int(os.environ.get("KILLINCHU_OSINT_FRESH_MIN", "60"))
 
+# ---------------------------------------------------------------------------
+# Durable backend (HF Dataset). The Space's local _OSINT_DIR is EPHEMERAL — a
+# rebuild/restart wipes it, so the "cached" last-good fallback and the sha256
+# provenance chain would start empty after every deploy. To make the corpus
+# survive rebuilds we additionally persist each stream's snapshot to a durable
+# HF Dataset repo and hydrate from it on cold start. This is BEST-EFFORT and
+# HONEST: if the store (or token, or huggingface_hub) is unreachable we silently
+# keep using ephemeral local disk and report the reason in osint/status.
+# ---------------------------------------------------------------------------
+_HF_REPO = os.environ.get("KILLINCHU_OSINT_HF_REPO", "SZLHOLDINGS/killinchu-osint-corpus").strip()
+_HF_PREFIX = os.environ.get("KILLINCHU_OSINT_HF_PREFIX", "corpus").strip().strip("/")
+_HF_DISABLE = os.environ.get("KILLINCHU_OSINT_HF_DISABLE", "").strip().lower() in ("1", "true", "yes", "on")
+_HF_PRIVATE = os.environ.get("KILLINCHU_OSINT_HF_PRIVATE", "1").strip().lower() in ("1", "true", "yes", "on")
+# Min seconds between durable pushes per stream — keeps a busy feed from spamming
+# dataset commits. Local disk always holds the very latest; durable lags by ≤this.
+_HF_MIN_PUSH = int(os.environ.get("KILLINCHU_OSINT_HF_MIN_PUSH", "120"))
+
+# Honest, observable state of the durable backend (surfaced in osint/status).
+_HF_STATE: dict[str, Any] = {
+    "enabled": bool(_HF_REPO) and not _HF_DISABLE,
+    "repo": _HF_REPO,
+    "prefix": _HF_PREFIX,
+    "available": None,          # None=untested, True=reachable, False=last op failed
+    "last_push": {},            # stream -> iso of last successful durable write
+    "last_error": None,         # honest last failure ("Type: message")
+    "writes": 0,
+    "loads": 0,
+}
+_HF_PUSH_TS: dict[str, float] = {}   # stream -> monotonic-ish ts of last push attempt
+
 # In-memory corpus: stream -> list[item]; plus per-stream fetch metadata.
 _LOCK = threading.Lock()
 _CORPUS: dict[str, list[dict]] = {}
@@ -227,23 +257,147 @@ def _normalize(raw: list[dict], stream: str) -> list[dict]:
     return out
 
 
+# ---------------------------------------------------------------------------
+# Durable backend helpers (HF Dataset). All best-effort + honest: never raise,
+# never block the request path on the network, never fabricate availability.
+# ---------------------------------------------------------------------------
+def _hf_token() -> str:
+    for k in ("HF_WRITE_TOKEN", "HUGGINGFACE_HUB_TOKEN", "HUGGING_FACE_HUB_TOKEN",
+              "HF_TOKEN", "HF_ORG_TOKEN"):
+        v = os.environ.get(k, "").strip()
+        if v:
+            return v
+    return ""
+
+
+def _hf_enabled() -> bool:
+    return bool(_HF_STATE["enabled"]) and bool(_hf_token())
+
+
+def _hf_path(stream: str) -> str:
+    return ("%s/%s.json" % (_HF_PREFIX, stream)) if _HF_PREFIX else ("%s.json" % stream)
+
+
+def _snapshot(stream: str) -> dict:
+    return {
+        "stream": stream, "saved_at": _now_iso(),
+        "chain_head": _CHAIN_HEAD.get(stream),
+        "items": _CORPUS.get(stream, []),
+    }
+
+
+def _durable_save(stream: str) -> None:
+    """Push the stream snapshot to the durable HF Dataset, off the request path.
+    Debounced per stream; failures are recorded honestly, never raised."""
+    if not _hf_enabled():
+        return
+    now = time.time()
+    last = _HF_PUSH_TS.get(stream, 0.0)
+    if (now - last) < _HF_MIN_PUSH:
+        return  # debounced — local disk still holds the latest
+    _HF_PUSH_TS[stream] = now
+    snap = _snapshot(stream)  # capture under caller's lock; thread only does I/O
+
+    def _work() -> None:
+        try:
+            import io
+            from huggingface_hub import HfApi
+            api = HfApi(token=_hf_token())
+            api.create_repo(repo_id=_HF_REPO, repo_type="dataset",
+                            private=_HF_PRIVATE, exist_ok=True)
+            data = json.dumps(snap, ensure_ascii=False).encode("utf-8")
+            api.upload_file(
+                path_or_fileobj=io.BytesIO(data),
+                path_in_repo=_hf_path(stream),
+                repo_id=_HF_REPO, repo_type="dataset",
+                commit_message="osint corpus snapshot: %s @ %s" % (stream, snap["saved_at"]),
+            )
+            _HF_STATE["available"] = True
+            _HF_STATE["writes"] = int(_HF_STATE.get("writes", 0)) + 1
+            _HF_STATE["last_push"][stream] = snap["saved_at"]
+            _HF_STATE["last_error"] = None
+        except Exception as exc:  # noqa: BLE001 — best-effort durability
+            _HF_STATE["available"] = False
+            _HF_STATE["last_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:160])
+            _HF_PUSH_TS[stream] = last  # let the next persist retry promptly
+
+    threading.Thread(target=_work, name="osint-hf-save-%s" % stream, daemon=True).start()
+
+
+def _durable_load(stream: str) -> Optional[dict]:
+    """Fetch a stream snapshot from the durable HF Dataset (blocking, used only
+    on cold-start hydration + when no local/in-memory corpus exists)."""
+    if not _hf_enabled():
+        return None
+    try:
+        from huggingface_hub import hf_hub_download
+        fp = hf_hub_download(repo_id=_HF_REPO, repo_type="dataset",
+                             filename=_hf_path(stream), token=_hf_token())
+        with open(fp, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        _HF_STATE["available"] = True
+        _HF_STATE["loads"] = int(_HF_STATE.get("loads", 0)) + 1
+        _HF_STATE["last_error"] = None
+        return d if isinstance(d, dict) else None
+    except Exception as exc:  # noqa: BLE001
+        name = type(exc).__name__
+        # A missing repo/file just means "nothing persisted yet" — the store is
+        # still reachable; only mark unavailable on a real transport error.
+        if name in ("EntryNotFoundError", "RepositoryNotFoundError", "HfHubHTTPError") \
+                and any(t in str(exc) for t in ("404", "Not Found", "Entry Not Found")):
+            _HF_STATE["available"] = True
+        else:
+            _HF_STATE["available"] = False
+        _HF_STATE["last_error"] = "%s: %s" % (name, str(exc)[:160])
+        return None
+
+
+def _durable_status() -> dict:
+    """Honest snapshot of the durable backend for osint/status — never inflated."""
+    return {
+        "backend": "huggingface_dataset",
+        "enabled": bool(_HF_STATE["enabled"]),
+        "repo": _HF_REPO if _HF_STATE["enabled"] else None,
+        "prefix": _HF_PREFIX,
+        "token_present": bool(_hf_token()),
+        "available": _HF_STATE["available"],
+        "writes": _HF_STATE["writes"],
+        "loads": _HF_STATE["loads"],
+        "last_push": dict(_HF_STATE["last_push"]),
+        "last_error": _HF_STATE["last_error"],
+        "note": ("corpus snapshots are mirrored to a durable HF Dataset so the "
+                 "cached fallback + sha256 provenance chain survive Space rebuilds; "
+                 "falls back to ephemeral local disk if the store is unreachable"),
+    }
+
+
 def _persist(stream: str) -> None:
     try:
         _OSINT_DIR.mkdir(parents=True, exist_ok=True)
-        (_OSINT_DIR / ("%s.json" % stream)).write_text(json.dumps({
-            "stream": stream, "saved_at": _now_iso(),
-            "chain_head": _CHAIN_HEAD.get(stream),
-            "items": _CORPUS.get(stream, []),
-        }, ensure_ascii=False))
+        (_OSINT_DIR / ("%s.json" % stream)).write_text(json.dumps(_snapshot(stream),
+                                                                  ensure_ascii=False))
     except Exception:
         pass
+    # Mirror to durable storage so the snapshot survives a Space rebuild.
+    _durable_save(stream)
 
 
 def _load_disk(stream: str) -> Optional[dict]:
     try:
         return json.loads((_OSINT_DIR / ("%s.json" % stream)).read_text())
     except Exception:
-        return None
+        pass
+    # Ephemeral local disk is empty (e.g. fresh Space rebuild) — hydrate from the
+    # durable store and re-seed the local cache so subsequent reads are fast.
+    d = _durable_load(stream)
+    if d and d.get("items"):
+        try:
+            _OSINT_DIR.mkdir(parents=True, exist_ok=True)
+            (_OSINT_DIR / ("%s.json" % stream)).write_text(json.dumps(d, ensure_ascii=False))
+        except Exception:
+            pass
+        return d
+    return None
 
 
 def _rechain(stream: str) -> str:
@@ -671,6 +825,7 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
                             "chain_integrity": _CHAIN_OK.get(s, {"verified": True, "basis": "fresh"})}
                         for s in _STREAMS},
             "total_corpus": sum(len(v) for v in _CORPUS.values()),
+            "durable": _durable_status(),
             "honesty": _honesty(),
         })
     app.get("%s/osint/status" % base)(_status)
