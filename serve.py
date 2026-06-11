@@ -220,6 +220,26 @@ try:
 except Exception as _szl_entanglement_e:  # pragma: no cover
     print(f"[killinchu] Entanglement formulas NOT registered: {_szl_entanglement_e!r}", file=__import__("sys").stderr)
 
+# ── SZL Neuroplasticity / learning-rule formulas — the new "learning / brain"
+# (neuroplasticity-wire-patch) — grounds killinchu's agent learning loop in real, cited
+# neuroplasticity math, honestly tiered. RIGOROUS (classical, cited): Hebb 1949;
+# Oja 1982 (PCA convergence); Bienenstock-Cooper-Munro BCM 1982 (sliding threshold);
+# Bi & Poo 1998 (STDP); Turrigiano 2008 (synaptic scaling); Hubel & Wiesel Nobel 1981
+# (critical periods). RIGOROUS (recent, cited): Dohare-Sutton Nature 2024 + Sokar ReDo
+# 2023 (loss of plasticity in continual learning — the honest frontier tie-in for any
+# long-running agent); Kirkpatrick 2017 EWC. The predictive-coding↔Hebbian unifier
+# (Millidge 2022) is a PROPOSED lens, NOT a Λ theorem. Every borrowed rule cites its
+# real author; SZL claims NONE as its own. EXPERIMENTAL/PROPOSED — NOT formal Λ; adds
+# NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Pure stdlib. Shared
+# module byte-identical a11oy↔killinchu. The killinchu effector surface stays SIMULATED. Additive, try/except-guarded.
+try:
+    import szl_neuroplasticity as _szl_neuroplasticity
+    _szl_neuroplasticity.register(app, ns="killinchu")
+    print("[killinchu] Neuroplasticity formulas registered: /api/killinchu/v1/neuro/*", file=__import__("sys").stderr)
+except Exception as _szl_neuroplasticity_e:  # pragma: no cover
+    print(f"[killinchu] Neuroplasticity formulas NOT registered: {_szl_neuroplasticity_e!r}", file=__import__("sys").stderr)
+
+
 
 # ── Research & Sources layer (research-sources-patch, Task #662) — every /elite
 # tab gains a panel of vetted REAL upstream sources (UDS/Zarf/Pepr repos,
