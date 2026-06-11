@@ -291,7 +291,7 @@ def register(
                 "3-of-4 BFT Khipu consensus quorum (Policy/Reasoning/a11oy/Killinchu)",
                 "PQC hybrid signing (ML-DSA-65 + ECDSA-P256)",
             ],
-            "slsa": "SLSA L2 build-attestation present (signed build provenance; L2-verified/L3/FedRAMP / Iron Bank / CMMC)",
+            "slsa": "SLSA L1 honest (cosign-signed); L2 build-attestation (.att) emitted but NOT independently verified; NOT L2-verified / L3 / FedRAMP / Iron Bank / CMMC (roadmap)",
             "lambda_status": "Conjecture 1 — NOT a theorem",
             "section_889": _SECTION_889,
             "no_fedramp_iron_bank_cmmc": True,
@@ -3539,7 +3539,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="kpi"><div class="k">Trust-score uniqueness</div><div class="v warn">open conjecture</div></div>
       <div class="kpi"><div class="k">Source files</div><div class="v teal" id="kf-src">—</div></div></div>
       <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Proof status</span><span class="card-ep">honest</span></div><div class="chartbox"><canvas id="kf-donut"></canvas></div><div class="legend"><span><i style="background:#5fb3a3"></i>proven (8, locked)</span><span><i style="background:#c9b787"></i>working / open</span><span><i style="background:#b06a5a"></i>conjecture</span></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">The five proven (Lean, sorry-free)</span><span class="card-ep">locked</span></div><div id="kf-proven"><div class="row mono dim">loading…</div></div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">The eight proven (Lean, sorry-free)</span><span class="card-ep">locked</span></div><div id="kf-proven"><div class="row mono dim">loading…</div></div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Formula corpus — rendered &amp; searchable</span><span class="card-ep" id="kf-count">—</span></div>
         <input id="kf-search" placeholder="search formulas by id, source, or LaTeX…" oninput="window.kbf_filter(this.value)" style="width:100%;padding:.6rem .8rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:12px;margin-bottom:.8rem"/>
         <div id="kf-list" style="max-height:520px;overflow:auto"><div class="row mono dim">loading knowledge base…</div></div></div>${HONEST}`;window.kbformulas_load();}},
@@ -4309,7 +4309,7 @@ async function honest_load(){
   addHTML('ho-host',`<div class="row"><span>Trust score Λ</span><span class="spacer b-err badge">Conjecture 1 · advisory, never a theorem</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Khipu BFT safety</span><span class="spacer b-err badge">Conjecture 2 · open unconditionally</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust scores</span><span class="spacer badge" style="color:#c9b787;border:1px solid #c9b787">advisory · never 100%</span></div>`);
-  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L1+L2 attested · L3 roadmap</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L1 (cosign-signed) · L2 .att emitted, not independently verified · L3 roadmap</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Effector / kinetic</span><span class="spacer badge" style="color:#c9b787;border:1px solid #c9b787">command demonstration, simulated · human-in-the-loop</span></div>`);
   addHTML('ho-host',`<div class="row"><span>killinchu decision receipts</span><span class="spacer b-live badge">genuinely signed (real key) — verify yourself</span></div>`);
   try{ const d=await orgGet('a11oy','/api/a11oy/v1/honest'); if(el('o-honest')) setOut('o-honest',d); }
