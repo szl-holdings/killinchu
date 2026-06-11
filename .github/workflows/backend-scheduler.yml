@@ -1,0 +1,42 @@
+name: Backend auto-crawl scheduler
+
+# Guards the intel-feed auto-refresh contract (Task #744): the in-process
+# scheduler loop must actually fire a crawl on its interval, a forced scrape
+# failure must record exactly one honest 'degraded' event (no fabricated
+# snapshot/facts), and the overlap guard must never double-start a crawl.
+# Drives the real run_crawl / run_crawl_guarded / scheduler loop against a temp
+# SQLite DB with a monkeypatched upstream fetch (no network).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - killinchu_backend.py
+      - tests/test_backend_scheduler.py
+      - .github/workflows/backend-scheduler.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - killinchu_backend.py
+      - tests/test_backend_scheduler.py
+      - .github/workflows/backend-scheduler.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-scheduler:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps
+        run: python -m pip install --disable-pip-version-check pytest fastapi httpx
+      - name: Run auto-crawl scheduler test
+        run: python -m pytest tests/test_backend_scheduler.py -q
