@@ -134,6 +134,17 @@ try:
 except Exception as _szl_qb_e:  # pragma: no cover
     print(f"[killinchu] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
 
+# ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
+# Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. REAL deterministic Python,
+# ORIGINAL author cited; SZL borrows structure only. coherence_crossing PROPOSED (mirrors
+# lutar-lean CoherenceDecay). Shared module byte-identical a11oy↔killinchu. Effector stays SIMULATED.
+try:
+    import szl_unified_formulas as _szl_unified
+    _szl_unified.register(app, ns="killinchu")
+    print("[killinchu] Unified formulas registered: /api/killinchu/v1/unified/*", file=__import__("sys").stderr)
+except Exception as _szl_uf_e:  # pragma: no cover
+    print(f"[killinchu] Unified formulas NOT registered: {_szl_uf_e!r}", file=__import__("sys").stderr)
+
 # ── Research & Sources layer (research-sources-patch, Task #662) — every /elite
 # tab gains a panel of vetted REAL upstream sources (UDS/Zarf/Pepr repos,
 # supply-chain standards, threat feeds, domain feeds, Lean/proof refs, per-subject
