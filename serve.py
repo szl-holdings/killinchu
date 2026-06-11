@@ -173,6 +173,20 @@ try:
 except Exception as _szl_cuas_e:  # pragma: no cover
     print(f"[killinchu] CUAS formulas NOT registered: {_szl_cuas_e!r}", file=__import__("sys").stderr)
 
+# ── SZL allometric / metabolic scaling (scaling-formula-patch) — WBE network
+# scaling (West-Brown-Enquist 1997) + Banavar transport exponent + MTE temperature
+# (Brown 2004) + Demetrius-Tuszynski proton-motive-force quantum-metabolism bridge
+# (2010), unified into the PROPOSED SZL-Φ engineering gate. Cites every borrowed
+# formula to its real author; claims NONE as SZL's discovery. EXPERIMENTAL-tier —
+# adds NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Shared
+# module byte-identical a11oy↔killinchu. Additive, try/except-guarded.
+try:
+    import szl_scaling as _szl_scaling
+    _szl_scaling.register(app, ns="killinchu")
+    print("[killinchu] Scaling formulas registered: /api/killinchu/v1/scaling/*", file=__import__("sys").stderr)
+except Exception as _szl_scaling_e:  # pragma: no cover
+    print(f"[killinchu] Scaling formulas NOT registered: {_szl_scaling_e!r}", file=__import__("sys").stderr)
+
 
 # ── Research & Sources layer (research-sources-patch, Task #662) — every /elite
 # tab gains a panel of vetted REAL upstream sources (UDS/Zarf/Pepr repos,
