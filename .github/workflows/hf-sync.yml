@@ -46,6 +46,7 @@ on:
       - "killinchu_elite_console.py"
       - "killinchu_cannonico.py"
       - "killinchu_backend.py"
+      - "szl_hf_bucket.py"
   workflow_dispatch:
     inputs:
       force:
@@ -60,7 +61,7 @@ env:
   # SINGLE SOURCE OF TRUTH for the mirrored app files (space-separated). The
   # detect gate and the mirror-app job both read this. Adding a route module is a
   # one-word change here (plus the matching literal line in on.push.paths above).
-  APP_FILES: "serve.py Dockerfile killinchu_elite_console.py killinchu_cannonico.py killinchu_backend.py"
+  APP_FILES: "serve.py Dockerfile killinchu_elite_console.py killinchu_cannonico.py killinchu_backend.py szl_hf_bucket.py"
 
 jobs:
   detect:

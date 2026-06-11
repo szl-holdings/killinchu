@@ -433,6 +433,15 @@ COPY szl_connectors/warehouse/__init__.py ./szl_connectors/warehouse/__init__.py
 COPY szl_connectors/warehouse/warehouse_connectors.py ./szl_connectors/warehouse/warehouse_connectors.py
 COPY pages/integrations.html ./pages/integrations.html
 
+# ADDITIVE (Task: HF Dataset Bucket Foundation): the ONE shared Hugging Face
+# 'bucket' client both flagships reuse. Durable, append-only, idempotent
+# (content-addressed dedup), offline-tolerant local queue + flush, rate-aware
+# batched Hub commits. Pure stdlib + huggingface_hub (lazy). BYTE-IDENTICAL
+# across a11oy + killinchu (shared-file-drift enforces it via this COPY list).
+# This Dockerfile never uses `COPY . .` — without this line `import
+# szl_hf_bucket` fails. Imported lazily by callers; no boot-time side effects.
+COPY szl_hf_bucket.py ./
+
 CMD ["python", "serve.py"]
 
 
