@@ -107,6 +107,7 @@ ARG READINESS_FIX_BUST=1
 COPY szl_readiness.py ./szl_readiness.py
 COPY szl_quantum_bio.py ./szl_quantum_bio.py
 COPY szl_unified_formulas.py ./szl_unified_formulas.py
+COPY szl_cuas_formulas.py ./szl_cuas_formulas.py
 # Research & Sources backend (Task #662, research-sources-patch) — per-tab vetted
 # REAL upstream sources (UDS/Zarf/Pepr, supply-chain standards, threat/domain feeds,
 # Lean/proof refs, per-subject arXiv) with an honest live reachability probe. serve.py
