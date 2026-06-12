@@ -486,7 +486,7 @@ _UAS_FW_KEYWORDS = [
     "cleanflight", "inav", "unmanned aircraft", "unmanned aerial",
 ]
 _UAS_FW_WORDS = ["uas", "uav", "dji", "parrot"]  # matched on word boundaries only
-_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+_KEV_URL = "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json"
 _KEV_MIRROR = "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json"
 _NVD_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 _OFAC_SDN_URL = "https://www.treasury.gov/ofac/downloads/sdn.csv"
