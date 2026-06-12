@@ -11,13 +11,19 @@ on:
     branches: [main]
     paths:
       - killinchu_osint.py
+      - killinchu_live_feeds.py
+      - szl_hf_bucket.py
       - tests/test_osint.py
+      - tests/test_killinchu_archive.py
       - .github/workflows/osint-tests.yml
   pull_request:
     branches: [main]
     paths:
       - killinchu_osint.py
+      - killinchu_live_feeds.py
+      - szl_hf_bucket.py
       - tests/test_osint.py
+      - tests/test_killinchu_archive.py
       - .github/workflows/osint-tests.yml
 
 permissions:
@@ -38,4 +44,4 @@ jobs:
       - name: Install pytest
         run: python -m pip install --disable-pip-version-check pytest
       - name: Run OSINT engine tests (offline, no network, no key)
-        run: python -m pytest tests/test_osint.py -q
+        run: python -m pytest tests/test_osint.py tests/test_killinchu_archive.py -q
