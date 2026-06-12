@@ -3813,6 +3813,11 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
           <div id="dp-verify-badge" style="margin:.6rem 0"><span class="badge" style="color:#888;border:1px solid #888">NOT YET VERIFIED</span></div>
           <div id="dp-verify-detail" class="mono dim" style="font-size:11px;line-height:1.7">Click verify \u2014 we fetch /receipt/export + /cosign.pub and check the ECDSA P-256 signature locally.</div></div>
       </div>
+      <div class="card"><div class="card-h"><span class="card-t">OCI artifact + deploy targets</span><span class="card-ep">cloud \u2192 edge \u2192 air-gap \u00b7 honest</span></div>
+        <div class="row"><span class="badge" style="color:#c9b787;border:1px solid #c9b787">PENDING PUBLISH</span><span>UDS bundle artifact <code class="mono">oci://ghcr.io/szl-holdings/killinchu-bundle:0.5.0</code> \u2014 built via the uds-bundle-publish workflow; <b>NOT yet published / not yet cosign-signed at the bundle level</b> (cosign on the organ image is the real provenance today; bundle key = U5 roadmap).</span></div>
+        <div class="row"><span class="badge b-live">PULLABLE</span><span>Organ image <code class="mono">ghcr.io/szl-holdings/killinchu:uds-v0.2.0</code> \u2014 verified-pullable from GHCR, cosign <code>.sig</code> + SLSA L2 <code>.att</code> present.</span></div>
+        <div class="row"><span class="badge b-live">LIVE</span><span><b>Cloud</b> \u2014 HF Space (this surface) + a11oy.net (Hetzner), live now.</span></div>
+        <div class="row"><span class="badge" style="color:#c9b787;border:1px solid #c9b787">ROADMAP</span><span><b>Tactical edge / air-gap (DDIL)</b> \u2014 the <i>same</i> UDS/Zarf bundle is annotated <code>deployable-to-edge</code> + <code>ddil-ok</code> and is offline-verifiable (no network); answers Warhacker P2 air-gap + P7 edge twin. No hardcoded env/secrets.</span></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Verify it yourself (offline, no trust in us)</span><span class="card-ep">copy \u00b7 run</span></div>
         <pre class="out" id="dp-cmds" style="white-space:pre-wrap"></pre>
         <div class="row"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3">PROVEN</span><span>W5-4 \u2014 a duplicate receipt id in the hashed image is a hash collision (forgery detection).</span></div>
