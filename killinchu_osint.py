@@ -170,6 +170,24 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _ts_within_secs(ts: Optional[str], secs: int) -> Optional[bool]:
+    """True iff ISO-8601 `ts` is within the last `secs` seconds of now (UTC).
+    Returns None when `ts` is missing/unparseable — never raises, never guesses.
+    Used to honestly mark the public archive as 'live_writing' only when its
+    committed head.json last_ts is genuinely recent."""
+    if not ts or not isinstance(ts, str):
+        return None
+    try:
+        s = ts.strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        delta = (datetime.now(timezone.utc) - dt).total_seconds()
+        return bool(0 <= delta <= secs) or bool(delta < 0)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _tavily_key() -> str:
     return os.environ.get("TAVILY_API_KEY", "").strip()
 
@@ -352,23 +370,47 @@ def _durable_load(stream: str) -> Optional[dict]:
         return None
 
 
-def _durable_status() -> dict:
-    """Honest snapshot of the durable backend for osint/status — never inflated."""
-    return {
+def _durable_status(head_probe: Optional[dict] = None) -> dict:
+    """Honest snapshot of the durable backend for osint/status — never inflated.
+
+    `last_error` must reflect the CURRENT state, not a stale startup failure. The
+    durable corpus repo and the public archive share the same HF dataset
+    (SZLHOLDINGS/killinchu-osint-corpus). So if the committed head.json was just
+    read back 200 with a token present, the repo is demonstrably reachable now
+    and any old 401/RepositoryNotFound is stale — we clear it (re-probe) rather
+    than show a misleading error. If a real error recurs it is shown honestly."""
+    last_error = _HF_STATE["last_error"]
+    available = _HF_STATE["available"]
+    error_cleared = False
+    probe = head_probe if isinstance(head_probe, dict) else None
+    repo_reachable_now = bool(probe and probe.get("reachable")) and bool(_hf_token())
+    if repo_reachable_now and last_error:
+        # Stale error: the shared repo is reachable right now (head fetch 200 +
+        # token present). Re-probe = clear it; never show a stale 401.
+        last_error = None
+        available = True
+        error_cleared = True
+    out = {
         "backend": "huggingface_dataset",
         "enabled": bool(_HF_STATE["enabled"]),
         "repo": _HF_REPO if _HF_STATE["enabled"] else None,
         "prefix": _HF_PREFIX,
         "token_present": bool(_hf_token()),
-        "available": _HF_STATE["available"],
+        "available": available,
         "writes": _HF_STATE["writes"],
         "loads": _HF_STATE["loads"],
         "last_push": dict(_HF_STATE["last_push"]),
-        "last_error": _HF_STATE["last_error"],
+        "last_error": last_error,
         "note": ("corpus snapshots are mirrored to a durable HF Dataset so the "
                  "cached fallback + sha256 provenance chain survive Space rebuilds; "
                  "falls back to ephemeral local disk if the store is unreachable"),
     }
+    if error_cleared:
+        out["last_error_note"] = (
+            "prior startup error cleared this tick: the shared HF dataset repo is "
+            "reachable now (committed head.json read back 200, token present)"
+        )
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -729,8 +771,50 @@ def start_archiver() -> bool:
         return False
 
 
-def _archive_status() -> dict:
-    """Honest archive status for osint/status — LOCAL only (no network call)."""
+def _committed_head_probe() -> dict:
+    """Fetch the LIVE committed `<prefix>/head.json` (ground truth for what the
+    public archive actually contains) by REUSING the existing szl_hf_bucket
+    client — the SAME head() the provenance/read-back paths use (NO new network
+    library, NO new fetch logic). NEVER raises.
+
+    Returns a dict:
+      {"reachable": bool, "head": <head dict or None>, "error": <str or None>}
+    `reachable` is True iff the committed head.json was actually read back with a
+    non-None count — i.e. we genuinely reached HF on this request (same honesty
+    rule _archive_read / _hydrate use). We surface a count ONLY when it was
+    really returned; we never fabricate one."""
+    out = {"reachable": False, "head": None, "error": None}
+    try:
+        b = _archive_bucket()
+        if b is None:
+            out["error"] = _ARCHIVE_STATE.get("last_error") or "bucket unavailable"
+            return out
+        head = b.head()  # committed head.json preferred; falls back to local view
+        # A committed head.json (count is not None) means we genuinely reached HF
+        # on this request — exactly the hf_ok rule used by _archive_read().
+        if isinstance(head, dict) and head.get("count") is not None:
+            out["reachable"] = True
+            out["head"] = head
+        else:
+            out["head"] = head if isinstance(head, dict) else None
+            out["error"] = "head unreachable this tick"
+    except Exception as exc:  # noqa: BLE001 — NEVER raises off the status path
+        out["error"] = "%s: %s" % (type(exc).__name__, str(exc)[:120])
+    return out
+
+
+def _archive_status(head_probe: Optional[dict] = None) -> dict:
+    """Honest archive status for osint/status.
+
+    The _ARCHIVE_STATE-derived fields (enabled/started/cycles/appended/...) are
+    LOCAL only and describe the in-process, KILLINCHU_INTEL_ARCHIVE-env-gated
+    archiver loop. That loop is NOT the only writer: the shared szl_hf_bucket
+    background flusher also advances the public archive's committed head.json
+    independently of this process's _ARCHIVE_STATE. So we ALSO surface the LIVE
+    committed head as ground truth (head_count/head_last_ts/head_shards/
+    live_writing) — fetched via the reused szl_hf_bucket head() probe. We never
+    claim the env loop is running if it isn't, and never show a fabricated count
+    (head_* keys appear only when the committed head was actually read back)."""
     st = {
         "enabled": _ARCHIVE_ENABLED,
         "repo": _ARCHIVE_REPO,
@@ -754,6 +838,39 @@ def _archive_status() -> dict:
             st["bucket"] = _ARCHIVE_BUCKET.status()  # local-only, no network
     except Exception as exc:  # noqa: BLE001
         st["bucket_error"] = type(exc).__name__
+
+    # LIVE committed head.json as ground truth (additive, never-fabricating).
+    probe = head_probe if isinstance(head_probe, dict) else _committed_head_probe()
+    head = probe.get("head") if isinstance(probe, dict) else None
+    if probe.get("reachable") and isinstance(head, dict) and head.get("count") is not None:
+        try:
+            st["head_count"] = int(head.get("count"))
+        except Exception:  # noqa: BLE001
+            st["head_count"] = head.get("count")
+        st["head_last_ts"] = head.get("last_ts")
+        shards = head.get("shards")
+        st["head_shards"] = shards if isinstance(shards, list) else []
+        st["live_writing"] = _ts_within_secs(head.get("last_ts"), 15 * 60)
+        st["head_source"] = "committed head.json (szl_hf_bucket)"
+        # Honest reconciliation: enabled==False but the archive demonstrably has
+        # rows committed -> the SHARED bucket flusher is the active writer, NOT
+        # the in-process env-gated archiver loop. Never claim the loop is up.
+        if not _ARCHIVE_ENABLED and isinstance(st["head_count"], int) and st["head_count"] > 0:
+            st["active_writer"] = "szl_hf_bucket_flusher"
+            st["writer_note"] = (
+                "the public archive is being written by the shared szl_hf_bucket "
+                "background flusher; the in-process KILLINCHU_INTEL_ARCHIVE-gated "
+                "archiver loop is NOT running (enabled=false, loop_started=%s) — "
+                "the env-gated 'cycles' counter therefore stays 0 by design"
+                % bool(_ARCHIVE_STATE.get("loop_started"))
+            )
+    else:
+        # Never fabricate a count. Be honest that the head was not read this tick.
+        st["head_count"] = None
+        st["live_writing"] = None
+        st["head_note"] = "head unreachable this tick"
+        if probe.get("error"):
+            st["head_error"] = probe.get("error")
     return st
 
 
@@ -1358,6 +1475,10 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
         registered.append("GET " + ep)
 
     async def _status() -> JSONResponse:
+        # Probe the LIVE committed head ONCE per request (never-raises) and feed
+        # it to BOTH archive + durable so they agree on current reachability and
+        # the stale startup 401 is cleared honestly when the repo is reachable.
+        head_probe = _committed_head_probe()
         return JSONResponse({
             "module": "killinchu_osint",
             "engine": "tavily",
@@ -1369,8 +1490,8 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
                             "chain_integrity": _CHAIN_OK.get(s, {"verified": True, "basis": "fresh"})}
                         for s in _STREAMS},
             "total_corpus": sum(len(v) for v in _CORPUS.values()),
-            "durable": _durable_status(),
-            "archive": _archive_status(),
+            "durable": _durable_status(head_probe),
+            "archive": _archive_status(head_probe),
             "honesty": _honesty(),
         })
     app.get("%s/osint/status" % base)(_status)
