@@ -3661,7 +3661,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         <div class="row"><span class="badge b-err">NOT</span><span>The trust score is NOT a proven-unique function — it is a research conjecture.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L2-verified, NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Posture: SLSA L1 honest + L2 build-attestation present; L2-verified / L3 = roadmap.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>NOT a third-party audit. Compliance coverage is self-evidenced with hashes.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are formally proven; the rest are open or experimental.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>Only 8 formulas are formally proven (locked) {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17; the rest are open or experimental.</span></div>
         <div class="row"><span class="badge b-live">YES</span><span>killinchu signs decision receipts with a REAL key — verify them yourself under Verify Signed Receipt.</span></div>
       </div>
       <details class="raw"><summary>raw honesty record</summary><pre class="out" id="o-honest">loading…</pre></details>${HONEST}`;window.honest_load();}},
