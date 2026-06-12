@@ -4,23 +4,27 @@ name: Scorecard
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
 # Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 · SLSA L1 honest
 #
-# FIX (stephenlutar2-hash, 2026-06-04): startup_failure on push events was caused
-# by the reusable scorecard calling upload-sarif via github/codeql-action, which
-# requires GitHub Advanced Security (GHAS) on private repos. Removed push trigger;
-# scorecard now runs only on the weekly schedule (Tuesdays at 05:41 UTC). SARIF
-# upload is skipped via publish-results: false to avoid GHAS requirement.
-#
-# Note: ossf/scorecard-action has a known limitation on private repos without GHAS —
-# the upload-sarif step fails. We run analysis only (no publish, no SARIF upload).
-# This keeps the scorecard check in the CI graph without failing on push.
+# ROOT-CAUSE FIX (2026-06-12): the previous `startup_failure` was NOT a GHAS/
+# private-repo issue (killinchu is public). It was caused by a NON-EMPTY top-level
+# `permissions: contents: read`, which clamps the job-level write scopes the
+# reusable Scorecard job declares (`security-events: write`, `id-token: write`) —
+# an un-grantable escalation makes the run fail to start. The sibling repos
+# ouroboros/vsp-otel use `permissions: {}` (present but empty) + the
+# `.github@8186471 fix scorecard permissions` reusable and run green. Mirror that.
 
 on:
   schedule:
     - cron: '41 5 * * 2'
   workflow_dispatch: {}
 
-permissions:
-  contents: read
+# Empty (`{}`), NOT omitted and NOT `contents: read`:
+#   * OpenSSF Scorecard's Token-Permissions check requires a top-level
+#     `permissions:` block to be PRESENT (else the score is reduced).
+#   * A non-empty value clamps the job-level write scopes the analysis job
+#     needs (`security-events: write` + `id-token: write`), causing startup_failure.
+#   Empty `{}` satisfies both: present (check passes) + zero ceiling (jobs declare
+#   their own minimal scopes without being clamped).
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,6 +37,6 @@ jobs:
       id-token: write
       contents: read
       actions: read
-    uses: szl-holdings/.github/.github/workflows/reusable-scorecard.yml@c8359e53b40560f15ed5c25c3e4e1256b0536cf8 # v1 (.github main)
+    uses: szl-holdings/.github/.github/workflows/reusable-scorecard.yml@8186471f7f83f43f3aba4015fcfb2d322dcb4c83 # .github@8186471 fix scorecard permissions
     with:
       publish-results: false
