@@ -33,7 +33,7 @@ Feeds + TTLs (all free, no-auth):
   air         (api.adsb.lol/v2/mil  military ADS-B, fallback /all)  TTL 15s
   celestrak   (celestrak.org gp.php?GROUP=stations&FORMAT=json)     TTL 2h
   rekor       (rekor.sigstore.dev/api/v1/log)                       TTL 60s
-  kev         (cisa.gov known_exploited_vulnerabilities.json)       TTL 6h
+  kev         (cisagov GitHub mirror known_exploited_vulnerabilities.json)       TTL 6h
   osv         (api.osv.dev/v1/query, POST)                          TTL 1h
   prometheus  (prometheus.demo.prometheus.io/api/v1/query)          TTL 30s
 
@@ -81,8 +81,8 @@ _SOURCE = {
                   "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=json"),
     "rekor": ("Sigstore Rekor transparency log",
               "https://rekor.sigstore.dev/api/v1/log"),
-    "kev": ("CISA Known Exploited Vulnerabilities catalog",
-            "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"),
+    "kev": ("CISA Known Exploited Vulnerabilities catalog (GitHub mirror)",
+            "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json"),
     "osv": ("OSV.dev open-source vulnerability database",
             "https://api.osv.dev/v1/query"),
     "prometheus": ("Prometheus demo (node/caddy/blackbox exporters)",
@@ -315,14 +315,14 @@ def _fetch_ais(limit: int = 12, lat: float | None = None,
 def _fetch_air(limit: int = 40) -> dict:
     """Fetch live ADS-B aircraft from adsb.lol military endpoint (no auth, ODbL).
     Resilient fallback chain (all free/no-auth, verified 2026-06-07):
-      1) api.adsb.lol/v2/mil   2) opendata.adsb.fi/api/v2/mil   3) airplanes.live/v2/mil
+      1) api.adsb.lol/v2/mil   2) opendata.adsb.fi/api/v2/mil   3) api.airplanes.live/v2/mil
     OpenSky is DEAD for us (now OAuth2-only) and is intentionally NOT used."""
     data = None
     used = _SOURCE["air"][1]
     _chain = [
         _SOURCE["air"][1],                       # api.adsb.lol/v2/mil
         "https://opendata.adsb.fi/api/v2/mil",   # adsb.fi (ODbL)
-        "https://airplanes.live/v2/mil",         # airplanes.live
+        "https://api.airplanes.live/v2/mil",         # airplanes.live
     ]
     _last = None
     for _u in _chain:
