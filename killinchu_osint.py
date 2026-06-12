@@ -79,7 +79,7 @@ _FRESH_MIN = int(os.environ.get("KILLINCHU_OSINT_FRESH_MIN", "60"))
 _HF_REPO = os.environ.get("KILLINCHU_OSINT_HF_REPO", "SZLHOLDINGS/killinchu-osint-corpus").strip()
 _HF_PREFIX = os.environ.get("KILLINCHU_OSINT_HF_PREFIX", "corpus").strip().strip("/")
 _HF_DISABLE = os.environ.get("KILLINCHU_OSINT_HF_DISABLE", "").strip().lower() in ("1", "true", "yes", "on")
-_HF_PRIVATE = os.environ.get("KILLINCHU_OSINT_HF_PRIVATE", "1").strip().lower() in ("1", "true", "yes", "on")
+_HF_PRIVATE = os.environ.get("KILLINCHU_OSINT_HF_PRIVATE", "0").strip().lower() in ("1", "true", "yes", "on")
 # Min seconds between durable pushes per stream — keeps a busy feed from spamming
 # dataset commits. Local disk always holds the very latest; durable lags by ≤this.
 _HF_MIN_PUSH = int(os.environ.get("KILLINCHU_OSINT_HF_MIN_PUSH", "120"))
@@ -371,6 +371,392 @@ def _durable_status() -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Public append-only intel ARCHIVE (Task #772). The durable snapshot above
+# (corpus/<stream>.json) exists for cold-start RESILIENCE — it overwrites one
+# file per stream and is not browsable. This archive is the production-grade,
+# append-only, content-addressed NDJSON stream that turns killinchu's live
+# intelligence into a PUBLIC, browsable Hugging Face dataset.
+#
+# It rides the shared szl_hf_bucket (USE-only; never edited here): each record
+# is {schema,id,ts,source,kind,payload} where id = sha256({source,kind,dedup})
+# so re-observing the same identity in the same UTC hour + ~0.1° cell stores
+# exactly one row (bounded growth, no flooding). Two genuinely-live, keyless
+# sources populate it now — community ADS-B aircraft (ODbL) and Digitraffic AIS
+# vessels (CC BY) — and the OSINT ingest path streams its normalized items too
+# (active whenever a search key is configured). HONEST: every row is a
+# THIRD-PARTY CLAIM / self-report; the id is a sha256 content-address for
+# dedup / integrity, NOT a DSSE/Ed25519 signature, and asserts nothing about
+# correctness. Best-effort + off the request path: never raises, never blocks.
+# ---------------------------------------------------------------------------
+_ARCHIVE_ENABLED = os.environ.get("KILLINCHU_INTEL_ARCHIVE", "").strip().lower() in ("1", "true", "yes", "on")
+_ARCHIVE_REPO = os.environ.get("KILLINCHU_INTEL_ARCHIVE_REPO", _HF_REPO).strip()
+_ARCHIVE_PREFIX = os.environ.get("KILLINCHU_INTEL_ARCHIVE_PREFIX", "intel").strip().strip("/") or "intel"
+_ARCHIVE_INTERVAL = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_INTERVAL", "300"))
+_ARCHIVE_AIR_LIMIT = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_AIR_LIMIT", "40"))
+_ARCHIVE_AIS_LIMIT = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_AIS_LIMIT", "40"))
+try:
+    _ARCHIVE_CELL = float(os.environ.get("KILLINCHU_INTEL_ARCHIVE_CELL", "0.1")) or 0.1
+except Exception:
+    _ARCHIVE_CELL = 0.1
+
+# Honest, observable state of the public archive (surfaced in osint/status).
+_ARCHIVE_STATE: dict[str, Any] = {
+    "enabled": _ARCHIVE_ENABLED,
+    "repo": _ARCHIVE_REPO,
+    "prefix": _ARCHIVE_PREFIX,
+    "public": None,        # None=unknown, True/False once ensured
+    "started": False,
+    "loop_started": False,
+    "cycles": 0,
+    "appended": {},        # kind -> records queued this process
+    "last_cycle": None,
+    "last_error": None,
+    "card_written": False,
+}
+_ARCHIVE_BUCKET = None
+_ARCHIVE_LOCK = threading.Lock()
+_ARCHIVE_STARTED = threading.Event()       # public+flusher ensured (once)
+_ARCHIVE_LOOP_STARTED = threading.Event()  # ADS-B/AIS feed loop thread (once)
+
+
+def _archive_bucket():
+    """Lazy singleton HFBucket for the public intel archive. Construction does
+    NO network. Returns None if the shared client cannot be imported."""
+    global _ARCHIVE_BUCKET
+    if _ARCHIVE_BUCKET is not None:
+        return _ARCHIVE_BUCKET
+    with _ARCHIVE_LOCK:
+        if _ARCHIVE_BUCKET is None:
+            try:
+                from szl_hf_bucket import HFBucket
+            except Exception as exc:
+                _ARCHIVE_STATE["last_error"] = "bucket import: %s" % type(exc).__name__
+                return None
+            _ARCHIVE_BUCKET = HFBucket(
+                repo_id=_ARCHIVE_REPO, source="killinchu",
+                prefix=_ARCHIVE_PREFIX, token=_hf_token() or None,
+            )
+    return _ARCHIVE_BUCKET
+
+
+def _archive_card() -> str:
+    """Honest dataset card (README.md) with a viewer config over the NDJSON
+    shards. Never inflates: rows are third-party claims, id is sha256 dedup."""
+    return (
+        "---\n"
+        "license: other\n"
+        "pretty_name: killinchu live intel archive\n"
+        "tags:\n"
+        "  - osint\n"
+        "  - adsb\n"
+        "  - ais\n"
+        "  - aviation\n"
+        "  - maritime\n"
+        "  - szl-holdings\n"
+        "configs:\n"
+        "  - config_name: intel\n"
+        "    data_files:\n"
+        "      - split: train\n"
+        "        path: %s/*.ndjson\n"
+        "---\n\n"
+        "# killinchu — live intel archive\n\n"
+        "Append-only, content-addressed archive of the live intelligence streams the\n"
+        "**killinchu** demo ingests, published by SZL Holdings. Written by the shared\n"
+        "`szl_hf_bucket` client: one NDJSON shard per UTC day under `%s/`.\n\n"
+        "Each row is `{schema, id, ts, source, kind, payload}`.\n\n"
+        "## Streams\n"
+        "- `kind: adsb-aircraft` (`source: adsb`) — live military ADS-B aircraft from the\n"
+        "  adsb.lol / adsb.fi community network. **Data: adsb.lol / adsb.fi community ADS-B (ODbL).**\n"
+        "- `kind: ais-vessel` (`source: ais`) — live AIS vessel positions from Fintraffic /\n"
+        "  Digitraffic. **Data: Fintraffic / Digitraffic (CC BY 4.0).**\n"
+        "- `kind: osint-item` (`source: <vertical>`) — normalized open-web OSINT items\n"
+        "  (active only when a search key is configured).\n\n"
+        "## Honesty (Doctrine v11)\n"
+        "- Every record is a **third-party CLAIM / self-report**, not attested truth.\n"
+        "  Broadcast positions and open-web reports can be spoofed, delayed, or wrong.\n"
+        "- The record `id` is a **sha256 content-address** used for dedup / integrity —\n"
+        "  it is **NOT a DSSE / Ed25519 signature** and asserts nothing about correctness.\n"
+        "- Records are **append-only** and **bounded**: deduped per identity per UTC hour\n"
+        "  per ~%.2f° cell, so the archive grows steadily without flooding.\n"
+        "- No \"proven\" or \"verified\" claim is made about any item.\n"
+    ) % (_ARCHIVE_PREFIX, _ARCHIVE_PREFIX, _ARCHIVE_CELL)
+
+
+def _archive_ensure_public() -> bool:
+    """Create the dataset repo PUBLIC (idempotent), flip it public if a
+    pre-existing repo is private, and upload the honest card once. Best-effort;
+    never raises. Runs off the request path (boot thread)."""
+    tok = _hf_token()
+    if not tok:
+        _ARCHIVE_STATE["last_error"] = "no HF token (archive cannot publish)"
+        return False
+    try:
+        from huggingface_hub import HfApi
+        api = HfApi(token=tok)
+        api.create_repo(repo_id=_ARCHIVE_REPO, repo_type="dataset",
+                        private=False, exist_ok=True)
+        try:
+            info = api.repo_info(repo_id=_ARCHIVE_REPO, repo_type="dataset")
+            if getattr(info, "private", False):
+                try:
+                    api.update_repo_settings(repo_id=_ARCHIVE_REPO,
+                                             repo_type="dataset", private=False)
+                except Exception:
+                    api.update_repo_visibility(repo_id=_ARCHIVE_REPO,
+                                               repo_type="dataset", private=False)
+                info = api.repo_info(repo_id=_ARCHIVE_REPO, repo_type="dataset")
+            _ARCHIVE_STATE["public"] = not bool(getattr(info, "private", False))
+        except Exception:
+            _ARCHIVE_STATE["public"] = True  # we created it public just above
+        if not _ARCHIVE_STATE["card_written"]:
+            try:
+                import io
+                card = _archive_card().encode("utf-8")
+                existing = b""
+                try:
+                    from huggingface_hub import hf_hub_download
+                    fp = hf_hub_download(repo_id=_ARCHIVE_REPO, repo_type="dataset",
+                                         filename="README.md", token=tok)
+                    with open(fp, "rb") as fh:
+                        existing = fh.read()
+                except Exception:
+                    existing = b""
+                if existing.strip() != card.strip():
+                    api.upload_file(path_or_fileobj=io.BytesIO(card),
+                                    path_in_repo="README.md",
+                                    repo_id=_ARCHIVE_REPO, repo_type="dataset",
+                                    commit_message="intel archive: honest dataset card")
+                _ARCHIVE_STATE["card_written"] = True
+            except Exception as exc:  # noqa: BLE001
+                _ARCHIVE_STATE["last_error"] = "card: %s: %s" % (type(exc).__name__, str(exc)[:120])
+        return True
+    except Exception as exc:  # noqa: BLE001
+        _ARCHIVE_STATE["last_error"] = "ensure_public: %s: %s" % (type(exc).__name__, str(exc)[:140])
+        return False
+
+
+def _archive_ensure_started() -> bool:
+    """Idempotently make the archive ready: ensure the PUBLIC repo + card and
+    start the bucket's background flusher — all in a boot thread so NO caller
+    (request path or feed loop) ever blocks on the network. Never raises."""
+    if not _ARCHIVE_ENABLED:
+        return False
+    if _ARCHIVE_STARTED.is_set():
+        return True
+    with _ARCHIVE_LOCK:
+        if _ARCHIVE_STARTED.is_set():
+            return True
+        _ARCHIVE_STARTED.set()
+
+    def _boot() -> None:
+        try:
+            _archive_ensure_public()
+        except Exception:
+            pass
+        try:
+            b = _archive_bucket()
+            if b is not None:
+                b.start()
+                _ARCHIVE_STATE["started"] = True
+        except Exception as exc:  # noqa: BLE001
+            _ARCHIVE_STATE["last_error"] = "start: %s: %s" % (type(exc).__name__, str(exc)[:120])
+
+    threading.Thread(target=_boot, name="killinchu-intel-archive-boot", daemon=True).start()
+    return True
+
+
+def _archive_round(v):
+    try:
+        if v is None:
+            return None
+        return round(float(v) / _ARCHIVE_CELL) * _ARCHIVE_CELL
+    except Exception:
+        return None
+
+
+def _archive_hour() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H")
+
+
+def _archive_bump(kind: str, n: int) -> None:
+    if not n:
+        return
+    with _ARCHIVE_LOCK:
+        a = _ARCHIVE_STATE["appended"]
+        a[kind] = int(a.get(kind, 0)) + int(n)
+
+
+def _archive_feed_air(lf, bucket) -> int:
+    """Append the current live ADS-B aircraft snapshot (bounded per hour/cell).
+    Skips entirely unless the feed is genuinely 'live'."""
+    feed = lf.get_feed("air")
+    if not isinstance(feed, dict) or feed.get("mode") != "live":
+        return 0
+    data = feed.get("data") or {}
+    aircraft = data.get("aircraft") or []
+    hour = _archive_hour()
+    recs = []
+    for a in aircraft[: max(1, _ARCHIVE_AIR_LIMIT)]:
+        ident = a.get("hex") or a.get("flight")
+        if not ident:
+            continue
+        dedup = {"hex": a.get("hex"), "flight": a.get("flight"), "hour": hour,
+                 "lat": _archive_round(a.get("lat")), "lon": _archive_round(a.get("lon"))}
+        payload = {
+            "kind": "adsb-aircraft", "source": "adsb",
+            "hex": a.get("hex"), "flight": a.get("flight"),
+            "lat": a.get("lat"), "lon": a.get("lon"),
+            "alt_baro": a.get("alt_baro"), "gs": a.get("gs"), "track": a.get("track"),
+            "category": a.get("category"), "type": a.get("type"), "squawk": a.get("squawk"),
+            "observed_hour_utc": hour, "feed_fetched_at": feed.get("fetched_at"),
+            "feed_endpoint": data.get("endpoint"),
+            "attribution": data.get("attribution"),
+            "honesty": ("third-party ADS-B broadcast self-report; position is a claim, "
+                        "not attested; id is a sha256 dedup hash, not a signature"),
+        }
+        recs.append(bucket.make_record(payload, kind="adsb-aircraft", source="adsb", dedup_key=dedup))
+    if not recs:
+        return 0
+    st = bucket.append_many(recs)
+    return int(st.get("queued", 0))
+
+
+def _archive_feed_ais(lf, bucket) -> int:
+    """Append the current live AIS vessel snapshot (bounded per hour/cell).
+    Skips entirely unless the feed is genuinely 'live'."""
+    feed = lf.get_feed("ais")
+    if not isinstance(feed, dict) or feed.get("mode") != "live":
+        return 0
+    data = feed.get("data") or {}
+    vessels = data.get("vessels") or []
+    hour = _archive_hour()
+    recs = []
+    for v in vessels[: max(1, _ARCHIVE_AIS_LIMIT)]:
+        mmsi = v.get("mmsi")
+        if not mmsi:
+            continue
+        dedup = {"mmsi": mmsi, "hour": hour,
+                 "lat": _archive_round(v.get("lat")), "lon": _archive_round(v.get("lon"))}
+        payload = {
+            "kind": "ais-vessel", "source": "ais",
+            "mmsi": mmsi, "name": v.get("name"),
+            "sog": v.get("sog"), "cog": v.get("cog"), "heading": v.get("heading"),
+            "navStat": v.get("navStat"), "lat": v.get("lat"), "lon": v.get("lon"),
+            "observed_hour_utc": hour, "feed_fetched_at": feed.get("fetched_at"),
+            "attribution": data.get("attribution"),
+            "honesty": ("third-party AIS broadcast self-report; position is a claim, "
+                        "not attested; id is a sha256 dedup hash, not a signature"),
+        }
+        recs.append(bucket.make_record(payload, kind="ais-vessel", source="ais", dedup_key=dedup))
+    if not recs:
+        return 0
+    st = bucket.append_many(recs)
+    return int(st.get("queued", 0))
+
+
+def _archive_osint_items(stream: str, items: list) -> None:
+    """Stream freshly-scraped OSINT items into the public archive. Wired into
+    _ingest AFTER a successful live scrape; off the request path; never raises,
+    never blocks (enqueue is local disk; the flusher commits asynchronously)."""
+    if not _ARCHIVE_ENABLED or not items:
+        return
+    try:
+        _archive_ensure_started()
+        bucket = _archive_bucket()
+        if bucket is None:
+            return
+        recs = []
+        for it in items:
+            dk = it.get("prov_hash") or it.get("id")
+            if not dk:
+                continue
+            payload = {k: it.get(k) for k in (
+                "title", "url", "host", "summary", "stream", "vertical",
+                "published", "prov_hash", "id", "ingest_ts", "source_weight",
+                "tavily_score") if k in it}
+            payload["kind"] = "osint-item"
+            payload["source"] = stream
+            payload["honesty"] = ("third-party open-web claim; not attested; the sha256 "
+                                  "prov_hash is integrity, not a signature")
+            recs.append(bucket.make_record(payload, kind="osint-item", source=stream, dedup_key=dk))
+        if recs:
+            st = bucket.append_many(recs)
+            _archive_bump("osint-item", int(st.get("queued", 0)))
+    except Exception as exc:  # noqa: BLE001 — archiving must never break ingest
+        _ARCHIVE_STATE["last_error"] = "osint-archive: %s: %s" % (type(exc).__name__, str(exc)[:120])
+
+
+def _archive_loop() -> None:
+    interval = max(60, _ARCHIVE_INTERVAL)
+    try:
+        import killinchu_live_feeds as lf
+    except Exception as exc:  # noqa: BLE001
+        _ARCHIVE_STATE["last_error"] = "live_feeds import: %s" % type(exc).__name__
+        lf = None
+    while True:
+        try:
+            if lf is not None:
+                bucket = _archive_bucket()
+                if bucket is not None:
+                    _archive_bump("adsb-aircraft", _archive_feed_air(lf, bucket))
+                    _archive_bump("ais-vessel", _archive_feed_ais(lf, bucket))
+                    with _ARCHIVE_LOCK:
+                        _ARCHIVE_STATE["cycles"] = int(_ARCHIVE_STATE["cycles"]) + 1
+                        _ARCHIVE_STATE["last_cycle"] = _now_iso()
+        except Exception as exc:  # noqa: BLE001
+            _ARCHIVE_STATE["last_error"] = "cycle: %s: %s" % (type(exc).__name__, str(exc)[:120])
+        time.sleep(interval)
+
+
+def start_archiver() -> bool:
+    """Idempotently start the public intel archiver: ensure the PUBLIC dataset +
+    card + flusher, then run the ADS-B/AIS feed loop. No-op unless
+    KILLINCHU_INTEL_ARCHIVE is set. Never raises."""
+    try:
+        if not _ARCHIVE_ENABLED:
+            return False
+        _archive_ensure_started()
+        if _ARCHIVE_LOOP_STARTED.is_set():
+            return False
+        _ARCHIVE_LOOP_STARTED.set()
+        _ARCHIVE_STATE["loop_started"] = True
+        threading.Thread(target=_archive_loop, name="killinchu-intel-archiver",
+                         daemon=True).start()
+        return True
+    except Exception as exc:  # noqa: BLE001
+        _ARCHIVE_STATE["last_error"] = "start_archiver: %s: %s" % (type(exc).__name__, str(exc)[:120])
+        return False
+
+
+def _archive_status() -> dict:
+    """Honest archive status for osint/status — LOCAL only (no network call)."""
+    st = {
+        "enabled": _ARCHIVE_ENABLED,
+        "repo": _ARCHIVE_REPO,
+        "prefix": _ARCHIVE_PREFIX,
+        "public": _ARCHIVE_STATE["public"],
+        "started": _ARCHIVE_STATE["started"],
+        "loop_started": _ARCHIVE_STATE["loop_started"],
+        "cycles": _ARCHIVE_STATE["cycles"],
+        "appended": dict(_ARCHIVE_STATE["appended"]),
+        "last_cycle": _ARCHIVE_STATE["last_cycle"],
+        "card_written": _ARCHIVE_STATE["card_written"],
+        "last_error": _ARCHIVE_STATE["last_error"],
+        "token_present": bool(_hf_token()),
+        "browse_url": "https://huggingface.co/datasets/%s" % _ARCHIVE_REPO,
+        "viewer_url": "https://huggingface.co/datasets/%s/viewer" % _ARCHIVE_REPO,
+        "note": ("append-only content-addressed NDJSON archive via szl_hf_bucket; "
+                 "rows are third-party claims, id is a sha256 dedup hash NOT a signature"),
+    }
+    try:
+        if _ARCHIVE_BUCKET is not None:
+            st["bucket"] = _ARCHIVE_BUCKET.status()  # local-only, no network
+    except Exception as exc:  # noqa: BLE001
+        st["bucket_error"] = type(exc).__name__
+    return st
+
+
 def _persist(stream: str) -> None:
     try:
         _OSINT_DIR.mkdir(parents=True, exist_ok=True)
@@ -465,6 +851,7 @@ def _ingest(stream: str, query: Optional[str] = None, fresh: bool = False) -> di
             _rechain(stream)
             _CHAIN_OK[stream] = {"verified": True, "basis": "computed-this-request"}
             _persist(stream)
+            _archive_osint_items(stream, items)
             return _bundle(stream, "live")
     except Exception as exc:
         # Fall back to in-memory, then on-disk last-good corpus.
@@ -754,6 +1141,12 @@ def start_warmer() -> bool:
     """Idempotently start the background warmer daemon thread. Returns True if it
     started the thread, False if it was already running or is disabled
     (KILLINCHU_OSINT_WARM=0)."""
+    # The public intel archiver is independent of the OSINT warmer; start it
+    # here too (idempotent) so it runs even when the warmer is disabled.
+    try:
+        start_archiver()
+    except Exception:
+        pass
     if not _WARM_ENABLED:
         return False
     # Event.set() is atomic; the first caller wins, later/concurrent calls no-op.
@@ -826,13 +1219,26 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
                         for s in _STREAMS},
             "total_corpus": sum(len(v) for v in _CORPUS.values()),
             "durable": _durable_status(),
+            "archive": _archive_status(),
             "honesty": _honesty(),
         })
     app.get("%s/osint/status" % base)(_status)
     registered.append("GET %s/osint/status" % base)
 
+    async def _archive_ep() -> JSONResponse:
+        return JSONResponse(_archive_status())
+    app.get("%s/osint/archive" % base)(_archive_ep)
+    registered.append("GET %s/osint/archive" % base)
+
+    # Start the public, append-only intel archiver (idempotent; no-op unless
+    # KILLINCHU_INTEL_ARCHIVE is set). Off the request path.
+    try:
+        start_archiver()
+    except Exception:
+        pass
+
     return {"module": "killinchu_osint", "registered": registered,
             "amaru_streams": list(_STREAMS), "rosie_views": list(rosie_map)}
 
 
-__all__ = ["register", "start_warmer"]
+__all__ = ["register", "start_warmer", "start_archiver"]
