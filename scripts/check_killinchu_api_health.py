@@ -34,6 +34,11 @@ CHECKS = [
     {"path": "/healthz", "required": ["status"]},
     {"path": "/api/killinchu/db/health", "required": ["status", "citations", "fetchedAt"]},
     {"path": "/api/killinchu/watchlists", "required": ["status", "citations", "fetchedAt"]},
+    # /elite "Research & Sources" tab data. Own shape (no v11 envelope); the
+    # ``honest`` flag is the doctrine honesty marker — requiring it means a tab
+    # that silently drops its honesty disclosure also turns the check red.
+    {"path": "/api/killinchu/v1/research", "required": ["honest", "source_pool", "tabs_with_overrides"]},
+    {"path": "/api/killinchu/v1/research/live", "required": ["honest", "tab", "sources"]},
 ]
 
 
