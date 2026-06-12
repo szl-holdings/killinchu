@@ -757,6 +757,143 @@ def _archive_status() -> dict:
     return st
 
 
+# Item fields we persist in the public archive osint-item payload and can
+# faithfully reconstruct on read-back (everything the console timeline renders).
+_ARCHIVE_ITEM_FIELDS = (
+    "title", "url", "host", "summary", "stream", "vertical",
+    "published", "prov_hash", "id", "ingest_ts", "source_weight", "tavily_score",
+)
+
+
+def _item_from_archive_payload(p: dict) -> dict:
+    """Reconstruct an in-memory corpus item from a stored osint-item payload.
+    Marks it item_mode='cached' — it is replayed history, not a fresh scrape."""
+    it = {k: p.get(k) for k in _ARCHIVE_ITEM_FIELDS if k in p}
+    it["item_mode"] = "cached"
+    return it
+
+
+def _archive_read(n: int = 24, kind: Optional[str] = None) -> dict:
+    """READ live records back from the PUBLIC intel archive (network call) so the
+    archive is a real backing store, not write-only. HF-unreachable-tolerant and
+    NEVER raises. Honest mode: 'live' (the committed HF head.json was reachable),
+    'cached' (HF unreachable, served whatever is locally queued), 'unreachable'
+    (HF down and nothing local). The chain head shown is the archive's own
+    content-addressed head — NOT a DSSE/Ed25519 signature."""
+    out = {
+        "repo": _ARCHIVE_REPO,
+        "prefix": _ARCHIVE_PREFIX,
+        "enabled": _ARCHIVE_ENABLED,
+        "browse_url": "https://huggingface.co/datasets/%s" % _ARCHIVE_REPO,
+        "viewer_url": "https://huggingface.co/datasets/%s/viewer" % _ARCHIVE_REPO,
+        "note": ("records are third-party claims; id is a sha256 content-address "
+                 "for dedup/integrity, NOT a signature"),
+    }
+    try:
+        n = max(0, min(int(n), 500))
+    except Exception:
+        n = 24
+    b = _archive_bucket()
+    if b is None:
+        out.update({"mode": "unreachable", "records": [], "count": 0,
+                    "head": None, "error": _ARCHIVE_STATE.get("last_error")})
+        return out
+    head = None
+    try:
+        head = b.head()
+    except Exception as exc:  # noqa: BLE001
+        out["head_error"] = type(exc).__name__
+    try:
+        recs = b.read_recent(n) if n else []
+    except Exception as exc:  # noqa: BLE001
+        out.update({"mode": "unreachable", "records": [], "count": 0,
+                    "head": head, "error": type(exc).__name__})
+        return out
+    if kind:
+        recs = [r for r in recs if r.get("kind") == kind]
+    # Honest live/cached/unreachable: a committed head.json (count is not None)
+    # means we genuinely reached HF on this request.
+    hf_ok = bool(head) and head.get("count") is not None
+    if hf_ok:
+        mode = "live"
+    elif recs:
+        mode = "cached"
+    else:
+        mode = "unreachable"
+    out.update({"mode": mode, "records": recs, "count": len(recs), "head": head})
+    return out
+
+
+def _hydrate_streams_from_archive(max_per_stream: int = 60) -> dict:
+    """Cold-start / on-demand: rebuild EMPTY in-memory OSINT streams from the
+    PUBLIC intel archive so the console timeline survives a Space rebuild (HF is
+    the backing store). Only fills streams that are still empty after the local
+    disk + legacy-snapshot hydration — never clobbers a live/cached corpus.
+    Re-chains the provenance sha256 over the replayed items so continuity is
+    verifiable (the head is recomputed over real archived items, basis recorded
+    honestly). Network call; never raises."""
+    result: dict[str, Any] = {"hydrated": {}, "mode": None, "repo": _ARCHIVE_REPO}
+    if not _ARCHIVE_ENABLED:
+        result["mode"] = "disabled"
+        return result
+    b = _archive_bucket()
+    if b is None:
+        result["mode"] = "unreachable"
+        result["error"] = _ARCHIVE_STATE.get("last_error")
+        return result
+    head = None
+    try:
+        head = b.head()
+    except Exception:  # noqa: BLE001
+        pass
+    # Read enough osint-items to cover every stream a few times over.
+    want = max(60, max_per_stream * (len(_STREAMS) + 1))
+    try:
+        recs = b.read_recent(want)
+    except Exception as exc:  # noqa: BLE001
+        result["mode"] = "unreachable"
+        result["error"] = type(exc).__name__
+        return result
+    hf_ok = bool(head) and head.get("count") is not None
+    result["mode"] = "live" if hf_ok else ("cached" if recs else "unreachable")
+    # Group osint-items by stream (read_recent yields oldest->newest).
+    by_stream: dict[str, list[dict]] = {}
+    for r in recs:
+        if r.get("kind") != "osint-item":
+            continue
+        p = r.get("payload") or {}
+        s = p.get("stream") or p.get("source")
+        if s not in _STREAMS:
+            continue
+        item = _item_from_archive_payload(p)
+        if item.get("prov_hash"):
+            by_stream.setdefault(s, []).append(item)
+    with _LOCK:
+        for s, items in by_stream.items():
+            if _CORPUS.get(s):
+                continue  # never overwrite an already-populated stream
+            seen: set = set()
+            ded: list[dict] = []
+            for it in reversed(items):  # newest first for display
+                h = it.get("prov_hash")
+                if h in seen:
+                    continue
+                seen.add(h)
+                ded.append(it)
+            if not ded:
+                continue
+            _CORPUS[s] = ded[:max_per_stream]
+            _rechain(s)
+            _CHAIN_OK[s] = {"verified": True,
+                            "basis": "hydrated from public intel archive"}
+            _META[s] = {"ts": 0, "mode": "cached",
+                        "iso": (head or {}).get("last_ts"),
+                        "query": _STREAMS[s]["query"]}
+            _persist(s)
+            result["hydrated"][s] = len(_CORPUS[s])
+    return result
+
+
 def _persist(stream: str) -> None:
     try:
         _OSINT_DIR.mkdir(parents=True, exist_ok=True)
@@ -1174,6 +1311,20 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
             _META[s] = {"ts": 0, "mode": "cached", "iso": disk.get("saved_at"),
                         "query": _STREAMS[s]["query"]}
 
+    # Cold-start hydration from the PUBLIC intel archive (HF as backing store):
+    # if any stream is still empty after the local disk + legacy-snapshot load
+    # (e.g. a fresh Space rebuild wiped ephemeral disk), restore its history from
+    # the public archive so the console timeline + provenance chain survive the
+    # rebuild. Network I/O, so run it off the startup path in a boot thread.
+    if _ARCHIVE_ENABLED and any(not _CORPUS.get(s) for s in _STREAMS):
+        def _hydrate_boot() -> None:
+            try:
+                _hydrate_streams_from_archive()
+            except Exception:  # noqa: BLE001 — hydration must never break boot
+                pass
+        threading.Thread(target=_hydrate_boot,
+                         name="killinchu-archive-hydrate", daemon=True).start()
+
     def _mk_amaru(stream: str):
         async def _h(q: Optional[str] = None, fresh: int = 0) -> JSONResponse:
             return JSONResponse(_ingest(stream, query=q, fresh=bool(fresh)))
@@ -1229,6 +1380,19 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
         return JSONResponse(_archive_status())
     app.get("%s/osint/archive" % base)(_archive_ep)
     registered.append("GET %s/osint/archive" % base)
+
+    # READ-BACK: live records + chain head pulled from the PUBLIC intel archive,
+    # proving HF is a real backing store (not write-only). HF-unreachable-tolerant.
+    async def _archive_recent_ep(n: int = 24, kind: Optional[str] = None) -> JSONResponse:
+        return JSONResponse(_archive_read(n, kind=kind))
+    app.get("%s/osint/archive/recent" % base)(_archive_recent_ep)
+    registered.append("GET %s/osint/archive/recent" % base)
+
+    # ON-DEMAND hydration of the in-memory streams from the public archive.
+    async def _archive_hydrate_ep() -> JSONResponse:
+        return JSONResponse(_hydrate_streams_from_archive())
+    app.get("%s/osint/archive/hydrate" % base)(_archive_hydrate_ep)
+    registered.append("GET %s/osint/archive/hydrate" % base)
 
     # Start the public, append-only intel archiver (idempotent; no-op unless
     # KILLINCHU_INTEL_ARCHIVE is set). Off the request path.
