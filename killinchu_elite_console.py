@@ -1114,6 +1114,11 @@ window.toggleSide=toggleSide;
 })();
 // dag-mode 3d force graph (hash-chain hero)
 function dag3d(id,nodes,links,opts){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';opts=opts||{};
+  /* NULL-SAFE (Warhacker Dev B #2): ForceGraph3D throws an async uncaught "node not found: <id>"
+     during the force tick if any link references a node id absent from `nodes`. Drop dangling
+     links here so a partial/failed data load can never crash the page. Additive, no-op on clean data. */
+  nodes=nodes||[];links=links||[];var _ids={};nodes.forEach(function(n){_ids[(n&&(n.id!=null?n.id:n))]=true;});
+  links=links.filter(function(l){var s=(l&&l.source&&l.source.id!=null)?l.source.id:(l?l.source:null);var t=(l&&l.target&&l.target.id!=null)?l.target.id:(l?l.target:null);return _ids[s]&&_ids[t];});
   try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
     .graphData({nodes,links}).dagMode(opts.dagMode||'lr').dagLevelDistance(opts.dist||40)
     .nodeLabel(n=>n.name||n.id).nodeColor(n=>n.color||GOLD).nodeVal(n=>n.val||3)
@@ -9291,8 +9296,12 @@ go(VIEWS[start]?start:'tracks');
       for(var s=4;s>=0;s--){ try{ var d=await J(SAPI+'/allodial/lattice?seal='+s); raw.push(d);
         nodes.push({id:'seal-'+s,name:(s===4?'\u22a4 SEAL-4 \u2014 ALLODIAL (no overlord)':'SEAL-'+s+' \u2014 '+(d.position||'feudal chain')),val:(s===4?9:5),color:colByS[s]});
       }catch(e){} }
-      // dominance edges: each lower node flows up toward top
-      for(var s=0;s<4;s++){ links.push({source:'seal-'+s,target:'seal-'+(s+1)}); }
+      // dominance edges: each lower node flows up toward top.
+      // NULL-SAFE: only link node ids that were actually created above — a failed/timed-out
+      // /allodial/lattice?seal=s fetch skips that node, so an unconditional 'seal-0'->'seal-1'
+      // link would make 3d-force-graph throw "node not found: seal-0" (Warhacker Dev B #2).
+      var _have={}; nodes.forEach(function(n){ _have[n.id]=true; });
+      for(var s=0;s<4;s++){ if(_have['seal-'+s] && _have['seal-'+(s+1)]) links.push({source:'seal-'+s,target:'seal-'+(s+1)}); }
       if(ex('lat-raw')) ex('lat-raw').textContent=JSON.stringify(raw,null,2);
       var top=raw.filter(function(r){return r.is_top;}).length;
       var feud=raw.filter(function(r){return !r.is_top;}).length;
