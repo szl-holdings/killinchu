@@ -3815,14 +3815,14 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
 
   warboard:{title:'Warhacker Proofs',badge:'27 DEMOS (25 + 2 NOVEL) \u00b7 LIVE PROOF + SIGNED RECEIPT',sub:'All 27 maritime/drone Warhacker demos (25 baseline + 2 novel governed counter-UAS capabilities), each a real in-image mechanism with a proven guarantee \u2014 launched live with a genuinely-signed (ECDSA-P256) receipt. For every demo you see the gate verdict, the advisory trust score \u039b (Conjecture 1 \u2014 never a pass/fail oracle), the governing formula, and the signed receipt. Each demo is individually launchable; tamper mode flips one real input so the SAME mechanism visibly FAILS and the signed chain breaks. Launch all 27 and watch the receipts land.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
-      <div class="kpi"><div class="k">Demos</div><div class="v teal" id="wb-n">25</div><div class="d">each individually launchable</div></div>
-      <div class="kpi"><div class="k">Launched OK</div><div class="v" id="wb-ok">0 / 25</div><div class="d">live this session</div></div>
+      <div class="kpi"><div class="k">Demos</div><div class="v teal" id="wb-n">27</div><div class="d">25 baseline + 2 novel, each launchable</div></div>
+      <div class="kpi"><div class="k">Launched OK</div><div class="v" id="wb-ok">0 / 27</div><div class="d">live this session</div></div>
       <div class="kpi"><div class="k">Signed receipts</div><div class="v teal" id="wb-rc">0</div><div class="d">genuinely signed (cosign)</div></div>
       <div class="kpi"><div class="k">Tamper caught</div><div class="v" id="wb-tc">0 / 0</div><div class="d">chain breaks, named node</div></div></div>
       <div class="card"><div class="row" style="gap:.5rem;flex-wrap:wrap"><button onclick="window.warboard_all('nominal')" style="background:var(--gold);border:none;color:#0a0a0a;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">\u25b6 Launch all 27 demos</button>
         <button onclick="window.warboard_all('tamper')" style="background:#b3475f;border:none;color:#fff;border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">\u25b6 Launch all 27 \u00b7 tamper</button>
         <span class="card-ep" style="margin-left:.4rem;align-self:center">each runs in-image and records a genuinely-signed receipt of the decision</span></div></div>
-      <div id="wb-cards"><div class="row mono dim">loading the 25-demo index\u2026</div></div>${HONEST}`;window.warboard_init();}},
+      <div id="wb-cards"><div class="row mono dim">loading the 27-demo index\u2026</div></div>${HONEST}`;window.warboard_init();}},
 
   warhacker:{title:'Maritime / Drone Warhacker',badge:'27 DEMOS (25 + 2 NOVEL) \u00b7 MODE-AWARE \u00b7 REAL COMPUTE + SIGNED CHAIN',sub:'27 adversarial maritime &amp; drone scenarios \u2014 25 baseline plus <b>2 novel governed counter-UAS capabilities</b> (cross-domain air+sea deconfliction with a signed \u039b-trust receipt, and a cryptographic sensor-denied degraded-mode that proves degradation instead of fabricating tracks) \u2014 each run live in-image and individually launchable. Every demo is <b>mode-aware</b>: <b>nominal</b> produces a clean, authorized verdict; <b>tamper</b> flips a real input so the kinematics / geometry / gate genuinely fail \u2014 the decision changes, the per-run DSSE receipt changes, and an always-on tamper test breaks the signed Merkle/Khipu chain at a <b>named first-failing condition</b>. All numbers (CPA km, TCPA s, robustness \u03c1, gap seconds, signed distances) are computed at request time \u2014 no canned PASS. \u039b is advisory (Conjecture 1); the conjunctive gate itself is P2 gate-soundness PROVEN. AIS data is sample/replay (labeled); a live AIS feed is roadmap.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
@@ -6434,7 +6434,7 @@ function _wb_build_grid(demos, mode){
   return grid;
 }
 async function warboard_init(){
-  setHTML('wb-cards','<div class="row mono dim">loading the 25-demo index\u2026</div>');
+  setHTML('wb-cards','<div class="row mono dim">loading the 27-demo index\u2026</div>');
   try{ var idx=await getJSON('/api/killinchu/v1/warhacker/index'); _WB_DEMOS=idx.demos||[]; }
   catch(e){ setHTML('wb-cards','<div class="row mono dim">index retry: '+esc(e&&e.message||e)+' \u2014 click a Launch-all button to retry</div>'); return; }
   setTxt('wb-n', _WB_DEMOS.length);
@@ -6446,7 +6446,7 @@ async function warboard_all(mode){
   mode = (mode==='tamper')?'tamper':'nominal';
   var demos=_WB_DEMOS;
   if(!demos.length){
-    setHTML('wb-cards','<div class="row mono dim">loading the 25-demo index\u2026</div>');
+    setHTML('wb-cards','<div class="row mono dim">loading the 27-demo index\u2026</div>');
     try{ var idx=await getJSON('/api/killinchu/v1/warhacker/index'); demos=idx.demos||[]; _WB_DEMOS=demos; }
     catch(e){ setHTML('wb-cards','<div class="row mono dim">index retry: '+esc(e&&e.message||e)+'</div>'); return; }
   }
