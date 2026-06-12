@@ -76,6 +76,37 @@ class EvaluateTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("status", reason)
 
+    # --- /elite Research & Sources tab contracts (own shape, no v11 envelope) --
+    def test_research_contract_passes(self):
+        body = json.dumps(
+            {"honest": True, "source_pool": [], "tabs_with_overrides": [], "layer": "x"}
+        ).encode("utf-8")
+        ok, reason = evaluate(
+            200, "application/json", body, ["honest", "source_pool", "tabs_with_overrides"]
+        )
+        self.assertTrue(ok, reason)
+
+    def test_research_missing_honest_flag_fails(self):
+        body = json.dumps({"source_pool": [], "tabs_with_overrides": []}).encode("utf-8")
+        ok, reason = evaluate(
+            200, "application/json", body, ["honest", "source_pool", "tabs_with_overrides"]
+        )
+        self.assertFalse(ok)
+        self.assertIn("honest", reason)
+
+    def test_research_live_contract_passes(self):
+        body = json.dumps(
+            {"honest": True, "tab": "default", "sources": [], "summary": "x"}
+        ).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["honest", "tab", "sources"])
+        self.assertTrue(ok, reason)
+
+    def test_research_live_missing_sources_fails(self):
+        body = json.dumps({"honest": True, "tab": "default"}).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["honest", "tab", "sources"])
+        self.assertFalse(ok)
+        self.assertIn("sources", reason)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
