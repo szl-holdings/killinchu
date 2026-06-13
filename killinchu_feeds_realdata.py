@@ -231,6 +231,12 @@ def _load_snapshot(feed):
 # ===========================================================================
 _OPENSKY_URL = "https://opensky-network.org/api/states/all"
 _ADSBLOL_MIL = "https://api.adsb.lol/v2/mil"
+# adsb.lol radius/point query: ALL aircraft (civ+mil) with positions within
+# radius_nm of (lat,lon). Same host as /v2/mil (reachable where OpenSky egress
+# is blocked). Used to TILE a theater box so positioned tracks are available
+# even when OpenSky times out. Radius capped at 250 nm by the API.
+_ADSBLOL_POINT = "https://api.adsb.lol/v2/point/%s/%s/%s"
+_ADSBLOL_MAX_NM = 250
 
 # OpenSky State Vector index order (REST docs):
 # 0 icao24, 1 callsign, 2 origin_country, 3 time_position, 4 last_contact,
@@ -297,8 +303,44 @@ def _track_from_adsblol(a, t):
     }
 
 
+def _track_from_adsblol_point(a, t):
+    """Normalize an adsb.lol point-query record (civ+mil). Same field layout as
+    /v2/mil; military flagged via dbFlags bit 0 (1=military)."""
+    tr = _track_from_adsblol(a, t)
+    is_mil = bool((a.get("dbFlags") or 0) & 1)
+    tr["raw"]["mil"] = is_mil
+    tr["source"] = "adsb.lol community ADS-B (%s, ODbL)" % ("military" if is_mil else "civil+mil")
+    tr["provenance"] = ("adsb.lol /v2/point · community ADS-B (%s) · no-key live · "
+                        "radius-tiled theater=%s" % ("mil" if is_mil else "civ/mil", t.get("label")))
+    tr["source_url"] = "https://api.adsb.lol/v2/point"
+    return tr
+
+
+def _adsblol_point_tiles(t):
+    """Tile a theater box with adsb.lol point queries (radius<=250nm) so we get
+    POSITIONED aircraft (civ+mil) even when OpenSky egress is blocked. Returns
+    a list of (lat, lon, radius_nm) centers covering the box."""
+    if t.get("lamin") is None:
+        return [(0.0, 0.0, _ADSBLOL_MAX_NM)]  # global: single broad probe
+    lamin, lamax = t["lamin"], t["lamax"]
+    lomin, lomax = t["lomin"], t["lomax"]
+    # 1 deg lat ~= 60 nm; choose a grid step so each 250nm-radius circle overlaps.
+    step_deg = 3.0  # ~180 nm spacing under 250 nm radius -> overlapping coverage
+    centers = []
+    la = lamin + step_deg / 2.0
+    while la < lamax + step_deg:
+        lo = lomin + step_deg / 2.0
+        while lo < lomax + step_deg:
+            centers.append((round(min(la, lamax), 3), round(min(lo, lomax), 3), _ADSBLOL_MAX_NM))
+            lo += step_deg
+        la += step_deg
+    # cap tiles to keep latency bounded (large theaters)
+    return centers[:9]
+
+
 def _fetch_aircraft(theater_key, limit):
-    """REAL aircraft. PRIMARY OpenSky (anon, theater bbox) + PARALLEL adsb.lol/mil.
+    """REAL aircraft. PRIMARY OpenSky (anon, theater bbox) + PARALLEL adsb.lol/mil
+    + adsb.lol /v2/point radius tiling (positioned civ+mil; HF-reachable).
     Returns (tracks, sources_tried, mode). mode ∈ live|mixed|sample."""
     t = _theater(theater_key)
     tracks = []
@@ -357,6 +399,42 @@ def _fetch_aircraft(theater_key, limit):
     except Exception as e:
         tried.append({"source": "adsb.lol /v2/mil", "ok": False,
                       "error": "%s: %s" % (type(e).__name__, e), "url": _ADSBLOL_MIL})
+
+    # SUPPLEMENT — adsb.lol /v2/point radius tiling. Only used when we still have
+    # no POSITIONED tracks (e.g. OpenSky unreachable from this host and the mil
+    # feed has nothing in-box). Gives real positioned civ+mil aircraft; same host
+    # as /v2/mil so it works where OpenSky egress is blocked. Honest live data.
+    if not tracks:
+        pt_total = 0
+        pt_kept = 0
+        pt_ok = False
+        pt_err = None
+        for (clat, clon, rnm) in _adsblol_point_tiles(t):
+            try:
+                url = _ADSBLOL_POINT % (clat, clon, rnm)
+                data = _http_get(url, timeout=12, headers={"User-Agent": _UA})
+                ac = (data or {}).get("ac") or (data or {}).get("aircraft") or []
+                pt_ok = True
+                pt_total += len(ac)
+                for a in ac:
+                    if not _in_box(a.get("lat"), a.get("lon"), t):
+                        continue
+                    tr = _track_from_adsblol_point(a, t)
+                    if tr["track_id"] in seen:
+                        continue
+                    seen.add(tr["track_id"])
+                    tracks.append(tr)
+                    pt_kept += 1
+            except Exception as e:
+                pt_err = "%s: %s" % (type(e).__name__, e)
+        if pt_ok:
+            tried.append({"source": "adsb.lol /v2/point (radius tiled)", "ok": True,
+                          "count": pt_kept, "total": pt_total,
+                          "url": "https://api.adsb.lol/v2/point"})
+            any_live = True
+        elif pt_err:
+            tried.append({"source": "adsb.lol /v2/point (radius tiled)", "ok": False,
+                          "error": pt_err, "url": "https://api.adsb.lol/v2/point"})
 
     if any_live:
         # moving + airborne first, then cap
