@@ -45,6 +45,30 @@ from fastapi.responses import JSONResponse
 ECDSA_TYPE = "ECDSA-P256-SHA256"
 MLDSA_TYPE = "ML-DSA-65"
 
+# Honest cited provenance for the PQC sign/verify tab: the public crypto standard
+# (NIST FIPS 204 / ML-DSA), arXiv preprints on PQC, and the in-tree, kernel-
+# verified lutar-lean attestation-soundness theorem (szl-holdings/lutar-lean).
+_LUTAR_REPO = "https://github.com/szl-holdings/lutar-lean"
+CITATIONS = [
+    {"claim": "ML-DSA (Dilithium) signatures", "status": "STANDARD",
+     "lutar_theorem": None,
+     "standard": "NIST FIPS 204 (ML-DSA / CRYSTALS-Dilithium)",
+     "url": "https://csrc.nist.gov/pubs/fips/204/final",
+     "arxiv": "arXiv:2604.06100, arXiv:2402.00922 (PQC)"},
+    {"claim": "ECDSA P-256 signatures", "status": "STANDARD",
+     "lutar_theorem": None,
+     "standard": "FIPS 186-5 / SEC1 (NIST P-256)",
+     "url": "https://csrc.nist.gov/pubs/fips/186-5/final", "arxiv": "n/a"},
+    {"claim": "DSSE attestation soundness", "status": "PROVEN",
+     "lutar_theorem": "Lutar.DPI.TH6_DPI_Soundness",
+     "standard": "DSSE (secure-systems-lab); RFC 6962 anchoring",
+     "url": _LUTAR_REPO + "/blob/main/Lutar/DPI/TH6_DPI_Soundness.lean",
+     "arxiv": "arXiv:2406.10109"},
+]
+CITATION_NOTE = ("PQC tab cites the public crypto standards (FIPS 204 ML-DSA, FIPS 186-5 ECDSA), "
+                 "PQC arXiv preprints, and the in-tree kernel-verified lutar-lean attestation "
+                 "soundness theorem. No fabricated signatures.")
+
 _MLDSA_BACKEND: Optional[str] = None
 _PROC_SIGNERS: dict = {}
 
@@ -176,6 +200,8 @@ def _sign(payload: bytes, mode: str) -> dict:
             "additive. Hybrid signs with both. Per-process keys reset on restart "
             "(honest). No fake signatures: pqc/hybrid require a real ML-DSA backend."
         ),
+        "citations": CITATIONS,
+        "citation_note": CITATION_NOTE,
     }
 
 
