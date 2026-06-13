@@ -69,6 +69,32 @@ from fastapi.responses import JSONResponse
 
 _DOCTRINE = "v11"
 _LAMBDA_FLOOR = 0.90
+
+# Honest cited provenance for the Cannonico proof/audit tabs. Each entry pairs a
+# REAL in-tree lutar-lean theorem (kernel-verified in szl-holdings/lutar-lean)
+# with a public standard / arXiv ref. Λ stays Conjecture 1 — NOT a theorem.
+_LUTAR_REPO = "https://github.com/szl-holdings/lutar-lean"
+_CITATIONS = [
+    {"claim": "Conjunctive GATE soundness", "status": "PROVEN",
+     "lutar_theorem": "Lutar.DPI.TH6_DPI_Soundness",
+     "lutar_url": _LUTAR_REPO + "/blob/main/Lutar/DPI/TH6_DPI_Soundness.lean",
+     "standard": "in-toto/DSSE; SLSA provenance", "arxiv": "arXiv:2406.10109"},
+    {"claim": "Tamper-evident Merkle decision chain", "status": "PROVEN",
+     "lutar_theorem": "Lutar.DPI.MerkleDAGBuild",
+     "lutar_url": _LUTAR_REPO + "/blob/main/Lutar/DPI/MerkleDAGBuild.lean",
+     "standard": "RFC 6962 Merkle transparency; Sigstore Rekor", "arxiv": "RFC 6962"},
+    {"claim": "Halt-eligibility monotonicity (HUKLLA)", "status": "PROVEN",
+     "lutar_theorem": "Lutar.HUKLLA.halt_eligibility_monotone / halt_eligibility_decidable",
+     "lutar_url": _LUTAR_REPO + "/tree/main/Lutar/HUKLLA",
+     "standard": "STL robustness (RTAMT, MIT) pattern", "arxiv": "arXiv:2406.10109"},
+    {"claim": "Λ (lambda) 13-axis governance uniqueness", "status": "CONJECTURE 1 (advisory; unconditional FALSE)",
+     "lutar_theorem": "Conjecture1_LambdaUnique (statement-only, machine-checked FALSE); "
+                      "conditional only: Lutar.Uniqueness.TheoremU_LambdaUnique",
+     "lutar_url": _LUTAR_REPO + "/tree/main/Lutar/Uniqueness",
+     "standard": "advisory governance signal — NOT a proof", "arxiv": "n/a (open conjecture)"},
+]
+_CITATION_NOTE = ("Cannonico proof tabs cite real in-tree lutar-lean theorems plus the public "
+                  "standard / arXiv they map to; Λ stays Conjecture 1 (no Theorem upgrade).")
 _AXIS_NAMES = [
     "soundness", "calibration", "robustness", "provenance", "consent", "reversibility",
     "transparency", "fairness", "containment", "attestation", "freshness", "authority", "auditability",
@@ -453,6 +479,8 @@ def register(app: FastAPI, emit_receipt: Callable, ns: str = "killinchu") -> Dic
                 ),
             },
             "doctrine": _DOCTRINE,
+            "citations": _CITATIONS, "citation_note": _CITATION_NOTE,
+            "anchor_health_at": f"/api/{ns}/uds/v1/rekor/health",
             "honesty": (
                 "Each receipt is DSSE-signed (REAL cosign ECDSA-P256 when the "
                 "Space secret is present; honest PLACEHOLDER when absent) and "
@@ -510,6 +538,8 @@ def register(app: FastAPI, emit_receipt: Callable, ns: str = "killinchu") -> Dic
             "merkle_chain_contiguous": chain_contiguous,
             "checks": checks,
             "doctrine": _DOCTRINE,
+            "citations": _CITATIONS, "citation_note": _CITATION_NOTE,
+            "anchor_health_at": f"/api/{ns}/uds/v1/rekor/health",
             "honesty": (
                 "all_signatures_verified is null when receipts are PLACEHOLDER "
                 "(no Space signing secret) — honest, not a pass. With the secret "
