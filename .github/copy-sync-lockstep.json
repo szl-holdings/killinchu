@@ -1,0 +1,17 @@
+{
+  "_comment": "Config for tools/check_copy_sync_lockstep.py (Doctrine v11). image_only_assets are non-.py assets brought in by an EXPLICIT per-file Dockerfile COPY that are INTENTIONALLY baked into the HF image and NOT re-mirrored by hf-sync. killinchu's hf-sync.yml mirror-app job mirrors ONLY the .py route modules + serve.py + Dockerfile listed in env.APP_FILES (kept in lockstep with on.push.paths by hand); the served HTML/JS pages and vendored widget blobs below already live resident on the Space and are baked by the Dockerfile build. Each exemption is named EXPLICITLY (reviewed escape hatch, never a silent skip). A NEW per-file served asset that is neither in APP_FILES/on.push.paths nor listed here will FAIL CHECK 3 — that is the guard working.",
+  "_doctrine": "locked=8 @ c7c0ba17 · Lambda=Conjecture 1 · v11",
+  "mirror_asset_exts": [".html", ".js", ".css"],
+  "image_only_assets": [
+    "cathedral.html",
+    "live_wires.html",
+    "live_wires_3d.js",
+    "pages/integrations.html",
+    "web/console.html",
+    "web/console.js",
+    "web/operator.html",
+    "web/v4_fleet_panel.html",
+    "static-vendor/a11oy-operator-widget.css",
+    "static-vendor/a11oy-operator-widget.js"
+  ]
+}

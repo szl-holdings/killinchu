@@ -471,6 +471,12 @@ COPY szl_hf_bucket.py szl_metrics_prom.py ./
 # app still boots, but the globe route would be absent). Imported once at boot;
 # no network side effects.
 COPY killinchu_maritime_globe.py ./
+# copy-sync lockstep guard (CHECK 2): these modules are on main + imported by serve.py
+# (try/except-guarded) but were NEVER COPY'd into the image, so the import silently fell
+# back to a STUB on the Space (the recurring "merged-but-not-live" failure).
+# killinchu_elite_wiring wires the /elite console; killinchu_flow_compartments backs the
+# flow-compartments surface. Per-file COPY (this Dockerfile never uses `COPY . .`).
+COPY killinchu_elite_wiring.py killinchu_flow_compartments.py ./
 
 CMD ["python", "serve.py"]
 
