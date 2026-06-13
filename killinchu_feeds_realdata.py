@@ -207,8 +207,14 @@ def _bbox_qs(t):
 
 
 def _in_box(lat, lon, t):
-    if lat is None or lon is None or t.get("lamin") is None:
+    # No box defined (e.g. true global) -> nothing to filter on; keep the record.
+    if t.get("lamin") is None:
         return True
+    # A real theater box IS defined. A record without a position CANNOT be
+    # confirmed inside the box, so exclude it — never claim a position-less
+    # track is "in theater" (honest: no fabricated location).
+    if lat is None or lon is None:
+        return False
     return (t["lamin"] <= lat <= t["lamax"]) and (t["lomin"] <= lon <= t["lomax"])
 
 
@@ -300,10 +306,21 @@ def _fetch_aircraft(theater_key, limit):
     any_live = False
     seen = set()
 
-    # PRIMARY — OpenSky anonymous state vectors (supports bbox).
-    try:
-        data = _http_get(_OPENSKY_URL + _bbox_qs(t), timeout=22, headers={"User-Agent": _UA})
-        states = (data or {}).get("states") or []
+    # PRIMARY — OpenSky anonymous state vectors (supports bbox). OpenSky is the
+    # main POSITIONED source (civil + ADS-B mil with lat/lon); adsb.lol/mil is a
+    # PARALLEL military feed. OpenSky egress can be slow/flaky from some hosts, so
+    # try twice with a longer timeout before giving up.
+    states = None
+    _osky_err = None
+    for _attempt in range(2):
+        try:
+            data = _http_get(_OPENSKY_URL + _bbox_qs(t), timeout=28, headers={"User-Agent": _UA})
+            states = (data or {}).get("states") or []
+            break
+        except Exception as e:
+            _osky_err = e
+            time.sleep(1.0)
+    if states is not None:
         tried.append({"source": "OpenSky /states/all (anon)", "ok": True,
                       "count": len(states), "url": _OPENSKY_URL})
         any_live = True
@@ -315,9 +332,10 @@ def _fetch_aircraft(theater_key, limit):
                 continue
             seen.add(tr["track_id"])
             tracks.append(tr)
-    except Exception as e:
+    else:
         tried.append({"source": "OpenSky /states/all (anon)", "ok": False,
-                      "error": "%s: %s" % (type(e).__name__, e), "url": _OPENSKY_URL})
+                      "error": "%s: %s" % (type(_osky_err).__name__, _osky_err),
+                      "url": _OPENSKY_URL})
 
     # PARALLEL / FALLBACK — adsb.lol military feed (global; box-filter to theater).
     try:
@@ -892,6 +910,10 @@ def register(app, ns="killinchu"):
                 _osint_cached, "geo_context", _osint_geo_context)
         out["live"] = any(v.get("live") for v in out["verticals"].values())
         out["count"] = sum(v.get("count", 0) for v in out["verticals"].values())
+        out["valid_verticals"] = ["all", "sanctioned_vessels", "geo_context"]
+        if not out["verticals"]:
+            out["note"] = ("unknown vertical %r — use one of %s"
+                           % (vertical, out["valid_verticals"]))
         return JSONResponse(out)
 
     async def _feeds_status(request):
