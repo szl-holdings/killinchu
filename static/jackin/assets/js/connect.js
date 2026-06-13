@@ -379,30 +379,85 @@
   //    the data; here we just trigger the source kind + a light poller so the
   //    LIVE FEED has something, and emit telemetry-shaped records.
   // ---------------------------------------------------------------------
+  // WAVE B: prefer the real Wave-A feed endpoints (/feeds/aircraft,
+  // /feeds/vessels, /feeds/remoteid), falling back to the legacy
+  // (/adsb, /ais/live) paths so the LIVE FEED stays real even before Wave A
+  // lands. For ADS-B we also subscribe Remote-ID so the REMOTE-ID modality
+  // lights LIVE when a real OpenDroneID/ASTM-F3411 broadcast is present —
+  // never fabricated.
+  function _feedUrls(kind, base) {
+    if (kind === 'adsb') return [base + '/api/killinchu/v1/feeds/aircraft', base + '/api/killinchu/v1/adsb'];
+    return [base + '/api/killinchu/v1/feeds/vessels', base + '/api/killinchu/v1/ais/live'];
+  }
+  function _extractArr(data) {
+    if (Array.isArray(data)) return data;
+    if (!data || typeof data !== 'object') return [];
+    return data.tracks || data.aircraft || data.vessels ||
+           (data.data && (data.data.tracks || data.data.aircraft || data.data.vessels)) || [];
+  }
+  // try each candidate url in order; resolve with {url, data} of first that answers JSON.
+  function _firstLiveFeed(urls) {
+    var i = 0;
+    function attempt() {
+      if (i >= urls.length) return Promise.reject(new Error('no feed endpoint answered'));
+      var u = urls[i++];
+      return fetch(u, { headers: { 'accept': 'application/json' } }).then(function (r) {
+        var ct = r.headers.get('content-type') || '';
+        if (!r.ok || ct.indexOf('text/html') >= 0) throw new Error('HTTP ' + r.status);
+        return r.json().then(function (d) { return { url: u, data: d }; });
+      }).catch(function () { return attempt(); });
+    }
+    return attempt();
+  }
   function connectADSBorAIS(kind) {
     return function () {
-      var path = kind === 'adsb' ? '/api/killinchu/v1/adsb' : '/api/killinchu/v1/ais/live';
-      var url = (J.KILLINCHU_BASE || '') + path;
-      log('Subscribing ' + kind.toUpperCase() + ' feed: ' + url);
-      var timer = null, stopped = false;
+      var base = (J.KILLINCHU_BASE || '');
+      var urls = _feedUrls(kind, base);
+      var ridUrl = base + '/api/killinchu/v1/feeds/remoteid';
+      var feedUrl = null, timer = null, ridTimer = null, stopped = false;
+      log('Subscribing ' + kind.toUpperCase() + ' feed (prefers Wave-A /feeds/*)…');
+      function pumpArr(data) {
+        manager._heartbeat(kind.toUpperCase() + ' feed');
+        _extractArr(data).slice(0, 50).forEach(function (e) { manager._emit(normalize(e, kind)); });
+      }
       function poll() {
-        if (stopped) return;
-        fetch(url, { headers: { 'accept': 'application/json' } })
+        if (stopped || !feedUrl) return;
+        fetch(feedUrl, { headers: { 'accept': 'application/json' } })
           .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-          .then(function (data) {
-            manager._heartbeat(kind.toUpperCase() + ' feed');
-            var arr = Array.isArray(data) ? data : (data.tracks || data.aircraft || data.vessels || []);
-            (arr || []).slice(0, 50).forEach(function (e) { manager._emit(normalize(e, kind)); });
-          })
+          .then(pumpArr)
           .catch(function (err) { log(kind.toUpperCase() + ' poll: ' + err.message, 'warn'); });
       }
+      // For ADS-B, also poll Remote-ID. Each broadcast is emitted carrying a
+      // RID raw key so modality_fusion lights REMOTE-ID = LIVE. If the endpoint
+      // is absent we simply do nothing — never fabricate a broadcast.
+      function ridPoll() {
+        if (stopped) return;
+        fetch(ridUrl, { headers: { 'accept': 'application/json' } })
+          .then(function (r) { var ct = r.headers.get('content-type') || ''; if (!r.ok || ct.indexOf('text/html') >= 0) throw new Error('rid n/a'); return r.json(); })
+          .then(function (d) {
+            var bs = d.broadcasts || d.tracks || d.remoteid || (d.data && d.data.broadcasts) || [];
+            (bs || []).slice(0, 50).forEach(function (b) {
+              var rec = normalize(b, 'adsb');
+              // tag the raw so rawHasRemoteID() detects a genuine RID broadcast
+              rec.raw = rec.raw || {};
+              rec.raw.OpenDroneID = b.uas_id || b.serial || b.id || true;
+              rec.raw.remote_id = b.uas_id || b.serial || b.id || true;
+              manager._emit(rec);
+            });
+            if (bs && bs.length) manager._heartbeat('Remote-ID broadcast');
+          })
+          .catch(function () { /* no real RID broadcast — stay DARK, never fabricate */ });
+      }
       // initial probe must succeed (so connect resolves), then poll.
-      return fetch(url, { headers: { 'accept': 'application/json' } }).then(function (r) {
-        if (!r.ok) throw new Error('feed not available (HTTP ' + r.status + ') — Dev 3/5 wire this endpoint');
-        manager._heartbeat(kind.toUpperCase() + ' feed');
-        poll();
+      return _firstLiveFeed(urls).then(function (res) {
+        feedUrl = res.url;
+        log(kind.toUpperCase() + ' feed live: ' + feedUrl);
+        pumpArr(res.data);
         timer = setInterval(poll, 4000);
-        return { close: function () { stopped = true; if (timer) clearInterval(timer); } };
+        if (kind === 'adsb') { ridPoll(); ridTimer = setInterval(ridPoll, 5000); }
+        return { close: function () { stopped = true; if (timer) clearInterval(timer); if (ridTimer) clearInterval(ridTimer); } };
+      }).catch(function () {
+        throw new Error('feed not available — no /feeds/* or legacy endpoint answered');
       });
     };
   }
