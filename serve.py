@@ -2506,6 +2506,30 @@ except Exception as _mr_e:
 
 
 # ===========================================================================
+# ADDITIVE (Maritime W5): consolidated "MARITIME INTEL" /elite VIEW.
+# A pure presentation surface at /elite/maritime (+ /maritime-intel alias) that
+# UNIFIES every maritime wave into one investor-facing narrative in killinchu's
+# EXISTING house style. It reinvents NO backend: it fetches the REAL endpoints
+# the waves already built (feeds/vessels, maritime/{dark,spoof,risk,riskarc,
+# forecast}, asw/*, the /elite/globe centerpiece). Every layer is labelled
+# LIVE/SAMPLE/FORECAST/OSINT/INFERENCE; Λ is "advisory, governed by Λ
+# (Conjecture 1)" — NEVER "unique"; effector SIMULATED; no vessel control or
+# live submarine tracking. 0 runtime CDN. Mounted BEFORE the SPA catch-all.
+# ===========================================================================
+_killinchu_maritime_view_status = "maritime-view-not-wired"
+try:
+    import killinchu_maritime_view as _killinchu_maritime_view
+    _killinchu_maritime_view_status = _killinchu_maritime_view.register(app, ns="killinchu")
+    print(f"[killinchu] Maritime Intel view wired ({_killinchu_maritime_view_status})", file=sys.stderr)
+except Exception as _kmv_e:
+    import traceback as _kmv_tb
+    _killinchu_maritime_view_status = f"maritime-view-not-wired:{_kmv_e!r}"
+    print(f"[killinchu] Maritime Intel view NOT wired: {_kmv_e!r}", file=sys.stderr)
+    _kmv_tb.print_exc()
+# ── end Maritime Intel view (W5) ─────────────────────────────────────────────
+
+
+# ===========================================================================
 # ADDITIVE: killinchu "Beyond-Cannonico" proof console — the autonomy-governance
 # pattern generalized BEYOND a single counter-drone. Three REAL endpoint-backed
 # proof tabs, mounted BEFORE the SPA catch-all so they resolve locally:
