@@ -763,6 +763,37 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 .frow .txt{color:var(--paragraph);flex:1;}
 .spacer{margin-left:auto;}
 
+/* ── INVESTOR-GRADE QA POLISH (polish/elite-investor-grade) — additive only.
+   Honest loading skeletons (never a blank panel), a one-line "what this shows"
+   context strip, and an honest "feed warming / simulated over real signatures"
+   degrade badge. Doctrine v11: nothing fabricated; a dark feed shows a LABELLED
+   state, never invented rows. Pure presentation; touches no route, no data. ── */
+@keyframes kxShimmer{0%{background-position:-420px 0;}100%{background-position:420px 0;}}
+.kx-skel-wrap{margin:.2rem 0 .4rem;}
+.kx-skel{height:13px;border-radius:6px;margin:.5rem 0;
+  background:linear-gradient(90deg,rgba(201,183,135,.05) 0%,rgba(201,183,135,.16) 50%,rgba(201,183,135,.05) 100%);
+  background-size:840px 100%;animation:kxShimmer 1.25s ease-in-out infinite;}
+.kx-skel.kpi{height:64px;border-radius:10px;border:1px solid var(--gold-line);}
+.kx-skel.tall{height:230px;border-radius:11px;border:1px solid var(--gold-line);}
+.kx-skel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin:.2rem 0 .8rem;}
+.kx-skel-cap{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.04em;display:flex;align-items:center;gap:.45rem;margin:.2rem 0 .1rem;}
+.kx-skel-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);animation:pulse 1.1s ease-in-out infinite;}
+/* one-line "what am I looking at" context strip — investor orientation */
+.kx-ctx{display:flex;align-items:flex-start;gap:.55rem;margin:0 0 1rem;padding:.5rem .8rem;
+  border:1px solid var(--teal-line);border-left:3px solid var(--teal);border-radius:9px;
+  background:var(--teal-soft);font-size:12px;line-height:1.55;color:var(--paragraph);max-width:62rem;}
+.kx-ctx .kx-ctx-ico{flex:none;color:var(--teal);font-size:13px;margin-top:1px;}
+.kx-ctx b{color:var(--cream);font-weight:600;}
+/* honest degrade / simulated badge — never a silent empty panel */
+.kx-warming{display:flex;align-items:center;gap:.6rem;margin:.4rem 0;padding:.7rem .95rem;
+  border:1px solid var(--gold-line);border-radius:10px;background:var(--gold-soft);
+  font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.6;}
+.kx-warming .kx-warming-dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--warn);
+  box-shadow:0 0 0 0 rgba(201,160,95,.5);animation:kxWarm 1.6s ease-out infinite;}
+@keyframes kxWarm{0%{box-shadow:0 0 0 0 rgba(201,160,95,.5);}70%{box-shadow:0 0 0 9px rgba(201,160,95,0);}100%{box-shadow:0 0 0 0 rgba(201,160,95,0);}}
+.kx-warming b{color:var(--gold);}
+.kx-warming .kx-warming-sim{color:var(--teal);}
+
 </style>
 </head>
 <body>
@@ -7955,9 +7986,22 @@ function go(view){
   const v = VIEWS[view];
   if(!v){return;}
   const c = el('content');
-  c.innerHTML=`<div class="view-head"><h1 class="view-title">${esc(v.title)}</h1><span class="view-badge">${esc(v.badge)}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
-  v.render(el('vbody'));
+  // INVESTOR POLISH (additive): a concise, scannable "what this shows" context strip
+  // is rendered as PERSISTENT chrome between the sub-text and #vbody (the view's own
+  // render only touches #vbody, so it survives every render). Honest one-liner per view.
+  var _ctx='';
+  try{ _ctx=(window.__kxCtx&&window.__kxCtx(view))||''; }catch(_c){}
+  c.innerHTML=`<div class="view-head"><h1 class="view-title">${esc(v.title)}</h1><span class="view-badge">${esc(v.badge)}</span></div><p class="view-sub">${v.sub}</p>${_ctx}<div id="vbody"></div>`;
+  var _vb=el('vbody');
+  // Paint a loading skeleton BEFORE the view renders, so a slow/async feed never shows
+  // a blank panel. The view's own render() overwrites #vbody as before (a sync render
+  // simply replaces the skeleton in the same frame — no regression).
+  try{ window.__kxPrime&&window.__kxPrime(_vb, view); }catch(_p){}
+  v.render(_vb);
   try{ window.__renderResearch&&window.__renderResearch(el('vbody'), view); }catch(_r){}
+  // If the feed is genuinely dark, swap the skeleton for an HONEST "feed warming /
+  // simulated over real signatures" badge instead of leaving an empty panel.
+  try{ window.__kxEmptyGuard&&window.__kxEmptyGuard('vbody', view); }catch(_g){}
   if(history.replaceState) history.replaceState(null,'','#'+view);
   if(window.innerWidth<=820) toggleSide(false);
   // re-fit any viz the view just mounted to its clamp()'d container (centered, in-frame)
@@ -10582,6 +10626,182 @@ go(VIEWS[start]?start:'tracks');
     try{ console.log('[atlas] Formula Atlas nav injected'); }catch(e){}
   }
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   INVESTOR-GRADE QA POLISH LAYER (polish/elite-investor-grade) — ADDITIVE ONLY.
+   Provides three honest presentation helpers consumed by go() and subview():
+     __kxCtx(view)        one-line "what this shows" orientation strip (investor eyes)
+     __kxPrime(node)      an honest loading skeleton (never a blank panel)
+     __kxEmptyGuard(id)   if a feed is genuinely dark, swap the skeleton for an honest
+                          "feed warming / simulated over real signatures" badge — never
+                          a silent empty panel, never fabricated rows (doctrine v11).
+   Touches no route, no data, no existing render fn. Pure DOM presentation. If any
+   helper throws it is swallowed at the call-site, so the console degrades to its
+   prior behaviour — it can only add clarity, never remove a working view.
+   ══════════════════════════════════════════════════════════════════ */
+(function(){
+  function kxEsc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+
+  /* Honest, investor-legible one-liner per view. "What am I looking at" + the honest
+     data posture (LIVE free feed / real compute / cited leaders / SIMULATED effector).
+     Keyed by both top-level nav view ids and consolidated sub-view keys. Anything not
+     listed falls back to a data-class default below — so every view gets a strip. */
+  var KXCTX={
+    // FRONTIER / WARHACKER
+    hero_interdiction:'A live counter-UAS decision becomes a DSSE-signed Λ-receipt that traces to a machine-checked Lean theorem. <b>Λ is advisory (Conjecture 1)</b>; the effector is SIMULATED.',
+    fleet_c2:'Live military ADS-B + AIS vessels on a 3D globe. The picture is real; the governed C2 link to an effector is <b>SIMULATED</b>.',
+    tamper_demo:'Tamper one signed receipt and watch the SHA-256 hash-chain visibly reject it. Tamper-evidence is axiom-gated on collision-resistance.',
+    determinism_demo:'The same governed decision run 5× returns byte-identical Merkle roots. Honest label: axiom A5, maturity <b>measured</b> — observed, not a theorem.',
+    uds_package:'killinchu expressed as a UDS-pattern package with Lula/OSCAL claims-with-evidence against NIST 800-53. Honest posture — <b>not an ATO</b>.',
+    u_warhacker:'27 maritime / drone / counter-UAS demos plus a proofs board showing nominal-vs-tamper diffs on real signed evidence.',
+    readiness:'Deployed-vs-repo truth read live from the app, GitHub and Hugging Face. Every value is labelled <b>live / cached / unreachable</b> — nothing fabricated.',
+    // MARITIME / NAVY
+    u_maritime:'The live sea picture from Digitraffic Finland AIS, with WEZ rings and dark-vessel screening. Sanction flags are heuristic (advisory).',
+    u_fleet:'Fleet operations and a 3D health twin computed over the live vessel feed — overview, maintenance, logs, voyages and briefings.',
+    tracks:'A PPI radar scope built from the live air/sea picture. Some track positions are <b>simulated over real adversary signatures</b> — not a live sensor.',
+    livepic:'The live common operating picture: military ADS-B + AIS, auto-recording. Some positions are <b>simulated over real signatures</b>.',
+    u_space:'A 3D LEO constellation globe, GEOINT collection planning and the live USGS seismic-forecast globe.',
+    u_darkgraph:'A 3D force-directed threat graph plus the 53-class drone database and transparent threat ranking. Ranking is heuristic (advisory).',
+    // COUNTER-UAS / ARMY-MARINES
+    amaru_counter_uas:'Live open-web counter-UAS / drone-incident reporting, normalized and sha256 provenance-stamped. Fields are <b>third-party claims</b>, not attested truth.',
+    u_swarm:'Live coordinated-swarm formation topology (3D) and a perturbation-recovery resilience monitor.',
+    swarm_intent:'A swarm-intent classifier scored over the <b>live</b> ADS-B stream: CONVERGING / LOITER / INGRESS / TRANSIT. <b>Model-scored over real data</b> — advisory.',
+    u_engage:'The governed engagement loop — ROE, geofence, autonomy governance. The loop is real; kinetic stays human-in-the-loop and the <b>effector is SIMULATED</b>.',
+    u_fusion:'Multi-sensor track fusion with a proved Covariance-Intersection core; fused confidence is capped below 1.0 — trust is never 100%.',
+    operate:'Issue a governed command, clear the real Λ-gate and emit a genuinely-signed receipt. The <b>effector link is a command demonstration, SIMULATED</b>.',
+    u_minedops:'Field-efficiency ops — edge VRAM estimation, telemetry memory, adaptive sampling and survivable routing. Clean-room re-implementations; advisory.',
+    // INTEL & PROVENANCE
+    amaru_naval:'Live maritime / naval OSINT — dark-fleet, sanctions, port advisories — normalized and provenance-stamped. Sanction flags are heuristic (advisory).',
+    amaru_procurement:'Live DoD / SBIR procurement signals, normalized and provenance-stamped. Dollar amounts are extracted from third-party text (claims).',
+    amaru_advisories:'Live cyber / supply-chain advisories, normalized and provenance-stamped. Severity and CVE tags are heuristic (advisory).',
+    amaru_geopolitical:'Live geopolitical / conflict reporting on a timeline, normalized and provenance-stamped. Third-party claims, not attested truth.',
+    u_intel:'Live CISA Known-Exploited Vulnerabilities, NVD CVEs and MITRE ATT&amp;CK technique mapping — cited leader feeds, labelled live / cached.',
+    rosie_digest:'The Operator ranks the whole OSINT corpus into a cross-vertical digest with a reproducible replay hash. Ranking is deterministic.',
+    rosie_routing:'The Operator routes each ingested item to a defense vertical with a confidence score. <b>Heuristic, advisory</b> — not a proven classifier.',
+    rosie_entities:'The Operator extracts entities and renders a relationship graph from the corpus. Extraction is heuristic (advisory).',
+    rosie_correlate:'The Operator correlates the corpus against the watch picture (Section-889 vendors, watch terms). Substring correlation is advisory.',
+    rosie_watch:'A standing watchlist — term frequency over the corpus with alert thresholds. Advisory.',
+    // GOVERNED CORE / UDS
+    lambda:'The 13-axis trust-score monitor. <b>Λ = Conjecture 1</b> — advisory, not a proven theorem.',
+    u_consensus:'3-of-4 multi-witness consensus and mesh resilience. <b>Byzantine BFT safety = Conjecture 2 (OPEN)</b>; a conditional agreement theorem is proven (Wave23).',
+    mesh_resilience:'A live Fiedler λ2 algebraic-connectivity monitor over the real C2 topology, with an in-browser node-removal resilience sweep.',
+    retask_board:'Live PSI / KS / ADWIN drift on the ADS-B telemetry raises re-tasking recommendations bound to the triggering detector. Advisory; effector SIMULATED.',
+    u_posture:'Runtime assurance — real drift, graph metrics, the attack-surface graph and the zero-trust mesh, all from real telemetry and the real UDS CR. Honest empty states.',
+    u_receipts:'The live signed-receipt chain (3D) and quantum-safe signing posture. Receipts are genuinely DSSE-signed; no signature is fabricated.',
+    u_proofs:'The knowledge &amp; formula registry — exactly <b>8 locked-proven</b> formulas; <b>Λ = Conjecture 1</b>. Theorem cards show verbatim Lean #print axioms.',
+    putnam:'An honest count of REAL Lean-kernel-checked theorems for the Putnam 2025 set. DEMO files compile but use sorry; SZL-native originals are pending upstream.',
+    u_melt:'Λ-signed MELT observability (metrics / events / logs / traces) and the living-organism service graph (3D).',
+    living_anatomy:'a11oy + killinchu rendered as one governed organism in 3D, with the proven formula in each organ.',
+    u_about:'What we honestly claim, the cited research corpus (NIST / MITRE / CISA) and the legal boundaries. SLSA L2 build-attestation present; L3 = roadmap.',
+    // COUNTER-UAS C2 LAB (experimental)
+    cuas_intercept:'A proportional-navigation intercept-feasibility solver. <b>Effector SIMULATED</b> — it computes feasibility and never actuates.',
+    cuas_spoof:'A GNSS-spoofing plausibility chi-square innovation gate. Advisory monitor, experimental tier.',
+    cuas_fusion:'Covariance-Intersection track fusion; fused confidence is capped below 1.0 — trust is never 100%. Experimental tier.',
+    cuas_swarm:'Urgency-weighted graph-Laplacian swarm consensus as a living 3D galaxy. <b>Conjecture 2 (OPEN)</b>.',
+    cuas_triage:'Greedy weapon-target-assignment triage maximizing expected destroyed value. <b>Effector SIMULATED</b> — it ranks and allocates, never fires.',
+    cuas_pq:'A post-quantum SHA3-256 hash-chain receipt bus (FIPS 203/204/205). Signature is a <b>PROXY</b> until an oqs key is provisioned. Experimental tier.',
+    scaling:'Allometric scaling — Kleiber’s law, lifetime-heartbeats, a PROPOSED SZL-Φ unification. <b>SZL-Φ is proposed, not the formal Λ</b>; Λ stays Conjecture 1.'
+  };
+  // Honest defaults by data posture for any view not explicitly mapped.
+  var KXCTX_DEFAULT={
+    'live-feed':'Reads a free, no-key public feed live and labels it <b>live / cached / unreachable</b> — a dark feed degrades honestly, never to invented data.',
+    'real-compute':'Real math computed over live telemetry. Results are advisory, not a proven guarantee.',
+    'leader-cited':'Grounded in cited leader standards (NIST / MITRE / CISA) — no fabricated figures.',
+    'signed-loop':'A real DSSE-signed governance loop — receipts are genuinely signed; no signature is fabricated.',
+    'SIMULATED':'<b>Effector SIMULATED</b> by doctrine v11 — killinchu computes feasibility and emits signed receipts, but never actuates a real kinetic effect.'
+  };
+  // Minimal honest data-class lookup mirrored from killinchu_elite_wiring.py (display only).
+  var KXCLASS={hero_interdiction:'signed-loop',fleet_c2:'live-feed',tamper_demo:'signed-loop',determinism_demo:'signed-loop',uds_package:'leader-cited',u_warhacker:'real-compute',readiness:'live-feed',u_maritime:'live-feed',u_fleet:'live-feed',tracks:'real-compute',livepic:'live-feed',u_space:'live-feed',u_darkgraph:'live-feed',amaru_counter_uas:'live-feed',u_swarm:'real-compute',swarm_intent:'real-compute',u_engage:'signed-loop',u_fusion:'real-compute',operate:'SIMULATED',u_minedops:'real-compute',amaru_naval:'live-feed',amaru_procurement:'live-feed',amaru_advisories:'live-feed',amaru_geopolitical:'live-feed',u_intel:'live-feed',rosie_digest:'live-feed',rosie_routing:'real-compute',rosie_entities:'real-compute',rosie_correlate:'real-compute',rosie_watch:'real-compute',lambda:'real-compute',u_consensus:'real-compute',mesh_resilience:'real-compute',retask_board:'real-compute',u_posture:'leader-cited',u_receipts:'signed-loop',u_proofs:'leader-cited',putnam:'leader-cited',u_melt:'real-compute',living_anatomy:'real-compute',u_about:'leader-cited',cuas_intercept:'SIMULATED',cuas_spoof:'real-compute',cuas_fusion:'real-compute',cuas_swarm:'real-compute',cuas_triage:'SIMULATED',cuas_pq:'signed-loop',scaling:'leader-cited'};
+
+  window.__kxCtx=function(view){
+    try{
+      var txt=KXCTX[view];
+      if(!txt){ var cls=KXCLASS[view]; txt=cls?KXCTX_DEFAULT[cls]:null; }
+      if(!txt) return '';
+      return '<div class="kx-ctx"><span class="kx-ctx-ico">&#9432;</span><span><b>What this shows:</b> '+txt+'</span></div>';
+    }catch(e){ return ''; }
+  };
+
+  // Honest loading skeleton: a KPI row + a tall panel placeholder + a captioned
+  // "reading live feed…" line. Replaced the moment the real render paints.
+  window.__kxPrime=function(node, view){
+    try{
+      if(!node) return;
+      var cls=KXCLASS[view]||'';
+      var cap=(cls==='SIMULATED')?'computing feasibility (effector simulated)…'
+             :(cls==='live-feed')?'reading live feed…'
+             :(cls==='leader-cited')?'loading cited sources…'
+             :(cls==='signed-loop')?'building signed loop…':'computing…';
+      node.innerHTML='<div class="kx-skel-wrap" data-kx-skel="1">'
+        +'<div class="kx-skel-cap"><span class="kx-skel-dot"></span>'+kxEsc(cap)+'</div>'
+        +'<div class="kx-skel-grid"><div class="kx-skel kpi"></div><div class="kx-skel kpi"></div><div class="kx-skel kpi"></div><div class="kx-skel kpi"></div></div>'
+        +'<div class="kx-skel tall"></div>'
+        +'<div class="kx-skel" style="width:62%"></div><div class="kx-skel" style="width:44%"></div>'
+        +'</div>';
+    }catch(e){}
+  };
+
+  // A node is "still empty" if it has no element children OR only our skeleton remains.
+  function kxStillEmpty(node){
+    if(!node) return false;
+    var kids=node.children||[];
+    if(kids.length===0) return true;
+    if(kids.length===1 && kids[0].getAttribute && kids[0].getAttribute('data-kx-skel')==='1') return true;
+    // a single empty wrapper with no rendered text and no canvas/svg/table
+    if(kids.length===1){
+      var k=kids[0];
+      var hasViz=k.querySelector&&k.querySelector('canvas,svg,table,.card,.kpi,img,a,pre,details');
+      if(!hasViz && !(k.textContent||'').trim()) return true;
+    }
+    return false;
+  }
+
+  // If, after a grace period, the body is still empty, the feed is genuinely dark.
+  // Show an HONEST "feed warming / simulated over real signatures" badge — never a
+  // blank panel, never fabricated rows. Always offers a manual retry into the view.
+  window.__kxEmptyGuard=function(bodyId, view){
+    try{
+      setTimeout(function(){
+        var node=document.getElementById(bodyId);
+        if(!node) return;                 // navigated away
+        if(!kxStillEmpty(node)) return;   // the real render painted — good, do nothing
+        var cls=KXCLASS[view]||'';
+        var sim=(cls==='SIMULATED');
+        var line=sim
+          ? 'This is a <span class="kx-warming-sim">SIMULATED</span> feasibility surface — it is <b>warming up</b>. killinchu computes feasibility and emits signed receipts here; it never actuates a real kinetic effect.'
+          : (cls==='live-feed')
+            ? 'The live feed is <b>warming up or currently dark</b>. By doctrine v11 this panel shows a labelled state rather than fabricated rows — positions, when shown, are <span class="kx-warming-sim">simulated over real adversary signatures</span>, not a live sensor.'
+            : 'This surface is <b>warming up</b>. By doctrine v11 it shows a labelled state rather than invented data — it will populate the moment its feed answers.';
+        node.innerHTML='<div class="kx-warming"><span class="kx-warming-dot"></span>'
+          +'<span>'+line+' '
+          +'<a href="#" onclick="try{go(\''+kxEsc(view)+'\');}catch(e){};return false;" style="color:var(--gold);text-decoration:underline">retry</a></span></div>';
+      }, 1500);
+    }catch(e){}
+  };
+
+  // Wrap the consolidated sub-view renderer so every sub-view gets the same honest
+  // skeleton + dark-feed guard. Idempotent; preserves the original behaviour exactly.
+  function wrapSubview(){
+    if(typeof window.subview!=='function' || window.__kxSubWrapped) return;
+    var orig=window.subview;
+    window.subview=function(surfaceKey, viewKey){
+      try{ orig.apply(this, arguments); }catch(e){ try{ orig(surfaceKey, viewKey); }catch(_){} }
+      try{
+        var innerId='sub-inner-'+surfaceKey;
+        // prime a skeleton immediately if the inner is still empty this frame
+        var inner=document.getElementById(innerId);
+        if(inner && (inner.children.length===0)){ window.__kxPrime(inner, viewKey); }
+        // and guard for a genuinely-dark sub-feed
+        window.__kxEmptyGuard(innerId, viewKey);
+      }catch(e){}
+    };
+    window.__kxSubWrapped=true;
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',wrapSubview); }
+  wrapSubview();
+  setTimeout(wrapSubview, 400);  // re-attempt after later patch scripts settle
 })();
 </script>
 <style>
