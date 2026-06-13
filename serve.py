@@ -111,6 +111,18 @@ try:
 except Exception as _szl_ev_e:  # pragma: no cover
     print(f"[killinchu] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
 
+# ── /elite view-wiring audit layer (wire-elite-views) — maps each /elite view to
+# the REAL killinchu data feed it consumes and reports honest per-view wiring
+# health (wired | degraded | needs-deploy | SIMULATED) via an in-process probe.
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all. Pure stdlib.
+# Doctrine v11: effectors SIMULATED; honest labels; no fabricated data.
+try:
+    import killinchu_elite_wiring as _killinchu_elite_wiring
+    _kew_reg = _killinchu_elite_wiring.register(app, ns="killinchu")
+    print(f"[killinchu] /elite wiring audit registered: {_kew_reg}", file=__import__("sys").stderr)
+except Exception as _kew_e:  # pragma: no cover
+    print(f"[killinchu] /elite wiring audit NOT registered: {_kew_e!r}", file=__import__("sys").stderr)
+
 # ── Operational Readiness layer (readiness-tab-patch) — deployed-vs-repo reality.
 # Live site/endpoint liveness, HF Space build status, repo/org drift with honest
 # live/cached/unreachable labels. Same resilience pattern as evidence module.
