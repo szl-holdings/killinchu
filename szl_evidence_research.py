@@ -317,6 +317,75 @@ CLAIMS: Dict[str, List[Dict[str, Any]]] = {
             "github": ["opendroneid/opendroneid-core-c"],
             "arxiv_query": "counter UAS drone detection deep learning survey",
         },
+        {
+            "id": "finance-live-feeds",
+            "tab": "finance",
+            "claim": "Finance tabs (crypto, FX, prediction markets) read REAL free "
+                     "public APIs, labelled live/cached/unreachable; key-gated macro "
+                     "(FRED) returns an honest disabled payload, never a key in a URL.",
+            "maturity": "implemented",
+            "sources": [
+                _src("dataset", "ECB euro reference rates via Frankfurter (no key)",
+                     "https://www.frankfurter.app",
+                     "Our live FX feed — European Central Bank reference rates."),
+                _src("dataset", "Coinbase public spot-price API (no key)",
+                     "https://docs.cdp.coinbase.com/coinbase-app/docs/api-prices",
+                     "Our live crypto spot feed."),
+                _src("dataset", "CoinGecko public market-data API (free tier)",
+                     "https://www.coingecko.com/en/api",
+                     "Our 24h crypto change overview (rate-limited, labelled)."),
+                _src("dataset", "Polymarket Gamma public markets API (no key)",
+                     "https://gamma-api.polymarket.com",
+                     "Our live prediction-markets feed."),
+                _src("dataset", "FRED — Federal Reserve Economic Data (key-gated)",
+                     "https://fred.stlouisfed.org",
+                     "Macro series cited as leader; honest disabled without a header-auth path."),
+                _src("standard", "BIS / Basel Committee market-risk framework (FRTB)",
+                     "https://www.bis.org/bcbs/publ/d457.htm",
+                     "Risk methodology our Risk/Fraud tab cites."),
+            ],
+            "github": ["coingecko/coingecko-api", "polymarket/py-clob-client"],
+            "arxiv_query": "cryptocurrency market microstructure prediction market efficiency",
+        },
+        {
+            "id": "real-estate-grounding",
+            "tab": "realestate",
+            "claim": "Real-estate tabs carry a clearly-labelled curated sample plus "
+                     "the real leader datasets (Case-Shiller via FRED, US Census "
+                     "housing, HUD), with honest data_kind — no fabricated figures.",
+            "maturity": "implemented-partial",
+            "sources": [
+                _src("dataset", "S&P CoreLogic Case-Shiller U.S. National Home Price Index (FRED: CSUSHPISA)",
+                     "https://fred.stlouisfed.org/series/CSUSHPISA",
+                     "Authoritative U.S. home-price index (our Market Pulse leader)."),
+                _src("dataset", "U.S. Census Bureau housing data (ACS / Homeownership)",
+                     "https://www.census.gov/topics/housing.html",
+                     "Homeownership & vacancy ground truth."),
+                _src("dataset", "HUD USER open data (FMR, distressed assets, USPS vacancy)",
+                     "https://www.huduser.gov/portal/pdrdatas_landing.html",
+                     "Distress-radar leader dataset."),
+            ],
+            "github": ["censusreporter/censusreporter"],
+            "arxiv_query": "housing price index hedonic model beneficial ownership network",
+        },
+        {
+            "id": "fraud-controls",
+            "tab": "risk",
+            "claim": "Financial-crime / fraud reasoning cites authoritative control "
+                     "frameworks (FFIEC BSA/AML, FinCEN SAR) rather than inventing "
+                     "live fraud numbers.",
+            "maturity": "research",
+            "sources": [
+                _src("standard", "FFIEC BSA/AML Examination Manual",
+                     "https://bsaaml.ffiec.gov/manual",
+                     "Authoritative AML/financial-crime control framework."),
+                _src("standard", "FinCEN — Suspicious Activity Reporting (SAR)",
+                     "https://www.fincen.gov/",
+                     "U.S. Treasury suspicious-activity reporting framework."),
+            ],
+            "github": ["IBM/AMLSim"],
+            "arxiv_query": "anti money laundering transaction monitoring graph fraud detection",
+        },
     ],
 }
 
