@@ -11227,6 +11227,283 @@ go(VIEWS[start]?start:'tracks');
 
 </script>
 
+<script>
+/* ============================================================================
+ * MOSAIC / DOMAIN-SUPERIORITY ELEVATION (Opus 4.8, 2026-06-13)
+ * SZL's sovereign answer to True Anomaly's Mosaic, built ON killinchu's flagship.
+ *
+ * ADDITIVE, post-hoc on the VIEWS object (the same proven mechanism as the putnam
+ * + innovation-wave patches). It:
+ *   (1) wires the SZL-native anomaly/SDA engine into Live Track Board + Sensor-
+ *       Fusion + Threat-Class-DB: each track gets a live anomaly SCORE, a Λ-advisory
+ *       verdict (allow/advisory/deny) and a one-click "verify receipt" showing the
+ *       signed DSSE provenance statement;
+ *   (2) adds a new "Mosaic / Domain-Superiority" view = the Common Operating
+ *       Picture (fused air+sea tracks, anomaly overlay, SDA/orbit SGP4 ROADMAP stub).
+ *
+ * HONEST: anomaly scores are ESTIMATES with a bounded/conformal confidence interval.
+ * Λ = Conjecture 1 (ADVISORY — never "proven trust"). Khipu BFT = Conjecture 2
+ * (PROPOSED). Effectors SIMULATED. Space-domain = ROADMAP (today = counter-UAS /
+ * drone / vessel). Attribution: inspired by True Anomaly Mosaic's PUBLIC capability;
+ * clean-room engine from the permissive lineage (PyOD/Merlion/TODS/tsod/GDN/PyGOD/
+ * sgp4); NO proprietary Mosaic code. cite-never-plagiarize. 0 CDN, system fonts.
+ * Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+ * ========================================================================== */
+(function(){
+  var TEAL='#5fb3a3', GOLD='#c9b787', DIM='#888', ERR='#b06a5a', WARN='#c9a05f';
+  function esc2(s){ return (typeof esc==='function')?esc(s):String(s==null?'':s); }
+  function api(){ return (typeof API!=='undefined'&&API)?API:'/api/killinchu/v1'; }
+
+  // Λ-advisory verdict -> colour + honest label
+  function verdictTone(v){
+    if(v==='allow') return TEAL;
+    if(v==='deny')  return ERR;
+    return WARN; // advisory
+  }
+  function scoreTone(s){ return (s>=0.65)?ERR:(s>=0.35)?WARN:TEAL; }
+
+  // POST the live tracks to the Mosaic engine, return the scored list (or null).
+  async function scoreTracks(tracks){
+    try{
+      var d = await postJSON(api()+'/mosaic/score', {tracks: tracks});
+      return (d&&d.ok)?d:null;
+    }catch(e){ return null; }
+  }
+
+  // One-click "verify receipt": emit a signed provenance receipt for a verdict.
+  window.mosaicVerifyReceipt = async function(trackId, score, verdict, ciLo, ciHi, hostId){
+    var host = el(hostId);
+    if(host) host.innerHTML='<div class="row mono dim">'+(window.liveDot?window.liveDot():'')+'requesting signed provenance receipt\u2026</div>';
+    try{
+      var r = await postJSON(api()+'/mosaic/receipt', {
+        track_id: trackId, anomaly_score: score, lambda_verdict: verdict,
+        confidence_interval: [ciLo, ciHi]
+      });
+      var rec = (r&&r.receipt)||{};
+      var node = rec.khipu_node||{};
+      var signed = !!rec.verified;
+      var col = signed?TEAL:GOLD;
+      var H='<div class="card" style="border-color:'+col+'55;margin-top:.5rem">';
+      H+='<div class="card-h"><span class="card-t">'+(window.liveDot?window.liveDot():'')+'Signed provenance \u2014 track '+esc2(trackId)+'</span>'
+        +'<span class="card-ep">'+(signed?'DSSE ECDSA-P256':'honest placeholder')+'</span></div>';
+      H+='<div class="mono" style="font-size:11px;line-height:1.7;color:#9a9a9a">';
+      H+='<div>schema: <b style="color:'+TEAL+'">'+esc2(rec.schema||'szl.mosaic.receipt/v1')+'</b></div>';
+      H+='<div>inputs sha256: <span style="word-break:break-all">'+esc2((rec.inputs_sha256||'').slice(0,32))+'\u2026</span></div>';
+      if(node && node.index!=null){ H+='<div>khipu node: #'+esc2(node.index)+' \u00b7 digest '+esc2(String(node.digest||'').slice(0,16))+'\u2026</div>'; }
+      H+='<div>\u039b verdict: <b style="color:'+verdictTone(verdict)+'">'+esc2(String(verdict).toUpperCase())+'</b> (Conjecture 1 \u2014 advisory)</div>';
+      H+='<div>signing: '+esc2(rec.signing||'')+'</div>';
+      H+='<div style="color:'+GOLD+';margin-top:.35rem">'+esc2(rec.khipu_consensus||'')+'</div>';
+      H+='<div style="margin-top:.35rem">'+esc2(rec.lambda_note||'')+'</div>';
+      H+='</div><details class="raw"><summary>raw /mosaic/receipt</summary><pre class="out">'+esc2(JSON.stringify(r,null,2))+'</pre></details></div>';
+      if(host) host.innerHTML=H;
+    }catch(e){
+      if(host) host.innerHTML='<div class="row mono dim" style="color:'+ERR+'">receipt unavailable: '+esc2(e.message)+' (no signature fabricated \u2014 honest)</div>';
+    }
+  };
+
+  // Render an anomaly-overlay card into `host` for a given live-tracks fetch.
+  // fetchTracks() must return an array of killinchu track objects.
+  window.mosaicOverlay = async function(hostId, fetchTracks){
+    var host = el(hostId); if(!host) return;
+    host.innerHTML='<div class="row mono dim">'+(window.liveDot?window.liveDot():'')+'scoring tracks through the SZL Mosaic anomaly engine\u2026</div>';
+    var tracks;
+    try{ tracks = await fetchTracks(); }catch(e){ tracks=null; }
+    if(!tracks || !tracks.length){
+      host.innerHTML='<div class="row mono dim">IDLE \u2014 no live tracks to score (honest empty state, no invented rows).</div>';
+      return;
+    }
+    var d = await scoreTracks(tracks);
+    if(!d){
+      host.innerHTML='<div class="row mono dim" style="color:'+WARN+'">Mosaic engine endpoint unreachable \u2014 honest fallback, no scores fabricated. (POST '+esc2(api())+'/mosaic/score)</div>';
+      return;
+    }
+    var rows = d.scored||[];
+    var deny=rows.filter(function(r){return r.lambda_verdict==='deny';}).length;
+    var adv =rows.filter(function(r){return r.lambda_verdict==='advisory';}).length;
+    var H='';
+    H+='<div class="kpis">';
+    H+='<div class="kpi"><div class="k">Tracks scored</div><div class="v live">'+rows.length+'</div><div class="d">multivariate + graph</div></div>';
+    H+='<div class="kpi"><div class="k">\u039b deny (advisory)</div><div class="v" style="color:'+ERR+'">'+deny+'</div><div class="d">human-on-the-loop</div></div>';
+    H+='<div class="kpi"><div class="k">\u039b review</div><div class="v" style="color:'+WARN+'">'+adv+'</div><div class="d">advisory band</div></div>';
+    H+='<div class="kpi"><div class="k">Engine</div><div class="v teal" style="font-size:13px">SZL-native</div><div class="d">clean-room</div></div>';
+    H+='</div>';
+    H+='<div class="card"><div class="card-h"><span class="card-t">'+(window.liveDot?window.liveDot():'')+'Anomaly overlay \u2014 per-track score, \u039b-advisory & confidence bound</span>'
+      +'<span class="card-ep">ensemble: IsolationForest + autoencoder + robust-z (+ graph)</span></div>';
+    H+='<div style="max-height:340px;overflow:auto"><table class="dtbl"><thead><tr>'
+      +'<th>track</th><th>model</th><th>side</th><th>anomaly</th><th>conf. interval</th><th>\u039b advisory</th><th>verify</th></tr></thead><tbody>';
+    rows.forEach(function(r,i){
+      var sc=r.anomaly_score, ci=r.confidence_interval||[0,0], vd=r.lambda_verdict;
+      var hid='mz-rcpt-'+i;
+      H+='<tr>'
+        +'<td class="mono">'+esc2(r.track_id)+'</td>'
+        +'<td>'+esc2(r.model||'\u2014')+'</td>'
+        +'<td><span class="badge '+(r.side==='adversary'?'b-warn':'b-teal')+'">'+esc2(r.side||'?')+'</span></td>'
+        +'<td><b style="color:'+scoreTone(sc)+'">'+sc.toFixed(3)+'</b></td>'
+        +'<td class="mono dim">['+ci[0].toFixed(2)+', '+ci[1].toFixed(2)+']</td>'
+        +'<td><span class="badge" style="color:'+verdictTone(vd)+';border:1px solid '+verdictTone(vd)+'55;background:'+verdictTone(vd)+'1a">'+esc2(String(vd).toUpperCase())+'</span></td>'
+        +'<td><button class="btn" style="font-size:10px;padding:.25rem .5rem" onclick="mosaicVerifyReceipt(\''+esc2(r.track_id)+'\','+sc+',\''+esc2(vd)+'\','+ci[0]+','+ci[1]+',\''+hid+'\')">verify receipt</button></td>'
+        +'</tr><tr><td colspan="7" style="padding:0"><div id="'+hid+'"></div></td></tr>';
+    });
+    H+='</tbody></table></div>';
+    H+='<div class="row mono" style="font-size:11px;line-height:1.6;color:#9a9a9a;margin-top:.5rem"><b style="color:'+GOLD+'">Honest.</b> '
+      +esc2(d.honesty||'')+'</div>';
+    H+='<details class="raw"><summary>raw /mosaic/score</summary><pre class="out">'+esc2(JSON.stringify(d,null,2))+'</pre></details></div>';
+    host.innerHTML=H;
+  };
+
+  // Pull the live air picture as the track source for overlays.
+  async function liveAirTracks(){
+    var d = await getJSON(api()+'/threats/active');
+    return (d&&d.threats)?d.threats:[];
+  }
+
+  function regWhenReady(){
+    var V=(typeof VIEWS!=='undefined')?VIEWS:window.VIEWS;
+    if(!V){ return setTimeout(regWhenReady, 90); }
+
+    // ---- (1) ELEVATE existing views: append an anomaly overlay after they render.
+    function wrapView(key, hostSuffix, tracksFn){
+      if(!V[key] || V[key].__mosaicWrapped) return;
+      var orig = V[key].render;
+      V[key].__mosaicWrapped = true;
+      V[key].render = function(c){
+        var r = orig.call(this, c);
+        try{
+          var ov = document.createElement('div');
+          ov.className='card'; ov.style.borderColor='var(--teal-line)'; ov.style.marginTop='.8rem';
+          var oid='mz-overlay-'+key;
+          ov.innerHTML='<div class="card-h"><span class="card-t">\u2726 Mosaic anomaly overlay</span>'
+            +'<span class="card-ep">SZL-native engine \u00b7 \u039b advisory (Conjecture 1) \u00b7 click "verify receipt"</span></div>'
+            +'<div id="'+oid+'"><div class="row mono dim">initialising\u2026</div></div>';
+          c.appendChild(ov);
+          window.mosaicOverlay(oid, tracksFn);
+        }catch(e){}
+        return r;
+      };
+    }
+    wrapView('tracks', 'tracks', liveAirTracks);
+    wrapView('fusion', 'fusion', liveAirTracks);
+    wrapView('threats', 'threats', liveAirTracks);
+
+    // ---- (2) NEW VIEW: Mosaic / Domain-Superiority (the Common Operating Picture).
+    function renderMosaic(c){
+      var H='';
+      H+='<div class="kpis">';
+      H+='<div class="kpi"><div class="k">Capability</div><div class="v teal" style="font-size:13px">DTID \u2192 COP</div><div class="d">detect\u2192characterize\u2192warn\u2192fuse</div></div>';
+      H+='<div class="kpi"><div class="k">\u039b gate</div><div class="v teal">Conjecture 1</div><div class="d">advisory, not proven</div></div>';
+      H+='<div class="kpi"><div class="k">Consensus</div><div class="v teal" style="font-size:13px">Khipu BFT</div><div class="d">3-of-4 \u00b7 Conjecture 2</div></div>';
+      H+='<div class="kpi"><div class="k">Space domain</div><div class="v" style="color:'+GOLD+';font-size:13px">ROADMAP</div><div class="d">today = drone/vessel</div></div>';
+      H+='</div>';
+
+      // attribution banner (cite-never-plagiarize)
+      H+='<div class="card" style="border-color:'+GOLD+'33"><div class="mono" style="font-size:11px;line-height:1.7;color:#9a9a9a">'
+        +'<b style="color:'+GOLD+'">Attribution.</b> SZL\u2019s sovereign Common Operating Picture, '
+        +'<b>inspired by the publicly-described capability</b> of True Anomaly Inc.\u2019s \u201cMosaic\u201d space-superiority platform '
+        +'(<a href="https://www.trueanomaly.space/mosaic" target="_blank" rel="noopener" style="color:'+TEAL+'">trueanomaly.space/mosaic</a>). '
+        +'<b>Clean-room</b>: no proprietary Mosaic code or assets were seen or copied. The anomaly engine is SZL-native, '
+        +'built from the permissive lineage (PyOD BSD-2, Merlion BSD-3, TODS Apache-2, tsod MIT, GDN MIT, PyGOD BSD-2, python-sgp4 MIT); '
+        +'alibi-detect (BSL-1.1) is deliberately NOT used.</div></div>';
+
+      // fused domains COP
+      H+='<div class="card"><div class="card-h"><span class="card-t">'+(window.liveDot?window.liveDot():'')+'Common Operating Picture \u2014 fused domains</span>'
+        +'<span class="card-ep" id="mz-cop-ep">resolving /mosaic/cop\u2026</span></div>'
+        +'<div id="mz-cop-domains" class="mono" style="font-size:12px;line-height:1.9">loading\u2026</div></div>';
+
+      // live anomaly overlay over the air picture
+      H+='<div class="card"><div class="card-h"><span class="card-t">Anomaly overlay \u2014 live air picture</span>'
+        +'<span class="card-ep">multivariate + graph \u00b7 \u039b advisory \u00b7 verify receipt</span></div>'
+        +'<div id="mz-cop-overlay"><div class="row mono dim">scoring\u2026</div></div></div>';
+
+      // SDA / orbit ROADMAP stub
+      H+='<div class="card" style="border-color:'+GOLD+'33"><div class="card-h"><span class="card-t">Space Domain Awareness \u2014 SGP4 conjunction</span>'
+        +'<span class="card-ep" style="color:'+GOLD+'">ROADMAP \u00b7 python-sgp4 \u00b7 clearly labelled</span></div>'
+        +'<div id="mz-sda" class="mono" style="font-size:12px;line-height:1.8">resolving /mosaic/sda/conjunction\u2026</div></div>';
+
+      // FE-NO hull-stress estimate for a flagged vessel
+      H+='<div class="card"><div class="card-h"><span class="card-t">Structural check \u2014 flagged-vessel hull stress</span>'
+        +'<span class="card-ep">FE-NO-cited ESTIMATE</span></div>'
+        +'<div class="btns"><button class="btn teal" onclick="mosaicHull()">\u25b6 Estimate hull-girder stress (flagged vessel)</button></div>'
+        +'<div id="mz-hull" class="mono dim" style="font-size:12px;line-height:1.7;margin-top:.4rem">'
+        +'A fast Euler-Bernoulli hull-girder ESTIMATE for a flagged vessel. The canonical receipt-verified solve is the '
+        +'SZL FE-NO solid-mechanics vertical (platform: services/verticals/szl_mechanics; clean-room non-overlapping Schwarz '
+        +'FE-NO, method <a href="https://arxiv.org/abs/2606.08796" target="_blank" rel="noopener" style="color:'+TEAL+'">arXiv:2606.08796</a>, CC BY 4.0).</div></div>';
+
+      H+='<div class="honesty"><b>Honest by design.</b> The Common Operating Picture fuses the LIVE air + maritime boards with the '
+        +'SZL-native anomaly overlay. Anomaly scores are <b>ESTIMATES</b> with a bounded conformal confidence interval; \u039b is '
+        +'<b>Conjecture 1</b> (advisory allow/advisory/deny, never proven trust). Detections tie to <b>Khipu BFT 3-of-4</b> consensus '
+        +'(<b>Conjecture 2</b>, proposed-not-proven) and emit a DSSE receipt (real ECDSA-P256 when the cosign key is provisioned, else '
+        +'an honest placeholder \u2014 never fabricated). The <b>space-domain SGP4</b> surface is a clearly-labelled <b>ROADMAP</b> stub \u2014 '
+        +'killinchu today is counter-UAS / drone / vessel; effectors are <b>SIMULATED</b>.</div>';
+      c.innerHTML=H;
+
+      // wire the COP + SDA + overlay
+      (async function(){
+        try{
+          var cop = await getJSON(api()+'/mosaic/cop');
+          var dom=cop.domains||{}; var out='';
+          Object.keys(dom).forEach(function(k){
+            var v=dom[k]; var col=(v.status==='ROADMAP')?GOLD:TEAL;
+            out+='<div>\u25c8 <b style="color:'+col+'">'+esc2(k.toUpperCase())+'</b> \u2014 '+esc2(v.status)+' \u00b7 '+esc2(v.reality)+'</div>';
+          });
+          setHTML('mz-cop-domains', out||'<span class="dim">no domains</span>');
+          var ep=el('mz-cop-ep'); if(ep) ep.textContent='live /mosaic/cop';
+        }catch(e){ setHTML('mz-cop-domains','<span class="dim" style="color:'+WARN+'">COP endpoint unreachable \u2014 honest fallback.</span>'); }
+      })();
+      window.mosaicOverlay('mz-cop-overlay', liveAirTracks);
+      (async function(){
+        try{
+          var s = await getJSON(api()+'/mosaic/sda/conjunction');
+          var sep=(s.instant_separation_km!=null)?(s.instant_separation_km+' km'):'\u2014';
+          var H2='<div>engine: <b style="color:'+TEAL+'">'+esc2(s.engine||'')+'</b></div>';
+          H2+='<div>objects: '+esc2((s.objects||[]).join(' \u00b7 '))+'</div>';
+          H2+='<div>instant separation: <b>'+esc2(sep)+'</b></div>';
+          H2+='<div style="color:'+GOLD+';margin-top:.35rem">'+esc2(s.status||'')+'</div>';
+          H2+='<div style="margin-top:.35rem">'+esc2(s.honesty||'')+'</div>';
+          setHTML('mz-sda', H2);
+        }catch(e){ setHTML('mz-sda','<span class="dim" style="color:'+WARN+'">SDA stub unreachable \u2014 honest fallback.</span>'); }
+      })();
+    }
+    window.mosaicHull = async function(){
+      var host=el('mz-hull'); if(host) host.innerHTML='estimating\u2026';
+      try{
+        var d = await postJSON(api()+'/mosaic/hull-stress', {loa_m:294,beam_m:32,draft_m:11,displacement_t:98000,wave_factor:1.3});
+        var col=(d.band==='advisory-overstress')?ERR:(d.band==='watch')?WARN:TEAL;
+        var H='<div>model: '+esc2(d.model)+'</div>';
+        H+='<div>bending moment: <b>'+esc2(d.bending_moment_MN_m)+' MN\u00b7m</b> \u00b7 section modulus '+esc2(d.section_modulus_m3)+' m\u00b3</div>';
+        H+='<div>max bending stress: <b style="color:'+col+'">'+esc2(d.max_bending_stress_MPa)+' MPa</b> (yield ref '+esc2(d.yield_ref_MPa)+' MPa)</div>';
+        H+='<div>utilisation: <b style="color:'+col+'">'+esc2(d.utilisation)+'</b> \u2192 <b style="color:'+col+'">'+esc2(String(d.band).toUpperCase())+'</b></div>';
+        H+='<div style="color:'+GOLD+';margin-top:.35rem">'+esc2(d.honesty)+'</div>';
+        if(host) host.innerHTML=H;
+      }catch(e){ if(host) host.innerHTML='<span style="color:'+WARN+'">hull-stress endpoint unreachable \u2014 honest fallback ('+esc2(e.message)+').</span>'; }
+    };
+
+    V.mosaic = {
+      title:'Mosaic / Domain-Superiority',
+      badge:'COMMON OPERATING PICTURE \u00b7 ANOMALY \u00b7 SDA ROADMAP',
+      sub:'SZL\u2019s sovereign Common Operating Picture \u2014 fused air + maritime tracks with a live <b>SZL-native anomaly overlay</b> (multivariate + graph), a \u039b-advisory verdict (allow/advisory/deny, <b>Conjecture 1</b>), and a one-click <b>signed-receipt</b> verifier. Includes the space-domain <b>SGP4 conjunction ROADMAP</b> stub (clearly labelled \u2014 today\u2019s reality is counter-UAS / drone / vessel) and an FE-NO-cited hull-stress estimate. Inspired by True Anomaly\u2019s Mosaic capability; clean-room engine, no proprietary code.',
+      render: renderMosaic
+    };
+    window.VIEWS=V;
+
+    // ---- inject the nav item next to the existing track board.
+    if(!document.getElementById('kc-nav-mosaic')){
+      var anchor = document.querySelector('.nav-item[data-view="u_fusion"]')
+                || document.querySelector('.nav-item[data-view="tracks"]');
+      if(anchor){
+        var p=document.createElement('div');
+        p.id='kc-nav-mosaic'; p.className='nav-item'; p.setAttribute('data-view','mosaic');
+        p.setAttribute('onclick',"go('mosaic')");
+        p.setAttribute('title','Mosaic / Domain-Superiority: SZL\u2019s sovereign Common Operating Picture \u2014 fused multi-sensor tracks + SZL-native anomaly overlay (\u039b advisory, Conjecture 1) + signed-receipt verifier + SGP4 space-domain ROADMAP stub. Inspired by True Anomaly Mosaic\u2019s public capability; clean-room. Effectors simulated.');
+        p.innerHTML='<span class="ico">\u2726</span>Mosaic / Domain-Superiority';
+        anchor.parentNode.insertBefore(p, anchor.nextSibling);
+      }
+    }
+    try{ console.log('[killinchu] Mosaic elevation registered: mosaic view + anomaly overlay on tracks/fusion/threats'); }catch(e){}
+  }
+  regWhenReady();
+})();
+</script>
+
 </body>
 </html>
 """

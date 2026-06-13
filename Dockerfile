@@ -94,6 +94,13 @@ COPY szl_live_wires.py live_wires.html live_wires_3d.js szl_rosie_companion.py k
 COPY szl_killinchu_cookbook.py szl_uds_hardening.py killinchu_fusion.py szl_v4_fleet.py szl_ken.py killinchu_frontier_patch.py killinchu_drone_routes.py killinchu_parity.py killinchu_cannonico.py killinchu_elite_console.py _vendor_blobs.py killinchu_fleet_vessels.py killinchu_maritime_risk.py killinchu_maritime_intel.py killinchu_maritime_view.py killinchu_live_feeds.py killinchu_feeds_realdata.py killinchu_asw.py killinchu_anatomy.py killinchu_health_twin.py fleet_vessels_data.json killinchu_beyond.py szl_khipu_consensus.py killinchu_formula_endpoints.py killinchu_edge_formulas.py ./
 COPY killinchu_edge_console.py szl_agentic_loop.py szl_anatomy_routes.py szl_formula_wiring.py a11oy_code_engine.py killinchu_ops_control.py szl_llm_registry.py szl_alloy_models.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py killinchu_mined_ops.py killinchu_resweep_ops.py killinchu_wave910.py killinchu_posture_topology.py szl_connectors_serve.py szl_connector_mcp.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_chain_of_title.py ./
 
+# ADDITIVE (Mosaic SDA elevation, 2026-06-13): SZL's sovereign Mosaic / Domain-
+# Superiority organ. killinchu_mosaic.py imports szl_mosaic_core.py (the vendored
+# clean-room anomaly/SDA engine). serve.py imports killinchu_mosaic via try/except;
+# without these per-file COPYs (this Dockerfile never uses `COPY . .`) the import
+# fails and the /api/killinchu/v1/mosaic/* endpoints + the Mosaic COP tab 404.
+COPY killinchu_mosaic.py szl_mosaic_core.py ./
+
 # ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
 # knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to
 # a11oy's knowledge.json. serve.py serves it at /knowledge.json so the /elite
@@ -160,6 +167,11 @@ EXPOSE 7860
 # + optional sqlite-vss vector recall (szl_unay degrades to honest cosine-fallback if
 # the extension cannot load in the slim image). Never affects existing routes.
 RUN pip install --no-cache-dir "lmdb>=1.4.0" "sqlite-vss>=0.1.2"
+# ADDITIVE (Mosaic SDA elevation, 2026-06-13): python-sgp4 (MIT) is the sovereign
+# orbital propagator for the space-domain ROADMAP conjunction stub. Guarded with
+# `|| true` so a wheel/build hiccup never breaks the image — killinchu_mosaic falls
+# back to an honest ROADMAP SKELETON when sgp4 is absent (no conjunction fabricated).
+RUN pip install --no-cache-dir "sgp4>=2.20" || true
 # ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay / Perplexity Computer Agent):
 # explicit per-file COPY (this Dockerfile does not use `COPY . .`). serve.py imports
 # szl_unay_routes and calls .register(app, ns="killinchu") -> /api/killinchu/v2/unay/* +
