@@ -763,37 +763,6 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 .frow .txt{color:var(--paragraph);flex:1;}
 .spacer{margin-left:auto;}
 
-/* ── INVESTOR-GRADE QA POLISH (polish/elite-investor-grade) — additive only.
-   Honest loading skeletons (never a blank panel), a one-line "what this shows"
-   context strip, and an honest "feed warming / simulated over real signatures"
-   degrade badge. Doctrine v11: nothing fabricated; a dark feed shows a LABELLED
-   state, never invented rows. Pure presentation; touches no route, no data. ── */
-@keyframes kxShimmer{0%{background-position:-420px 0;}100%{background-position:420px 0;}}
-.kx-skel-wrap{margin:.2rem 0 .4rem;}
-.kx-skel{height:13px;border-radius:6px;margin:.5rem 0;
-  background:linear-gradient(90deg,rgba(201,183,135,.05) 0%,rgba(201,183,135,.16) 50%,rgba(201,183,135,.05) 100%);
-  background-size:840px 100%;animation:kxShimmer 1.25s ease-in-out infinite;}
-.kx-skel.kpi{height:64px;border-radius:10px;border:1px solid var(--gold-line);}
-.kx-skel.tall{height:230px;border-radius:11px;border:1px solid var(--gold-line);}
-.kx-skel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin:.2rem 0 .8rem;}
-.kx-skel-cap{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.04em;display:flex;align-items:center;gap:.45rem;margin:.2rem 0 .1rem;}
-.kx-skel-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);animation:pulse 1.1s ease-in-out infinite;}
-/* one-line "what am I looking at" context strip — investor orientation */
-.kx-ctx{display:flex;align-items:flex-start;gap:.55rem;margin:0 0 1rem;padding:.5rem .8rem;
-  border:1px solid var(--teal-line);border-left:3px solid var(--teal);border-radius:9px;
-  background:var(--teal-soft);font-size:12px;line-height:1.55;color:var(--paragraph);max-width:62rem;}
-.kx-ctx .kx-ctx-ico{flex:none;color:var(--teal);font-size:13px;margin-top:1px;}
-.kx-ctx b{color:var(--cream);font-weight:600;}
-/* honest degrade / simulated badge — never a silent empty panel */
-.kx-warming{display:flex;align-items:center;gap:.6rem;margin:.4rem 0;padding:.7rem .95rem;
-  border:1px solid var(--gold-line);border-radius:10px;background:var(--gold-soft);
-  font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.6;}
-.kx-warming .kx-warming-dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--warn);
-  box-shadow:0 0 0 0 rgba(201,160,95,.5);animation:kxWarm 1.6s ease-out infinite;}
-@keyframes kxWarm{0%{box-shadow:0 0 0 0 rgba(201,160,95,.5);}70%{box-shadow:0 0 0 9px rgba(201,160,95,0);}100%{box-shadow:0 0 0 0 rgba(201,160,95,0);}}
-.kx-warming b{color:var(--gold);}
-.kx-warming .kx-warming-sim{color:var(--teal);}
-
 </style>
 </head>
 <body>
@@ -7986,22 +7955,9 @@ function go(view){
   const v = VIEWS[view];
   if(!v){return;}
   const c = el('content');
-  // INVESTOR POLISH (additive): a concise, scannable "what this shows" context strip
-  // is rendered as PERSISTENT chrome between the sub-text and #vbody (the view's own
-  // render only touches #vbody, so it survives every render). Honest one-liner per view.
-  var _ctx='';
-  try{ _ctx=(window.__kxCtx&&window.__kxCtx(view))||''; }catch(_c){}
-  c.innerHTML=`<div class="view-head"><h1 class="view-title">${esc(v.title)}</h1><span class="view-badge">${esc(v.badge)}</span></div><p class="view-sub">${v.sub}</p>${_ctx}<div id="vbody"></div>`;
-  var _vb=el('vbody');
-  // Paint a loading skeleton BEFORE the view renders, so a slow/async feed never shows
-  // a blank panel. The view's own render() overwrites #vbody as before (a sync render
-  // simply replaces the skeleton in the same frame — no regression).
-  try{ window.__kxPrime&&window.__kxPrime(_vb, view); }catch(_p){}
-  v.render(_vb);
+  c.innerHTML=`<div class="view-head"><h1 class="view-title">${esc(v.title)}</h1><span class="view-badge">${esc(v.badge)}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
+  v.render(el('vbody'));
   try{ window.__renderResearch&&window.__renderResearch(el('vbody'), view); }catch(_r){}
-  // If the feed is genuinely dark, swap the skeleton for an HONEST "feed warming /
-  // simulated over real signatures" badge instead of leaving an empty panel.
-  try{ window.__kxEmptyGuard&&window.__kxEmptyGuard('vbody', view); }catch(_g){}
   if(history.replaceState) history.replaceState(null,'','#'+view);
   if(window.innerWidth<=820) toggleSide(false);
   // re-fit any viz the view just mounted to its clamp()'d container (centered, in-frame)
@@ -10628,182 +10584,6 @@ go(VIEWS[start]?start:'tracks');
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
 })();
 </script>
-<script>
-/* ══════════════════════════════════════════════════════════════════
-   INVESTOR-GRADE QA POLISH LAYER (polish/elite-investor-grade) — ADDITIVE ONLY.
-   Provides three honest presentation helpers consumed by go() and subview():
-     __kxCtx(view)        one-line "what this shows" orientation strip (investor eyes)
-     __kxPrime(node)      an honest loading skeleton (never a blank panel)
-     __kxEmptyGuard(id)   if a feed is genuinely dark, swap the skeleton for an honest
-                          "feed warming / simulated over real signatures" badge — never
-                          a silent empty panel, never fabricated rows (doctrine v11).
-   Touches no route, no data, no existing render fn. Pure DOM presentation. If any
-   helper throws it is swallowed at the call-site, so the console degrades to its
-   prior behaviour — it can only add clarity, never remove a working view.
-   ══════════════════════════════════════════════════════════════════ */
-(function(){
-  function kxEsc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
-
-  /* Honest, investor-legible one-liner per view. "What am I looking at" + the honest
-     data posture (LIVE free feed / real compute / cited leaders / SIMULATED effector).
-     Keyed by both top-level nav view ids and consolidated sub-view keys. Anything not
-     listed falls back to a data-class default below — so every view gets a strip. */
-  var KXCTX={
-    // FRONTIER / WARHACKER
-    hero_interdiction:'A live counter-UAS decision becomes a DSSE-signed Λ-receipt that traces to a machine-checked Lean theorem. <b>Λ is advisory (Conjecture 1)</b>; the effector is SIMULATED.',
-    fleet_c2:'Live military ADS-B + AIS vessels on a 3D globe. The picture is real; the governed C2 link to an effector is <b>SIMULATED</b>.',
-    tamper_demo:'Tamper one signed receipt and watch the SHA-256 hash-chain visibly reject it. Tamper-evidence is axiom-gated on collision-resistance.',
-    determinism_demo:'The same governed decision run 5× returns byte-identical Merkle roots. Honest label: axiom A5, maturity <b>measured</b> — observed, not a theorem.',
-    uds_package:'killinchu expressed as a UDS-pattern package with Lula/OSCAL claims-with-evidence against NIST 800-53. Honest posture — <b>not an ATO</b>.',
-    u_warhacker:'27 maritime / drone / counter-UAS demos plus a proofs board showing nominal-vs-tamper diffs on real signed evidence.',
-    readiness:'Deployed-vs-repo truth read live from the app, GitHub and Hugging Face. Every value is labelled <b>live / cached / unreachable</b> — nothing fabricated.',
-    // MARITIME / NAVY
-    u_maritime:'The live sea picture from Digitraffic Finland AIS, with WEZ rings and dark-vessel screening. Sanction flags are heuristic (advisory).',
-    u_fleet:'Fleet operations and a 3D health twin computed over the live vessel feed — overview, maintenance, logs, voyages and briefings.',
-    tracks:'A PPI radar scope built from the live air/sea picture. Some track positions are <b>simulated over real adversary signatures</b> — not a live sensor.',
-    livepic:'The live common operating picture: military ADS-B + AIS, auto-recording. Some positions are <b>simulated over real signatures</b>.',
-    u_space:'A 3D LEO constellation globe, GEOINT collection planning and the live USGS seismic-forecast globe.',
-    u_darkgraph:'A 3D force-directed threat graph plus the 53-class drone database and transparent threat ranking. Ranking is heuristic (advisory).',
-    // COUNTER-UAS / ARMY-MARINES
-    amaru_counter_uas:'Live open-web counter-UAS / drone-incident reporting, normalized and sha256 provenance-stamped. Fields are <b>third-party claims</b>, not attested truth.',
-    u_swarm:'Live coordinated-swarm formation topology (3D) and a perturbation-recovery resilience monitor.',
-    swarm_intent:'A swarm-intent classifier scored over the <b>live</b> ADS-B stream: CONVERGING / LOITER / INGRESS / TRANSIT. <b>Model-scored over real data</b> — advisory.',
-    u_engage:'The governed engagement loop — ROE, geofence, autonomy governance. The loop is real; kinetic stays human-in-the-loop and the <b>effector is SIMULATED</b>.',
-    u_fusion:'Multi-sensor track fusion with a proved Covariance-Intersection core; fused confidence is capped below 1.0 — trust is never 100%.',
-    operate:'Issue a governed command, clear the real Λ-gate and emit a genuinely-signed receipt. The <b>effector link is a command demonstration, SIMULATED</b>.',
-    u_minedops:'Field-efficiency ops — edge VRAM estimation, telemetry memory, adaptive sampling and survivable routing. Clean-room re-implementations; advisory.',
-    // INTEL & PROVENANCE
-    amaru_naval:'Live maritime / naval OSINT — dark-fleet, sanctions, port advisories — normalized and provenance-stamped. Sanction flags are heuristic (advisory).',
-    amaru_procurement:'Live DoD / SBIR procurement signals, normalized and provenance-stamped. Dollar amounts are extracted from third-party text (claims).',
-    amaru_advisories:'Live cyber / supply-chain advisories, normalized and provenance-stamped. Severity and CVE tags are heuristic (advisory).',
-    amaru_geopolitical:'Live geopolitical / conflict reporting on a timeline, normalized and provenance-stamped. Third-party claims, not attested truth.',
-    u_intel:'Live CISA Known-Exploited Vulnerabilities, NVD CVEs and MITRE ATT&amp;CK technique mapping — cited leader feeds, labelled live / cached.',
-    rosie_digest:'The Operator ranks the whole OSINT corpus into a cross-vertical digest with a reproducible replay hash. Ranking is deterministic.',
-    rosie_routing:'The Operator routes each ingested item to a defense vertical with a confidence score. <b>Heuristic, advisory</b> — not a proven classifier.',
-    rosie_entities:'The Operator extracts entities and renders a relationship graph from the corpus. Extraction is heuristic (advisory).',
-    rosie_correlate:'The Operator correlates the corpus against the watch picture (Section-889 vendors, watch terms). Substring correlation is advisory.',
-    rosie_watch:'A standing watchlist — term frequency over the corpus with alert thresholds. Advisory.',
-    // GOVERNED CORE / UDS
-    lambda:'The 13-axis trust-score monitor. <b>Λ = Conjecture 1</b> — advisory, not a proven theorem.',
-    u_consensus:'3-of-4 multi-witness consensus and mesh resilience. <b>Byzantine BFT safety = Conjecture 2 (OPEN)</b>; a conditional agreement theorem is proven (Wave23).',
-    mesh_resilience:'A live Fiedler λ2 algebraic-connectivity monitor over the real C2 topology, with an in-browser node-removal resilience sweep.',
-    retask_board:'Live PSI / KS / ADWIN drift on the ADS-B telemetry raises re-tasking recommendations bound to the triggering detector. Advisory; effector SIMULATED.',
-    u_posture:'Runtime assurance — real drift, graph metrics, the attack-surface graph and the zero-trust mesh, all from real telemetry and the real UDS CR. Honest empty states.',
-    u_receipts:'The live signed-receipt chain (3D) and quantum-safe signing posture. Receipts are genuinely DSSE-signed; no signature is fabricated.',
-    u_proofs:'The knowledge &amp; formula registry — exactly <b>8 locked-proven</b> formulas; <b>Λ = Conjecture 1</b>. Theorem cards show verbatim Lean #print axioms.',
-    putnam:'An honest count of REAL Lean-kernel-checked theorems for the Putnam 2025 set. DEMO files compile but use sorry; SZL-native originals are pending upstream.',
-    u_melt:'Λ-signed MELT observability (metrics / events / logs / traces) and the living-organism service graph (3D).',
-    living_anatomy:'a11oy + killinchu rendered as one governed organism in 3D, with the proven formula in each organ.',
-    u_about:'What we honestly claim, the cited research corpus (NIST / MITRE / CISA) and the legal boundaries. SLSA L2 build-attestation present; L3 = roadmap.',
-    // COUNTER-UAS C2 LAB (experimental)
-    cuas_intercept:'A proportional-navigation intercept-feasibility solver. <b>Effector SIMULATED</b> — it computes feasibility and never actuates.',
-    cuas_spoof:'A GNSS-spoofing plausibility chi-square innovation gate. Advisory monitor, experimental tier.',
-    cuas_fusion:'Covariance-Intersection track fusion; fused confidence is capped below 1.0 — trust is never 100%. Experimental tier.',
-    cuas_swarm:'Urgency-weighted graph-Laplacian swarm consensus as a living 3D galaxy. <b>Conjecture 2 (OPEN)</b>.',
-    cuas_triage:'Greedy weapon-target-assignment triage maximizing expected destroyed value. <b>Effector SIMULATED</b> — it ranks and allocates, never fires.',
-    cuas_pq:'A post-quantum SHA3-256 hash-chain receipt bus (FIPS 203/204/205). Signature is a <b>PROXY</b> until an oqs key is provisioned. Experimental tier.',
-    scaling:'Allometric scaling — Kleiber’s law, lifetime-heartbeats, a PROPOSED SZL-Φ unification. <b>SZL-Φ is proposed, not the formal Λ</b>; Λ stays Conjecture 1.'
-  };
-  // Honest defaults by data posture for any view not explicitly mapped.
-  var KXCTX_DEFAULT={
-    'live-feed':'Reads a free, no-key public feed live and labels it <b>live / cached / unreachable</b> — a dark feed degrades honestly, never to invented data.',
-    'real-compute':'Real math computed over live telemetry. Results are advisory, not a proven guarantee.',
-    'leader-cited':'Grounded in cited leader standards (NIST / MITRE / CISA) — no fabricated figures.',
-    'signed-loop':'A real DSSE-signed governance loop — receipts are genuinely signed; no signature is fabricated.',
-    'SIMULATED':'<b>Effector SIMULATED</b> by doctrine v11 — killinchu computes feasibility and emits signed receipts, but never actuates a real kinetic effect.'
-  };
-  // Minimal honest data-class lookup mirrored from killinchu_elite_wiring.py (display only).
-  var KXCLASS={hero_interdiction:'signed-loop',fleet_c2:'live-feed',tamper_demo:'signed-loop',determinism_demo:'signed-loop',uds_package:'leader-cited',u_warhacker:'real-compute',readiness:'live-feed',u_maritime:'live-feed',u_fleet:'live-feed',tracks:'real-compute',livepic:'live-feed',u_space:'live-feed',u_darkgraph:'live-feed',amaru_counter_uas:'live-feed',u_swarm:'real-compute',swarm_intent:'real-compute',u_engage:'signed-loop',u_fusion:'real-compute',operate:'SIMULATED',u_minedops:'real-compute',amaru_naval:'live-feed',amaru_procurement:'live-feed',amaru_advisories:'live-feed',amaru_geopolitical:'live-feed',u_intel:'live-feed',rosie_digest:'live-feed',rosie_routing:'real-compute',rosie_entities:'real-compute',rosie_correlate:'real-compute',rosie_watch:'real-compute',lambda:'real-compute',u_consensus:'real-compute',mesh_resilience:'real-compute',retask_board:'real-compute',u_posture:'leader-cited',u_receipts:'signed-loop',u_proofs:'leader-cited',putnam:'leader-cited',u_melt:'real-compute',living_anatomy:'real-compute',u_about:'leader-cited',cuas_intercept:'SIMULATED',cuas_spoof:'real-compute',cuas_fusion:'real-compute',cuas_swarm:'real-compute',cuas_triage:'SIMULATED',cuas_pq:'signed-loop',scaling:'leader-cited'};
-
-  window.__kxCtx=function(view){
-    try{
-      var txt=KXCTX[view];
-      if(!txt){ var cls=KXCLASS[view]; txt=cls?KXCTX_DEFAULT[cls]:null; }
-      if(!txt) return '';
-      return '<div class="kx-ctx"><span class="kx-ctx-ico">&#9432;</span><span><b>What this shows:</b> '+txt+'</span></div>';
-    }catch(e){ return ''; }
-  };
-
-  // Honest loading skeleton: a KPI row + a tall panel placeholder + a captioned
-  // "reading live feed…" line. Replaced the moment the real render paints.
-  window.__kxPrime=function(node, view){
-    try{
-      if(!node) return;
-      var cls=KXCLASS[view]||'';
-      var cap=(cls==='SIMULATED')?'computing feasibility (effector simulated)…'
-             :(cls==='live-feed')?'reading live feed…'
-             :(cls==='leader-cited')?'loading cited sources…'
-             :(cls==='signed-loop')?'building signed loop…':'computing…';
-      node.innerHTML='<div class="kx-skel-wrap" data-kx-skel="1">'
-        +'<div class="kx-skel-cap"><span class="kx-skel-dot"></span>'+kxEsc(cap)+'</div>'
-        +'<div class="kx-skel-grid"><div class="kx-skel kpi"></div><div class="kx-skel kpi"></div><div class="kx-skel kpi"></div><div class="kx-skel kpi"></div></div>'
-        +'<div class="kx-skel tall"></div>'
-        +'<div class="kx-skel" style="width:62%"></div><div class="kx-skel" style="width:44%"></div>'
-        +'</div>';
-    }catch(e){}
-  };
-
-  // A node is "still empty" if it has no element children OR only our skeleton remains.
-  function kxStillEmpty(node){
-    if(!node) return false;
-    var kids=node.children||[];
-    if(kids.length===0) return true;
-    if(kids.length===1 && kids[0].getAttribute && kids[0].getAttribute('data-kx-skel')==='1') return true;
-    // a single empty wrapper with no rendered text and no canvas/svg/table
-    if(kids.length===1){
-      var k=kids[0];
-      var hasViz=k.querySelector&&k.querySelector('canvas,svg,table,.card,.kpi,img,a,pre,details');
-      if(!hasViz && !(k.textContent||'').trim()) return true;
-    }
-    return false;
-  }
-
-  // If, after a grace period, the body is still empty, the feed is genuinely dark.
-  // Show an HONEST "feed warming / simulated over real signatures" badge — never a
-  // blank panel, never fabricated rows. Always offers a manual retry into the view.
-  window.__kxEmptyGuard=function(bodyId, view){
-    try{
-      setTimeout(function(){
-        var node=document.getElementById(bodyId);
-        if(!node) return;                 // navigated away
-        if(!kxStillEmpty(node)) return;   // the real render painted — good, do nothing
-        var cls=KXCLASS[view]||'';
-        var sim=(cls==='SIMULATED');
-        var line=sim
-          ? 'This is a <span class="kx-warming-sim">SIMULATED</span> feasibility surface — it is <b>warming up</b>. killinchu computes feasibility and emits signed receipts here; it never actuates a real kinetic effect.'
-          : (cls==='live-feed')
-            ? 'The live feed is <b>warming up or currently dark</b>. By doctrine v11 this panel shows a labelled state rather than fabricated rows — positions, when shown, are <span class="kx-warming-sim">simulated over real adversary signatures</span>, not a live sensor.'
-            : 'This surface is <b>warming up</b>. By doctrine v11 it shows a labelled state rather than invented data — it will populate the moment its feed answers.';
-        node.innerHTML='<div class="kx-warming"><span class="kx-warming-dot"></span>'
-          +'<span>'+line+' '
-          +'<a href="#" onclick="try{go(\''+kxEsc(view)+'\');}catch(e){};return false;" style="color:var(--gold);text-decoration:underline">retry</a></span></div>';
-      }, 1500);
-    }catch(e){}
-  };
-
-  // Wrap the consolidated sub-view renderer so every sub-view gets the same honest
-  // skeleton + dark-feed guard. Idempotent; preserves the original behaviour exactly.
-  function wrapSubview(){
-    if(typeof window.subview!=='function' || window.__kxSubWrapped) return;
-    var orig=window.subview;
-    window.subview=function(surfaceKey, viewKey){
-      try{ orig.apply(this, arguments); }catch(e){ try{ orig(surfaceKey, viewKey); }catch(_){} }
-      try{
-        var innerId='sub-inner-'+surfaceKey;
-        // prime a skeleton immediately if the inner is still empty this frame
-        var inner=document.getElementById(innerId);
-        if(inner && (inner.children.length===0)){ window.__kxPrime(inner, viewKey); }
-        // and guard for a genuinely-dark sub-feed
-        window.__kxEmptyGuard(innerId, viewKey);
-      }catch(e){}
-    };
-    window.__kxSubWrapped=true;
-  }
-  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',wrapSubview); }
-  wrapSubview();
-  setTimeout(wrapSubview, 400);  // re-attempt after later patch scripts settle
-})();
-</script>
 <style>
 /* Formula Atlas — scoped, brand-aligned, 0 CDN */
 .atlas-honest{border:1px solid var(--gold-line,rgba(201,183,135,.22));background:linear-gradient(180deg,rgba(201,183,135,.05),rgba(0,0,0,0));border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.1rem;}
@@ -10843,6 +10623,509 @@ go(VIEWS[start]?start:'tracks');
 .atlas-foot code{color:var(--teal,#5fb3a3);}
 .atlas-tier .atlas-dim{font-family:var(--mono,monospace);}
 </style>
+
+<script id="kc-wave-b-real-data">
+/* ===================================================================== *
+ * WAVE B — REAL LIVE DATA frontend (additive, post-hoc; clobbers nothing) *
+ * ===================================================================== *
+ * Surfaces REAL public sensing feeds onto the killinchu live surfaces with
+ * honest LIVE/SAMPLE pills + per-track source provenance + "as of <ts>".
+ * Codes to the Wave-A FEEDS_CONTRACT (/feeds/aircraft|vessels|remoteid,
+ * /osint/intel) and DEGRADES GRACEFULLY to the existing live feeds
+ * (/ais/live, adsb.lol, /amaru/*) so the demo is real even before Wave A
+ * lands and never fabricates a track.
+ *
+ * Doctrine v11: effector stays SIMULATED human-on-the-loop; positions are
+ * real public ADS-B/AIS; trust never 100%; never fabricate a track; label
+ * LIVE/SAMPLE truthfully; 0 runtime CDN (same-origin only).
+ * --------------------------------------------------------------------- */
+(function () {
+  'use strict';
+  if (window.__KFEED_READY) return;
+  var API_ = (typeof API !== 'undefined') ? API : (location.origin + '/api/killinchu/v1');
+
+  // ---- helpers (self-contained; do not assume console helpers exist yet) ----
+  function _esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function _jget(u,opts){
+    opts=opts||{headers:{accept:'application/json'}};
+    // bound every feed fetch so one slow upstream (e.g. OpenSky /states/all) can
+    // never hang the whole picture — it falls back / renders SAMPLE honestly.
+    var ac=null, to=null;
+    if(typeof AbortController!=='undefined'){ ac=new AbortController(); opts.signal=ac.signal;
+      to=setTimeout(function(){ try{ac.abort();}catch(e){} }, opts._tmo||11000); }
+    return fetch(u,opts).then(function(r){
+      if(to) clearTimeout(to);
+      var ct=r.headers.get('content-type')||''; if(!r.ok) throw new Error('HTTP '+r.status);
+      if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json();
+    },function(e){ if(to) clearTimeout(to); throw e; });}
+  function _ts(s){ if(!s) return '—'; try{ var d=new Date(s); if(isNaN(d)) return String(s);
+    return d.toISOString().replace('T',' ').replace(/\.\d+Z$/,'Z'); }catch(e){ return String(s); } }
+  function _ago(s){ if(!s) return ''; try{ var d=new Date(s); var ds=(Date.now()-d.getTime())/1000;
+    if(!isFinite(ds)||ds<0) return ''; if(ds<90) return Math.round(ds)+'s ago';
+    if(ds<5400) return Math.round(ds/60)+'m ago'; return Math.round(ds/3600)+'h ago'; }catch(e){ return ''; } }
+
+  // ---- THEATERS (keys MATCH the Wave-A /feeds contract exactly) ---------
+  // Wave A drives the bounding box server-side from ?theater=<key>; the client
+  // only needs the C2 hub (scope centre) to compute range/bearing for the PPI.
+  // Contract theaters: asia_pacific, baltic, china, east_china_sea, europe,
+  // global, japan, korea, south_china_sea, taiwan_strait.
+  var THEATERS = {
+    taiwan_strait:    { label:'Taiwan Strait',              hub:{lat:24.5,lon:120.0} },
+    china:            { label:'China (mainland + coastal)', hub:{lat:30.0,lon:117.0} },
+    south_china_sea:  { label:'South China Sea',            hub:{lat:15.0,lon:114.0} },
+    east_china_sea:   { label:'East China Sea',             hub:{lat:29.0,lon:125.0} },
+    asia_pacific:     { label:'Asia-Pacific (theater-wide)',hub:{lat:22.0,lon:122.0} },
+    japan:            { label:'Japan',                      hub:{lat:35.5,lon:138.0} },
+    korea:            { label:'Korea',                      hub:{lat:37.0,lon:127.5} },
+    baltic:           { label:'Baltic / Gulf of Finland',   hub:{lat:59.4,lon:24.0} },
+    europe:           { label:'Europe',                     hub:{lat:50.0,lon:15.0} },
+    global:           { label:'Global',                     hub:{lat:20.0,lon:30.0} }
+  };
+  var _theater = (function(){ try{ var s=localStorage.getItem('kc_theater'); return (s&&THEATERS[s])?s:'taiwan_strait'; }catch(e){ return 'taiwan_strait'; } })();
+  function getTheater(){ return THEATERS[_theater]||THEATERS.taiwan_strait; }
+  function setTheater(k){ if(!THEATERS[k]) return; _theater=k; try{ localStorage.setItem('kc_theater',k); }catch(e){}
+    // re-render whatever feed view is active
+    if(window.__kfeed_active) window.__kfeed_active(); }
+  window.KC_THEATERS = THEATERS;
+  window.kcSetTheater = setTheater;
+  window.kcGetTheater = getTheater;
+
+  // theater <select> markup reused across views
+  function theaterSelect(onchangeName){
+    var opts = Object.keys(THEATERS).map(function(k){
+      return '<option value="'+k+'"'+(k===_theater?' selected':'')+'>'+_esc(THEATERS[k].label)+'</option>';
+    }).join('');
+    return '<label class="mono dim" style="display:inline-flex;align-items:center;gap:.4rem">Theater'+
+      '<select onchange="'+_esc(onchangeName)+'(this.value)" style="background:#0d1320;color:#e7e9ec;border:1px solid #2a3550;border-radius:6px;padding:.34rem .55rem;font-family:var(--mono,monospace);font-size:.8rem">'+opts+'</select></label>';
+  }
+  window.kcTheaterSelect = theaterSelect;
+
+  // ---- provenance pill ---------------------------------------------------
+  // mode: 'live' (real source) | 'sample' (fell back). Always honest.
+  function provPill(mode){
+    var live = String(mode||'').toLowerCase().indexOf('live')===0;
+    var fg = live ? '#5fe39a' : '#f5b301';
+    var txt = live ? 'LIVE' : 'SAMPLE';
+    return '<span class="kc-pill" style="display:inline-block;padding:.1rem .5rem;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;font-weight:600;letter-spacing:.04em;background:'+fg+'18;color:'+fg+';border:1px solid '+fg+'55">'+
+      '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+fg+';margin-right:5px;'+(live?'box-shadow:0 0 6px '+fg:'')+'"></span>'+txt+'</span>';
+  }
+  function srcBadge(src){
+    return '<span style="display:inline-block;padding:.08rem .45rem;border-radius:6px;font-family:var(--mono,monospace);font-size:10px;background:#0e1a2e;color:#7fa8d6;border:1px solid #244065;margin:0 .2rem .2rem 0">'+_esc(src||'source')+'</span>';
+  }
+  window.kcProvPill = provPill;
+  window.kcSrcBadge = srcBadge;
+
+  // ===================================================================== *
+  //  KFEED — the real-data adapter. Each method returns a normalised
+  //  envelope: { mode:'live'|'sample', source, source_url, as_of, tracks:[],
+  //  count, note }. Every track carries {source, mode}. Prefers Wave-A
+  //  endpoints; falls back to existing live feeds; never fabricates.
+  // ===================================================================== *
+  var KFEED = window.KFEED || {};
+
+  // --- AIRCRAFT: /feeds/aircraft (Wave A, TRACK-normalized) → adsb.lol fallback
+  // Wave A drives the box from ?theater=<key>; returns {tracks, mode, live,
+  // count, source_url, fetched_at}. Each track: {track_id,label,lat,lon,alt_m,
+  // speed_mps,heading_deg,on_ground,country,kind,source,provenance,live,ts}.
+  KFEED.aircraft = function(){
+    var t = getTheater();
+    var url = API_+'/feeds/aircraft?theater='+encodeURIComponent(_theater);
+    return _jget(url).then(function(d){ return _normAir(d, t); }).catch(function(){
+      return _adsbFallback(t);
+    });
+  };
+  function _normAir(d, t){
+    var raw = d.tracks || d.aircraft || d.states || (d.data&&(d.data.tracks||d.data.aircraft)) || [];
+    var live = (d.live===true) || (String(d.mode||'').toLowerCase()==='live');
+    var src = d.source || (raw[0]&&raw[0].source) || 'OpenSky /states/all + adsb.lol /v2/mil';
+    var asof = d.fetched_at || d.as_of || d.iso || new Date().toISOString();
+    var tracks = (raw||[]).map(function(e){ return _airTrack(e, src); });
+    var withPos = tracks.filter(function(x){return x.lat!=null&&x.lon!=null;});
+    return { domain:'aircraft', mode:live?'live':'sample', source:src,
+      source_url:d.source_url||(raw[0]&&raw[0].source_url)||'https://opensky-network.org/',
+      as_of:asof, count:tracks.length, plotted:withPos.length, tracks:tracks,
+      provenance:(raw[0]&&raw[0].provenance)||'', note:d.honest||d.note||'' };
+  }
+  function _airTrack(e, src){
+    return {
+      kind:'aircraft',
+      track_id: e.track_id || e.icao24 || e.hex || e.callsign || ('AIR-'+Math.random().toString(36).slice(2,7)),
+      label: (e.label||e.callsign||e.flight||e.icao24||e.hex||'aircraft'),
+      model: (e.kind||e.label||e.callsign||e.flight||'').toString().trim()||'ADS-B contact',
+      country: e.country || e.origin_country || '',
+      lat: _n(e.lat!=null?e.lat:e.latitude), lon: _n(e.lon!=null?e.lon:e.longitude),
+      altitude_m: _n(e.alt_m!=null?e.alt_m:(e.altitude!=null?e.altitude:(e.baro_alt!=null?e.baro_alt:e.geom_alt))),
+      heading_deg: _n(e.heading_deg!=null?e.heading_deg:(e.heading!=null?e.heading:(e.track!=null?e.track:e.true_track))),
+      speed_m_s: _n(e.speed_mps!=null?e.speed_mps:(e.velocity_m_s!=null?e.velocity_m_s:(e.velocity!=null?e.velocity:(e.gs!=null?e.gs:e.speed)))),
+      on_ground: !!e.on_ground,
+      mil: !!(e.raw&&e.raw.mil),
+      source: e.source || src, provenance: e.provenance||'', _raw: e
+    };
+  }
+  // adsb.lol public REST — REAL live aircraft (ODbL), centred on the theater
+  // C2 hub. NOTE: this is a SECONDARY fallback only; the browser is usually
+  // CORS-blocked from adsb.lol, so in practice Wave-A /feeds/aircraft is the
+  // real source. We still try it (e.g. for non-CORS contexts) but degrade to
+  // an honest empty SAMPLE on failure — never fabricate.
+  function _adsbHonestEmpty(){
+    return { domain:'aircraft', mode:'sample', source:'aircraft feed unreachable', source_url:'',
+      as_of:new Date().toISOString(), count:0, tracks:[], note:'live aircraft feed (OpenSky / adsb.lol via server) did not answer — honest empty SAMPLE, never fabricated' };
+  }
+  function _adsbFallback(t){
+    // The browser is CORS-blocked from api.adsb.lol, so a direct client fetch
+    // just produces console noise + an unreachable result. The REAL aircraft
+    // source is the server-side Wave-A /feeds/aircraft (which proxies OpenSky +
+    // adsb.lol). Only try the direct call when the page is NOT cross-origin to
+    // adsb.lol (effectively never in production) — otherwise degrade honestly.
+    var allowDirect=false; // adsb.lol has no CORS headers for browsers
+    if(!allowDirect){ return Promise.resolve(_adsbHonestEmpty()); }
+    var clat=(t&&t.hub&&isFinite(t.hub.lat))?t.hub.lat:20, clon=(t&&t.hub&&isFinite(t.hub.lon))?t.hub.lon:120;
+    var rnm=250; // theater-scale radius (API max)
+    var url='https://api.adsb.lol/v2/lat/'+clat.toFixed(3)+'/lon/'+clon.toFixed(3)+'/dist/'+rnm;
+    return _jget(url).then(function(d){
+      var raw=(d.ac||d.aircraft||[]).filter(function(a){return a.lat!=null&&a.lon!=null;});
+      var tracks=raw.slice(0,120).map(function(a){ return {
+        kind:'aircraft', track_id:a.hex||a.flight||('AIR-'+Math.random().toString(36).slice(2,7)),
+        label:(a.flight||a.r||a.hex||'aircraft').trim(), model:(a.t||a.flight||'ADS-B contact'),
+        country:a.flag||'', lat:_n(a.lat), lon:_n(a.lon),
+        altitude_m:_n(a.alt_baro!=null&&a.alt_baro!=='ground'?a.alt_baro*0.3048:null),
+        heading_deg:_n(a.track!=null?a.track:a.true_heading), speed_m_s:_n(a.gs!=null?a.gs*0.514444:null),
+        on_ground:(a.alt_baro==='ground'), source:'adsb.lol (ODbL)', _raw:a }; });
+      return { domain:'aircraft', mode:tracks.length?'live':'sample', source:'adsb.lol community ADS-B (ODbL)',
+        source_url:'https://api.adsb.lol/', as_of:new Date().toISOString(), count:tracks.length, tracks:tracks,
+        note:'direct adsb.lol fallback (Wave-A /feeds/aircraft unavailable)' };
+    }).catch(function(){ return _adsbHonestEmpty(); });
+  }
+
+  // --- VESSELS: /feeds/vessels (Wave A, TRACK-normalized) → /ais/live fallback
+  // Track carries a dark_fleet ADVISORY object (computed over real AIS).
+  KFEED.vessels = function(){
+    var url=API_+'/feeds/vessels?theater='+encodeURIComponent(_theater);
+    return _jget(url).then(function(d){ return _normSea(d); }).catch(function(){
+      return _jget(API_+'/ais/live?limit=60').then(function(d){
+        var vs=((d&&d.data)||{}).vessels||[]; var live=(d&&d.mode==='live'&&vs.length);
+        var tracks=vs.filter(function(v){return v.lat!=null&&v.lon!=null;}).map(function(v){ return {
+          kind:'vessel', track_id:'ais-'+(v.mmsi||Math.random().toString(36).slice(2,7)),
+          label:(v.name&&String(v.name).trim())||('MMSI '+(v.mmsi||'?')), model:'AIS contact',
+          country:'', lat:_n(v.lat), lon:_n(v.lon), altitude_m:0,
+          heading_deg:_n(v.heading!=null&&v.heading!==511?v.heading:v.cog), speed_m_s:_n(v.sog!=null?v.sog*0.514444:null),
+          mmsi:String(v.mmsi||'—'), sog_kn:_n(v.sog), cog_deg:_n(v.cog), source:'AISStream / Digitraffic FI', _raw:v }; });
+        return { domain:'vessels', mode:live?'live':'sample', source:d.source||'Digitraffic Finland AIS (no auth)',
+          source_url:d.source_url||'https://meri.digitraffic.fi/api/ais/v1/locations', as_of:d.fetched_at||new Date().toISOString(),
+          count:tracks.length, tracks:tracks, note:'Digitraffic AIS fallback (Wave-A /feeds/vessels unavailable)' };
+      });
+    }).catch(function(){
+      return { domain:'vessels', mode:'sample', source:'vessel feed unreachable', source_url:'',
+        as_of:new Date().toISOString(), count:0, tracks:[], note:'no live AIS feed reachable — honest empty (never fabricated)' };
+    });
+  };
+  function _normSea(d){
+    var raw=d.tracks||d.vessels||(d.data&&(d.data.tracks||d.data.vessels))||[];
+    var live=(d.live===true)||(String(d.mode||'').toLowerCase()==='live');
+    var src=d.source||(raw[0]&&raw[0].source)||'AISStream.io / Digitraffic FI';
+    var asof=d.fetched_at||d.as_of||d.iso||new Date().toISOString();
+    var dark=0;
+    var tracks=(raw||[]).map(function(v){
+      var rw=v.raw||v; var df=v.dark_fleet||null; if(df&&df.flag) dark++;
+      return {
+      kind:'vessel', track_id:v.track_id||('ais:'+(rw.mmsi||v.mmsi||Math.random().toString(36).slice(2,7))),
+      label:(v.label&&String(v.label).trim())||(v.name&&String(v.name).trim())||('MMSI '+(rw.mmsi||v.mmsi||'?')), model:v.kind||v.model||'AIS contact',
+      country:v.country||v.flag||'', lat:_n(v.lat!=null?v.lat:v.latitude), lon:_n(v.lon!=null?v.lon:v.longitude),
+      altitude_m:0, heading_deg:_n(v.heading_deg!=null?v.heading_deg:(v.heading!=null?v.heading:(rw.cog_deg!=null?rw.cog_deg:v.cog))),
+      speed_m_s:_n(v.speed_mps!=null?v.speed_mps:(v.speed_m_s!=null?v.speed_m_s:(rw.sog_kn!=null?rw.sog_kn*0.514444:(v.sog!=null?v.sog*0.514444:null)))),
+      mmsi:String(rw.mmsi||v.mmsi||'—'), sog_kn:_n(rw.sog_kn!=null?rw.sog_kn:v.sog), cog_deg:_n(rw.cog_deg!=null?rw.cog_deg:v.cog),
+      dark_fleet:df, source:v.source||src, provenance:v.provenance||'', _raw:rw }; })
+      .filter(function(x){return x.lat!=null&&x.lon!=null;});
+    return { domain:'vessels', mode:live?'live':'sample', source:src,
+      source_url:d.source_url||(raw[0]&&raw[0].source_url)||'https://meri.digitraffic.fi/api/ais/v1/locations',
+      as_of:asof, count:tracks.length, dark_fleet:dark, tracks:tracks,
+      note:d.dark_fleet_note||d.honest||d.note||'' };
+  }
+
+  // --- REMOTE-ID: /feeds/remoteid (Wave A). Honest IDLE when no broadcast is
+  // being relayed by a field sniffer; LIVE only when a real broadcast lands.
+  // Shape: {count, mode:'idle'|'live', live, tracks[], honest, ingest_endpoint}.
+  // Each track may carry raw.messages[] (decoded ASTM F3411 fields). NEVER fab.
+  KFEED.remoteid = function(){
+    return _jget(API_+'/feeds/remoteid').then(function(d){
+      var raw=d.tracks||d.broadcasts||d.remoteid||(d.data&&(d.data.broadcasts))||[];
+      var live=(d.live===true)||(String(d.mode||'').toLowerCase()==='live');
+      var tracks=(raw||[]).map(function(b){
+        var m=(b.raw&&b.raw.messages&&b.raw.messages[0])||b;
+        return {
+        kind:'remoteid', track_id:b.track_id||b.id||b.uas_id||b.serial||('RID-'+Math.random().toString(36).slice(2,7)),
+        label:b.label||m.id||b.uas_id||b.serial||'OpenDroneID', lat:_n(m.lat!=null?m.lat:b.lat),
+        lon:_n(m.lon!=null?m.lon:b.lon), altitude_m:_n(m.alt_m!=null?m.alt_m:(b.alt_m!=null?b.alt_m:b.alt)),
+        heading_deg:_n(m.heading_deg!=null?m.heading_deg:b.heading_deg), speed_m_s:_n(m.speed_mps!=null?m.speed_mps:b.speed_mps),
+        operator:m.operator||'', source:b.source||d.source||'OpenDroneID/ASTM F3411', provenance:b.provenance||'', _raw:b }; });
+      return { domain:'remoteid', mode:live?'live':'idle', source:(raw[0]&&raw[0].source)||'ASTM F3411 / OpenDroneID broadcast (relayed)',
+        source_url:(raw[0]&&raw[0].source_url)||'ASTM F3411-22a Remote-ID', as_of:d.fetched_at||d.as_of||new Date().toISOString(),
+        count:d.count!=null?d.count:tracks.length, tracks:tracks, ingest_endpoint:d.ingest_endpoint||'/api/killinchu/v1/feeds/remoteid/ingest',
+        note:d.honest||d.note||'' };
+    }).catch(function(){
+      return { domain:'remoteid', mode:'idle', source:'no Remote-ID broadcast relayed', source_url:'',
+        as_of:new Date().toISOString(), count:0, tracks:[],
+        note:'no live OpenDroneID/ASTM F3411 broadcast being relayed — modality DARK (honest idle, never fabricated)' };
+    });
+  };
+
+  // --- OSINT: /osint/intel (Wave A). Shape: {verticals:{<name>:{source,
+  //  source_url,count,items[],live}}, live, count, honest}. We flatten the
+  //  verticals into grouped sections (item shapes differ per vertical).
+  //  Fallback: /amaru/counter-uas (flat items[]).
+  KFEED.osint = function(vertical){
+    var q = vertical ? ('?vertical='+encodeURIComponent(vertical)) : '';
+    return _jget(API_+'/osint/intel'+q).then(function(d){
+      var verts=d.verticals||{}; var groups=[]; var total=0;
+      Object.keys(verts).forEach(function(name){
+        var v=verts[name]; var items=(v&&(v.items||(Array.isArray(v)?v:[])))||[];
+        total+=items.length;
+        groups.push({ name:name, source:(v&&v.source)||name, source_url:(v&&v.source_url)||'',
+          live:(v&&(v.live===true||v.mode==='live')), count:(v&&v.count!=null?v.count:items.length), items:items });
+      });
+      return { mode:(d.live===true||total)?'live':'idle', source:d.label||'open-source collection (public, cited)',
+        as_of:d.fetched_at||d.as_of||new Date().toISOString(), count:d.count!=null?d.count:total,
+        honesty:{note:d.honest||''}, groups:groups, items:[], _via:'osint/intel' };
+    }).catch(function(){
+      return _jget(API_+'/amaru/counter-uas').then(function(b){
+        var items=b.items||[];
+        return { mode:items.length?'live':'idle', source:'amaru open-source collection (public, cited)',
+          as_of:b.fetched_at||new Date().toISOString(), count:b.count||items.length,
+          honesty:b.honesty||null, groups:items.length?[{name:'counter_uas',source:'amaru counter-UAS OSINT',source_url:'',live:b.mode==='live',count:items.length,items:items}]:[],
+          items:items, _via:'amaru/counter-uas (fallback)' };
+      });
+    }).catch(function(e){
+      return { mode:'idle', source:'OSINT collector unreachable', as_of:new Date().toISOString(),
+        count:0, groups:[], honesty:{note:'open-source collector offline — honest IDLE, no fabricated items'}, items:[], _err:String(e&&e.message||e) };
+    });
+  };
+
+  function _n(v){ var n=Number(v); return isFinite(n)?n:null; }
+  window.KFEED = KFEED;
+  window.__KFEED_READY = true;
+
+  // ===================================================================== *
+  //  REWIRE the Live Track Board (PPI radar) to plot REAL aircraft+vessels
+  //  with provenance, while preserving the existing simulated /threats/active
+  //  layer (labelled honestly). Adds a theater selector + provenance strip.
+  // ===================================================================== *
+  function _haversine(la1,lo1,la2,lo2){var R=6371,d2r=Math.PI/180;var dLat=(la2-la1)*d2r,dLon=(lo2-lo1)*d2r;var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(la1*d2r)*Math.cos(la2*d2r)*Math.sin(dLon/2)*Math.sin(dLon/2);return 2*R*Math.asin(Math.min(1,Math.sqrt(a)));}
+  function _bearing(la1,lo1,la2,lo2){var d2r=Math.PI/180;var y=Math.sin((lo2-lo1)*d2r)*Math.cos(la2*d2r);var x=Math.cos(la1*d2r)*Math.sin(la2*d2r)-Math.sin(la1*d2r)*Math.cos(la2*d2r)*Math.cos((lo2-lo1)*d2r);return (Math.atan2(y,x)*180/Math.PI+360)%360;}
+
+  // patch tracks_load: after the original sim load, overlay real feeds.
+  function rewireTracks(){
+    var origLoad = window.tracks_load;
+    if(typeof origLoad!=='function'){ return setTimeout(rewireTracks,120); }
+    if(window.__kfeed_tracks_wired) return;
+    window.__kfeed_tracks_wired = true;
+
+    window.tracks_load = async function(){
+      // inject theater + provenance strip once
+      _ensureTrackChrome();
+      var hub = getTheater().hub;
+      window.TRK_HUB = hub; // PPI plots range/bearing from this C2 station
+      // pull REAL aircraft + vessels in parallel; keep the sim layer too
+      var air, sea, sim;
+      try{ air = await KFEED.aircraft(); }catch(e){ air={mode:'sample',tracks:[],source:'aircraft',as_of:null,count:0}; }
+      try{ sea = await KFEED.vessels(); }catch(e){ sea={mode:'sample',tracks:[],source:'vessels',as_of:null,count:0}; }
+      try{ sim = await _jget(API_+'/threats/active'); }catch(e){ sim={threats:[]}; }
+
+      var simTracks = (sim.threats||[]).map(function(t){
+        t.kind='sim'; t.source='simulated adversary signature'; t.mode='sample';
+        t.range_km=(t.latitude!=null&&t.longitude!=null)?Math.round(_haversine(hub.lat,hub.lon,t.latitude,t.longitude)*10)/10:null;
+        t.bearing_deg=(t.latitude!=null&&t.longitude!=null)?Math.round(_bearing(hub.lat,hub.lon,t.latitude,t.longitude)):null;
+        return t;
+      });
+      function rb(t){ if(t.lat!=null&&t.lon!=null){ t.latitude=t.lat;t.longitude=t.lon;
+        t.range_km=Math.round(_haversine(hub.lat,hub.lon,t.lat,t.lon)*10)/10;
+        t.bearing_deg=Math.round(_bearing(hub.lat,hub.lon,t.lat,t.lon)); } return t; }
+      var airTracks = (air.tracks||[]).map(rb).map(function(t){ t.side='neutral'; t.status=t.on_ground?'GROUND':'AIRBORNE'; t.mode=air.mode; return t; });
+      var seaTracks = (sea.tracks||[]).map(rb).map(function(t){ t.side='neutral'; t.status='SURFACE'; t.mode=sea.mode; return t; });
+
+      // merge: real feeds first (so they dominate the "real data" story), sim last
+      var all = airTracks.concat(seaTracks).concat(simTracks);
+      window._trkData = all;
+      window._trkById = {}; all.forEach(function(t){ window._trkById[t.track_id]=t; });
+      if(!window._trkSort) window._trkSort={key:'range_km',dir:1};
+
+      // counts
+      var setTxt=function(id,v){var e=document.getElementById(id); if(e) e.textContent=v;};
+      setTxt('k-active', sim.active_threats!=null?sim.active_threats:'—');
+      setTxt('k-total', all.length);
+
+      _renderTrackProv(air, sea, simTracks.length);
+      if(typeof window.tracks_plot==='function') window.tracks_plot();
+      if(typeof window.tracks_render==='function') window.tracks_render();
+      var raw=document.getElementById('tracks-raw'); if(raw) raw.textContent=JSON.stringify({aircraft:air,vessels:sea,sim_threats:sim.active_threats},null,2);
+    };
+    window.__kfeed_active = window.tracks_load;
+  }
+
+  function _ensureTrackChrome(){
+    var host=document.getElementById('tracks-plot'); if(!host) return;
+    var card=host.closest('.card'); if(!card) return;
+    if(document.getElementById('kc-track-prov')) return;
+    var strip=document.createElement('div');
+    strip.id='kc-track-prov';
+    strip.style.cssText='margin-bottom:.7rem;padding:.55rem .7rem;border:1px solid #213049;border-radius:9px;background:#0a1322;display:flex;flex-wrap:wrap;gap:.6rem;align-items:center';
+    strip.innerHTML='<span class="mono dim" style="font-size:11px">REAL FEEDS</span>'+
+      '<span id="kc-air-prov" class="mono dim" style="font-size:11px">aircraft …</span>'+
+      '<span id="kc-sea-prov" class="mono dim" style="font-size:11px">vessels …</span>'+
+      '<span style="margin-left:auto">'+theaterSelect('kcSetTheater')+'</span>';
+    card.parentNode.insertBefore(strip, card);
+  }
+  function _renderTrackProv(air, sea, simN){
+    var a=document.getElementById('kc-air-prov'), s=document.getElementById('kc-sea-prov');
+    // aircraft: many mil ADS-B contacts arrive position-suppressed — say so honestly
+    var airPlot=(air.plotted!=null?air.plotted:(air.tracks||[]).length);
+    var airNote=(air.count>airPlot)?' <span style="color:#7d8593">('+airPlot+' w/ position; '+(air.count-airPlot)+' position-suppressed mil)</span>':'';
+    if(a) a.innerHTML='✈ '+provPill(air.mode)+' '+srcBadge(air.source)+' '+(air.count||0)+' aircraft'+airNote+' · as of '+_ts(air.as_of)+' '+(_ago(air.as_of)?'('+_ago(air.as_of)+')':'');
+    var darkN=(sea.dark_fleet||0);
+    var darkNote=darkN?' <span style="color:#f5b301">· '+darkN+' dark-fleet (advisory)</span>':'';
+    if(s) s.innerHTML='⚓ '+provPill(sea.mode)+' '+srcBadge(sea.source)+' '+(sea.count||0)+' vessels'+darkNote+' · as of '+_ts(sea.as_of)+' '+(_ago(sea.as_of)?'('+_ago(sea.as_of)+')':'');
+  }
+
+  // ===================================================================== *
+  //  NEW VIEWS: provenance (REAL-DATA PROVENANCE panel) + osint_intel
+  // ===================================================================== *
+  var DOCTRINE_NOTE = 'Positions are <b>real public ADS-B / AIS</b> (open data). The <b>effector is SIMULATED, human-on-the-loop</b> — we never command, jam or spoof a drone we do not own (legal: 18 USC §32, FCC, Title 10/50). Trust is a <b>conjecture, never 100%</b>. Tracks are <b>never fabricated</b>: an unreachable feed shows an honest empty/SAMPLE state. Doctrine v11 · locked-8 @ c7c0ba17.';
+
+  function provenance_render(c){
+    c.innerHTML='<div class="card" id="kc-prov-hero" style="border-color:#21405f;background:linear-gradient(180deg,#0a1626,#0a1322)">'+
+        '<div class="card-h"><span class="card-t">⬡ Real-Data Provenance</span><span class="card-ep" id="kc-prov-asof">probing live feeds…</span></div>'+
+        '<div class="row" style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.2rem 0 .5rem">'+theaterSelect('kcSetTheater')+
+          '<button class="btn" onclick="kcProvRefresh()" style="background:#15233a;border:1px solid #2a3d5c;color:#cfe0ec;border-radius:7px;padding:.34rem .7rem;cursor:pointer;font-size:12px">↻ re-probe</button></div>'+
+        '<div id="kc-prov-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.7rem"></div>'+
+      '</div>'+
+      '<div class="card" style="border-color:#3a3206;background:#12110a"><div class="mono" style="display:block;font-size:12px;line-height:1.75;color:#d9c98a"><b style="display:block;margin-bottom:.35rem;color:#f0dca0">⚠ HONEST PROVENANCE NOTE</b><span style="display:block">'+DOCTRINE_NOTE+'</span></div></div>'+
+      '<div class="card"><div class="card-h"><span class="card-t">What each pill means</span></div>'+
+        '<div class="mono dim" style="display:block;font-size:12px;line-height:1.8"><span style="display:block;margin-bottom:.4rem">'+provPill('live')+' = a real upstream public source answered now (e.g. OpenSky/adsb.lol ADS-B, AISStream/Digitraffic AIS).</span><span style="display:block;margin-bottom:.4rem">'+provPill('sample')+' = the live source did not answer and the surface fell back to a labelled sample/last-good set — <b>never invented</b>.</span><span style="display:block">Each track also carries a <b>source badge</b> (where it came from) and an <b>&quot;as of&quot; timestamp</b> (when it was observed). This is the investor-credibility centerpiece: real data, honestly sourced.</span></div></div>';
+    kcProvRefresh();
+    window.__kfeed_active = kcProvRefresh;
+  }
+  function _provCard(env, icon){
+    var live=String(env.mode||'').toLowerCase().indexOf('live')===0;
+    return '<div style="border:1px solid '+(live?'#1c5a44':'#4a3c10')+';border-radius:10px;padding:.7rem .8rem;background:'+(live?'#08160f':'#13110a')+'">'+
+      '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem"><span style="font-size:16px">'+icon+'</span><b style="font-size:13px;color:#e7e9ec;text-transform:capitalize">'+_esc(env.domain||'feed')+'</b><span style="margin-left:auto">'+provPill(env.mode)+'</span></div>'+
+      '<div class="mono" style="font-size:11px;color:#9fb0c2;line-height:1.7">'+
+        'source · '+srcBadge(env.source)+'<br>'+
+        'records · <b style="color:'+(live?'#5fe39a':'#f5b301')+'">'+(env.count||0)+'</b><br>'+
+        'as of · '+_ts(env.as_of)+' '+(_ago(env.as_of)?'<span style="color:#7d8593">('+_ago(env.as_of)+')</span>':'')+
+        (env.source_url?'<br>upstream · <a href="'+_esc(env.source_url)+'" target="_blank" rel="noopener" style="color:#7fa8d6">'+_esc(env.source_url.replace(/^https?:\/\//,'').slice(0,38))+'</a>':'')+
+        (env.note?'<br><span style="color:#7d8593;font-size:10.5px">'+_esc(env.note)+'</span>':'')+
+      '</div></div>';
+  }
+  window.kcProvRefresh = function(){
+    var grid=document.getElementById('kc-prov-grid'); var asof=document.getElementById('kc-prov-asof');
+    if(grid) grid.innerHTML='<div class="mono dim" style="display:block">probing live feeds…</div>';
+    // resolve each feed INDEPENDENTLY — one slow/unreachable upstream must never
+    // hang the whole provenance grid; a failed feed renders an honest SAMPLE card.
+    function _safe(p, domain){ return Promise.resolve().then(p).then(function(v){return v;},function(){
+      return { domain:domain, mode:'sample', source:'(upstream unreachable)', as_of:new Date().toISOString(), count:0, note:'live source did not answer — honest SAMPLE, never fabricated' }; }); }
+    Promise.all([
+      _safe(KFEED.aircraft,'aircraft'), _safe(KFEED.vessels,'vessels'),
+      _safe(KFEED.remoteid,'remoteid'), _safe(KFEED.osint,'osint')
+    ]).then(function(r){
+      var air=r[0],sea=r[1],rid=r[2],osint=r[3];
+      var osEnv={domain:'osint',mode:osint.mode,source:osint.source,as_of:osint.as_of,count:osint.count,source_url:'',note:'open-source collection (public, cited) · labeled OSINT (public)'};
+      if(grid) grid.innerHTML=_provCard(air,'✈')+_provCard(sea,'⚓')+_provCard(rid,'🛰')+_provCard(osEnv,'🌐');
+      var sensing=[air,sea,rid]; var liveN=sensing.filter(function(e){return String(e.mode||'').toLowerCase().indexOf('live')===0;}).length;
+      var ridTxt=(String(rid.mode||'').toLowerCase().indexOf('live')===0)?'':' · Remote-ID idle (no relayed broadcast)';
+      if(asof) asof.innerHTML=liveN+' of 3 sensing feeds LIVE'+ridTxt+' · effector SIMULATED · '+_ts(new Date().toISOString());
+    });
+  };
+
+  // friendly vertical labels
+  var _VLABEL={ sanctioned_vessels:'Sanctioned / designated vessels (UN 1718, OFAC)',
+    dark_vessels:'Dark-fleet designations', geo_context:'Situational geo-context',
+    counter_uas:'Counter-UAS open-source reporting', defense_news:'Defense / UAS reporting' };
+  // render a single heterogeneous OSINT item (news, sanctioned vessel, seismic…)
+  function _osintItem(it){
+    var title=it.title||it.headline||it.name||it.place||'(untitled)';
+    var url=it.url||it.link||it.source_url||'';
+    var host=it.host||(url?(function(){try{return new URL(url).host;}catch(e){return '';}})():'');
+    var sev=/intercept|attack|incursion|breach|hostile|strike|swarm|shot|sanction|designat|dark|spoof|seizure/i.test(JSON.stringify(it))?'#ff9d6e':'#5fe39a';
+    var pub=it.published||it.date||it.last_seen||(it.time_ms?new Date(it.time_ms).toISOString():'');
+    var meta=[];
+    if(it.identifiers) meta.push('id '+_esc(String(it.identifiers)));
+    if(it.program) meta.push(_esc(String(it.program).slice(0,60)));
+    if(it.mag!=null) meta.push('M'+_esc(it.mag)+(it.depth_km!=null?' · '+_esc(it.depth_km)+'km':''));
+    if(it.countries) meta.push(_esc(it.countries));
+    if(it.source_weight!=null) meta.push('src wt '+_esc(it.source_weight));
+    if(pub) meta.push('seen '+_esc(String(pub).slice(0,10)));
+    var titleHtml=url?('<a href="'+_esc(url)+'" target="_blank" rel="noopener" style="color:#e7e9ec;text-decoration:none">'+_esc(title)+'</a>'):_esc(title);
+    return '<div class="card" style="border-left:3px solid '+sev+';margin:.35rem 0"><div class="card-h"><span class="card-t" style="font-size:13px">'+titleHtml+'</span>'+(host?'<span class="card-ep">'+_esc(host)+'</span>':'')+'</div>'+
+      (it.summary?'<div style="display:block;font-size:12.5px;line-height:1.6;color:#b9c2cf;margin:.3rem 0">'+_esc(String(it.summary).slice(0,260))+'</div>':'')+
+      '<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;font-size:11px;color:#8696a8">'+
+        meta.map(function(m){return '<span class="mono">'+m+'</span>';}).join('<span style="opacity:.4">·</span>')+
+        (url?'<a href="'+_esc(url)+'" target="_blank" rel="noopener" class="mono" style="margin-left:auto;color:#7fa8d6">open source ↗</a>':'<span class="mono dim" style="margin-left:auto">designation list (no single URL)</span>')+
+      '</div></div>';
+  }
+  function osint_intel_render(c){
+    c.innerHTML='<div class="card"><div class="mono dim" style="display:block">↻ collecting open-source intel (public, cited)…</div></div>';
+    KFEED.osint().then(function(b){
+      var via=b._via?('<span class="mono dim" style="font-size:10px"> · via '+_esc(b._via)+'</span>'):'';
+      var head='<div class="card" style="border-color:#21405f;background:#0a1322"><div style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:center">'+
+        provPill(b.mode)+'<span class="mono" style="font-size:12px;color:#9fb0c2">'+srcBadge('OSINT (public)')+' '+_esc(b.source)+via+'</span>'+
+        '<span class="spacer mono dim" style="font-size:11px;margin-left:auto">'+(b.count||0)+' items · as of '+_ts(b.as_of)+'</span></div></div>';
+      var groups=b.groups||[];
+      if(!groups.length){
+        c.innerHTML=head+'<div class="card"><div class="mono dim" style="display:block;line-height:1.8">No live items right now — honest <b>IDLE</b> (open-source collector returns nothing rather than fabricating rows). '+
+          (b.honesty&&b.honesty.note?_esc(b.honesty.note):'')+'</div></div>'; window.__kfeed_active=function(){ osint_intel_render(c); }; return; }
+      var sections=groups.map(function(g){
+        var items=(g.items||[]).slice(0,25);
+        var label=_VLABEL[g.name]||g.name.replace(/_/g,' ');
+        var src=g.source_url?('<a href="'+_esc(g.source_url)+'" target="_blank" rel="noopener" style="color:#7fa8d6">'+_esc(String(g.source).slice(0,54))+'</a>'):_esc(String(g.source).slice(0,54));
+        return '<div class="card" style="border-color:#1c2c44"><div class="card-h"><span class="card-t" style="text-transform:capitalize">'+_esc(label)+'</span>'+
+          '<span class="card-ep">'+provPill(g.live?'live':'idle')+' '+(g.count||items.length)+' · '+src+'</span></div>'+
+          (items.length?items.map(_osintItem).join(''):'<div class="mono dim" style="display:block">honest empty</div>')+'</div>';
+      }).join('');
+      c.innerHTML=head+sections+'<div class="card" style="border-color:#3a3206;background:#12110a"><div class="mono" style="display:block;font-size:11.5px;line-height:1.7;color:#d9c98a">⚠ OSINT (public) — every item is a <b>third-party claim</b> with a source link/timestamp, not attested ground truth. Public sources only (UN/OFAC designation lists, USGS, open reporting), rate-limited + cached server-side; <b>0 client CDN</b>. China / Asia-Pacific reporting included where public. Sanctioned-vessel and dark-fleet flags are <b>advisory heuristics</b> computed over real data — NOT proven.</div></div>';
+      window.__kfeed_active=function(){ osint_intel_render(c); };
+    }).catch(function(e){ c.innerHTML='<div class="card"><div class="mono" style="display:block;color:#ff7b7b">OSINT collector error: '+_esc(e&&e.message||e)+'</div></div>'; });
+  }
+
+  // register the two new views onto the existing VIEWS object (post-hoc; proven pattern)
+  (function registerViews(){
+    var V=(typeof VIEWS!=='undefined')?VIEWS:window.VIEWS;
+    if(!V){ return setTimeout(registerViews,90); }
+    V.provenance = { title:'Real-Data Provenance', badge:'LIVE/SAMPLE · PER-FEED SOURCE · AS-OF',
+      sub:'The honest receipt for the live picture: which sensing feeds are <b>LIVE</b> right now, their <b>real public sources</b> (OpenSky / adsb.lol ADS-B · AISStream / Digitraffic AIS · OpenDroneID Remote-ID · open-source intel), the <b>last-update timestamp</b>, and the standing doctrine note. Real data, honestly sourced — the <b>effector stays simulated, human-on-the-loop</b>.',
+      render:function(c){ provenance_render(c); } };
+    V.osint_intel = { title:'Intel · OSINT (public)', badge:'OPEN-SOURCE COLLECTION · CITED · sha256',
+      sub:'Real open-source defense / UAS / maritime reporting (incl. public China/Asia-Pacific signals), collected server-side, each item carrying a <b>source link</b> and a <b>sha256 provenance head</b>, labelled <b>OSINT (public)</b>. Third-party claims, not attested truth — never fabricated.',
+      render:function(c){ osint_intel_render(c); } };
+    // add nav items if the side nav exists and we haven't already
+    _injectNav();
+  })();
+
+  function _injectNav(){
+    if(document.getElementById('kc-nav-provenance')) return;
+    var maritimeNav=document.querySelector('.nav-item[data-view="livepic"]');
+    var intelNav=document.querySelector('.nav-item[data-view="amaru_counter_uas"]');
+    if(maritimeNav){
+      var p=document.createElement('div');
+      p.id='kc-nav-provenance'; p.className='nav-item'; p.setAttribute('data-view','provenance');
+      p.setAttribute('onclick',"go('provenance')");
+      p.setAttribute('title','REAL-DATA PROVENANCE: which sensing feeds are LIVE now, their real public sources, last-update timestamps, and the honest doctrine note. Effector simulated.');
+      p.innerHTML='<span class="ico">&#11042;</span>Real-Data Provenance';
+      maritimeNav.parentNode.insertBefore(p, maritimeNav.nextSibling);
+    }
+    if(intelNav){
+      var q=document.createElement('div');
+      q.id='kc-nav-osint'; q.className='nav-item'; q.setAttribute('data-view','osint_intel');
+      q.setAttribute('onclick',"go('osint_intel')");
+      q.setAttribute('title','Intel · OSINT (public): real open-source defense/UAS/maritime reporting with source links + sha256 provenance, labelled OSINT (public).');
+      q.innerHTML='<span class="ico">&#9673;</span>Intel · OSINT (public)';
+      intelNav.parentNode.insertBefore(q, intelNav.nextSibling);
+    }
+  }
+
+  // kick off the rewires once the DOM + console JS are present
+  rewireTracks();
+})();
+
+</script>
 
 </body>
 </html>
