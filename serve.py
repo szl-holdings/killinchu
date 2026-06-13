@@ -2430,6 +2430,42 @@ except Exception as _fleet_e:
 
 
 # ===========================================================================
+# ADDITIVE (W3): Λ DARK-FLEET RISK SCORE + VESSEL FORECASTING — the maritime
+# DIFFERENTIATOR no incumbent (Starboard/Windward/Kpler) ships: a governed,
+# EXPLAINABLE, SIGNED dark-fleet risk scalar that traces to a formula, plus an
+# advisory dead-reckoning + sea-lane track forecast. Fuses W2's raw risk axes
+# (gap_prob, spoof, port/STS history, flag origin, loiter) through the SAME
+# geometric-mean weakest-link Λ aggregator the kernel proves properties about
+# (serve.py _lambda_aggregate; zero-absorption: a confirmed MMSI-spoof vetoes
+# "low risk"). Every verdict + forecast is signed with the REAL cosign DSSE
+# signer (szl_dsse, ECDSA-P256-SHA256) and includes the Λ score + axis breakdown
+# in the signed payload — provable, re-hashable, auditable.
+#   POST /api/killinchu/v1/maritime/risk       Λ dark-fleet risk score (one vessel)
+#   GET  /api/killinchu/v1/maritime/risk       demo: score a sample fleet vessel
+#   GET  /api/killinchu/v1/maritime/risk/fleet triage board (all sample vessels)
+#   POST /api/killinchu/v1/maritime/forecast   advisory track/destination forecast
+#   GET  /api/killinchu/v1/maritime/forecast   demo: forecast a sample fleet vessel
+#   GET  /api/killinchu/v1/maritime/doctrine   formula + doctrine card
+# DOCTRINE: the score USES Λ; Λ-uniqueness = Conjecture 1 (machine-checked FALSE
+# as unconditional) — labelled "advisory, governed by Λ (Conjecture 1)", NEVER
+# "Λ is unique". FORECAST is a labelled projection, human-on-loop, NOT vessel
+# control. Trust clamped < 1.0. Real receipts or honest UNSIGNED — never faked.
+# Mounted BEFORE the SPA catch-all. NO mocks.
+# ===========================================================================
+try:
+    import killinchu_maritime_risk as _maritime_risk
+    _maritime_risk_status = _maritime_risk.register(app, ns="killinchu")
+    print(f"[killinchu] Maritime Λ risk + forecast registered: "
+          f"{_maritime_risk_status.get('registered_count')} routes "
+          f"(signer={_maritime_risk_status.get('signer')})", file=sys.stderr)
+except Exception as _mr_e:
+    import traceback as _mr_tb
+    print(f"[killinchu] Maritime Λ risk + forecast NOT registered: {_mr_e!r}", file=sys.stderr)
+    _mr_tb.print_exc()
+# ── end Maritime Λ risk + forecast (W3) ──────────────────────────────────────
+
+
+# ===========================================================================
 # ADDITIVE: killinchu "Beyond-Cannonico" proof console — the autonomy-governance
 # pattern generalized BEYOND a single counter-drone. Three REAL endpoint-backed
 # proof tabs, mounted BEFORE the SPA catch-all so they resolve locally:
