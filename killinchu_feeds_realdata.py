@@ -187,8 +187,30 @@ THEATERS = {
                "lamin": 45.0, "lamax": 55.0, "lomin": 2.0, "lomax": 18.0},
     "global": {"label": "Global (no box — OpenSky全量, capped)",
                "lamin": None, "lamax": None, "lomin": None, "lomax": None},
+    # --- Maritime W1 (sea theaters incl. China seas + global chokepoints) ---
+    # Bounding boxes per theater for the vessel feed redundancy chain. Aircraft
+    # already had china/taiwan_strait/south_china_sea/east_china_sea/korea/japan;
+    # these add the maritime chokepoints the founder asked for.
+    "malacca": {"label": "Strait of Malacca / Singapore",
+                "lamin": -1.0, "lamax": 7.0, "lomin": 96.0, "lomax": 105.0},
+    "hormuz": {"label": "Strait of Hormuz / Persian Gulf",
+               "lamin": 23.0, "lamax": 30.5, "lomin": 50.0, "lomax": 59.0},
+    "black_sea": {"label": "Black Sea",
+                  "lamin": 40.5, "lamax": 47.5, "lomin": 27.0, "lomax": 42.0},
+    "suez": {"label": "Suez Canal / Gulf of Suez",
+             "lamin": 27.0, "lamax": 32.0, "lomin": 32.0, "lomax": 35.0},
+    "gulf_of_aden": {"label": "Gulf of Aden / Bab-el-Mandeb",
+                     "lamin": 10.0, "lamax": 16.0, "lomin": 43.0, "lomax": 52.0},
+    # Norway box — used to confirm the Kystverket/Kystdatahuset source is in-area.
+    "norway": {"label": "Norwegian waters (Kystverket coverage)",
+               "lamin": 57.0, "lamax": 73.0, "lomin": -2.0, "lomax": 33.0},
 }
 _DEFAULT_THEATER = "china"
+# Sea theaters surfaced in /feeds/vessels/stats (China seas first — the headline).
+_SEA_THEATERS = [
+    "south_china_sea", "taiwan_strait", "east_china_sea", "malacca",
+    "hormuz", "black_sea", "baltic", "suez", "gulf_of_aden", "norway",
+]
 
 
 def _now_iso():
@@ -466,6 +488,7 @@ _AISSTREAM_WSS = "wss://stream.aisstream.io/v0/stream"
 # AISStream background collector state (filled only when a real key is present).
 _AIS_STREAM = {
     "vessels": {},      # mmsi -> normalized track
+    "ship_types": {},   # mmsi -> AIS ship-type code (from ShipStaticData)
     "started": False,
     "last_msg_ts": None,
     "error": None,
@@ -490,7 +513,55 @@ def _nav_status_text(n):
     return table.get(n, str(n) if n is not None else None)
 
 
-def _track_from_ais_position(mmsi, lat, lon, sog, cog, hdg, navstat, name, t, source, url, prov):
+# --- Maritime W1: AIS ship-type code -> vessel category (ITU-R M.1371) -------
+# Real AIS ship-type codes (the static 'type of ship and cargo' field). We map
+# them to the founder's categories: tanker/oil/cargo/fishing/passenger/naval/
+# tug/other. NEVER guessed — derived only from a REAL broadcast ship-type code.
+# Valid categories for the ?type= filter (and stats buckets):
+_VESSEL_TYPES = ("tanker", "oil", "cargo", "fishing", "passenger",
+                 "naval", "tug", "high_speed", "sailing", "other")
+
+
+def _ship_type_category(code):
+    """Map a numeric AIS ship-type code to a coarse vessel category string.
+    Returns 'unknown' when the code is absent/0 (honest — not guessed).
+    Reference: ITU-R M.1371 'type of ship and cargo type' field."""
+    try:
+        c = int(code)
+    except Exception:
+        return "unknown"
+    if c <= 0:
+        return "unknown"
+    if c == 30:
+        return "fishing"
+    if c in (31, 32, 52):       # towing / tug
+        return "tug"
+    if c in (33, 34, 35):       # dredger / dive / military ops
+        return "naval" if c == 35 else "other"
+    if c in (36, 37):           # sailing / pleasure craft
+        return "sailing"
+    if 40 <= c <= 49:           # high-speed craft
+        return "high_speed"
+    if c == 51:                 # SAR
+        return "naval"
+    if c == 55:                 # law enforcement
+        return "naval"
+    if c == 59:                 # naval / non-combatant per regs
+        return "naval"
+    if c in (50, 53, 54, 56, 57, 58):  # pilot/port/anti-poll/spare/medical
+        return "other"
+    if 60 <= c <= 69:           # passenger
+        return "passenger"
+    if 70 <= c <= 79:           # cargo
+        return "cargo"
+    if 80 <= c <= 89:           # tanker (oil/chemical/gas)
+        # 80=tanker general; 81=hazA(oil/chem); the founder wants an 'oil' bucket
+        return "oil" if c in (80, 81, 84) else "tanker"
+    return "other"
+
+
+def _track_from_ais_position(mmsi, lat, lon, sog, cog, hdg, navstat, name, t, source, url, prov, ship_type=None):
+    cat = _ship_type_category(ship_type)
     return {
         "track_id": "ais:%s" % mmsi,
         "domain": "sea",
@@ -502,8 +573,11 @@ def _track_from_ais_position(mmsi, lat, lon, sog, cog, hdg, navstat, name, t, so
         "on_ground": None,
         "country": _mid_to_flag(mmsi),
         "kind": _nav_status_text(navstat),
+        # vessel_type is the founder-requested category, derived from the REAL
+        # AIS ship-type code; 'unknown' when the broadcast omitted it (honest).
+        "vessel_type": cat,
         "raw": {"mmsi": mmsi, "sog_kn": sog, "cog_deg": cog, "heading_deg": hdg,
-                "nav_status": navstat},
+                "nav_status": navstat, "ais_ship_type": ship_type},
         "source": source,
         "source_url": url,
         "live": True,
@@ -542,12 +616,18 @@ def _aisstream_collector(key):
         return
     sub = {
         "APIKey": key,
-        # wide multi-theater boxes incl. China seas + Baltic (lat/lon pairs).
+        # wide multi-theater boxes incl. China seas + chokepoints + Baltic.
+        # Maritime W1: broadened to cover Malacca/Hormuz/Black Sea/Suez/
+        # Gulf of Aden so the keyed global feed serves every sea theater.
         "BoundingBoxes": [
-            [[-10.0, 100.0], [46.0, 150.0]],   # Asia-Pacific incl. China seas
+            [[-10.0, 95.0], [46.0, 150.0]],    # Asia-Pacific incl. China seas + Malacca
+            [[10.0, 32.0], [48.0, 60.0]],      # Hormuz/Gulf + Suez/Red Sea + Black Sea
+            [[10.0, 43.0], [16.0, 52.0]],      # Gulf of Aden / Bab-el-Mandeb
             [[55.0, 10.0], [66.0, 30.0]],      # Baltic
         ],
-        "FilterMessageTypes": ["PositionReport"],
+        # Maritime W1: also subscribe ShipStaticData so we learn the REAL AIS
+        # ship-type code per MMSI -> vessel_type (PositionReport lacks it).
+        "FilterMessageTypes": ["PositionReport", "ShipStaticData"],
     }
     while True:
         try:
@@ -560,13 +640,30 @@ def _aisstream_collector(key):
                 if not raw:
                     continue
                 msg = json.loads(raw)
-                if msg.get("MessageType") != "PositionReport":
+                mtype = msg.get("MessageType")
+                meta = msg.get("MetaData") or {}
+                # ShipStaticData carries the REAL ship-type code -> remember it
+                # per MMSI so subsequent PositionReports get a vessel_type.
+                if mtype == "ShipStaticData":
+                    sd = (msg.get("Message") or {}).get("ShipStaticData") or {}
+                    smmsi = sd.get("UserID") or meta.get("MMSI")
+                    stype = sd.get("Type")
+                    if smmsi is not None and stype is not None:
+                        with _AIS_STREAM_LOCK:
+                            _AIS_STREAM["ship_types"][str(smmsi)] = stype
+                            ex = _AIS_STREAM["vessels"].get(str(smmsi))
+                            if ex is not None:
+                                ex["vessel_type"] = _ship_type_category(stype)
+                                ex["raw"]["ais_ship_type"] = stype
+                    continue
+                if mtype != "PositionReport":
                     continue
                 pr = (msg.get("Message") or {}).get("PositionReport") or {}
-                meta = msg.get("MetaData") or {}
                 mmsi = pr.get("UserID") or meta.get("MMSI")
                 if mmsi is None:
                     continue
+                with _AIS_STREAM_LOCK:
+                    known_type = _AIS_STREAM["ship_types"].get(str(mmsi))
                 tr = _track_from_ais_position(
                     mmsi, pr.get("Latitude"), pr.get("Longitude"),
                     pr.get("Sog"), pr.get("Cog"), pr.get("TrueHeading"),
@@ -575,7 +672,8 @@ def _aisstream_collector(key):
                     _theater("asia_pacific"),
                     "AISStream.io live wss (free key, real-time AIS)",
                     _AISSTREAM_WSS,
-                    "AISStream wss PositionReport · real-time · keyed primary")
+                    "AISStream wss PositionReport · real-time · keyed primary",
+                    ship_type=known_type)
                 with _AIS_STREAM_LOCK:
                     _AIS_STREAM["vessels"][str(mmsi)] = tr
                     _AIS_STREAM["last_msg_ts"] = time.time()
@@ -606,11 +704,42 @@ def _ensure_aisstream():
     return True
 
 
+_DIGITRAFFIC_META_URL = "https://meri.digitraffic.fi/api/ais/v1/vessels"
+# cache of mmsi -> AIS ship-type code from the Digitraffic vessel metadata
+# endpoint (refreshed ~10 min). Lets us stamp vessel_type on FI AIS positions.
+_DT_META = {"by_mmsi": {}, "ts": 0.0}
+_DT_META_TTL = 600
+
+
+def _digitraffic_ship_types():
+    """REAL ship-type codes per MMSI from Digitraffic vessel metadata (no key).
+    Cached ~10 min. Returns {mmsi(str): ship_type_code}. Empty on failure."""
+    now = time.time()
+    if _DT_META["by_mmsi"] and (now - _DT_META["ts"]) < _DT_META_TTL:
+        return _DT_META["by_mmsi"]
+    try:
+        data = _http_get(_DIGITRAFFIC_META_URL, timeout=30, headers={"User-Agent": _UA})
+        m = {}
+        for v in (data if isinstance(data, list) else []):
+            mm = v.get("mmsi")
+            st = v.get("shipType")
+            if mm is not None and st is not None:
+                m[str(mm)] = st
+        if m:
+            _DT_META["by_mmsi"] = m
+            _DT_META["ts"] = now
+    except Exception:
+        pass
+    return _DT_META["by_mmsi"]
+
+
 def _fetch_digitraffic(theater_key, limit):
-    """REAL no-key AIS (Fintraffic / Digitraffic, Baltic). Returns tracks list."""
+    """REAL no-key AIS (Fintraffic / Digitraffic, Baltic). Returns tracks list.
+    Joins the vessel-metadata ship-type by MMSI so each track gets vessel_type."""
     t = _theater(theater_key)
     geo = _http_get(_DIGITRAFFIC_URL, timeout=30, headers={"User-Agent": _UA})
     feats = geo.get("features", []) if isinstance(geo, dict) else []
+    types = _digitraffic_ship_types()
     out = []
     for f in feats:
         props = f.get("properties", {}) or {}
@@ -626,8 +755,55 @@ def _fetch_digitraffic(theater_key, limit):
             props.get("heading"), props.get("navStat"), None, t,
             "Digitraffic Finland AIS (Fintraffic, CC BY 4.0, no key)",
             _DIGITRAFFIC_URL,
-            "Digitraffic FI AIS REST · no-key live fallback · box-filtered theater=%s" % t.get("label")))
+            "Digitraffic FI AIS REST · no-key live fallback · box-filtered theater=%s" % t.get("label"),
+            ship_type=types.get(str(mmsi))))
     # prefer moving vessels
+    out.sort(key=lambda r: 0 if (r.get("speed_mps") or 0) > 0.3 else 1)
+    return out[:limit]
+
+
+# --- Maritime W1: Norway Kystverket / Kystdatahuset (no-key, public) ---------
+# Norwegian Coastal Administration open AIS, NLOD-licensed, NO key / NO
+# registration. Returns a GeoJSON of recent vessel tracks (LineString) with the
+# REAL ship_type + ship_name fields baked in. Covers Norwegian waters only.
+_KYSTVERKET_URL = "https://kystdatahuset.no/ws/api/ais/realtime/geojson"
+
+
+def _fetch_kystverket(theater_key, limit):
+    """REAL no-key AIS (Kystverket / Kystdatahuset Norway, NLOD). Returns tracks.
+    Each feature carries ship_type + ship_name directly. Position = last point
+    of the LineString geometry (the most recent fix). Box-filtered to theater."""
+    t = _theater(theater_key)
+    geo = _http_get(_KYSTVERKET_URL, timeout=35, headers={"User-Agent": _UA})
+    feats = geo.get("features", []) if isinstance(geo, dict) else []
+    out = []
+    for f in feats:
+        props = f.get("properties", {}) or {}
+        geom = f.get("geometry") or {}
+        coords = geom.get("coordinates") or []
+        # LineString -> last coord is the most recent position; Point -> itself.
+        if geom.get("type") == "LineString" and coords:
+            lon, lat = (list(coords[-1]) + [None, None])[:2]
+        elif geom.get("type") == "Point" and coords:
+            lon, lat = (list(coords) + [None, None])[:2]
+        else:
+            continue
+        mmsi = props.get("mmsi")
+        if mmsi is None or lat is None or lon is None:
+            continue
+        if not _in_box(lat, lon, t):
+            continue
+        hdg = props.get("true_heading")
+        if isinstance(hdg, (int, float)) and hdg >= 511:  # 511 = not available
+            hdg = None
+        out.append(_track_from_ais_position(
+            mmsi, lat, lon, props.get("speed"), props.get("cog"),
+            hdg, props.get("status"),
+            (props.get("ship_name") or "").strip() or None, t,
+            "Kystverket / Kystdatahuset Norway AIS (NLOD, no key)",
+            _KYSTVERKET_URL,
+            "Kystverket Norway AIS GeoJSON · no-key live · box-filtered theater=%s" % t.get("label"),
+            ship_type=props.get("ship_type")))
     out.sort(key=lambda r: 0 if (r.get("speed_mps") or 0) > 0.3 else 1)
     return out[:limit]
 
@@ -658,12 +834,52 @@ def _dark_fleet_flag(track):
             "label": "dark-fleet heuristic — ADVISORY, computed over real AIS, NOT proven"}
 
 
-def _fetch_vessels(theater_key, limit):
-    """REAL vessels with redundancy chain. Returns (tracks, tried, mode)."""
+# Marinesia is no-key only with a trial key in env; honest skip otherwise.
+_MARINESIA_URL = "https://api.marinesia.com/api/v2/vessel/location/latest"
+
+
+def _marinesia_key():
+    for k in ("SZL_MARINESIA_API_KEY", "MARINESIA_API_KEY", "MARINESIA_KEY"):
+        v = os.environ.get(k)
+        if v:
+            return v.strip()
+    return None
+
+
+def _type_match(track, vtype):
+    """True if the track's derived vessel_type matches the requested filter.
+    vtype None/'all' -> everything. 'tanker' also matches the 'oil' subset and
+    vice-versa is NOT implied (oil is the narrower bucket)."""
+    if not vtype or vtype == "all":
+        return True
+    vt = (track.get("vessel_type") or "unknown")
+    if vtype == "tanker":
+        return vt in ("tanker", "oil")
+    return vt == vtype
+
+
+def _fetch_vessels(theater_key, limit, vtype=None):
+    """REAL vessels with the SeaTraffic-pattern redundancy chain:
+      AISStream (keyed, global incl. China seas)
+        -> Digitraffic FI (no key, Baltic)
+        -> Kystverket/Kystdatahuset Norway (no key, Norwegian waters)
+        -> Marinesia (keyed-optional; honest skip if no key)
+        -> SAMPLE / replay (bundled snapshot, never fabricated).
+    Each record is stamped with its real source. mode reflects which contributed.
+    Returns (tracks, tried, mode). vtype filters by derived vessel_type."""
     t = _theater(theater_key)
     tried = []
 
+    def _finish(out, mode):
+        for v in out:
+            if "dark_fleet" not in v:
+                v["dark_fleet"] = _dark_fleet_flag(v)
+        if vtype and vtype != "all":
+            out = [v for v in out if _type_match(v, vtype)]
+        return out[:limit], tried, mode
+
     # PRIMARY — AISStream keyed wss (live cache filled by background collector).
+    # The ONLY source with real global / China-seas coverage.
     if _ensure_aisstream():
         with _AIS_STREAM_LOCK:
             cache = list(_AIS_STREAM["vessels"].values())
@@ -673,53 +889,100 @@ def _fetch_vessels(theater_key, limit):
         in_box = [v for v in cache if _in_box(v["lat"], v["lon"], t)]
         if fresh and in_box:
             in_box.sort(key=lambda r: 0 if (r.get("speed_mps") or 0) > 0.3 else 1)
-            out = in_box[:limit]
-            for v in out:
-                v["dark_fleet"] = _dark_fleet_flag(v)
             tried.append({"source": "AISStream.io wss (keyed)", "ok": True,
-                          "count": len(out), "cached_total": len(cache),
+                          "count": len(in_box), "cached_total": len(cache),
                           "url": _AISSTREAM_WSS})
-            return out, tried, "live"
+            return _finish(in_box, "live")
         tried.append({"source": "AISStream.io wss (keyed)", "ok": False,
                       "error": err or ("no in-box positions yet (collector warming)"
                                        if not in_box else "stale (>120s)"),
                       "url": _AISSTREAM_WSS})
     else:
         tried.append({"source": "AISStream.io wss (keyed)", "ok": False,
-                      "error": "no key in Space secret store (SZL_AISSTREAM_API_KEY) — falling back to no-key Digitraffic",
+                      "error": "no key in Space secret store (SZL_AISSTREAM_API_KEY) — "
+                               "Asia/global theaters fall to SAMPLE; no-key sources cover FI/Norway only",
                       "url": _AISSTREAM_WSS})
 
-    # FALLBACK — Digitraffic FI (no key, REAL).
+    # FALLBACK 1 — Digitraffic FI (no key, REAL; Baltic / Gulf of Finland only).
     try:
-        out = _fetch_digitraffic(theater_key, limit)
-        for v in out:
-            v["dark_fleet"] = _dark_fleet_flag(v)
+        out = _fetch_digitraffic(theater_key, limit if not vtype else limit * 4)
         tried.append({"source": "Digitraffic Finland AIS (no key)", "ok": True,
                       "count": len(out), "url": _DIGITRAFFIC_URL})
         if out:
-            return out, tried, "live"
-        # Digitraffic reachable but no vessels IN this theater (e.g. China box):
-        # honest — real source, just out of its geographic coverage.
-        return out, tried, "live"
+            return _finish(out, "live")
     except Exception as e:
         tried.append({"source": "Digitraffic Finland AIS (no key)", "ok": False,
                       "error": "%s: %s" % (type(e).__name__, e), "url": _DIGITRAFFIC_URL})
 
-    # SAMPLE — bundled snapshot if present.
+    # FALLBACK 2 — Kystverket / Kystdatahuset Norway (no key, REAL; NO waters).
+    try:
+        out = _fetch_kystverket(theater_key, limit if not vtype else limit * 4)
+        tried.append({"source": "Kystverket Norway AIS (no key)", "ok": True,
+                      "count": len(out), "url": _KYSTVERKET_URL})
+        if out:
+            return _finish(out, "live")
+    except Exception as e:
+        tried.append({"source": "Kystverket Norway AIS (no key)", "ok": False,
+                      "error": "%s: %s" % (type(e).__name__, e), "url": _KYSTVERKET_URL})
+
+    # FALLBACK 3 — Marinesia (only attempted when a trial/premium key is present;
+    # honest skip otherwise — never a fake live).
+    mk = _marinesia_key()
+    if not mk:
+        tried.append({"source": "Marinesia REST (keyed-optional)", "ok": False,
+                      "error": "no Marinesia key in env (SZL_MARINESIA_API_KEY) — skipped honestly",
+                      "url": _MARINESIA_URL})
+    else:
+        try:
+            data = _http_get(_MARINESIA_URL, timeout=25,
+                             headers={"User-Agent": _UA, "Authorization": "Bearer %s" % mk})
+            rows = data.get("data") if isinstance(data, dict) else (data if isinstance(data, list) else [])
+            out = []
+            for v in (rows or []):
+                lat, lon = v.get("lat") or v.get("latitude"), v.get("lon") or v.get("longitude")
+                mmsi = v.get("mmsi")
+                if mmsi is None or not _in_box(lat, lon, t):
+                    continue
+                out.append(_track_from_ais_position(
+                    mmsi, lat, lon, v.get("sog") or v.get("speed"),
+                    v.get("cog") or v.get("course"), v.get("heading"),
+                    v.get("nav_status") or v.get("status"),
+                    (v.get("name") or v.get("ship_name") or "").strip() or None, t,
+                    "Marinesia Marine API (keyed)", _MARINESIA_URL,
+                    "Marinesia REST · keyed live · box-filtered theater=%s" % t.get("label"),
+                    ship_type=v.get("ship_type") or v.get("type")))
+            tried.append({"source": "Marinesia REST (keyed)", "ok": bool(out),
+                          "count": len(out), "url": _MARINESIA_URL})
+            if out:
+                return _finish(out, "live")
+        except Exception as e:
+            tried.append({"source": "Marinesia REST (keyed)", "ok": False,
+                          "error": "%s: %s" % (type(e).__name__, e), "url": _MARINESIA_URL})
+
+    # At this point NO source returned vessels IN this theater box. Two honest
+    # cases:
+    #  (a) a no-key source was REACHABLE but its geographic coverage simply does
+    #      not include this theater (e.g. a China-seas box with only FI/Norway
+    #      terrestrial AIS and no AISStream key) -> there is genuinely no live
+    #      AIS here, so we DROP to SAMPLE/replay (clearly labeled), never claim
+    #      a fabricated live track and never pretend the box is covered.
+    #  (b) every source errored -> SAMPLE/replay too.
+    # In BOTH cases the honest outcome for an uncovered theater is SAMPLE.
+    # SAMPLE / replay — bundled snapshot only when no real source has vessels here.
     snap = _load_snapshot("ais")
     if snap and isinstance(snap, dict):
         out = []
-        for v in (snap.get("data", {}).get("vessels") or snap.get("vessels") or [])[:limit]:
+        for v in (snap.get("data", {}).get("vessels") or snap.get("vessels") or [])[:limit * 4]:
             tr = _track_from_ais_position(
                 v.get("mmsi"), v.get("lat"), v.get("lon"), v.get("sog"),
                 v.get("cog"), v.get("heading"), v.get("navStat"), v.get("name"), t,
                 "bundled in-image snapshot (sample)", _DIGITRAFFIC_URL,
-                "SAMPLE — all live AIS sources unreachable; bundled snapshot")
+                "SAMPLE — all live AIS sources unreachable; bundled snapshot/replay",
+                ship_type=v.get("shipType") or v.get("ship_type"))
             tr["live"] = False
-            tr["dark_fleet"] = _dark_fleet_flag(tr)
             out.append(tr)
-        return out, tried, "sample"
-    return [], tried, "sample"
+        return _finish(out, "sample")
+    return _finish([], "sample")
 
 
 # ===========================================================================
@@ -900,16 +1163,16 @@ def register(app, ns="killinchu"):
                "fabricated). Effector/engage stays SIMULATED (human-on-the-loop, legal line). "
                "Doctrine v11: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ=Conjecture 1 (advisory).")
 
-    def _fetch_cached(kind, fn, theater, limit, ttl=20):
+    def _fetch_cached(kind, fn, theater, limit, ttl=20, vtype=None):
         """Short-TTL cache so repeated demo polls are instant and we are gentle on
         upstreams. Honest: served value is still REAL live data (<=ttl old)."""
-        ck = "feed:%s:%s:%s" % (kind, theater, limit)
+        ck = "feed:%s:%s:%s:%s" % (kind, theater, limit, vtype or "all")
         now = time.time()
         with _LOCK:
             ent = _CACHE.get(ck)
         if ent and (now - ent["ts"]) < ttl:
             return ent["val"]
-        val = fn(theater, limit)
+        val = fn(theater, limit, vtype) if vtype is not None else fn(theater, limit)
         with _LOCK:
             _CACHE[ck] = {"val": val, "ts": now}
         return val
@@ -928,21 +1191,101 @@ def register(app, ns="killinchu"):
             "honest": _HONEST, "doctrine": "v11", "fetched_at": _now_iso(),
         })
 
+    def _norm_vtype(request):
+        vt = (request.query_params.get("type") or request.query_params.get("vessel_type") or "all").lower()
+        if vt in ("all", ""):
+            return "all"
+        return vt if (vt in _VESSEL_TYPES or vt == "unknown") else "all"
+
     async def _vessels(request):
         theater = request.query_params.get("theater", "baltic")
         limit = _limit(request)
-        tracks, tried, mode = await _run(_fetch_cached, "sea", _fetch_vessels, theater, limit)
-        live = any(t.get("ok") for t in tried)
+        vtype = _norm_vtype(request)
+        tracks, tried, mode = await _run(_fetch_cached, "sea", _fetch_vessels, theater, limit, 20, vtype)
+        # Honest: live=true ONLY when this theater actually returned REAL live
+        # tracks this cycle (mode != sample). A reachable source that had no
+        # vessels in-box (uncovered theater) is mode=sample, live=false.
+        live = (mode != "sample")
         return JSONResponse({
             "feed": "vessels", "domain": "sea",
             "theater": theater, "theater_box": _theater(theater),
+            "type": vtype, "valid_types": ["all"] + list(_VESSEL_TYPES) + ["unknown"],
             "count": len(tracks), "mode": mode, "live": live,
             "sources_tried": tried,
+            "redundancy_chain": ["AISStream.io wss (keyed, global incl. China seas)",
+                                 "Digitraffic FI AIS (no key, Baltic)",
+                                 "Kystverket/Kystdatahuset Norway AIS (no key)",
+                                 "Marinesia REST (keyed-optional)",
+                                 "SAMPLE/replay (bundled snapshot)"],
+            "coverage_note": ("REAL global / China-seas / chokepoint AIS requires the AISStream "
+                              "key (SZL_AISSTREAM_API_KEY). Without it the no-key sources cover "
+                              "only Finland/Baltic (Digitraffic) and Norwegian waters (Kystverket); "
+                              "Asia & other theaters then show SAMPLE/replay — clearly labeled, "
+                              "NEVER fabricated as live."),
             "dark_fleet_note": ("Dark-fleet / sanctioned flags are an ADVISORY heuristic "
                                 "computed over REAL AIS — NOT proven. Cross-reference "
                                 "/osint/intel?vertical=sanctioned_vessels for designations."),
             "tracks": tracks,
             "honest": _HONEST, "doctrine": "v11", "fetched_at": _now_iso(),
+        })
+
+    async def _vessels_stats(request):
+        """Maritime W1: global vessel rollup — counts by theater + by type +
+        how many LIVE vs SAMPLE. For the frontend's China-seas / global board."""
+        limit = _limit(request, default=400, cap=1000)
+        theaters = _SEA_THEATERS
+        by_theater = {}
+        by_type = {}
+        live_total = 0
+        sample_total = 0
+        any_live = False
+
+        def _one(th):
+            return _fetch_cached("sea", _fetch_vessels, th, limit, 20, "all")
+
+        results = await _run(lambda: [( th, _one(th)) for th in theaters])
+        for th, (tracks, tried, mode) in results:
+            n_live = sum(1 for v in tracks if v.get("live"))
+            n_sample = sum(1 for v in tracks if not v.get("live"))
+            live_total += n_live
+            sample_total += n_sample
+            # Honest per-theater LIVE: real tracks returned this cycle (not sample).
+            src_live = (mode != "sample") and n_live > 0
+            any_live = any_live or src_live
+            tcounts = {}
+            for v in tracks:
+                vt = v.get("vessel_type") or "unknown"
+                tcounts[vt] = tcounts.get(vt, 0) + 1
+                by_type[vt] = by_type.get(vt, 0) + 1
+            by_theater[th] = {
+                "label": _theater(th).get("label"),
+                "count": len(tracks),
+                "live": n_live, "sample": n_sample,
+                "mode": mode,
+                "source_live": src_live,
+                "by_type": tcounts,
+                "top_source": next((s.get("source") for s in tried if s.get("ok")), None),
+            }
+        return JSONResponse({
+            "feed": "vessels/stats", "domain": "sea",
+            "doctrine": "v11", "fetched_at": _now_iso(),
+            "theaters": theaters,
+            "by_theater": by_theater,
+            "by_type": by_type,
+            "totals": {"live": live_total, "sample": sample_total,
+                       "vessels": live_total + sample_total},
+            "live": any_live,
+            "vessel_types": list(_VESSEL_TYPES) + ["unknown"],
+            "redundancy_chain": ["AISStream.io wss (keyed, global incl. China seas)",
+                                 "Digitraffic FI AIS (no key, Baltic)",
+                                 "Kystverket/Kystdatahuset Norway AIS (no key)",
+                                 "Marinesia REST (keyed-optional)",
+                                 "SAMPLE/replay (bundled snapshot)"],
+            "aisstream_key_present": bool(_aisstream_key()),
+            "honest": (_HONEST + " Per-theater LIVE means a real source returned data for "
+                       "that box this cycle; SAMPLE means every real source failed there "
+                       "(bundled snapshot/replay, never fabricated). Asia/China-seas theaters "
+                       "are LIVE only when the AISStream key is present."),
         })
 
     async def _remoteid(request):
@@ -1023,8 +1366,13 @@ def register(app, ns="killinchu"):
                              "fallback": "bundled snapshot (SAMPLE)",
                              "theaters": sorted(THEATERS.keys())},
                 "vessels": {"endpoint": "%s/feeds/vessels" % base,
-                            "primary": "AISStream.io wss (keyed, secret store)",
-                            "fallback": "Digitraffic FI AIS (no key) -> bundled snapshot (SAMPLE)",
+                            "stats_endpoint": "%s/feeds/vessels/stats" % base,
+                            "primary": "AISStream.io wss (keyed, secret store, global incl. China seas)",
+                            "fallback": ("Digitraffic FI AIS (no key) -> Kystverket/Kystdatahuset "
+                                         "Norway AIS (no key) -> Marinesia (keyed-optional) -> "
+                                         "bundled snapshot (SAMPLE/replay)"),
+                            "vessel_types": list(_VESSEL_TYPES) + ["unknown"],
+                            "sea_theaters": _SEA_THEATERS,
                             "aisstream": {"key_present": bool(_aisstream_key()),
                                           "collector_started": ais_started,
                                           "cached_vessels": ais_n,
@@ -1043,6 +1391,7 @@ def register(app, ns="killinchu"):
     routes = [
         Route("%s/feeds/aircraft" % base, _aircraft, methods=["GET"], name="%s_feeds_aircraft" % ns),
         Route("%s/feeds/vessels" % base, _vessels, methods=["GET"], name="%s_feeds_vessels" % ns),
+        Route("%s/feeds/vessels/stats" % base, _vessels_stats, methods=["GET"], name="%s_feeds_vessels_stats" % ns),
         Route("%s/feeds/remoteid" % base, _remoteid, methods=["GET"], name="%s_feeds_remoteid" % ns),
         Route("%s/feeds/remoteid/ingest" % base, _remoteid_ingest, methods=["POST"], name="%s_feeds_remoteid_ingest" % ns),
         Route("%s/feeds/realdata/status" % base, _feeds_status, methods=["GET"], name="%s_feeds_realdata_status" % ns),
@@ -1064,4 +1413,5 @@ def register(app, ns="killinchu"):
 
 
 __all__ = ["register", "_fetch_aircraft", "_fetch_vessels", "_track_from_rid",
-           "THEATERS"]
+           "THEATERS", "_SEA_THEATERS", "_VESSEL_TYPES", "_ship_type_category",
+           "_fetch_digitraffic", "_fetch_kystverket", "_track_from_ais_position"]
