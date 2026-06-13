@@ -3457,6 +3457,105 @@ except Exception as _prom_e:  # pragma: no cover
 # a blocking uvicorn.run mid-file).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 # ============================================================================
+
+
+
+# ============================================================================
+# BEGIN: JACK-IN MISSION CONSOLE — killinchu (ADDITIVE, 2026-06-13, Dev5)
+# Mounts the self-contained "JACK IN" mission console (connect a drone/vessel →
+# ingest → fuse → classify → DECIDE → SIMULATED engage → khipu receipt) as a NEW
+# surface at /jackin (and the alias /elite/jackin). The static app lives under
+# /app/static/jackin/ (rides in via the existing `COPY static/ ./static/` layer —
+# NO Dockerfile change needed). 0 runtime CDN; every lib vendored under
+# static/jackin/assets/vendor. Same-origin: the UI calls killinchu /api/killinchu/v1/*
+# and /khipu/sign directly (KILLINCHU_BASE=''); the a11oy ledger/command-log are
+# cross-origin but a11oy already serves open CORS for the killinchu origin.
+#
+# Doctrine v11 LOCKED 749/14/163. Kernel c7c0ba17. Λ = Conjecture 1. SLSA L1.
+# Effector SIMULATED, human-on-the-loop. NO takeover/jam/spoof. Real data LIVE /
+# sample SAMPLE — never fabricated.
+#
+# Registered at position 0 so the explicit /jackin routes beat the SPA
+# /{full_path:path} catch-all. try/except-guarded — can NEVER crash the app.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    from pathlib import Path as _JK_Path
+    from fastapi import Request as _JK_Request
+    from fastapi.routing import APIRoute as _JK_Route
+    from fastapi.responses import (
+        FileResponse as _JK_File,
+        HTMLResponse as _JK_HTML,
+        RedirectResponse as _JK_Redir,
+        JSONResponse as _JK_JSON,
+    )
+    import sys as _jk_sys
+
+    _JK_DIR = _JK_Path(__file__).resolve().parent / "static" / "jackin"
+    _JK_INDEX = _JK_DIR / "index.html"
+
+    def _jk_index_html() -> str:
+        # Serve index.html with a <base href="/jackin/"> injected so the app's
+        # relative asset paths (assets/css/..., assets/js/...) resolve under
+        # /jackin/ regardless of trailing slash. The on-disk file is unchanged.
+        html = _JK_INDEX.read_text(encoding="utf-8")
+        if "<base " not in html:
+            html = html.replace("<head>", '<head>\n  <base href="/jackin/">', 1)
+        return html
+
+    async def _jk_root(request: _JK_Request):
+        # Canonicalise to the trailing-slash form so relative assets resolve.
+        if not _JK_INDEX.is_file():
+            return _JK_JSON({"error": "jackin console not bundled"}, status_code=404)
+        return _JK_HTML(_jk_index_html())
+
+    async def _jk_root_noslash(request: _JK_Request):
+        return _JK_Redir(url="/jackin/", status_code=307)
+
+    async def _jk_asset(request: _JK_Request):
+        # Serve /jackin/<path> from static/jackin/<path> (assets, vendor, etc.).
+        rel = request.path_params.get("jk_path", "") or ""
+        if rel in ("", "index.html"):
+            return _JK_HTML(_jk_index_html())
+        candidate = (_JK_DIR / rel).resolve()
+        try:
+            candidate.relative_to(_JK_DIR.resolve())
+        except ValueError:
+            return _JK_HTML(_jk_index_html())
+        if candidate.is_file():
+            return _JK_File(str(candidate))
+        # SPA-style fallback to the jackin index for unknown sub-paths.
+        return _JK_HTML(_jk_index_html())
+
+    # alias under /elite so the console is reachable as the /elite JACK IN surface too.
+    async def _jk_elite_alias(request: _JK_Request):
+        return _JK_Redir(url="/jackin/", status_code=307)
+
+    _jk_routes = [
+        _JK_Route("/jackin", _jk_root_noslash, methods=["GET"], name="jackin_root_noslash"),
+        _JK_Route("/jackin/", _jk_root, methods=["GET"], name="jackin_root"),
+        _JK_Route("/jackin/{jk_path:path}", _jk_asset, methods=["GET"], name="jackin_asset"),
+        _JK_Route("/elite/jackin", _jk_elite_alias, methods=["GET"], name="jackin_elite_alias"),
+    ]
+    # Insert at the FRONT so these beat the SPA /{full_path:path} catch-all.
+    for _r in reversed(_jk_routes):
+        app.router.routes.insert(0, _r)
+
+    print(
+        f"[killinchu] JACK-IN console mounted at /jackin "
+        f"(bundle present={_JK_INDEX.is_file()}, dir={_JK_DIR})",
+        file=_jk_sys.stderr,
+    )
+except Exception as _jk_e:
+    import sys as _jk_sys, traceback as _jk_tb
+    print(f"[killinchu] JACK-IN console NOT mounted (non-fatal): {_jk_e!r}", file=_jk_sys.stderr)
+    _jk_tb.print_exc(file=_jk_sys.stderr)
+# ============================================================================
+# END: JACK-IN MISSION CONSOLE — killinchu
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))

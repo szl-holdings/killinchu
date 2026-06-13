@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="jackin">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>killinchu · JACK IN — Mission Console</title>
+  <meta name="description" content="Connect a drone, vessel, or sensor and watch the killinchu pipeline: ingest, fuse, classify, decide, simulated engage, receipt." />
+  <link rel="stylesheet" href="assets/css/console.css" />
+</head>
+<body>
+  <!-- ===================== HEADER ===================== -->
+  <header class="jk-header" role="banner">
+    <div class="jk-brand">
+      <!-- killinchu eagle — inline SVG, 0 CDN -->
+      <svg class="jk-eagle" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="jkEagleG" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#E07A5F"/>
+            <stop offset="1" stop-color="#F2A48C"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#jkEagleG)" d="M32 6c2.2 3.1 4.3 5 7.9 6.2-1.5 1-2.7 1.3-4.6 1.3 5.6 3.4 9.8 4.2 16.7 3.2-3.7 3.3-7 4.7-12 4.9 6.4 2.6 11 2.7 18-.4-4.7 5-9.4 6.9-16.9 6.4l3.2 3.1-4.6.2 2.2 3.6c-3.4-.6-5.4-1.7-7.6-3.9V52h-4.6V34.2c-2.2 2.2-4.2 3.3-7.6 3.9l2.2-3.6-4.6-.2 3.2-3.1c-7.5.5-12.2-1.4-16.9-6.4 7 3.1 11.6 3 18 .4-5-.2-8.3-1.6-12-4.9 6.9 1 11.1.2 16.7-3.2-1.9 0-3.1-.3-4.6-1.3 3.6-1.2 5.7-3.1 7.9-6.2z"/>
+      </svg>
+      <div class="jk-brand-text">
+        <span class="jk-brand-name">killinchu</span>
+        <span class="jk-brand-sub">JACK&nbsp;IN · Mission Console</span>
+      </div>
+    </div>
+
+    <div class="jk-status" aria-live="polite">
+      <span id="jk-live-pill" class="jk-pill is-sample" hidden>SAMPLE</span>
+      <span class="jk-link">
+        <span id="jk-link-dot" class="jk-link-dot is-down" aria-hidden="true"></span>
+        <span id="jk-link-text">NO LINK</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ===================== TAB NAV ===================== -->
+  <nav class="jk-tabs" role="tablist" aria-label="Mission console tabs">
+    <button class="jk-tab" role="tab" data-tab="connect"  aria-selected="true"  id="tabbtn-connect"  aria-controls="tab-connect">CONNECT</button>
+    <button class="jk-tab" role="tab" data-tab="livefeed" aria-selected="false" id="tabbtn-livefeed" aria-controls="tab-livefeed">LIVE&nbsp;FEED</button>
+    <button class="jk-tab" role="tab" data-tab="fusion"   aria-selected="false" id="tabbtn-fusion"   aria-controls="tab-fusion">FUSION&nbsp;/&nbsp;TRACKS</button>
+    <button class="jk-tab" role="tab" data-tab="classify" aria-selected="false" id="tabbtn-classify" aria-controls="tab-classify">CLASSIFY</button>
+    <button class="jk-tab" role="tab" data-tab="decide"   aria-selected="false" id="tabbtn-decide"   aria-controls="tab-decide">DECIDE</button>
+    <button class="jk-tab" role="tab" data-tab="engage"   aria-selected="false" id="tabbtn-engage"   aria-controls="tab-engage">ENGAGE&nbsp;<span class="jk-tab-tag">SIM</span></button>
+    <button class="jk-tab" role="tab" data-tab="receipts" aria-selected="false" id="tabbtn-receipts" aria-controls="tab-receipts">RECEIPTS</button>
+  </nav>
+
+  <!-- ===================== PANELS ===================== -->
+  <main class="jk-main" role="main">
+
+    <!-- ---------- CONNECT (Dev 1 owns content) ---------- -->
+    <section id="tab-connect" class="jk-panel is-active" role="tabpanel" data-panel="connect" aria-labelledby="tabbtn-connect">
+      <div class="jk-panel-head">
+        <h1 class="jk-h1">Jack in.</h1>
+        <p class="jk-lede">Bring a drone, a vessel, or a sensor. Connect it in the browser — no install — and the killinchu pipeline lights up live.</p>
+      </div>
+
+      <div id="jk-connect-capwarn" class="jk-banner jk-banner-warn" hidden></div>
+
+      <!-- connect buttons grid (populated/managed by connect.js) -->
+      <div id="jk-connect-grid" class="jk-connect-grid" aria-label="Connection methods"></div>
+
+      <!-- live handshake / link-status console -->
+      <div class="jk-connect-status">
+        <div class="jk-card jk-card-link">
+          <h2 class="jk-h2">Link</h2>
+          <dl id="jk-link-detail" class="jk-kv">
+            <div><dt>State</dt><dd id="jk-d-state">Idle</dd></div>
+            <div><dt>Transport</dt><dd id="jk-d-transport">—</dd></div>
+            <div><dt>Protocol</dt><dd id="jk-d-proto">—</dd></div>
+            <div><dt>Heartbeat</dt><dd id="jk-d-hb">—</dd></div>
+            <div><dt>Signal / RSSI</dt><dd id="jk-d-rssi">—</dd></div>
+            <div><dt>Frames</dt><dd id="jk-d-frames">0</dd></div>
+          </dl>
+          <button id="jk-disconnect" class="jk-btn jk-btn-ghost" hidden>Disconnect</button>
+        </div>
+        <div class="jk-card jk-card-log">
+          <h2 class="jk-h2">Handshake log</h2>
+          <ol id="jk-handshake-log" class="jk-log" aria-live="polite"></ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- Mount points for Devs 2-4 (empty, owned by them) ---------- -->
+    <section id="tab-livefeed" class="jk-panel" role="tabpanel" data-panel="livefeed" aria-labelledby="tabbtn-livefeed" hidden>
+      <div class="jk-panel-placeholder" data-owner="dev2">LIVE FEED — telemetry, map, attitude (Dev 2 mounts here)</div>
+    </section>
+    <section id="tab-fusion" class="jk-panel" role="tabpanel" data-panel="fusion" aria-labelledby="tabbtn-fusion" hidden>
+      <div class="jk-panel-placeholder" data-owner="dev2">FUSION / TRACKS — Lattice-style entity tracks (Dev 2 mounts here)</div>
+    </section>
+    <section id="tab-classify" class="jk-panel" role="tabpanel" data-panel="classify" aria-labelledby="tabbtn-classify" hidden>
+      <div class="jk-panel-placeholder" data-owner="dev3">CLASSIFY — friend/unknown/threat, Remote ID, spoof plausibility (Dev 3 mounts here)</div>
+    </section>
+    <section id="tab-decide" class="jk-panel" role="tabpanel" data-panel="decide" aria-labelledby="tabbtn-decide" hidden>
+      <div class="jk-panel-placeholder" data-owner="dev3">DECIDE — WTA / consensus / recommendation (Dev 3 mounts here)</div>
+    </section>
+    <section id="tab-engage" class="jk-panel" role="tabpanel" data-panel="engage" aria-labelledby="tabbtn-engage" hidden>
+      <div class="jk-panel-placeholder" data-owner="dev4">ENGAGE (SIMULATED) — human-on-the-loop approval gate (Dev 4 mounts here)</div>
+    </section>
+    <section id="tab-receipts" class="jk-panel" role="tabpanel" data-panel="receipts" aria-labelledby="tabbtn-receipts" hidden>
+      <div class="jk-panel-placeholder" data-owner="dev4">RECEIPTS — khipu DSSE chain, re-hash MATCH, tamper demo (Dev 4 mounts here)</div>
+    </section>
+  </main>
+
+  <!-- ===================== FOOTER (Doctrine v11) ===================== -->
+  <footer class="jk-footer" role="contentinfo">
+    <span class="jk-doctrine">Doctrine v11 · locked=8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 · Λ=Conjecture&nbsp;1 · Khipu=Conjecture&nbsp;2</span>
+    <span class="jk-posture">Decisioning is real · engagement is <strong>SIMULATED</strong> · human on the loop</span>
+  </footer>
+
+  <!-- ===================== SCRIPTS (0 CDN, load order matters) ===================== -->
+  <!-- Vendored MAVLink parser -->
+  <script src="assets/vendor/mavlink-browser.js"></script>
+  <!-- Dev 5 shared bus contract (loads first if present; app.js adopts it idempotently) -->
+  <script src="assets/js/jackin_bus.js" onerror="this.remove()"></script>
+  <!-- Dev 1: contract + router + shell -->
+  <script src="assets/js/app.js"></script>
+  <!-- Dev 1: connect tab + source manager -->
+  <script src="assets/js/connect.js"></script>
+  <!-- Dev 2-4 panel modules (graceful if not yet present) -->
+  <script src="assets/js/livefeed.js" onerror="this.remove()"></script>
+  <script src="assets/js/tracks.js"   onerror="this.remove()"></script>
+  <script src="assets/js/classify.js" onerror="this.remove()"></script>
+  <script src="assets/js/decide.js"   onerror="this.remove()"></script>
+  <script src="assets/js/engage.js"   onerror="this.remove()"></script>
+  <script src="assets/js/receipts.js" onerror="this.remove()"></script>
+</body>
+</html>
