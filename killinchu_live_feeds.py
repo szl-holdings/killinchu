@@ -12,7 +12,7 @@ the last good in-memory value or the bundled on-disk snapshot labelled "cached".
 Endpoints registered EARLY (before the /{full_path:path} catch-all in serve.py):
 
   GET /api/killinchu/v1/live              index of feeds (reachability + honesty)
-  GET /api/killinchu/v1/live/<feed>       one feed (ais|air|celestrak|rekor|kev|osv|prometheus)
+  GET /api/killinchu/v1/live/<feed>       one feed (ais|air|celestrak|rekor|kev|osv|prometheus|epss)
   GET /api/killinchu/v1/ais/live          Digitraffic FI AIS (live vessels) — convenience alias
   GET /api/killinchu/v1/air/live          adsb.lol live aircraft/drone ADS-B — convenience alias
   GET /api/killinchu/v1/feeds/status      reachability + snapshot honesty (legacy serve.py contract)
@@ -36,6 +36,7 @@ Feeds + TTLs (all free, no-auth):
   kev         (cisagov GitHub mirror known_exploited_vulnerabilities.json)       TTL 6h
   osv         (api.osv.dev/v1/query, POST)                          TTL 1h
   prometheus  (prometheus.demo.prometheus.io/api/v1/query)          TTL 30s
+  epss        (api.first.org/data/v1/epss order=!epss, FIRST)       TTL 1h
 
 Also EXPORTS the helpers reused by killinchu_health_twin (its line-66 import):
   _fetch_ais(limit, lat, lon, radius)  -> {"vessels":[{mmsi,name,sog,cog,heading,
@@ -69,7 +70,7 @@ _LOCK = threading.Lock()
 
 _TTL = {
     "ais": 20, "air": 15, "celestrak": 2 * 3600, "rekor": 60,
-    "kev": 6 * 3600, "osv": 3600, "prometheus": 30,
+    "kev": 6 * 3600, "osv": 3600, "prometheus": 30, "epss": 3600,
 }
 
 _SOURCE = {
@@ -87,6 +88,8 @@ _SOURCE = {
             "https://api.osv.dev/v1/query"),
     "prometheus": ("Prometheus demo (node/caddy/blackbox exporters)",
                    "https://prometheus.demo.prometheus.io/api/v1/query"),
+    "epss": ("FIRST EPSS — Exploit Prediction Scoring System v3 (no auth)",
+             "https://api.first.org/data/v1/epss"),
 }
 
 
@@ -132,6 +135,8 @@ _PROXY = {
                      "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json", 6 * 3600),
     "cisa_kev":  ("CISA Known Exploited Vulnerabilities catalog (GitHub mirror)",
                   "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json", 6 * 3600),
+    "epss":      ("FIRST EPSS — Exploit Prediction Scoring System v3 (no auth)",
+                  "https://api.first.org/data/v1/epss", 3600),
 }
 
 # governed-loop routes proxied from a11oy (the command/cosign-receipt platform).
@@ -365,6 +370,10 @@ def _fetch(feed):
         return {"log": _http_get(_SOURCE["rekor"][1], timeout=15)}
     if feed == "kev":
         return _http_get(_SOURCE["kev"][1], timeout=40)
+    if feed == "epss":
+        # highest-exploit-probability CVEs first (order=!epss). Real FIRST EPSS v3,
+        # no auth. Pairs with CISA KEV for CVE prioritisation (CVE Watch / Threat Intel).
+        return _http_get(_SOURCE["epss"][1] + "?order=!epss&limit=100", timeout=20)
     if feed == "osv":
         out = {}
         for pkg, eco in (("tensorflow", "PyPI"), ("torch", "PyPI"),
@@ -694,10 +703,14 @@ def register(app, ns="killinchu"):
         if name not in _PROXY:
             return JSONResponse({"error": "unknown proxy", "name": name,
                                  "available": sorted(_PROXY.keys())}, status_code=404)
-        # forward only a small allow-list of NVD query params (others ignored)
+        # forward only a small allow-list of upstream query params (others ignored):
+        #   NVD CVE 2.0  -> resultsPerPage / pubStartDate / pubEndDate / startIndex
+        #   FIRST EPSS   -> cve / order / limit / offset / percentile-gt / epss-gt / days / envelope
         qp = request.query_params
         parts = []
-        for k in ("resultsPerPage", "pubStartDate", "pubEndDate", "startIndex"):
+        for k in ("resultsPerPage", "pubStartDate", "pubEndDate", "startIndex",
+                  "cve", "order", "limit", "offset", "percentile-gt", "epss-gt",
+                  "days", "envelope"):
             if k in qp:
                 parts.append("%s=%s" % (k, urllib.parse.quote(qp[k])))
         payload = await _run(_do_proxy, name, "&".join(parts))
