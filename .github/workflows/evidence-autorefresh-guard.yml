@@ -1,0 +1,43 @@
+name: Evidence auto-refresh surface guard
+
+# Task #878: the Evidence & Research tab's "auto-refreshing" pill + genuine 180s
+# background source re-probe (marker evidence-autorecheck-539) is a pure front-end
+# patch living inline in killinchu_elite_console.py — a large, concurrently-edited
+# file. A careless edit or a regenerating rebuild could silently drop it. This
+# offline, network-free string-surface check (mirroring a11oy's operator/reason
+# surface test) fails loud if the feature is missing, and carries a negative-fixture
+# self-test so it can't rot into an always-pass.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - killinchu_elite_console.py
+      - tests/test_evidence_autorefresh_surface.py
+      - .github/workflows/evidence-autorefresh-guard.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - killinchu_elite_console.py
+      - tests/test_evidence_autorefresh_surface.py
+      - .github/workflows/evidence-autorefresh-guard.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence-autorefresh-surface:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Install pytest (the guard only reads files; no network, no deps)
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Run Evidence auto-refresh surface guard (offline, no network)
+        run: python -m pytest tests/test_evidence_autorefresh_surface.py -q
