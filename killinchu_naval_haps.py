@@ -151,6 +151,29 @@ NAVAL_DRONES = [
     },
 ]
 
+# Cited real leader sources surfaced in every maritime/HAPS tab payload.
+# AIS live feeds are mostly key-gated (Spire / aisstream.io / MarineTraffic) so the
+# vessel catalog stays a cited SAMPLE — but each tab carries primary leader sources.
+MARITIME_SOURCES = [
+    {"leader": "IMO (International Maritime Organization)", "kind": "SOLAS Ch.V AIS carriage + maritime safety standards",
+     "url": "https://www.imo.org/", "data_kind": "standard"},
+    {"leader": "ITU-R M.1371", "kind": "AIS technical broadcast standard",
+     "url": "https://www.itu.int/rec/R-REC-M.1371", "data_kind": "standard"},
+    {"leader": "U.S. Coast Guard NAVCEN", "kind": "AIS overview + MMSI authority",
+     "url": "https://www.navcen.uscg.gov/automatic-identification-system-overview", "data_kind": "standard"},
+    {"leader": "H I Sutton (Covert Shores)", "kind": "open-source USV/UUV order-of-battle reporting",
+     "url": "https://www.hisutton.com/", "data_kind": "osint_reporting"},
+]
+
+HAPS_SOURCES = [
+    {"leader": "Airbus / AALTO HAPS", "kind": "Zephyr stratospheric platform (primary spec source)",
+     "url": "https://www.airbus.com/en/products-services/defence/uas/zephyr", "data_kind": "primary_spec"},
+    {"leader": "BAE Systems", "kind": "PHASA-35 HALE/HAPS platform (primary spec source)",
+     "url": "https://www.baesystems.com/en-us/product/phasa-35", "data_kind": "primary_spec"},
+    {"leader": "ICAO", "kind": "stratospheric/upper-airspace operations framework",
+     "url": "https://www.icao.int/", "data_kind": "standard"},
+]
+
 # AIS integration — cooperative maritime identity (analogue of ADS-B for ships).
 AIS_INTEGRATION = {
     "standard": "ITU-R M.1371 AIS (Automatic Identification System)",
@@ -179,11 +202,14 @@ def register_naval_haps(app, *, emit_receipt: Callable, json_body: Callable, doc
             "definition": "Stratospheric high-altitude pseudo-satellites (>18 km), ABOVE conventional UAS Group 1-5 ceilings.",
             "count": len(HAPS_PLATFORMS),
             "platforms": HAPS_PLATFORMS,
+            "data_kind": "catalog_sample_cited",
+            "sources": HAPS_SOURCES,
             "dual_role": "Each HAPS is BOTH a threat surface (long-dwell hostile sensor to track) AND a "
                          "persistent-sensor opportunity (allied ISR/comms host above the weather and air traffic).",
             "doctrine": doctrine,
             "honesty": "Killinchu does not operate HAPS platforms; it would consume cues/feeds from allied "
-                       "HAPS and treat hostile HAPS as tracks. Specs cited to operator/primary sources.",
+                       "HAPS and treat hostile HAPS as tracks. Catalog is a cited SAMPLE — specs attributed "
+                       "to operator/primary sources (Airbus/AALTO, BAE); not a live telemetry feed.",
         })
 
     # ---- Maritime / Naval mode ----
@@ -196,6 +222,8 @@ def register_naval_haps(app, *, emit_receipt: Callable, json_body: Callable, doc
                           "VESSELS (USVs/UUVs) threatening ports, LNG terminals, and cargo.",
             "catalog_count": len(NAVAL_DRONES),
             "catalog": NAVAL_DRONES,
+            "data_kind": "catalog_sample_cited",
+            "sources": MARITIME_SOURCES,
             "ais_integration": AIS_INTEGRATION,
             "cued_engagement": {
                 "pipeline": "detect -> classify (four-color) -> predict-impact (surface-track kinematics) -> "
