@@ -490,6 +490,14 @@ def register(app: FastAPI, ns: str = "killinchu",
                         "not fabricated. Verdict is honestly thresholded (PSI 0.1/0.25, KS p<0.05). "
                         "Lambda = Conjecture 1."),
             "scipy_available": _HAVE_SCIPY,
+            "cited_leaders": [
+                {"name": "NIST AI RMF (AI 100-1) — monitoring & drift",
+                 "url": "https://www.nist.gov/itl/ai-risk-management-framework"},
+                {"name": "Bifet & Gavaldà — ADWIN adaptive windowing (SIAM DM 2007)",
+                 "url": "https://doi.org/10.1137/1.9781611972771.42"},
+                {"name": "NIST SP 800-207 Zero Trust Architecture",
+                 "url": "https://csrc.nist.gov/pubs/sp/800/207/final"},
+            ],
         }
         if emit_receipt is not None:
             try:
@@ -644,6 +652,14 @@ def register(app: FastAPI, ns: str = "killinchu",
             "empty": empty,
             "empty_state": ("No exposures discovered in the UDS Package CR." if empty else None),
             "honesty": "Edges reflect actual allow/expose rules only; no invented CVEs or exposures.",
+            "cited_leaders": [
+                {"name": "MITRE ATT&CK Enterprise (adversary techniques)",
+                 "url": "https://attack.mitre.org/"},
+                {"name": "CISA Known Exploited Vulnerabilities (KEV)",
+                 "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"},
+                {"name": "NIST SP 800-207 Zero Trust Architecture",
+                 "url": "https://csrc.nist.gov/pubs/sp/800/207/final"},
+            ],
         }
         return JSONResponse(out)
 
@@ -687,6 +703,14 @@ def register(app: FastAPI, ns: str = "killinchu",
             "empty_state": ("No allow rules found in the UDS Package CR." if empty else None),
             "honesty": ("Edges = actual allow rules from the UDS Package CR only; mTLS via Istio "
                         "ambient. Public role names (no banned codenames). Lambda = Conjecture 1."),
+            "cited_leaders": [
+                {"name": "NIST SP 800-207 Zero Trust Architecture",
+                 "url": "https://csrc.nist.gov/pubs/sp/800/207/final"},
+                {"name": "CISA Zero Trust Maturity Model v2",
+                 "url": "https://www.cisa.gov/zero-trust-maturity-model"},
+                {"name": "Istio ambient mesh (mTLS)",
+                 "url": "https://istio.io/latest/docs/ambient/"},
+            ],
         }
         return JSONResponse(out)
 
