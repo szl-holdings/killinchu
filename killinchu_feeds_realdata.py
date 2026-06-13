@@ -398,11 +398,12 @@ def _fetch_aircraft(theater_key, limit):
         tried.append({"source": "adsb.lol /v2/mil", "ok": False,
                       "error": "%s: %s" % (type(e).__name__, e), "url": _ADSBLOL_MIL})
 
-    # SUPPLEMENT — adsb.lol /v2/point radius tiling. Only used when we still have
-    # no POSITIONED tracks (e.g. OpenSky unreachable from this host and the mil
-    # feed has nothing in-box). Gives real positioned civ+mil aircraft; same host
-    # as /v2/mil so it works where OpenSky egress is blocked. Honest live data.
-    if not tracks:
+    # SUPPLEMENT — adsb.lol /v2/point radius tiling. Used whenever the positioned
+    # tracks gathered so far fall short of the requested limit (e.g. OpenSky
+    # unreachable from this host, or the mil feed has little in-box). Gives real
+    # positioned civ+mil aircraft; same host as /v2/mil so it works where OpenSky
+    # egress is blocked. Honest live data — deduped against what we already have.
+    if len(tracks) < limit:
         pt_total = 0
         pt_kept = 0
         pt_ok = False
