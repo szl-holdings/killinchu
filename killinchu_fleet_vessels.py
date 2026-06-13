@@ -54,6 +54,20 @@ _DATA_PATH = os.path.join(_HERE, "fleet_vessels_data.json")
 
 HONESTY_LABEL = "Sample fleet dataset — not a live AIS/class-society feed."
 
+# Cited real leader sources surfaced in every fleet tab payload. Live AIS and
+# class-society registers are key-gated/commercial, so the datasets stay a cited
+# SAMPLE — but each tab carries primary leader/standard sources (honest data_kind).
+FLEET_SOURCES = [
+    {"leader": "IMO (International Maritime Organization)", "kind": "SOLAS / ISM / MARPOL fleet-safety standards",
+     "url": "https://www.imo.org/", "data_kind": "standard"},
+    {"leader": "IACS (Int'l Assoc. of Classification Societies)", "kind": "class-society survey + certification rules",
+     "url": "https://iacs.org.uk/", "data_kind": "standard"},
+    {"leader": "Paris MoU on Port State Control", "kind": "port-state inspection / deficiency regime",
+     "url": "https://www.parismou.org/", "data_kind": "standard"},
+    {"leader": "ITU-R M.1371 AIS", "kind": "vessel cooperative-identity broadcast standard",
+     "url": "https://www.itu.int/rec/R-REC-M.1371", "data_kind": "standard"},
+]
+
 # ---------------------------------------------------------------------------
 # Dataset loader — read the embedded verbatim platform seed-data once.
 # ---------------------------------------------------------------------------
@@ -198,6 +212,8 @@ def voyage_risk_loop() -> dict[str, Any]:
             "-> brief). The recommendation is ADVISORY and requires human approval; the "
             "trust score is a documented Conjecture, not a proven oracle. Sample inputs."
         ),
+        "data_kind": "sample_fleet_cited",
+        "sources": FLEET_SOURCES,
         "source": "platform services/verticals/vessels/{signals,forecast,evidence,recommendations,brief}.py",
     }
 
@@ -217,7 +233,8 @@ def register(app) -> dict[str, Any]:
     def _serve(key: str):
         async def _h() -> JSONResponse:
             return JSONResponse(
-                {"data": data.get(key, []), "honesty": HONESTY_LABEL, "source_key": key}
+                {"data": data.get(key, []), "data_kind": "sample_fleet_cited",
+                 "honesty": HONESTY_LABEL, "source_key": key, "sources": FLEET_SOURCES}
             )
         return _h
 
@@ -241,7 +258,9 @@ def register(app) -> dict[str, Any]:
         return JSONResponse({
             "datasets": data,
             "counts": {k: (len(v) if isinstance(v, list) else None) for k, v in data.items()},
+            "data_kind": "sample_fleet_cited",
             "honesty": HONESTY_LABEL,
+            "sources": FLEET_SOURCES,
             "source": "github.com/szl-holdings/platform seed-data/vessels/*",
         })
     registered.append(f"{base}/all")
