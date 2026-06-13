@@ -333,6 +333,49 @@ _LAMBDA_STATUS = ("Λ = Conjecture 1 (advisory; uniqueness conditional/CI-green 
                   "locked-proven = 8 {F1,F4,F7,F11,F12,F18,F19,F22}; SLSA L1 honest / L2 roadmap; sovereign (0 CDN); "
                   "no fabricated numbers; no AGI.")
 
+# Honest, cited provenance for the proof tabs: each entry pairs a REAL in-tree
+# lutar-lean theorem name (kernel-verified in szl-holdings/lutar-lean) with the
+# arXiv preprint / public standard it corresponds to. Conjectures are labelled
+# as Conjectures — NEVER upgraded to Theorems (no honesty regression).
+_LUTAR_REPO = "https://github.com/szl-holdings/lutar-lean"
+_CITATIONS = [
+    {"claim": "Conjunctive GATE soundness (P2)", "status": "PROVEN",
+     "lutar_theorem": "Lutar.DPI.TH6_DPI_Soundness",
+     "lutar_url": _LUTAR_REPO + "/blob/main/Lutar/DPI/TH6_DPI_Soundness.lean",
+     "standard": "in-toto/DSSE attestation; SLSA provenance",
+     "arxiv": "arXiv:2406.10109 (governed-systems soundness)"},
+    {"claim": "Killinchu interdiction chromatic exactness", "status": "PROVEN (decide, Mathlib-free)",
+     "lutar_theorem": "Lutar.Frontier.Killinchu.killinchu_chromatic_exact",
+     "lutar_url": _LUTAR_REPO + "/blob/main/Lutar/Frontier/Killinchu.lean",
+     "standard": "kernel-verified by `decide`",
+     "arxiv": "arXiv:2604.09808 (Lean formalization)"},
+    {"claim": "Halt-eligibility monotonicity / decidability (HUKLLA)", "status": "PROVEN",
+     "lutar_theorem": "Lutar.HUKLLA.halt_eligibility_monotone / halt_eligibility_decidable",
+     "lutar_url": _LUTAR_REPO + "/tree/main/Lutar/HUKLLA",
+     "standard": "STL robustness (RTAMT, MIT) pattern",
+     "arxiv": "arXiv:2406.10109"},
+    {"claim": "Tamper-evidence / receipt chain (P5)", "status": "PROVEN",
+     "lutar_theorem": "Lutar.DPI.MerkleDAGBuild",
+     "lutar_url": _LUTAR_REPO + "/blob/main/Lutar/DPI/MerkleDAGBuild.lean",
+     "standard": "RFC 6962 Merkle transparency; Sigstore Rekor (Apache-2.0)",
+     "arxiv": "RFC 6962"},
+    {"claim": "Λ (lambda) uniqueness", "status": "CONJECTURE 1 (advisory; unconditional FALSE)",
+     "lutar_theorem": "Conjecture1_LambdaUnique (statement-only, machine-checked FALSE); "
+                      "conditional only: Lutar.Uniqueness.TheoremU_LambdaUnique, "
+                      "Round13.lambda_unique_of_separable / lambda_unique_of_factors",
+     "lutar_url": _LUTAR_REPO + "/tree/main/Lutar/Uniqueness",
+     "standard": "advisory governance signal — NOT a proof",
+     "arxiv": "n/a (open conjecture)"},
+    {"claim": "BFT quorum / consensus safety", "status": "CONJECTURE 2 (conditional theorem under HonestNonEquivocation)",
+     "lutar_theorem": "Lutar.Wave23.QuorumSafety (ubuntu_quorum_safety / khipu_consensus_safety)",
+     "lutar_url": _LUTAR_REPO + "/tree/main/Lutar/Wave23",
+     "standard": "BFT consensus literature",
+     "arxiv": "arXiv:2008.04699, arXiv:2009.14763"},
+]
+_CITATION_NOTE = ("Each proof tab cites a real, in-tree lutar-lean theorem name plus the public "
+                  "standard / arXiv preprint it maps to. PROVEN entries are kernel-verified; "
+                  "Λ stays Conjecture 1 and BFT stays Conjecture 2 (no Theorem upgrades).")
+
 
 # ===========================================================================
 # 1. SPOOFED-AIS — AIS/GPS spoofing detection. REAL TODAY.
@@ -3372,6 +3415,8 @@ def register(app, sign_fn=None, verify_fn=None, ns="killinchu"):
             "launch_at": "/api/%s/v1/warhacker/launch/{key}" % ns,
             "lambda_status": _LAMBDA_STATUS,
             "locked_proven": ["F1", "F11", "F12", "F18", "F19"],
+            "citations": _CITATIONS, "citation_note": _CITATION_NOTE,
+            "anchor_health_at": "/api/%s/uds/v1/rekor/health" % ns,
             "slsa": "L1 honest; L2 roadmap.", "sovereign": "zero runtime CDN",
             "verify_offline": "GET /cosign.pub  ;  cosign verify-blob --key cosign.pub",
         })
@@ -3391,7 +3436,13 @@ def register(app, sign_fn=None, verify_fn=None, ns="killinchu"):
             return JSONResponse({"ok": False, "error": "unknown demo", "known": list(_DEMOS)},
                                 status_code=404)
         try:
-            return JSONResponse(fn(mode, host))
+            result = fn(mode, host)
+            if isinstance(result, dict):
+                result.setdefault("citations", _CITATIONS)
+                result.setdefault("citation_note", _CITATION_NOTE)
+                result.setdefault("anchor_health_at",
+                                  "/api/%s/uds/v1/rekor/health" % ns)
+            return JSONResponse(result)
         except Exception as e:
             import traceback
             return JSONResponse({"ok": False, "demo": key, "mode": mode,
