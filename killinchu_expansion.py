@@ -16,8 +16,13 @@ All numbers carry primary-source citations.
 from __future__ import annotations
 
 import hashlib
+import json as _json
 import math
+import os as _os
+import threading as _threading
 import time
+import urllib.error as _uerr
+import urllib.request as _ureq
 from typing import Any, Callable
 
 from fastapi import Request
@@ -168,6 +173,93 @@ TRIPWIRES = [
 ]
 
 _AXES_DEFAULT = [0.93, 0.91, 0.94, 0.9, 0.92, 0.91, 0.93, 0.9, 0.95, 0.92, 0.94, 0.91, 0.93]
+
+
+# ---------------------------------------------------------------------------
+# Finance / Real-Estate / Vertical expansion (Doctrine v11, ADDITIVE).
+# Real FREE public feeds (no key): Coinbase + CoinGecko (crypto), Frankfurter/ECB
+# (FX), Polymarket Gamma (prediction markets). Key-gated sources (FRED) return an
+# HONEST disabled payload — a key is NEVER placed in a URL/query string. Domains
+# with no free real source (real estate) keep a curated sample BUT cite the real
+# leader standard/dataset and label data_kind honestly. Nothing is fabricated.
+# ---------------------------------------------------------------------------
+
+_FIN_UA = "killinchu-finance/1.0 (+https://killinchu.szl-holdings; finance evidence layer)"
+_FIN_CACHE: dict[str, dict] = {}
+_FIN_LOCK = _threading.Lock()
+_FIN_TTL = 45.0  # seconds a just-fetched value stays warm before re-labelled "cached"
+
+# Real cited leader sources (each a resolvable primary URL — never a secret).
+_SRC_ECB = {"leader": "European Central Bank (ECB)", "kind": "central-bank",
+            "name": "ECB euro foreign-exchange reference rates (via Frankfurter, no key)",
+            "url": "https://www.frankfurter.app"}
+_SRC_COINBASE = {"leader": "Coinbase", "kind": "exchange",
+                 "name": "Coinbase public spot-price API (no key)",
+                 "url": "https://api.coinbase.com/v2/prices"}
+_SRC_COINGECKO = {"leader": "CoinGecko", "kind": "market-data",
+                  "name": "CoinGecko public market-data API (free tier, rate-limited)",
+                  "url": "https://www.coingecko.com/en/api"}
+_SRC_POLYMARKET = {"leader": "Polymarket", "kind": "prediction-market",
+                   "name": "Polymarket Gamma public markets API (no key)",
+                   "url": "https://gamma-api.polymarket.com"}
+_SRC_FRED = {"leader": "Federal Reserve (St. Louis Fed)", "kind": "macro-dataset",
+             "name": "FRED — Federal Reserve Economic Data (key-gated)",
+             "url": "https://fred.stlouisfed.org"}
+_SRC_CASE_SHILLER = {"leader": "S&P / CoreLogic", "kind": "housing-index",
+                     "name": "S&P CoreLogic Case-Shiller U.S. National Home Price Index (via FRED: CSUSHPISA)",
+                     "url": "https://fred.stlouisfed.org/series/CSUSHPISA"}
+_SRC_CENSUS = {"leader": "U.S. Census Bureau", "kind": "housing-dataset",
+               "name": "U.S. Census Bureau housing data (ACS / Housing Vacancies & Homeownership)",
+               "url": "https://www.census.gov/topics/housing.html"}
+_SRC_HUD = {"leader": "U.S. Dept. of Housing & Urban Development (HUD)", "kind": "housing-dataset",
+            "name": "HUD USER open data (FMR, distressed assets, USPS vacancy)",
+            "url": "https://www.huduser.gov/portal/pdrdatas_landing.html"}
+_SRC_FFIEC = {"leader": "FFIEC", "kind": "fraud-standard",
+              "name": "FFIEC BSA/AML Examination Manual (financial-crime controls)",
+              "url": "https://bsaaml.ffiec.gov/manual"}
+_SRC_FINCEN = {"leader": "FinCEN (U.S. Treasury)", "kind": "fraud-standard",
+               "name": "FinCEN SAR / AML reporting framework",
+               "url": "https://www.fincen.gov/"}
+_SRC_BIS = {"leader": "Bank for International Settlements (BIS)", "kind": "risk-standard",
+            "name": "BIS / Basel Committee market-risk framework (FRTB)",
+            "url": "https://www.bis.org/bcbs/publ/d457.htm"}
+
+
+def _fin_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _fin_fetch_json(key: str, url: str, *, timeout: int = 10,
+                    headers: dict | None = None, ttl: float = _FIN_TTL):
+    """Honest live/cached/unreachable JSON fetch with a warm in-memory cache.
+
+    Returns (data | None, mode, fetched_at, http_status). A real HTTP 200 →
+    "live"; a within-TTL reuse → "cached"; on failure we serve last-good as
+    "cached" or, with no prior value, "unreachable". A key (if any) is passed
+    ONLY via the Authorization header by the caller — never concatenated here.
+    """
+    now = time.time()
+    with _FIN_LOCK:
+        hit = _FIN_CACHE.get(key)
+    if hit and now - hit["_t"] < ttl:
+        return hit["v"], "cached", hit["at"], hit.get("status")
+    try:
+        req = _ureq.Request(url, headers={"User-Agent": _FIN_UA, **(headers or {})})
+        with _ureq.urlopen(req, timeout=timeout) as r:  # nosec - public read-only feeds
+            status = getattr(r, "status", None) or r.getcode()
+            data = _json.loads(r.read())
+        at = _fin_iso()
+        with _FIN_LOCK:
+            _FIN_CACHE[key] = {"v": data, "_t": now, "at": at, "status": status}
+        return data, "live", at, status
+    except _uerr.HTTPError as ex:
+        if hit:
+            return hit["v"], "cached", hit["at"], hit.get("status")
+        return None, "unreachable", _fin_iso(), ex.code
+    except Exception:  # noqa: BLE001 - DNS/timeout/parse → honest unreachable/cached
+        if hit:
+            return hit["v"], "cached", hit["at"], hit.get("status")
+        return None, "unreachable", _fin_iso(), None
 
 
 def register_expansion(app, *, drones: list, emit_receipt: Callable, haversine: Callable,
@@ -525,4 +617,305 @@ def register_expansion(app, *, drones: list, emit_receipt: Callable, haversine: 
                 {"name": "SCITT (Supply Chain Integrity, Transparency and Trust)", "url": "https://datatracker.ietf.org/wg/scitt/about/"},
             ],
             "doctrine": doctrine,
+        })
+
+    # =======================================================================
+    # FINANCE vertical — real FREE feeds, honest labels, cited leaders.
+    # Tabs: Quant Desk, Crypto Live, Markets Macro, Prediction Markets, Risk/Fraud.
+    # =======================================================================
+
+    # ---- Finance index (what is real, what is sample, who is cited) ----
+    @app.get("/api/killinchu/v1/finance")
+    async def finance_index():
+        return JSONResponse({
+            "ok": True, "vertical": "finance",
+            "tabs": {
+                "quant_desk": "/api/killinchu/v1/finance/quant",
+                "crypto_live": "/api/killinchu/v1/finance/crypto",
+                "markets_macro": "/api/killinchu/v1/finance/macro",
+                "prediction_markets": "/api/killinchu/v1/finance/prediction-markets",
+                "risk_fraud": "/api/killinchu/v1/finance/risk",
+            },
+            "sources": [_SRC_COINBASE, _SRC_COINGECKO, _SRC_ECB, _SRC_POLYMARKET,
+                        _SRC_FRED, _SRC_FFIEC, _SRC_FINCEN, _SRC_BIS],
+            "doctrine": doctrine,
+            "honesty": "Crypto + FX + prediction markets read REAL free public APIs labelled live/cached/unreachable. "
+                       "Macro (FRED) is key-gated → honest disabled (no key ever in a URL). No fabricated figures.",
+        })
+
+    # ---- Crypto Live (Coinbase spot + CoinGecko market overview) ----
+    @app.get("/api/killinchu/v1/finance/crypto")
+    async def finance_crypto():
+        assets = [("BTC", "bitcoin"), ("ETH", "ethereum"), ("SOL", "solana")]
+        prices = []
+        any_live = False
+        any_data = False
+        for sym, cg_id in assets:
+            data, mode, at, status = _fin_fetch_json(
+                f"cb:{sym}", f"https://api.coinbase.com/v2/prices/{sym}-USD/spot")
+            amt = None
+            if isinstance(data, dict) and isinstance(data.get("data"), dict):
+                try:
+                    amt = float(data["data"].get("amount"))
+                except (TypeError, ValueError):
+                    amt = None
+            if amt is not None:
+                any_data = True
+                if mode == "live":
+                    any_live = True
+            prices.append({"asset": sym, "usd": amt, "exchange": "Coinbase",
+                           "mode": mode, "http_status": status, "fetched_at": at})
+        # CoinGecko market overview (free tier — honestly label rate-limited)
+        cg, cg_mode, cg_at, cg_status = _fin_fetch_json(
+            "cg:simple",
+            "https://api.coingecko.com/api/v3/simple/price"
+            "?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true")
+        overview = []
+        if isinstance(cg, dict):
+            for sym, cg_id in assets:
+                row = cg.get(cg_id) or {}
+                overview.append({"asset": sym, "usd": row.get("usd"),
+                                 "change_24h_pct": row.get("usd_24h_change")})
+        if overview:
+            any_data = True
+            if cg_mode == "live":
+                any_live = True
+        return JSONResponse({
+            "ok": True, "tab": "crypto_live",
+            "spot": prices,
+            "coingecko": {"mode": cg_mode, "http_status": cg_status, "fetched_at": cg_at,
+                          "rate_limited": cg_mode != "live", "assets": overview},
+            "data_kind": "live-market" if any_live else ("cached" if any_data else "unreachable"),
+            "sources": [_SRC_COINBASE, _SRC_COINGECKO],
+            "doctrine": doctrine,
+            "honesty": "Spot prices from Coinbase's public API; 24h change overview from CoinGecko's free tier "
+                       "(rate-limited — labelled accordingly). 'live' only on a real HTTP 200, else cached/unreachable.",
+        })
+
+    # ---- Markets Macro: FX live (ECB/Frankfurter) + FRED honest-disabled ----
+    @app.get("/api/killinchu/v1/finance/fx")
+    async def finance_fx():
+        data, mode, at, status = _fin_fetch_json(
+            "fx:eur", "https://api.frankfurter.app/latest?from=EUR&to=USD,GBP,JPY,CHF,CNY")
+        rates = data.get("rates") if isinstance(data, dict) else None
+        return JSONResponse({
+            "ok": True, "tab": "markets_macro", "base": "EUR",
+            "as_of": (data.get("date") if isinstance(data, dict) else None),
+            "rates": rates, "mode": mode, "http_status": status, "fetched_at": at,
+            "data_kind": "live-fx" if (mode == "live" and rates) else ("cached" if rates else "unreachable"),
+            "sources": [_SRC_ECB],
+            "doctrine": doctrine,
+            "honesty": "FX = ECB euro reference rates via the keyless Frankfurter API; 'live' only on a real HTTP 200.",
+        })
+
+    @app.get("/api/killinchu/v1/finance/macro")
+    async def finance_macro():
+        series = [
+            {"id": "DGS10", "name": "10-Year Treasury Constant Maturity Rate"},
+            {"id": "UNRATE", "name": "U.S. Unemployment Rate"},
+            {"id": "CPIAUCSL", "name": "CPI-U, All Items (inflation)"},
+            {"id": "CSUSHPISA", "name": "Case-Shiller U.S. National Home Price Index"},
+        ]
+        key = _os.environ.get("FRED_API_KEY")
+        if not key:
+            return JSONResponse({
+                "source": "FRED", "status": "disabled",
+                "reason": "FRED_API_KEY not configured", "data_kind": "unconfigured",
+                "tab": "markets_macro", "series_requested": series,
+                "sources": [_SRC_FRED, _SRC_CASE_SHILLER],
+                "doctrine": doctrine,
+                "honesty": "Macro series are key-gated. Honest disabled payload — no fabricated figures, no key in any URL.",
+            })
+        # Key IS configured — but FRED only accepts api_key as a URL query parameter,
+        # which Doctrine v11 forbids (a key in a URL can leak via error strings/logs).
+        # We refuse to place the key in the URL; FRED does not honour header auth, so
+        # we honestly report the feed as policy-blocked. The key is NEVER transmitted.
+        return JSONResponse({
+            "source": "FRED", "status": "disabled",
+            "reason": "FRED requires api_key as a URL query parameter; SZL Doctrine v11 forbids keys in URLs "
+                      "(leak risk). Key is present but deliberately NOT transmitted.",
+            "data_kind": "policy-blocked",
+            "tab": "markets_macro", "series_requested": series,
+            "sources": [_SRC_FRED, _SRC_CASE_SHILLER],
+            "doctrine": doctrine,
+            "honesty": "We never place a key in a URL to satisfy a feed. FRED is cited as the leader source; figures stay absent until a header-auth path exists.",
+        })
+
+    # ---- Prediction Markets (Polymarket Gamma, keyless) ----
+    @app.get("/api/killinchu/v1/finance/prediction-markets")
+    async def finance_prediction_markets():
+        data, mode, at, status = _fin_fetch_json(
+            "poly:markets",
+            "https://gamma-api.polymarket.com/markets?closed=false&limit=12", timeout=12)
+        markets = []
+        if isinstance(data, list):
+            for m in data[:12]:
+                if not isinstance(m, dict):
+                    continue
+                markets.append({
+                    "question": m.get("question"), "slug": m.get("slug"),
+                    "volume": m.get("volume"), "liquidity": m.get("liquidity"),
+                    "outcomes": m.get("outcomes"), "outcome_prices": m.get("outcomePrices"),
+                    "end_date": m.get("endDate"),
+                })
+        return JSONResponse({
+            "ok": True, "tab": "prediction_markets",
+            "mode": mode, "http_status": status, "fetched_at": at,
+            "count": len(markets), "markets": markets,
+            "data_kind": "live-market" if (mode == "live" and markets) else ("cached" if markets else "unreachable"),
+            "sources": [_SRC_POLYMARKET],
+            "doctrine": doctrine,
+            "honesty": "Public Polymarket prediction-market data via the keyless Gamma API; 'live' only on a real HTTP 200, else honest cached/unreachable.",
+        })
+
+    # ---- Quant Desk: derived signals over LIVE crypto + FX (clearly labelled) ----
+    @app.get("/api/killinchu/v1/finance/quant")
+    async def finance_quant():
+        cg, cg_mode, cg_at, cg_status = _fin_fetch_json(
+            "cg:simple",
+            "https://api.coingecko.com/api/v3/simple/price"
+            "?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true")
+        signals = []
+        if isinstance(cg, dict):
+            for sym, cg_id in (("BTC", "bitcoin"), ("ETH", "ethereum"), ("SOL", "solana")):
+                row = cg.get(cg_id) or {}
+                chg = row.get("usd_24h_change")
+                if isinstance(chg, (int, float)):
+                    bias = "long" if chg > 1.0 else ("short" if chg < -1.0 else "neutral")
+                    signals.append({"asset": sym, "usd": row.get("usd"),
+                                    "momentum_24h_pct": round(float(chg), 3), "bias": bias})
+        fx, fx_mode, fx_at, fx_status = _fin_fetch_json(
+            "fx:eur", "https://api.frankfurter.app/latest?from=EUR&to=USD,GBP,JPY")
+        fx_rates = fx.get("rates") if isinstance(fx, dict) else None
+        have_data = bool(signals) or bool(fx_rates)
+        if cg_mode == "live" or fx_mode == "live":
+            quant_kind = "derived-from-live"
+        elif have_data:
+            quant_kind = "derived-from-cached"
+        else:
+            quant_kind = "unreachable"
+        return JSONResponse({
+            "ok": True, "tab": "quant_desk",
+            "method": "Simple 24h-momentum bias over LIVE market data (educational signal, NOT investment advice).",
+            "crypto_signals": signals, "crypto_mode": cg_mode, "crypto_fetched_at": cg_at,
+            "fx": fx_rates,
+            "fx_mode": fx_mode, "fx_fetched_at": fx_at,
+            "data_kind": quant_kind,
+            "sources": [_SRC_COINGECKO, _SRC_ECB, _SRC_BIS],
+            "doctrine": doctrine,
+            "honesty": "Signals are a transparent 24h-momentum DERIVATION over live CoinGecko/ECB data — labelled derived, "
+                       "never presented as a backtested edge or advice. Risk methodology cites the BIS/Basel framework.",
+        })
+
+    # ---- Risk / Fraud: cited controls framework (no free real per-tenant feed) ----
+    @app.get("/api/killinchu/v1/finance/risk")
+    async def finance_risk():
+        controls = [
+            {"control": "Market-risk capital (FRTB)", "owner": "BIS / Basel Committee",
+             "signal": "VaR / Expected-Shortfall on the live book", "status": "framework-cited"},
+            {"control": "BSA/AML transaction monitoring", "owner": "FFIEC",
+             "signal": "structuring / velocity / sanctions screening", "status": "framework-cited"},
+            {"control": "Suspicious Activity Reporting (SAR)", "owner": "FinCEN",
+             "signal": "anomaly → human review → SAR", "status": "framework-cited"},
+        ]
+        return JSONResponse({
+            "ok": True, "tab": "risk_fraud",
+            "controls": controls,
+            "data_kind": "curated-framework",
+            "note": "No free real per-tenant fraud feed exists; this tab cites the authoritative control frameworks "
+                    "rather than inventing live fraud numbers.",
+            "sources": [_SRC_BIS, _SRC_FFIEC, _SRC_FINCEN],
+            "doctrine": doctrine,
+            "honesty": "Risk/Fraud is a curated, cited controls framework (BIS/FFIEC/FinCEN). No synthetic fraud figures are presented.",
+        })
+
+    # =======================================================================
+    # REAL-ESTATE vertical — little free real data → curated sample + cited
+    # leaders (FRED/Case-Shiller, Census, HUD), honest data_kind. No fabrication.
+    # Tabs: Market Pulse, Distress Radar, Ownership Graph.
+    # =======================================================================
+
+    @app.get("/api/killinchu/v1/realestate")
+    async def realestate_index():
+        return JSONResponse({
+            "ok": True, "vertical": "real-estate",
+            "tabs": {
+                "market_pulse": "/api/killinchu/v1/realestate/market-pulse",
+                "distress_radar": "/api/killinchu/v1/realestate/distress-radar",
+                "ownership_graph": "/api/killinchu/v1/realestate/ownership-graph",
+            },
+            "sources": [_SRC_CASE_SHILLER, _SRC_FRED, _SRC_CENSUS, _SRC_HUD],
+            "doctrine": doctrine,
+            "honesty": "Real-estate has little free real-time data; these tabs carry a clearly-labelled curated sample "
+                       "plus the real leader datasets (FRED/Case-Shiller, Census, HUD). data_kind is honest.",
+        })
+
+    @app.get("/api/killinchu/v1/realestate/market-pulse")
+    async def realestate_market_pulse():
+        sample = [
+            {"metric": "U.S. national home-price index (Case-Shiller)", "value": "see FRED:CSUSHPISA",
+             "source_series": "CSUSHPISA"},
+            {"metric": "Median sale price (illustrative)", "value": None, "note": "tenant-supplied / MLS-licensed"},
+            {"metric": "Homeownership rate", "value": "see Census Housing Vacancies & Homeownership"},
+        ]
+        return JSONResponse({
+            "ok": True, "tab": "market_pulse",
+            "data_kind": "curated-sample",
+            "pulse": sample,
+            "sources": [_SRC_CASE_SHILLER, _SRC_FRED, _SRC_CENSUS],
+            "doctrine": doctrine,
+            "honesty": "Curated sample pointing at the real leader series (Case-Shiller via FRED, Census homeownership). "
+                       "No free real-time MLS feed exists; numbers are not fabricated.",
+        })
+
+    @app.get("/api/killinchu/v1/realestate/distress-radar")
+    async def realestate_distress_radar():
+        sample = [
+            {"signal": "USPS residential vacancy (HUD USER)", "value": None, "source": "HUD USER"},
+            {"signal": "Mortgage delinquency rate", "value": "see FRED:DRSFRMACBS"},
+            {"signal": "Foreclosure / distressed-asset inventory", "value": None, "note": "HUD / county records (licensed)"},
+        ]
+        return JSONResponse({
+            "ok": True, "tab": "distress_radar",
+            "data_kind": "curated-sample",
+            "signals": sample,
+            "sources": [_SRC_HUD, _SRC_FRED, _SRC_CENSUS],
+            "doctrine": doctrine,
+            "honesty": "Distress signals cite real leader datasets (HUD vacancy, FRED delinquency). Per-property distress "
+                       "needs licensed county/MLS data; we label the sample honestly rather than invent it.",
+        })
+
+    @app.get("/api/killinchu/v1/realestate/ownership-graph")
+    async def realestate_ownership_graph():
+        # Real Union-Find over a tiny sample ownership edge-set (deterministic, no fabrication of identities).
+        edges = [("LLC-A", "LLC-B"), ("LLC-B", "Trust-1"), ("LLC-C", "Trust-1"), ("LLC-D", "LLC-E")]
+        parent: dict[str, str] = {}
+
+        def _find(x: str) -> str:
+            parent.setdefault(x, x)
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        def _union(a: str, b: str) -> None:
+            ra, rb = _find(a), _find(b)
+            if ra != rb:
+                parent[ra] = rb
+
+        for a, b in edges:
+            _union(a, b)
+        clusters: dict[str, list] = {}
+        for node in parent:
+            clusters.setdefault(_find(node), []).append(node)
+        return JSONResponse({
+            "ok": True, "tab": "ownership_graph",
+            "data_kind": "curated-sample",
+            "edges": [{"from": a, "to": b} for a, b in edges],
+            "beneficial_owner_clusters": [sorted(v) for v in clusters.values()],
+            "method": "Real Union-Find over a sample edge-set; demonstrates beneficial-ownership clustering.",
+            "sources": [_SRC_CENSUS, _SRC_HUD],
+            "doctrine": doctrine,
+            "honesty": "Algorithm (Union-Find) is real; the entity edges are a labelled sample. Production ingests "
+                       "licensed county-recorder / corporate-registry data — we do not fabricate real owners.",
         })
