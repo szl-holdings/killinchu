@@ -400,6 +400,28 @@ except Exception as _klf_e:  # additive: never break the Space
     print(f"[killinchu] live feeds NOT mounted ({_klf_e!r}); app unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
+# REAL LIVE-DATA FEEDS, TRACK-normalized (Wave A, 2026-06-13, founder directive
+# "real everything, no simulation, jack into real data live, incl. China").
+# Server-side connectors normalized to the TRACK shape; every record carries
+# {source, live, provenance, ts}; honest LIVE vs SAMPLE. Effector stays SIMULATED.
+#   GET  /api/killinchu/v1/feeds/aircraft?theater=...  OpenSky(anon)+adsb.lol/mil
+#   GET  /api/killinchu/v1/feeds/vessels?theater=...   AISStream(key)->Digitraffic
+#   GET  /api/killinchu/v1/feeds/remoteid              real OpenDroneID/F3411 relay
+#   POST /api/killinchu/v1/feeds/remoteid/ingest       sniffer/Web-Serial relay
+#   GET  /api/killinchu/v1/feeds/realdata/status       chain transparency
+#   GET  /api/killinchu/v1/osint/intel?vertical=...    public OSINT + sanctioned vessels
+# Registered EARLY (before the /{full_path:path} catch-all). Additive/guarded.
+# ---------------------------------------------------------------------------
+_killinchu_feeds_rd_status = "feeds-realdata-not-wired"
+try:
+    import killinchu_feeds_realdata as _killinchu_feeds_rd
+    _killinchu_feeds_rd_status = _killinchu_feeds_rd.register(app, ns="killinchu")
+    print(f"[killinchu] REAL-data feeds wired ({_killinchu_feeds_rd_status})", file=sys.stderr)
+except Exception as _kfrd_e:  # additive: never break the Space
+    _killinchu_feeds_rd_status = f"feeds-realdata-not-wired:{_kfrd_e!r}"
+    print(f"[killinchu] REAL-data feeds NOT mounted ({_kfrd_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (SZL Enterprise Connector Framework, 2026-06-10, founder directive).
 # Meshes killinchu into any enterprise CRM/ERP/platform the instant creds are
 # provided, AND is live-connected NOW to free/no-signup sources. Honest state

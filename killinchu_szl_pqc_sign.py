@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 from typing import Optional
 
 from cryptography.hazmat.primitives import hashes, serialization
@@ -214,7 +215,36 @@ def register(app, ns: str = "killinchu") -> None:
         if mode not in ("ecdsa", "pqc", "hybrid"):
             return JSONResponse({"error": f"unknown mode '{mode}'"}, status_code=400)
         body = await request.body()
-        payload = body if body else b"{}"
+        # CHAOS-001 input validation (2026-06-13): a real DSSE receipt must carry
+        # the real khipu fields. Refuse to sign garbage/incomplete bodies with an
+        # honest 4xx — NEVER a 5xx, NEVER sign garbage. The happy path (valid
+        # request -> real DSSE envelope, verified:true) is unchanged.
+        if not body:
+            return JSONResponse(
+                {"error": "empty body — a khipu receipt requires JSON with fields "
+                          "{action, seq, prev_hash}",
+                 "required": ["action", "seq", "prev_hash"]},
+                status_code=400)
+        try:
+            _obj = json.loads(body)
+        except Exception:
+            return JSONResponse(
+                {"error": "malformed JSON body — cannot sign",
+                 "required": ["action", "seq", "prev_hash"]},
+                status_code=400)
+        if not isinstance(_obj, dict):
+            return JSONResponse(
+                {"error": "body must be a JSON object with {action, seq, prev_hash}",
+                 "required": ["action", "seq", "prev_hash"]},
+                status_code=422)
+        _missing = [f for f in ("action", "seq", "prev_hash") if f not in _obj]
+        if _missing:
+            return JSONResponse(
+                {"error": "missing required khipu field(s): %s — refusing to sign garbage"
+                          % ", ".join(_missing),
+                 "required": ["action", "seq", "prev_hash"], "missing": _missing},
+                status_code=422)
+        payload = body
         if mode in ("pqc", "hybrid") and _detect_mldsa() is None:
             return JSONResponse(
                 {"error": "ML-DSA backend unavailable; install 'oqs' or 'dilithium-py'. "
