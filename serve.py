@@ -422,6 +422,27 @@ except Exception as _kfrd_e:  # additive: never break the Space
     print(f"[killinchu] REAL-data feeds NOT mounted ({_kfrd_e!r}); app unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (Maritime W4 — Submarine/ASW, HONEST edition). Subs do NOT broadcast
+# AIS and there is NO public live submarine track feed; we NEVER fake a live
+# submarine track. We provide three truthfully-labeled products instead:
+#   GET /api/killinchu/v1/asw/osint           OSINT-LIVE: public naval reporting
+#   GET /api/killinchu/v1/asw/forecast        FORECAST: probability-field model
+#   GET /api/killinchu/v1/asw/negative-space  INFERENCE: absence-of-AIS advisory
+#   GET /api/killinchu/v1/asw/status          capability + honesty status
+# Every ASW assessment carries a REAL DSSE receipt (szl_dsse) with the honesty
+# labels INSIDE the signed payload. Advisory / human-on-the-loop. 0 CDN.
+# Registered EARLY (before the /{full_path:path} catch-all). Additive/guarded.
+# ---------------------------------------------------------------------------
+_killinchu_asw_status = "asw-not-wired"
+try:
+    import killinchu_asw as _killinchu_asw
+    _killinchu_asw_status = _killinchu_asw.register(app, ns="killinchu")
+    print(f"[killinchu] Submarine/ASW (honest) wired ({_killinchu_asw_status})", file=sys.stderr)
+except Exception as _kasw_e:  # additive: never break the Space
+    _killinchu_asw_status = f"asw-not-wired:{_kasw_e!r}"
+    print(f"[killinchu] Submarine/ASW NOT mounted ({_kasw_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (SZL Enterprise Connector Framework, 2026-06-10, founder directive).
 # Meshes killinchu into any enterprise CRM/ERP/platform the instant creds are
 # provided, AND is live-connected NOW to free/no-signup sources. Honest state
