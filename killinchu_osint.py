@@ -242,6 +242,93 @@ def _tavily_search(query: str, *, topic: str = "general", days: int = 30,
     return d.get("results", []) if isinstance(d, dict) else []
 
 
+# ---------------------------------------------------------------------------
+# GEOINT — REAL free public geo-event feeds (no key). USGS Earthquake Hazards
+# Program is the authoritative global seismic source (ANSS ComCat / GeoJSON
+# summary feeds). Honest live/unreachable label; never fabricates events.
+# Cited leader: USGS Earthquake Hazards Program (earthquake.usgs.gov).
+# ---------------------------------------------------------------------------
+_USGS_FEED = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/%s_%s.geojson"
+
+# Cited real leader sources surfaced in the GEOINT tab payload.
+_GEOINT_SOURCES = [
+    {"leader": "USGS Earthquake Hazards Program", "kind": "ANSS ComCat seismic GeoJSON feed",
+     "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/", "data_kind": "live_geojson"},
+    {"leader": "USGS / ANSS", "kind": "Advanced National Seismic System standard catalog",
+     "url": "https://www.usgs.gov/programs/earthquake-hazards", "data_kind": "standard"},
+]
+
+
+def _http_get_json(url: str, *, timeout: int = 15) -> tuple[Any, str]:
+    """Best-effort GET → (data, status). status ∈ {'live','unreachable'}.
+    Never raises. Free feed → no key, so no secret ever placed in the URL.
+    'live' is set ONLY on a real HTTP 200 (honesty floor)."""
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": _UA, "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            code = getattr(r, "status", 200)
+            if code != 200:
+                return None, "unreachable"
+            return json.loads(r.read().decode("utf-8", "replace")), "live"
+    except Exception:  # noqa: BLE001 — never raise; honest unreachable instead
+        return None, "unreachable"
+
+
+def _geoint_usgs(minmag: float = 4.5, window: str = "day", limit: int = 100) -> dict:
+    """Real USGS seismic geo-events. window ∈ {hour,day,week,month};
+    magnitude token mapped from minmag. Honest live/unreachable payload."""
+    window = window if window in ("hour", "day", "week", "month") else "day"
+    try:
+        mm = float(minmag)
+    except Exception:
+        mm = 4.5
+    tok = "4.5" if mm >= 4.5 else "2.5" if mm >= 2.5 else "1.0" if mm >= 1.0 else "all"
+    try:
+        lim = max(1, min(int(limit), 500))
+    except Exception:
+        lim = 100
+    data, status = _http_get_json(_USGS_FEED % (tok, window))
+    events: list[dict] = []
+    if status == "live" and isinstance(data, dict):
+        for ft in (data.get("features") or [])[:lim]:
+            if not isinstance(ft, dict):
+                continue
+            props = ft.get("properties") or {}
+            geom = (ft.get("geometry") or {}).get("coordinates") or [None, None, None]
+            events.append({
+                "id": ft.get("id"),
+                "place": props.get("place"),
+                "magnitude": props.get("mag"),
+                "time_ms": props.get("time"),
+                "lon": geom[0] if len(geom) > 0 else None,
+                "lat": geom[1] if len(geom) > 1 else None,
+                "depth_km": geom[2] if len(geom) > 2 else None,
+                "tsunami": props.get("tsunami"),
+                "url": props.get("url"),
+            })
+    else:
+        status = "unreachable"
+    return {
+        "module": "killinchu_osint",
+        "tab": "geoint",
+        "engine": "usgs",
+        "status": status,
+        "data_kind": "live_geojson" if status == "live" else "unreachable",
+        "query": {"min_magnitude_token": tok, "window": window, "limit": lim},
+        "event_count": len(events),
+        "events": events,
+        "sources": _GEOINT_SOURCES,
+        "honesty": (
+            "USGS ANSS ComCat is the authoritative global seismic catalog. 'live' is "
+            "set ONLY on a real HTTP 200 from earthquake.usgs.gov; on miss we return "
+            "an honest 'unreachable' payload with zero events, never fabricated rows. "
+            "Magnitudes/locations are USGS measurements (claims attributed to USGS)."
+        ),
+        "ts": _now_iso(),
+    }
+
+
 def _normalize(raw: list[dict], stream: str) -> list[dict]:
     """Normalize Tavily results to the killinchu OSINT schema + provenance stamp.
     Dedupe by (host, lowercased title). This is the 'make it our own' step."""
@@ -1501,6 +1588,13 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
         return JSONResponse(_archive_status())
     app.get("%s/osint/archive" % base)(_archive_ep)
     registered.append("GET %s/osint/archive" % base)
+
+    # GEOINT — REAL USGS seismic geo-events (no key). Honest live/unreachable.
+    async def _geoint_ep(minmag: float = 4.5, window: str = "day",
+                         limit: int = 100) -> JSONResponse:
+        return JSONResponse(_geoint_usgs(minmag=minmag, window=window, limit=limit))
+    app.get("%s/geoint/usgs" % base)(_geoint_ep)
+    registered.append("GET %s/geoint/usgs" % base)
 
     # READ-BACK: live records + chain head pulled from the PUBLIC intel archive,
     # proving HF is a real backing store (not write-only). HF-unreachable-tolerant.
