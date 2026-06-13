@@ -2324,6 +2324,32 @@ except Exception as _cannonico_e:
 
 
 # ===========================================================================
+# ADDITIVE (Mosaic SDA elevation, Opus 4.8, 2026-06-13): SZL's sovereign answer to
+# True Anomaly's Mosaic — the Domain-Superiority organ. Wires the SZL-native
+# anomaly/SDA engine (szl_mosaic_core, vendored from estate mosaic_szl) into
+# killinchu's track surface and adds the Common Operating Picture endpoints:
+#   GET  /api/killinchu/v1/mosaic/health
+#   POST /api/killinchu/v1/mosaic/score          anomaly score + Λ-advisory + CI
+#   POST /api/killinchu/v1/mosaic/receipt        DSSE-or-honest signed verdict
+#   GET  /api/killinchu/v1/mosaic/cop            fused COP (air+sea+orbit stub)
+#   GET  /api/killinchu/v1/mosaic/sda/conjunction  SGP4 ROADMAP stub
+#   POST /api/killinchu/v1/mosaic/hull-stress    FE-NO-cited hull-stress ESTIMATE
+# Mounted BEFORE the SPA catch-all. CLEAN-ROOM (inspired by Mosaic's PUBLIC
+# capability; no proprietary code). Λ = Conjecture 1 ADVISORY. Effectors SIMULATED.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_mosaic as _mosaic
+    _mosaic_status = _mosaic.register(app, ns="killinchu", emit_receipt=_emit_receipt)
+    print(f"[killinchu] Mosaic organ registered: {_mosaic_status['registered']} "
+          f"(engine={_mosaic_status['engine']})", file=sys.stderr)
+except Exception as _mosaic_e:
+    import traceback as _mosaic_tb
+    print(f"[killinchu] Mosaic organ NOT registered: {_mosaic_e!r}", file=sys.stderr)
+    _mosaic_tb.print_exc()
+# ── end MOSAIC ───────────────────────────────────────────────────────────────
+
+# ===========================================================================
 # ADDITIVE: killinchu "a11oy-elite" console — 14 REAL endpoint-backed tabs +
 # cross-flagship borrowed-powers panel. Mounted BEFORE the SPA catch-all so
 # /elite resolves locally. NO mocks: every tab fetches a live backend endpoint.
