@@ -3654,6 +3654,49 @@ except Exception as _jk_e:
 # ============================================================================
 
 
+# ============================================================================
+# BEGIN: MARITIME HOLOGRAPHIC GLOBE — killinchu (ADDITIVE, 2026-06-13, MW5)
+# Mounts the self-contained WebGL2 holographic maritime globe as a NEW /elite
+# view (and /jackin/globe alias). Plots REAL vessel tracks (feeds/vessels —
+# Digitraffic Finland AIS) + REAL aircraft (feeds/aircraft — adsb.lol) at true
+# lat/lon with motion, plus honestly-labelled intel layers: dark-vessel HALOS,
+# AIS-spoof ARCS, Λ-risk COLOR (Conjecture 1, never claims uniqueness) and
+# dead-reckoning FORECAST cones. Layers are INFERENCE/FORECAST today and
+# auto-upgrade to backend LIVE the moment the W2/W3 maritime endpoints
+# (killinchu_maritime_intel /maritime/{dark,spoof}, killinchu_maritime_risk
+# /maritime/risk) are reachable AND the feeds envelope advertises
+# caps.maritime_intel — capability-gated so the view NEVER fires a request that
+# 404s. A dedicated CHINA-SEAS board mode flies the camera over SCS/Taiwan
+# Strait/Malacca. Provenance/honesty HUD: "effector simulated · forecasts are
+# projections". The entire WebGL engine, landmask and styles are vendored inline
+# (base64-embedded HTML) — 0 runtime CDN. Never fabricates a track.
+#
+# Doctrine v11 LOCKED: locked=8 @ c7c0ba17. Λ = Conjecture 1. Effector SIMULATED,
+# human-on-the-loop. Real data LIVE / projections FORECAST / SAMPLE labelled.
+# WCAG-AA. prefers-reduced-motion respected.
+#
+# register() front-inserts /elite/globe, /elite/globe/, /jackin/globe at
+# position 0 so they beat the SPA /{full_path:path} catch-all. try/except-
+# guarded — can NEVER crash the app. ADDITIVE ONLY; touches no existing route.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import sys as _kcglobe_sys
+    import killinchu_maritime_globe as _kc_globe
+    _kcglobe_status = _kc_globe.register(app)
+    print(f"[killinchu] maritime holographic globe registered: {_kcglobe_status}",
+          file=_kcglobe_sys.stderr)
+except Exception as _kcglobe_e:
+    import sys as _kcglobe_sys, traceback as _kcglobe_tb
+    print(f"[killinchu] maritime globe NOT registered (non-fatal): {_kcglobe_e!r}",
+          file=_kcglobe_sys.stderr)
+    _kcglobe_tb.print_exc(file=_kcglobe_sys.stderr)
+# ============================================================================
+# END: MARITIME HOLOGRAPHIC GLOBE — killinchu
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))

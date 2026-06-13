@@ -447,8 +447,24 @@ COPY pages/integrations.html ./pages/integrations.html
 # szl_hf_bucket` fails. Imported lazily by callers; no boot-time side effects.
 COPY szl_hf_bucket.py szl_metrics_prom.py ./
 
+# ADDITIVE (Task MW5: 3D HOLOGRAPHIC MARITIME GLOBE): self-contained WebGL2
+# holographic globe view for the /elite surface (+ /jackin/globe alias). Plots
+# REAL vessel + aircraft tracks at true lat/lon with motion plus honestly-
+# labelled dark-halo / spoof-arc / Λ-risk / forecast-cone intel layers
+# (INFERENCE/FORECAST today; auto-upgrades to backend LIVE when the W2/W3
+# maritime endpoints are reachable + advertised). 0 runtime CDN — the entire
+# engine + landmask + styles are vendored inline as base64-embedded HTML. This
+# Dockerfile never uses `COPY . .`; without this line `import
+# killinchu_maritime_globe` in serve.py fails (registration is guarded, so the
+# app still boots, but the globe route would be absent). Imported once at boot;
+# no network side effects.
+COPY killinchu_maritime_globe.py ./
+
 CMD ["python", "serve.py"]
 
+
+# Build cache-bust 2026-06-13T20:55Z (MW5 maritime globe): COPY killinchu_maritime_globe.py
+# into /app so serve.py can import+register the holographic globe at /elite/globe.
 
 # Build cache-bust 2026-06-06T09:10Z (model-integration squad): PORTED OPEN-WEIGHT ALLOY
 # MODEL LAYER from a11oy -> COPY szl_alloy_models.py + szl_llm_registry.py; serve.py
