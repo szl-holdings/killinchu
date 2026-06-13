@@ -3747,6 +3747,44 @@ except Exception as _kcglobe_e:
 # ============================================================================
 
 
+# ============================================================================
+# BEGIN: SZL-MESH BACKEND API — killinchu (Mesh Dev 3, 2026-06, v11 LOCKED)
+# Exposes the REAL in-process szl-mesh over HTTP under /api/killinchu/v1/mesh/*:
+#   GET  /mesh/topology                  — live relational graph (spec 08)
+#   GET  /mesh/nodes                     — node list + health + enrollment
+#   POST /mesh/enroll                    — doctrine-gated enrollment (spec 05)
+#   POST /mesh/write                     — receipted CRDT state transition -> DSSE receipt (spec 01/02)
+#   POST /mesh/quorum                    — 3-of-4 Khipu quorum -> quorum certificate
+#   GET  /mesh/receipt/<id>/canonical    — re-hashable preimage (browser-verifiable MATCH)
+#   POST /mesh/revoke                    — CRDT-native revocation (spec 06)
+#   GET  /mesh/status                    — doctrine + node count + quorum config + Conjecture-2 note
+# Runs a REAL in-process 3-4 node mesh harness (Dev 1 model): each node holds a
+# genuine ephemeral ECDSA-P256 keypair, every receipt is a real DSSE envelope
+# (re-hashable), every quorum cert aggregates real per-witness ECDSA sigs over
+# the SAME action hash. NEVER fabricates a node or a quorum; if the harness is
+# not running the endpoints return an HONEST 503 (live:false). register()
+# FRONT-INSERTS the routes at position 0 so they beat the SPA /{full_path:path}
+# catch-all (the path-variant 404 lesson). try/except-guarded — never crashes.
+# Khipu BFT = Conjecture 2 (honest); soft-safety AP is the shipped model.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import sys as _kc_mesh_sys
+    import killinchu_mesh as _kc_mesh
+    _kc_mesh_status = _kc_mesh.register(app, ns="killinchu")
+    print(f"[killinchu] szl-mesh backend API registered: {_kc_mesh_status}",
+          file=_kc_mesh_sys.stderr)
+except Exception as _kc_mesh_e:
+    import sys as _kc_mesh_sys, traceback as _kc_mesh_tb
+    print(f"[killinchu] szl-mesh backend API NOT registered (non-fatal): {_kc_mesh_e!r}",
+          file=_kc_mesh_sys.stderr)
+    _kc_mesh_tb.print_exc(file=_kc_mesh_sys.stderr)
+# ============================================================================
+# END: SZL-MESH BACKEND API — killinchu
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
