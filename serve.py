@@ -2476,6 +2476,26 @@ except Exception as _posture_e:
 # ── end POSTURE & TOPOLOGY ────────────────────────────────────────
 
 # ===========================================================================
+# ADDITIVE: MESH — the live szl-mesh surface (Dev 4). Pure VIEW page that renders
+# the REAL /api/killinchu/v1/mesh/* endpoints (Dev 3): topology graph (spec 08),
+# the 3-of-4 Khipu quorum (soft-safety AP; Khipu BFT unconditional = Conjecture 2,
+# never claimed proven), the DSSE-receipted CRDT chain with in-browser SHA-256
+# re-hash + tamper demo, and doctrine-gated enrollment. killinchu house style
+# (gold+teal on dark), 0 runtime CDN, self-hosted SVG graph. Honest empty states;
+# no fabricated nodes/quorum/receipts. Mounted BEFORE the SPA catch-all.
+# Doctrine v11 LOCKED · Λ = Conjecture 1 · effector SIMULATED elsewhere.
+# ===========================================================================
+try:
+    import killinchu_mesh_view as _mesh_view
+    _mesh_view_status = _mesh_view.register(app, ns="killinchu")
+    print(f"[killinchu] MESH view registered: {_mesh_view_status.get('routes')}", file=sys.stderr)
+except Exception as _mesh_view_e:
+    import traceback as _mesh_view_tb
+    print(f"[killinchu] MESH view NOT registered: {_mesh_view_e!r}", file=sys.stderr)
+    _mesh_view_tb.print_exc()
+# ── end MESH view ──────────────────────────────
+
+# ===========================================================================
 # ADDITIVE: FLEET (Vessels) commercial-fleet surface (GAP-1 + GAP-2).
 # Serves the REAL platform seed-data/vessels/* datasets VERBATIM as static JSON
 # endpoints under /api/killinchu/v1/fleet/*, plus the vessels-vertical "Voyage
