@@ -422,6 +422,25 @@ except Exception as _kfrd_e:  # additive: never break the Space
     print(f"[killinchu] REAL-data feeds NOT mounted ({_kfrd_e!r}); app unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (Maritime Wave 2, 2026-06-13). REAL dark-fleet / AIS-spoofing /
+# going-dark detection BY CORRELATION over the REAL AIS feed above (W1/A). Adds
+# a stateful detection layer (rolling per-MMSI history) and exposes the raw
+# signals for Wave 3's Λ fusion (killinchu_maritime_risk.derive_axes). Each
+# detection emits a real DSSE receipt via the khipu signer. Advisory, NOT proven
+# (Windward caveat: dark != illicit). Pure stdlib; additive/try-guarded;
+# registered EARLY (before the SPA catch-all). Does NOT touch W1's feeds or W3's
+# /maritime/risk — adds /maritime/{dark,spoof,riskarc,status}.
+# ---------------------------------------------------------------------------
+_killinchu_maritime_status = "maritime-intel-not-wired"
+try:
+    import killinchu_maritime_intel as _killinchu_maritime
+    _killinchu_maritime_status = _killinchu_maritime.register(app, ns="killinchu")
+    print(f"[killinchu] Maritime intel (dark/spoof/riskarc) wired ({_killinchu_maritime_status})", file=sys.stderr)
+except Exception as _kmi_e:  # additive: never break the Space
+    _killinchu_maritime_status = f"maritime-intel-not-wired:{_kmi_e!r}"
+    print(f"[killinchu] Maritime intel NOT mounted ({_kmi_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (Maritime W4 — Submarine/ASW, HONEST edition). Subs do NOT broadcast
 # AIS and there is NO public live submarine track feed; we NEVER fake a live
 # submarine track. We provide three truthfully-labeled products instead:
