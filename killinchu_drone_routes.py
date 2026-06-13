@@ -19,8 +19,10 @@
 from __future__ import annotations
 
 import hashlib
+import json as _json
 import os
 import time
+import urllib.request as _urlreq
 import uuid
 from collections import deque
 from datetime import datetime, timezone
@@ -35,6 +37,57 @@ _LEAN_SHA = "c7c0ba17"
 _LAMBDA_STATUS = "Conjecture 1 (NOT a theorem)"
 _SIG_PLACEHOLDER = "PLACEHOLDER — Sigstore CI not yet wired"
 _SECTION_889 = ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"]
+
+# ── Real free public feeds (NO key needed) + cited leaders (Doctrine v11) ─────
+# Air picture: cooperative ADS-B from community feeder networks (preferred
+# api.airplanes.live, fallback adsb.lol). Space picture: CelesTrak GP/TLE.
+_HTTP_UA = "killinchu-drone/1.0 (+https://szlholdings-killinchu.hf.space)"
+
+_ADSB_ENDPOINTS = [
+    ("airplanes.live", "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}"),
+    ("adsb.lol", "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}"),
+]
+
+# Cited leader sources surfaced in every drone/air tab payload (real, primary).
+_AIR_SOURCES = [
+    {"leader": "airplanes.live", "kind": "ADS-B community feeder network",
+     "url": "https://airplanes.live/", "data_kind": "live_community_adsb"},
+    {"leader": "adsb.lol", "kind": "ADS-B community feeder network (fallback)",
+     "url": "https://adsb.lol/", "data_kind": "live_community_adsb"},
+    {"leader": "RTCA / ICAO", "kind": "1090ES ADS-B standard (DO-260B / ICAO Annex 10)",
+     "url": "https://www.icao.int/", "data_kind": "standard"},
+]
+_SAT_SOURCES = [
+    {"leader": "CelesTrak (Dr. T.S. Kelso)", "kind": "NORAD GP/TLE element sets",
+     "url": "https://celestrak.org/NORAD/elements/", "data_kind": "live_tle"},
+    {"leader": "USSPACECOM / 18th SDS", "kind": "Space-track catalog (TLE origin)",
+     "url": "https://www.space-track.org/", "data_kind": "standard"},
+]
+# Cited leader standards for the C-UAS drone catalog / Λ-gate tabs.
+_DRONE_SOURCES = [
+    {"leader": "ASTM International", "kind": "F3411 Remote ID broadcast standard",
+     "url": "https://www.astm.org/f3411-22a.html", "data_kind": "standard"},
+    {"leader": "FAA", "kind": "UAS Remote ID rule (14 CFR Part 89)",
+     "url": "https://www.faa.gov/uas/getting_started/remote_id", "data_kind": "standard"},
+    {"leader": "MITRE ATT&CK", "kind": "adversary technique reference",
+     "url": "https://attack.mitre.org/", "data_kind": "standard"},
+]
+
+
+def _http_get_json(url: str, *, timeout: int = 12) -> tuple[Any, str]:
+    """Best-effort GET → (data, status). status ∈ {'live','unreachable'}.
+    Never raises. These feeds need NO key, so no secret is ever placed in the URL.
+    'live' is set ONLY on a real HTTP 200 (honesty floor)."""
+    try:
+        req = _urlreq.Request(
+            url, headers={"User-Agent": _HTTP_UA, "Accept": "application/json"})
+        with _urlreq.urlopen(req, timeout=timeout) as r:
+            code = getattr(r, "status", 200)
+            if code != 200:
+                return None, "unreachable"
+            return _json.loads(r.read().decode("utf-8", "replace")), "live"
+    except Exception:
+        return None, "unreachable"
 
 # ── in-memory audit ring ───────────────────────────────────────────────────────
 _AUDIT: deque[dict] = deque(maxlen=200)
@@ -217,7 +270,10 @@ def register_drone_routes(app: FastAPI, space: str = "killinchu") -> None:
                 "threat_tracks": _CUED_THREATS,
                 "total_friendly": len(_FRIENDLY_FLEET),
                 "total_threats": len(_CUED_THREATS),
-                "honesty": "Friendly drone positions are MOCK data for UDS demonstration. Threat tracks are synthetic. No real sensor data wired.",
+                "data_kind": "demo_mock",
+                "sources": _DRONE_SOURCES,
+                "live_air_picture": f"{base}/air-picture (real ADS-B feed)",
+                "honesty": "Friendly drone positions are MOCK data for UDS demonstration. Threat tracks are synthetic. No real sensor data wired here — see /air-picture for a REAL cooperative ADS-B feed.",
                 "ts": _ts(),
             },
             headers={
@@ -301,7 +357,9 @@ def register_drone_routes(app: FastAPI, space: str = "killinchu") -> None:
                 "lambda_status": _LAMBDA_STATUS,
                 "tracks": _CUED_THREATS,
                 "total_cued": len(_CUED_THREATS),
-                "honesty": "Threat tracks are MOCK data for UDS demonstration. No real C-UAS sensor feed wired.",
+                "data_kind": "demo_mock",
+                "sources": _DRONE_SOURCES,
+                "honesty": "Threat tracks are MOCK data for UDS demonstration. No real C-UAS sensor feed wired here — see /air-picture for a REAL cooperative ADS-B feed.",
                 "no_iron_bank": True,
                 "ts": _ts(),
             },
@@ -329,7 +387,9 @@ def register_drone_routes(app: FastAPI, space: str = "killinchu") -> None:
                 "fleet": _FRIENDLY_FLEET,
                 "fleet_count": len(_FRIENDLY_FLEET),
                 "all_friendly": True,
-                "honesty": "Friendly drone fleet is MOCK data for UDS demonstration. Positions and battery levels are synthetic.",
+                "data_kind": "demo_mock",
+                "sources": _DRONE_SOURCES,
+                "honesty": "Friendly drone fleet is MOCK data for UDS demonstration. Positions and battery levels are synthetic — see /air-picture for a REAL cooperative ADS-B feed.",
                 "no_iron_bank": True,
                 "section_889": _SECTION_889,
                 "ts": _ts(),
@@ -405,7 +465,134 @@ def register_drone_routes(app: FastAPI, space: str = "killinchu") -> None:
             },
         )
 
+    # ── GET /api/killinchu/drone/air-picture ────────────────────────────────
+    # REAL cooperative ADS-B air picture from a community feeder network.
+    # Honest live/unreachable label; NEVER fabricates tracks on a miss.
+    @app.get(f"{base}/air-picture")
+    async def drone_air_picture(lat: float = 51.4706, lon: float = -0.4619,
+                                radius: int = 50) -> JSONResponse:
+        """Real ADS-B air picture around a point (default: London Heathrow, busy
+        airspace) from airplanes.live, falling back to adsb.lol. radius in nm."""
+        try:
+            radius = max(1, min(int(radius), 250))
+        except Exception:
+            radius = 50
+        provider = None
+        status = "unreachable"
+        raw_ac: list = []
+        for name, tmpl in _ADSB_ENDPOINTS:
+            url = tmpl.format(lat=lat, lon=lon, radius=radius)
+            data, st = _http_get_json(url)
+            if st == "live" and isinstance(data, dict):
+                raw_ac = data.get("ac") or data.get("aircraft") or []
+                provider = name
+                status = "live"
+                break
+        aircraft = []
+        for a in (raw_ac if isinstance(raw_ac, list) else []):
+            if not isinstance(a, dict):
+                continue
+            aircraft.append({
+                "hex": a.get("hex"),
+                "flight": (a.get("flight") or "").strip() or None,
+                "lat": a.get("lat"),
+                "lon": a.get("lon"),
+                "alt_baro": a.get("alt_baro"),
+                "gs_kn": a.get("gs"),
+                "track_deg": a.get("track"),
+                "squawk": a.get("squawk"),
+                "category": a.get("category"),
+            })
+        _AUDIT.append({"event": "drone_air_picture", "provider": provider,
+                       "status": status, "count": len(aircraft), "ts": _ts()})
+        return JSONResponse(
+            {
+                "space": space,
+                "doctrine": _DOCTRINE,
+                "lambda_status": _LAMBDA_STATUS,
+                "status": status,
+                "data_kind": "live_adsb" if status == "live" else "unreachable",
+                "provider": provider,
+                "query": {"lat": lat, "lon": lon, "radius_nm": radius},
+                "aircraft_count": len(aircraft),
+                "aircraft": aircraft[:250],
+                "sources": _AIR_SOURCES,
+                "honesty": (
+                    "Cooperative ADS-B is an UNAUTHENTICATED broadcast — a decoded "
+                    "ICAO hex / callsign / position is a CLAIM, not attested truth "
+                    "(same posture as Remote-ID / AIS). 'live' is set ONLY on a real "
+                    "HTTP 200 from a community feeder network; on miss we return an "
+                    "honest 'unreachable' payload with zero rows, never fabricated tracks."
+                ),
+                "ts": _ts(),
+            },
+            headers={
+                "x-szl-space": space,
+                "x-szl-wire-d": "LIVE" if status == "live" else "DEGRADED",
+                "traceparent": _traceparent(*_trace()),
+                "tracestate": f"szl={_trace()[1]}",
+            },
+        )
+
+    # ── GET /api/killinchu/v1/satellites ────────────────────────────────────
+    # REAL CelesTrak GP/TLE element sets (no key). Honest live/unreachable label.
+    @app.get(f"/api/{space}/v1/satellites")
+    async def killinchu_satellites(group: str = "stations",
+                                   limit: int = 60) -> JSONResponse:
+        """Real orbital element sets from CelesTrak (NORAD GP API, JSON).
+        group e.g. stations|active|starlink|gps-ops|galileo|weather|science."""
+        g = "".join(ch for ch in str(group) if ch.isalnum() or ch in "-_")[:32] or "stations"
+        try:
+            lim = max(1, min(int(limit), 500))
+        except Exception:
+            lim = 60
+        url = f"https://celestrak.org/NORAD/elements/gp.php?GROUP={g}&FORMAT=json"
+        data, status = _http_get_json(url)
+        sats = []
+        if status == "live" and isinstance(data, list):
+            for s in data[:lim]:
+                if not isinstance(s, dict):
+                    continue
+                sats.append({
+                    "name": s.get("OBJECT_NAME"),
+                    "norad_id": s.get("NORAD_CAT_ID"),
+                    "intl_designator": s.get("OBJECT_ID"),
+                    "epoch": s.get("EPOCH"),
+                    "mean_motion": s.get("MEAN_MOTION"),
+                    "eccentricity": s.get("ECCENTRICITY"),
+                    "inclination_deg": s.get("INCLINATION"),
+                })
+        else:
+            status = "unreachable"
+        _AUDIT.append({"event": "killinchu_satellites", "group": g,
+                       "status": status, "count": len(sats), "ts": _ts()})
+        return JSONResponse(
+            {
+                "space": space,
+                "doctrine": _DOCTRINE,
+                "status": status,
+                "data_kind": "live_tle" if status == "live" else "unreachable",
+                "group": g,
+                "satellite_count": len(sats),
+                "satellites": sats,
+                "sources": _SAT_SOURCES,
+                "honesty": (
+                    "TLE/GP element sets originate from USSPACECOM (18th SDS) and are "
+                    "republished by CelesTrak. They are a public catalog snapshot — "
+                    "'live' is set ONLY on a real HTTP 200 from CelesTrak; on miss we "
+                    "return an honest 'unreachable' payload, never fabricated orbits."
+                ),
+                "ts": _ts(),
+            },
+            headers={
+                "x-szl-space": space,
+                "x-szl-wire-d": "LIVE" if status == "live" else "DEGRADED",
+                "traceparent": _traceparent(*_trace()),
+                "tracestate": f"szl={_trace()[1]}",
+            },
+        )
+
     print(
-        f"[{space}] Drone routes registered: {base}/{{telemetry,intercept,cued-tracks,fleet-state}} + v1/{{gates,audit-log}}",
+        f"[{space}] Drone routes registered: {base}/{{telemetry,intercept,cued-tracks,fleet-state,air-picture}} + v1/{{gates,audit-log,satellites}}",
         flush=True,
     )
