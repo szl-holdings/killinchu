@@ -71,6 +71,30 @@ COSIGN_PUB_FINGERPRINT = "a4d73120c312d94bdd6cbdfa6f3d629cfff4b85e7addde5f9c3fd4
 SEARCH_URL_PATTERN = "https://search.sigstore.dev/?logIndex={log_index}"
 DSSE_PAYLOAD_TYPE = "application/vnd.szl.khipu+json"
 
+# ── Cited leaders / standards / lutar-lean theorems (honest, additive) ─────────
+# Public-Ledger Anchor / Anchor-Health / Receipt-Graph / Tamper-Audit tabs cite a
+# REAL public transparency log (Sigstore Rekor, leader for software supply-chain
+# transparency), the RFC-6962 Merkle-transparency standard it implements, and the
+# in-tree, kernel-verified lutar-lean tamper-evidence theorem (NOT a Conjecture).
+CITED_SOURCES = [
+    {"id": "rekor", "title": "Sigstore Rekor — public transparency log (leader)",
+     "url": "https://rekor.sigstore.dev/api/v1/log", "kind": "feed",
+     "note": "Real, no-key public Merkle transparency log; anchor health probed live."},
+    {"id": "rfc6962", "title": "RFC 6962 — Certificate Transparency (Merkle log standard)",
+     "url": "https://www.rfc-editor.org/rfc/rfc6962", "kind": "standard",
+     "note": "The append-only Merkle-tree transparency standard Rekor implements."},
+    {"id": "dsse", "title": "DSSE — Dead-Simple Signing Envelope (secure-systems-lab)",
+     "url": "https://github.com/secure-systems-lab/dsse", "kind": "standard",
+     "note": "Envelope/PAE format used for the anchored signatures."},
+    {"id": "lutar_th6", "title": "lutar-lean: Lutar.DPI.TH6_DPI_Soundness (kernel-verified)",
+     "url": "https://github.com/szl-holdings/lutar-lean/blob/main/Lutar/DPI/TH6_DPI_Soundness.lean",
+     "kind": "knowledge",
+     "note": "In-tree tamper-evidence/DPI soundness theorem (Mathlib-backed). PROVEN, not a Conjecture."},
+    {"id": "lutar_merkle", "title": "lutar-lean: Lutar.DPI.MerkleDAGBuild",
+     "url": "https://github.com/szl-holdings/lutar-lean/blob/main/Lutar/DPI/MerkleDAGBuild.lean",
+     "kind": "knowledge", "note": "Merkle-DAG build lemmas underpinning the receipt graph."},
+]
+
 
 def _rekor_base() -> str:
     """Public log by default; override with REKOR_URL for staging."""
@@ -275,6 +299,55 @@ def verify_rekor_log_index(log_index: int, timeout: float = 30.0) -> dict[str, A
 
 
 # ---------------------------------------------------------------------------
+# Anchor health — REAL GET on the public Rekor log (no key). Honest fallback.
+# ---------------------------------------------------------------------------
+
+def rekor_anchor_health(timeout: float = 8.0) -> dict[str, Any]:
+    """Probe the PUBLIC Sigstore Rekor transparency log for live anchor health.
+
+    Performs a REAL HTTP GET on ``{base}/api/v1/log`` (the log's signed
+    tree-head endpoint, no key required). On HTTP 200 the source is labelled
+    ``live`` with the real ``treeSize`` / ``rootHash`` / ``treeID``. On any
+    other status or network error it is labelled ``unreachable`` — NEVER
+    fabricated. ``cached`` is reserved for the caller's own cache layer.
+    """
+    base = _rekor_base()
+    url = f"{base}/api/v1/log"
+    out: dict[str, Any] = {
+        "source": "sigstore-rekor",
+        "rekor_base": base,
+        "endpoint": url,
+        "checked_at": _now(),
+        "rfc": "RFC 6962 (Merkle transparency)",
+        "cited_sources": CITED_SOURCES,
+    }
+    try:
+        status, resp = _http_json(url, timeout=timeout)
+    except Exception as e:  # never fabricate — surface honest unreachable
+        out.update({"status": "unreachable", "data_kind": "unreachable",
+                    "live": False, "http_status": 0, "reason": str(e)[:160]})
+        return out
+    if status == 200 and isinstance(resp, dict):
+        out.update({
+            "status": "live",
+            "data_kind": "live",
+            "live": True,
+            "http_status": 200,
+            "tree_size": resp.get("treeSize"),
+            "root_hash": resp.get("rootHash"),
+            "tree_id": resp.get("treeID"),
+            "signed_tree_head": resp.get("signedTreeHead"),
+            "verifiable_at": "https://search.sigstore.dev/",
+        })
+    else:
+        out.update({"status": "unreachable", "data_kind": "unreachable",
+                    "live": False, "http_status": status,
+                    "reason": f"non-200 from Rekor log: HTTP {status}",
+                    "detail": str(resp)[:200]})
+    return out
+
+
+# ---------------------------------------------------------------------------
 # FastAPI registration (ADDITIVE)
 # ---------------------------------------------------------------------------
 
@@ -332,7 +405,9 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
             "endpoints": {
                 "log": f"POST {base}/log",
                 "verify": f"GET {base}/verify/{{log_index}}",
+                "health": f"GET {base}/health",
             },
+            "cited_sources": CITED_SOURCES,
             "uds_facing": True,
             "note": ("UDS-facing Rekor surface is consolidated under Killinchu "
                      "(single UDS-facing product). Other flagships anchor their "
@@ -352,12 +427,27 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
             return JSONResponse({"error": f"{type(e).__name__}: {e}",
                                  "log_index": log_index}, status_code=502)
 
+    async def _health(request: Request):  # noqa: ANN202
+        # REAL GET on the public Rekor log; honest unreachable fallback (off-thread).
+        import asyncio
+        try:
+            result = await asyncio.to_thread(rekor_anchor_health)
+            return JSONResponse(result)
+        except Exception as e:  # never fabricate
+            return JSONResponse({"source": "sigstore-rekor", "status": "unreachable",
+                                 "data_kind": "unreachable", "live": False,
+                                 "error": f"{type(e).__name__}: {e}",
+                                 "cited_sources": CITED_SOURCES}, status_code=502)
+
     if f"{base}/log" not in existing:
         app.router.routes.insert(0, Route(f"{base}/log", _log, methods=["POST"], name="kc_rekor_log"))
         registered.append(f"POST {base}/log")
     if f"{base}/verify/{{log_index}}" not in existing:
         app.router.routes.insert(0, Route(f"{base}/verify/{{log_index}}", _verify_route, methods=["GET"], name="kc_rekor_verify"))
         registered.append(f"GET {base}/verify/{{log_index}}")
+    if f"{base}/health" not in existing:
+        app.router.routes.insert(0, Route(f"{base}/health", _health, methods=["GET"], name="kc_rekor_health"))
+        registered.append(f"GET {base}/health")
     if f"{base}/info" not in existing:
         app.router.routes.insert(0, Route(f"{base}/info", _info, methods=["GET"], name="kc_rekor_info"))
         registered.append(f"GET {base}/info")
