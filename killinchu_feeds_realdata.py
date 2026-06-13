@@ -377,8 +377,14 @@ def _fetch_aircraft(theater_key, limit):
     # point-tiling supplement below for positioned tracks when OpenSky is down.
     states = None
     _osky_err = None
+    # Wave B fold: the Taiwan-Strait theater has slow-but-REAL OpenSky coverage that
+    # routinely answers in 12-22s from this host. The default 11s fast-fail dropped
+    # it to the adsb.lol supplement and rendered SAMPLE. Give taiwan_strait a longer
+    # 25s client timeout so the real OpenSky state vectors render LIVE (no fabrication
+    # — still a real fetch; other theaters keep the fast-fail to stay snappy).
+    _osky_timeout = 25 if theater_key == "taiwan_strait" else 11
     try:
-        data = _http_get(_OPENSKY_URL + _bbox_qs(t), timeout=11, headers={"User-Agent": _UA})
+        data = _http_get(_OPENSKY_URL + _bbox_qs(t), timeout=_osky_timeout, headers={"User-Agent": _UA})
         states = (data or {}).get("states") or []
     except Exception as e:
         _osky_err = e
@@ -1163,6 +1169,25 @@ def register(app, ns="killinchu"):
                "fabricated). Effector/engage stays SIMULATED (human-on-the-loop, legal line). "
                "Doctrine v11: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ=Conjecture 1 (advisory).")
 
+    # Capability envelope (same-origin, always-200 signal). The W2/W3 maritime
+    # intel endpoints (/maritime/{dark,spoof,riskarc,risk,forecast}) are LIVE on
+    # this deployment, so we advertise `maritime_intel:true`. Capability-gated
+    # surfaces (e.g. the /elite/globe view) read this flag and ONLY then upgrade
+    # their client-side INFERENCE layers to the backend LIVE/FORECAST outputs.
+    # Advisory, never proven; honest 0 when a window has no dark/spoof.
+    _CAPS = {
+        "maritime_intel": True,
+        "endpoints": [
+            "/api/killinchu/v1/maritime/dark",
+            "/api/killinchu/v1/maritime/spoof",
+            "/api/killinchu/v1/maritime/riskarc",
+            "/api/killinchu/v1/maritime/risk",
+            "/api/killinchu/v1/maritime/forecast",
+        ],
+        "note": ("Maritime intel layers (dark / spoof / Λ-risk / forecast) are served LIVE "
+                 "by the backend; advisory, computed over REAL AIS, NOT proven. Λ=Conjecture 1."),
+    }
+
     def _fetch_cached(kind, fn, theater, limit, ttl=20, vtype=None):
         """Short-TTL cache so repeated demo polls are instant and we are gentle on
         upstreams. Honest: served value is still REAL live data (<=ttl old)."""
@@ -1186,6 +1211,7 @@ def register(app, ns="killinchu"):
             "feed": "aircraft", "domain": "air",
             "theater": theater, "theater_box": _theater(theater),
             "count": len(tracks), "mode": mode, "live": live,
+            "caps": _CAPS,
             "sources_tried": tried,
             "tracks": tracks,
             "honest": _HONEST, "doctrine": "v11", "fetched_at": _now_iso(),
@@ -1211,6 +1237,7 @@ def register(app, ns="killinchu"):
             "theater": theater, "theater_box": _theater(theater),
             "type": vtype, "valid_types": ["all"] + list(_VESSEL_TYPES) + ["unknown"],
             "count": len(tracks), "mode": mode, "live": live,
+            "caps": _CAPS,
             "sources_tried": tried,
             "redundancy_chain": ["AISStream.io wss (keyed, global incl. China seas)",
                                  "Digitraffic FI AIS (no key, Baltic)",
