@@ -335,7 +335,7 @@ def _adsblol_point_tiles(t):
             lo += step_deg
         la += step_deg
     # cap tiles to keep latency bounded (large theaters)
-    return centers[:9]
+    return centers[:6]
 
 
 def _fetch_aircraft(theater_key, limit):
@@ -349,19 +349,17 @@ def _fetch_aircraft(theater_key, limit):
     seen = set()
 
     # PRIMARY — OpenSky anonymous state vectors (supports bbox). OpenSky is the
-    # main POSITIONED source (civil + ADS-B mil with lat/lon); adsb.lol/mil is a
-    # PARALLEL military feed. OpenSky egress can be slow/flaky from some hosts, so
-    # try twice with a longer timeout before giving up.
+    # main POSITIONED source (civil + ADS-B mil with lat/lon) WHERE REACHABLE.
+    # OpenSky egress is blocked/slow from some hosts (incl. this HF Space), so we
+    # use a single SHORT-timeout attempt (fast-fail) and rely on the adsb.lol
+    # point-tiling supplement below for positioned tracks when OpenSky is down.
     states = None
     _osky_err = None
-    for _attempt in range(2):
-        try:
-            data = _http_get(_OPENSKY_URL + _bbox_qs(t), timeout=28, headers={"User-Agent": _UA})
-            states = (data or {}).get("states") or []
-            break
-        except Exception as e:
-            _osky_err = e
-            time.sleep(1.0)
+    try:
+        data = _http_get(_OPENSKY_URL + _bbox_qs(t), timeout=11, headers={"User-Agent": _UA})
+        states = (data or {}).get("states") or []
+    except Exception as e:
+        _osky_err = e
     if states is not None:
         tried.append({"source": "OpenSky /states/all (anon)", "ok": True,
                       "count": len(states), "url": _OPENSKY_URL})
@@ -412,7 +410,7 @@ def _fetch_aircraft(theater_key, limit):
         for (clat, clon, rnm) in _adsblol_point_tiles(t):
             try:
                 url = _ADSBLOL_POINT % (clat, clon, rnm)
-                data = _http_get(url, timeout=12, headers={"User-Agent": _UA})
+                data = _http_get(url, timeout=9, headers={"User-Agent": _UA})
                 ac = (data or {}).get("ac") or (data or {}).get("aircraft") or []
                 pt_ok = True
                 pt_total += len(ac)
@@ -901,10 +899,24 @@ def register(app, ns="killinchu"):
                "fabricated). Effector/engage stays SIMULATED (human-on-the-loop, legal line). "
                "Doctrine v11: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ=Conjecture 1 (advisory).")
 
+    def _fetch_cached(kind, fn, theater, limit, ttl=20):
+        """Short-TTL cache so repeated demo polls are instant and we are gentle on
+        upstreams. Honest: served value is still REAL live data (<=ttl old)."""
+        ck = "feed:%s:%s:%s" % (kind, theater, limit)
+        now = time.time()
+        with _LOCK:
+            ent = _CACHE.get(ck)
+        if ent and (now - ent["ts"]) < ttl:
+            return ent["val"]
+        val = fn(theater, limit)
+        with _LOCK:
+            _CACHE[ck] = {"val": val, "ts": now}
+        return val
+
     async def _aircraft(request):
         theater = request.query_params.get("theater", _DEFAULT_THEATER)
         limit = _limit(request)
-        tracks, tried, mode = await _run(_fetch_aircraft, theater, limit)
+        tracks, tried, mode = await _run(_fetch_cached, "air", _fetch_aircraft, theater, limit)
         live = any(t.get("ok") for t in tried)
         return JSONResponse({
             "feed": "aircraft", "domain": "air",
@@ -918,7 +930,7 @@ def register(app, ns="killinchu"):
     async def _vessels(request):
         theater = request.query_params.get("theater", "baltic")
         limit = _limit(request)
-        tracks, tried, mode = await _run(_fetch_vessels, theater, limit)
+        tracks, tried, mode = await _run(_fetch_cached, "sea", _fetch_vessels, theater, limit)
         live = any(t.get("ok") for t in tried)
         return JSONResponse({
             "feed": "vessels", "domain": "sea",
