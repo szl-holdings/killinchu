@@ -452,7 +452,7 @@ def get_feed(feed):
 # fp summation/series error envelope of CF-17 (NumericStability, merged) and
 # CF-18 (Leibniz/Madhava alternating-series bound, merged) — a machine-checked
 # accumulation bound. The forecast MODEL stays a documented statistical method,
-# NEVER a locked-proven claim. locked-5 = {F1,F11,F12,F18,F19}; Lambda = Conj 1.
+# NEVER a locked-proven claim. locked-8 = {F1,F4,F7,F11,F12,F18,F19,F22}; Lambda = Conj 1.
 # Refs: Reasenberg & Jones BSSA 1989/1994; Utsu 1961 (Omori); Ogata 1983.
 # ===========================================================================
 _RJ_GENERIC = {"a": -1.67, "b": 1.0, "c": 0.05, "p": 1.08}
