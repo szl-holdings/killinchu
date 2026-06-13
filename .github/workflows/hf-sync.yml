@@ -53,6 +53,7 @@ on:
       - "killinchu_live_feeds.py"
       - "killinchu_health_twin.py"
       - "szl_be_hardening.py"
+      - "szl_metrics_prom.py"
   workflow_dispatch:
     inputs:
       force:

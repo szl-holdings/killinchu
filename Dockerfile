@@ -440,7 +440,7 @@ COPY pages/integrations.html ./pages/integrations.html
 # across a11oy + killinchu (shared-file-drift enforces it via this COPY list).
 # This Dockerfile never uses `COPY . .` — without this line `import
 # szl_hf_bucket` fails. Imported lazily by callers; no boot-time side effects.
-COPY szl_hf_bucket.py ./
+COPY szl_hf_bucket.py szl_metrics_prom.py ./
 
 CMD ["python", "serve.py"]
 
