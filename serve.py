@@ -3292,9 +3292,79 @@ async def killinchu_doctrine_inline():
 # outage — the elite Live-Picture air layer keys off that label to stay honest).
 
 
+# ── QA6 (regression fix, killinchu-only serve.py): the JSON data handlers are
+#    registered ONLY under the namespaced base /api/killinchu/v1/* (feeds/osint/
+#    mesh). The BARE top-level paths the demo + QA harness use (/feeds/aircraft,
+#    /feeds/vessels[/stats], /osint/intel, /mesh/state, ...) had no route of their
+#    own, so they fell through to the SPA /{full_path:path} catch-all and were
+#    served the Cesium globe HTML (text/html) instead of JSON.
+#    Fix: register BARE-PATH ALIASES that REUSE the already-registered namespaced
+#    route's own endpoint (same handler, same JSON, same metered data surface),
+#    front-inserted so they beat the SPA catch-all. Additive — no handler is
+#    rewritten, no shared bytes touched; the page routes (/elite*, /jackin*) keep
+#    their QA5 rate-limit exemption untouched. Honest JSON, doctrine intact.
+try:
+    from starlette.routing import Route as _QA6Route
+    from fastapi.routing import APIRoute as _QA6APIRoute
+    _qa6_base = "/api/killinchu/v1"
+    # bare_path -> namespaced_path (endpoint reused from the namespaced route)
+    _qa6_aliases = {
+        "/feeds/aircraft":        f"{_qa6_base}/feeds/aircraft",
+        "/feeds/vessels":         f"{_qa6_base}/feeds/vessels",
+        "/feeds/vessels/stats":   f"{_qa6_base}/feeds/vessels/stats",
+        "/feeds/remoteid":        f"{_qa6_base}/feeds/remoteid",
+        "/feeds/realdata/status": f"{_qa6_base}/feeds/realdata/status",
+        "/osint/intel":           f"{_qa6_base}/osint/intel",
+        "/mesh/state":            f"{_qa6_base}/mesh/state",
+    }
+    # Index the live routes by path so we can borrow each one's endpoint + methods.
+    # NOTE: the namespaced sources are a MIX of route classes —
+    #   feeds/osint are Starlette Route objects whose handlers take (request);
+    #   /mesh/state is a FastAPI APIRoute whose handler takes NO args.
+    # We must clone each alias using the SAME route class as its source so the
+    # handler is invoked with its native calling convention (a Starlette Route
+    # wrapper around a zero-arg FastAPI handler would pass `request` and crash).
+    _qa6_by_path = {}
+    for _r in app.router.routes:
+        _p = getattr(_r, "path", None)
+        if _p and _p not in _qa6_by_path:
+            _qa6_by_path[_p] = _r
+    _qa6_added = []
+    _qa6_existing_bare = {getattr(_r, "path", None) for _r in app.router.routes}
+    for _bare, _nsp in _qa6_aliases.items():
+        if _bare in _qa6_existing_bare:
+            continue  # never shadow an already-present bare route
+        _src = _qa6_by_path.get(_nsp)
+        if _src is None:
+            continue  # namespaced route absent (module not mounted) — skip silently
+        _ep = getattr(_src, "endpoint", None)
+        if _ep is None:
+            continue
+        _methods = sorted(getattr(_src, "methods", None) or {"GET"})
+        _name = "qa6_bare_alias_" + _bare.strip("/").replace("/", "_")
+        if isinstance(_src, _QA6APIRoute):
+            # FastAPI handler (e.g. zero-arg /mesh/state): build a fresh APIRoute so
+            # FastAPI's dependant solver wraps the endpoint with its native signature.
+            _alias = _QA6APIRoute(_bare, _ep, methods=_methods, name=_name,
+                                  response_class=getattr(_src, "response_class", JSONResponse))
+        else:
+            # Starlette Route handler taking (request) — feeds/* and osint/intel.
+            _alias = _QA6Route(_bare, _ep, methods=_methods, name=_name)
+        app.router.routes.insert(0, _alias)
+        _qa6_added.append(_bare)
+    print(f"[killinchu] QA6: bare data-path JSON aliases front-inserted: {_qa6_added}", file=__import__("sys").stderr)
+except Exception as _qa6_e:  # pragma: no cover — additive; never break the Space
+    print(f"[killinchu] QA6 bare-alias wiring NOT applied: {_qa6_e!r}", file=__import__("sys").stderr)
+
+
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
-    if full_path.startswith("api/"):
+    # QA6 defense-in-depth: bare data prefixes must NEVER be served the SPA HTML.
+    # If a bare data path somehow reaches the catch-all (alias not wired), return an
+    # honest JSON 404 instead of the globe page (which would be silently wrong).
+    if full_path.startswith("api/") or full_path.startswith(("feeds/", "osint/", "mesh/")):
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if full_path in ("feeds", "osint", "mesh"):
         return JSONResponse({"error": "not found"}, status_code=404)
     candidate = (STATIC_DIR / full_path).resolve()
     try:
