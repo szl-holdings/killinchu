@@ -134,6 +134,18 @@ try:
 except Exception as _szl_rd_e:  # pragma: no cover
     print(f"[killinchu] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
 
+# ── Energy / Sovereign-Compute MIRROR (Lane C). The SAME byte-identical module shipped
+# on a11oy. killinchu has no sovereign GPU orchestrator, so its sovereign probe returns
+# the honest not-sovereign default and every tile renders ROADMAP — a true mirror, never
+# faked. Adds /energy + /api/killinchu/v1/energy/*. Additive, try/except-guarded, before
+# the SPA catch-all. Pure stdlib (+ optional shared szl_joules_truth).
+try:
+    import szl_energy_sovereign as _szl_energy_sovereign
+    _szl_energy_sovereign.register(app, ns="killinchu")
+    print("[killinchu] Energy/Sovereign-Compute mirror registered: /energy + /api/killinchu/v1/energy/*", file=__import__("sys").stderr)
+except Exception as _szl_es_e:  # pragma: no cover
+    print(f"[killinchu] Energy/Sovereign-Compute mirror NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
+
 # Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
 # generated OPEN conjectures from the real disclosure ledger (szl-lake khipu,
 # kind=conjecture-disclosure-anchor). Byte-identical module shared with a11oy. A

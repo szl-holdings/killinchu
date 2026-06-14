@@ -100,6 +100,10 @@ COPY killinchu_edge_console.py szl_agentic_loop.py szl_anatomy_routes.py szl_for
 # without these per-file COPYs (this Dockerfile never uses `COPY . .`) the import
 # fails and the /api/killinchu/v1/mosaic/* endpoints + the Mosaic COP tab 404.
 COPY killinchu_mosaic.py szl_mosaic_core.py ./
+# Lane C: Energy/Sovereign-Compute mirror module + the joules honesty single-source-of-truth.
+# Byte-identical to a11oy. Without these COPYs the guarded import in serve.py degrades to a
+# not-registered stub. NEVER uses `COPY . .`.
+COPY szl_energy_sovereign.py szl_joules_truth.py ./
 
 # ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
 # knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to
