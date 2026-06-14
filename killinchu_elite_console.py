@@ -1842,12 +1842,24 @@ window.crawlStatusBanner=crawlStatusBanner; window.crawlStatusLoad=crawlStatusLo
 /* ── Research & Sources panel (research-sources-patch, Task #662) — every tab gains
    vetted REAL upstream sources (UDS/Zarf/Pepr repos, supply-chain standards, threat &
    domain feeds, Lean/proof refs, per-subject arXiv) with an HONEST live reachability
-   probe. One-shot fetches (no setInterval), idempotent, nav-away guarded. Backed by
-   /api/killinchu/v1/research/{tab} (+ /live). ── */
+   probe. Idempotent, nav-away guarded. Backed by /api/killinchu/v1/research/{tab}
+   (+ /live). The /live probe runs once on mount AND on a gentle background timer that
+   pauses when the tab is hidden — see research-autorecheck-921 below (mirrors the
+   evidence tab's evidence-autorecheck-539 UX). ── */
+window.__RS_RECHECK_MS=window.__RS_RECHECK_MS||180000;
+/* research-autorecheck-921 — pulsing 'auto-refreshing' pill style (shared, mirrors .ev-autodot) */
+window.__rs_ensure_style=function(){
+  if(document.getElementById('rs-autostyle')) return;
+  var st=document.createElement('style'); st.id='rs-autostyle';
+  st.textContent='.rs-autodot{width:7px;height:7px;border-radius:50%;background:#3a4a40;display:inline-block;vertical-align:middle}.rs-autodot.on{background:#5fe39a;animation:rs-pulse 2.2s infinite}@keyframes rs-pulse{0%{box-shadow:0 0 0 0 rgba(95,227,154,.45)}70%{box-shadow:0 0 0 6px rgba(95,227,154,0)}100%{box-shadow:0 0 0 0 rgba(95,227,154,0)}}';
+  (document.head||document.documentElement).appendChild(st);
+};
+window.__rs_ago=function(iso){ if(!iso) return ''; try{ var t=new Date(iso).getTime(); if(!t) return ''; var s=Math.max(0,Math.round((Date.now()-t)/1000)); if(s<60) return s+'s ago'; var m=Math.round(s/60); if(m<60) return m+'m ago'; var h=Math.round(m/60); return h+'h ago'; }catch(e){ return ''; } };
 window.__renderResearch=function(container, tabKey){
   try{
     if(!container||!tabKey) return;
     if(container.querySelector&&container.querySelector('.research-sources-panel')) return; // idempotent
+    window.__rs_ensure_style&&window.__rs_ensure_style();
     var rsEsc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
     var panel=document.createElement('div');
     panel.className='research-sources-panel';
@@ -1856,14 +1868,47 @@ window.__renderResearch=function(container, tabKey){
     panel.innerHTML='<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem">'
       +'<span style="font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--gold,#d8b25a)">RESEARCH &amp; SOURCES</span>'
       +'<span class="mono dim" style="font-size:10px">vetted upstream · honest live probe</span>'
-      +'<span id="'+rid+'-st" class="mono dim" style="font-size:10px;margin-left:auto">checking…</span></div>'
+      +'<span id="'+rid+'-auto" class="dim" title="Source reachability badges are silently re-probed in the background every '+Math.round((window.__RS_RECHECK_MS||180000)/1000)+'s while this tab is visible — honest live/unreachable labels are unchanged." style="display:flex;align-items:center;gap:.4rem;font-size:10px;margin-left:auto"><span class="rs-autodot"></span><span class="rs-autolbl mono dim">auto-refreshing</span></span>'
+      +'<span id="'+rid+'-st" class="mono dim" style="font-size:10px">checking…</span></div>'
       +'<div id="'+rid+'-body" class="mono" style="font-size:11px;line-height:1.5;opacity:.9">loading sources…</div>';
     container.appendChild(panel);
     var kindColor={arxiv:'#7fb2ff',repo:'#9d8cff',docs:'#6fcf97',standard:'#f2c94c',feed:'#56ccf2',knowledge:'#bb6bd9'};
+    var lastSweep=null, probing=false;
+    function updateAuto(){
+      var a=document.getElementById(rid+'-auto'); if(!a) return false;
+      var dot=a.querySelector('.rs-autodot'), lbl=a.querySelector('.rs-autolbl');
+      if(document.hidden){ if(dot) dot.classList.remove('on'); if(lbl) lbl.textContent='auto-refresh paused — tab hidden'; return true; }
+      if(dot) dot.classList.add('on');
+      var ago=lastSweep?window.__rs_ago(lastSweep):'';
+      if(lbl) lbl.textContent='auto-refreshing'+(ago?(' · re-checked '+ago):' · checking…');
+      return true;
+    }
+    function doLive(){
+      if(probing||document.hidden) return; // never invent a status; just defer while hidden
+      var body=document.getElementById(rid+'-body'); if(!body) return; // nav-away guard
+      probing=true;
+      fetch('/api/killinchu/v1/research/'+encodeURIComponent(tabKey)+'/live').then(function(r){return r.json();}).then(function(lj){
+        probing=false;
+        var b=document.getElementById(rid+'-body'); if(!b) return; // nav-away guard
+        var m={}; ((lj&&lj.sources)||[]).forEach(function(s){m[s.id]=s;});
+        var rows=b.querySelectorAll('[data-sid]');
+        for(var i=0;i<rows.length;i++){
+          var s=m[rows[i].getAttribute('data-sid')]; if(!s) continue;
+          var dot=rows[i].querySelector('.rs-dot'); if(!dot) continue;
+          dot.style.background=s.reachable?'#27ae60':'#eb5757';
+          dot.title=(s.reachable?'LIVE':'UNREACHABLE')+' · HTTP '+(s.http_status||0)+' · checked '+(window.__rs_ago(s.checked_at)||s.checked_at||'');
+        }
+        var stat=document.getElementById(rid+'-st');
+        if(stat&&lj&&lj.summary){ stat.textContent=lj.summary.live+'/'+lj.summary.total+' live · probed '+new Date().toLocaleTimeString(); }
+        lastSweep=new Date().toISOString(); updateAuto();
+      }).catch(function(){ probing=false; var st=document.getElementById(rid+'-st'); if(st) st.textContent='probe unavailable'; });
+    }
+    /* expose the active panel so the single global visibilitychange handler can drive it */
+    window.__rs_active={rid:rid, probe:doLive, updateAuto:updateAuto};
     fetch('/api/killinchu/v1/research/'+encodeURIComponent(tabKey)).then(function(r){return r.json();}).then(function(j){
       var body=document.getElementById(rid+'-body'); if(!body) return;
       var srcs=(j&&j.sources)||[];
-      if(!srcs.length){ body.innerHTML='<span class="dim">no sources mapped</span>'; return; }
+      if(!srcs.length){ body.innerHTML='<span class="dim">no sources mapped</span>'; var au=document.getElementById(rid+'-auto'); if(au) au.style.display='none'; return; }
       body.innerHTML=srcs.map(function(s){
         var col=kindColor[s.kind]||'#888';
         return '<div data-sid="'+rsEsc(s.id)+'" style="margin:.28rem 0;display:flex;gap:.5rem;align-items:flex-start">'
@@ -1872,20 +1917,21 @@ window.__renderResearch=function(container, tabKey){
           +'<span style="flex:1"><a href="'+rsEsc(s.url)+'" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline">'+rsEsc(s.title)+'</a>'
           +'<span class="dim" style="display:block;font-size:10px;opacity:.7">'+rsEsc(s.note||'')+'</span></span></div>';
       }).join('');
-      var stat=document.getElementById(rid+'-st');
-      fetch('/api/killinchu/v1/research/'+encodeURIComponent(tabKey)+'/live').then(function(r){return r.json();}).then(function(lj){
-        if(!document.getElementById(rid+'-body')) return; // nav-away guard
-        var m={}; ((lj&&lj.sources)||[]).forEach(function(s){m[s.id]=s;});
-        var rows=body.querySelectorAll('[data-sid]');
-        for(var i=0;i<rows.length;i++){
-          var s=m[rows[i].getAttribute('data-sid')]; if(!s) continue;
-          var dot=rows[i].querySelector('.rs-dot'); if(!dot) continue;
-          dot.style.background=s.reachable?'#27ae60':'#eb5757';
-          dot.title=(s.reachable?'LIVE':'UNREACHABLE')+' · HTTP '+(s.http_status||0)+' · '+(s.checked_at||'');
-        }
-        if(stat&&lj&&lj.summary){ stat.textContent=lj.summary.live+'/'+lj.summary.total+' live · probed '+new Date().toLocaleTimeString(); }
-      }).catch(function(){ var st=document.getElementById(rid+'-st'); if(st) st.textContent='probe unavailable'; });
+      updateAuto();
+      doLive(); // first live probe on mount
+      /* research-autorecheck-921 — gentle background re-probe + 'ago' ticker, both self-clear when the panel leaves the DOM */
+      if(window.__rs_recheck) clearInterval(window.__rs_recheck);
+      window.__rs_recheck=setInterval(function(){
+        if(!document.getElementById(rid+'-body')){ clearInterval(window.__rs_recheck); window.__rs_recheck=null; return; }
+        doLive();
+      }, window.__RS_RECHECK_MS||180000);
+      if(window.__rs_tick) clearInterval(window.__rs_tick);
+      window.__rs_tick=setInterval(function(){
+        if(!document.getElementById(rid+'-body')){ clearInterval(window.__rs_tick); window.__rs_tick=null; return; }
+        updateAuto();
+      }, 15000);
     }).catch(function(e){ var body=document.getElementById(rid+'-body'); if(body) body.innerHTML='<span class="dim">sources unavailable: '+rsEsc(e&&e.message||e)+'</span>'; });
+    if(!window.__rs_vis_bound){ window.__rs_vis_bound=true; document.addEventListener('visibilitychange',function(){ var a=window.__rs_active; if(!a||!a.updateAuto) return; if(!a.updateAuto()) return; if(!document.hidden&&a.probe) a.probe(); }); }
   }catch(e){}
 };
 
