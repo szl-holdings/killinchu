@@ -758,14 +758,20 @@
     el.rctBadge.textContent = 'SIGNING…';
     el.rctBadge.className = 'mf-rct-badge pend';
 
-    var receipt = {
-      type: 'killinchu.jackin.fused_track',
+    // The killinchu signer is a KHIPU chain signer: it requires action/seq/prev_hash
+    // and signs the receipt as the chain `data`. We refuse-to-sign-garbage otherwise.
+    var fused = {
       track_id: String(t.callsign || t.id),
       classification: String(t.classification || 'unevaluated').toLowerCase(),
       modalities: { live: c.live, sample: c.sample, blind: c.blind },
       quorum: { w: q.w, need: q.need, reached: !!q.reached, ftol: q.ftol },
-      confidence_pct: pct,
-      scheme: SZL.SCHEME || 'ECDSA-P256-SHA256',
+      confidence_pct: pct
+    };
+    var receipt = {
+      action: 'killinchu.jackin.fused_track',
+      seq: 0,
+      prev_hash: '0',
+      data: fused,
       ts: new Date().toISOString()
     };
 
@@ -783,7 +789,7 @@
       el.rctBadge.textContent = 'UNSIGNED (signer unreachable)';
       el.rctBadge.className = 'mf-rct-badge err';
       if (el.rctKv) el.rctKv.innerHTML =
-        kvRow('track', receipt.track_id)
+        kvRow('track', fused.track_id)
         + kvRow('quorum', q.reached ? ('reached (' + q.have + '/' + q.need + ')') : ('NOT reached (' + q.have + '/' + q.need + ')'))
         + kvRow('confidence', pct + '%')
         + (chainHash ? kvRow('sha256', chainHash) : '');
@@ -810,11 +816,11 @@
 
     if (el.rctKv) {
       el.rctKv.innerHTML =
-        kvRow('track', receipt.track_id + ' · ' + receipt.classification.toUpperCase())
+        kvRow('track', fused.track_id + ' · ' + fused.classification.toUpperCase())
         + kvRow('quorum', q.reached ? ('✓ reached (' + q.have + '/' + q.need + ', f≤' + q.ftol + ')') : ('✗ not reached (' + q.have + '/' + q.need + ')'))
         + kvRow('modalities', c.live + ' live / ' + c.sample + ' sample / ' + c.blind + ' blind')
         + kvRow('confidence', pct + '%')
-        + kvRow('scheme', (res && res.sigType) || receipt.scheme)
+        + kvRow('scheme', (res && res.sigType) || (SZL.SCHEME || 'ECDSA-P256-SHA256'))
         + kvRow('keyid', (res && res.keyid) || '—')
         + kvRow('canonical key', canonicalKey ? 'yes' : 'no (ephemeral signer)')
         + (chainHash ? kvRow('payload sha256', chainHash) : '')
