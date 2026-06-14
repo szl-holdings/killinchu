@@ -33,6 +33,26 @@
 # ===========================================================================
 from typing import Any, Dict, List
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (FE wiring wave, 2026-06-14): bare-path -> canonical /elite/* surface
+# redirects. PROBLEM found live: deep-links / nav entries to the bare paths
+#   /organism  /active-flux  /platform-dynamics
+# fell through to the killinchu SPA catch-all, which client-side-404s ("No such
+# route") even though the REAL, fully-wired pages are served at
+#   /elite/organism  /elite/active-flux  /elite/platform-dynamics
+# (killinchu_organism_view.py / killinchu_active_flux.py / killinchu_platform_dynamics.py).
+# FIX (additive, idempotent, 0 SPA edits): register a 308 permanent redirect from
+# each bare path to its canonical /elite/* surface, inserted BEFORE the SPA
+# catch-all so the surfaces become reachable instead of dead-ending on a 404.
+# Honest: pure HTTP redirect to the SAME app's own real page; no fabricated UI.
+# Doctrine v11 unchanged: 0 CDN, 0 codenames, never weakens a gate, additive-only.
+# ---------------------------------------------------------------------------
+_BARE_SURFACE_REDIRECTS = {
+    "/organism": "/elite/organism",
+    "/active-flux": "/elite/active-flux",
+    "/platform-dynamics": "/elite/platform-dynamics",
+}
+
 # The a11oy-hosted Restraint surfaces (same estate, NOT a third-party CDN).
 _A11OY_BASE = "https://szlholdings-a11oy.hf.space"
 _RESTRAINT_URL = _A11OY_BASE + "/restraint"
@@ -158,19 +178,63 @@ def _make_injector():
     return _RestraintNavInjectorKC
 
 
+def _register_bare_surface_redirects(app) -> List[str]:
+    """ADDITIVE + idempotent: 308-redirect each bare surface path to its canonical
+    /elite/* page so deep-links/nav entries resolve to the REAL wired page instead
+    of dead-ending on the SPA client-side 404. If a bare path is already a real
+    route (another lane / re-run), it is left untouched."""
+    out: List[str] = []
+    from starlette.responses import RedirectResponse
+    from starlette.routing import Route
+    try:
+        existing = {getattr(r, "path", None) for r in getattr(app, "routes", [])}
+    except Exception:
+        existing = set()
+    for bare, canonical in _BARE_SURFACE_REDIRECTS.items():
+        if bare in existing:
+            out.append("%s already a real route (skipped)" % bare)
+            continue
+
+        def _make(target):
+            async def _redirect(request):
+                # 308 keeps the method + is cacheable; canonical page is same-app.
+                return RedirectResponse(url=target, status_code=308)
+            return _redirect
+
+        try:
+            # Insert at 0 so it resolves BEFORE the SPA/proxy catch-all.
+            app.router.routes.insert(0, Route(bare, _make(canonical), methods=["GET"]))
+            out.append("GET %s -> 308 %s" % (bare, canonical))
+        except Exception:
+            try:
+                app.add_api_route(bare, _make(canonical), methods=["GET"])
+                out.append("GET %s -> 308 %s (api_route)" % (bare, canonical))
+            except Exception as exc:
+                out.append("%s redirect FAILED: %r" % (bare, exc))
+    return out
+
+
 def register(app, ns: str = "killinchu") -> Dict[str, Any]:
-    """Attach the idempotent Restraint nav cross-link injector. ADDITIVE; registers
-    NO routes (Restraint is hosted on a11oy) — it only injects an honest cross-app
-    nav item + a flagship cross-link strip into killinchu's HTML responses.
-    try/except-guarded by the caller."""
+    """Attach the idempotent Restraint nav cross-link injector + register the
+    bare-surface -> /elite/* redirects (FE wiring wave). ADDITIVE; the injector
+    only injects an honest cross-app nav item + a flagship cross-link strip into
+    killinchu's HTML responses, and the redirects only point bare deep-links at
+    the SAME app's already-live pages. Removes nothing; never clobbers another
+    lane's nav. try/except-guarded by the caller."""
     registered: List[str] = []
+    # FE wiring wave: make /organism /active-flux /platform-dynamics reachable.
+    try:
+        registered.extend(_register_bare_surface_redirects(app))
+    except Exception:
+        pass
     app.add_middleware(_make_injector())
     registered.append("MIDDLEWARE killinchu Restraint nav cross-link injector (R5)")
     return {
         "registered": registered,
         "count": len(registered),
-        "capability": "Restraint Nav Cross-Link (R5)",
+        "capability": "Restraint Nav Cross-Link (R5) + bare-surface redirects (FE)",
         "links": {"restraint": _RESTRAINT_URL, "restraint_bench": _RESTRAINT_BENCH_URL},
+        "bare_redirects": _BARE_SURFACE_REDIRECTS,
         "data_label": "NAV",
     }
 
@@ -203,10 +267,28 @@ if __name__ == "__main__":
     async def _eco(req):
         return HTMLResponse(SAMPLE_ECO)
 
-    app = Starlette(routes=[Route("/", _console), Route("/ecosystem", _eco)])
+    # Canonical /elite/* pages the bare redirects must point at.
+    async def _elite_organism(req):
+        return HTMLResponse('<html><body><h1>ORGANISM</h1></body></html>')
+
+    app = Starlette(routes=[Route("/", _console), Route("/ecosystem", _eco),
+                            Route("/elite/organism", _elite_organism)])
     st = register(app, ns="killinchu")
-    assert st["count"] == 1 and st["links"]["restraint"].endswith("/restraint")
+    # 3 bare redirects + 1 middleware line == 4 registered entries.
+    assert st["count"] == 1 + len(_BARE_SURFACE_REDIRECTS), st["registered"]
+    assert st["links"]["restraint"].endswith("/restraint")
+    assert st["bare_redirects"]["/organism"] == "/elite/organism"
     c = TestClient(app)
+
+    # FE wiring: bare /organism must 308-redirect to the real /elite/organism page.
+    r_follow = c.get("/organism")  # TestClient follows redirects by default
+    assert r_follow.status_code == 200 and "ORGANISM" in r_follow.text, r_follow.status_code
+    r_noredir = c.get("/organism", follow_redirects=False)
+    assert r_noredir.status_code == 308, r_noredir.status_code
+    assert r_noredir.headers["location"] == "/elite/organism", r_noredir.headers.get("location")
+    # idempotent: re-registering must NOT add a duplicate bare route (it already exists).
+    rb_again = _register_bare_surface_redirects(app)
+    assert any("already a real route" in x for x in rb_again), rb_again
 
     h1 = c.get("/").text
     h2 = c.get("/").text  # second hit must be byte-identical (idempotent)
