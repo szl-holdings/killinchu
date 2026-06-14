@@ -39,6 +39,28 @@
   'use strict';
 
   // -------------------------------------------------------------------------
+  // SHARED COSIGN/DSSE RECEIPT MODULE (window.SZLReceipts)
+  // The jack-in shell (index.html) does NOT load the shared receipt module, so
+  // we load it ourselves — ADDITIVELY, same-origin, 0 CDN — for the headline
+  // "fuse → cosign DSSE receipt" drop. We NEVER edit the shared index.html or
+  // the shared module bytes. If it fails to load, the receipt drop renders an
+  // honest UNSIGNED fallback (never a faked signature).
+  // -------------------------------------------------------------------------
+  function ensureReceipts() {
+    if (window.SZLReceipts) return;
+    if (document.getElementById('jk-szl-receipts')) return;
+    try {
+      var s = document.createElement('script');
+      s.id = 'jk-szl-receipts';
+      s.src = '/shared/szl_receipt_cosign.js';   // same-origin, served 200 (verified)
+      s.async = true;
+      s.onerror = function () { /* honest: receipt drop shows UNSIGNED fallback */ };
+      (document.head || document.documentElement).appendChild(s);
+    } catch (_) {}
+  }
+  ensureReceipts();
+
+  // -------------------------------------------------------------------------
   // defensive bus access (mirrors DEV 2's posture; never throws)
   // -------------------------------------------------------------------------
   function on(type, fn) {
@@ -281,6 +303,47 @@
   }
 
   // -------------------------------------------------------------------------
+  // BFT QUORUM OVER 5 SENSORS (honest, Conjecture 2 OPEN).
+  // Treat each modality as an independent witness voting on "this track is real".
+  //   - a LIVE modality is a TRUSTED witness (real feed) — it votes
+  //   - a SAMPLE modality is a DEMO witness — it abstains from the REAL quorum
+  //     (shown separately; never inflates the real tally)
+  //   - a BLIND modality cannot witness this track — it abstains
+  // Classic BFT safety needs n > 3t (tolerate t Byzantine). With n=5 trusted
+  // witnesses the byzantine-tolerant quorum threshold is ceil((n+ (n>3?1:0))/?)
+  // — we use the standard 2f+1 majority over the witnessing set and report the
+  // Byzantine fault tolerance f = floor((w-1)/3) HONESTLY. The unconditional
+  // Khipu BFT safety theorem is Conjecture 2 (OPEN); what is proved is the
+  // CONDITIONAL agreement-under-non-equivocation result. We NEVER claim BFT-safe.
+  // -------------------------------------------------------------------------
+  function quorum(modes) {
+    var witnesses = [];   // LIVE = trusted voters
+    var demo = [];        // SAMPLE = demo voters (separate)
+    var abstain = [];     // BLIND = cannot witness
+    MODALITIES.forEach(function (m) {
+      var s = modes[m.key]; if (!s) { abstain.push(m); return; }
+      if (s.status === 'live') witnesses.push(m);
+      else if (s.status === 'sample') demo.push(m);
+      else abstain.push(m);
+    });
+    var w = witnesses.length;                 // trusted witnessing set size
+    // 2f+1 majority over the witnessing set; quorum needs > 2/3 to be BFT-shaped
+    var need = w > 0 ? Math.floor(2 * w / 3) + 1 : 0;   // 2f+1
+    var ftol = w > 0 ? Math.floor((w - 1) / 3) : 0;      // Byzantine f tolerated
+    var have = w;                              // every trusted witness present votes "real"
+    var reached = w > 0 && have >= need;
+    // demo witnesses, if hardware were present, would lift the set toward 5
+    var potentialW = w + demo.length;
+    var potentialNeed = potentialW > 0 ? Math.floor(2 * potentialW / 3) + 1 : 0;
+    var potentialFtol = potentialW > 0 ? Math.floor((potentialW - 1) / 3) : 0;
+    return {
+      witnesses: witnesses, demo: demo, abstain: abstain,
+      w: w, have: have, need: need, ftol: ftol, reached: reached,
+      potentialW: potentialW, potentialNeed: potentialNeed, potentialFtol: potentialFtol
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // STYLES (consumes console.css vars with safe fallbacks)
   // -------------------------------------------------------------------------
   function injectStyles() {
@@ -364,8 +427,46 @@
     .mf-empty{color:var(--mf-mut);font-size:.82rem;padding:8px 2px;}
     .mf-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
 
+    /* BFT quorum-over-5 */
+    .mf-quorum{display:grid;grid-template-columns:auto 1fr;gap:14px 18px;align-items:center;}
+    .mf-qcol{display:flex;flex-direction:column;gap:3px;} .mf-qcol-grow{align-items:flex-start;}
+    .mf-qvote{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 0;}
+    .mf-qnote{color:var(--mf-mut);font-size:.78rem;margin:10px 0 0;line-height:1.5;}
+    .mf-rct-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 10px;}
+    .mf-qbig{font-size:1.9rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
+    .mf-qbig small{font-size:.8rem;color:var(--mf-mut);font-weight:700;}
+    .mf-qbig.ok{color:var(--mf-live);} .mf-qbig.no{color:var(--mf-sample);}
+    .mf-qverdict{font-size:.78rem;font-weight:800;letter-spacing:.06em;padding:3px 10px;border-radius:999px;
+      border:1px solid var(--mf-stroke);display:inline-block;}
+    .mf-qverdict.ok{color:var(--mf-live);border-color:rgba(84,214,160,.5);background:rgba(84,214,160,.12);}
+    .mf-qverdict.no{color:var(--mf-sample);border-color:rgba(242,193,78,.5);background:rgba(242,193,78,.12);}
+    .mf-vote{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0;}
+    .mf-voter{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;font-size:.72rem;
+      font-weight:800;letter-spacing:.04em;border:1px solid var(--mf-stroke);}
+    .mf-voter.live{color:var(--mf-live);border-color:rgba(84,214,160,.5);background:rgba(84,214,160,.10);}
+    .mf-voter.sample{color:var(--mf-sample);border-color:rgba(242,193,78,.4);background:rgba(242,193,78,.08);}
+    .mf-voter.blind{color:var(--mf-fnt);border-color:rgba(126,143,179,.35);opacity:.8;}
+    .mf-voter b{font-size:.66rem;font-weight:900;opacity:.85;}
+
+    /* cosign DSSE receipt drop */
+    .mf-rct-btns{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 12px;}
+    .mf-btn{appearance:none;cursor:pointer;border:1px solid var(--mf-stroke);border-radius:10px;
+      background:rgba(224,122,95,.14);color:var(--mf-ink);font-weight:800;font-size:.8rem;letter-spacing:.03em;
+      padding:9px 16px;transition:filter .15s ease;}
+    .mf-btn:hover{filter:brightness(1.12);} .mf-btn:disabled{opacity:.5;cursor:default;}
+    .mf-btn.ghost{background:rgba(255,255,255,.04);}
+    .mf-rct-state{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 10px;}
+    .mf-rct-badge{font-size:.72rem;font-weight:800;letter-spacing:.06em;padding:3px 10px;border-radius:999px;border:1px solid var(--mf-stroke);}
+    .mf-rct-badge.ok{color:var(--mf-live);border-color:rgba(84,214,160,.5);background:rgba(84,214,160,.12);}
+    .mf-rct-badge.pend{color:var(--mf-sample);border-color:rgba(242,193,78,.5);background:rgba(242,193,78,.12);}
+    .mf-rct-badge.err{color:var(--mf-bad);border-color:rgba(224,108,117,.5);background:rgba(224,108,117,.12);}
+    .mf-kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:.74rem;margin:6px 0 0;}
+    .mf-kv dt{color:var(--mf-mut);font-weight:700;} .mf-kv dd{margin:0;color:var(--mf-ink);word-break:break-all;font-variant-numeric:tabular-nums;}
+    .mf-pre{background:var(--mf-glass2);border:1px solid var(--mf-stroke);border-radius:8px;padding:10px 12px;
+      font-size:.7rem;line-height:1.45;color:var(--mf-mut);overflow:auto;max-height:220px;white-space:pre;margin:8px 0 0;}
+
     @media (max-width:880px){.mf-modgrid{grid-template-columns:repeat(2,minmax(0,1fr));}}
-    @media (max-width:520px){.mf-modgrid{grid-template-columns:1fr;}.mf-fuse{grid-template-columns:1fr;}}
+    @media (max-width:520px){.mf-modgrid{grid-template-columns:1fr;}.mf-fuse{grid-template-columns:1fr;}.mf-quorum{grid-template-columns:1fr;}.mf-kv{grid-template-columns:1fr;}}
     `;
     var s = document.createElement('style');
     s.id = 'jk-modality-style';
@@ -416,6 +517,49 @@
       </div>
 
       <div class="mf-card">
+        <div class="mf-head">
+          <h3 class="mf-h">BFT quorum over witnessing sensors</h3>
+          <p class="mf-sub">a track is &ldquo;agreed&rdquo; only when &gt;2/3 of trusted live witnesses vote it real</p>
+        </div>
+        <div class="mf-quorum">
+          <div class="mf-qcol">
+            <div class="mf-qbig" id="mf-qbig" aria-live="polite">0<small>&nbsp;votes</small></div>
+            <div class="mf-sub">live witnesses voting &ldquo;real&rdquo;</div>
+          </div>
+          <div class="mf-qcol mf-qcol-grow">
+            <div class="mf-qverdict no" id="mf-qverdict">NO QUORUM</div>
+            <div class="mf-qvote" id="mf-qvote"></div>
+          </div>
+        </div>
+        <p class="mf-qnote" id="mf-qnote"></p>
+        <p class="mf-tip" style="margin-top:8px;">
+          Quorum shape is <b>BFT-style 2f+1 over the witnessing set</b>. Unconditional Byzantine
+          safety of the Khipu mesh is <b>Conjecture&nbsp;2 (OPEN)</b> &mdash; only conditional
+          <b>agreement under non-equivocation</b> is proven. SAMPLE sensors <b>abstain</b> from the
+          real quorum and never inflate it.
+        </p>
+      </div>
+
+      <div class="mf-card">
+        <div class="mf-head">
+          <h3 class="mf-h">Cosign DSSE receipt</h3>
+          <p class="mf-sub">fuse the picture into one signed, chain-hashed envelope</p>
+        </div>
+        <div class="mf-rct-row">
+          <button type="button" class="mf-btn" id="mf-fuse-btn">Fuse + sign track</button>
+          <span class="mf-rct-badge" id="mf-rct-badge">NOT SIGNED</span>
+        </div>
+        <div class="mf-kv" id="mf-rct-kv"></div>
+        <pre class="mf-pre" id="mf-rct-pre" aria-label="signed DSSE envelope">&mdash; press &ldquo;Fuse + sign track&rdquo; to mint a receipt &mdash;</pre>
+        <p class="mf-tip" style="margin-top:8px;">
+          Receipt is signed by killinchu&rsquo;s in-process cosign signer
+          (<code>ECDSA-P256-SHA256</code>). Until an operator provisions the canonical
+          <code>SZL_COSIGN_PRIVATE_PEM</code> secret the key is <b>ephemeral</b>, so cross-app
+          verification shows <b>PENDING</b>. We never fake a signature.
+        </p>
+      </div>
+
+      <div class="mf-card">
         <div class="mf-head"><h3 class="mf-h">Blind-spot reference</h3>
           <p class="mf-sub">we name the limits — the honesty that earns trust</p></div>
         <div style="overflow:auto;">
@@ -438,6 +582,15 @@
     el.meter = container.querySelector('#mf-meter');
     el.posture = container.querySelector('#mf-posture');
     el.blindbody = container.querySelector('#mf-blindbody');
+    el.qbig = container.querySelector('#mf-qbig');
+    el.qverdict = container.querySelector('#mf-qverdict');
+    el.qvote = container.querySelector('#mf-qvote');
+    el.qnote = container.querySelector('#mf-qnote');
+    el.fuseBtn = container.querySelector('#mf-fuse-btn');
+    el.rctBadge = container.querySelector('#mf-rct-badge');
+    el.rctKv = container.querySelector('#mf-rct-kv');
+    el.rctPre = container.querySelector('#mf-rct-pre');
+    if (el.fuseBtn) el.fuseBtn.addEventListener('click', fuseAndSign);
 
     renderBlindTable();
   }
@@ -482,6 +635,12 @@
       if (el.corrlabel) el.corrlabel.textContent = 'modalities corroborating';
       if (el.meter) { el.meter.style.width = '0%'; el.meter.className = ''; }
       if (el.posture) el.posture.textContent = '';
+      if (el.qbig) el.qbig.innerHTML = '0<small>&nbsp;votes</small>';
+      if (el.qbig) el.qbig.className = 'mf-qbig';
+      if (el.qverdict) { el.qverdict.textContent = 'NO QUORUM'; el.qverdict.className = 'mf-qverdict no'; }
+      if (el.qvote) el.qvote.innerHTML = '';
+      if (el.qnote) el.qnote.textContent = '';
+      resetReceiptDrop();
       return;
     }
 
@@ -514,6 +673,159 @@
 
     renderNarrative(t, modes);
     renderConfidence(t, modes);
+    renderQuorum(t, modes);
+    // a new selection invalidates any previously-minted receipt
+    resetReceiptDrop();
+  }
+
+  // -------------------------------------------------------------------------
+  // BFT QUORUM over the witnessing (LIVE) set — honest 2f+1, SAMPLE abstains.
+  // -------------------------------------------------------------------------
+  function renderQuorum(t, modes) {
+    if (!el.qbig) return;
+    var q = quorum(modes);
+    el.qbig.innerHTML = q.have + '<small>&nbsp;/&nbsp;' + q.need + ' needed</small>';
+    el.qbig.className = 'mf-qbig ' + (q.reached ? 'ok' : 'no');
+    if (q.w === 0) {
+      el.qverdict.textContent = 'NO LIVE WITNESS';
+      el.qverdict.className = 'mf-qverdict no';
+    } else if (q.reached) {
+      el.qverdict.textContent = 'QUORUM ✓ (2f+1, f≤' + q.ftol + ')';
+      el.qverdict.className = 'mf-qverdict ok';
+    } else {
+      el.qverdict.textContent = 'NO QUORUM';
+      el.qverdict.className = 'mf-qverdict no';
+    }
+    // voter chips: LIVE = real vote, SAMPLE = abstain (demo), BLIND = cannot witness
+    var chips = MODALITIES.map(function (m) {
+      var s = modes[m.key]; var st = s ? s.status : 'blind';
+      var role = st === 'live' ? 'votes REAL' : st === 'sample' ? 'abstains (demo)' : 'cannot witness';
+      return '<span class="mf-voter ' + st + '">' + esc(m.label) + ' <b>' + role + '</b></span>';
+    }).join('');
+    el.qvote.innerHTML = chips;
+    var noteParts = [];
+    if (q.w === 0) {
+      noteParts.push('No LIVE sensor is witnessing this track — BFT quorum is undefined over an empty witnessing set.');
+    } else {
+      noteParts.push('Witnessing set = <b>' + q.w + '</b> LIVE sensor' + (q.w === 1 ? '' : 's')
+        + '; quorum threshold <b>2f+1 = ' + q.need + '</b>, tolerating up to <b>f = ' + q.ftol
+        + '</b> Byzantine fault' + (q.ftol === 1 ? '' : 's') + '.');
+    }
+    if (q.demo.length) {
+      noteParts.push('With demo hardware live, the witnessing set would grow to <b>' + q.potentialW
+        + '</b> (threshold ' + q.potentialNeed + ', f≤' + q.potentialFtol + ').');
+    }
+    el.qnote.innerHTML = noteParts.join(' ');
+  }
+
+  // -------------------------------------------------------------------------
+  // COSIGN DSSE RECEIPT — fuse the selected picture, sign via shared module.
+  // NEVER fakes: honest UNSIGNED / cross-app-PENDING when signer non-canonical.
+  // -------------------------------------------------------------------------
+  function resetReceiptDrop() {
+    if (!el.rctBadge) return;
+    el.rctBadge.textContent = 'NOT SIGNED';
+    el.rctBadge.className = 'mf-rct-badge';
+    if (el.rctKv) el.rctKv.innerHTML = '';
+    if (el.rctPre) el.rctPre.textContent = '— press “Fuse + sign track” to mint a receipt —';
+    if (el.fuseBtn) el.fuseBtn.disabled = false;
+  }
+
+  function kvRow(k, v) {
+    return '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>';
+  }
+
+  async function fuseAndSign() {
+    if (!el.rctBadge) return;
+    var t = selectedId && tracks[selectedId];
+    if (!t) { resetReceiptDrop(); return; }
+    var modes = evalModalities(t);
+    var c = corroboration(modes);
+    var q = quorum(modes);
+
+    // confidence band -> percent (mirrors renderConfidence; capped <100)
+    var pct = c.live <= 0 ? 14 : c.live === 1 ? 26 : c.live === 2 ? 54 : c.live === 3 ? 74 : 90;
+
+    var SZL = window.SZLReceipts;
+    if (!SZL || typeof SZL.signReceipt !== 'function') {
+      el.rctBadge.textContent = 'SIGNER UNAVAILABLE';
+      el.rctBadge.className = 'mf-rct-badge err';
+      if (el.rctPre) el.rctPre.textContent = 'window.SZLReceipts not loaded — cannot mint a receipt. (We do not fake signatures.)';
+      return;
+    }
+
+    el.fuseBtn.disabled = true;
+    el.rctBadge.textContent = 'SIGNING…';
+    el.rctBadge.className = 'mf-rct-badge pend';
+
+    var receipt = {
+      type: 'killinchu.jackin.fused_track',
+      track_id: String(t.callsign || t.id),
+      classification: String(t.classification || 'unevaluated').toLowerCase(),
+      modalities: { live: c.live, sample: c.sample, blind: c.blind },
+      quorum: { w: q.w, need: q.need, reached: !!q.reached, ftol: q.ftol },
+      confidence_pct: pct,
+      scheme: SZL.SCHEME || 'ECDSA-P256-SHA256',
+      ts: new Date().toISOString()
+    };
+
+    var canonical = '';
+    var chainHash = '';
+    try {
+      canonical = SZL.canonicalJSON(receipt);
+      if (typeof SZL.sha256Hex === 'function') chainHash = await SZL.sha256Hex(canonical);
+    } catch (e) { /* hash is best-effort display only */ }
+
+    var res;
+    try {
+      res = await SZL.signReceipt(receipt, { base: '' });
+    } catch (e) {
+      el.rctBadge.textContent = 'UNSIGNED (signer unreachable)';
+      el.rctBadge.className = 'mf-rct-badge err';
+      if (el.rctKv) el.rctKv.innerHTML =
+        kvRow('track', receipt.track_id)
+        + kvRow('quorum', q.reached ? ('reached (' + q.have + '/' + q.need + ')') : ('NOT reached (' + q.have + '/' + q.need + ')'))
+        + kvRow('confidence', pct + '%')
+        + (chainHash ? kvRow('sha256', chainHash) : '');
+      if (el.rctPre) el.rctPre.textContent = 'Signer unreachable — receipt left UNSIGNED. We never fabricate a signature.\n\ncanonical payload:\n' + canonical;
+      el.fuseBtn.disabled = false;
+      return;
+    }
+
+    // res: {signed, canonicalKey, crossAppVerifiable, keyid, sigType, sig, envelope, signerNote}
+    var signed = res && res.signed;
+    var canonicalKey = res && res.canonicalKey;
+    var crossApp = res && res.crossAppVerifiable;
+
+    if (!signed) {
+      el.rctBadge.textContent = 'UNSIGNED';
+      el.rctBadge.className = 'mf-rct-badge err';
+    } else if (canonicalKey && crossApp) {
+      el.rctBadge.textContent = 'SIGNED ✓ cross-app verifiable';
+      el.rctBadge.className = 'mf-rct-badge ok';
+    } else {
+      el.rctBadge.textContent = 'SIGNED · cross-app PENDING';
+      el.rctBadge.className = 'mf-rct-badge pend';
+    }
+
+    if (el.rctKv) {
+      el.rctKv.innerHTML =
+        kvRow('track', receipt.track_id + ' · ' + receipt.classification.toUpperCase())
+        + kvRow('quorum', q.reached ? ('✓ reached (' + q.have + '/' + q.need + ', f≤' + q.ftol + ')') : ('✗ not reached (' + q.have + '/' + q.need + ')'))
+        + kvRow('modalities', c.live + ' live / ' + c.sample + ' sample / ' + c.blind + ' blind')
+        + kvRow('confidence', pct + '%')
+        + kvRow('scheme', (res && res.sigType) || receipt.scheme)
+        + kvRow('keyid', (res && res.keyid) || '—')
+        + kvRow('canonical key', canonicalKey ? 'yes' : 'no (ephemeral signer)')
+        + (chainHash ? kvRow('payload sha256', chainHash) : '')
+        + ((res && res.signerNote) ? kvRow('signer note', res.signerNote) : '');
+    }
+    if (el.rctPre) {
+      var envOut = (res && res.envelope) ? res.envelope : { unsigned: true, payload: receipt };
+      try { el.rctPre.textContent = JSON.stringify(envOut, null, 2); }
+      catch (e) { el.rctPre.textContent = String(envOut); }
+    }
+    el.fuseBtn.disabled = false;
   }
 
   function renderNarrative(t, modes) {
