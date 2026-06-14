@@ -11439,7 +11439,7 @@ go(VIEWS[start]?start:'tracks');
   // fetchTracks() must return an array of killinchu track objects.
   window.mosaicOverlay = async function(hostId, fetchTracks){
     var host = el(hostId); if(!host) return;
-    host.innerHTML='<div class="row mono dim">'+(window.liveDot?window.liveDot():'')+'scoring tracks through the SZL Mosaic anomaly engine\u2026</div>';
+    host.innerHTML='<div class="row mono dim">'+(window.liveDot?window.liveDot():'')+'scoring tracks through the SZL \u00d1awi anomaly engine\u2026</div>';
     var tracks;
     try{ tracks = await fetchTracks(); }catch(e){ tracks=null; }
     if(!tracks || !tracks.length){
@@ -11448,7 +11448,7 @@ go(VIEWS[start]?start:'tracks');
     }
     var d = await scoreTracks(tracks);
     if(!d){
-      host.innerHTML='<div class="row mono dim" style="color:'+WARN+'">Mosaic engine endpoint unreachable \u2014 honest fallback, no scores fabricated. (POST '+esc2(api())+'/mosaic/score)</div>';
+      host.innerHTML='<div class="row mono dim" style="color:'+WARN+'">\u00d1awi engine endpoint unreachable \u2014 honest fallback, no scores fabricated. (POST '+esc2(api())+'/mosaic/score)</div>';
       return;
     }
     var rows = d.scored||[];
@@ -11506,7 +11506,7 @@ go(VIEWS[start]?start:'tracks');
           var ov = document.createElement('div');
           ov.className='card'; ov.style.borderColor='var(--teal-line)'; ov.style.marginTop='.8rem';
           var oid='mz-overlay-'+key;
-          ov.innerHTML='<div class="card-h"><span class="card-t">\u2726 Mosaic anomaly overlay</span>'
+          ov.innerHTML='<div class="card-h"><span class="card-t">\u2726 \u00d1awi anomaly overlay</span>'
             +'<span class="card-ep">SZL-native engine \u00b7 \u039b advisory (Conjecture 1) \u00b7 click "verify receipt"</span></div>'
             +'<div id="'+oid+'"><div class="row mono dim">initialising\u2026</div></div>';
           c.appendChild(ov);
@@ -11612,11 +11612,13 @@ go(VIEWS[start]?start:'tracks');
     };
 
     V.mosaic = {
-      title:'Mosaic / Domain-Superiority',
+      title:'\u00d1awi / Domain-Superiority',
       badge:'COMMON OPERATING PICTURE \u00b7 ANOMALY \u00b7 SDA ROADMAP',
-      sub:'SZL\u2019s sovereign Common Operating Picture \u2014 fused air + maritime tracks with a live <b>SZL-native anomaly overlay</b> (multivariate + graph), a \u039b-advisory verdict (allow/advisory/deny, <b>Conjecture 1</b>), and a one-click <b>signed-receipt</b> verifier. Includes the space-domain <b>SGP4 conjunction ROADMAP</b> stub (clearly labelled \u2014 today\u2019s reality is counter-UAS / drone / vessel) and an FE-NO-cited hull-stress estimate. Inspired by True Anomaly\u2019s Mosaic capability; clean-room engine, no proprietary code.',
+      sub:'\u00d1awi (Quechua: eye/vision) \u2014 SZL\u2019s sovereign Common Operating Picture \u2014 fused air + maritime tracks with a live <b>SZL-native anomaly overlay</b> (multivariate + graph), a \u039b-advisory verdict (allow/advisory/deny, <b>Conjecture 1</b>), and a one-click <b>signed-receipt</b> verifier. Includes the space-domain <b>SGP4 conjunction ROADMAP</b> stub (clearly labelled \u2014 today\u2019s reality is counter-UAS / drone / vessel) and an FE-NO-cited hull-stress estimate. Inspired by True Anomaly\u2019s Mosaic capability; clean-room engine, no proprietary code.',
       render: renderMosaic
     };
+    // \u00d1awi rename: keep internal route-key 'mosaic' working and add display-aligned alias 'nawi'.
+    V.nawi = V.mosaic;
     window.VIEWS=V;
 
     // ---- inject the nav item next to the existing track board.
@@ -11627,8 +11629,8 @@ go(VIEWS[start]?start:'tracks');
         var p=document.createElement('div');
         p.id='kc-nav-mosaic'; p.className='nav-item'; p.setAttribute('data-view','mosaic');
         p.setAttribute('onclick',"go('mosaic')");
-        p.setAttribute('title','Mosaic / Domain-Superiority: SZL\u2019s sovereign Common Operating Picture \u2014 fused multi-sensor tracks + SZL-native anomaly overlay (\u039b advisory, Conjecture 1) + signed-receipt verifier + SGP4 space-domain ROADMAP stub. Inspired by True Anomaly Mosaic\u2019s public capability; clean-room. Effectors simulated.');
-        p.innerHTML='<span class="ico">\u2726</span>Mosaic / Domain-Superiority';
+        p.setAttribute('title','\u00d1awi / Domain-Superiority: SZL\u2019s sovereign Common Operating Picture \u2014 fused multi-sensor tracks + SZL-native anomaly overlay (\u039b advisory, Conjecture 1) + signed-receipt verifier + SGP4 space-domain ROADMAP stub. Inspired by True Anomaly Mosaic\u2019s public capability; clean-room. Effectors simulated.');
+        p.innerHTML='<span class="ico">\u2726</span>\u00d1awi / Domain-Superiority';
         anchor.parentNode.insertBefore(p, anchor.nextSibling);
       }
     }
