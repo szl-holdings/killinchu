@@ -170,7 +170,7 @@ def _page_html(ns: str) -> str:
   <b>Adopted</b> from Ahmed Hassan's Simulink Quadcopter MBD project and folded under SZL governance;
   this adds NOTHING to the locked-8. <b>There is no live airframe on the demo floor — every number
   here is modeled; we never claim live UAV/vessel control.</b>
-  <a href="/elite">← back to /elite</a></div>
+  <a href="/elite">← back to /elite</a> · <a href="/ecosystem">estate hub →</a></div>
 </header>
 
 <div class="wrap">
