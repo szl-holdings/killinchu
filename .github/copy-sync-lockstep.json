@@ -13,6 +13,7 @@
     "pages/integrations.html",
     "static-vendor/a11oy-operator-widget.css",
     "static-vendor/a11oy-operator-widget.js",
+    "static-vendor/killinchu-restraint-chaski.js",
     "static/shared/szl_codename_sanitizer.js",
     "static/shared/szl_label_engine.js",
     "static/shared/szl_holo3d.js",

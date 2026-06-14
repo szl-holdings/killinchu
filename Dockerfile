@@ -152,8 +152,9 @@ COPY static-vendor/a11oy-operator-widget.js ./static-vendor/a11oy-operator-widge
 COPY static-vendor/a11oy-operator-widget.css ./static-vendor/a11oy-operator-widget.css
 # RESTRAINT (DEV-WIRE-K R3): the SHARED governed code-frugality ladder, BYTE-IDENTICAL
 # to a11oy's szl_restraint.py (same bytes, both hf-sync lists — drift guard enforced),
-# its /elite tile, and the Chaski transport-level annotator (self-hosted, 0 CDN).
-COPY szl_restraint.py killinchu_restraint_tile.py ./
+# its /elite tile, the restraint nav wire-up (imported by serve.py for /elite/restraint
+# navigation), and the Chaski transport-level annotator (self-hosted, 0 CDN).
+COPY szl_restraint.py killinchu_restraint_tile.py killinchu_nav_wireup.py ./
 COPY static-vendor/killinchu-restraint-chaski.js ./static-vendor/killinchu-restraint-chaski.js
 # Evidence & Research backend (curated + live arXiv/GitHub). serve.py imports this;
 # without this per-file COPY the import fails and /api/killinchu/v1/evidence/research 404s.
