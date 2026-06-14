@@ -646,6 +646,26 @@ except Exception as _eco_e:  # additive: never break the Space
 
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (R5, 2026-06-14, Restraint lane): cross-link the a11oy Restraint
+# surface (governed code-minimization / dependency-frugality, R1) into killinchu's
+# left-nav + flagship cross-link strip via an idempotent nav-injection middleware
+# (mirrors a11oy_nav_wireup + _OperatorWidgetInjectorKC). Restraint is hosted on
+# a11oy; this only adds an honest same-estate cross-app nav item — it registers no
+# routes, removes nothing, and never clobbers another lane's nav. try/except-guarded.
+# Doctrine v11: locked = 8 @ c7c0ba17; Lambda = Conjecture 1 (< 1.0); 0 CDN; 0 codenames.
+# ---------------------------------------------------------------------------
+_killinchu_nav_restraint = None
+_killinchu_nav_restraint_status = "restraint-nav-not-wired"
+try:
+    import killinchu_nav_wireup as _killinchu_nav_restraint
+    _killinchu_nav_restraint_status = _killinchu_nav_restraint.register(app, ns="killinchu")
+    print(f"[killinchu] Restraint nav cross-link wired ({_killinchu_nav_restraint_status})", file=sys.stderr)
+except Exception as _rn_e:  # additive: never break the Space
+    _killinchu_nav_restraint_status = f"restraint-nav-not-wired:{_rn_e!r}"
+    print(f"[killinchu] Restraint nav cross-link NOT wired ({_rn_e!r}); app unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (Lane F1, 2026-06-14): SHARED STATIC MODULES route. killinchu COPYs
 # the byte-identical shared JS (static/shared/szl_label_engine.js,
 # szl_receipt_cosign.js, szl_codename_sanitizer.js + the F1 3D/holographic
