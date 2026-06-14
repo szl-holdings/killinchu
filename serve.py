@@ -2571,6 +2571,70 @@ except Exception as _mesh_view_e:
 # ── end MESH view ──────────────────────────────
 
 # ===========================================================================
+# ADDITIVE: AUTONOMY (Dev D). Six auditable autonomy primitives over a REAL
+# backend (killinchu_autonomy.py): BFT n>=3f+1 multi-sensor fusion (tolerate 1
+# Byzantine sensor; Khipu BFT unconditional = Conjecture 2, never claimed
+# proven), a CBF-QP safety filter clamping an unsafe PROPOSAL, an EFE act-vs-ask
+# gate with a VISIBLE precision-beta oversight knob, a conformal threat set
+# (true class in set S, >=95% coverage; LOCAL wrapper pending Dev B), Fiedler
+# lambda2 mesh/anatomy health, and Reflexion over reviewed C2 plans. Endpoints
+# under /api/killinchu/v1/autonomy/*; live view at /elite/autonomy. Effectors
+# SIMULATED human-on-loop; 0 runtime CDN. Doctrine v11 LOCKED. Registered
+# EARLY (before the SPA catch-all), try/except-guarded — never breaks the Space.
+# ===========================================================================
+_killinchu_autonomy = None
+_killinchu_autonomy_status = "autonomy-not-wired"
+try:
+    import killinchu_autonomy as _killinchu_autonomy
+    _killinchu_autonomy_status = _killinchu_autonomy.register(app, ns="killinchu")
+    print(f"[killinchu] AUTONOMY backend wired ({_killinchu_autonomy_status})", file=sys.stderr)
+except Exception as _kau_e:  # additive: never break the Space
+    _killinchu_autonomy_status = f"autonomy-not-wired:{_kau_e!r}"
+    print(f"[killinchu] AUTONOMY backend NOT wired ({_kau_e!r}); app unaffected", file=sys.stderr)
+
+try:
+    import killinchu_autonomy_view as _killinchu_autonomy_view
+    _killinchu_autonomy_view_status = _killinchu_autonomy_view.register(app, ns="killinchu")
+    print(f"[killinchu] AUTONOMY view registered: {_killinchu_autonomy_view_status.get('routes')}", file=sys.stderr)
+except Exception as _kauv_e:
+    import traceback as _kauv_tb
+    print(f"[killinchu] AUTONOMY view NOT registered: {_kauv_e!r}", file=sys.stderr)
+    _kauv_tb.print_exc()
+# ── end AUTONOMY ──────────────────────────────
+
+# ===========================================================================
+# ADDITIVE: ORGANISM (Dev D). The living organism (a11oy + killinchu) as a
+# DIRECTED causal-dependency graph (killinchu_organism.py): edges encode a REAL
+# causal dependency, each organ carries local homeostatic invariants, and an
+# NCA-style local self-repair rule re-routes + heals when an organ goes down.
+# Vitals LIVE where the in-process anatomy/mesh expose them, MODELED otherwise;
+# self-repair EXPERIMENTAL (explicit local rule, not a trained CA). Shares the
+# autonomy Fiedler lambda2. Endpoints /api/killinchu/v1/organism/{causal,
+# self-repair}; live 3D view at /elite/organism (vendored three.js, 0 CDN).
+# Does NOT edit Dev5's szl_ecosystem_routes.py or the anatomy engine. Effectors
+# SIMULATED. Registered EARLY (before the SPA catch-all), try/except-guarded.
+# ===========================================================================
+_killinchu_organism = None
+_killinchu_organism_status = "organism-not-wired"
+try:
+    import killinchu_organism as _killinchu_organism
+    _killinchu_organism_status = _killinchu_organism.register(app, ns="killinchu")
+    print(f"[killinchu] ORGANISM backend wired ({_killinchu_organism_status})", file=sys.stderr)
+except Exception as _kor_e:  # additive: never break the Space
+    _killinchu_organism_status = f"organism-not-wired:{_kor_e!r}"
+    print(f"[killinchu] ORGANISM backend NOT wired ({_kor_e!r}); app unaffected", file=sys.stderr)
+
+try:
+    import killinchu_organism_view as _killinchu_organism_view
+    _killinchu_organism_view_status = _killinchu_organism_view.register(app, ns="killinchu")
+    print(f"[killinchu] ORGANISM view registered: {_killinchu_organism_view_status.get('routes')}", file=sys.stderr)
+except Exception as _korv_e:
+    import traceback as _korv_tb
+    print(f"[killinchu] ORGANISM view NOT registered: {_korv_e!r}", file=sys.stderr)
+    _korv_tb.print_exc()
+# ── end ORGANISM ──────────────────────────────
+
+# ===========================================================================
 # ADDITIVE: FLEET (Vessels) commercial-fleet surface (GAP-1 + GAP-2).
 # Serves the REAL platform seed-data/vessels/* datasets VERBATIM as static JSON
 # endpoints under /api/killinchu/v1/fleet/*, plus the vessels-vertical "Voyage

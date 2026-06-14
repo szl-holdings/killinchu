@@ -100,6 +100,16 @@ COPY killinchu_edge_console.py szl_agentic_loop.py szl_anatomy_routes.py szl_for
 # without these per-file COPYs (this Dockerfile never uses `COPY . .`) the import
 # fails and the /api/killinchu/v1/mosaic/* endpoints + the Mosaic COP tab 404.
 COPY killinchu_mosaic.py szl_mosaic_core.py ./
+
+# ADDITIVE (AUTONOMY + ORGANISM elevation, 2026-06-14, Dev D): four additive
+# modules. killinchu_autonomy.py (BFT n>=3f+1, CBF-QP, EFE gate, conformal,
+# Fiedler, Reflexion; /api/killinchu/v1/autonomy/*) + killinchu_autonomy_view.py
+# (/elite/autonomy). killinchu_organism.py (causal-dependency graph + local
+# invariants + NCA-style self-repair; /api/killinchu/v1/organism/{causal,
+# self-repair}) + killinchu_organism_view.py (/elite/organism, vendored 3D).
+# serve.py imports all four via try/except; without these per-file COPYs the
+# imports fail and the autonomy/organism surfaces 404.
+COPY killinchu_autonomy.py killinchu_autonomy_view.py killinchu_organism.py killinchu_organism_view.py ./
 # Lane C: Energy/Sovereign-Compute mirror module + the joules honesty single-source-of-truth.
 # Byte-identical to a11oy. Without these COPYs the guarded import in serve.py degrades to a
 # not-registered stub. NEVER uses `COPY . .`.

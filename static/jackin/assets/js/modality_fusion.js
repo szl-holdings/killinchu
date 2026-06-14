@@ -327,19 +327,40 @@
       else abstain.push(m);
     });
     var w = witnesses.length;                 // trusted witnessing set size
-    // 2f+1 majority over the witnessing set; quorum needs > 2/3 to be BFT-shaped
-    var need = w > 0 ? Math.floor(2 * w / 3) + 1 : 0;   // 2f+1
     var ftol = w > 0 ? Math.floor((w - 1) / 3) : 0;      // Byzantine f tolerated
+    // EXPLICIT BFT feasibility: classic BFT safety needs n >= 3f+1. The minimum
+    // witnessing-set size that tolerates f=ftol faults is n3f1 = 3*ftol+1; the
+    // set is BFT-FEASIBLE iff w >= n3f1 (equivalently w >= 3*ftol+1). With w=4
+    // we get ftol=1 and n3f1=4 -> feasible, tolerating exactly 1 Byzantine sensor.
+    var n3f1 = 3 * ftol + 1;                   // minimum n for this f (n >= 3f+1)
+    var bftFeasible = w > 0 && w >= n3f1;
+    // 2f+1 quorum over the witnessing set (the agreeing supermajority).
+    var need = w > 0 ? (2 * ftol + 1) : 0;     // 2f+1 (exact, tied to the tolerated f)
     var have = w;                              // every trusted witness present votes "real"
-    var reached = w > 0 && have >= need;
+    var reached = bftFeasible && have >= need;
+    // Which witness is the ONE Byzantine fault we tolerate? Name the weakest
+    // (lowest-confidence) live witness — the corroboration we could lose and
+    // still DECIDE. Honest: a label, the math tolerates ANY single faulty node.
+    var byzantineTolerated = null;
+    if (ftol >= 1 && witnesses.length) {
+      var weakest = witnesses[0], wc = 1e9;
+      witnesses.forEach(function (m) {
+        var s = modes[m.key]; var c = s && isFinite(Number(s.conf)) ? Number(s.conf) : (s && isFinite(Number(s.score)) ? Number(s.score) : 1);
+        if (c < wc) { wc = c; weakest = m; }
+      });
+      byzantineTolerated = weakest;
+    }
     // demo witnesses, if hardware were present, would lift the set toward 5
     var potentialW = w + demo.length;
-    var potentialNeed = potentialW > 0 ? Math.floor(2 * potentialW / 3) + 1 : 0;
     var potentialFtol = potentialW > 0 ? Math.floor((potentialW - 1) / 3) : 0;
+    var potentialNeed = potentialW > 0 ? (2 * potentialFtol + 1) : 0;
+    var potentialN3f1 = 3 * potentialFtol + 1;
     return {
       witnesses: witnesses, demo: demo, abstain: abstain,
       w: w, have: have, need: need, ftol: ftol, reached: reached,
-      potentialW: potentialW, potentialNeed: potentialNeed, potentialFtol: potentialFtol
+      n3f1: n3f1, bftFeasible: bftFeasible, byzantineTolerated: byzantineTolerated,
+      potentialW: potentialW, potentialNeed: potentialNeed, potentialFtol: potentialFtol,
+      potentialN3f1: potentialN3f1
     };
   }
 
@@ -689,8 +710,11 @@
     if (q.w === 0) {
       el.qverdict.textContent = 'NO LIVE WITNESS';
       el.qverdict.className = 'mf-qverdict no';
+    } else if (!q.bftFeasible) {
+      el.qverdict.textContent = 'INFEASIBLE (n < 3f+1, need n≥' + q.n3f1 + ')';
+      el.qverdict.className = 'mf-qverdict no';
     } else if (q.reached) {
-      el.qverdict.textContent = 'QUORUM ✓ (2f+1, f≤' + q.ftol + ')';
+      el.qverdict.textContent = 'QUORUM ✓ (n≥3f+1, 2f+1, f≤' + q.ftol + ')';
       el.qverdict.className = 'mf-qverdict ok';
     } else {
       el.qverdict.textContent = 'NO QUORUM';
@@ -707,14 +731,28 @@
     if (q.w === 0) {
       noteParts.push('No LIVE sensor is witnessing this track — BFT quorum is undefined over an empty witnessing set.');
     } else {
-      noteParts.push('Witnessing set = <b>' + q.w + '</b> LIVE sensor' + (q.w === 1 ? '' : 's')
-        + '; quorum threshold <b>2f+1 = ' + q.need + '</b>, tolerating up to <b>f = ' + q.ftol
-        + '</b> Byzantine fault' + (q.ftol === 1 ? '' : 's') + '.');
+      noteParts.push('Witnessing set <b>n = ' + q.w + '</b> LIVE sensor' + (q.w === 1 ? '' : 's')
+        + '. BFT safety needs <b>n &ge; 3f+1</b>: for f = <b>' + q.ftol + '</b> that is n &ge; <b>'
+        + q.n3f1 + '</b> &mdash; '
+        + (q.bftFeasible
+            ? ('<b>FEASIBLE</b>, quorum <b>2f+1 = ' + q.need + '</b>, tolerating up to <b>f = '
+               + q.ftol + '</b> Byzantine sensor' + (q.ftol === 1 ? '' : 's') + ' before any engagement RECOMMENDATION.')
+            : ('<b>INFEASIBLE</b> (only ' + q.w + ' live witness' + (q.w === 1 ? '' : 'es')
+               + ') &mdash; no quorum, no recommendation.')));
+      if (q.bftFeasible && q.byzantineTolerated) {
+        noteParts.push('The single fault we tolerate here is the weakest witness, <b>'
+          + esc(q.byzantineTolerated.label) + '</b> (if it equivocated or dropped, the remaining '
+          + (q.w - 1) + ' still satisfy 2f+1; the BFT bound tolerates <i>any</i> one faulty node).');
+      }
     }
     if (q.demo.length) {
-      noteParts.push('With demo hardware live, the witnessing set would grow to <b>' + q.potentialW
-        + '</b> (threshold ' + q.potentialNeed + ', f≤' + q.potentialFtol + ').');
+      noteParts.push('SAMPLE sensors <b>abstain</b> and never inflate the set; with that hardware live, n would grow to <b>'
+        + q.potentialW + '</b> (n&ge;3f+1 → n&ge;' + q.potentialN3f1 + ', quorum ' + q.potentialNeed
+        + ', f&le;' + q.potentialFtol + ').');
     }
+    noteParts.push('Unconditional Khipu BFT safety is <b>Conjecture&nbsp;2 (OPEN)</b>; what is <i>proven</i> '
+      + '(Lean: Lutar/KhipuConsensus.lean::faultyCount) is conditional <b>agreement under non-equivocation</b>. '
+      + 'A met quorum is a SIMULATED, human-on-loop RECOMMENDATION — never autonomous engagement.');
     el.qnote.innerHTML = noteParts.join(' ');
   }
 
