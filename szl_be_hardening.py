@@ -97,7 +97,50 @@ DOCTRINE_LOCK = {
 DOCTRINE_FOOTER = "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
 
 _GENESIS = "0" * 64
-RATE_LIMIT_PER_MIN = 60
+# QA5 (demo-floor fix): the per-IP limiter previously capped EVERYTHING at 60/min,
+# including the HTML showcase pages (/elite, /elite/globe, ...). A booth on a shared
+# IP with a few refreshes could be served a raw {"error":{"code":"rate_limited"...}}
+# body in place of the page. Two changes, both env-overridable so ops can tune live:
+#   1. Raise the per-IP DATA cap to a demo-safe, burst-tolerant default (600/min).
+#   2. EXEMPT page/static routes from the limiter entirely (see _is_rate_limited_path).
+# Still a real sliding-window limiter on the JSON data surface — true abuse is capped.
+try:
+    RATE_LIMIT_PER_MIN = max(1, int(os.environ.get("SZL_RATE_LIMIT_PER_MIN", "600")))
+except Exception:
+    RATE_LIMIT_PER_MIN = 600
+
+# Page/static routes ALWAYS render (never rate-limited): the self-contained consoles
+# and landing pages are the showcase surface. Only the JSON data surface (/api/* and
+# /feeds/*) is metered. Health/readiness probes are also always allowed so liveness
+# checks never trip the limiter.
+_RL_EXEMPT_EXACT = frozenset({
+    "/", "/console", "/operator", "/cathedral", "/live-wires",
+    "/healthz", "/readyz", "/honest", "/favicon.ico", "/robots.txt",
+})
+_RL_EXEMPT_PREFIXES = (
+    "/elite", "/jackin", "/static", "/assets", "/cesium",
+    "/web/", "/pages/", "/static-vendor", "/flow-compartments",
+    "/mesh-view", "/globe", "/maritime",  # page tabs, not the /api/* data routes
+    "/.well-known",
+)
+
+
+def _is_rate_limited_path(path: str) -> bool:
+    """True only for the JSON DATA surface that should be metered. Page/static/
+    health routes are EXEMPT so the showcase always renders (QA5). We meter the
+    API + feeds data endpoints (and OSINT), where real abuse would land."""
+    p = (path or "/").rstrip("/") or "/"
+    if p in _RL_EXEMPT_EXACT:
+        return False
+    for pre in _RL_EXEMPT_PREFIXES:
+        if p == pre or p.startswith(pre + "/") or p.startswith(pre):
+            return False
+    # Meter the data surface: /api/<organ>/v1/... and top-level /feeds/* data.
+    if "/api/" in p or p.startswith("/feeds") or p.startswith("/osint"):
+        return True
+    # Default: do NOT rate-limit unknown/page-like routes (fail-open for the demo;
+    # the data surface above is what we protect).
+    return False
 
 # ---------------------------------------------------------------------------
 # 8. SECURITY RESPONSE HEADERS — conservative, non-breaking baseline applied to
@@ -438,6 +481,11 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
 
     @app.middleware("http")
     async def _rate_limit_mw(request: "Request", call_next):
+        # QA5: page/static/health routes are NEVER rate-limited — the showcase
+        # must always render. Only the JSON data surface (/api/*, /feeds/*) is
+        # metered, at the demo-safe RATE_LIMIT_PER_MIN sliding-window cap.
+        if not _is_rate_limited_path(request.url.path):
+            return await call_next(request)
         ip = request.client.host if request.client else "unknown"
         now = time.time()
         with _rl_lock:

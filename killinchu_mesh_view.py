@@ -387,12 +387,60 @@ function num(x,d){if(x==null||x===''||isNaN(x))return '—';var n=Number(x);retu
 async function getJSON(path){
   // Try the namespaced path first, then a bare /mesh/* fallback, so this view is
   // resilient to whichever mount-point Dev 3 ships. Honest __error on failure.
+  // QA1 (demo-stability): the data surface is per-IP rate-limited, so a burst of
+  // polling can return 429 even when the service is HEALTHY. We must NOT let a 429
+  // make a healthy mesh look broken. Strategy (honest, never fabricates):
+  //   * last-good cache per path (held ~8s) — a fresh-enough cached value is served
+  //     immediately so polling is gentle and instant;
+  //   * on 429 (or a rate_limited JSON body): return the last-good cached value
+  //     flagged {__stale:true} so the UI can label it, and schedule exponential
+  //     backoff with jitter (handled by the caller via __retry_after_ms);
+  //   * never surface the raw rate_limited JSON as if it were data.
   var urls=[API+path, path];
+  var nowMs=Date.now();
+  if(!window.__kcCache)window.__kcCache={};
+  if(!window.__kcBackoff)window.__kcBackoff={};
+  var cache=window.__kcCache, bo=window.__kcBackoff;
+  var CACHE_TTL=8000;            // serve last-good for up to 8s (gentle polling)
+  var hit=cache[path];
+  // If we are inside a backoff window from a recent 429, serve cache (stale-labelled)
+  // instead of hammering the throttled endpoint.
+  if(bo[path] && nowMs < bo[path].until && hit){
+    var s1=Object.assign({},hit.val); s1.__stale=true; s1.__throttled=true;
+    s1.__retry_after_ms=bo[path].until-nowMs; return s1;
+  }
+  // Fresh-enough cache: serve it (avoids needless requests under tight polling).
+  if(hit && (nowMs-hit.ts)<CACHE_TTL){ return hit.val; }
   for(var i=0;i<urls.length;i++){
     try{var r=await fetch(urls[i],{headers:{'accept':'application/json'}});
-      if(r.ok){var ct=r.headers.get('content-type')||'';if(ct.indexOf('json')>=0||ct===''){return await r.json();}}
+      if(r.status===429){
+        // Throttled but healthy. Back off exponentially with jitter, serve cache.
+        var prev=(bo[path]&&bo[path].ms)||1000;
+        var next=Math.min(prev*2, 30000);
+        var jitter=Math.floor(Math.random()*Math.min(next,1000));
+        var waitMs=next+jitter;
+        bo[path]={ms:next, until:Date.now()+waitMs};
+        if(hit){var s2=Object.assign({},hit.val); s2.__stale=true; s2.__throttled=true; s2.__retry_after_ms=waitMs; return s2;}
+        return {__throttled:true, __error:'rate_limited', __retry_after_ms:waitMs, __note:'throttled, retrying'};
+      }
+      if(r.ok){var ct=r.headers.get('content-type')||'';if(ct.indexOf('json')>=0||ct===''){
+        var j=await r.json();
+        // A JSON rate_limited body (proxy/edge limiter) is treated like a 429.
+        if(j&&j.error&&j.error.code==='rate_limited'){
+          var p3=(bo[path]&&bo[path].ms)||1000; var n3=Math.min(p3*2,30000);
+          var w3=n3+Math.floor(Math.random()*Math.min(n3,1000)); bo[path]={ms:n3,until:Date.now()+w3};
+          if(hit){var s3=Object.assign({},hit.val); s3.__stale=true; s3.__throttled=true; s3.__retry_after_ms=w3; return s3;}
+          return {__throttled:true,__error:'rate_limited',__retry_after_ms:w3,__note:'throttled, retrying'};
+        }
+        // Success: clear backoff, store last-good.
+        delete bo[path]; cache[path]={val:j, ts:Date.now()};
+        return j;
+      }}
     }catch(e){}
   }
+  // Total transport failure: serve last-good cache if we have one (stale-labelled),
+  // else an honest unreachable marker.
+  if(hit){var s4=Object.assign({},hit.val); s4.__stale=true; return s4;}
   return {__error:'endpoint unreachable',__paths:urls};
 }
 async function postJSON(path,body){

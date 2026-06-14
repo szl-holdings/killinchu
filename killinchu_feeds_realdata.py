@@ -280,6 +280,13 @@ def _theater(key):
     return THEATERS.get((key or "").lower(), THEATERS[_DEFAULT_THEATER])
 
 
+def _theater_known(key):
+    """QA4 (honest-label fix): True iff `key` names a real theater box. An unknown
+    theater silently falls back to the default box, so callers must be told the
+    returned data is NOT for the theater they asked for (never silently wrong)."""
+    return (key or "").lower() in THEATERS
+
+
 def _bbox_qs(t):
     if t.get("lamin") is None:
         return ""
@@ -1287,22 +1294,37 @@ def register(app, ns="killinchu"):
     async def _aircraft(request):
         theater = request.query_params.get("theater", _DEFAULT_THEATER)
         limit = _limit(request)
+        # QA4 (honest-label fix): an unknown theater key is NOT rejected (least-
+        # disruptive choice — the feed still returns real global/default-box data),
+        # but the envelope now states plainly that the requested theater was unknown
+        # and which box actually served the data, so the response is never silently
+        # wrong. Valid keys are advertised so the client can self-correct.
+        theater_valid = _theater_known(theater)
+        resolved = _theater(theater)
         # PERF-B: per-theater cache (TTL 20s) + single-flight. Concurrent
         # requests for the same theater share ONE real upstream fetch and
         # return from cache <1s; a cold fetch is still a real OpenSky/adsb call.
         (tracks, tried, mode), as_of, cache_hit = await _run(
             _fetch_cached_meta, "air", _fetch_aircraft, theater, limit, 20)
         live = any(t.get("ok") for t in tried)
-        return JSONResponse({
+        _env = {
             "feed": "aircraft", "domain": "air",
-            "theater": theater, "theater_box": _theater(theater),
+            "theater": theater, "theater_box": resolved,
+            "theater_valid": theater_valid,
+            "valid_theaters": sorted(THEATERS.keys()),
             "count": len(tracks), "mode": mode, "live": live,
             "caps": _CAPS,
             "sources_tried": tried,
             "tracks": tracks,
             "as_of": as_of, "cache_hit": cache_hit, "cache_ttl_s": 20,
             "honest": _HONEST, "doctrine": "v11", "fetched_at": _now_iso(),
-        })
+        }
+        if not theater_valid:
+            _env["note"] = (
+                "unknown theater %r — returning data for the default box %r instead; "
+                "pick one of valid_theaters for a theater-scoped feed"
+                % (theater, resolved.get("label", _DEFAULT_THEATER)))
+        return JSONResponse(_env)
 
     def _norm_vtype(request):
         vt = (request.query_params.get("type") or request.query_params.get("vessel_type") or "all").lower()

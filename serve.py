@@ -185,6 +185,49 @@ try:
 except Exception as _szl_cuas_e:  # pragma: no cover
     print(f"[killinchu] CUAS formulas NOT registered: {_szl_cuas_e!r}", file=__import__("sys").stderr)
 
+# ── QA-FIX loop1 (killinchu-only, ADDITIVE; serve.py is the per-app server and is
+#    NOT byte-shared with a11oy, so the shared szl_cuas_formulas.py is left UNTOUCHED).
+#    QA2: /cuas/plausibility?chi=abc previously returned 500 because the shared route
+#    lambda did float(chi) on a raw string param (ValueError -> generic 500 envelope).
+#    QA3: /cuas/wta?n=-5 was silently accepted (negative count coerced to 0).
+#    Fix: re-declare the two routes with FastAPI-TYPED Query params so an invalid value
+#    raises RequestValidationError, which the existing backend-hardening handler renders
+#    as the standard {"error":{"code":"validation_error",...}} 422 envelope — IDENTICAL
+#    shape to /cuas/engage & /cuas/fusion. We call the unchanged shared pure functions
+#    (szl_plausibility / szl_wta). The new typed routes are moved to the FRONT of the
+#    router so they win over the shared module's earlier-registered duplicates (first
+#    match wins in Starlette). Doctrine intact: SIMULATED effector, EXPERIMENTAL tier,
+#    adds NOTHING to locked-8, Λ stays Conjecture 1, no fabricated data.
+try:
+    from fastapi import Query as _QAQuery
+    _qa_cuas_base = "/api/killinchu/v1/cuas"
+
+    def _qa_plausibility(chi: float = _QAQuery(3.0, description="GNSS innovation magnitude (numeric, >=0)", ge=0.0)):
+        # chi is FastAPI-validated to a non-negative float; bad input -> 422 (not 500).
+        return {"demo": _szl_cuas.szl_plausibility([chi ** 0.5] * 3, [1.0, 1.0, 1.0])}
+
+    def _qa_wta(n: int = _QAQuery(3, description="interceptor count (integer, >=0)", ge=0)):
+        # n is FastAPI-validated to a non-negative int; n<0 -> 422 (was silently accepted).
+        return _szl_cuas.szl_wta(
+            [{"id": "T1", "base_value": 5, "tti": 2},
+             {"id": "T2", "base_value": 3, "tti": 1},
+             {"id": "T3", "base_value": 8, "tti": 4}], n)
+
+    # DROP the shared module's earlier-registered plausibility/wta routes (the
+    # untyped float(chi)/int(n) lambdas that 500 on bad input) and replace them
+    # with the typed-validated handlers below. We remove BEFORE adding so the only
+    # routes left on these two paths are the hardened ones (Starlette resolves the
+    # first — now only — match). The shared szl_cuas_formulas.py file is UNCHANGED;
+    # we only prune the route objects it registered on THIS app instance.
+    _qa_paths = {f"{_qa_cuas_base}/plausibility", f"{_qa_cuas_base}/wta"}
+    app.router.routes[:] = [r for r in app.router.routes
+                            if getattr(r, "path", None) not in _qa_paths]
+    app.add_api_route(f"{_qa_cuas_base}/plausibility", _qa_plausibility, methods=["GET"])
+    app.add_api_route(f"{_qa_cuas_base}/wta", _qa_wta, methods=["GET"])
+    print("[killinchu] QA-FIX: hardened cuas/plausibility & cuas/wta validation (422 on bad input)", file=__import__("sys").stderr)
+except Exception as _qa_cuas_e:  # pragma: no cover — additive; never break the Space
+    print(f"[killinchu] QA-FIX cuas-hardening NOT applied: {_qa_cuas_e!r}", file=__import__("sys").stderr)
+
 # ── SZL allometric / metabolic scaling (scaling-formula-patch) — WBE network
 # scaling (West-Brown-Enquist 1997) + Banavar transport exponent + MTE temperature
 # (Brown 2004) + Demetrius-Tuszynski proton-motive-force quantum-metabolism bridge
