@@ -4412,6 +4412,42 @@ except Exception as _waqay_nav_e:
     _waqay_nav_tb.print_exc(file=_waqay_nav_sys.stderr)
 # ── end WAQAY (governed quantized vector index) ──
 
+# YUPAY (Quechua: to count / to reckon / to audit) — our OWN governed multi-model
+# AUDIT harness (szl_yupay.py — byte-identical with a11oy). Adopts the Kilo Code /
+# André Lindenberg audit METHODOLOGY (same task, score issues/tokens/cost/latency)
+# run over OUR OWN governed open models; emits ONE DSSE-signed comparison receipt +
+# Restraint verdict. register() FRONT-INSERTS routes before the SPA catch-all.
+# Honest labels: MEASURED iff a real run happened, else MODELED (cost = published
+# per-token rates, cited). NO M3 WEIGHTS / NO M3 DERIVATIVE: M3 is
+# EXCLUDED-BY-DOCTRINE (defense-license + PRC sovereignty), shown only as a
+# non-participating reference row, never run. ADDITIVE, try/except-guarded. 0 CDN.
+# Attribution: Kilo Code/André Lindenberg methodology + MiniMax sparse-attn paper
+# as INSPIRATION; NOTICES.md.
+# ===========================================================================
+try:
+    import szl_yupay as _szl_yupay
+    _yupay_status = _szl_yupay.register(app, ns="killinchu")
+    print(f"[killinchu] YUPAY governed multi-model audit harness registered: "
+          f"{_yupay_status['registered']} (tab: {_yupay_status['tab_route']}, "
+          f"trust_ceiling={_yupay_status['trust_ceiling']} <1.0) — signed comparison "
+          f"+ Restraint, M3 EXCLUDED-BY-DOCTRINE", file=sys.stderr)
+except Exception as _yupay_e:
+    import sys as _yupay_sys, traceback as _yupay_tb
+    print(f"[killinchu] YUPAY NOT registered (non-fatal): {_yupay_e!r}", file=_yupay_sys.stderr)
+    _yupay_tb.print_exc(file=_yupay_sys.stderr)
+try:
+    import a11oy_yupay_nav as _a11oy_yupay_nav
+    _yupay_nav_status = _a11oy_yupay_nav.register(app, ns="killinchu")
+    print(f"[killinchu] YUPAY nav wire-up registered: {_yupay_nav_status['registered']} "
+          f"(tab: {_yupay_nav_status['tab_route']}) — idempotent, additive, SPA source NOT edited",
+          file=sys.stderr)
+except Exception as _yupay_nav_e:
+    import sys as _yupay_nav_sys, traceback as _yupay_nav_tb
+    print(f"[killinchu] YUPAY nav wire-up NOT registered (non-fatal): {_yupay_nav_e!r}",
+          file=_yupay_nav_sys.stderr)
+    _yupay_nav_tb.print_exc(file=_yupay_nav_sys.stderr)
+# ── end YUPAY (governed multi-model audit harness) ──
+
 
 if __name__ == "__main__":
     import uvicorn
