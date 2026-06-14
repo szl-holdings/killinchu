@@ -307,6 +307,38 @@ img,svg,canvas{max-width:100%;}
     <details class="raw"><summary>raw /mesh/topology</summary><pre class="out" id="topo-raw">…</pre></details>
   </div>
 
+  <!-- ============ 1b · 3D MESH TOPOLOGY (F4 · additive · toggle enhancement; the 2D SVG graph above is the fallback) ============ -->
+  <div class="card" id="mesh3d_card">
+    <div class="card-h"><span class="sect-num">01b</span><span class="card-t">3D Mesh Topology — Fiedler &lambda;&#8322; health</span>
+      <span class="mode-pill empty" id="mesh3d-mode">…</span>
+      <span class="card-ep mono">GET /mesh/topology</span>
+      <button class="btn ghost" id="m3d-toggle" style="margin-left:auto;font-size:11px;cursor:pointer;">Enable 3D</button>
+    </div>
+    <p class="view-sub" style="margin:.2rem 0 .8rem">
+      The SAME live <span class="mono">/mesh/topology</span> nodes &amp; edges rendered on the shared 0-CDN holographic kit:
+      node spheres sized by <b>algebraic connectivity (Fiedler value &lambda;&#8322;</b>, the 2nd-smallest Laplacian
+      eigenvalue, computed in-browser from the real graph). A <b>simulated partition event</b> drops an edge and
+      &lambda;&#8322; falls toward 0 (red); the <b>self-heal protocol</b> forms a bridging edge and &lambda;&#8322; recovers,
+      animated as a growing edge + signed pulse. Throughout, the <b>3-of-4 Khipu quorum</b> keeps signing —
+      <b>soft-safety AP corroboration; Khipu BFT unconditional = Conjecture&nbsp;2</b>, never claimed proven.
+      CPU/old-GPU falls back to the 2D SVG graph above. Patterns: libp2p GossipSub, CometBFT, Automerge CRDT.
+    </p>
+    <div class="r3d-stats mono" style="display:flex;gap:1.3rem;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:.3rem 0 .6rem">
+      <span>Fiedler &lambda;&#8322; <span id="m3d-fiedler" style="color:var(--teal)">—</span> <span id="m3d-fiedler-lbl"></span></span>
+      <span>nodes <span id="m3d-nodes" style="color:var(--live)">—</span></span>
+      <span>edges <span id="m3d-edges" style="color:var(--teal)">—</span></span>
+      <span>Khipu quorum <span id="m3d-quorum" style="color:var(--gold)">3-of-4 (Conjecture 2)</span></span>
+      <span id="m3d-caps" style="color:var(--muted)"></span>
+    </div>
+    <div class="row" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+      <button class="btn ghost" id="m3d-partition" style="font-size:11px;cursor:pointer;" disabled>Simulate partition</button>
+      <button class="btn ghost" id="m3d-heal" style="font-size:11px;cursor:pointer;" disabled>Self-heal (form bridge edge)</button>
+    </div>
+    <div id="mesh3d_mount" style="width:100%;height:440px;border:1px solid var(--gold-line);border-radius:10px;background:#060606;display:none;position:relative;"></div>
+    <div class="loading" id="m3d-off" style="padding:1rem">3D is off (default). Click <b>Enable 3D</b> to render the holographic mesh on the live <span class="mono">/mesh/topology</span> endpoint. The 2D SVG graph above is always available as the fallback.</div>
+    <div class="honesty" style="margin-top:.8rem"><b>Honest label.</b> Fiedler &lambda;&#8322; is computed live from the real reported graph (power-iteration on the deflated Laplacian, in-browser). Partition / self-heal are <b>operator-triggered SIMULATIONS</b> over the live graph to demonstrate the resilience response — clearly labelled, never presented as a real outage. The 3-of-4 Khipu quorum shown is <b>soft-safety AP corroboration</b>; <b>Khipu BFT unconditional is Conjecture 2</b>. 0 runtime CDN · WebGL2 + 2D fallback · effector SIMULATED.</div>
+  </div>
+
   <!-- ============ 2 · QUORUM STATUS ============ -->
   <div class="card">
     <div class="card-h"><span class="sect-num">02</span><span class="card-t">Quorum Status — 3-of-4 Khipu</span>
@@ -378,6 +410,7 @@ img,svg,canvas{max-width:100%;}
   </div>
 </div>
 
+<script src="/static/shared/szl_holo3d.js"></script>
 <script>
 /* =================== helpers =================== */
 // API base — Dev 3 exposes the mesh under the killinchu namespace. Same-origin.
@@ -865,6 +898,148 @@ async function loadHud(){
   setTimeout(loadHud, 600);
 })();
 window.addEventListener('resize', function(){ if(_topo.nodes&&_topo.nodes.length) layoutAndRender(); });
+
+/* =================== 1b · 3D MESH TOPOLOGY (F4 · additive) =================== */
+/* Loads the shared 0-CDN holographic kit and renders the SAME live /mesh/topology
+   graph in 3D with a live-computed Fiedler value (algebraic connectivity), plus
+   operator-triggered partition + self-heal SIMULATIONS. 2D SVG above is fallback. */
+(function(){
+  var mount=document.getElementById('mesh3d_mount');
+  var offEl=document.getElementById('m3d-off');
+  var toggle=document.getElementById('m3d-toggle');
+  if(!mount||!toggle){ return; }
+  if(!window.SZLHolo){ toggle.disabled=true; toggle.textContent='3D unavailable'; return; }
+  var scene=null, started=false, anim=null;
+  var FD=document.getElementById('m3d-fiedler'), FDL=document.getElementById('m3d-fiedler-lbl');
+  var ND=document.getElementById('m3d-nodes'), ED=document.getElementById('m3d-edges'), CAP=document.getElementById('m3d-caps');
+  var bPart=document.getElementById('m3d-partition'), bHeal=document.getElementById('m3d-heal');
+  // working copy of the live topology (so SIM partition/heal never mutate the real graph)
+  var sim={nodes:[],edges:[]};
+  var healedEdge=null, droppedEdge=null;
+
+  // ---- Fiedler value: 2nd-smallest eigenvalue of the graph Laplacian L=D-A.
+  // Computed in-browser via power iteration on a shifted/deflated matrix (small N).
+  function laplacian(n, edges, idx){
+    var L=[]; for(var i=0;i<n;i++){L.push(new Array(n).fill(0));}
+    edges.forEach(function(e){
+      var a=idx[e.source], b=idx[e.target];
+      if(a==null||b==null||a===b)return;
+      L[a][b]-=1; L[b][a]-=1; L[a][a]+=1; L[b][b]+=1;
+    });
+    return L;
+  }
+  function matVec(M,v){var n=v.length,o=new Array(n).fill(0);for(var i=0;i<n;i++){var s=0;for(var j=0;j<n;j++)s+=M[i][j]*v[j];o[i]=s;}return o;}
+  function norm(v){return Math.sqrt(v.reduce(function(a,x){return a+x*x;},0));}
+  function fiedler(n, edges, idx){
+    if(n<2) return 0;
+    var L=laplacian(n,edges,idx);
+    // shift: B = c*I - L, largest eigvecs of B (orthogonal to all-ones) -> smallest nonzero of L
+    var c=2*n;
+    var B=[]; for(var i=0;i<n;i++){B.push([]);for(var j=0;j<n;j++)B[i].push((i===j?c:0)-L[i][j]);}
+    var ones=new Array(n).fill(1/Math.sqrt(n));
+    function deflate(v){var d=v.reduce(function(a,x,k){return a+x*ones[k];},0);return v.map(function(x,k){return x-d*ones[k];});}
+    var v=new Array(n); for(var k=0;k<n;k++)v[k]=Math.sin(k*1.7+0.3); v=deflate(v); var nv=norm(v)||1; v=v.map(function(x){return x/nv;});
+    var lambdaB=0;
+    for(var it=0;it<200;it++){
+      var w=matVec(B,v); w=deflate(w); var nw=norm(w); if(nw<1e-12)break;
+      v=w.map(function(x){return x/nw;}); lambdaB=nw;
+    }
+    var lam2=c-lambdaB; // L's smallest nonzero eigenvalue ~ Fiedler value
+    return Math.max(0, lam2);
+  }
+
+  function buildSpec(){
+    var nodes=sim.nodes.map(function(n){
+      var lab=String(n.label||n.id).slice(0,9);
+      return {id:String(n.id),label:lab,witness:n.witness};
+    });
+    var edges=sim.edges.map(function(e,i){return {id:'me'+i,from:String(e.source),to:String(e.target)};});
+    return {nodes:nodes,edges:edges};
+  }
+  function idxMap(){var m={};sim.nodes.forEach(function(n,i){m[String(n.id)]=i;});return m;}
+
+  function paint(){
+    if(!scene)return;
+    var idx=idxMap();
+    var lam=fiedler(sim.nodes.length, sim.edges, idx);
+    var lamMax=Math.max(1e-6, sim.nodes.length); // rough normaliser
+    // Λ-style trust: lower connectivity -> higher risk. Map Fiedler->[0..1) inverted.
+    var risk=Math.min(0.999, 1/(1+lam));         // lam high => low risk (<1.0 always)
+    try{
+      scene.graphs=[]; scene.pulses=[]; scene.spheres=[];
+      scene.addGraph(buildSpec());
+      scene.addTrustSphere({lambda:risk}); scene.setLambda(risk);
+    }catch(e){}
+    FD.textContent=lam.toFixed(4);
+    var healthy=lam>0.25;
+    FDL.innerHTML=healthy
+      ? '<span style="color:var(--live);font-size:9px;border:1px solid var(--live);padding:1px 5px;border-radius:5px">HEALTHY · connected</span>'
+      : (lam<=1e-4
+        ? '<span style="color:var(--err);font-size:9px;border:1px solid var(--err);padding:1px 5px;border-radius:5px">PARTITIONED · λ₂→0</span>'
+        : '<span style="color:var(--warn);font-size:9px;border:1px solid var(--warn);padding:1px 5px;border-radius:5px">DEGRADED · approaching partition</span>');
+    ND.textContent=sim.nodes.length; ED.textContent=sim.edges.length;
+    setMode('mesh3d-mode', healthy, sim.nodes.length===0);
+  }
+
+  function syncFromLive(){
+    // _topo is the live, normalised topology already fetched by loadTopology()
+    sim={nodes:(_topo.nodes||[]).map(function(n){return {id:n.id,label:n.label,witness:n.witness};}),
+         edges:(_topo.edges||[]).map(function(e){return {source:e.source,target:e.target};})};
+    healedEdge=null; droppedEdge=null;
+    var has=sim.nodes.length>0;
+    bPart.disabled=!has || sim.edges.length<1; bHeal.disabled=true;
+    paint();
+  }
+
+  function doPartition(){
+    if(!sim.edges.length)return;
+    // drop a non-bridge-ish edge: remove the last edge to weaken connectivity
+    droppedEdge=sim.edges.pop();
+    bPart.disabled=true; bHeal.disabled=false;
+    paint();
+  }
+  function doHeal(){
+    // form a bridging edge between two least-connected distinct nodes
+    if(sim.nodes.length<2)return;
+    var a=sim.nodes[0].id, b=sim.nodes[sim.nodes.length-1].id;
+    if(droppedEdge){ a=droppedEdge.source; b=droppedEdge.target; }
+    sim.edges.push({source:a,target:b}); healedEdge={source:a,target:b};
+    bHeal.disabled=true; bPart.disabled=sim.edges.length<1;
+    paint();
+    // signed pulse along the freshly-formed bridge edge
+    try{ scene.signPulse('me'+(sim.edges.length-1)); }catch(_){}
+  }
+
+  function start(){
+    if(started)return; started=true;
+    mount.style.display='block'; offEl.style.display='none'; toggle.textContent='Disable 3D';
+    scene=window.SZLHolo.createScene(mount,{sample:false});
+    var caps=window.SZLHolo.capabilities();
+    CAP.textContent='mode:'+caps.mode+(caps.webgpu?' · webgpu-detected(ROADMAP)':'');
+    scene.start();
+    syncFromLive();
+    var lastN=-1, lastE=-1;
+    anim=setInterval(function(){
+      if(!scene)return;
+      // re-sync if the live topology changed (and no SIM is mid-flight)
+      if(bHeal.disabled && !droppedEdge && _topo.nodes && (_topo.nodes.length!==lastN || _topo.edges.length!==lastE)){
+        lastN=_topo.nodes.length; lastE=_topo.edges.length; syncFromLive();
+      }
+      if(sim.edges.length){ try{scene.signPulse('me0');}catch(_){} }
+    },3200);
+  }
+  function stop(){
+    if(!started)return; started=false;
+    mount.style.display='none'; offEl.style.display='block'; toggle.textContent='Enable 3D';
+    if(anim)clearInterval(anim);
+    try{ if(scene){scene.stop();scene.dispose();} }catch(e){}
+    scene=null;
+  }
+  toggle.addEventListener('click',function(){ started?stop():start(); });
+  bPart.addEventListener('click',doPartition);
+  bHeal.addEventListener('click',doHeal);
+})();
+
 </script>
 </body>
 </html>"""
