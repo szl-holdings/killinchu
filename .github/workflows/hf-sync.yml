@@ -62,11 +62,12 @@ on:
       - "killinchu_maritime_view.py"
       - "killinchu_maritime_globe.py"
       - "killinchu_mesh.py"
+      - "killinchu_mesh_view.py"
+      - "killinchu_mosaic.py"
+      - "szl_mosaic_core.py"
       # copy-sync lockstep guard (CHECK 2/3): kept in lockstep with env.APP_FILES below.
       - "killinchu_elite_wiring.py"
       - "killinchu_flow_compartments.py"
-      - "killinchu_mosaic.py"
-      - "szl_mosaic_core.py"
   workflow_dispatch:
     inputs:
       force:
@@ -81,7 +82,7 @@ env:
   # SINGLE SOURCE OF TRUTH for the mirrored app files (space-separated). The
   # detect gate and the mirror-app job both read this. Adding a route module is a
   # one-word change here (plus the matching literal line in on.push.paths above).
-  APP_FILES: "serve.py Dockerfile killinchu_elite_console.py killinchu_cannonico.py killinchu_backend.py killinchu_osint.py szl_hf_bucket.py szl_conjecture_factory.py szl_scaling.py killinchu_live_feeds.py killinchu_feeds_realdata.py operator_shell_v4.py killinchu_health_twin.py szl_be_hardening.py szl_metrics_prom.py killinchu_asw.py killinchu_maritime_risk.py killinchu_maritime_intel.py killinchu_maritime_view.py killinchu_maritime_globe.py killinchu_mesh.py killinchu_elite_wiring.py killinchu_flow_compartments.py killinchu_mosaic.py szl_mosaic_core.py"
+  APP_FILES: "serve.py Dockerfile killinchu_elite_console.py killinchu_cannonico.py killinchu_backend.py killinchu_osint.py szl_hf_bucket.py szl_conjecture_factory.py szl_scaling.py killinchu_live_feeds.py killinchu_feeds_realdata.py operator_shell_v4.py killinchu_health_twin.py szl_be_hardening.py szl_metrics_prom.py killinchu_asw.py killinchu_maritime_risk.py killinchu_maritime_intel.py killinchu_maritime_view.py killinchu_maritime_globe.py killinchu_mesh.py killinchu_mesh_view.py killinchu_mosaic.py szl_mosaic_core.py killinchu_elite_wiring.py killinchu_flow_compartments.py"
 
 jobs:
   detect:
