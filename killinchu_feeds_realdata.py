@@ -159,6 +159,65 @@ _UA = "killinchu-feeds/1.0 (+https://szlholdings-killinchu.hf.space)"
 _CACHE: dict = {}
 _LOCK = threading.Lock()
 
+# ---------------------------------------------------------------------------
+# Single-flight (in-flight de-dup): when N concurrent requests miss the SAME
+# cache key, only ONE thread does the real upstream fetch; the others wait on
+# its result. Prevents the PERF-B thundering-herd (25 concurrent requests each
+# hitting OpenSky/adsb). The leader's result is STILL real live data — the
+# followers share the SAME genuine fetch, never a fabricated value.
+# ---------------------------------------------------------------------------
+_INFLIGHT: dict = {}          # ck -> _Flight (a fetch is in progress)
+_INFLIGHT_LOCK = threading.Lock()
+
+
+class _Flight:
+    """A single in-flight fetch. The result is carried ON the flight object so
+    every follower that holds a reference can read it after the event fires —
+    no separate result map to race/pop."""
+    __slots__ = ("done", "kind", "payload")
+
+    def __init__(self):
+        self.done = threading.Event()
+        self.kind = None      # "ok" | "err"
+        self.payload = None
+
+
+def _single_flight(ck, producer, wait_timeout=30.0):
+    """Run `producer()` at most ONCE per in-flight key `ck`. Concurrent callers
+    with the same key block on the leader's flight and share its result (real
+    data). On producer error, every waiter re-raises the SAME exception so no
+    one silently fabricates. NEVER holds a long lock across the network call."""
+    with _INFLIGHT_LOCK:
+        fl = _INFLIGHT.get(ck)
+        if fl is None:
+            fl = _Flight()
+            _INFLIGHT[ck] = fl
+            leader = True
+        else:
+            leader = False
+    if leader:
+        try:
+            fl.kind, fl.payload = "ok", producer()
+        except Exception as e:  # propagate the real error to every waiter
+            fl.kind, fl.payload = "err", e
+        finally:
+            # Remove from the registry BEFORE waking waiters so any caller that
+            # arrives next starts a fresh flight; existing waiters keep their
+            # reference to `fl` and read its result below.
+            with _INFLIGHT_LOCK:
+                if _INFLIGHT.get(ck) is fl:
+                    _INFLIGHT.pop(ck, None)
+            fl.done.set()
+    else:
+        # Follower: wait for the leader, then read the shared result off `fl`.
+        if not fl.done.wait(timeout=wait_timeout):
+            # Leader still not done (timeout) — do our own real fetch rather
+            # than block forever or fabricate. Honest fallback.
+            return producer()
+    if fl.kind == "err":
+        raise fl.payload
+    return fl.payload
+
 KN_TO_MS = 0.514444  # knots -> m/s
 FT_TO_M = 0.3048
 
@@ -1188,24 +1247,51 @@ def register(app, ns="killinchu"):
                  "by the backend; advisory, computed over REAL AIS, NOT proven. Λ=Conjecture 1."),
     }
 
-    def _fetch_cached(kind, fn, theater, limit, ttl=20, vtype=None):
-        """Short-TTL cache so repeated demo polls are instant and we are gentle on
-        upstreams. Honest: served value is still REAL live data (<=ttl old)."""
+    def _fetch_cached_meta(kind, fn, theater, limit, ttl=20, vtype=None):
+        """Short-TTL cache + SINGLE-FLIGHT so repeated/concurrent polls are instant
+        and gentle on upstreams. Returns (val, as_of_iso, cache_hit).
+
+        Honest: the served value is ALWAYS real live data (<=ttl old); `as_of`
+        is the ISO timestamp of the real fetch that produced it. Under N
+        concurrent misses, only ONE upstream fetch runs (single-flight) and the
+        others share its genuine result — never a fabricated value. (PERF-B fix.)"""
         ck = "feed:%s:%s:%s:%s" % (kind, theater, limit, vtype or "all")
         now = time.time()
         with _LOCK:
             ent = _CACHE.get(ck)
         if ent and (now - ent["ts"]) < ttl:
-            return ent["val"]
-        val = fn(theater, limit, vtype) if vtype is not None else fn(theater, limit)
-        with _LOCK:
-            _CACHE[ck] = {"val": val, "ts": now}
+            return ent["val"], ent.get("as_of") or _now_iso(), True
+
+        def _produce():
+            # Re-check the cache inside the leader: a fetch that completed while
+            # we were queued behind the single-flight lock is still fresh.
+            t = time.time()
+            with _LOCK:
+                e2 = _CACHE.get(ck)
+            if e2 and (t - e2["ts"]) < ttl:
+                return e2["val"], e2.get("as_of") or _now_iso()
+            val = fn(theater, limit, vtype) if vtype is not None else fn(theater, limit)
+            as_of = _now_iso()
+            with _LOCK:
+                _CACHE[ck] = {"val": val, "ts": time.time(), "as_of": as_of}
+            return val, as_of
+
+        val, as_of = _single_flight(ck, _produce)
+        return val, as_of, False
+
+    def _fetch_cached(kind, fn, theater, limit, ttl=20, vtype=None):
+        """Back-compat shim: same signature/return as before (val tuple only)."""
+        val, _as_of, _hit = _fetch_cached_meta(kind, fn, theater, limit, ttl, vtype)
         return val
 
     async def _aircraft(request):
         theater = request.query_params.get("theater", _DEFAULT_THEATER)
         limit = _limit(request)
-        tracks, tried, mode = await _run(_fetch_cached, "air", _fetch_aircraft, theater, limit)
+        # PERF-B: per-theater cache (TTL 20s) + single-flight. Concurrent
+        # requests for the same theater share ONE real upstream fetch and
+        # return from cache <1s; a cold fetch is still a real OpenSky/adsb call.
+        (tracks, tried, mode), as_of, cache_hit = await _run(
+            _fetch_cached_meta, "air", _fetch_aircraft, theater, limit, 20)
         live = any(t.get("ok") for t in tried)
         return JSONResponse({
             "feed": "aircraft", "domain": "air",
@@ -1214,6 +1300,7 @@ def register(app, ns="killinchu"):
             "caps": _CAPS,
             "sources_tried": tried,
             "tracks": tracks,
+            "as_of": as_of, "cache_hit": cache_hit, "cache_ttl_s": 20,
             "honest": _HONEST, "doctrine": "v11", "fetched_at": _now_iso(),
         })
 
@@ -1256,10 +1343,15 @@ def register(app, ns="killinchu"):
             "honest": _HONEST, "doctrine": "v11", "fetched_at": _now_iso(),
         })
 
-    async def _vessels_stats(request):
-        """Maritime W1: global vessel rollup — counts by theater + by type +
-        how many LIVE vs SAMPLE. For the frontend's China-seas / global board."""
-        limit = _limit(request, default=400, cap=1000)
+    # PERF-A: server-side cache for the whole stats rollup. The 10 sea theaters
+    # used to be fetched SERIALLY in one thread (~17s cold). Now we (a) compute
+    # the theaters in PARALLEL via a threadpool, and (b) cache the assembled
+    # rollup for STATS_TTL seconds with an honest `as_of` timestamp, served
+    # instantly to every subsequent request. Cached real data is STILL LIVE
+    # (carries as_of); we never relabel or fabricate.
+    _STATS_TTL = 45  # seconds
+
+    def _compute_vessels_stats(limit):
         theaters = _SEA_THEATERS
         by_theater = {}
         by_type = {}
@@ -1268,9 +1360,16 @@ def register(app, ns="killinchu"):
         any_live = False
 
         def _one(th):
-            return _fetch_cached("sea", _fetch_vessels, th, limit, 20, "all")
+            # Per-theater fetch already cached + single-flighted (20s TTL).
+            return th, _fetch_cached("sea", _fetch_vessels, th, limit, 20, "all")
 
-        results = await _run(lambda: [( th, _one(th)) for th in theaters])
+        # Parallel fan-out across the 10 theaters (bounded threadpool). Each
+        # _one() is a cached/single-flight real fetch; running them concurrently
+        # collapses ~10x serial network latency into ~1x.
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(10, len(theaters))) as ex:
+            results = list(ex.map(_one, theaters))
+
         for th, (tracks, tried, mode) in results:
             n_live = sum(1 for v in tracks if v.get("live"))
             n_sample = sum(1 for v in tracks if not v.get("live"))
@@ -1293,9 +1392,9 @@ def register(app, ns="killinchu"):
                 "by_type": tcounts,
                 "top_source": next((s.get("source") for s in tried if s.get("ok")), None),
             }
-        return JSONResponse({
+        return {
             "feed": "vessels/stats", "domain": "sea",
-            "doctrine": "v11", "fetched_at": _now_iso(),
+            "doctrine": "v11",
             "theaters": theaters,
             "by_theater": by_theater,
             "by_type": by_type,
@@ -1313,7 +1412,45 @@ def register(app, ns="killinchu"):
                        "that box this cycle; SAMPLE means every real source failed there "
                        "(bundled snapshot/replay, never fabricated). Asia/China-seas theaters "
                        "are LIVE only when the AISStream key is present."),
-        })
+        }
+
+    def _vessels_stats_cached(limit):
+        """Return (payload, as_of, cache_hit). Cached rollup served instantly;
+        single-flight so a cold recompute happens at most once concurrently."""
+        ck = "stats:vessels:%s" % limit
+        now = time.time()
+        with _LOCK:
+            ent = _CACHE.get(ck)
+        if ent and (now - ent["ts"]) < _STATS_TTL:
+            return ent["val"], ent.get("as_of") or _now_iso(), True
+
+        def _produce():
+            t = time.time()
+            with _LOCK:
+                e2 = _CACHE.get(ck)
+            if e2 and (t - e2["ts"]) < _STATS_TTL:
+                return e2["val"], e2.get("as_of") or _now_iso()
+            payload = _compute_vessels_stats(limit)
+            as_of = _now_iso()
+            with _LOCK:
+                _CACHE[ck] = {"val": payload, "ts": time.time(), "as_of": as_of}
+            return payload, as_of
+
+        payload, as_of = _single_flight(ck, _produce, wait_timeout=30.0)
+        return payload, as_of, False
+
+    async def _vessels_stats(request):
+        """Maritime W1: global vessel rollup — counts by theater + by type +
+        how many LIVE vs SAMPLE. For the frontend's China-seas / global board.
+        PERF-A: cached (TTL ~45s) + theaters computed in parallel; warm <2s."""
+        limit = _limit(request, default=400, cap=1000)
+        payload, as_of, cache_hit = await _run(_vessels_stats_cached, limit)
+        out = dict(payload)
+        out["as_of"] = as_of
+        out["cache_hit"] = cache_hit
+        out["cache_ttl_s"] = _STATS_TTL
+        out["fetched_at"] = _now_iso()
+        return JSONResponse(out)
 
     async def _remoteid(request):
         tracks = await _run(_rid_live_tracks)

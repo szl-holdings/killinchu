@@ -131,6 +131,73 @@ def _sha256_hex(b: bytes) -> str:
 
 
 # ---------------------------------------------------------------------------
+# CHAOS-002 input validation (2026-06-14): a /mesh/write produces a REAL,
+# signed DSSE receipt on the live hash-chain. A receipted CRDT state transition
+# MUST carry the real write-contract fields; we refuse to sign garbage with an
+# honest 4xx (422) — NEVER a 5xx, NEVER a fabricated/garbage receipt. The happy
+# path (valid write -> real DSSE receipt) is unchanged.
+#
+# Write contract (spec 01/02), per killinchu_mesh.write_transition + the mesh
+# surface's real writes:
+#   - body MUST be a JSON object,
+#   - transition_class : non-empty string (the CRDT transition kind),
+#   - payload          : a JSON object (the actual change being recorded),
+#   - node_id          : OPTIONAL string (defaults to the operator node).
+# ---------------------------------------------------------------------------
+_WRITE_REQUIRED = ("transition_class", "payload")
+
+
+def validate_write_body(body: Any) -> Optional[tuple[dict[str, Any], int]]:
+    """Return None if `body` is a valid /mesh/write request; otherwise an
+    (error_payload, http_status) tuple with an honest 4xx. Never 5xx."""
+    if not isinstance(body, dict):
+        return ({"error": "body must be a JSON object with {transition_class, payload}",
+                 "required": list(_WRITE_REQUIRED),
+                 "honesty": "HONEST REJECT — refusing to sign garbage."}, 422)
+    missing = [f for f in _WRITE_REQUIRED if f not in body or body.get(f) in (None, "")]
+    if missing:
+        return ({"error": "missing required mesh-write field(s): %s — refusing to sign garbage"
+                          % ", ".join(missing),
+                 "required": list(_WRITE_REQUIRED), "missing": missing,
+                 "honesty": "HONEST REJECT — a receipted CRDT transition needs the real "
+                            "write-contract fields; no garbage receipt fabricated."}, 422)
+    if not isinstance(body.get("transition_class"), str):
+        return ({"error": "transition_class must be a string",
+                 "required": list(_WRITE_REQUIRED),
+                 "honesty": "HONEST REJECT — malformed transition_class."}, 422)
+    if not isinstance(body.get("payload"), dict):
+        return ({"error": "payload must be a JSON object (the CRDT change being recorded)",
+                 "required": list(_WRITE_REQUIRED),
+                 "honesty": "HONEST REJECT — malformed payload."}, 422)
+    nid = body.get("node_id")
+    if nid is not None and not isinstance(nid, str):
+        return ({"error": "node_id, when supplied, must be a string",
+                 "required": list(_WRITE_REQUIRED),
+                 "honesty": "HONEST REJECT — malformed node_id."}, 422)
+    return None
+
+
+def validate_quorum_body(body: Any) -> Optional[tuple[dict[str, Any], int]]:
+    """Validate /mesh/quorum. An EMPTY body is a VALID no-op (action defaults to
+    {op:noop}) — that is the documented happy path, kept unchanged. We only
+    reject MALFORMED shapes: a non-object body, or action/faults that are the
+    wrong type. Honest 4xx (422), never 5xx, never a fabricated certificate."""
+    if not isinstance(body, dict):
+        return ({"error": "body must be a JSON object (or empty for an {op:noop} action)",
+                 "honesty": "HONEST REJECT — malformed quorum request."}, 422)
+    action = body.get("action", None)
+    if action is not None and not isinstance(action, dict):
+        return ({"error": "action, when supplied, must be a JSON object",
+                 "honesty": "HONEST REJECT — malformed quorum action."}, 422)
+    faults = body.get("faults", None)
+    if faults is not None and not isinstance(faults, dict):
+        return ({"error": "faults, when supplied, must be a JSON object "
+                          "{witness_label_or_node_id: 'block'|'offline'}",
+                 "honesty": "HONEST REJECT — malformed quorum faults map."}, 422)
+    return None
+
+
+# ---------------------------------------------------------------------------
 # A real mesh witness node: ephemeral ECDSA-P256 keypair, held in-process.
 # ---------------------------------------------------------------------------
 
@@ -744,7 +811,30 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         h = get_harness()
         if h is None:
             return JSONResponse(_harness_down_payload(), status_code=503)
-        body = await _read_json(request)
+        # CHAOS-002: validate the write contract BEFORE producing a receipt.
+        # Honest 4xx (422) on missing/malformed; NEVER 5xx, NEVER sign garbage.
+        raw = await request.body()
+        if not raw:
+            return JSONResponse(
+                {"live": True, "spec": "01-dsse-receipts/02-two-track",
+                 "error": "empty body — a mesh write requires JSON {transition_class, payload}",
+                 "required": list(_WRITE_REQUIRED),
+                 "honesty": "HONEST REJECT — refusing to sign garbage."},
+                status_code=422)
+        try:
+            body = json.loads(raw)
+        except Exception:
+            return JSONResponse(
+                {"live": True, "spec": "01-dsse-receipts/02-two-track",
+                 "error": "malformed JSON body — cannot sign",
+                 "required": list(_WRITE_REQUIRED),
+                 "honesty": "HONEST REJECT — refusing to sign garbage."},
+                status_code=422)
+        bad = validate_write_body(body)
+        if bad is not None:
+            err, status = bad
+            return JSONResponse({"live": True, "spec": "01-dsse-receipts/02-two-track", **err},
+                                status_code=status)
         receipt = h.write_transition(body)
         return JSONResponse({"live": True, "spec": "01-dsse-receipts/02-two-track",
                              "receipt": receipt})
@@ -753,7 +843,23 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         h = get_harness()
         if h is None:
             return JSONResponse(_harness_down_payload(), status_code=503)
-        body = await _read_json(request)
+        # Empty body is a VALID {op:noop} quorum run (documented happy path).
+        # Only a MALFORMED non-empty body is rejected with an honest 4xx.
+        raw = await request.body()
+        if raw:
+            try:
+                body = json.loads(raw)
+            except Exception:
+                return JSONResponse(
+                    {"live": True, "error": "malformed JSON body",
+                     "honesty": "HONEST REJECT — malformed quorum request."},
+                    status_code=422)
+        else:
+            body = {}
+        bad = validate_quorum_body(body)
+        if bad is not None:
+            err, status = bad
+            return JSONResponse({"live": True, **err}, status_code=status)
         return JSONResponse({"live": True, **h.run_quorum(body)})
 
     async def receipt_canonical(request: Request) -> JSONResponse:
