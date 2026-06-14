@@ -478,6 +478,12 @@ COPY killinchu_maritime_globe.py ./
 # flow-compartments surface. Per-file COPY (this Dockerfile never uses `COPY . .`).
 COPY killinchu_elite_wiring.py killinchu_flow_compartments.py ./
 
+
+# --- ESTATE ECOSYSTEM FOUNDATION (Dev5, 2026-06): byte-identical shared modules ---
+# 3 shared JS (label engine / receipt-cosign / codename sanitizer) + codename gate + ecosystem router.
+COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js ./static/shared/
+COPY szl_codename_gate.py szl_ecosystem_routes.py ./
+
 CMD ["python", "serve.py"]
 
 

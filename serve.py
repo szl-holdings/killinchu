@@ -504,6 +504,26 @@ except Exception as _kan_e:  # additive: never break the Space
     _killinchu_anatomy_status = f"anatomy-not-wired:{_kan_e!r}"
     print(f"[killinchu] anatomy engine NOT mounted ({_kan_e!r}); app unaffected", file=sys.stderr)
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (ESTATE ECOSYSTEM FOUNDATION, 2026-06, Dev5): cross-app ecosystem
+# surfaces wired as ONE additive router (byte-identical module across both apps).
+# Registered EARLY (before the /{full_path:path} catch-all), try/except-guarded.
+#   GET /ecosystem  /estate-organism  /api/killinchu/v1/ecosystem/{anatomy,mesh,ledger,kpi-board}
+# Doctrine v11: locked EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}@c7c0ba17; Lambda = Conjecture 1 (< 1.0);
+# ECDSA-P256 cosign; effectors SIMULATED; 0 runtime CDN.
+# ---------------------------------------------------------------------------
+_szl_ecosystem = None
+_szl_ecosystem_status = "ecosystem-not-wired"
+try:
+    import szl_ecosystem_routes as _szl_ecosystem
+    _szl_ecosystem_status = _szl_ecosystem.register(app, ns="killinchu")
+    print(f"[killinchu] ecosystem foundation wired ({_szl_ecosystem_status})", file=sys.stderr)
+except Exception as _eco_e:  # additive: never break the Space
+    _szl_ecosystem_status = f"ecosystem-not-wired:{_eco_e!r}"
+    print(f"[killinchu] ecosystem foundation NOT wired ({_eco_e!r}); app unaffected", file=sys.stderr)
+
+
+
 _killinchu_formulas = None
 _killinchu_formulas_status = "formulas-not-wired"
 try:
