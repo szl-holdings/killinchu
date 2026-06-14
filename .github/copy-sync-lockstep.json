@@ -11,14 +11,15 @@
     "live_wires.html",
     "live_wires_3d.js",
     "pages/integrations.html",
-    "web/console.html",
-    "web/console.js",
-    "web/operator.html",
-    "web/v4_fleet_panel.html",
     "static-vendor/a11oy-operator-widget.css",
     "static-vendor/a11oy-operator-widget.js",
     "static/shared/szl_codename_sanitizer.js",
     "static/shared/szl_label_engine.js",
-    "static/shared/szl_receipt_cosign.js"
+    "static/shared/szl_receipt_cosign.js",
+    "web/autoreview.html",
+    "web/console.html",
+    "web/console.js",
+    "web/operator.html",
+    "web/v4_fleet_panel.html"
   ]
 }
