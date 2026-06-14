@@ -1,0 +1,57 @@
+name: hf-sync-backend self-test
+
+# Network-free self-test for .github/scripts/hf_sync_backend.py — the delete-aware
+# backend mirror the hf-sync.yml `mirror-app` job runs. The job was only ever
+# observed on the "already in sync -> no-op" path, so this exercises the actual
+# push + sweep + factory-rebuild path end-to-end with injected fakes (no network,
+# no HF_WRITE_TOKEN, the live Space is never touched). It asserts:
+#   * the OID-diff selection commits ONLY files whose content differs,
+#   * orphaned backend .py are deleted (incl. the modules of an ENTIRE backend dir
+#     removed from the repo + Dockerfile COPY set) while README / front-door /
+#     built-asset / vendor paths are NEVER touched,
+#   * a real commit triggers exactly one factory rebuild, an in-sync run triggers
+#     none, and a failed rebuild request re-raises.
+#
+# Only github-owned, SHA-pinned actions (org allowed_actions policy:
+# github_owned_allowed=true, verified_allowed=true, patterns_allowed=[]).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/scripts/hf_sync_backend.py"
+      - ".github/scripts/test_hf_sync_backend.py"
+      - ".github/workflows/hf-sync-backend-selftest.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/scripts/hf_sync_backend.py"
+      - ".github/scripts/test_hf_sync_backend.py"
+      - ".github/workflows/hf-sync-backend-selftest.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hf-sync-backend-selftest:
+    name: hf-sync-backend push/sweep self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 1
+          lfs: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Run hf-sync-backend self-test
+        # Proves the auto-push + delete + rebuild path of hf_sync_backend.py with
+        # injected fakes for HfApi/CommitOperationAdd/CommitOperationDelete. Pure
+        # stdlib (unittest), no network, no token. Run by file path: the
+        # .github/scripts dir is not an importable package.
+        run: python3 .github/scripts/test_hf_sync_backend.py

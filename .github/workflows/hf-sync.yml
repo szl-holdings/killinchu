@@ -239,12 +239,32 @@ jobs:
           PYEOF
 
   # ADDITIVE: the README-only sync above cannot make an app route live. This
-  # job mirrors the deployed app files (env.APP_FILES: serve.py, Dockerfile, and
-  # the route modules) from canonical GitHub main to the Space so the Space code
-  # never drifts behind GitHub. It runs ONLY when those files actually change.
-  # Idempotent: identical content is a no-op. After mirroring it triggers a
-  # HuggingFace factory rebuild (api.restart_space factory_reboot=True) so the
-  # mirrored code actually goes live with no manual step.
+  # job mirrors the deployed backend from canonical GitHub main to the Space so
+  # the Space code never drifts behind GitHub. It runs ONLY when one of the
+  # env.APP_FILES changes (the detect gate above), but the set it actually
+  # mirrors + sweeps is the FULL backend the image is built from — every .py the
+  # Dockerfile COPYs, plus serve.py and the Dockerfile — exactly like the sibling
+  # szl-holdings/a11oy hf-sync-backend. env.APP_FILES is the curated trigger list
+  # (kept in lockstep with on.push.paths); it is NOT the keep-set.
+  #
+  # delete-aware (matches a11oy): besides pushing only the files whose content
+  # differs from the Space (so an unchanged set is a true no-op), it also DELETES,
+  # in the SAME commit, any backend .py present on the Space but no longer in the
+  # computed mirror set (Dockerfile COPY + serve.py) — so a module removed from
+  # the repo + Dockerfile COPY set stops lingering in the Space tree. Deletion is
+  # scoped to backend .py ONLY: it never touches README, the front-door
+  # pages/web HTML+JS, the built SPA bundles, or LFS/vendor blobs (static/,
+  # static-vendor/). The delete keep-set is the FULL Dockerfile-COPY set (NOT the
+  # curated APP_FILES subset) precisely so a real module is never deleted.
+  #
+  # After a real commit it triggers a HuggingFace factory rebuild
+  # (api.restart_space factory_reboot=True) so the mirrored code actually goes
+  # live with no manual step. Idempotent: an in-sync repo makes no commit and
+  # triggers NO rebuild.
+  #
+  # The push/sweep logic lives in .github/scripts/hf_sync_backend.py (extracted so
+  # the SAME code is exercised by the network-free self-test
+  # .github/scripts/test_hf_sync_backend.py, run by hf-sync-backend-selftest.yml).
   mirror-app:
     needs: detect
     if: needs.detect.outputs.app == 'true'
@@ -259,74 +279,15 @@ jobs:
           python-version: "3.12"
       - name: Install huggingface_hub
         run: pip install --quiet "huggingface_hub>=0.25"
-      - name: Mirror app files (env.APP_FILES) to the Space
+      - name: Mirror backend (.py + Dockerfile) to the Space — delete-aware
         env:
-          HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
           SPACE_ID: SZLHOLDINGS/killinchu
         run: |
           set -euo pipefail
-          if [ -z "${HF_TOKEN:-}" ]; then
+          if [ -z "${HF_WRITE_TOKEN:-}" ]; then
             echo "::error::HF_WRITE_TOKEN secret is not set — cannot mirror app files to the Space."
             echo "::error::Founder action: add repo secret HF_WRITE_TOKEN (HF write token, org-write to SZLHOLDINGS)."
             exit 1
           fi
-          python3 <<'PYEOF'
-          import os
-          from huggingface_hub import HfApi, CommitOperationAdd, hf_hub_download
-
-          token = os.environ["HF_TOKEN"]
-          api = HfApi(token=token)
-          space = os.environ["SPACE_ID"]
-          files = os.environ["APP_FILES"].split()
-          if not files:
-              raise SystemExit("::error::APP_FILES is empty — nothing to mirror.")
-
-          # Only queue files that actually differ from the Space so an unchanged
-          # mirror does not trigger a needless factory rebuild.
-          ops = []
-          for f in files:
-              with open(f, "rb") as fh:
-                  new = fh.read()
-              old = None
-              try:
-                  p = hf_hub_download(repo_id=space, repo_type="space",
-                                      filename=f, token=token)
-                  with open(p, "rb") as ofh:
-                      old = ofh.read()
-              except Exception as e:
-                  print("::warning::Could not fetch current Space file %s (treating as new): %s"
-                        % (f, repr(e)[:120]))
-              if old is not None and old == new:
-                  print("Unchanged on Space, skipping:", f)
-                  continue
-              ops.append(CommitOperationAdd(path_in_repo=f, path_or_fileobj=new))
-              print("Queued:", f)
-
-          if not ops:
-              print("All app files already byte-identical on the Space; no commit and no factory rebuild needed.")
-              raise SystemExit(0)
-
-          commit = api.create_commit(
-              repo_id=space, repo_type="space", operations=ops,
-              commit_message="chore: mirror app files (serve.py + Dockerfile + route modules) from GitHub main",
-              commit_description="Keeps Space app code in lockstep with canonical GitHub main; triggers a factory rebuild so the mirrored code goes live.",
-          )
-          print("HF commit:", commit.oid, "->", space)
-
-          # A Space commit lands the new files but does NOT rebuild the running
-          # Docker container, so the mirrored code would not actually serve until
-          # someone manually triggered a factory rebuild. Trigger it here so the
-          # automation has no manual last step, and surface the outcome clearly in
-          # the run log (request + result) so a silent failure can't hide.
-          try:
-              info = api.restart_space(repo_id=space, factory_reboot=True)
-          except Exception as e:
-              print("::error title=factory rebuild failed::Factory rebuild request FAILED for %s: %s"
-                    % (space, repr(e)[:200]))
-              print("::error::App files were mirrored to the Space, but the running container may still "
-                    "serve the OLD code. Re-run this job or trigger a manual factory rebuild.")
-              raise
-          stage = getattr(getattr(info, "runtime", None), "stage", None)
-          print("::notice title=factory rebuild requested::Triggered HuggingFace factory rebuild for %s "
-                "(runtime stage now: %s)" % (space, stage))
-          PYEOF
+          python3 .github/scripts/hf_sync_backend.py
