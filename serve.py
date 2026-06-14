@@ -224,6 +224,30 @@ except Exception as _kc_af_e:  # pragma: no cover
     print(f"[killinchu] Active-Flux drive NOT registered: {_kc_af_e!r}", file=__import__("sys").stderr)
     _kc_af_tb.print_exc()
 
+# ── SZL Platform Dynamics (Lane I5) — 6DOF quadcopter/interceptor model + Moore-Penrose
+# pseudo-inverse CONTROL ALLOCATION, shown BESIDE the active-flux estimate layer and the
+# CBF-QP safety + BFT-fusion layers — completing the killinchu drone-platform puzzle
+# (estimate → 6DOF dynamics + allocation → CBF-safety → BFT-fusion → governed SIMULATED
+# engage). ADOPTED-AND-GENERALIZED, NOT invented here: Ahmed Hassan's Simulink Quadcopter
+# MBD project (full 6DOF Aerospace-Blockset model; Moore-Penrose pseudo-inverse control
+# allocation; MIL/SIL via Embedded Coder). The pure math lives in the shared byte-identical
+# szl_cuas_formulas.py (quad_mixing_matrix / moore_penrose_pinv / szl_control_allocation /
+# szl_6dof_step). Serves /elite/platform-dynamics (self-contained, 0-CDN page with a live
+# attitude + rotor-allocation viz, the full puzzle cross-link chain) and injects ONE nav link
+# into the /elite console via its OWN idempotent middleware (the console source is NOT edited).
+# MODELED/SIMULATED: there is NO live airframe on the demo floor and we NEVER claim live
+# UAV/vessel control; effector stays SIMULATED human-on-loop; adds NOTHING to the locked-8;
+# Λ stays Conjecture 1; trust never 100%. Additive, try/except-guarded, BEFORE the SPA catch-all.
+try:
+    import killinchu_platform_dynamics as _kc_platform
+    _kc_pd_status = _kc_platform.register(app, ns="killinchu")
+    print(f"[killinchu] Platform Dynamics registered: {_kc_pd_status['count']} routes "
+          f"({_kc_pd_status['data_label']})", file=__import__("sys").stderr)
+except Exception as _kc_pd_e:  # pragma: no cover
+    import traceback as _kc_pd_tb
+    print(f"[killinchu] Platform Dynamics NOT registered: {_kc_pd_e!r}", file=__import__("sys").stderr)
+    _kc_pd_tb.print_exc()
+
 # ── QA-FIX loop1 (killinchu-only, ADDITIVE; serve.py is the per-app server and is
 #    NOT byte-shared with a11oy, so the shared szl_cuas_formulas.py is left UNTOUCHED).
 #    QA2: /cuas/plausibility?chi=abc previously returned 500 because the shared route
