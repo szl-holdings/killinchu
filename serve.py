@@ -4377,6 +4377,42 @@ except Exception as _kc_mesh_e:
 # ============================================================================
 
 
+# ===========================================================================
+# ADDITIVE — WAQAY governed quantized vector index (2026-06-14, WAQAY team).
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+# WAQAY (Quechua: to keep / guard / store) — our OWN governed, air-gapped,
+# DSSE-signed quantized vector index. Studied MIT turbovec + Google Research
+# TurboQuant; built OUR pure-Python index (szl_waqay.py — byte-identical with
+# a11oy). register() FRONT-INSERTS routes before the SPA catch-all. ADDITIVE,
+# try/except-guarded. Compression MEASURED; recall MODELED bound (never perfect);
+# perf vs Rust SIMD MODELED/ROADMAP. Attribution: turbovec (c) 2026 Ryan Codrai
+# (MIT) + Google Research TurboQuant; NOTICES.md. 0 CDN.
+# ===========================================================================
+try:
+    import szl_waqay as _szl_waqay
+    _waqay_status = _szl_waqay.register(app, ns="killinchu")
+    print(f"[killinchu] WAQAY governed vector index registered: {_waqay_status['registered']} "
+          f"(tab: {_waqay_status['tab_route']}, trust_ceiling={_waqay_status['trust_ceiling']} <1.0) "
+          f"— TurboQuant-inspired, signed receipts + Restraint", file=sys.stderr)
+except Exception as _waqay_e:
+    import sys as _waqay_sys, traceback as _waqay_tb
+    print(f"[killinchu] WAQAY NOT registered (non-fatal): {_waqay_e!r}", file=_waqay_sys.stderr)
+    _waqay_tb.print_exc(file=_waqay_sys.stderr)
+try:
+    import a11oy_waqay_nav as _a11oy_waqay_nav
+    _waqay_nav_status = _a11oy_waqay_nav.register(app, ns="killinchu")
+    print(f"[killinchu] WAQAY nav wire-up registered: {_waqay_nav_status['registered']} "
+          f"(tab: {_waqay_nav_status['tab_route']}) — idempotent, additive, SPA source NOT edited",
+          file=sys.stderr)
+except Exception as _waqay_nav_e:
+    import sys as _waqay_nav_sys, traceback as _waqay_nav_tb
+    print(f"[killinchu] WAQAY nav wire-up NOT registered (non-fatal): {_waqay_nav_e!r}",
+          file=_waqay_nav_sys.stderr)
+    _waqay_nav_tb.print_exc(file=_waqay_nav_sys.stderr)
+# ── end WAQAY (governed quantized vector index) ──
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
