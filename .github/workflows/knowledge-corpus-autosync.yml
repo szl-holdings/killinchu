@@ -1,0 +1,177 @@
+# knowledge-corpus-autosync.yml — when killinchu's knowledge.json falls behind
+# a11oy's canonical corpus, copy a11oy@main's copy in and open a sync PR.
+# Doctrine v11 LOCKED | SLSA L1 honest
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+#
+# a11oy is the SOURCE OF TRUTH for knowledge.json (theorems / formulas / axioms +
+# honesty labels). knowledge-corpus-sync.yml FAILS CI when killinchu's copy drifts,
+# but a human still had to copy the file across by hand. This workflow closes that
+# loop: on a schedule it detects drift, copies a11oy@main's knowledge.json into
+# killinchu, and opens a PR.
+#
+# A dishonest corpus is NEVER auto-synced: before pushing anything, the job runs the
+# exact same gate (scripts/check_knowledge_corpus_sync.py — byte-identity vs
+# a11oy@main AND the Doctrine-v11 honesty invariants, including Conjecture 1 /
+# Λ-uniqueness staying OPEN) against the proposed content. If a11oy's canonical
+# corpus violates an honesty invariant, the gate fails the job and no branch/PR is
+# created. The validator's own self-test runs first so the gate is trustworthy.
+#
+# Org policy compliance: github-owned actions only, SHA-pinned (same pins as
+# knowledge-corpus-sync.yml); checker + self-test are stdlib-only Python; the
+# branch/PR step is a pure `run:` step (gh CLI is preinstalled on the runner), so it
+# adds no SHA-pin debt.
+#
+# Note on PR creation: the PR is opened with the workflow's GITHUB_TOKEN. GitHub
+# does NOT auto-trigger `pull_request` workflows on a token-authored PR, so the PR
+# body tells a maintainer to re-run the corpus-sync check on the branch before
+# merge. The in-job gate above is the real guarantee that the synced content is
+# honest. If `gh pr create` is ever refused (e.g. org policy change), the branch is
+# still pushed and the job fails loud with a one-click compare URL.
+
+name: Knowledge corpus auto-sync from a11oy
+
+on:
+  schedule:
+    - cron: '52 6 * * 1'  # Mondays 06:52 UTC, after the gate's 06:37 drift check
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  auto-sync:
+    name: Open a sync PR if killinchu's corpus is behind a11oy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SYNC_BRANCH_PREFIX: auto/knowledge-corpus-sync
+    steps:
+      - name: Checkout killinchu (this repo)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          path: self
+
+      - name: Checkout a11oy (canonical sibling)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          repository: szl-holdings/a11oy
+          ref: main
+          path: sibling
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Self-test the corpus validator (the gate must be trustworthy)
+        working-directory: self
+        run: python3 scripts/test_check_knowledge_corpus_sync.py
+
+      - name: Detect drift
+        id: drift
+        run: |
+          self_sha=$(sha256sum self/knowledge.json | awk '{print $1}')
+          a11oy_sha=$(sha256sum sibling/knowledge.json | awk '{print $1}')
+          echo "self_sha=$self_sha" >> "$GITHUB_OUTPUT"
+          echo "a11oy_sha=$a11oy_sha" >> "$GITHUB_OUTPUT"
+          if [ "$self_sha" = "$a11oy_sha" ]; then
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::knowledge.json already in sync with a11oy (sha256=$self_sha) — no PR needed."
+          else
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::knowledge.json DRIFTED — killinchu=$self_sha a11oy=$a11oy_sha — will propose a sync PR."
+          fi
+
+      - name: Copy a11oy@main's canonical corpus into killinchu
+        if: steps.drift.outputs.drift == 'true'
+        run: cp sibling/knowledge.json self/knowledge.json
+
+      - name: Gate — content must be in sync AND honest before any branch/PR
+        if: steps.drift.outputs.drift == 'true'
+        run: |
+          # Same gate as knowledge-corpus-sync.yml. Exits non-zero (failing the job,
+          # so NOTHING is pushed) if a11oy's corpus violates a Doctrine-v11 honesty
+          # invariant — a dishonest corpus can never be auto-synced.
+          python3 self/scripts/check_knowledge_corpus_sync.py \
+            --self self/knowledge.json \
+            --sibling sibling/knowledge.json \
+            --self-name killinchu --sibling-name a11oy
+
+      - name: Push sync branch and open PR
+        if: steps.drift.outputs.drift == 'true'
+        working-directory: self
+        run: |
+          set -euo pipefail
+          new_sha="${{ steps.drift.outputs.a11oy_sha }}"
+          old_sha="${{ steps.drift.outputs.self_sha }}"
+          short="${new_sha:0:8}"
+          branch="${SYNC_BRANCH_PREFIX}-${short}"
+          compare_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}?expand=1"
+
+          git config user.name  "forge-autosync[bot]"
+          git config user.email "forge-autosync@szlholdings.ai"
+
+          # Idempotent: if a branch for this exact a11oy sha already exists (a prior
+          # run already opened the PR), do not churn — just surface it and stop.
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "::notice::branch $branch already exists (sync PR already open for a11oy@$short) — nothing to do."
+            exit 0
+          fi
+
+          git checkout -b "$branch"
+          git add knowledge.json
+          git commit \
+            -m "chore(corpus): sync knowledge.json from a11oy@main ($short)" \
+            -m "a11oy is the canonical source for knowledge.json; killinchu had drifted (was $old_sha)." \
+            -m "Auto-opened by knowledge-corpus-autosync.yml. Validated by the corpus-sync gate (byte-identity vs a11oy + Doctrine-v11 honesty) before push." \
+            -m "Signed-off-by: forge-autosync[bot] <forge-autosync@szlholdings.ai>"
+          git push origin "$branch"
+
+          body="$(cat <<EOF
+          ## Auto-sync: \`knowledge.json\` ← a11oy@main
+
+          killinchu's \`knowledge.json\` had drifted from the canonical a11oy corpus.
+          This PR copies a11oy@main's copy in verbatim.
+
+          | corpus | sha256 |
+          | --- | --- |
+          | killinchu (before) | \`$old_sha\` |
+          | a11oy@main (this PR) | \`$new_sha\` |
+
+          ### Gating / safety
+          - Before pushing, the auto-sync job ran the **corpus-sync gate**
+            (\`scripts/check_knowledge_corpus_sync.py\`: byte-identity vs a11oy@main +
+            the Doctrine-v11 honesty invariants — Conjecture 1 / Λ-uniqueness stays
+            OPEN, locked kernel count pinned, Theorem U conditional) against this exact
+            content and it PASSED. A dishonest corpus is never auto-synced.
+          - This PR was opened by the Actions token, so GitHub does **not**
+            auto-trigger the \`pull_request\` checks on it. Before merging, re-run
+            **Knowledge corpus in sync with a11oy** on this branch (Actions → Run
+            workflow), or push an empty commit, so the gate reports on the PR.
+
+          > Opened automatically by \`knowledge-corpus-autosync.yml\`.
+          EOF
+          )"
+
+          if gh pr create --base main --head "$branch" \
+               --title "chore(corpus): sync knowledge.json from a11oy@main ($short)" \
+               --body "$body"; then
+            echo "::notice::Opened sync PR for branch $branch."
+          else
+            echo "::warning::Branch $branch is pushed but 'gh pr create' was refused (org policy may block Actions-created PRs). Open the PR manually:"
+            echo "::warning::$compare_url"
+            {
+              echo "### Knowledge-corpus auto-sync: PR needs a manual open"
+              echo ""
+              echo "Branch \`$branch\` is pushed with a11oy@main's corpus (sha \`$new_sha\`), but \`gh pr create\` failed."
+              echo ""
+              echo "[Open the sync PR]($compare_url)"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
