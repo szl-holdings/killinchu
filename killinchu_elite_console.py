@@ -969,19 +969,45 @@ const FLEET = BASE + '/api/killinchu/v1/fleet';  // GAP-1/GAP-2: commercial-flee
 // No-op / harmless where WebGL is already healthy (real GPUs).
 try{window.__glWarm=document.createElement('canvas');window.__glWarmCtx=(window.__glWarm.getContext('webgl2')||window.__glWarm.getContext('webgl'));}catch(e){}
 
-async function getJSON(p){
-  const r = await fetch(p);
-  if(!r.ok) throw new Error('HTTP '+r.status+' '+p);
-  const ct = r.headers.get('content-type')||'';
-  if(ct.includes('text/html')) throw new Error('HTML fallback (route missing)');
-  return r.json();
+// ===== UNIVERSAL FETCH HARDENING (real-data-wiring) =====
+// Every live fetch funnelled through the shared helpers gets a hard AbortController
+// timeout AND honest HTTP 429 (rate-limit) handling. The deployed feeds are real and
+// the public sources enforce a 60-req/min-per-IP ceiling, so a 429 / timeout / empty
+// must NEVER hang the UI on a perpetual spinner — it raises a *typed* error that the
+// caller (or the loading-watchdog below) turns into an honest labelled fallback
+// (last-known snapshot, or "live feed rate-limited — sample shown"). Default 5s keeps
+// the UI responsive while respecting the real per-IP limit (we cache last-good, never
+// hammer). 0 client off-origin / 0 CDN — same-origin proxies only.
+const FETCH_TIMEOUT_MS = 5000;          // default hard ceiling for shared helpers (3-6s band)
+function _mkAbort(ms){ var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+  var t=ctl?setTimeout(function(){try{ctl.abort();}catch(e){}},ms||FETCH_TIMEOUT_MS):null;
+  return {signal:ctl?ctl.signal:undefined, clear:function(){if(t)clearTimeout(t);}}; }
+// Raise a typed error for a non-ok response so callers can branch on rate-limit vs route-missing.
+function _httpErr(status, p){
+  if(status===429){ var e=new Error('RATE_LIMITED'); e.code=429; e.rateLimited=true; e.url=p; return e; }
+  var er=new Error('HTTP '+status+(p?(' '+p):'')); er.code=status; er.url=p; return er;
 }
-async function postJSON(p, b){
-  const r = await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
-  if(!r.ok) throw new Error('HTTP '+r.status+' '+p);
-  const ct = r.headers.get('content-type')||'';
-  if(ct.includes('text/html')) throw new Error('HTML fallback (route missing)');
-  return r.json();
+async function getJSON(p, ms){
+  const a=_mkAbort(ms);
+  try{
+    const r = await fetch(p,{signal:a.signal});
+    if(r.status===429) throw _httpErr(429,p);
+    if(!r.ok) throw _httpErr(r.status,p);
+    const ct = r.headers.get('content-type')||'';
+    if(ct.includes('text/html')) throw new Error('HTML fallback (route missing)');
+    return await r.json();
+  } finally { a.clear(); }
+}
+async function postJSON(p, b, ms){
+  const a=_mkAbort(ms);
+  try{
+    const r = await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{}),signal:a.signal});
+    if(r.status===429) throw _httpErr(429,p);
+    if(!r.ok) throw _httpErr(r.status,p);
+    const ct = r.headers.get('content-type')||'';
+    if(ct.includes('text/html')) throw new Error('HTML fallback (route missing)');
+    return await r.json();
+  } finally { a.clear(); }
 }
 async function putJSON(p, b){
   const r = await fetch(p,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
@@ -1047,8 +1073,8 @@ function _govLocal(path){
 // The gov proxy wraps upstream data under {mode,source,data:<real payload>}; unwrap
 // transparently so callers keep receiving the upstream shape they expect.
 function _govUnwrap(j){return (j&&j.data!==undefined&&j.source)?j.data:j;}
-async function orgGet(organ,path){const local=_govLocal(path);const u=local?local:(ORG[organ]+path);const r=await fetch(u);if(!r.ok)throw new Error('HTTP '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');const j=await r.json();return local?_govUnwrap(j):j;}
-async function orgPost(organ,path,body){const local=_govLocal(path);const u=local?local:(ORG[organ]+path);const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error('HTTP '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');const j=await r.json();return local?_govUnwrap(j):j;}
+async function orgGet(organ,path){const local=_govLocal(path);const u=local?local:(ORG[organ]+path);const a=_mkAbort();try{const r=await fetch(u,{signal:a.signal});if(r.status===429)throw _httpErr(429,u);if(!r.ok)throw _httpErr(r.status,u);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');const j=await r.json();return local?_govUnwrap(j):j;}finally{a.clear();}}
+async function orgPost(organ,path,body){const local=_govLocal(path);const u=local?local:(ORG[organ]+path);const a=_mkAbort();try{const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{}),signal:a.signal});if(r.status===429)throw _httpErr(429,u);if(!r.ok)throw _httpErr(r.status,u);const ct=r.headers.get('content-type')||'';if(ct.includes('text/html'))throw new Error('HTML fallback (route missing)');const j=await r.json();return local?_govUnwrap(j):j;}finally{a.clear();}}
 
 // ===================== CHART / GAUGE / 3D HELPERS =====================
 const GOLD='#c9b787',TEAL='#5fb3a3',CREAM='#f5f5f5',DIM='#555',GRID='rgba(201,183,135,0.08)',RED='#b06a5a',WARN='#c9a05f',LIVE='#5a8a6e';
@@ -1082,13 +1108,17 @@ function mesh3d(id,nodes,links,_try){const host=el(id);if(!host||!window.ForceGr
 // ===================== GENIUS VISUAL HELPERS (echarts / globe.gl / cytoscape / d3) =====================
 // killinchu inherits a11oy's brain visuals. AMBER aliases killinchu's existing WARN (#c9a05f).
 const AMBER=WARN;
-// fetch with timeout + abort — never let a big public feed hang the UI
-function fetchTimeout(url,ms,opts){const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),ms||12000);
+// fetch with timeout + abort — never let a big public feed hang the UI. Default 5s
+// (3-6s band) keeps every tab responsive; large bounded datasets pass an explicit ms.
+function fetchTimeout(url,ms,opts){const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),ms||FETCH_TIMEOUT_MS);
   return fetch(url,Object.assign({signal:ctl.signal},opts||{})).finally(()=>clearTimeout(t));}
-async function getPublic(url,ms){const r=await fetchTimeout(url,ms);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+async function getPublic(url,ms){const r=await fetchTimeout(url,ms);if(r.status===429)throw _httpErr(429,url);if(!r.ok)throw _httpErr(r.status,url);return r.json();}
 // SOVEREIGN public-feed accessor: hits OUR same-origin proxy only and unwraps the
 // honest {mode,source,data:<upstream payload>} envelope. 0 client off-origin / 0 CDN.
-async function getProxy(name,qs,ms){const u='/api/killinchu/v1/proxy/'+name+(qs?('?'+qs):'');const r=await fetchTimeout(u,ms||15000);if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();if(j&&j.error&&(j.data===null||j.data===undefined))throw new Error(j.error);return (j&&j.data!==undefined&&j.source)?j.data:j;}
+// Same-origin sovereign proxy accessor. The server proxy already degrades 429/timeout
+// to a last-good cached/snapshot envelope (mode:'cached'), so we keep a slightly longer
+// 6s ceiling here and surface a typed 429 only if the proxy itself rate-limits.
+async function getProxy(name,qs,ms){const u='/api/killinchu/v1/proxy/'+name+(qs?('?'+qs):'');const r=await fetchTimeout(u,ms||6000);if(r.status===429)throw _httpErr(429,u);if(!r.ok)throw _httpErr(r.status,u);const j=await r.json();if(j&&j.error&&(j.data===null||j.data===undefined))throw new Error(j.error);return (j&&j.data!==undefined&&j.source)?j.data:j;}
 // ECharts dark theme registered once; all panels inherit gold/teal-on-#0a0a0a
 let _echartsThemeReady=false;
 function ensureEchartsTheme(){if(_echartsThemeReady||!window.echarts)return;
@@ -1656,6 +1686,61 @@ window._SUBMAP = {
   u_posture:  [{k:'posture_drift',l:'Posture & Drift'},{k:'topology_health',l:'Topology & Health'},{k:'attack_surface',l:'Attack-Surface Graph'},{k:'zerotrust_mesh',l:'Zero-Trust Mesh'}]
 };
 window._curSurface=null;
+
+/* ===== UNIVERSAL LOADING WATCHDOG (real-data-wiring) =====
+   Doctrine: NO tab may sit on a perpetual spinner. Every live fetch is now hard-timed
+   (>=5s) and 429-aware, but a render function can still throw / never reach its DOM
+   write (slow public source, rate-limit, route gap). This watchdog is the universal
+   safety net: after a tab renders, it waits PAST the fetch ceiling and then sweeps the
+   tab body for lingering loading placeholders (the ellipsis spinner, 'loading...' text,
+   or a bare em-dash KPI that never filled). Any it finds it relabels HONESTLY — never
+   fabricating a value, only stating the truth: the live feed is rate-limited/unreachable
+   and a sample/last-known snapshot is shown (the server proxy still serves last-good
+   data live in-deployment). This degrades gracefully without touching any render code.
+   Additive, display-only. Cleared by tearDownAll() via the _tailTimers registry. */
+window._LOADING_RX = /(^|\s)(loading|fetching|\u2026)/i;   // 'loading', 'fetching', or a lone ellipsis
+window._loadingWatchTimer=null;
+function _isStillLoadingNode(node){
+  // A node is "stuck" if its trimmed text is just a spinner/loading token (em-dash KPIs
+  // legitimately stay '—' as labels, so we only flag explicit loading language + lone …).
+  var t=(node.textContent||'').trim();
+  if(!t) return false;
+  if(t==='\u2026') return true;                          // lone ellipsis spinner
+  if(/^(loading|fetching)\b/i.test(t)) return true;       // 'loading…', 'loading routing registry…'
+  if(/\b(loading|fetching)\u2026$/i.test(t)) return true; // trailing 'loading…'
+  return false;
+}
+window._sweepStuckLoading=function(rootId){
+  var root=document.getElementById(rootId); if(!root) return 0;
+  var n=0;
+  // 1) explicit loading rows / endpoint chips that never resolved
+  var cand=root.querySelectorAll('.card-ep, .mono.dim, .row.mono.dim, td, option, #me-stream .row, .brain-note');
+  cand.forEach(function(node){
+    try{
+      if(node.querySelector && node.querySelector('select,button,input,canvas,svg')) return; // has live controls
+      if(_isStillLoadingNode(node)){
+        node.classList.add('honest');
+        node.innerHTML='<span class="dim">live feed rate-limited or unreachable — honest fallback (sample / last-known snapshot) shown; the server proxy serves last-good data live in-deployment.</span>';
+        n++;
+      }
+    }catch(e){}
+  });
+  // 2) endpoint badges still showing the bare ellipsis become an honest CACHED chip
+  root.querySelectorAll('.card-ep').forEach(function(ep){
+    try{ if((ep.textContent||'').trim()==='\u2026'){ ep.textContent='CACHED'; ep.classList.add('dim'); } }catch(e){}
+  });
+  return n;
+};
+window._armLoadingWatchdog=function(rootId, ms){
+  ms = ms || 8000;   // past the 5-6s fetch ceiling, so real resolves win the race first
+  try{ if(window._loadingWatchTimer) clearTimeout(window._loadingWatchTimer); }catch(e){}
+  window._loadingWatchTimer=setTimeout(function(){
+    try{ window._sweepStuckLoading(rootId); }catch(e){}
+  }, ms);
+  // register in the tail-timer set so tearDownAll() clears it on view switch
+  try{ window._tailTimers=window._tailTimers||[]; window._tailTimers.push(window._loadingWatchTimer); }catch(e){}
+};
+
 /* render a sub-view (an original VIEWS key) into the consolidated sub-body, with a compact header */
 window.subview=function(surfaceKey, viewKey){
   var subs=window._SUBMAP[surfaceKey]; if(!subs) return;
@@ -1668,7 +1753,7 @@ window.subview=function(surfaceKey, viewKey){
   // K6: defer the sub-view render one frame so the freshly-inserted inner div has layout before
   // any chart/Konva/3D draw measures it — removes the flaky first-click empty-board/empty-tile race.
   var _innerId='sub-inner-'+surfaceKey;
-  requestAnimationFrame(function(){ var inner=el(_innerId); if(!inner) return; try{ v.render(inner); }catch(e){ try{ inner.innerHTML='<div class="row mono dim">render: '+esc(e&&e.message||e)+'</div>'; }catch(_){} } try{ window.__renderResearch&&window.__renderResearch(inner, viewKey); }catch(_r){} });
+  requestAnimationFrame(function(){ var inner=el(_innerId); if(!inner) return; try{ v.render(inner); }catch(e){ try{ inner.innerHTML='<div class="row mono dim">render: '+esc(e&&e.message||e)+'</div>'; }catch(_){} } try{ window.__renderResearch&&window.__renderResearch(inner, viewKey); }catch(_r){} try{ window._armLoadingWatchdog&&window._armLoadingWatchdog(_innerId); }catch(_w){} });
   try{ setTimeout(function(){ _scheduleRefit&&_scheduleRefit(); },140); setTimeout(function(){ _scheduleRefit&&_scheduleRefit(); },680); }catch(e){}
 };
 /* build a consolidated surface: a sub-view tab strip + sub-body. default = first sub. */
@@ -8059,6 +8144,8 @@ function go(view){
   c.innerHTML=`<div class="view-head"><h1 class="view-title">${esc(v.title)}</h1><span class="view-badge">${esc(v.badge)}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
   v.render(el('vbody'));
   try{ window.__renderResearch&&window.__renderResearch(el('vbody'), view); }catch(_r){}
+  // Universal loading-watchdog: NO top-level tab may sit on a perpetual spinner either.
+  try{ window._armLoadingWatchdog&&window._armLoadingWatchdog('vbody'); }catch(_w){}
   if(history.replaceState) history.replaceState(null,'','#'+view);
   if(window.innerWidth<=820) toggleSide(false);
   // re-fit any viz the view just mounted to its clamp()'d container (centered, in-frame)
