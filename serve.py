@@ -666,6 +666,39 @@ except Exception as _rn_e:  # additive: never break the Space
 
 
 # ---------------------------------------------------------------------------
+# MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM (additive, demo-grade, doctrine-honest)
+# Two shared modules, byte-identical in killinchu + a11oy:
+#   szl_mbse_cosim.py  — governed co-sim ENGINE. Serves JSON API:
+#       /api/killinchu/v1/mbse/{info,watertank,sixdof,pipeline}. Every run passes
+#       a Restraint gate and emits a signed (or honestly-UNSIGNED) DSSE receipt.
+#       The 6DOF FMU twin (effectors SIMULATED, human-on-loop) is the killinchu
+#       flagship; it is surfaced as a /mbse-6dof tab + nav item.
+#   szl_mbse_nav.py    — 3 served HTML pages (/mbse, /mbse-6dof, /mbse-pipeline)
+#       on the 0-CDN holo kit + inline-SVG charts, plus an idempotent
+#       nav-injection middleware adding the "Digital Twin & Co-Sim (MBSE/FMI)"
+#       nav group. Registered EARLY (before the SPA catch-all). cosim BEFORE nav.
+#       HONEST (Doctrine v11): outputs labelled MODELED/SIMULATED; 0 CDN; 0
+#       codenames; never weakens a gate; Λ = Conjecture 1; locked-8 @ c7c0ba17
+#       untouched; trust < 100%. Stack: OpenModelica + FMPy + SysML-v2 patterns
+#       (never Cameo/Dymola). The /elite console SPA source is NOT edited.
+# ---------------------------------------------------------------------------
+try:
+    import szl_mbse_cosim as _szl_mbse_cosim
+    _szl_mbse_cosim_status = _szl_mbse_cosim.register(app, ns="killinchu")
+    print(f"[killinchu] MBSE co-sim ENGINE registered: /api/killinchu/v1/mbse/* "
+          f"({_szl_mbse_cosim_status})", file=sys.stderr)
+except Exception as _szl_mbse_cosim_e:  # additive: never break the Space
+    print(f"[killinchu] MBSE co-sim ENGINE NOT registered: {_szl_mbse_cosim_e!r}; app unaffected", file=sys.stderr)
+try:
+    import szl_mbse_nav as _szl_mbse_nav
+    _szl_mbse_nav_status = _szl_mbse_nav.register(app, ns="killinchu")
+    print(f"[killinchu] MBSE pages + nav registered: /mbse /mbse-6dof /mbse-pipeline "
+          f"({_szl_mbse_nav_status})", file=sys.stderr)
+except Exception as _szl_mbse_nav_e:  # additive: never break the Space
+    print(f"[killinchu] MBSE pages + nav NOT registered: {_szl_mbse_nav_e!r}; app unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (Lane F1, 2026-06-14): SHARED STATIC MODULES route. killinchu COPYs
 # the byte-identical shared JS (static/shared/szl_label_engine.js,
 # szl_receipt_cosign.js, szl_codename_sanitizer.js + the F1 3D/holographic

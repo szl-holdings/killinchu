@@ -155,6 +155,15 @@ COPY static-vendor/a11oy-operator-widget.css ./static-vendor/a11oy-operator-widg
 # its /elite tile, the restraint nav wire-up (imported by serve.py for /elite/restraint
 # navigation), and the Chaski transport-level annotator (self-hosted, 0 CDN).
 COPY szl_restraint.py killinchu_restraint_tile.py killinchu_nav_wireup.py ./
+# MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM — two shared modules, BYTE-IDENTICAL to
+# a11oy (same bytes, both hf-sync lists — shared-file drift guard enforced).
+# szl_mbse_cosim.py serves /api/killinchu/v1/mbse/* (governed water-tank + the
+# killinchu flagship 6DOF FMU twin — effectors SIMULATED, human-on-loop — Restraint
+# gate + signed DSSE receipts via the already-COPY'd szl_dsse). szl_mbse_nav.py
+# serves /mbse /mbse-6dof /mbse-pipeline (0-CDN holo + inline-SVG charts) + the
+# idempotent nav injector. MUST be COPY'd or serve.py's guarded imports fall back
+# and hf-sync-backend would not mirror them. Per-file COPY (no COPY . .).
+COPY szl_mbse_cosim.py szl_mbse_nav.py ./
 COPY static-vendor/killinchu-restraint-chaski.js ./static-vendor/killinchu-restraint-chaski.js
 # Evidence & Research backend (curated + live arXiv/GitHub). serve.py imports this;
 # without this per-file COPY the import fails and /api/killinchu/v1/evidence/research 404s.
