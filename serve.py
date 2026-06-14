@@ -645,6 +645,46 @@ except Exception as _eco_e:  # additive: never break the Space
     print(f"[killinchu] ecosystem foundation NOT wired ({_eco_e!r}); app unaffected", file=sys.stderr)
 
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (Lane F1, 2026-06-14): SHARED STATIC MODULES route. killinchu COPYs
+# the byte-identical shared JS (static/shared/szl_label_engine.js,
+# szl_receipt_cosign.js, szl_codename_sanitizer.js + the F1 3D/holographic
+# substrate kit szl_holo3d.js) into /app/static/shared, but had NO route to
+# serve them — the SPA /{full_path:path} catch-all would swallow /static/shared/*.js
+# and return the SPA shell with the wrong content-type. This explicit, allowlisted
+# route (registered EARLY, before the catch-all defined later in this file) serves
+# them with the correct application/javascript content-type so killinchu surfaces
+# (and future F-lanes) can import window.SZLHolo / SZLLabels. 0 runtime CDN — served
+# from the image. Byte-identical kit to a11oy (shared-source drift guard enforced).
+# Doctrine v11: locked = 8 @ c7c0ba17; Lambda = Conjecture 1 (< 1.0); 0 codenames.
+# ---------------------------------------------------------------------------
+try:
+    from pathlib import Path as _F1_Path
+    _F1_SHARED_DIR = _F1_Path("/app/static/shared")
+    _F1_JS_CT = "application/javascript; charset=utf-8"
+    _F1_SHARED_ALLOW = {
+        "szl_label_engine.js": _F1_JS_CT,
+        "szl_receipt_cosign.js": _F1_JS_CT,
+        "szl_codename_sanitizer.js": _F1_JS_CT,
+        "szl_holo3d.js": _F1_JS_CT,
+    }
+
+    @app.get("/static/shared/{fname}")
+    async def _f1_shared_module(fname: str):
+        ct = _F1_SHARED_ALLOW.get(fname)
+        if ct is None:
+            return JSONResponse({"error": "shared module not allowlisted", "file": fname}, status_code=404)
+        f = (_F1_SHARED_DIR / fname)
+        if not f.is_file():
+            return JSONResponse({"error": "shared module missing on disk", "file": fname}, status_code=404)
+        return Response(content=f.read_bytes(), media_type=ct,
+                        headers={"Cache-Control": "public, max-age=3600"})
+    print("[killinchu] Lane F1 shared static modules registered: "
+          "/static/shared/{szl_label_engine,szl_receipt_cosign,szl_codename_sanitizer,szl_holo3d}.js (0 CDN)",
+          file=sys.stderr)
+except Exception as _f1_e:  # additive: never break the Space
+    print(f"[killinchu] Lane F1 shared static modules NOT registered ({_f1_e!r}); app unaffected", file=sys.stderr)
+
 
 _killinchu_formulas = None
 _killinchu_formulas_status = "formulas-not-wired"

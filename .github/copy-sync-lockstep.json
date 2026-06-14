@@ -15,6 +15,7 @@
     "static-vendor/a11oy-operator-widget.js",
     "static/shared/szl_codename_sanitizer.js",
     "static/shared/szl_label_engine.js",
+    "static/shared/szl_holo3d.js",
     "static/shared/szl_receipt_cosign.js",
     "web/autoreview.html",
     "web/console.html",
