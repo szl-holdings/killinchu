@@ -1156,6 +1156,9 @@ def register(app):
     try:
         from fastapi.routing import APIRoute as _Route
         from fastapi.responses import HTMLResponse as _HTML
+        from fastapi.responses import Response as _Resp
+        from fastapi.responses import JSONResponse as _JSON
+        from pathlib import Path as _Path
 
         async def _globe_view():
             # no-store: the page itself is static, but feeds inside it are live.
@@ -1165,12 +1168,44 @@ def register(app):
                          "X-Killinchu-View": "maritime-globe-v1"},
             )
 
+        # --- SHARED-MODULE SERVING (Dev4, G5/G7) -----------------------------
+        # The three byte-identical estate shared modules live on disk at
+        # /app/static/shared/*.js (COPYed by `COPY static/ ./static/`). The SPA
+        # catch-all served them as application/json + nosniff, which a browser
+        # REFUSES to execute as a module. Serve them here with the correct
+        # text/javascript content-type, front-inserted so they beat the SPA
+        # catch-all. ONLY the three doctrine modules are allowlisted (0 path
+        # traversal). This is what lets the console import window.SZLLabels /
+        # window.SZLReceipts / window.SZLCodenames (G5 acceptance gate).
+        _SHARED_DIR = _Path("/app/static/shared")
+        _SHARED_ALLOW = {
+            "szl_codename_sanitizer.js",
+            "szl_label_engine.js",
+            "szl_receipt_cosign.js",
+        }
+
+        async def _shared_module(fname: str):
+            if fname not in _SHARED_ALLOW:
+                return _JSON({"error": "shared module not allowlisted",
+                              "file": fname}, status_code=404)
+            f = _SHARED_DIR / fname
+            if not f.is_file():
+                return _JSON({"error": "shared module missing on disk",
+                              "file": fname}, status_code=404)
+            return _Resp(
+                content=f.read_bytes(),
+                media_type="text/javascript; charset=utf-8",
+                headers={"Cache-Control": "public, max-age=3600",
+                         "X-Killinchu-Shared": "v1"},
+            )
+
         _specs = [
             ("/elite/globe", "kc_maritime_globe_elite"),
             ("/elite/globe/", "kc_maritime_globe_elite_slash"),
             ("/jackin/globe", "kc_maritime_globe_jackin"),
         ]
-        _names = {n for _, n in _specs}
+        _shared_spec = ("/shared/{fname}", "kc_shared_module")
+        _names = {n for _, n in _specs} | {_shared_spec[1]}
         # Drop any prior copies so a re-register stays idempotent.
         app.router.routes[:] = [
             r for r in app.router.routes
@@ -1178,10 +1213,12 @@ def register(app):
         ]
         _new = [_Route(p, _globe_view, methods=["GET"], name=n)
                 for p, n in _specs]
+        _new.append(_Route(_shared_spec[0], _shared_module,
+                           methods=["GET"], name=_shared_spec[1]))
         # Front-insert so the explicit routes beat the SPA catch-all.
         for _r in reversed(_new):
             app.router.routes.insert(0, _r)
-        status["registered"] = [p for p, _ in _specs]
+        status["registered"] = [p for p, _ in _specs] + [_shared_spec[0]]
         status["ok"] = True
         print(
             "[killinchu] maritime globe mounted at /elite/globe, /jackin/globe "
