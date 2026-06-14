@@ -98,6 +98,13 @@ COPY killinchu_edge_console.py szl_agentic_loop.py szl_anatomy_routes.py szl_for
 # already COPYed. MUST be COPY'd or serve.py's guarded import falls back and /waqay 404s.
 # Per-file COPY (this Dockerfile NEVER uses `COPY . .`).
 COPY szl_waqay.py a11oy_waqay_nav.py ./
+# YUPAY governed multi-model audit harness (szl_yupay.py byte-identical with a11oy) +
+# a11oy_yupay_nav.py idempotent nav injector. szl_dsse/szl_provenance already COPYed.
+# MUST be COPY'd or serve.py's guarded import falls back and /yupay 404s. Audit
+# methodology inspired by Kilo audit + MiniMax sparse-attention paper (published ideas
+# only); SZL-Nemo is governed Qwen3-32B Apache, never an M3 derivative.
+# Per-file COPY (this Dockerfile NEVER uses `COPY . .`).
+COPY szl_yupay.py a11oy_yupay_nav.py ./
 
 # ADDITIVE (Mosaic SDA elevation, 2026-06-13): SZL's sovereign Mosaic / Domain-
 # Superiority organ. killinchu_mosaic.py imports szl_mosaic_core.py (the vendored
