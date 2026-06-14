@@ -114,6 +114,12 @@ COPY killinchu_autonomy.py killinchu_autonomy_view.py killinchu_organism.py kill
 # Byte-identical to a11oy. Without these COPYs the guarded import in serve.py degrades to a
 # not-registered stub. NEVER uses `COPY . .`.
 COPY szl_energy_sovereign.py szl_joules_truth.py ./
+# ADDITIVE (I4 kc-quant): TDA-Fracture regime/anomaly detector on AIS/maritime — killinchu
+# twin of a11oy GPU-Quant Layer 2. Backs /api/killinchu/v1/quant/tda-fracture (MODELED |
+# SAMPLE_AIS | NOT_LIVE; effector SIMULATED · human-on-loop). PURE STDLIB (union-find Betti);
+# imports szl_dsse (already COPYed) for REAL ECDSA receipts in-Space. MUST be COPY'd or
+# serve.py's guarded import degrades to a not-registered stub. Per-file COPY (NEVER `COPY . .`).
+COPY szl_kc_tda_fracture.py ./
 
 # ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
 # knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to

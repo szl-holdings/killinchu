@@ -146,6 +146,22 @@ try:
 except Exception as _szl_es_e:  # pragma: no cover
     print(f"[killinchu] Energy/Sovereign-Compute mirror NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
 
+# ── TDA-Fracture regime/anomaly detector on AIS/maritime (kc-quant) — the killinchu twin
+# of a11oy's GPU-Quant Layer 2. Treats vessel-track / maritime-feature correlation as a
+# point cloud (distance d=√(2(1−ρ))), computes Betti β0/β1 at a COMMON fixed filtration
+# radius, and flags fracture f_t=|Δβ0|+|Δβ1| with |z|>2.5 as a REGIME-SHIFT / anomaly into
+# the maritime risk surface. HONEST: MODELED | SAMPLE_AIS | NOT_LIVE | REQUIRES_HISTORICAL_
+# CALIBRATION — effector posture SIMULATED · human-on-loop, NEVER an autonomous action.
+# DSSE-signed receipt (REAL ECDSA in-Space, honest UNSIGNED marker locally). Adds
+# /api/killinchu/v1/quant/tda-fracture. PURE STDLIB (union-find Betti). Additive, try/except-
+# guarded, before the SPA catch-all. Cites Gidea-Katz (arXiv:1703.04385), giotto-tda.
+try:
+    import szl_kc_tda_fracture as _szl_kc_tda_fracture
+    _szl_kc_tda_fracture.register(app, ns="killinchu")
+    print("[killinchu] TDA-Fracture regime detector registered: /api/killinchu/v1/quant/tda-fracture", file=__import__("sys").stderr)
+except Exception as _szl_kctda_e:  # pragma: no cover
+    print(f"[killinchu] TDA-Fracture regime detector NOT registered: {_szl_kctda_e!r}", file=__import__("sys").stderr)
+
 # Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
 # generated OPEN conjectures from the real disclosure ledger (szl-lake khipu,
 # kind=conjecture-disclosure-anchor). Byte-identical module shared with a11oy. A
