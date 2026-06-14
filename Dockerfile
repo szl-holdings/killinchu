@@ -134,6 +134,18 @@ COPY knowledge.json ./static/knowledge.json
 # ADDITIVE (Unified Operator Shell v4, 2026-06-01, Yachay / Perplexity Computer Agent):
 # v4 endpoint module + self-contained desktop shell. Per-file COPY (no `COPY . .`).
 COPY web/operator.html ./web/operator.html
+# GOVERNED AUTO-REVIEW (Integration I2) — mirror of the keystone autonomy layer
+# first shipped on a11oy. killinchu reuses the SAME portable classifier module
+# (a11oy_autoreview) registered with ns="killinchu"; verdicts are Lambda-gated,
+# DSSE-signed (szl_dsse / cosign.pub), mapped to OPA/Rego + OSCAL + NIST AI RMF
+# MANAGE, conformal-calibrated, with flapping detection. The SIMULATED engage/ROE
+# action is gated -> escalate (AR-005). szl_conformal.py + szl_calibration.py are
+# COPY'd here because killinchu did not previously vendor them. autoreview.html is
+# served at /autoreview (0 runtime CDN; uses the already-vendored Chart.js + the
+# in-image shared label/receipt engines). Per-file COPY (this Dockerfile never
+# uses `COPY . .`); parsed by the HF-sync workflow so the files reach the Space.
+COPY a11oy_autoreview.py szl_conformal.py szl_calibration.py ./
+COPY web/autoreview.html ./web/autoreview.html
 # OPERATOR WIDGET (2026-06-10): byte-identical to a11oy. Self-hosted in-image
 # (0 CDN), served at /vendor/a11oy-operator-widget.js by serve.py. NO codenames.
 COPY static-vendor/a11oy-operator-widget.js ./static-vendor/a11oy-operator-widget.js

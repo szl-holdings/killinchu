@@ -1755,6 +1755,77 @@ try:
 except Exception as _kc_wh_e:
     print(f"[killinchu] Warhacker demo suite NOT registered: {_kc_wh_e!r}", file=sys.stderr)
 
+# ============================================================================
+# BEGIN: killinchu GOVERNED AUTO-REVIEW layer (Integration I2) — mirror tiles of
+# the keystone autonomy layer first shipped on a11oy. SAME portable classifier
+# module (a11oy_autoreview), registered here with ns="killinchu". A fast,
+# context-aware classifier runs INLINE before each Action node; verdict in
+# {allow, narrow, block-with-explanation, escalate}, intent-relative,
+# workspace-aware. The SIMULATED engage / ROE action is gated by the
+# AR-005-engage-roe rule -> escalate (OSCAL AC-3, AU-10; NIST AI RMF MANAGE 4.3):
+# the classifier sits in front of Dev D's CBF-QP clamp + BFT (n>=3f+1) quorum +
+# human-on-loop; the effector stays SIMULATED. MADE OURS: every verdict is
+# (a) Lambda-gated (Conjecture 1, < 1.0 — never "100% safe"), (b) DSSE-SIGNED
+# via the SAME real cosign ECDSA-P256 key served at /cosign.pub (szl_dsse),
+# (c) expressed as OPA/Rego rules mapped to OSCAL control IDs + NIST AI RMF
+# MANAGE subcategories, (d) conformal-calibrated (szl_conformal) + ECE/Brier
+# gate (szl_calibration) + repeated-run flapping detection. Rates are MEASURED
+# from the live decision log (labelled ROADMAP until enough real runs accrue) —
+# never fabricated. Effectors SIMULATED. Pattern credit:
+# https://cursor.com/blog/agent-autonomy-auto-review
+# Namespace /api/killinchu/v1/autoreview/* + page /autoreview — registered BEFORE
+# the /{full_path:path} SPA catch-all (register() front-inserts at position 0).
+# ADDITIVE / try-except guarded — can NEVER crash the Space.
+# DOCTRINE v11; Lambda=Conjecture 1; SLSA L1/L2 (L3 roadmap); trust<100%; 0 CDN.
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_autoreview as _kc_ar
+    import os as _kc_ar_os
+
+    # Keep this Space's auto-review decision log distinct from any other.
+    _kc_ar_os.environ.setdefault("A11OY_AUTOREVIEW_DB", "/tmp/killinchu_autoreview.sqlite3")
+
+    # Reuse the SAME real cosign DSSE signer the rest of killinchu uses, so
+    # auto-review verdicts are signed by the identical ECDSA-P256 key served at
+    # /cosign.pub. HONEST: if the private key secret is absent, szl_dsse returns
+    # an explicitly UNSIGNED envelope (no fabricated signature).
+    def _kc_ar_sign(_obj):
+        if _szl_dsse is None:
+            return {"signed": False, "signatures": [],
+                    "honesty": "UNSIGNED — szl_dsse unavailable in this runtime"}
+        return _szl_dsse.sign_payload(_obj, "application/vnd.szl.receipt+json")
+
+    def _kc_ar_verify(_env):
+        if _szl_dsse is None:
+            return {"verified": False, "reason": "szl_dsse unavailable"}
+        return _szl_dsse.verify_envelope(_env)
+
+    def _kc_ar_pubpem():
+        if _szl_dsse is None:
+            return ""
+        return getattr(_szl_dsse, "COSIGN_PUBLIC_PEM", "") or ""
+
+    _kc_ar_status = _kc_ar.register(
+        app, "killinchu",
+        _kc_ar_sign,
+        verify_fn=_kc_ar_verify,
+        pub_pem_fn=_kc_ar_pubpem,
+        signer_label=("real cosign ECDSA-P256 DSSE (szl_dsse; same key as "
+                      "/cosign.pub and all killinchu receipts)"),
+    )
+    print(f"[killinchu] Governed Auto-Review registered: {_kc_ar_status}", file=sys.stderr)
+    _KC_AR_DIAG = {"status": "ok", "registered": _kc_ar_status}
+except Exception as _kc_ar_e:
+    import traceback as _kc_ar_tb
+    print(f"[killinchu] Governed Auto-Review FAILED (non-fatal): {_kc_ar_e!r}", file=sys.stderr)
+    _kc_ar_tb.print_exc(file=sys.stderr)
+    _KC_AR_DIAG = {"status": "FAILED", "error": repr(_kc_ar_e)}
+# ============================================================================
+# END: killinchu GOVERNED AUTO-REVIEW layer
+# ============================================================================
+
+
 @app.get("/")
 async def spa_root():
     """FRONT DOOR = the ONE killinchu surface: the /elite Counter-UAS Governance deck
