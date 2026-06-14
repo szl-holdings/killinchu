@@ -2707,6 +2707,138 @@ except Exception as _opw_kc_e:  # never crash the app — additive only
 # === end OPERATOR WIDGET (killinchu) ===
 
 # ===========================================================================
+# ADDITIVE: a11oy RESTRAINT — governed code-frugality ladder, ported to killinchu
+# (DEV-WIRE-K R3). Restraint is a CODE-frugality capability built by R1 on a11oy.
+# killinchu has agent/code surfaces too (the jackin agent + every code-emitting
+# path), so we mount the SAME byte-identical governed module here, exactly like
+# szl_dsse.py / szl_conformal.py — the drift guard stays satisfied (same bytes,
+# both hf-sync lists). serve.py registers it with ns="killinchu", so the killinchu
+# agent/code path routes through the ladder and emits a SIGNED restraint receipt:
+#   POST /api/killinchu/v1/restraint/evaluate  {task[,intensity,lang]}
+#   POST /api/killinchu/v1/restraint/bench     {[intensity]}  (honest SAMPLE/ROADMAP)
+#   GET  /api/killinchu/v1/restraint/info
+# The decision is signed by the SAME real cosign ECDSA-P256 DSSE key the rest of
+# killinchu uses (szl_dsse). HONEST: if the in-image private key secret is absent,
+# szl_dsse returns an explicitly UNSIGNED envelope — never a fabricated signature.
+# killinchu has no sovereign GPU, so the energy tie-in's joules label stays the
+# honest "sample" (exporter_sample_fn=None) — the same honest mirror as /energy.
+# Ladder + lite/full/ultra intensities are ADOPTED from the open-source Ponytail
+# skill (MIT, (c) 2026 DietrichGebert); governance (signed receipts + advisory Λ)
+# and on-our-stack measurement are SZL's; Ponytail's numbers are CITED, never ours.
+# Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 (OPEN, < 1.0) ·
+# effectors SIMULATED · trust < 100% · 0 CDN · 0 visible codenames · signed receipts.
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all.
+# ===========================================================================
+try:
+    import szl_restraint as _szl_restraint
+
+    def _kc_restraint_sign(_obj):
+        # Reuse the SAME real cosign DSSE signer killinchu uses elsewhere. HONEST:
+        # if the private-key secret is absent, szl_dsse returns an explicitly
+        # UNSIGNED envelope (no fabricated signature) so /honest stays truthful.
+        if _szl_dsse is None:
+            return {"signed": False, "signatures": [],
+                    "honesty": "UNSIGNED — szl_dsse unavailable in this runtime"}
+        try:
+            return _szl_dsse.sign_payload(_obj, "application/vnd.szl.receipt+json")
+        except Exception as _e:
+            return {"signed": False, "signatures": [],
+                    "honesty": "UNSIGNED — signer raised: %r" % (_e,)}
+
+    def _kc_restraint_verify(_env):
+        if _szl_dsse is None:
+            return {"verified": False, "reason": "szl_dsse unavailable"}
+        return _szl_dsse.verify_envelope(_env)
+
+    # killinchu is NOT sovereign metal: no on-box NVML exporter, so the joules
+    # label honestly stays "sample" (exporter_sample_fn=None). Never fabricate it.
+    _kc_restraint_status = _szl_restraint.register(
+        app, ns="killinchu", sign_fn=_kc_restraint_sign, verify_fn=_kc_restraint_verify,
+        signer_label="killinchu in-image cosign key (szl_dsse)", exporter_sample_fn=None)
+    print(f"[killinchu] Restraint frugality gate registered: {_kc_restraint_status}", file=sys.stderr)
+except Exception as _kc_restraint_e:  # pragma: no cover — additive, never crash
+    import traceback as _kc_restraint_tb
+    print(f"[killinchu] Restraint frugality gate NOT registered: {_kc_restraint_e!r}", file=sys.stderr)
+    _kc_restraint_tb.print_exc()
+
+# ── /elite "Restraint" tile (R3): self-contained 0-CDN page at /elite/restraint
+# showing the ladder + ceilings + honest MEASURED/SAMPLE bench, cross-linked to
+# a11oy's canonical /restraint surface. Injects ONE nav link into /elite via its
+# OWN idempotent middleware (the console source file is NOT edited). Additive.
+try:
+    import killinchu_restraint_tile as _kc_restraint_tile
+    _kc_rt_status = _kc_restraint_tile.register(app, ns="killinchu")
+    print(f"[killinchu] Restraint /elite tile registered: {_kc_rt_status}", file=sys.stderr)
+except Exception as _kc_rt_e:  # pragma: no cover
+    import traceback as _kc_rt_tb
+    print(f"[killinchu] Restraint /elite tile NOT registered: {_kc_rt_e!r}", file=sys.stderr)
+    _kc_rt_tb.print_exc()
+
+# ── CHASKI transport-level restraint annotation (R3). Chaski is killinchu's
+# agent messaging/transport surface (the floating governed-operator widget mounted
+# on every killinchu HTML page). This self-hosted (0 CDN) script annotates agent
+# messages that CARRY CODE PROPOSALS with the restraint rung + signed-receipt
+# status as they transit — honest transport-level annotation only (it routes the
+# proposal through /api/killinchu/v1/restraint/evaluate and shows the live verdict;
+# it NEVER fabricates a rung or a signature, and degrades to "PENDING" if the module
+# is not yet live). Served from in-image static-vendor (0 CDN) and injected via its
+# OWN idempotent middleware, AFTER the operator widget, on HTML surfaces only.
+try:
+    from fastapi.responses import Response as _RST_KC_Resp
+    from starlette.middleware.base import BaseHTTPMiddleware as _RST_KC_Base
+    from starlette.responses import Response as _RST_KC_SResp
+    _RST_KC_VENDOR = Path("/app/static-vendor")
+    _RST_KC_ASSET = "killinchu-restraint-chaski.js"
+    _RST_KC_CT = "application/javascript; charset=utf-8"
+    _RST_KC_TAG = b'<script src="/vendor/killinchu-restraint-chaski.js" data-surface="killinchu-restraint" defer></script>'
+    _RST_KC_MARK = b'killinchu-restraint-chaski.js'
+
+    class _RestraintChaskiInjector(_RST_KC_Base):
+        async def dispatch(self, request, call_next):
+            _wp = request.url.path
+            if _wp == "/vendor/killinchu-restraint-chaski.js":
+                _f = _RST_KC_VENDOR / _RST_KC_ASSET
+                if _f.is_file():
+                    return _RST_KC_Resp(content=_f.read_bytes(), media_type=_RST_KC_CT,
+                                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+                return _RST_KC_Resp(content=b'/* killinchu restraint chaski annotator missing on disk */',
+                                    media_type=_RST_KC_CT, status_code=404)
+            resp = await call_next(request)
+            try:
+                ct = (resp.headers.get("content-type") or "").lower()
+                if "text/html" not in ct:
+                    return resp
+                p = request.url.path
+                if p.startswith(("/vendor/", "/api/", "/assets/")):
+                    return resp
+                body = b""
+                async for chunk in resp.body_iterator:
+                    body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
+                if _RST_KC_MARK in body:
+                    new_body = body
+                elif b"</body>" in body:
+                    new_body = body.replace(b"</body>", _RST_KC_TAG + b"</body>", 1)
+                elif b"</html>" in body:
+                    new_body = body.replace(b"</html>", _RST_KC_TAG + b"</html>", 1)
+                else:
+                    new_body = body + _RST_KC_TAG
+                headers = dict(resp.headers)
+                headers.pop("content-length", None)
+                return _RST_KC_SResp(content=new_body, status_code=resp.status_code,
+                                     headers=headers, media_type="text/html")
+            except Exception:
+                return resp
+
+    app.add_middleware(_RestraintChaskiInjector)
+    print("[killinchu] Restraint Chaski annotator registered: /vendor/killinchu-restraint-chaski.js "
+          "(transport-level restraint badge on code-carrying agent messages, 0 CDN, honest PENDING)", file=sys.stderr)
+except Exception as _rst_kc_e:  # never crash — additive only
+    import traceback as _rst_kc_tb
+    print(f"[killinchu] Restraint Chaski annotator NOT registered: {_rst_kc_e!r}", file=sys.stderr)
+    _rst_kc_tb.print_exc()
+# === end a11oy RESTRAINT (killinchu) ===
+
+# ===========================================================================
 # ADDITIVE: POSTURE & TOPOLOGY surface (DEV-WIRE-K R1). Real drift detectors
 # (PSI + KS via scipy.stats.ks_2samp, ~30-line vendored ADWIN) on live ADS-B
 # telemetry, real graph metrics (clustering / centrality / Fiedler lambda2 /

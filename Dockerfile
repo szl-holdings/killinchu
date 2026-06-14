@@ -150,6 +150,11 @@ COPY web/autoreview.html ./web/autoreview.html
 # (0 CDN), served at /vendor/a11oy-operator-widget.js by serve.py. NO codenames.
 COPY static-vendor/a11oy-operator-widget.js ./static-vendor/a11oy-operator-widget.js
 COPY static-vendor/a11oy-operator-widget.css ./static-vendor/a11oy-operator-widget.css
+# RESTRAINT (DEV-WIRE-K R3): the SHARED governed code-frugality ladder, BYTE-IDENTICAL
+# to a11oy's szl_restraint.py (same bytes, both hf-sync lists — drift guard enforced),
+# its /elite tile, and the Chaski transport-level annotator (self-hosted, 0 CDN).
+COPY szl_restraint.py killinchu_restraint_tile.py ./
+COPY static-vendor/killinchu-restraint-chaski.js ./static-vendor/killinchu-restraint-chaski.js
 # Evidence & Research backend (curated + live arXiv/GitHub). serve.py imports this;
 # without this per-file COPY the import fails and /api/killinchu/v1/evidence/research 404s.
 ARG EVIDENCE_FIX_BUST=1780922329
