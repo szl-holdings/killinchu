@@ -3116,9 +3116,9 @@ async def killinchu_version():
     return {
         "name": "killinchu",
         "version": "1.0.0",
-        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "67c044208c25ecefa82afc3b44e08e7befaab869"),
-        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "b216a3185f809f2c6d68c06c0b4c4b1daab8b5d0"),
-        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "2026-06-03T00:00:00Z"),
+        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "unknown"),
+        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "unknown"),
+        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "unknown"),
         "release_url": "https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0",
         "doctrine": "v11",
         "kernel_commit": "c7c0ba17",
