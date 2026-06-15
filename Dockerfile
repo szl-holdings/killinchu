@@ -172,6 +172,14 @@ COPY szl_restraint.py killinchu_restraint_tile.py killinchu_nav_wireup.py ./
 # /qhawaq + /api/killinchu/v1/qhawaq/*. Without this COPY the guarded import falls back
 # and /qhawaq 404s. The .py auto-mirrors to the HF Space via hf-sync-backend.yml.
 COPY szl_qhawaq.py ./szl_qhawaq.py
+# ADDITIVE (SAPA): Energy per Successful Goal — frontier agentic unit on top of
+# the live MEASURED joules/token path. szl_sapa.py is the shared accounting layer
+# (byte-identical a11oy<->killinchu); szl_sapa_patch.py front-inserts /sapa +
+# /api/<ns>/v1/sapa/* before the SPA catch-all + Node proxy. Per-file COPY (this
+# Dockerfile never uses `COPY . .`) or serve.py's guarded import falls back
+# (merged-but-not-live) and /sapa 404s to the SPA shell. Mirrored byte-identical
+# to the HF Space (hf-sync lockstep).
+COPY szl_sapa.py szl_sapa_patch.py ./
 # MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM — two shared modules, BYTE-IDENTICAL to
 # a11oy (same bytes, both hf-sync lists — shared-file drift guard enforced).
 # szl_mbse_cosim.py serves /api/killinchu/v1/mbse/* (governed water-tank + the
