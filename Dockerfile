@@ -543,6 +543,14 @@ COPY killinchu_elite_wiring.py killinchu_flow_compartments.py ./
 COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js ./static/shared/
 COPY szl_codename_gate.py szl_ecosystem_routes.py ./
 
+# git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
+# at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
+# time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
+# the SZL_GIT_SHA variable). Kept last so a per-build value busts no earlier cache.
+ARG SZL_GIT_SHA=unknown
+ARG SZL_BUILD_TIME=unknown
+ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
+    SZL_BUILD_TIME=${SZL_BUILD_TIME}
 CMD ["python", "serve.py"]
 
 
