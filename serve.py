@@ -3116,9 +3116,9 @@ async def killinchu_version():
     return {
         "name": "killinchu",
         "version": "1.0.0",
-        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "67c044208c25ecefa82afc3b44e08e7befaab869"),
-        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "b216a3185f809f2c6d68c06c0b4c4b1daab8b5d0"),
-        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "2026-06-03T00:00:00Z"),
+        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "unknown"),
+        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "unknown"),
+        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "unknown"),
         "release_url": "https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0",
         "doctrine": "v11",
         "kernel_commit": "c7c0ba17",
@@ -4377,29 +4377,76 @@ except Exception as _kc_mesh_e:
 # ============================================================================
 
 
-# ============================================================================
-# ADDITIVE (SAPA): Energy per Successful Goal — the frontier agentic unit on top
-# of the live MEASURED joules/token path. szl_sapa.py is the shared, byte-identical
-# accounting layer (same bytes as a11oy); szl_sapa_patch.py front-inserts /sapa +
-# /api/killinchu/v1/sapa/* BEFORE the SPA catch-all (idempotent by route name).
-# Registered LAST so its routes win over the SPA history fallback. try/except-
-# guarded — can NEVER take the Space down. Doctrine v11: locked=8 @ c7c0ba17;
-# MEASURED only on a real fresh on-box joule reading, else MODELED/pending —
-# never fabricates a joule. Inspired by A-LEMS / EpG arXiv:2605.22883 (cited).
-# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+# ADDITIVE — WAQAY governed quantized vector index (2026-06-14, WAQAY team).
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-# ============================================================================
+# ---------------------------------------------------------------------------
+# WAQAY (Quechua: to keep / guard / store) — our OWN governed, air-gapped,
+# DSSE-signed quantized vector index. Studied MIT turbovec + Google Research
+# TurboQuant; built OUR pure-Python index (szl_waqay.py — byte-identical with
+# a11oy). register() FRONT-INSERTS routes before the SPA catch-all. ADDITIVE,
+# try/except-guarded. Compression MEASURED; recall MODELED bound (never perfect);
+# perf vs Rust SIMD MODELED/ROADMAP. Attribution: turbovec (c) 2026 Ryan Codrai
+# (MIT) + Google Research TurboQuant; NOTICES.md. 0 CDN.
+# ===========================================================================
 try:
-    import szl_sapa_patch as _szl_sapa_patch
-    import sys as _sapa_sys2
-    _sapa_status = _szl_sapa_patch.register(app, ns="killinchu", serve_tab=True)
-    print(f"[killinchu] SAPA energy-per-goal registered: {_sapa_status}", file=_sapa_sys2.stderr)
-except Exception as _sapa_e:  # pragma: no cover
-    print(f"[killinchu] SAPA NOT registered (non-fatal): {_sapa_e!r}",
-          file=__import__("sys").stderr)
-# ============================================================================
-# END: SAPA Energy per Successful Goal
-# ============================================================================
+    import szl_waqay as _szl_waqay
+    _waqay_status = _szl_waqay.register(app, ns="killinchu")
+    print(f"[killinchu] WAQAY governed vector index registered: {_waqay_status['registered']} "
+          f"(tab: {_waqay_status['tab_route']}, trust_ceiling={_waqay_status['trust_ceiling']} <1.0) "
+          f"— TurboQuant-inspired, signed receipts + Restraint", file=sys.stderr)
+except Exception as _waqay_e:
+    import sys as _waqay_sys, traceback as _waqay_tb
+    print(f"[killinchu] WAQAY NOT registered (non-fatal): {_waqay_e!r}", file=_waqay_sys.stderr)
+    _waqay_tb.print_exc(file=_waqay_sys.stderr)
+try:
+    import a11oy_waqay_nav as _a11oy_waqay_nav
+    _waqay_nav_status = _a11oy_waqay_nav.register(app, ns="killinchu")
+    print(f"[killinchu] WAQAY nav wire-up registered: {_waqay_nav_status['registered']} "
+          f"(tab: {_waqay_nav_status['tab_route']}) — idempotent, additive, SPA source NOT edited",
+          file=sys.stderr)
+except Exception as _waqay_nav_e:
+    import sys as _waqay_nav_sys, traceback as _waqay_nav_tb
+    print(f"[killinchu] WAQAY nav wire-up NOT registered (non-fatal): {_waqay_nav_e!r}",
+          file=_waqay_nav_sys.stderr)
+    _waqay_nav_tb.print_exc(file=_waqay_nav_sys.stderr)
+# ── end WAQAY (governed quantized vector index) ──
+
+# YUPAY (Quechua: to count / to reckon / to audit) — our OWN governed multi-model
+# AUDIT harness (szl_yupay.py — byte-identical with a11oy). Adopts the Kilo Code /
+# André Lindenberg audit METHODOLOGY (same task, score issues/tokens/cost/latency)
+# run over OUR OWN governed open models; emits ONE DSSE-signed comparison receipt +
+# Restraint verdict. register() FRONT-INSERTS routes before the SPA catch-all.
+# Honest labels: MEASURED iff a real run happened, else MODELED (cost = published
+# per-token rates, cited). NO M3 WEIGHTS / NO M3 DERIVATIVE: M3 is
+# EXCLUDED-BY-DOCTRINE (defense-license + PRC sovereignty), shown only as a
+# non-participating reference row, never run. ADDITIVE, try/except-guarded. 0 CDN.
+# Attribution: Kilo Code/André Lindenberg methodology + MiniMax sparse-attn paper
+# as INSPIRATION; NOTICES.md.
+# ===========================================================================
+try:
+    import szl_yupay as _szl_yupay
+    _yupay_status = _szl_yupay.register(app, ns="killinchu")
+    print(f"[killinchu] YUPAY governed multi-model audit harness registered: "
+          f"{_yupay_status['registered']} (tab: {_yupay_status['tab_route']}, "
+          f"trust_ceiling={_yupay_status['trust_ceiling']} <1.0) — signed comparison "
+          f"+ Restraint, M3 EXCLUDED-BY-DOCTRINE", file=sys.stderr)
+except Exception as _yupay_e:
+    import sys as _yupay_sys, traceback as _yupay_tb
+    print(f"[killinchu] YUPAY NOT registered (non-fatal): {_yupay_e!r}", file=_yupay_sys.stderr)
+    _yupay_tb.print_exc(file=_yupay_sys.stderr)
+try:
+    import a11oy_yupay_nav as _a11oy_yupay_nav
+    _yupay_nav_status = _a11oy_yupay_nav.register(app, ns="killinchu")
+    print(f"[killinchu] YUPAY nav wire-up registered: {_yupay_nav_status['registered']} "
+          f"(tab: {_yupay_nav_status['tab_route']}) — idempotent, additive, SPA source NOT edited",
+          file=sys.stderr)
+except Exception as _yupay_nav_e:
+    import sys as _yupay_nav_sys, traceback as _yupay_nav_tb
+    print(f"[killinchu] YUPAY nav wire-up NOT registered (non-fatal): {_yupay_nav_e!r}",
+          file=_yupay_nav_sys.stderr)
+    _yupay_nav_tb.print_exc(file=_yupay_nav_sys.stderr)
+# ── end YUPAY (governed multi-model audit harness) ──
 
 
 
