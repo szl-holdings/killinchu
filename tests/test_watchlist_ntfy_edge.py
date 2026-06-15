@@ -135,18 +135,25 @@ def test_standing_condition_pages_once_then_goes_quiet(store, pushes, monkeypatc
 
 def test_clear_then_refire_pages_again(store, pushes, monkeypatch):
     """A genuine new incident — fire, clear, fire again — pages on each fresh
-    clear->fire edge."""
+    clear->fire edge.
+
+    Recovery notices are ON by default (KILLINCHU_NTFY_RECOVERY), so the
+    fire->clear edge itself emits one low-priority "recovered" page, mirroring
+    the box monitors. The anti-spam contract under test is the per-EDGE paging:
+    one page per clear->fire edge and one per fire->clear edge, never on a
+    standing (unchanged) condition."""
     monkeypatch.setenv("KILLINCHU_NTFY_URL", "https://ntfy.example/killinchu-test")
     _seed(store)
 
-    _evaluate(store, count=10)          # fire -> page
+    _evaluate(store, count=10)          # clear->fire edge -> page
     assert len(pushes) == 1
 
-    _evaluate(store, count=0)           # clear (0 < 3) -> no page
-    assert len(pushes) == 1
-
-    _evaluate(store, count=10)          # fresh edge -> page again
+    _evaluate(store, count=0)           # fire->clear edge -> one "recovered" page
     assert len(pushes) == 2
+    assert pushes[-1]["headers"].get("Title", "").endswith("recovered")
+
+    _evaluate(store, count=10)          # fresh clear->fire edge -> page again
+    assert len(pushes) == 3
 
 
 def test_unevaluatable_snapshot_clears_the_edge(store, pushes, monkeypatch):
