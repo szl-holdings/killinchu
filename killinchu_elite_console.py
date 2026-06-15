@@ -2503,8 +2503,8 @@ const VIEWS = {
       <div class="kpi"><div class="k">Locked-proven</div><div class="v">8</div><div class="d">F1·F4·F7·F11·F12·F18·F19·F22 @ c7c0ba17</div></div>
       <div class="kpi"><div class="k">Λ (trust)</div><div class="v warn">Conjecture 1</div><div class="d">advisory · NOT a theorem</div></div>
       <div class="kpi"><div class="k">Consensus mesh</div><div class="v" id="la-quorum">—</div><div class="d">Byzantine = Conjecture 2 OPEN</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Living anatomy (live 3D)</span><span class="card-ep">szlholdings-anatomy.static.hf.space</span></div>
-        <iframe id="la-frame" src="https://szlholdings-anatomy.static.hf.space" title="Living anatomy — one governed organism" style="width:100%;height:460px;border:1px solid var(--gold-line);border-radius:10px;background:#050505" loading="lazy"></iframe>
+      <div class="card"><div class="card-h"><span class="card-t">Living anatomy (live 3D)</span><span class="card-ep">szlholdings-anatomy.hf.space</span></div>
+        <iframe id="la-frame" src="https://szlholdings-anatomy.hf.space" title="Living anatomy — one governed organism" style="width:100%;height:460px;border:1px solid var(--gold-line);border-radius:10px;background:#050505" loading="lazy"></iframe>
         <div class="row mono dim" style="font-size:11px;margin-top:.3rem">Live embed of the shared anatomy scene. Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 8 locked-proven formulas (never inflated); CUT-2 conditional; SLSA L1 honest.</div></div>
       <div class="card"><div class="card-h"><span class="card-t">Proven formulas living in the organs</span><span class="card-ep">theorem_ref + honest maturity</span></div>
         <div id="la-organs"></div></div>
@@ -8831,7 +8831,7 @@ go(VIEWS[start]?start:'tracks');
       +'<div style="font-family:var(--mono,monospace);font-size:11px;color:'+DIM+';letter-spacing:.08em">SINGLE HONEST MAP</div>'
       +'<div style="font-size:13px;color:#cfd4da;margin-top:6px;line-height:1.5">Every agentic capability mapped to the <b>real</b> app(s)/repo(s) that implement it, alongside the formula/theorem ladder. Snapshot mirror of the full interactive deck \u2014 '
       +'<a href="https://a11oy.net/anatomy-map/" target="_blank" rel="noopener" style="color:'+TEAL+'">a11oy.net/anatomy-map</a> \u00b7 '
-      +'<a href="https://szlholdings-anatomy.static.hf.space/" target="_blank" rel="noopener" style="color:'+TEAL+'">HF static Space</a>. '
+      +'<a href="https://szlholdings-anatomy.hf.space/" target="_blank" rel="noopener" style="color:'+TEAL+'">HF Space</a>. '
       +'Honesty: <b>8 LOCKED</b> kernel-verified formulas {F1, F4, F7, F11, F12, F18, F19, F22}; \u039b uniqueness = <b>Conjecture 1</b> (advisory, never a pass/fail oracle).</div></div>';
     CAPS.forEach(function(c){
       h+='<div style="border:1px solid #232830;border-radius:9px;padding:12px 14px;margin-bottom:10px;background:#0e1217">'
