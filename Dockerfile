@@ -93,18 +93,6 @@ COPY cathedral.html knowledge.json operator_shell_v4.py serve.py szl_evidence_re
 COPY szl_live_wires.py live_wires.html live_wires_3d.js szl_rosie_companion.py killinchu_szl_pqc_sign.py szl_rekor.py killinchu_osint.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py killinchu_genius.py killinchu_warhacker_demos.py killinchu_v3.py szl_brain.py szl_rag.py szl_formulas.py szl_understudy.py ./
 COPY szl_killinchu_cookbook.py szl_uds_hardening.py killinchu_fusion.py szl_v4_fleet.py szl_ken.py killinchu_frontier_patch.py killinchu_drone_routes.py killinchu_parity.py killinchu_cannonico.py killinchu_elite_console.py _vendor_blobs.py killinchu_fleet_vessels.py killinchu_maritime_risk.py killinchu_maritime_intel.py killinchu_maritime_view.py killinchu_live_feeds.py killinchu_feeds_realdata.py killinchu_asw.py killinchu_anatomy.py killinchu_health_twin.py fleet_vessels_data.json killinchu_beyond.py szl_khipu_consensus.py killinchu_mesh.py killinchu_mesh_view.py killinchu_formula_endpoints.py killinchu_edge_formulas.py killinchu_active_flux.py killinchu_platform_dynamics.py ./
 COPY killinchu_edge_console.py szl_agentic_loop.py szl_anatomy_routes.py szl_formula_wiring.py a11oy_code_engine.py killinchu_ops_control.py szl_llm_registry.py szl_alloy_models.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py killinchu_mined_ops.py killinchu_resweep_ops.py killinchu_wave910.py killinchu_posture_topology.py szl_connectors_serve.py szl_connector_mcp.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_chain_of_title.py ./
-# WAQAY governed quantized vector index (szl_waqay.py byte-identical with a11oy) +
-# a11oy_waqay_nav.py idempotent nav injector. szl_dsse/szl_provenance/a11oy_org_rag
-# already COPYed. MUST be COPY'd or serve.py's guarded import falls back and /waqay 404s.
-# Per-file COPY (this Dockerfile NEVER uses `COPY . .`).
-COPY szl_waqay.py a11oy_waqay_nav.py ./
-# YUPAY governed multi-model audit harness (szl_yupay.py byte-identical with a11oy) +
-# a11oy_yupay_nav.py idempotent nav injector. szl_dsse/szl_provenance already COPYed.
-# MUST be COPY'd or serve.py's guarded import falls back and /yupay 404s. Audit
-# methodology inspired by Kilo audit + MiniMax sparse-attention paper (published ideas
-# only); SZL-Nemo is governed Qwen3-32B Apache, never an M3 derivative.
-# Per-file COPY (this Dockerfile NEVER uses `COPY . .`).
-COPY szl_yupay.py a11oy_yupay_nav.py ./
 
 # ADDITIVE (Mosaic SDA elevation, 2026-06-13): SZL's sovereign Mosaic / Domain-
 # Superiority organ. killinchu_mosaic.py imports szl_mosaic_core.py (the vendored
@@ -126,6 +114,12 @@ COPY killinchu_autonomy.py killinchu_autonomy_view.py killinchu_organism.py kill
 # Byte-identical to a11oy. Without these COPYs the guarded import in serve.py degrades to a
 # not-registered stub. NEVER uses `COPY . .`.
 COPY szl_energy_sovereign.py szl_joules_truth.py ./
+# ADDITIVE (SAPA): Energy per Successful Goal — the frontier agentic unit on top of the
+# live MEASURED joules/token path. szl_sapa.py is the shared accounting layer (byte-identical
+# a11oy<->killinchu); szl_sapa_patch.py front-inserts /sapa + /api/killinchu/v1/sapa/* before
+# the SPA catch-all. Without these COPYs the guarded import in serve.py degrades to a
+# not-registered stub and /sapa 404s. NEVER uses `COPY . .`. Mirrored byte-identical to HF.
+COPY szl_sapa.py szl_sapa_patch.py ./
 # ADDITIVE (I4 kc-quant): TDA-Fracture regime/anomaly detector on AIS/maritime — killinchu
 # twin of a11oy GPU-Quant Layer 2. Backs /api/killinchu/v1/quant/tda-fracture (MODELED |
 # SAMPLE_AIS | NOT_LIVE; effector SIMULATED · human-on-loop). PURE STDLIB (union-find Betti);
@@ -167,6 +161,11 @@ COPY static-vendor/a11oy-operator-widget.css ./static-vendor/a11oy-operator-widg
 # its /elite tile, the restraint nav wire-up (imported by serve.py for /elite/restraint
 # navigation), and the Chaski transport-level annotator (self-hosted, 0 CDN).
 COPY szl_restraint.py killinchu_restraint_tile.py killinchu_nav_wireup.py ./
+# QHAWAQ (FORMAL/LTL runtime constitutional intercept): the SHARED runtime monitor,
+# BYTE-IDENTICAL to a11oy. Imported by serve.py (try/except guarded); serves /qhawaq
+# + /api/killinchu/v1/qhawaq/*. Without this COPY the guarded import falls back and
+# /qhawaq 404s. The .py auto-mirrors to the HF Space via hf-sync-backend.yml.
+COPY szl_qhawaq.py ./szl_qhawaq.py
 # MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM — two shared modules, BYTE-IDENTICAL to
 # a11oy (same bytes, both hf-sync lists — shared-file drift guard enforced).
 # szl_mbse_cosim.py serves /api/killinchu/v1/mbse/* (governed water-tank + the
@@ -543,14 +542,6 @@ COPY killinchu_elite_wiring.py killinchu_flow_compartments.py ./
 COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js ./static/shared/
 COPY szl_codename_gate.py szl_ecosystem_routes.py ./
 
-# git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
-# at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
-# time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
-# the SZL_GIT_SHA variable). Kept last so a per-build value busts no earlier cache.
-ARG SZL_GIT_SHA=unknown
-ARG SZL_BUILD_TIME=unknown
-ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
-    SZL_BUILD_TIME=${SZL_BUILD_TIME}
 CMD ["python", "serve.py"]
 
 
