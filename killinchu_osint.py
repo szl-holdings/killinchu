@@ -1529,9 +1529,17 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
         threading.Thread(target=_hydrate_boot,
                          name="killinchu-archive-hydrate", daemon=True).start()
 
+    async def _run(fn, *a, **kw):
+        import anyio
+        return await anyio.to_thread.run_sync(lambda: fn(*a, **kw))
+
     def _mk_amaru(stream: str):
         async def _h(q: Optional[str] = None, fresh: int = 0) -> JSONResponse:
-            return JSONResponse(_ingest(stream, query=q, fresh=bool(fresh)))
+            # _ingest -> _tavily_search does a synchronous urllib urlopen
+            # (timeout=30); run it off the event loop so a slow/forced (fresh=1)
+            # scrape can't stall the whole app. Same anyio.to_thread pattern as
+            # killinchu_feeds_realdata.register._run. Behavior/output unchanged.
+            return JSONResponse(await _run(_ingest, stream, query=q, fresh=bool(fresh)))
         return _h
 
     for stream in _STREAMS:
@@ -1565,7 +1573,9 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
         # Probe the LIVE committed head ONCE per request (never-raises) and feed
         # it to BOTH archive + durable so they agree on current reachability and
         # the stale startup 401 is cleared honestly when the repo is reachable.
-        head_probe = _committed_head_probe()
+        # The probe does a synchronous HF head() network read; run it off the
+        # event loop (same anyio.to_thread pattern) so it can't stall the app.
+        head_probe = await _run(_committed_head_probe)
         return JSONResponse({
             "module": "killinchu_osint",
             "engine": "tavily",
