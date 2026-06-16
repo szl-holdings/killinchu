@@ -910,7 +910,12 @@ def register(app, ns: str = "killinchu") -> str:
                     "age_seconds": round(age, 1),
                     "cache_ttl": _LIVE_CACHE_TTL,
                 }, _adsb_citation()))
-        return JSONResponse(run_crawl(mode="live"))
+        # Cache-miss: run_crawl is blocking (urllib ADS-B fetch up to 12s +
+        # sqlite). Run it off the event loop so a cold/slow scrape can't stall
+        # the whole app — same asyncio.to_thread pattern the scheduler loop uses
+        # for run_crawl_guarded. Behavior/output unchanged.
+        import asyncio
+        return JSONResponse(await asyncio.to_thread(run_crawl, "live"))
 
     # -- crawl/run (manual) ------------------------------------------------
     async def crawl_run(request: Request) -> JSONResponse:

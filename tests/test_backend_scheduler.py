@@ -18,6 +18,7 @@
 # touched and failure can be forced deterministically).
 from __future__ import annotations
 
+import asyncio
 import os
 import threading
 import time
@@ -229,3 +230,54 @@ def test_overlap_guard_does_not_double_start(backend_env, monkeypatch):
     release2.set()
     assert kb.run_crawl_guarded("auto") is not None
     assert calls == ["auto", "auto"]
+
+
+# ---------------------------------------------------------------------------
+# 4) The /live cache-miss scrape runs OFF the event loop (PERF: no stall).
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_live_cache_miss_does_not_block_event_loop(backend_env, monkeypatch):
+    """On a cache-miss, the /live handler runs the blocking ADS-B fetch via
+    asyncio.to_thread, so the event loop stays free to service other coroutines
+    while the (up to 12s) scrape is in flight. We hold the upstream fetch open
+    on a worker thread and assert the loop can still make progress; if the
+    handler ran the scrape inline it would await the awaitable below only AFTER
+    the blocking call returned, and the loop would be stalled."""
+    in_fetch = threading.Event()
+    release = threading.Event()
+    payload = {"ac": [{"t": "F16", "flag": "US"}]}
+
+    def _blocking_fetch(timeout=12.0):
+        in_fetch.set()
+        # Simulate the slow upstream; runs on a worker thread iff off-loop.
+        assert release.wait(timeout=5), "fetch was never released"
+        return payload, 200, None
+
+    monkeypatch.setattr(kb, "_fetch_mil_adsb", _blocking_fetch)
+
+    app = FastAPI(title="kc-live-test", version="0.0.0")
+    kb.register(app, ns=NS)
+
+    # Grab the bound coroutine for the /live route and call it directly so we
+    # exercise the real handler on THIS running event loop.
+    live_route = next(r for r in app.router.routes
+                      if getattr(r, "path", "") == f"/api/{NS}/live")
+
+    class _Req:  # minimal Request stand-in; /live only reads the store.
+        pass
+
+    live_task = asyncio.create_task(live_route.endpoint(_Req()))
+
+    # The blocking fetch must start on a worker thread, and while it is held the
+    # event loop must remain responsive (this sleep/await returns promptly).
+    assert await asyncio.to_thread(in_fetch.wait, 5), "fetch never entered"
+    loop_progressed = False
+    for _ in range(5):
+        await asyncio.sleep(0.01)  # would never resume if the loop were blocked
+        loop_progressed = True
+    assert loop_progressed, "event loop made no progress during the scrape"
+    assert not live_task.done(), "handler returned before fetch was released"
+
+    release.set()
+    resp = await live_task
+    assert resp.status_code == 200
