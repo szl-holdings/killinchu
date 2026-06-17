@@ -721,6 +721,23 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 #kf-list,#kf-proven,#kf-honest{max-height:clamp(200px,36vh,420px)!important;overflow-y:auto!important;overflow-x:hidden!important;position:relative!important;}
 #kf-list .katex,#kf-list .katex-html,#kf-list .katex .base{position:relative!important;}
 #kf-list .katex-html{overflow:hidden;}
+/* RECEIPT/DECISION OVERFLOW FIX (root-cause, additive 2026-06-17): formula/ledger/
+   receipt .row blocks were single-line flex strips whose KaTeX math + long mono
+   source-paths/descriptions exceeded their container and got clipped on the right
+   edge (overflow-x:hidden) instead of stacking. Let those rows WRAP and let long
+   content break, so each renders as a readable stacked block (never a cramped
+   horizontal strip). Scoped to the receipt/formula/ledger surfaces only — the
+   wide-screen .spacer right-alignment is preserved when the row fits on one line. */
+#kf-list .row,#kf-proven .row,#kf-honest .row{flex-wrap:wrap;align-items:baseline;}
+#kf-list .row>span[style*="flex:1"],#kf-proven .row .spacer{min-width:0;overflow-wrap:anywhere;word-break:break-word;}
+#kf-list .row .spacer,#kf-proven .row .spacer{margin-left:0;flex:1 1 100%;}
+#kf-list .katex,#kf-list .katex-html{max-width:100%;overflow-x:auto;overflow-y:hidden;white-space:normal;}
+#kf-proven .row .badge,#kf-list .row .badge{flex:0 0 auto;}
+/* generic guard: a .row carrying long mono/receipt copy (no nested controls) should
+   wrap rather than push its content off-screen. Applies to the C2 “why it matters”
+   econ note, health-twin conformal note, and similar single-paragraph rows. */
+.row.mono{flex-wrap:wrap;}
+.row.mono>b,.row.mono>span{min-width:0;overflow-wrap:anywhere;}
 .feedtail .frow{padding:.4rem .8rem;border-bottom:1px solid rgba(201,183,135,.07);display:flex;gap:.6rem;align-items:baseline;}
 .feedtail .frow:hover{background:var(--gold-soft);}
 .feedtail .ts{color:var(--dim);white-space:nowrap;}
