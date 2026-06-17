@@ -50,7 +50,7 @@ Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 #                harden(app, organ="a11oy") wires everything additively.
 # Key entry pts: harden(app, organ) -> report dict
 #                DurableKhipu (SQLite-backed receipt store, stdlib only)
-# What it adds:  Rate limiting (60/min/IP via slowapi or stdlib fallback),
+# What it adds:  Rate limiting (300/min/IP data-surface; pages exempt; via slowapi or stdlib fallback),
 #                structured JSON logs, uniform error envelopes {error: {code,
 #                message, trace_id, doctrine}}, /healthz + /readyz probes,
 #                /honest footer (749/14/163), OpenAPI at /openapi.json.
@@ -97,7 +97,68 @@ DOCTRINE_LOCK = {
 DOCTRINE_FOOTER = "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
 
 _GENESIS = "0" * 64
-RATE_LIMIT_PER_MIN = 60
+# DEMO-FLOOR RATE-LIMIT FIX (2026-06-17): the per-IP limiter previously capped
+# EVERYTHING at 60/min, including the human-facing HTML showcase pages (/, /console,
+# /counter-uas, /drones, /map, /operator, /navy, /elite, /elite/*, ...). During the
+# founder demo, rapid clicking through tabs/surfaces from ONE booth IP tripped the
+# cap and served a raw {"error":{"code":"rate_limited",...}} body in place of the
+# page — looking like a broken site to a judge. Two changes, both env-overridable so
+# ops can tune live WITHOUT a redeploy:
+#   1. EXEMPT the human-facing page/static/health routes from the limiter entirely
+#      (see _is_rate_limited_path) — these are static-ish GET page loads + probes.
+#   2. RAISE the per-IP cap on the remaining (API/data) surface to a demo-safe,
+#      burst-tolerant default (300/min) so even busy API tabs won't trip it.
+# This is a TUNING + EXEMPTION for read-only demo surfaces — it does NOT remove
+# abuse protection: the JSON data surface (/api/*, /feeds/*, /osint/*, /mesh/*) is
+# still metered by a real sliding-window limiter, and genuinely expensive POST
+# endpoints (cue/evaluate/identify/operator-control/code-exec — all under /api/*)
+# keep their metering. Honest: a true abuse ceiling remains.
+# This mirrors the a11oy fix (PR #483) adapted to killinchu's actual routes.
+try:
+    RATE_LIMIT_PER_MIN = max(1, int(os.environ.get("SZL_RATE_LIMIT_PER_MIN", "300")))
+except Exception:
+    RATE_LIMIT_PER_MIN = 300
+
+# Human-facing page routes ALWAYS render (never rate-limited): the self-contained
+# consoles + landing/showcase pages are the demo surface. Only the JSON DATA surface
+# (/api/*, /feeds/*, /osint/*, /mesh/*) is metered. Health/readiness probes are also
+# always allowed so liveness checks never trip the limiter. These mirror the demo
+# page routes served in serve.py (/, /console, /counter-uas, /drones, /map, /operator,
+# /navy, /unified, /landing, /elite, ...).
+_RL_EXEMPT_EXACT = frozenset({
+    "/", "/console", "/console.html", "/counter-uas", "/drones", "/map",
+    "/operator", "/navy", "/unified", "/killinchu/unified", "/compliance",
+    "/uds", "/uds/compliance", "/landing", "/landing.html", "/killinchu/landing",
+    "/hero", "/cosign.pub", "/knowledge.json", "/favicon.ico", "/robots.txt",
+    # Health/readiness/liveness probes (live under /api/* in killinchu) — exempt
+    # explicitly so probes never trip the data-surface meter.
+    "/api/killinchu/healthz", "/api/killinchu/readyz", "/api/killinchu/v1/honest",
+    "/api/health", "/api/vessels/healthz", "/healthz", "/readyz",
+})
+_RL_EXEMPT_PREFIXES = (
+    "/elite", "/hero", "/static", "/assets", "/vendor",
+    "/web/", "/pages/", "/static-vendor", "/.well-known",
+)
+
+
+def _is_rate_limited_path(path: str) -> bool:
+    """True only for the JSON DATA surface that should be metered. Human-facing
+    page/static/health routes are EXEMPT so the showcase always renders. We meter
+    the API + feeds/osint/mesh data endpoints (where real abuse would land);
+    everything else fails open (renders) for the demo. Note: exempt EXACT health
+    probes are checked before the /api/ meter so liveness checks never 429."""
+    p = (path or "/").rstrip("/") or "/"
+    if p in _RL_EXEMPT_EXACT:
+        return False
+    for pre in _RL_EXEMPT_PREFIXES:
+        if p == pre or p.startswith(pre + "/"):
+            return False
+    # Meter the data surface: /api/<organ>/v1/... + top-level data feeds.
+    if "/api/" in p or p.startswith("/feeds") or p.startswith("/osint") or p.startswith("/mesh"):
+        return True
+    # Default: do NOT rate-limit unknown/page-like routes (fail-open for the demo;
+    # the data surface above is what we protect).
+    return False
 
 # ---------------------------------------------------------------------------
 # 8. SECURITY RESPONSE HEADERS — conservative, non-breaking baseline applied to
@@ -443,10 +504,10 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
 
     report["registered"].append("structured_logging+error_envelopes")
 
-    # ---- 2: rate limiting — 60 req/min per IP -----------------------------
+    # ---- 2: rate limiting — RATE_LIMIT_PER_MIN req/min per IP (data surface) -
     # We register the slowapi Limiter when the library is present (satisfies the
     # "slowapi or starlette-limiter" doctrine and exposes app.state.limiter for
-    # any per-route decorators), but we ENFORCE the global 60/min/IP cap with our
+    # any per-route decorators), but we ENFORCE the global per-IP cap with our
     # own sliding-window middleware so that EVERY 429 returns the uniform error
     # envelope (slowapi's built-in handler returns a non-envelope body). This is
     # a real limiter (counts real requests), not a pass-through.
@@ -465,6 +526,13 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
 
     @app.middleware("http")
     async def _rate_limit_mw(request: "Request", call_next):
+        # DEMO-FLOOR FIX: human-facing page/static/health routes are NEVER rate-
+        # limited — the showcase must always render. Only the JSON data surface
+        # (/api/*, /feeds/*, /osint/*, /mesh/*) is metered, at the demo-safe
+        # RATE_LIMIT_PER_MIN sliding-window cap. Real abuse on the data surface
+        # (incl. expensive POSTs, all under /api/*) is still capped.
+        if not _is_rate_limited_path(request.url.path):
+            return await call_next(request)
         ip = request.client.host if request.client else "unknown"
         now = time.time()
         with _rl_lock:
@@ -481,8 +549,10 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             dq.append(now)
         return await call_next(request)
 
-    report["rate_limiting"] = f"sliding-window/60-per-min (lib={rate_lib})"
-    report["registered"].append(f"rate_limiting:60/min (lib={rate_lib})")
+    report["rate_limiting"] = (f"sliding-window/{RATE_LIMIT_PER_MIN}-per-min on data "
+                               f"surface; pages exempt (lib={rate_lib})")
+    report["registered"].append(
+        f"rate_limiting:{RATE_LIMIT_PER_MIN}/min data-surface,pages-exempt (lib={rate_lib})")
 
     # ---- 1: pydantic models on hardening endpoints (module-scope) ---------
     # EchoIn / KhipuAppendIn are defined at module level above.
