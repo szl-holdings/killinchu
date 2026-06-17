@@ -29,7 +29,17 @@ silent pass. ADS-B/Remote-ID are unauthenticated broadcast — decoded fields ar
 from __future__ import annotations
 
 import struct
+import sys as _sys
 from typing import Any
+
+
+def _log_exc(where: str, exc: Exception) -> None:
+    """Log exception detail server-side; never return it to a client."""
+    try:
+        print(f"[killinchu_protocols] {where}: {type(exc).__name__}: {exc!r}",
+              file=_sys.stderr)
+    except Exception:
+        pass
 
 # ---------------------------------------------------------------------------
 # OpenDroneID / ASTM F3411 — Remote ID broadcast message decoder (real bytes)
@@ -218,8 +228,9 @@ def adsb_decode(msg) -> dict[str, Any]:
                 "honesty": "ADS-B is unauthenticated broadcast — fields are self-reported claims.",
             }
     except Exception as e:
+        _log_exc("adsb_decode", e)
         return {"ok": False, "protocol": "ADS-B Mode-S 1090ES",
-                "error": f"{type(e).__name__}: {e}",
+                "error": "could not decode ADS-B message",
                 "hint": "Provide a 28-hex DF17 extended squitter, or {even, odd} for position."}
 
 
@@ -232,7 +243,8 @@ def mavlink_parse(hexstr: str) -> dict[str, Any]:
     try:
         raw = _hex_to_bytes(hexstr)
     except ValueError as e:
-        return {"ok": False, "protocol": "MAVLink", "error": f"invalid hex: {e}"}
+        _log_exc("mavlink_parse:hex", e)
+        return {"ok": False, "protocol": "MAVLink", "error": "invalid hex input"}
     if not raw:
         return {"ok": False, "protocol": "MAVLink", "error": "empty frame"}
     magic = raw[0]
@@ -277,8 +289,9 @@ def mavlink_parse(hexstr: str) -> dict[str, Any]:
                 "fields": {k: _jsafe(v) for k, v in d.items() if k != "mavpackettype"},
             })
     except Exception as e:
+        _log_exc("mavlink_parse:decode", e)
         return {"ok": False, "protocol": f"MAVLink v{version}",
-                "error": f"{type(e).__name__}: {e}", "start_marker": f"0x{magic:02X}"}
+                "error": "could not decode MAVLink frame", "start_marker": f"0x{magic:02X}"}
     if not msgs:
         return {"ok": False, "protocol": f"MAVLink v{version}",
                 "error": "no complete MAVLink message decoded (truncated frame or bad CRC)",

@@ -118,11 +118,12 @@ async def _killinchu_frontier_adsb(request: Request):
         })
     except Exception as e:
         # HONEST failure — NO fabricated tracks. Empty set, clearly labelled not-live.
+        print(f"[killinchu] adsblol frontier unavailable: {e!r}", file=_ftr_sys.stderr)
         return _FJSON({
             "flagship": "killinchu", "frontier": "adsblol_adsb_unavailable",
             "source": "adsb.lol community ADS-B (military, ODbL)",
             "note": "upstream ADS-B unavailable and no cached snapshot — no fabricated data",
-            "error": str(e)[:160], "live": False,
+            "error": "upstream unavailable", "live": False,
             "doctrine": _DOCTRINE, "kernel_commit": _KERNEL,
             "flights": [], "flights_returned": 0, "ts": _NOW(),
         }, status_code=200)

@@ -196,7 +196,8 @@ def _verify_receipt(env: dict) -> dict:
             return {"signature_valid": bool(v.get("verified")),
                     "detail": v.get("reason") or "ECDSA-P256-SHA256 over DSSE PAE verified vs cosign.pub."}
         except Exception as e:
-            return {"signature_valid": False, "detail": f"verify raised {type(e).__name__}"}
+            print(f"[anatomy] verify raised: {e!r}", file=sys.stderr)
+            return {"signature_valid": False, "detail": "verification error"}
     return {"signature_valid": False, "detail": "no signer in this runtime"}
 
 
@@ -306,7 +307,8 @@ def run_organism_pipeline(proposal: dict, tamper: bool = False) -> dict:
             tamper_result["tampered_field"] = "decision (flipped inside signed payload)"
             tamper_result["expectation"] = "MUST be signature_valid=false (tamper detected)"
         except Exception as _te:
-            tamper_result = {"signature_valid": False, "detail": f"tamper harness error: {_te}"}
+            print(f"[anatomy] tamper harness error: {_te!r}", file=sys.stderr)
+            tamper_result = {"signature_valid": False, "detail": "tamper harness error"}
 
     # R0513 read-only audit
     t = time.time()

@@ -232,9 +232,14 @@ def register(
             #    is registered BEFORE the /vendor mount, so without this fallback
             #    the nested fonts dir would 404. NO CDN.
             try:
-                _fdir = (_vendor_dir() / "fonts").resolve()
-                _f = (_fdir / fname).resolve()
-                _f.relative_to(_fdir)  # path-traversal guard
+                # Root-cause path-injection guard: resolve under the fonts base
+                # dir with os.path.realpath and require containment. Reject any
+                # user `fname` that escapes the base (../, absolute, symlink).
+                _fdir = os.path.realpath(_vendor_dir() / "fonts")
+                _cand = os.path.realpath(os.path.join(_fdir, fname))
+                if not (_cand == _fdir or _cand.startswith(_fdir + os.sep)):
+                    return _Resp(status_code=404)
+                _f = _Path(_cand)
                 if _f.is_file():
                     _mt = ("text/css" if fname.endswith(".css")
                            else "font/woff2" if fname.endswith(".woff2")

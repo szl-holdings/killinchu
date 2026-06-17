@@ -3444,10 +3444,10 @@ def register(app, sign_fn=None, verify_fn=None, ns="killinchu"):
                                   "/api/%s/uds/v1/rekor/health" % ns)
             return JSONResponse(result)
         except Exception as e:
-            import traceback
+            import traceback, sys as _sys
+            print("[warhacker-demos] demo error:\n" + traceback.format_exc(), file=_sys.stderr)
             return JSONResponse({"ok": False, "demo": key, "mode": mode,
-                                 "error": "%s: %s" % (type(e).__name__, e),
-                                 "trace": traceback.format_exc()[-1500:]}, status_code=500)
+                                 "error": "demo execution failed"}, status_code=500)
 
     async def _reset(request: Request):
         # demos are stateless per-run (fresh chain each call); reset is a no-op ack.

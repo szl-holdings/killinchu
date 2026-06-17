@@ -48,6 +48,57 @@ ASSETS_DIR = STATIC_DIR / "assets"
 INDEX_HTML = STATIC_DIR / "index.html"
 DRONES_DB_PATH = _APP_ROOT / "drones_db.json"
 
+
+def _safe_join_under(base: Path, user_rel: str) -> Path | None:
+    """Resolve `user_rel` under `base` and return it only if it stays inside.
+
+    Root-cause path-injection guard for user-controlled relative paths reaching
+    a filesystem read. We fully resolve with os.path.realpath (following
+    symlinks) and require the result to be contained within the canonical base
+    directory. Anything that escapes (../, absolute, symlink) returns None and
+    the caller serves the SPA/404 fallback. Allowlist-on-resolved-location,
+    not a substring denylist.
+    """
+    try:
+        base_real = os.path.realpath(base)
+        cand_real = os.path.realpath(os.path.join(base_real, user_rel))
+        if cand_real == base_real or cand_real.startswith(base_real + os.sep):
+            return Path(cand_real)
+        return None
+    except Exception:
+        return None
+
+
+def _wired_ok(status) -> bool:
+    """True iff a register()-style status string indicates success."""
+    try:
+        s = str(status)
+    except Exception:
+        return False
+    return ("not-wired" not in s) and ("NOT " not in s) and ("FAILED" not in s)
+
+
+def _diag_payload(name: str, status, tb: str) -> dict:
+    """Build a client-safe _diag body.
+
+    py/stack-trace-exposure root-cause fix: never return raw tracebacks or
+    exception reprs to the HTTP client. We log the full detail server-side
+    (stderr) once, and return only a coarse wired/error indicator to the
+    caller. The detailed traceback stays in the Space logs for operators.
+    """
+    ok = _wired_ok(status)
+    if not ok and tb:
+        try:
+            print(f"[killinchu] _diag {name}: not wired\n{tb}", file=sys.stderr)
+        except Exception:
+            pass
+    return {
+        "component": name,
+        "wired": ok,
+        "status": "ok" if ok else "unavailable",
+        "detail": "see server logs" if not ok else "ok",
+    }
+
 DOCTRINE = "v11"
 SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired into CI per Doctrine v11"
 KILLINCHU_REDIRECT = "https://szlholdings-killinchu.hf.space"
@@ -780,7 +831,7 @@ except Exception as _kmo_e:  # additive: never break the Space
 @app.get("/api/killinchu/v1/mined/_diag")
 async def _killinchu_mined_diag():
     from fastapi.responses import JSONResponse as _JR
-    return _JR({"status": _killinchu_mined_status, "traceback": _killinchu_mined_tb})
+    return _JR(_diag_payload("mined", _killinchu_mined_status, _killinchu_mined_tb))
 
 # ---------------------------------------------------------------------------
 # RE-SWEEP wave-2 ops (ADDITIVE, Yachay): tactical maritime routing (A*/NBA* +
@@ -811,7 +862,7 @@ except Exception as _krs_e:  # additive: never break the Space
 @app.get("/api/killinchu/v1/resweep/_diag")
 async def _killinchu_resweep_diag():
     from fastapi.responses import JSONResponse as _JR
-    return _JR({"status": _killinchu_resweep_status, "traceback": _killinchu_resweep_tb})
+    return _JR(_diag_payload("resweep", _killinchu_resweep_status, _killinchu_resweep_tb))
 
 # ---------------------------------------------------------------------------
 # WAVE9 + WAVE10 EXPERIMENTAL theorems wired to real work (ADDITIVE, 2026-06-08):
@@ -846,7 +897,7 @@ except Exception as _kw910_e:  # additive: never break the Space
 @app.get("/api/killinchu/v1/wave910/_diag")
 async def _killinchu_wave910_diag():
     from fastapi.responses import JSONResponse as _JR
-    return _JR({"status": _killinchu_wave910_status, "traceback": _killinchu_wave910_tb})
+    return _JR(_diag_payload("wave910", _killinchu_wave910_status, _killinchu_wave910_tb))
 
 # ---------------------------------------------------------------------------
 # Flow Compartments capability (yarqa, ENGINEERING METHOD / CFD tier — NOT a
@@ -880,7 +931,7 @@ except Exception as _kf_e:  # additive: never break the Space
 @app.get("/api/killinchu/v1/flow/_diag")
 async def _killinchu_flow_diag():
     from fastapi.responses import JSONResponse as _JR
-    return _JR({"status": _killinchu_flow_status, "traceback": _killinchu_flow_tb})
+    return _JR(_diag_payload("flow", _killinchu_flow_status, _killinchu_flow_tb))
 
 # ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
 try:
@@ -1913,7 +1964,7 @@ except Exception as _kc_ar_e:
     import traceback as _kc_ar_tb
     print(f"[killinchu] Governed Auto-Review FAILED (non-fatal): {_kc_ar_e!r}", file=sys.stderr)
     _kc_ar_tb.print_exc(file=sys.stderr)
-    _KC_AR_DIAG = {"status": "FAILED", "error": repr(_kc_ar_e)}
+    _KC_AR_DIAG = {"status": "FAILED", "error": "registration failed; see server logs"}
 # ============================================================================
 # END: killinchu GOVERNED AUTO-REVIEW layer
 # ============================================================================
@@ -2151,7 +2202,8 @@ try:
                 if _r.status_code == 200:
                     identify_result = _r.json()
         except Exception as _ie:
-            identify_result = {"ok": False, "error": f"local identify unreachable: {_ie}", "matches": []}
+            print(f"[killinchu] local identify unreachable: {_ie!r}", file=sys.stderr)
+            identify_result = {"ok": False, "error": "local identify unreachable", "matches": []}
         matches = (identify_result or {}).get("matches", []) or []
         top_conf = matches[0]["confidence"] if matches else 0.0
         out = {
@@ -3263,7 +3315,7 @@ async def killinchu_adsb_v3(
         return _JR({"flagship": "killinchu", "frontier": "adsblol_adsb_unavailable",
             "source": "adsb.lol community ADS-B (military, ODbL)",
             "note": "upstream ADS-B unavailable and no cached snapshot — no fabricated data",
-            "error": str(_e)[:120], "live": False, "doctrine": "v11",
+            "error": "upstream unavailable", "live": False, "doctrine": "v11",
             "kernel_commit": "c7c0ba17", "flights": [], "flights_returned": 0, "ts": _now})
 
 # ============================================================================
@@ -3371,7 +3423,8 @@ async def _killinchu_v1_khipu_ledger() -> JSONResponse:
             _r = await _c.get("http://127.0.0.1:7860/api/killinchu/khipu/ledger")
             return JSONResponse(_r.json())
     except Exception as _ex:
-        return JSONResponse({"space": "killinchu", "error": str(_ex),
+        print(f"[killinchu] khipu ledger proxy error: {_ex!r}", file=sys.stderr)
+        return JSONResponse({"space": "killinchu", "error": "ledger unavailable",
                              "doctrine": "v11", "khipu_root": None, "nodes": []})
 
 @app.get("/api/killinchu/v1/khipu/dag")
@@ -3385,7 +3438,8 @@ async def _killinchu_v1_khipu_dag() -> JSONResponse:
             data["_dag_view"] = True
             return JSONResponse(data)
     except Exception as _ex:
-        return JSONResponse({"space": "killinchu", "error": str(_ex),
+        print(f"[killinchu] khipu dag proxy error: {_ex!r}", file=sys.stderr)
+        return JSONResponse({"space": "killinchu", "error": "ledger unavailable",
                              "doctrine": "v11", "_dag_view": True, "nodes": []})
 # ── end Khipu v1 aliases ──────────────────────────────────────────────────────
 
@@ -3858,10 +3912,8 @@ async def spa_fallback(full_path: str) -> Response:
         return JSONResponse({"error": "not found"}, status_code=404)
     if full_path in ("feeds", "osint", "mesh"):
         return JSONResponse({"error": "not found"}, status_code=404)
-    candidate = (STATIC_DIR / full_path).resolve()
-    try:
-        candidate.relative_to(STATIC_DIR.resolve())
-    except ValueError:
+    candidate = _safe_join_under(STATIC_DIR, full_path)
+    if candidate is None:
         return FileResponse(INDEX_HTML, media_type="text/html")
     if candidate.is_file():
         return FileResponse(candidate)
@@ -3905,7 +3957,8 @@ try:
                 _r = await _c.get("http://127.0.0.1:7860/api/killinchu/khipu/ledger")
                 _data = _r.json()
         except Exception as _ex:
-            _data = {"error": str(_ex)}
+            print(f"[killinchu] khipu dag alias proxy error: {_ex!r}", file=sys.stderr)
+            _data = {"error": "ledger unavailable"}
         _data["_dag_alias"] = True
         return _DagJR_killinchu(_data)
     _dag_r_killinchu = _DagRoute_killinchu(
@@ -4153,14 +4206,15 @@ try:
     try:
         _alloy_unify_k = _szl_alloy_k.unify_into_registry()
     except Exception as _uek:
-        _alloy_unify_k = {"unified": False, "error": repr(_uek)}
+        print(f"[killinchu] alloy unify error: {_uek!r}", file=_alloy_sys_k.stderr)
+        _alloy_unify_k = {"unified": False, "error": "unify failed; see server logs"}
     print(f"[killinchu] open-weight alloy model layer registered: {_alloy_status_k}; unify={_alloy_unify_k}", file=_alloy_sys_k.stderr)
     _ALLOY_DIAG_K = {"status": "ok", "registered": _alloy_status_k, "unify": _alloy_unify_k}
 except Exception as _alloy_ek:
     import sys as _alloy_sys_k, traceback as _alloy_tb_k
     print(f"[killinchu] open-weight alloy model layer FAILED (non-fatal): {_alloy_ek!r}", file=_alloy_sys_k.stderr)
     _alloy_tb_k.print_exc(file=_alloy_sys_k.stderr)
-    _ALLOY_DIAG_K = {"status": "FAILED", "error": repr(_alloy_ek), "traceback": _alloy_tb_k.format_exc()}
+    _ALLOY_DIAG_K = {"status": "FAILED", "error": "registration failed; see server logs"}
 # ============================================================================
 # END: OPEN-WEIGHT ALLOY MODEL LAYER — killinchu
 # ============================================================================
@@ -4211,7 +4265,7 @@ except Exception as _kchfa_e:
     import sys as _kchfa_sys, traceback as _kchfa_tb
     print(f"[killinchu] dev3 HF assets instill FAILED (non-fatal): {_kchfa_e!r}", file=_kchfa_sys.stderr)
     _kchfa_tb.print_exc(file=_kchfa_sys.stderr)
-    _KILLINCHU_HFA_DIAG = {"status": "FAILED", "error": repr(_kchfa_e)}
+    _KILLINCHU_HFA_DIAG = {"status": "FAILED", "error": "registration failed; see server logs"}
 # ============================================================================
 # END: dev3 HF ASSETS INSTILL layer — killinchu
 # ============================================================================
@@ -4311,10 +4365,8 @@ try:
         rel = request.path_params.get("jk_path", "") or ""
         if rel in ("", "index.html"):
             return _JK_HTML(_jk_index_html())
-        candidate = (_JK_DIR / rel).resolve()
-        try:
-            candidate.relative_to(_JK_DIR.resolve())
-        except ValueError:
+        candidate = _safe_join_under(_JK_DIR, rel)
+        if candidate is None:
             return _JK_HTML(_jk_index_html())
         if candidate.is_file():
             return _JK_File(str(candidate))

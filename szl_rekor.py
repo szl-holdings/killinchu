@@ -55,6 +55,7 @@ import base64
 import hashlib
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -293,7 +294,8 @@ def verify_rekor_log_index(log_index: int, timeout: float = 30.0) -> dict[str, A
         if isinstance(spec.get("envelopeHash"), dict):
             out["envelope_hash"] = spec["envelopeHash"].get("value")
     except Exception as e:
-        out["decode_note"] = f"{type(e).__name__}: {e}"
+        print(f"[rekor] decode error: {e!r}", file=sys.stderr)
+        out["decode_note"] = "decode failed"
 
     return out
 
@@ -324,8 +326,9 @@ def rekor_anchor_health(timeout: float = 8.0) -> dict[str, Any]:
     try:
         status, resp = _http_json(url, timeout=timeout)
     except Exception as e:  # never fabricate — surface honest unreachable
+        print(f"[rekor] fetch unreachable: {e!r}", file=sys.stderr)
         out.update({"status": "unreachable", "data_kind": "unreachable",
-                    "live": False, "http_status": 0, "reason": str(e)[:160]})
+                    "live": False, "http_status": 0, "reason": "upstream unreachable"})
         return out
     if status == 200 and isinstance(resp, dict):
         out.update({
@@ -388,11 +391,13 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
             result = log_receipt_to_rekor(target)
             return JSONResponse(result)
         except RuntimeError as e:
+            print(f"[rekor] log_receipt runtime error: {e!r}", file=sys.stderr)
             return JSONResponse(
-                {"error": str(e), "keyid": KEYID,
+                {"error": "signing unavailable", "keyid": KEYID,
                  "pub_fingerprint_sha256": COSIGN_PUB_FINGERPRINT}, status_code=503)
         except Exception as e:  # never fabricate
-            return JSONResponse({"error": f"{type(e).__name__}: {e}"}, status_code=502)
+            print(f"[rekor] log_receipt error: {e!r}", file=sys.stderr)
+            return JSONResponse({"error": "rekor log failed"}, status_code=502)
 
     async def _info(request: Request):  # noqa: ANN202
         return JSONResponse({
@@ -424,7 +429,8 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         try:
             return JSONResponse(verify_rekor_log_index(log_index))
         except Exception as e:
-            return JSONResponse({"error": f"{type(e).__name__}: {e}",
+            print(f"[rekor] verify log_index error: {e!r}", file=sys.stderr)
+            return JSONResponse({"error": "rekor verify failed",
                                  "log_index": log_index}, status_code=502)
 
     async def _health(request: Request):  # noqa: ANN202
@@ -434,9 +440,10 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
             result = await asyncio.to_thread(rekor_anchor_health)
             return JSONResponse(result)
         except Exception as e:  # never fabricate
+            print(f"[rekor] entry fetch error: {e!r}", file=sys.stderr)
             return JSONResponse({"source": "sigstore-rekor", "status": "unreachable",
                                  "data_kind": "unreachable", "live": False,
-                                 "error": f"{type(e).__name__}: {e}",
+                                 "error": "rekor unreachable",
                                  "cited_sources": CITED_SOURCES}, status_code=502)
 
     if f"{base}/log" not in existing:

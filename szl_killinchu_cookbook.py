@@ -56,16 +56,46 @@ def _now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _read_json(path: Path):
+def _safe_under_data(path: Path) -> Path | None:
+    """Resolve `path` and confirm it is contained within the _DATA base dir.
+
+    Root-cause path-injection guard: every file read in this module goes
+    through here. We fully resolve (os.path.realpath, following symlinks) and
+    require the result to live under the canonical _DATA root. Any candidate
+    that escapes the base dir (../, absolute, symlink) is rejected -> None.
+    This is an allowlist on the resolved location, not a substring denylist.
+    """
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        base = Path(os.path.realpath(_DATA))
+        resolved = Path(os.path.realpath(path))
+        # Python 3.9+: is_relative_to; fall back to commonpath for safety.
+        if hasattr(resolved, "is_relative_to"):
+            if not resolved.is_relative_to(base):
+                return None
+        else:  # pragma: no cover - defensive for <3.9
+            if os.path.commonpath([str(resolved), str(base)]) != str(base):
+                return None
+        return resolved
+    except Exception:
+        return None
+
+
+def _read_json(path: Path):
+    safe = _safe_under_data(path)
+    if safe is None:
+        return None
+    try:
+        return json.loads(safe.read_text(encoding="utf-8"))
     except Exception:
         return None
 
 
 def _read_text(path: Path) -> str:
+    safe = _safe_under_data(path)
+    if safe is None:
+        return ""
     try:
-        return path.read_text(encoding="utf-8")
+        return safe.read_text(encoding="utf-8")
     except Exception:
         return ""
 
