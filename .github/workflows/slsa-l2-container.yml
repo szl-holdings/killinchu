@@ -31,10 +31,17 @@ on:
         required: true
         default: 'no'
 
+# Least-privilege: this informational job only echoes status; read-only is
+# sufficient.
+permissions:
+  contents: read
+
 jobs:
   optional-slsa-verifier-path-pending-wire-d:
     if: ${{ github.event.inputs.force_run == 'yes' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Explain
         run: |

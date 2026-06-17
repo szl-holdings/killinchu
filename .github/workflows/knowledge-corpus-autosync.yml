@@ -35,9 +35,10 @@ on:
     - cron: '52 6 * * 1'  # Mondays 06:52 UTC, after the gate's 06:37 drift check
   workflow_dispatch:
 
+# Least-privilege: read-only default; the auto-sync job escalates to the
+# contents/pull-requests writes it needs to open a sync PR.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}
@@ -47,6 +48,9 @@ jobs:
   auto-sync:
     name: Open a sync PR if killinchu's corpus is behind a11oy
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}

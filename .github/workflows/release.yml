@@ -3,14 +3,18 @@ on:
   release:
     types: [created]
   workflow_dispatch:
+# Least-privilege: read-only default; the single release job below escalates
+# to the writes it actually needs (release artifacts, packages, attestations).
 permissions:
-  id-token: write
-  contents: write
-  packages: write
-  attestations: write
+  contents: read
 jobs:
   attach:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      packages: write
+      attestations: write
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:

@@ -10,6 +10,10 @@ on:
         description: 'image tag'
         required: true
         default: 'uds-v0.2.0'
+# Least-privilege: read-only default at top level; the build job escalates to
+# the package/OIDC writes it needs to push + sign the image.
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
