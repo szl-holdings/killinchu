@@ -3082,6 +3082,31 @@ except Exception as _mr_e:
 
 
 # ===========================================================================
+# ADDITIVE: NOAA/MarineCadastre AIS — Aug 2024 coastal US (WarHacker dataset) as a
+# SELECTABLE governed source ALONGSIDE the live AIS feed (live stays the DEFAULT).
+# Reuses the real NOAA connector (real schema + real rows, honest SAMPLE label) and
+# the Λ dark-fleet risk scorer (governed, signed) — same governance path as live.
+#   GET /api/killinchu/v1/ais/sources             selectable AIS source manifest
+#   GET /api/killinchu/v1/ais/aug2024/tracks      real NOAA Aug-2024 tracks (sample)
+#   GET /api/killinchu/v1/ais/aug2024/risk-board  Λ risk over the dataset (receipted)
+#   GET /api/killinchu/v1/ais/tracks?source=...   selector (live default | noaa_ais_aug2024)
+# DOCTRINE: the dataset shipped is a BOUNDED SAMPLE of REAL rows from AIS_2024_08_01.csv
+# (US NE coastal bbox, first hour) — labelled "(sample)", NEVER the full month. No
+# fabricated rows/counts/receipts. Mounted BEFORE the SPA catch-all. NO mocks.
+# ===========================================================================
+try:
+    import killinchu_ais_aug2024 as _ais_aug2024
+    _ais_aug2024_status = _ais_aug2024.register(app, ns="killinchu")
+    print(f"[killinchu] NOAA AIS Aug-2024 selectable source registered: "
+          f"{_ais_aug2024_status.get('registered_count')} routes", file=sys.stderr)
+except Exception as _ais_e:
+    import traceback as _ais_tb
+    print(f"[killinchu] NOAA AIS Aug-2024 source NOT registered: {_ais_e!r}", file=sys.stderr)
+    _ais_tb.print_exc()
+# ── end NOAA AIS Aug-2024 selectable governed source ─────────────────────────
+
+
+# ===========================================================================
 # ADDITIVE (Maritime W5): consolidated "MARITIME INTEL" /elite VIEW.
 # A pure presentation surface at /elite/maritime (+ /maritime-intel alias) that
 # UNIFIES every maritime wave into one investor-facing narrative in killinchu's
