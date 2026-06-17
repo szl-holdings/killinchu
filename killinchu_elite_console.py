@@ -968,12 +968,20 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="brand"><div class="mark">K</div><div><div class="nm">killinchu</div><div class="role">drones &amp; vessels · field surface</div></div></div>
 
     <div class="nav-group nav-group-pinned" style="color:#f5b301;border-top:2px solid #f5b301;margin-top:.2rem;padding-top:.5rem">&#9733; FRONTIER &middot; WARHACKER (LIVE 3D)</div>
+    <!-- DEV: pitch tabs pinned to the TOP of the nav, in pitch order:
+         hero_interdiction, tamper_demo, u_warhacker, decoders, pqc.
+         REORDER-ONLY for the existing pinned items (no key/label/handler change);
+         decoders + pqc are existing reachable views surfaced here as nav entries
+         (additive — go(key) already works). The remaining pinned items keep their
+         prior relative order (fleet_c2, determinism_demo, uds_package, readiness). -->
     <div class="nav-item nav-pinned" data-view="hero_interdiction" onclick="go('hero_interdiction')" title="HERO: live counter-UAS decision -> DSSE-signed Lambda-receipt -> trace the exact Lean theorem, kernel sha, axioms, DOI and honest maturity label."><span class="ico">&#9733;</span>Provable Interdiction (HERO 3D)</div>
-    <div class="nav-item nav-pinned" data-view="fleet_c2" onclick="go('fleet_c2')" title="Live 3D fleet picture: real military ADS-B + AIS vessels on a globe; governance loop real, effector link simulated."><span class="ico">&#9680;</span>Fleet Health &amp; Governed C2 (3D)</div>
     <div class="nav-item nav-pinned" data-view="tamper_demo" onclick="go('tamper_demo')" title="Tamper a signed receipt and watch the SHA-256 hash chain visibly REJECT it in 3D."><span class="ico">&#9939;</span>Tamper a Receipt (3D)</div>
+    <div class="nav-item nav-pinned" data-view="u_warhacker" onclick="go('u_warhacker')" title="Sovereign Warhacker: 27 maritime/drone/counter-UAS live demos + proofs board."><span class="ico">&#10026;</span>Warhacker (27 demos)</div>
+    <div class="nav-item nav-pinned" data-view="decoders" onclick="go('decoders')" title="Protocol Decoders: paste a captured Remote ID / ADS-B / MAVLink frame and see the claimed identity. Unverified broadcast claims — a lead, not proof."><span class="ico">&#9670;</span>Protocol Decoders</div>
+    <div class="nav-item nav-pinned" data-view="pqc" onclick="go('pqc')" title="Quantum-Safe Signing: sign a decision with today's standard signature, a quantum-resistant one, or both at once (hybrid). Demo keys reset on restart."><span class="ico">&#9883;</span>Quantum-Safe Signing</div>
+    <div class="nav-item nav-pinned" data-view="fleet_c2" onclick="go('fleet_c2')" title="Live 3D fleet picture: real military ADS-B + AIS vessels on a globe; governance loop real, effector link simulated."><span class="ico">&#9680;</span>Fleet Health &amp; Governed C2 (3D)</div>
     <div class="nav-item nav-pinned" data-view="determinism_demo" onclick="go('determinism_demo')" title="Run the same governed decision 5x: byte-identical Merkle roots. Honest label A5 (measured)."><span class="ico">&#8801;</span>Determinism — Run 5x</div>
     <div class="nav-item nav-pinned" data-view="uds_package" onclick="go('uds_package')" title="killinchu as a UDS-pattern package: UDS Package CR, Pepr-style capability, Zarf flavors, Lula/OSCAL tying Lambda-gate + receipts to NIST 800-53 as claims-with-evidence."><span class="ico">&#11042;</span>UDS Package</div>
-    <div class="nav-item nav-pinned" data-view="u_warhacker" onclick="go('u_warhacker')" title="Sovereign Warhacker: 27 maritime/drone/counter-UAS live demos + proofs board."><span class="ico">&#10026;</span>Warhacker (27 demos)</div>
     <div class="nav-item nav-pinned" data-view="readiness" onclick="go('readiness')" title="Operational Readiness: deployed-vs-repo truth read live from the deployed app, the GitHub repo API and the Hugging Face Space API. Every value labelled live/cached/unreachable; nothing fabricated."><span class="ico">&#10003;</span>Operational Readiness</div>
 
     <div class="nav-group">&#9312; MARITIME &middot; NAVY</div>
