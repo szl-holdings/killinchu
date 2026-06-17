@@ -144,8 +144,7 @@ killinchu states its limits plainly:
   *claim*, never ground truth; verdicts reflect governance logic over those claims, not
   cryptographic authenticity of the broadcast.
 - Receipts are PLACEHOLDER unless `SZL_COSIGN_PRIVATE_PEM` is present — and they say so.
-- SLSA **L1 honest · L2 build-attested**; L3 / FedRAMP / CMMC / Iron Bank / ATO are
-  **ROADMAP**, never claimed achieved.
+- SLSA posture is **L1 honest · L2 build-attested**. Higher tiers (SLSA L3, FedRAMP, CMMC, Iron Bank, ATO) are **ROADMAP / not claimed today** — never described as achieved.
 - Λ-uniqueness is **Conjecture 1**; Byzantine BFT safety is **Khipu Conjecture 2 (open)**.
 - killinchu is a **precision substrate**, not a turnkey weapon system. Human-on-the-loop is
   required; defensive scope is locked in doctrine.
