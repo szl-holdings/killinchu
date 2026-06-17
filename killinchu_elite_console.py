@@ -990,6 +990,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="u_maritime" onclick="go('u_maritime')" title="Live AIS maritime picture + sanctions/dark-vessel screening + dark-vessel hunt."><span class="ico">&#9875;</span>Maritime Picture</div>
     <div class="nav-item" data-view="u_fleet" onclick="go('u_fleet')" title="Fleet operations: overview, 3D health twin, maintenance, logs, voyages, briefings (live vessels)."><span class="ico">&#9204;</span>Fleet Operations</div>
     <div class="nav-item" data-view="tracks" onclick="go('tracks')" title="Live track board off the air/sea picture, auto-recording."><span class="ico">&#8853;</span>Live Track Board</div>
+    <div class="nav-item" data-view="dataset_control" onclick="go('dataset_control')" title="Data Sources / Overlays: one panel to flip Live AIS (default), the NOAA AIS Aug-2024 sample, the Pirate-attack risk and World Port Index overlays, and a CoT export action. Datasets not yet deployed are honestly labelled 'available when PR #N merges'. Additive; sample is never live."><span class="ico">&#9707;</span>Data Sources / Overlays</div>
     <div class="nav-item" data-view="livepic" onclick="go('livepic')" title="Live common operating picture: military ADS-B (adsb.lol) + AIS (Digitraffic FI), auto-recording."><span class="ico">&#9673;</span>Live Picture</div>
     <div class="nav-item" data-view="u_space" onclick="go('u_space')" title="Space &amp; GEOINT: 3D LEO constellation globe, GEOINT planning, live USGS seismic forecast globe."><span class="ico">&#8853;</span>Constellations &amp; GEOINT (3D LEO)</div>
     <div class="nav-item" data-view="u_darkgraph" onclick="go('u_darkgraph')" title="Dark-vessel hunt: 3D threat graph + class DB + ranking + detection + drone DB."><span class="ico">&#10847;</span>Dark-Vessel Threat Graph (3D)</div>
@@ -2042,6 +2043,205 @@ function _osErr(c,e){c.innerHTML='<div class="card"><div class="row mono" style=
 function _osLoad(c,label){c.innerHTML='<div class="card"><div class="row mono dim">&#8635; '+esc(scrubText(label||'ingesting the live web…'))+'</div></div>';}
 const _OS_VCOL={drones:'#5fe39a',naval:'#5cc8ff',pentagon:'#f5b301',uds:'#b39ddb',geo:'#ff9b9b'};
 
+// ───────────────────────────────────────────────────────────────────────────
+// DATA SOURCES / OVERLAYS — one unified control panel for the demo presenter.
+// Flips the WarHacker datasets from ONE place instead of URL params:
+//   · Live AIS (default, on main)            GET /ais/live
+//   · NOAA AIS Aug-2024 sample (PR #133)     GET /ais/sources, /ais/tracks?source=, /ais/aug2024/risk-board
+//   · Pirate-attack risk overlay (PR #134)   GET /maritime/overlays/pirate-attacks
+//   · World Port Index ports     (PR #134)   GET /maritime/overlays/world-port-index
+//   · CoT export action          (PR #132)   GET /cot/export, /cot/status
+// Additive + honest: a route that 404s / returns the SPA HTML shell is NOT on
+// the running app yet — we label it "available when PR #N merges" (amber), never
+// fabricate a result. Live AIS is on main and is the honest default.
+// ───────────────────────────────────────────────────────────────────────────
+// PR provenance map (honest labels — sample vs live, roadmap vs live).
+const DC_SOURCES = {
+  live_ais: {label:'Live AIS', pr:null, kind:'live',
+    badge:'LIVE · DEFAULT', desc:'Live Digitraffic FI AIS vessel feed — the honest default. Always on main.',
+    probe:'/ais/live'},
+  noaa_aug2024: {label:'NOAA AIS — Aug 2024 (sample)', pr:133, kind:'sample',
+    badge:'SAMPLE · REAL ROWS', desc:'Bounded SAMPLE of REAL NOAA/MarineCadastre rows from AIS_2024_08_01.csv (US NE coastal bbox, first hour) — NOT the full month.',
+    probe:'/ais/sources', select:'/ais/tracks?source=noaa_ais_aug2024', risk:'/ais/aug2024/risk-board?sign=true'}
+};
+const DC_OVERLAYS = {
+  pirate: {label:'Pirate-attack risk overlay', pr:134, kind:'sample',
+    badge:'SAMPLE · ADVISORY', desc:'Global Maritime Pirate Attacks (1993-2020) hot-zone overlay — bounded SAMPLE at real piracy hot-zone coords; advisory heuristic, not a legal determination.',
+    probe:'/maritime/overlays/pirate-attacks'},
+  wpi: {label:'World Port Index ports', pr:134, kind:'sample',
+    badge:'SAMPLE · REFERENCE', desc:'NGA MSI World Port Index (Pub 150) reference ports — bounded SAMPLE of real, verifiable major ports (real WPI numbers + coords).',
+    probe:'/maritime/overlays/world-port-index'}
+};
+
+// Honest probe: a route is "live on this app" only if it answers JSON (not the
+// SPA HTML shell, not a 404). getJSON already throws on non-200 AND on a
+// text/html content-type (the catch-all SPA fallback), so a clean return == real.
+async function dc_probe(path){
+  try{ var b=await getJSON(API+path); return {ok:true, body:b}; }
+  catch(e){ return {ok:false, err:String(e&&e.message||e)}; }
+}
+function dc_unavail(pr){
+  return '<span class="badge b-warn" title="route not on the running app yet">available when PR #'+pr+' merges</span>';
+}
+function dc_kindPill(kind){
+  if(kind==='live') return '<span class="badge b-teal">LIVE</span>';
+  if(kind==='sample') return '<span class="badge b-gold">SAMPLE</span>';
+  return '<span class="badge b-warn">ROADMAP</span>';
+}
+
+async function dataset_control_render(c){
+  c.innerHTML=`<div class="kpis">
+    <div class="kpi"><div class="k">Active source</div><div class="v teal" id="dc-active">Live AIS</div><div class="d">honest default</div></div>
+    <div class="kpi"><div class="k">Overlays</div><div class="v" id="dc-ovl">0 on</div><div class="d">additive layers</div></div>
+    <div class="kpi"><div class="k">Datasets wired</div><div class="v" id="dc-wired">—</div><div class="d">live on this app</div></div>
+    <div class="kpi"><div class="k">CoT export</div><div class="v" id="dc-cot">—</div><div class="d">WarHacker standard</div></div>
+  </div>
+  <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Data Sources</span><span class="card-ep">pick the AIS picture · live default</span></div>
+    <div id="dc-sources"><div class="row mono dim">&#8635; probing documented dataset routes…</div></div></div>
+  <div class="card"><div class="card-h"><span class="card-t">Overlay Layers</span><span class="card-ep">additive risk / reference layers</span></div>
+    <div id="dc-overlays"><div class="row mono dim">&#8635; probing overlay routes…</div></div></div>
+  <div class="card"><div class="card-h"><span class="card-t">Interop · CoT export</span><span class="card-ep">MITRE Cursor on Target 2.0</span></div>
+    <div class="row" style="font-size:12.5px;line-height:1.6;color:var(--paragraph);margin:.2rem 0">Export every live killinchu track as standards-compliant <b>MITRE Cursor on Target (CoT) 2.0</b> XML — the WarHacker interchange standard for TAK.</div>
+    <div class="btns"><button class="btn teal" onclick="dc_cot_export()">&#11015; Export tracks as CoT XML</button></div>
+    <div id="dc-cot-body" style="margin-top:.5rem"><div class="row mono dim">CoT export status probed on load.</div></div></div>
+  <div class="card" id="dc-preview"><div class="card-h"><span class="card-t">Selected dataset · live preview</span><span class="card-ep">honest count, never fabricated</span></div>
+    <div id="dc-preview-body"><div class="row mono dim">Select a source above to preview its live rows here.</div></div></div>
+  ${HONEST}`;
+  dc_init();
+}
+
+async function dc_init(){
+  // Track presenter selection in module-window state (survives re-render of cards).
+  window.__dc = window.__dc || {source:'live_ais', overlays:{}};
+  await dc_renderSources();
+  await dc_renderOverlays();
+  await dc_cot_status();
+}
+
+async function dc_renderSources(){
+  var host=el('dc-sources'); if(!host) return;
+  var wired=0, cards=[];
+  var keys=Object.keys(DC_SOURCES);
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i], s=DC_SOURCES[k];
+    var pr=await dc_probe(s.probe);
+    var avail=pr.ok;
+    if(avail) wired++;
+    var checked=(window.__dc.source===k)?'checked':'';
+    var status = avail
+      ? dc_kindPill(s.kind)
+      : (s.pr ? dc_unavail(s.pr) : '<span class="badge b-err">route missing</span>');
+    var disabled = avail ? '' : 'disabled';
+    cards.push('<label class="card" style="display:block;cursor:'+(avail?'pointer':'not-allowed')+';opacity:'+(avail?'1':'.6')+';margin:.4rem 0;border-left:3px solid '+(s.kind==='live'?'var(--teal)':'var(--gold)')+'">'
+      +'<div style="display:flex;align-items:center;gap:.6rem">'
+      +'<input type="radio" name="dc-src" value="'+esc(k)+'" '+checked+' '+disabled+' onchange="dc_select(this.value)" style="accent-color:var(--teal)"/>'
+      +'<span class="card-t" style="flex:1">'+esc(s.label)+'</span>'+status+'</div>'
+      +'<div class="row dim" style="font-size:12px;line-height:1.55;margin:.35rem 0 0 1.6rem">'+esc(s.desc)+'</div></label>');
+  }
+  host.innerHTML=cards.join('');
+  if(el('dc-wired')) el('dc-wired').textContent=wired+' / '+keys.length;
+}
+
+async function dc_renderOverlays(){
+  var host=el('dc-overlays'); if(!host) return;
+  var cards=[], on=0;
+  var keys=Object.keys(DC_OVERLAYS);
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i], o=DC_OVERLAYS[k];
+    var pr=await dc_probe(o.probe);
+    var avail=pr.ok;
+    var isOn=!!window.__dc.overlays[k];
+    if(isOn&&avail) on++;
+    var status = avail ? dc_kindPill(o.kind) : dc_unavail(o.pr);
+    var disabled = avail ? '' : 'disabled';
+    cards.push('<label class="card" style="display:block;cursor:'+(avail?'pointer':'not-allowed')+';opacity:'+(avail?'1':'.6')+';margin:.4rem 0;border-left:3px solid var(--gold)">'
+      +'<div style="display:flex;align-items:center;gap:.6rem">'
+      +'<input type="checkbox" value="'+esc(k)+'" '+(isOn?'checked':'')+' '+disabled+' onchange="dc_toggle(this.value,this.checked)" style="accent-color:var(--gold)"/>'
+      +'<span class="card-t" style="flex:1">'+esc(o.label)+'</span>'+status+'</div>'
+      +'<div class="row dim" style="font-size:12px;line-height:1.55;margin:.35rem 0 0 1.6rem">'+esc(o.desc)+'</div></label>');
+  }
+  host.innerHTML=cards.join('');
+  if(el('dc-ovl')) el('dc-ovl').textContent=on+' on';
+}
+
+async function dc_select(k){
+  window.__dc.source=k;
+  var s=DC_SOURCES[k];
+  if(el('dc-active')) el('dc-active').textContent=s?s.label:k;
+  await dc_preview();
+}
+function dc_toggle(k,on){
+  window.__dc.overlays[k]=!!on;
+  var n=Object.keys(window.__dc.overlays).filter(function(x){return window.__dc.overlays[x];}).length;
+  if(el('dc-ovl')) el('dc-ovl').textContent=n+' on';
+  dc_preview();
+}
+
+// Live preview of the selected dataset — honest count, never fabricated. Live
+// AIS reads /ais/live; the NOAA sample reads its documented selector route.
+async function dc_preview(){
+  var host=el('dc-preview-body'); if(!host) return;
+  host.innerHTML='<div class="row mono dim">&#8635; loading selected dataset…</div>';
+  var k=window.__dc.source, s=DC_SOURCES[k];
+  if(!s){ host.innerHTML='<div class="row mono dim">No source selected.</div>'; return; }
+  var path = (k==='live_ais') ? '/ais/live' : (s.select||s.probe);
+  var pr=await dc_probe(path);
+  if(!pr.ok){
+    host.innerHTML='<div class="row mono" style="color:#c9a05f">'+(s.pr?('Dataset not on the running app yet — available when PR #'+s.pr+' merges.'):('route error: '+esc(pr.err)))+'</div>';
+    return;
+  }
+  var b=pr.body;
+  // Be schema-tolerant: live feed and the new sample routes carry vessels under
+  // common keys. We only ever report counts we actually received.
+  var rows = (b&&(b.vessels||b.tracks||b.records||b.items||b.data)) || (Array.isArray(b)?b:[]);
+  var n = Array.isArray(rows) ? rows.length : (b&&typeof b.count==='number'?b.count:0);
+  var srcLabel = (b&&b.source) ? esc(String(b.source)) : esc(s.label);
+  var head='<div class="row mono" style="font-size:12px;line-height:1.7;color:var(--teal)">'+dc_kindPill(s.kind)+' &nbsp;'+srcLabel+' · <b>'+n+'</b> rows (live count, not fabricated)</div>';
+  var sample = Array.isArray(rows) ? rows.slice(0,8).map(function(r){
+    var nm=r.name||r.VesselName||r.vessel_name||r.callsign||r.CallSign||r.mmsi||r.MMSI||r.id||'—';
+    var lat=r.lat!=null?r.lat:(r.LAT!=null?r.LAT:(r.currentLat!=null?r.currentLat:'—'));
+    var lon=r.lon!=null?r.lon:(r.LON!=null?r.LON:(r.currentLon!=null?r.currentLon:'—'));
+    return '<tr style="border-top:1px solid #161616"><td class="mono" style="padding:.35rem .5rem">'+esc(String(nm))+'</td><td class="mono dim" style="padding:.35rem .5rem">'+esc(String(lat))+'</td><td class="mono dim" style="padding:.35rem .5rem">'+esc(String(lon))+'</td></tr>';
+  }).join('') : '';
+  host.innerHTML=head+(sample?('<div style="max-height:260px;overflow:auto;margin-top:.5rem"><table class="dtbl" style="width:100%"><thead><tr><th>vessel</th><th>lat</th><th>lon</th></tr></thead><tbody>'+sample+'</tbody></table></div>'):'<div class="row mono dim" style="margin-top:.4rem">Source answered with no row array to preview.</div>');
+}
+
+// CoT export status (probed on load): honest live/roadmap flags.
+async function dc_cot_status(){
+  var pr=await dc_probe('/cot/status');
+  var v=el('dc-cot'); var body=el('dc-cot-body');
+  if(!pr.ok){
+    if(v){ v.textContent='PR #132'; v.style.color='#c9a05f'; }
+    if(body) body.innerHTML='<div class="row mono" style="color:#c9a05f">'+dc_unavail(132)+' &nbsp;CoT export route not on the running app yet.</div>';
+    return;
+  }
+  var b=pr.body||{};
+  if(v){ v.textContent='LIVE'; v.style.color='var(--teal)'; }
+  var live=(b.live&&typeof b.live==='object')?Object.keys(b.live).filter(function(x){return b.live[x];}).length:'—';
+  if(body) body.innerHTML='<div class="row mono" style="font-size:12px;line-height:1.6;color:var(--teal)">'+dc_kindPill('live')+' CoT 2.0 export available · '+esc(String(live))+' live capabilities; UDP/TAK transports are roadmap (honest, no socket opened).</div>';
+}
+
+async function dc_cot_export(){
+  var body=el('dc-cot-body'); if(!body) return;
+  body.innerHTML='<div class="row mono dim">&#8635; exporting tracks as CoT XML…</div>';
+  // CoT export returns XML, not JSON — fetch raw, validate it looks like <event>.
+  try{
+    var r=await fetch(API+'/cot/export');
+    var ct=(r.headers.get('content-type')||'');
+    if(!r.ok || ct.indexOf('text/html')>=0){
+      body.innerHTML='<div class="row mono" style="color:#c9a05f">'+dc_unavail(132)+' &nbsp;CoT export route not on the running app yet (HTTP '+r.status+').</div>';
+      return;
+    }
+    var xml=await r.text();
+    var ok=/<event\b|<events\b/.test(xml);
+    var n=(xml.match(/<event\b/g)||[]).length;
+    body.innerHTML='<div class="row mono" style="font-size:12px;line-height:1.6;color:'+(ok?'var(--teal)':'#c9a05f')+'">'+(ok?dc_kindPill('live'):'<span class="badge b-warn">CHECK</span>')+' exported <b>'+n+'</b> CoT &lt;event&gt; element(s) ('+xml.length+' bytes XML).</div>'
+      +'<details class="raw" style="margin-top:.4rem"><summary>raw CoT XML (first 1200 chars)</summary><pre class="out">'+esc(xml.slice(0,1200))+'</pre></details>';
+  }catch(e){
+    body.innerHTML='<div class="row mono" style="color:#ff7b7b">CoT export error: '+esc(String(e&&e.message||e))+'</div>';
+  }
+}
+
 async function osint_counter_uas_render(c){
   _osLoad(c,'Ingesting counter-UAS incidents from the open web…');
   try{var b=await getJSON(OSINT_BASE+'/osint/feed/counter-uas');
@@ -2888,6 +3088,9 @@ const VIEWS = {
       _autoPoll('tracks','tracks-tb',window.tracks_load);
       _autoPoll('cs-tracks','cs-tracks',function(){crawlStatusLoad('cs-tracks');});
     }},
+
+  // ── Data Sources / Overlays — unified WarHacker dataset control panel ──
+  dataset_control:{title:'Data Sources / Overlays',badge:'UNIFIED DATASET CONTROL · LIVE · SAMPLE · CoT',sub:'One panel to flip every WarHacker dataset for the demo instead of URL params: <b>Live AIS</b> (the honest default), the <b>NOAA AIS Aug-2024 sample</b> (real rows, not the full month), the <b>Pirate-attack risk</b> and <b>World Port Index</b> overlays, plus a <b>CoT export</b> action (MITRE Cursor on Target 2.0). Each dataset is probed live on this app: if a route is not deployed yet it is honestly labelled <b>"available when PR #N merges"</b> (amber) and never fabricated. Sample &ne; live; counts are read live, never invented. Additive — the live board is untouched.',render:(c)=>dataset_control_render(c)},
 
   // ── 3.2 Sensor-Fusion Monitor ───────────────────────────────────
   fusion:{title:'Sensor-Fusion Monitor',badge:'COVARIANCE SCATTER · C17 BLUE',sub:'Multi-sensor track fusion as a <b>covariance-ellipse scatter</b> (GPU, regl-scatterplot). Each sensor\'s detection of the same target is a point coloured by sensor class; the <b>fused estimate</b> is the gold ★ at the confidence-weighted centroid; the <b>1σ uncertainty ellipse</b> is the eigendecomposition of the measurement covariance P (the Kalman estimate spread). Tighter ellipse = more sensors agreeing = lower fused uncertainty. <b>Proof binding:</b> the fused estimate is the best linear unbiased combination — theorem <b>C17 (BLUE)</b>, proven sorry-free (experimental). Live <code>/sensor-fusion/fuse</code> drives the geometry; the fused track is signed (DSSE).',
