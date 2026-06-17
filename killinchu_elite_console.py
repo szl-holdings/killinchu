@@ -512,6 +512,15 @@ a{color:inherit;text-decoration:none;}
 .nav-item:hover{background:var(--gold-soft);color:var(--cream);}
 .nav-item.active{background:var(--teal-soft);color:var(--teal);border-color:var(--teal-line);}
 .nav-item .ico{width:16px;text-align:center;opacity:.8;font-size:12px;}
+/* Demo-first accordion: collapsible section headers on ALL viewports.
+   Only headers carrying data-demo-sec become interactive accordion toggles. */
+.nav-group[data-demo-sec]{cursor:pointer;position:relative;padding-right:1.2rem;user-select:none;}
+.nav-group[data-demo-sec]::after{content:'\25be';position:absolute;right:.45rem;top:50%;transform:translateY(-50%);font-size:10px;color:var(--gold,#c9b787);opacity:.85;transition:transform .18s;}
+.nav-group[data-demo-sec].demo-collapsed::after{transform:translateY(-50%) rotate(-90deg);}
+.nav-group[data-demo-sec]:hover{color:var(--cream,#f0f0f0);}
+.nav-group[data-demo-sec]:focus-visible{outline:1px solid var(--teal-line,#2c5d52);outline-offset:2px;}
+.nav-item.demo-hidden,.nav-group.demo-hidden,.exp-fence-note.demo-hidden{display:none!important;}
+.exp-fence-note{margin:.15rem .5rem .35rem;padding:.45rem .55rem;font-family:var(--mono);font-size:9px;line-height:1.55;color:#caa84b;background:rgba(202,168,75,.06);border:1px dashed rgba(202,168,75,.35);border-radius:6px;letter-spacing:.04em;}
 .side-foot{margin-top:1.2rem;padding:.7rem .6rem;border-top:1px solid var(--gold-line);font-family:var(--mono);font-size:9.5px;color:var(--dim);line-height:1.7;}
 
 /* ===== CONTENT ===== */
@@ -967,35 +976,39 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
   <aside class="side">
     <div class="brand"><div class="mark">K</div><div><div class="nm">killinchu</div><div class="role">drones &amp; vessels · field surface</div></div></div>
 
-    <div class="nav-group nav-group-pinned" style="color:#f5b301;border-top:2px solid #f5b301;margin-top:.2rem;padding-top:.5rem">&#9733; FRONTIER &middot; WARHACKER (LIVE 3D)</div>
-    <!-- DEV: pitch tabs pinned to the TOP of the nav, in pitch order:
-         hero_interdiction, tamper_demo, u_warhacker, decoders, pqc.
-         REORDER-ONLY for the existing pinned items (no key/label/handler change);
-         decoders + pqc are existing reachable views surfaced here as nav entries
-         (additive — go(key) already works). The remaining pinned items keep their
-         prior relative order (fleet_c2, determinism_demo, uds_package, readiness). -->
+    <!-- ============================================================
+         DEMO-FIRST TAB CONSOLIDATION (reorder + group + collapse only)
+         Sections are flat siblings inside .side (the runtime nav injectors
+         atlas/sovereignty/entangle/neuro/l6chain rely on insertBefore an
+         existing .nav-item, so items MUST stay direct children of .side).
+         A demo-first accordion (see szlDemoNav) collapses every section
+         except DEMO on load, on ALL viewports. DELETE NOTHING: every
+         go() key / route still resolves; every honest label unchanged.
+         ============================================================ -->
+    <div class="nav-group nav-group-pinned" data-demo-sec="demo" data-demo-open="1" style="color:#f5b301;border-top:2px solid #f5b301;margin-top:.2rem;padding-top:.5rem">&#9733; DEMO &middot; START HERE</div>
+    <div class="nav-item nav-pinned" data-view="tracks" onclick="go('tracks')" title="Live track board off the air/sea picture, auto-recording. Real AIS/ADS-B + the NOAA AIS Aug-2024 dataset."><span class="ico">&#8853;</span>Live Track Board</div>
     <div class="nav-item nav-pinned" data-view="hero_interdiction" onclick="go('hero_interdiction')" title="HERO: live counter-UAS decision -> DSSE-signed Lambda-receipt -> trace the exact Lean theorem, kernel sha, axioms, DOI and honest maturity label."><span class="ico">&#9733;</span>Provable Interdiction (HERO 3D)</div>
     <div class="nav-item nav-pinned" data-view="tamper_demo" onclick="go('tamper_demo')" title="Tamper a signed receipt and watch the SHA-256 hash chain visibly REJECT it in 3D."><span class="ico">&#9939;</span>Tamper a Receipt (3D)</div>
+    <div class="nav-item nav-pinned" data-view="uds_package" onclick="go('uds_package')" title="killinchu as a UDS-pattern package: UDS Package CR, Pepr-style capability, Zarf flavors, Lula/OSCAL tying Lambda-gate + receipts to NIST 800-53 as claims-with-evidence."><span class="ico">&#11042;</span>UDS Package</div>
+    <a class="nav-item nav-pinned" href="/api/killinchu/v1/cot/status" target="_blank" rel="noopener" title="CoT Interop: MITRE Cursor-on-Target 2.0 export/ingest. Opens the live capability + honesty manifest (GET /api/killinchu/v1/cot/status); full export at /api/killinchu/v1/cot/export. DoD-standard interop; the Data Sources / Overlays panel triggers a CoT export action."><span class="ico">&#9741;</span>CoT Interop (export)</a>
     <div class="nav-item nav-pinned" data-view="u_warhacker" onclick="go('u_warhacker')" title="Sovereign Warhacker: 27 maritime/drone/counter-UAS live demos + proofs board."><span class="ico">&#10026;</span>Warhacker (27 demos)</div>
-    <div class="nav-item nav-pinned" data-view="decoders" onclick="go('decoders')" title="Protocol Decoders: paste a captured Remote ID / ADS-B / MAVLink frame and see the claimed identity. Unverified broadcast claims — a lead, not proof."><span class="ico">&#9670;</span>Protocol Decoders</div>
-    <div class="nav-item nav-pinned" data-view="pqc" onclick="go('pqc')" title="Quantum-Safe Signing: sign a decision with today's standard signature, a quantum-resistant one, or both at once (hybrid). Demo keys reset on restart."><span class="ico">&#9883;</span>Quantum-Safe Signing</div>
+    <div class="nav-item nav-pinned" data-view="dataset_control" onclick="go('dataset_control')" title="Data Sources / Overlays: one panel to flip Live AIS (default), the NOAA AIS Aug-2024 sample, the Pirate-attack risk and World Port Index overlays, and a CoT export action. Datasets not yet deployed are honestly labelled 'available when PR #N merges'. Additive; sample is never live."><span class="ico">&#9707;</span>Data Sources / Overlays</div>
     <div class="nav-item nav-pinned" data-view="fleet_c2" onclick="go('fleet_c2')" title="Live 3D fleet picture: real military ADS-B + AIS vessels on a globe; governance loop real, effector link simulated."><span class="ico">&#9680;</span>Fleet Health &amp; Governed C2 (3D)</div>
     <div class="nav-item nav-pinned" data-view="determinism_demo" onclick="go('determinism_demo')" title="Run the same governed decision 5x: byte-identical Merkle roots. Honest label A5 (measured)."><span class="ico">&#8801;</span>Determinism — Run 5x</div>
-    <div class="nav-item nav-pinned" data-view="uds_package" onclick="go('uds_package')" title="killinchu as a UDS-pattern package: UDS Package CR, Pepr-style capability, Zarf flavors, Lula/OSCAL tying Lambda-gate + receipts to NIST 800-53 as claims-with-evidence."><span class="ico">&#11042;</span>UDS Package</div>
+    <div class="nav-item nav-pinned" data-view="decoders" onclick="go('decoders')" title="Protocol Decoders: paste a captured Remote ID / ADS-B / MAVLink frame and see the claimed identity. Unverified broadcast claims — a lead, not proof."><span class="ico">&#9670;</span>Protocol Decoders</div>
+    <div class="nav-item nav-pinned" data-view="pqc" onclick="go('pqc')" title="Quantum-Safe Signing: sign a decision with today's standard signature, a quantum-resistant one, or both at once (hybrid). Demo keys reset on restart."><span class="ico">&#9883;</span>Quantum-Safe Signing</div>
     <div class="nav-item nav-pinned" data-view="readiness" onclick="go('readiness')" title="Operational Readiness: deployed-vs-repo truth read live from the deployed app, the GitHub repo API and the Hugging Face Space API. Every value labelled live/cached/unreachable; nothing fabricated."><span class="ico">&#10003;</span>Operational Readiness</div>
 
-    <div class="nav-group">&#9312; MARITIME &middot; NAVY</div>
+    <div class="nav-group" data-demo-sec="maritime">&#9312; MARITIME &middot; NAVY</div>
     <a class="nav-item" href="/elite/maritime" style="color:var(--gold-bright)" title="Flagship unified Maritime Intel surface: live AIS vessel board (incl. China seas), dark-fleet/spoof threat flags, governed Lambda risk score, vessel forecast, honest submarine/ASW OSINT, the 3D globe, and a re-hashable signed provenance HUD. Advisory; effector SIMULATED; no vessel control or live submarine tracking."><span class="ico">&#9733;</span>Maritime Intel</a>
     <a class="nav-item" href="/elite/mesh" style="color:var(--gold-bright)" title="MESH: the live szl-mesh surface — real topology graph (spec 08), the 3-of-4 Khipu quorum (soft-safety AP; Khipu BFT unconditional = Conjecture 2), the DSSE-receipted CRDT chain with in-browser SHA-256 re-hash + tamper demo, and doctrine-gated enrollment. Real mesh state; no fabricated quorum."><span class="ico">&#9883;</span>MESH (live surface)</a>
     <div class="nav-item" data-view="u_maritime" onclick="go('u_maritime')" title="Live AIS maritime picture + sanctions/dark-vessel screening + dark-vessel hunt."><span class="ico">&#9875;</span>Maritime Picture</div>
     <div class="nav-item" data-view="u_fleet" onclick="go('u_fleet')" title="Fleet operations: overview, 3D health twin, maintenance, logs, voyages, briefings (live vessels)."><span class="ico">&#9204;</span>Fleet Operations</div>
-    <div class="nav-item" data-view="tracks" onclick="go('tracks')" title="Live track board off the air/sea picture, auto-recording."><span class="ico">&#8853;</span>Live Track Board</div>
-    <div class="nav-item" data-view="dataset_control" onclick="go('dataset_control')" title="Data Sources / Overlays: one panel to flip Live AIS (default), the NOAA AIS Aug-2024 sample, the Pirate-attack risk and World Port Index overlays, and a CoT export action. Datasets not yet deployed are honestly labelled 'available when PR #N merges'. Additive; sample is never live."><span class="ico">&#9707;</span>Data Sources / Overlays</div>
     <div class="nav-item" data-view="livepic" onclick="go('livepic')" title="Live common operating picture: military ADS-B (adsb.lol) + AIS (Digitraffic FI), auto-recording."><span class="ico">&#9673;</span>Live Picture</div>
     <div class="nav-item" data-view="u_space" onclick="go('u_space')" title="Space &amp; GEOINT: 3D LEO constellation globe, GEOINT planning, live USGS seismic forecast globe."><span class="ico">&#8853;</span>Constellations &amp; GEOINT (3D LEO)</div>
     <div class="nav-item" data-view="u_darkgraph" onclick="go('u_darkgraph')" title="Dark-vessel hunt: 3D threat graph + class DB + ranking + detection + drone DB."><span class="ico">&#10847;</span>Dark-Vessel Threat Graph (3D)</div>
 
-    <div class="nav-group">&#9313; COUNTER-UAS &middot; ARMY / MARINES</div>
+    <div class="nav-group" data-demo-sec="cuas">&#9313; COUNTER-UAS &middot; ARMY / MARINES</div>
     <div class="nav-item" data-view="osint_counter_uas" onclick="go('osint_counter_uas')" title="Live public-web counter-UAS / drone-incident reporting, normalized + sha256 provenance-stamped. Console OSINT capability; fields are third-party claims."><span class="ico">&#9650;</span>Counter-UAS Intel (live web)</div>
     <div class="nav-item" data-view="u_swarm" onclick="go('u_swarm')" title="Swarm integrity: 3D topology + resilience monitor."><span class="ico">&#9785;</span>Swarm Integrity</div>
     <div class="nav-item" data-view="swarm_intent" onclick="go('swarm_intent')" title="Real-time swarm-intent classifier over the LIVE military ADS-B stream: CONVERGING / LOITER / INGRESS / TRANSIT scored from real kinematics + pairwise closing geometry. MODEL-SCORED over real live data."><span class="ico">&#9683;</span>Swarm-Intent Classifier (live)</div>
@@ -1004,19 +1017,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="operate" onclick="go('operate')" title="Select a track, issue a governed command, watch it clear the policy gate and emit a genuinely-signed receipt. Effector is a command demonstration, simulated."><span class="ico">&#9889;</span>Operate (governed control)</div>
     <div class="nav-item" data-view="u_minedops" onclick="go('u_minedops')" title="Mined field-efficiency ops: edge VRAM, telemetry memory, adaptive sampling, routing, prioritization."><span class="ico">&#8752;</span>Mined Ops</div>
 
-    <div class="nav-group">&#9314; INTEL &amp; PROVENANCE</div>
-    <div class="nav-item" data-view="osint_naval" onclick="go('osint_naval')" title="Live maritime/naval OSINT (dark-fleet, sanctions, port advisories), normalized + provenance-stamped. Heuristic, advisory."><span class="ico">&#9875;</span>Naval OSINT (live web)</div>
-    <div class="nav-item" data-view="osint_procurement" onclick="go('osint_procurement')" title="Live defense procurement / SBIR / program signals, normalized + provenance-stamped."><span class="ico">&#128176;</span>Procurement Signals (live web)</div>
-    <div class="nav-item" data-view="osint_advisories" onclick="go('osint_advisories')" title="Live cyber / supply-chain advisories, normalized + provenance-stamped; severity/CVE tags heuristic."><span class="ico">&#9888;</span>Cyber Advisories (live web)</div>
-    <div class="nav-item" data-view="osint_geopolitical" onclick="go('osint_geopolitical')" title="Live geopolitical / conflict reporting onto a timeline, normalized + provenance-stamped."><span class="ico">&#127757;</span>Geopolitical (live web)</div>
-    <div class="nav-item" data-view="u_intel" onclick="go('u_intel')" title="World &amp; threat intel: live CISA KEV + NVD CVE + ATT&amp;CK."><span class="ico">&#9888;</span>World &amp; Threat Intel</div>
-    <div class="nav-item" data-view="operator_digest" onclick="go('operator_digest')" title="Operator orchestrates the OSINT corpus into a ranked cross-vertical digest with a reproducible replay hash."><span class="ico">&#9776;</span>OSINT Digest (Operator)</div>
-    <div class="nav-item" data-view="operator_routing" onclick="go('operator_routing')" title="Operator routes each ingested item to a defense vertical with confidence + matched keywords (heuristic, advisory)."><span class="ico">&#129517;</span>Vertical Routing (Operator)</div>
-    <div class="nav-item" data-view="operator_entities" onclick="go('operator_entities')" title="Operator extracts entities and renders an entity relationship graph (heuristic, advisory)."><span class="ico">&#128376;</span>Entity Graph (Operator)</div>
-    <div class="nav-item" data-view="operator_correlate" onclick="go('operator_correlate')" title="Operator correlates the corpus against the killinchu watch picture (Section-889 vendors, watch terms)."><span class="ico">&#128269;</span>Correlate (Operator)</div>
-    <div class="nav-item" data-view="operator_watch" onclick="go('operator_watch')" title="Operator maintains a standing watchlist: term frequency over the corpus with alert thresholds."><span class="ico">&#128065;</span>Watchlist (Operator)</div>
-
-    <div class="nav-group" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9315; GOVERNED CORE &middot; UDS</div>
+    <div class="nav-group" data-demo-sec="core" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9314; GOVERNED CORE &middot; UDS</div>
     <div class="nav-item" data-view="lambda" onclick="go('lambda')" title="13-axis Trust score monitor. Lambda = Conjecture 1 (advisory, not a theorem)."><span class="ico">&#9672;</span>Trust Score Monitor (Λ)</div>
     <div class="nav-item" data-view="u_consensus" onclick="go('u_consensus')" title="SKELETON organ: 3-of-4 consensus (BFT safety = Conjecture 2 OPEN unconditionally; CONDITIONAL agreement proven axiom-free, Wave23), quorum, mesh resilience, field net, oversight."><span class="ico">&#8859;</span>Mesh &amp; Consensus</div>
     <div class="nav-item" data-view="mesh_resilience" onclick="go('mesh_resilience')" title="Live Fiedler lambda2 mesh-resilience monitor: real algebraic connectivity from networkx over the live C2 topology + an in-browser node-removal resilience sweep finding the mesh's real cut-vulnerability."><span class="ico">&#9741;</span>Mesh-Resilience (Fiedler &#955;2)</div>
@@ -1029,11 +1030,32 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="living_anatomy" onclick="go('living_anatomy')" title="a11oy + killinchu as one governed organism: live 3D anatomy with proven formulas in each organ."><span class="ico">&#10050;</span>Living Anatomy (3D)</div>
     <div class="nav-item" data-view="u_about" onclick="go('u_about')" title="What we claim (honest), research corpus, legal boundaries, deploy posture, UDS package."><span class="ico">&#8856;</span>About &amp; Claims</div>
 
+    <div class="nav-group" data-demo-sec="intel" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9315; INTEL &amp; PROVENANCE</div>
+    <div class="nav-item" data-view="osint_naval" onclick="go('osint_naval')" title="Live maritime/naval OSINT (dark-fleet, sanctions, port advisories), normalized + provenance-stamped. Heuristic, advisory."><span class="ico">&#9875;</span>Naval OSINT (live web)</div>
+    <div class="nav-item" data-view="osint_procurement" onclick="go('osint_procurement')" title="Live defense procurement / SBIR / program signals, normalized + provenance-stamped."><span class="ico">&#128176;</span>Procurement Signals (live web)</div>
+    <div class="nav-item" data-view="osint_advisories" onclick="go('osint_advisories')" title="Live cyber / supply-chain advisories, normalized + provenance-stamped; severity/CVE tags heuristic."><span class="ico">&#9888;</span>Cyber Advisories (live web)</div>
+    <div class="nav-item" data-view="osint_geopolitical" onclick="go('osint_geopolitical')" title="Live geopolitical / conflict reporting onto a timeline, normalized + provenance-stamped."><span class="ico">&#127757;</span>Geopolitical (live web)</div>
+    <div class="nav-item" data-view="u_intel" onclick="go('u_intel')" title="World &amp; threat intel: live CISA KEV + NVD CVE + ATT&amp;CK."><span class="ico">&#9888;</span>World &amp; Threat Intel</div>
+    <div class="nav-item" data-view="operator_digest" onclick="go('operator_digest')" title="Operator orchestrates the OSINT corpus into a ranked cross-vertical digest with a reproducible replay hash."><span class="ico">&#9776;</span>OSINT Digest (Operator)</div>
+    <div class="nav-item" data-view="operator_routing" onclick="go('operator_routing')" title="Operator routes each ingested item to a defense vertical with confidence + matched keywords (heuristic, advisory)."><span class="ico">&#129517;</span>Vertical Routing (Operator)</div>
+    <div class="nav-item" data-view="operator_entities" onclick="go('operator_entities')" title="Operator extracts entities and renders an entity relationship graph (heuristic, advisory)."><span class="ico">&#128376;</span>Entity Graph (Operator)</div>
+    <div class="nav-item" data-view="operator_correlate" onclick="go('operator_correlate')" title="Operator correlates the corpus against the killinchu watch picture (Section-889 vendors, watch terms)."><span class="ico">&#128269;</span>Correlate (Operator)</div>
+    <div class="nav-item" data-view="operator_watch" onclick="go('operator_watch')" title="Operator maintains a standing watchlist: term frequency over the corpus with alert thresholds."><span class="ico">&#128065;</span>Watchlist (Operator)</div>
 
     <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 8 {F1,F4,F7,F11,F12,F18,F19,F22}; SLSA L2 build-attestation present; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
     <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>8 formulas formally proven<br>Build provenance: SLSA L2 build-attestation present<br>Drones + Maritime · signed receipts</div>
 
-    <div class="nav-group" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9316; COUNTER-UAS C2 LAB &middot; EXPERIMENTAL</div>
+    <!-- ============================================================
+         EXPERIMENTAL / R&D — fenced below this divider. Everything here is
+         EXPERIMENTAL / SIMULATED / PROPOSED (Λ stays Conjecture 1). Runtime
+         nav injectors (sovereignty, neuroplasticity, chain-of-title,
+         entanglement, formula atlas, MBSE/digital-twin, WAQAY, YUPAY) anchor
+         to the scaling/entangle/sovereignty nav-items in THIS section, so they
+         land here too. Honest labels unchanged; nothing fabricated or upgraded.
+         ============================================================ -->
+    <div class="nav-group nav-group-exp-divider" data-demo-sec="experimental" style="border-top:2px dashed #6b5d2a;margin-top:.7rem;padding-top:.55rem;color:#caa84b">&#9888; EXPERIMENTAL / R&amp;D &middot; PROPOSED / SIMULATED</div>
+    <div class="exp-fence-note">Below: experimental &amp; proposed surfaces — research-grade, not headline features. Effectors SIMULATED; Λ = Conjecture 1. Runtime-injected R&amp;D tabs (sovereignty, neuro, chain-of-title, entanglement, formula atlas, MBSE, WAQAY, YUPAY) attach in this section.</div>
+    <div class="nav-group nav-group-exp" data-demo-sec-sub="experimental" style="margin-top:.35rem">&#9316; COUNTER-UAS C2 LAB &middot; EXPERIMENTAL</div>
     <div class="nav-item" data-view="cuas_intercept" onclick="go('cuas_intercept')" title="Proportional-navigation intercept-feasibility solver (a_cmd = N*Vc*lambda-dot vs a_max). Zarchan/Palumbo. Effector SIMULATED — computes feasibility, never actuates."><span class="ico">&#10138;</span>Intercept Solver (SIM)</div>
     <div class="nav-item" data-view="cuas_spoof" onclick="go('cuas_spoof')" title="GNSS-spoofing plausibility chi-square innovation gate (threshold 33.1). Joerger. Advisory monitor, EXPERIMENTAL-tier."><span class="ico">&#9888;</span>Spoof Sentinel (chi-sq)</div>
     <div class="nav-item" data-view="cuas_fusion" onclick="go('cuas_fusion')" title="Covariance-intersection track fusion (Julier-Uhlmann/Bar-Shalom). Confidence capped below 1.0 — trust never 100%. EXPERIMENTAL-tier."><span class="ico">&#10710;</span>Fusion Picture (CI)</div>
@@ -1041,7 +1063,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="cuas_triage" onclick="go('cuas_triage')" title="Greedy weapon-target-assignment triage maximizing expected destroyed value (Manne). Effector SIMULATED — ranks and allocates, never fires."><span class="ico">&#9697;</span>Threat Triage (SIM)</div>
     <div class="nav-item" data-view="cuas_pq" onclick="go('cuas_pq')" title="Post-quantum SHA3-256 hash-chain receipt bus (ML-KEM-768 / ML-DSA-65 / SLH-DSA, NIST FIPS 203/204/205). Signature PROXY until oqs key provisioned. EXPERIMENTAL-tier."><span class="ico">&#9919;</span>PQ Provenance (SHA3)</div>
 
-    <div class="nav-group" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9317; METABOLIC SCALING &middot; EXPERIMENTAL</div>
+    <div class="nav-group nav-group-exp" data-demo-sec-sub="experimental" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9317; METABOLIC SCALING &middot; EXPERIMENTAL</div>
     <div class="nav-item" data-view="scaling" onclick="go('scaling')" title="Allometric scaling: Kleiber 3/4 metabolic law, lifetime-heartbeats invariant, PROPOSED SZL-Phi unification, universal-exponent comparator, Kaplan-2020 compute allometry. Live from /api/killinchu/v1/scaling/*. EXPERIMENTAL-tier; Lambda stays Conjecture 1; SZL-Phi is PROPOSED, NOT the formal Lambda."><span class="ico">&#9878;</span>Metabolic Scaling</div>
   </aside>
 
@@ -1336,6 +1358,75 @@ window.toggleSide=toggleSide;
   if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
   var t=0,iv=setInterval(function(){t++;buildNavCollapse();hardenFloat();if(t>10)clearInterval(iv);},700);
   var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(syncNavForViewport,150);});
+})();
+/* ===== DEMO-FIRST NAV ACCORDION (reorder/group/collapse only) =====
+   Sections are flagged with data-demo-sec on their header. The DEMO section
+   (data-demo-open="1") is expanded on load; every other section is collapsed
+   on ALL viewports so a judge opening /elite lands on the 6 hero/proof tabs,
+   depth one click away, experimental fenced below. A section's body = all
+   following siblings up to (but not including) the next data-demo-sec header,
+   so runtime-injected R&D nav-items (atlas/sovereignty/entangle/neuro/l6chain/
+   MBSE/WAQAY/YUPAY) that insertBefore the scaling/entangle items are correctly
+   captured by whichever section they land in. DELETE NOTHING: collapse only
+   hides; every go() handler stays wired and every key still resolves. */
+(function szlDemoNav(){
+  function sections(){return Array.prototype.slice.call(document.querySelectorAll('.side .nav-group[data-demo-sec]'));}
+  function bodyOf(hdr){
+    var out=[],n=hdr.nextElementSibling;
+    while(n){
+      if(n.classList&&n.classList.contains('nav-group')&&n.hasAttribute('data-demo-sec'))break;
+      out.push(n); n=n.nextElementSibling;
+    }
+    return out;
+  }
+  function setSection(hdr,collapsed){
+    hdr.classList.toggle('demo-collapsed',collapsed);
+    hdr.setAttribute('aria-expanded',String(!collapsed));
+    bodyOf(hdr).forEach(function(it){ it.classList.toggle('demo-hidden',collapsed); });
+  }
+  function build(){
+    var secs=sections(); if(!secs.length){ return; }
+    secs.forEach(function(hdr){
+      if(hdr.dataset.demoBound){ /* re-apply hidden state for late-injected items */
+        setSection(hdr, hdr.classList.contains('demo-collapsed')); return;
+      }
+      hdr.dataset.demoBound='1';
+      /* take this header out of the legacy touch-accordion's control */
+      hdr.dataset.collapseBound='1';
+      hdr.setAttribute('role','button'); hdr.setAttribute('tabindex','0');
+      var open=hdr.getAttribute('data-demo-open')==='1';
+      /* keep a section open if it contains the active view (deep-link safety) */
+      var hasActive=bodyOf(hdr).some(function(it){return it.classList&&it.classList.contains('active');});
+      setSection(hdr, !(open||hasActive));
+      function toggle(){ setSection(hdr,!hdr.classList.contains('demo-collapsed')); }
+      hdr.addEventListener('click',toggle);
+      hdr.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
+    });
+  }
+  /* When a view activates, reveal its section so the active item is never hidden. */
+  function revealActive(){
+    var act=document.querySelector('.side .nav-item.active'); if(!act)return;
+    var secs=sections();
+    for(var i=0;i<secs.length;i++){ if(bodyOf(secs[i]).indexOf(act)>=0){ setSection(secs[i],false); break; } }
+  }
+  function init(){ build(); revealActive(); }
+  if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
+  /* re-run a few times to capture the runtime-injected R&D nav items */
+  var t=0,iv=setInterval(function(){t++;build();if(t>14)clearInterval(iv);},600);
+  /* wrap go() so activating a deep-linked/hidden view reveals its section */
+  (function wrapGoReveal(){
+    var tries=0;
+    var w=setInterval(function(){
+      tries++;
+      if(typeof window.go==='function'&&!window.go.__demoReveal){
+        var orig=window.go;
+        window.go=function(v){ var r=orig.apply(this,arguments); try{revealActive();}catch(_e){} return r; };
+        window.go.__demoReveal=true;
+        try{ if(orig.__szl) window.go.__szl=true; }catch(_e){}
+      }
+      if(tries>40||(window.go&&window.go.__demoReveal))clearInterval(w);
+    },120);
+  })();
 })();
 // dag-mode 3d force graph (hash-chain hero)
 function dag3d(id,nodes,links,opts){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';opts=opts||{};
