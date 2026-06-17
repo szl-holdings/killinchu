@@ -58,7 +58,19 @@ def _hex_to_bytes(s: str) -> bytes:
 
 
 def _ascii_field(b: bytes) -> str:
-    return b.split(b"\x00")[0].decode("ascii", errors="replace").strip()
+    # Remote-ID string fields (UAS ID / Self-ID / Operator ID) are NUL-padded ASCII
+    # per ASTM F3411. Real captures (and spoofed frames) can carry non-printable or
+    # non-ASCII bytes; rendering those raw produces garbage in the UI. Keep clean
+    # printable ASCII verbatim and hex-escape any other byte as \xNN so the decoded
+    # value is always legible. These remain unauthenticated broadcast claims.
+    raw = b.split(b"\x00")[0]
+    out = []
+    for byte in raw:
+        if 0x20 <= byte <= 0x7E:  # printable ASCII
+            out.append(chr(byte))
+        else:
+            out.append("\\x%02x" % byte)
+    return "".join(out).strip()
 
 
 def remote_id_decode(hexstr: str) -> dict[str, Any]:

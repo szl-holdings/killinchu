@@ -6867,7 +6867,22 @@ function _wh_style(){
     '.wh-edge{width:16px;height:2px;background:rgba(201,183,135,.45)}'+
     '.wh-edge.broken{background:repeating-linear-gradient(90deg,#b06a5a 0 3px,transparent 3px 7px)}'+
     '.wh-rid{font-family:var(--mono);font-size:8.5px;color:#777;text-align:center;margin-top:2px;max-width:36px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'+
-    '@keyframes whslide{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}';
+    '@keyframes whslide{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}'+
+    /* ---- READABLE FIELD-SURFACE RECEIPT CARD (additive; replaces the cramped .row strip) ---- */
+    '.wh-fr{display:flex;flex-direction:column;gap:.1rem;margin-top:.25rem}'+
+    '.wh-fr .frf{display:flex;flex-direction:column;gap:.18rem;padding:.5rem 0;border-bottom:1px solid rgba(201,183,135,.07)}'+
+    '.wh-fr .frf:last-child{border-bottom:none}'+
+    '.wh-fr .frl{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:#8a8f96}'+
+    '.wh-fr .frv{font-size:13px;color:var(--cream,#e8e3d6);line-height:1.55;word-break:break-word;overflow-wrap:anywhere}'+
+    '.wh-fr .frv.mono{font-family:var(--mono)}'+
+    '.wh-fr .frsec{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#c9b787;margin-top:.55rem;padding-bottom:.25rem;border-bottom:1px solid rgba(201,183,135,.18)}'+
+    '.wh-fr .frstep{display:flex;flex-direction:column;gap:.2rem;padding:.4rem 0;border-bottom:1px solid rgba(201,183,135,.05)}'+
+    '.wh-fr .frstep .sh{display:flex;flex-wrap:wrap;align-items:baseline;gap:.4rem;font-family:var(--mono);font-size:12px;color:#cdd2d8}'+
+    '.wh-fr .frstep .smeta{font-size:10.5px;color:#7a7a7a}'+
+    '.wh-fr pre.wh-json{margin:.2rem 0 0;background:rgba(255,255,255,.025);border:1px solid rgba(201,183,135,.12);border-radius:7px;padding:.5rem .6rem;font-family:var(--mono);font-size:11px;line-height:1.5;color:#bfc4ca;white-space:pre-wrap;word-break:break-all;overflow-wrap:anywhere;max-height:240px;overflow:auto}'+
+    '.wh-fr .frkv{display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:baseline}'+
+    '.wh-fr .frkv .frl{flex:0 0 auto}'+
+    '.wh-fr .frkv .frv{flex:1 1 60%;min-width:0;text-align:left}';
   document.head.appendChild(s);
 }
 function _wh_label(k){var m=_WH_META[k]||{};return (m.title||k).split(' \u2014 ')[0];}
@@ -6914,41 +6929,58 @@ async function warhacker_init(){
   setHTML('wh-cards',html);
 }
 function _wh_bool(b){return b?'<span class="badge b-live">YES</span>':'<span class="badge b-err">NO</span>';}
+// Pretty-print a computed value for the readable receipt card. Objects/arrays are
+// JSON.stringify'd with 2-space indent into a wrapped <pre> block; scalars stay inline.
+function _wh_val_block(v){
+  if(v===null||v===undefined) return '';
+  if(typeof v==='object'){
+    var j; try{ j=JSON.stringify(v,null,2); }catch(e){ j=String(v); }
+    return '<pre class="wh-json">'+esc(j)+'</pre>';
+  }
+  return '<div class="frv mono">'+esc(String(v))+'</div>';
+}
 function _wh_render(k,d){
+  // READABLE FIELD-SURFACE RECEIPT CARD (additive layout fix 2026-06-17):
+  // each labelled field on its own stacked row; receipt/step JSON pretty-printed
+  // and wrapped in a contained code block (never one overflowing horizontal strip).
   var rc=(d.receipt||{}); var dsse=(rc.dsse||{}); var sealed=(d.sealed||{});
   var cs=(d.chain_self||{}); var tt=(d.tamper_test||{}); var chain=(d.chain||{});
   var tl=(d.timeline||[]); var ct=(d.catch_tree||[]); var fp=(d.formula_panel||[]);
   var verdict=String(d.decision||'\u2014').toUpperCase();
   var vkind=(d.authorized===true)?'live':'gold';
-  var html='';
-  html+='<div class="row"><span>Mode</span><span class="spacer">'+_fr_badge(String(d.mode||'').toUpperCase(),(d.mode==='tamper'?'gold':'live'))+'</span></div>';
-  html+='<div class="row"><span>Decision</span><span class="spacer">'+_fr_badge(verdict,vkind)+'</span></div>';
-  html+='<div class="row"><span>Real-or-roadmap</span><span class="spacer mono dim">'+esc(d.real_or_roadmap||'')+'</span></div>';
-  html+='<div class="row"><span>Headline</span><span class="spacer mono" style="max-width:62%;text-align:right">'+esc(d.headline||'')+'</span></div>';
+  var html='<div class="wh-fr">';
+  // header fields (label + value stacked)
+  html+='<div class="frf frkv"><span class="frl">Mode</span><span class="frv">'+_fr_badge(String(d.mode||'').toUpperCase(),(d.mode==='tamper'?'gold':'live'))+'</span></div>';
+  html+='<div class="frf frkv"><span class="frl">Decision</span><span class="frv">'+_fr_badge(verdict,vkind)+'</span></div>';
+  html+='<div class="frf"><span class="frl">Real-or-roadmap</span><span class="frv mono">'+esc(d.real_or_roadmap||'')+'</span></div>';
+  html+='<div class="frf"><span class="frl">Headline</span><span class="frv">'+esc(d.headline||'')+'</span></div>';
   // step timeline
-  html+='<div class="row" style="margin-top:.5rem"><b>Step timeline (computed live)</b></div>';
+  html+='<div class="frsec">Step timeline (computed live)</div>';
   for(var i=0;i<tl.length;i++){var s=tl[i];
-    html+='<div class="row"><span class="mono dim">'+esc(s.step||s.name||('step'+i))+'</span>'+
-      '<span class="spacer mono">'+esc(String(s.status||''))+' \u00b7 '+esc(String(s.duration_ms))+'ms \u00b7 '+esc(typeof s.value_computed==='object'?JSON.stringify(s.value_computed):String(s.value_computed))+'</span></div>';
+    html+='<div class="frstep"><div class="sh"><span>'+esc(s.step||s.name||('step'+i))+'</span>'+
+      '<span class="smeta">'+esc(String(s.status||''))+' \u00b7 '+esc(String(s.duration_ms))+'ms</span></div>'+
+      _wh_val_block(s.value_computed)+'</div>';
   }
   // catch tree
-  html+='<div class="row" style="margin-top:.5rem"><b>Catch tree</b>'+(d.first_failing_node?' \u00b7 first-failing: <span class="mono" style="color:#b3475f">'+esc(d.first_failing_node)+'</span>':'')+'</div>';
+  html+='<div class="frsec">Catch tree'+(d.first_failing_node?' \u00b7 first-failing: <span class="mono" style="color:#b3475f">'+esc(d.first_failing_node)+'</span>':'')+'</div>';
   for(var j=0;j<ct.length;j++){var n=ct[j];
-    html+='<div class="row"><span class="mono dim">'+esc(n.node||'')+'</span><span class="spacer mono">'+esc(String(n.label||''))+' \u2192 '+_wh_bool(n.pass)+'</span></div>';
+    html+='<div class="frf frkv"><span class="frl">'+esc(n.node||'')+'</span><span class="frv mono">'+esc(String(n.label||''))+' \u2192 '+_wh_bool(n.pass)+'</span></div>';
   }
   // receipt + chain
-  html+='<div class="row" style="margin-top:.5rem"><span>Receipt id (unique per run)</span><span class="spacer mono teal">'+esc(rc.receipt_id||'\u2014')+'</span></div>';
-  html+='<div class="row"><span>DSSE signed</span><span class="spacer mono dim">'+_wh_bool(dsse.signed)+' \u00b7 '+esc(dsse.keyid||'szlholdings-cosign')+' \u00b7 pae '+esc(String(dsse.pae_sha256||'').slice(0,16))+'</span></div>';
-  html+='<div class="row"><span>Merkle root</span><span class="spacer mono dim">'+esc(String(sealed.merkle_root||chain.merkle_root||'').slice(0,24))+'\u2026</span></div>';
-  html+='<div class="row"><span>This run\u2019s own chain (no tamper)</span><span class="spacer">'+_wh_bool(cs.chain_intact)+' intact \u00b7 depth '+esc(String(cs.depth||chain.depth||''))+'</span></div>';
-  html+='<div class="row"><span>Tamper test (flip one byte)</span><span class="spacer">'+(tt.chain_intact===false?'<span class="badge b-err">CHAIN BROKEN</span>':_wh_bool(tt.chain_intact))+(tt.chain_break_at_seq!=null?' \u00b7 break at seq '+esc(String(tt.chain_break_at_seq)):'')+'</span></div>';
+  html+='<div class="frsec">Signed receipt &amp; chain</div>';
+  html+='<div class="frf frkv"><span class="frl">Receipt id (unique per run)</span><span class="frv mono teal">'+esc(rc.receipt_id||'\u2014')+'</span></div>';
+  html+='<div class="frf frkv"><span class="frl">DSSE signed</span><span class="frv mono dim">'+_wh_bool(dsse.signed)+' \u00b7 '+esc(dsse.keyid||'szlholdings-cosign')+' \u00b7 pae '+esc(String(dsse.pae_sha256||'').slice(0,16))+'</span></div>';
+  html+='<div class="frf frkv"><span class="frl">Merkle root</span><span class="frv mono dim">'+esc(String(sealed.merkle_root||chain.merkle_root||'').slice(0,24))+'\u2026</span></div>';
+  html+='<div class="frf frkv"><span class="frl">This run\u2019s own chain (no tamper)</span><span class="frv">'+_wh_bool(cs.chain_intact)+' intact \u00b7 depth '+esc(String(cs.depth||chain.depth||''))+'</span></div>';
+  html+='<div class="frf frkv"><span class="frl">Tamper test (flip one byte)</span><span class="frv">'+(tt.chain_intact===false?'<span class="badge b-err">CHAIN BROKEN</span>':_wh_bool(tt.chain_intact))+(tt.chain_break_at_seq!=null?' \u00b7 break at seq '+esc(String(tt.chain_break_at_seq)):'')+'</span></div>';
   // formula panel
-  html+='<div class="row" style="margin-top:.5rem"><b>Formula / proof panel</b></div>';
+  html+='<div class="frsec">Formula / proof panel</div>';
   for(var f=0;f<fp.length;f++){var p=fp[f];
-    html+='<div class="row"><span class="mono dim">'+esc(p.formula||'')+'</span><span class="spacer mono" style="max-width:60%;text-align:right">'+esc(p.expr||'')+' \u00b7 '+esc(p.status||'')+'</span></div>';
+    html+='<div class="frf"><span class="frl">'+esc(p.formula||'')+'</span><span class="frv mono">'+esc(p.expr||'')+' \u00b7 '+esc(p.status||'')+'</span></div>';
   }
-  html+='<div class="row mono dim" style="margin-top:.4rem">'+esc(d.honesty||'')+'</div>';
-  html+='<div class="row mono dim">'+esc(d.lambda_status||'')+'</div>';
+  if(d.honesty) html+='<div class="frf"><span class="frv mono dim">'+esc(d.honesty||'')+'</span></div>';
+  if(d.lambda_status) html+='<div class="frf"><span class="frv mono dim">'+esc(d.lambda_status||'')+'</span></div>';
+  html+='</div>';
   setHTML('wh-body-'+k,html);
 }
 async function warhacker_run(k,mode){
