@@ -58,6 +58,10 @@ _HONEST = (
 #                 market-pulse), data_kind honest, never fabricated.
 #   signed-loop — real DSSE/khipu signing + governance loop (receipts, ledger).
 #   SIMULATED   — effector / intercept / weapon-target demo; SIMULATED by doctrine.
+#   interop-standard — exposes killinchu tracks over a real DoD/NATO interop
+#                 standard (e.g. MITRE Cursor on Target / Event.xsd). XML
+#                 export + schema validation + ingest are live; live transport
+#                 (UDP multicast / TAK-server) is honestly labelled roadmap.
 
 # view_id -> {endpoints:[...], data_class, leaders:[...], note}
 # Endpoints are the concrete GET routes the view (or its surface sub-views) reads.
@@ -96,6 +100,10 @@ ELITE_WIRING: Dict[str, Dict[str, Any]] = {
                 "note": "3D LEO globe + GEOINT + live USGS seismic."},
     "u_darkgraph": {"endpoints": ["/api/{ns}/v1/drones/database", "/api/{ns}/v1/ais/live"],
                     "data_class": "live-feed", "leaders": ["AIS"], "note": "3D threat graph + 53-class drone DB + ranking."},
+    "cot_interop": {"endpoints": ["/api/{ns}/v1/cot/status", "/api/{ns}/v1/cot/export"],
+                    "data_class": "interop-standard", "leaders": ["MITRE CoT", "MIL-STD-2525", "TAK"],
+                    "note": "Every track emittable as standards-compliant CoT 2.0 XML (Event.xsd); "
+                            "export+validate+ingest LIVE, UDP/TAK-server ROADMAP."},
     # ── COUNTER-UAS · ARMY / MARINES ──
     "osint_counter_uas": {"endpoints": ["/api/{ns}/v1/osint/feed/counter-uas"], "data_class": "live-feed",
                           "leaders": [], "note": "Live public-web counter-UAS reporting, sha256 provenance."},

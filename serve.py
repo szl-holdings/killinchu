@@ -3018,6 +3018,34 @@ except Exception as _fleet_e:
 
 
 # ===========================================================================
+# ADDITIVE (interop): MITRE Cursor on Target (CoT) — WarHacker DoD XML tactical
+# messaging standard (Event.xsd). Makes killinchu "speak CoT": EXPORTS every
+# killinchu track (maritime vessels + friendly drones + cued threat UAS) as
+# standards-compliant CoT 2.0 XML events, VALIDATES the XML against the real
+# Event.xsd base-schema shape (required attrs, ISO-8601 stamps, lat/lon ranges,
+# type-atom shape), and INGESTS CoT XML back into killinchu track dicts
+# (bidirectional). Pure-Python, network-free.
+#   GET  /api/killinchu/v1/cot/export              all tracks -> CoT <events> XML
+#   GET  /api/killinchu/v1/cot/export/{track_id}   one track  -> CoT <event> XML
+#   POST /api/killinchu/v1/cot/ingest              CoT XML    -> killinchu track
+#   GET  /api/killinchu/v1/cot/status              capability + honesty manifest
+# HONEST scope (doctrine v11): real XML export + schema-shape validation +
+# ingest are LIVE. UDP multicast (239.2.3.1:6969) and live TAK-server streaming
+# are explicitly ROADMAP (labelled in /status; NO socket opened). NOT a live TAK
+# integration. Mounted BEFORE the SPA catch-all. NO mocks.
+# ===========================================================================
+try:
+    import killinchu_cot_interop as _cot
+    _cot_status = _cot.register(app)
+    print(f"[killinchu] CoT interop registered: {_cot_status.get('registered_count')} routes", file=sys.stderr)
+except Exception as _cot_e:
+    import traceback as _cot_tb
+    print(f"[killinchu] CoT interop NOT registered: {_cot_e!r}", file=sys.stderr)
+    _cot_tb.print_exc()
+# ── end CoT interop ───────────────────────────────────────────────────────────
+
+
+# ===========================================================================
 # ADDITIVE (W3): Λ DARK-FLEET RISK SCORE + VESSEL FORECASTING — the maritime
 # DIFFERENTIATOR no incumbent (Starboard/Windward/Kpler) ships: a governed,
 # EXPLAINABLE, SIGNED dark-fleet risk scalar that traces to a formula, plus an
