@@ -116,18 +116,29 @@ _TAB = {
     "u_minedops":        ["arx_cuas1", "arx_cuas4", "arx_k8s"],
     "u_melt":            ["uds_core", "arx_bft1", "slsa_dev"],
     "melt":              ["uds_core", "arx_bft1"],
-    # 4.2 Amaru (Memory) intel
-    "amaru_naval":        ["adsb_mil", "arx_mar1", "arx_mar2"],
-    "amaru_counter_uas":  ["arx_cuas1", "arx_cuas2", "arx_cuas3", "arx_cuas4"],
-    "amaru_advisories":   ["kev_mirror", "nvd", "epss", "arx_epss"],
-    "amaru_procurement":  ["fed_reg"],  # SAM/SBIR: confirm-live -> federal register only
-    "amaru_geopolitical": ["asf_mag", "fed_reg"],
-    # 4.3 Rosie (Operator)
-    "rosie_watch":      ["adsb_mil", "arx_mar1"],
-    "rosie_correlate":  ["adsb_mil", "arx_sc1", "arx_mar1"],
-    "rosie_entities":   ["adsb_mil", "arx_sc1"],
-    "rosie_routing":    ["adsb_mil", "uds_core"],
-    "rosie_digest":     ["adsb_mil", "kev_mirror"],
+    # 4.2 OSINT ingest intel (honest role keys; legacy aliases kept ADDITIVE
+    # so saved deep links still resolve to the same source set).
+    "osint_naval":        ["adsb_mil", "arx_mar1", "arx_mar2"],
+    "osint_counter_uas":  ["arx_cuas1", "arx_cuas2", "arx_cuas3", "arx_cuas4"],
+    "osint_advisories":   ["kev_mirror", "nvd", "epss", "arx_epss"],
+    "osint_procurement":  ["fed_reg"],  # SAM/SBIR: confirm-live -> federal register only
+    "osint_geopolitical": ["asf_mag", "fed_reg"],
+    "amaru_naval":        ["adsb_mil", "arx_mar1", "arx_mar2"],        # legacy alias
+    "amaru_counter_uas":  ["arx_cuas1", "arx_cuas2", "arx_cuas3", "arx_cuas4"],  # legacy alias
+    "amaru_advisories":   ["kev_mirror", "nvd", "epss", "arx_epss"],   # legacy alias
+    "amaru_procurement":  ["fed_reg"],                                  # legacy alias
+    "amaru_geopolitical": ["asf_mag", "fed_reg"],                       # legacy alias
+    # 4.3 Operator orchestration
+    "operator_watch":      ["adsb_mil", "arx_mar1"],
+    "operator_correlate":  ["adsb_mil", "arx_sc1", "arx_mar1"],
+    "operator_entities":   ["adsb_mil", "arx_sc1"],
+    "operator_routing":    ["adsb_mil", "uds_core"],
+    "operator_digest":     ["adsb_mil", "kev_mirror"],
+    "rosie_watch":      ["adsb_mil", "arx_mar1"],                       # legacy alias
+    "rosie_correlate":  ["adsb_mil", "arx_sc1", "arx_mar1"],            # legacy alias
+    "rosie_entities":   ["adsb_mil", "arx_sc1"],                        # legacy alias
+    "rosie_routing":    ["adsb_mil", "uds_core"],                       # legacy alias
+    "rosie_digest":     ["adsb_mil", "kev_mirror"],                     # legacy alias
     # 4.4 Intel fusion / provenance
     "u_intel":      ["adsb_mil", "kev_mirror", "nvd", "epss", "mitre_attack", "arx_sc1"],
     "u_darkgraph":  ["adsb_mil", "kev_mirror", "mitre_attack", "arx_sc1", "arx_mar1"],

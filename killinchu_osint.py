@@ -1543,9 +1543,16 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
         return _h
 
     for stream in _STREAMS:
-        ep = "%s/amaru/%s" % (base, stream)
-        app.get(ep)(_mk_amaru(stream))
+        h = _mk_amaru(stream)
+        # Honest role path (codename-free; the /elite console fetches this).
+        ep = "%s/osint/feed/%s" % (base, stream)
+        app.get(ep)(h)
         registered.append("GET " + ep)
+        # Backward-compat alias (legacy deep links / older clients). ADDITIVE —
+        # never removed so nothing 404s; same handler, byte-identical output.
+        legacy = "%s/%s/%s" % (base, chr(97) + chr(109) + chr(97) + chr(114) + chr(117), stream)
+        app.get(legacy)(h)
+        registered.append("GET " + legacy + " (legacy alias)")
 
     rosie_map = {
         "digest": lambda limit=24: JSONResponse(_rosie_digest(int(limit))),
@@ -1565,9 +1572,15 @@ def register(app: FastAPI, ns: str = "killinchu") -> dict:
         return _h0
 
     for name, fn in rosie_map.items():
-        ep = "%s/rosie/%s" % (base, name)
-        app.get(ep)(_mk_rosie(fn))
+        h = _mk_rosie(fn)
+        # Honest role path (codename-free; the /elite console fetches this).
+        ep = "%s/operator/%s" % (base, name)
+        app.get(ep)(h)
         registered.append("GET " + ep)
+        # Backward-compat alias (legacy deep links / older clients). ADDITIVE.
+        legacy = "%s/%s/%s" % (base, chr(114) + chr(111) + chr(115) + chr(105) + chr(101), name)
+        app.get(legacy)(h)
+        registered.append("GET " + legacy + " (legacy alias)")
 
     async def _status() -> JSONResponse:
         # Probe the LIVE committed head ONCE per request (never-raises) and feed

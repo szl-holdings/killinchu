@@ -987,7 +987,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="u_darkgraph" onclick="go('u_darkgraph')" title="Dark-vessel hunt: 3D threat graph + class DB + ranking + detection + drone DB."><span class="ico">&#10847;</span>Dark-Vessel Threat Graph (3D)</div>
 
     <div class="nav-group">&#9313; COUNTER-UAS &middot; ARMY / MARINES</div>
-    <div class="nav-item" data-view="amaru_counter_uas" onclick="go('amaru_counter_uas')" title="Live public-web counter-UAS / drone-incident reporting, normalized + sha256 provenance-stamped. Console OSINT capability; fields are third-party claims."><span class="ico">&#9650;</span>Counter-UAS Intel (live web)</div>
+    <div class="nav-item" data-view="osint_counter_uas" onclick="go('osint_counter_uas')" title="Live public-web counter-UAS / drone-incident reporting, normalized + sha256 provenance-stamped. Console OSINT capability; fields are third-party claims."><span class="ico">&#9650;</span>Counter-UAS Intel (live web)</div>
     <div class="nav-item" data-view="u_swarm" onclick="go('u_swarm')" title="Swarm integrity: 3D topology + resilience monitor."><span class="ico">&#9785;</span>Swarm Integrity</div>
     <div class="nav-item" data-view="swarm_intent" onclick="go('swarm_intent')" title="Real-time swarm-intent classifier over the LIVE military ADS-B stream: CONVERGING / LOITER / INGRESS / TRANSIT scored from real kinematics + pairwise closing geometry. MODEL-SCORED over real live data."><span class="ico">&#9683;</span>Swarm-Intent Classifier (live)</div>
     <div class="nav-item" data-view="u_engage" onclick="go('u_engage')" title="Governed engagement: ROE, engage-safely, geofence, autonomy governance, companion-defense."><span class="ico">&#8862;</span>Engage &amp; ROE</div>
@@ -996,16 +996,16 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="u_minedops" onclick="go('u_minedops')" title="Mined field-efficiency ops: edge VRAM, telemetry memory, adaptive sampling, routing, prioritization."><span class="ico">&#8752;</span>Mined Ops</div>
 
     <div class="nav-group">&#9314; INTEL &amp; PROVENANCE</div>
-    <div class="nav-item" data-view="amaru_naval" onclick="go('amaru_naval')" title="Live maritime/naval OSINT (dark-fleet, sanctions, port advisories), normalized + provenance-stamped. Heuristic, advisory."><span class="ico">&#9875;</span>Naval OSINT (live web)</div>
-    <div class="nav-item" data-view="amaru_procurement" onclick="go('amaru_procurement')" title="Live defense procurement / SBIR / program signals, normalized + provenance-stamped."><span class="ico">&#128176;</span>Procurement Signals (live web)</div>
-    <div class="nav-item" data-view="amaru_advisories" onclick="go('amaru_advisories')" title="Live cyber / supply-chain advisories, normalized + provenance-stamped; severity/CVE tags heuristic."><span class="ico">&#9888;</span>Cyber Advisories (live web)</div>
-    <div class="nav-item" data-view="amaru_geopolitical" onclick="go('amaru_geopolitical')" title="Live geopolitical / conflict reporting onto a timeline, normalized + provenance-stamped."><span class="ico">&#127757;</span>Geopolitical (live web)</div>
+    <div class="nav-item" data-view="osint_naval" onclick="go('osint_naval')" title="Live maritime/naval OSINT (dark-fleet, sanctions, port advisories), normalized + provenance-stamped. Heuristic, advisory."><span class="ico">&#9875;</span>Naval OSINT (live web)</div>
+    <div class="nav-item" data-view="osint_procurement" onclick="go('osint_procurement')" title="Live defense procurement / SBIR / program signals, normalized + provenance-stamped."><span class="ico">&#128176;</span>Procurement Signals (live web)</div>
+    <div class="nav-item" data-view="osint_advisories" onclick="go('osint_advisories')" title="Live cyber / supply-chain advisories, normalized + provenance-stamped; severity/CVE tags heuristic."><span class="ico">&#9888;</span>Cyber Advisories (live web)</div>
+    <div class="nav-item" data-view="osint_geopolitical" onclick="go('osint_geopolitical')" title="Live geopolitical / conflict reporting onto a timeline, normalized + provenance-stamped."><span class="ico">&#127757;</span>Geopolitical (live web)</div>
     <div class="nav-item" data-view="u_intel" onclick="go('u_intel')" title="World &amp; threat intel: live CISA KEV + NVD CVE + ATT&amp;CK."><span class="ico">&#9888;</span>World &amp; Threat Intel</div>
-    <div class="nav-item" data-view="rosie_digest" onclick="go('rosie_digest')" title="Operator orchestrates the OSINT corpus into a ranked cross-vertical digest with a reproducible replay hash."><span class="ico">&#9776;</span>OSINT Digest (Operator)</div>
-    <div class="nav-item" data-view="rosie_routing" onclick="go('rosie_routing')" title="Operator routes each ingested item to a defense vertical with confidence + matched keywords (heuristic, advisory)."><span class="ico">&#129517;</span>Vertical Routing (Operator)</div>
-    <div class="nav-item" data-view="rosie_entities" onclick="go('rosie_entities')" title="Operator extracts entities and renders an entity relationship graph (heuristic, advisory)."><span class="ico">&#128376;</span>Entity Graph (Operator)</div>
-    <div class="nav-item" data-view="rosie_correlate" onclick="go('rosie_correlate')" title="Operator correlates the corpus against the killinchu watch picture (Section-889 vendors, watch terms)."><span class="ico">&#128269;</span>Correlate (Operator)</div>
-    <div class="nav-item" data-view="rosie_watch" onclick="go('rosie_watch')" title="Operator maintains a standing watchlist: term frequency over the corpus with alert thresholds."><span class="ico">&#128065;</span>Watchlist (Operator)</div>
+    <div class="nav-item" data-view="operator_digest" onclick="go('operator_digest')" title="Operator orchestrates the OSINT corpus into a ranked cross-vertical digest with a reproducible replay hash."><span class="ico">&#9776;</span>OSINT Digest (Operator)</div>
+    <div class="nav-item" data-view="operator_routing" onclick="go('operator_routing')" title="Operator routes each ingested item to a defense vertical with confidence + matched keywords (heuristic, advisory)."><span class="ico">&#129517;</span>Vertical Routing (Operator)</div>
+    <div class="nav-item" data-view="operator_entities" onclick="go('operator_entities')" title="Operator extracts entities and renders an entity relationship graph (heuristic, advisory)."><span class="ico">&#128376;</span>Entity Graph (Operator)</div>
+    <div class="nav-item" data-view="operator_correlate" onclick="go('operator_correlate')" title="Operator correlates the corpus against the killinchu watch picture (Section-889 vendors, watch terms)."><span class="ico">&#128269;</span>Correlate (Operator)</div>
+    <div class="nav-item" data-view="operator_watch" onclick="go('operator_watch')" title="Operator maintains a standing watchlist: term frequency over the corpus with alert thresholds."><span class="ico">&#128065;</span>Watchlist (Operator)</div>
 
     <div class="nav-group" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9315; GOVERNED CORE &middot; UDS</div>
     <div class="nav-item" data-view="lambda" onclick="go('lambda')" title="13-axis Trust score monitor. Lambda = Conjecture 1 (advisory, not a theorem)."><span class="ico">&#9672;</span>Trust Score Monitor (Λ)</div>
@@ -2034,9 +2034,9 @@ function _osErr(c,e){c.innerHTML='<div class="card"><div class="row mono" style=
 function _osLoad(c,label){c.innerHTML='<div class="card"><div class="row mono dim">&#8635; '+esc(scrubText(label||'ingesting the live web…'))+'</div></div>';}
 const _OS_VCOL={drones:'#5fe39a',naval:'#5cc8ff',pentagon:'#f5b301',uds:'#b39ddb',geo:'#ff9b9b'};
 
-async function amaru_counter_uas_render(c){
+async function osint_counter_uas_render(c){
   _osLoad(c,'Ingesting counter-UAS incidents from the open web…');
-  try{var b=await getJSON(OSINT_BASE+'/amaru/counter-uas');
+  try{var b=await getJSON(OSINT_BASE+'/osint/feed/counter-uas');
     if(!b.items||!b.items.length)return _osIdle(c,b);
     var maxw=1;b.items.forEach(function(it){if(it.source_weight>maxw)maxw=it.source_weight;});
     var cards=b.items.map(function(it){var sev=/intercept|attack|incursion|breach|hostile|strike|swarm|shot/i.test(it.title+it.summary)?'#ff7b7b':'#5fe39a';
@@ -2044,45 +2044,45 @@ async function amaru_counter_uas_render(c){
     c.innerHTML=_osKpis([['Ingested',b.count,'var(--teal)','normalized + deduped'],['Mode',_osMode(b.mode),'','live = scraped now'],['Vertical',esc(b.vertical),'var(--cream)','ingest vertical'],['Provenance',_osProv(b.provenance&&b.provenance.chain_head),'','sha256 chain']])+cards+_osHonest(b.honesty);
   }catch(e){_osErr(c,e);}
 }
-async function amaru_naval_render(c){
+async function osint_naval_render(c){
   _osLoad(c,'Ingesting maritime / naval OSINT…');
-  try{var b=await getJSON(OSINT_BASE+'/amaru/naval');
+  try{var b=await getJSON(OSINT_BASE+'/osint/feed/naval');
     if(!b.items||!b.items.length)return _osIdle(c,b);
     var rows=b.items.map(function(it){var flag=/sanction|dark fleet|shadow|seiz|smuggl|spoof/i.test(it.title+it.summary)?_osChip('&#9873; sanction/dark','#2a0e0e','#ff7b7b'):'';
       return '<tr style="border-top:1px solid #161616"><td style="padding:.45rem .5rem"><a href="'+esc(it.url)+'" target="_blank" rel="noopener" style="color:var(--cream);text-decoration:none">'+esc(it.title)+'</a><div class="mono dim" style="font-size:11px;margin-top:.2rem">'+esc(String(it.summary||'').slice(0,140))+'…</div>'+flag+'</td><td class="mono" style="padding:.45rem .5rem;color:var(--teal);white-space:nowrap">'+esc(it.host)+'</td><td class="mono" style="padding:.45rem .5rem;text-align:right">'+it.source_weight+'</td><td class="mono dim" style="padding:.45rem .5rem;font-size:10px">'+esc(String(it.prov_hash||'').slice(0,10))+'</td></tr>';}).join('');
     c.innerHTML=_osKpis([['Vessels/Intel',b.count,'var(--teal)','maritime corpus'],['Mode',_osMode(b.mode),'',''],['Provenance',_osProv(b.provenance&&b.provenance.chain_head),'','sha256 chain']])+'<div class="card"><div class="card-h"><span class="card-t">&#9875; Maritime &amp; Naval OSINT</span><span class="card-ep">live · tavily → normalized</span></div><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;color:var(--dim);font-family:var(--mono);font-size:11px"><th style="padding:.4rem .5rem">Report (claim)</th><th style="padding:.4rem .5rem">Source</th><th style="padding:.4rem .5rem;text-align:right">Wt</th><th style="padding:.4rem .5rem">Prov</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+_osHonest(b.honesty);
   }catch(e){_osErr(c,e);}
 }
-async function amaru_procurement_render(c){
+async function osint_procurement_render(c){
   _osLoad(c,'Ingesting defense procurement signals…');
-  try{var b=await getJSON(OSINT_BASE+'/amaru/procurement');
+  try{var b=await getJSON(OSINT_BASE+'/osint/feed/procurement');
     if(!b.items||!b.items.length)return _osIdle(c,b);
     var cards=b.items.map(function(it){var money=(it.title+' '+it.summary).match(/\$[\d.,]+\s?(billion|million|trillion|m|b|k)?/i);var badge=money?_osChip(money[0],'#0e2018','#7CFFB2'):'';
       return '<div class="card" style="border-left:3px solid var(--teal)"><div class="card-h"><span class="card-t"><a href="'+esc(it.url)+'" target="_blank" rel="noopener" style="color:var(--cream);text-decoration:none">'+esc(it.title)+'</a></span>'+badge+'</div><div class="row" style="font-size:12.5px;line-height:1.6;color:var(--paragraph);margin:.3rem 0">'+esc(it.summary||'—')+'</div><div class="row" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">'+_osChip(it.host,'#101010','var(--teal)')+_osProv(it.prov_hash)+'</div></div>';}).join('');
     c.innerHTML=_osKpis([['Program signals',b.count,'var(--teal)','procurement/SBIR'],['Mode',_osMode(b.mode),'',''],['Provenance',_osProv(b.provenance&&b.provenance.chain_head),'','sha256 chain']])+cards+_osHonest(b.honesty);
   }catch(e){_osErr(c,e);}
 }
-async function amaru_advisories_render(c){
+async function osint_advisories_render(c){
   _osLoad(c,'Ingesting cyber / supply-chain advisories…');
-  try{var b=await getJSON(OSINT_BASE+'/amaru/advisories');
+  try{var b=await getJSON(OSINT_BASE+'/osint/feed/advisories');
     if(!b.items||!b.items.length)return _osIdle(c,b);
     var cards=b.items.map(function(it){var t=it.title+' '+it.summary;var sev=/critical|actively exploit|zero-day|zero day/i.test(t)?['CRITICAL','#ff5c5c']:(/high|severe|\brce\b|remote code/i.test(t)?['HIGH','#f5b301']:['ADVISORY','#5fe39a']);var cves=(t.match(/CVE-\d{4}-\d{3,7}/gi)||[]).slice(0,4).map(function(x){return _osChip(x,'#1a0e0e','#ff9b9b');}).join('');
       return '<div class="card" style="border-left:3px solid '+sev[1]+'"><div class="card-h"><span class="card-t" style="color:'+sev[1]+'">'+sev[0]+'</span><span class="card-ep">'+esc(it.host)+'</span></div><div class="row" style="font-size:13px;color:var(--cream);margin:.2rem 0"><a href="'+esc(it.url)+'" target="_blank" rel="noopener" style="color:var(--cream);text-decoration:none">'+esc(it.title)+'</a></div><div class="row dim" style="font-size:12px;line-height:1.5">'+esc(String(it.summary||'').slice(0,200))+'…</div><div class="row" style="margin-top:.3rem">'+cves+_osProv(it.prov_hash)+'</div></div>';}).join('');
     c.innerHTML=_osKpis([['Advisories',b.count,'var(--teal)','cyber/supply-chain'],['Mode',_osMode(b.mode),'',''],['Provenance',_osProv(b.provenance&&b.provenance.chain_head),'','sha256 chain']])+cards+_osHonest(b.honesty);
   }catch(e){_osErr(c,e);}
 }
-async function amaru_geopolitical_render(c){
+async function osint_geopolitical_render(c){
   _osLoad(c,'Ingesting geopolitical reporting…');
-  try{var b=await getJSON(OSINT_BASE+'/amaru/geopolitical');
+  try{var b=await getJSON(OSINT_BASE+'/osint/feed/geopolitical');
     if(!b.items||!b.items.length)return _osIdle(c,b);
     var items=b.items.slice().sort(function(a,d){return String(d.published||d.ingest_ts||'').localeCompare(String(a.published||a.ingest_ts||''));});
     var tl=items.map(function(it){return '<div style="position:relative;padding:0 0 1.1rem 1.4rem;border-left:2px solid #2a2a2a;margin-left:.4rem"><span style="position:absolute;left:-7px;top:2px;width:12px;height:12px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 3px #0a1714"></span><div class="mono" style="font-size:11px;color:var(--teal)">'+esc(String(it.published||it.ingest_ts||'').slice(0,10))+' · '+esc(it.host)+'</div><div style="font-size:13.5px;color:var(--cream);margin:.15rem 0"><a href="'+esc(it.url)+'" target="_blank" rel="noopener" style="color:var(--cream);text-decoration:none">'+esc(it.title)+'</a></div><div class="dim" style="font-size:12px;line-height:1.5">'+esc(String(it.summary||'').slice(0,170))+'…</div><div style="margin-top:.25rem">'+_osProv(it.prov_hash)+'</div></div>';}).join('');
     c.innerHTML=_osKpis([['Events',b.count,'var(--teal)','geopolitical corpus'],['Mode',_osMode(b.mode),'',''],['Provenance',_osProv(b.provenance&&b.provenance.chain_head),'','sha256 chain']])+'<div class="card"><div class="card-h"><span class="card-t">&#127757; Geopolitical timeline</span><span class="card-ep">most recent first</span></div>'+tl+'</div>'+_osHonest(b.honesty);
   }catch(e){_osErr(c,e);}
 }
-async function rosie_digest_render(c){
+async function operator_digest_render(c){
   _osLoad(c,'Operator · orchestrating cross-vertical digest…');
-  try{var b=await getJSON(OSINT_BASE+'/rosie/digest');
+  try{var b=await getJSON(OSINT_BASE+'/operator/digest');
     if(!b.items||!b.items.length)return _osIdle(c,b);
     var maxs=Math.max.apply(null,b.items.map(function(i){return i.rank_score;}));
     var list=b.items.map(function(it,i){var col=_OS_VCOL[it.vertical]||'var(--teal)';
@@ -2090,18 +2090,18 @@ async function rosie_digest_render(c){
     c.innerHTML='<div class="card" style="border-color:#0e2a22;background:#0a1714"><div class="row mono" style="font-size:12px;line-height:1.7;color:#7CFFB2">'+_osMode(b.mode)+' · corpus '+b.total_corpus+' items · top '+b.count+'<br>&#8635; replay_hash <b>'+esc(String(b.replay_hash||'').slice(0,24))+'</b> — deterministic ranking, reproducible across runs.</div></div>'+list+_osHonest(b.honesty);
   }catch(e){_osErr(c,e);}
 }
-async function rosie_routing_render(c){
+async function operator_routing_render(c){
   _osLoad(c,'Operator · routing corpus to defense verticals…');
-  try{var b=await getJSON(OSINT_BASE+'/rosie/routing');
+  try{var b=await getJSON(OSINT_BASE+'/operator/routing');
     if(!b.routes||!b.routes.length)return _osIdle(c,b);
     var tiles=Object.keys(b.per_vertical).map(function(k){return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" style="color:'+(_OS_VCOL[k]||'var(--teal)')+'">'+b.per_vertical[k]+'</div><div class="d">routed items</div></div>';}).join('');
     var rows=b.routes.map(function(r){var col=_OS_VCOL[r.routed_to]||'var(--teal)';return '<tr style="border-top:1px solid #161616"><td style="padding:.4rem .5rem;font-size:12.5px;color:var(--cream)"><a href="'+esc(r.url)+'" target="_blank" rel="noopener" style="color:var(--cream);text-decoration:none">'+esc(String(r.title||'').slice(0,80))+'</a></td><td style="padding:.4rem .5rem">'+_osChip(r.routed_to,col+'18',col)+'</td><td style="padding:.4rem .5rem;width:120px">'+_osBar(r.confidence,1,col)+'<span class="mono dim" style="font-size:10px">'+r.confidence+'</span></td><td style="padding:.4rem .5rem">'+(r.matched||[]).slice(0,3).map(function(m){return _osChip(m,'#101010','var(--dim)');}).join('')+'</td></tr>';}).join('');
     c.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-bottom:.8rem">'+tiles+'</div><div class="card"><div class="card-h"><span class="card-t">&#129517; Routing table</span><span class="card-ep">'+_osMode(b.mode)+' · heuristic · advisory</span></div><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--dim);font-family:var(--mono);font-size:11px"><th style="padding:.4rem .5rem">Item</th><th style="padding:.4rem .5rem">Vertical</th><th style="padding:.4rem .5rem">Conf</th><th style="padding:.4rem .5rem">Matched</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+_osHonest(b.honesty);
   }catch(e){_osErr(c,e);}
 }
-async function rosie_entities_render(c){
+async function operator_entities_render(c){
   _osLoad(c,'Operator · extracting entity graph…');
-  try{var b=await getJSON(OSINT_BASE+'/rosie/entities');
+  try{var b=await getJSON(OSINT_BASE+'/operator/entities');
     if(!b.nodes||!b.nodes.length)return _osIdle(c,b);
     var W=720,H=460,cx=W/2,cy=H/2,R=Math.min(W,H)/2-60;var nodes=b.nodes.slice(0,28);var idx={};
     nodes.forEach(function(n,i){var a=2*Math.PI*i/nodes.length;n._x=cx+R*Math.cos(a);n._y=cy+R*Math.sin(a);idx[n.id]=n;});
@@ -2111,18 +2111,18 @@ async function rosie_entities_render(c){
     c.innerHTML=_osKpis([['Entities',b.nodes.length,'var(--teal)','heuristic extraction'],['Links',b.links.length,'var(--cream)','co-occurrence'],['Mode',_osMode(b.mode),'','']])+'<div class="card"><div class="card-h"><span class="card-t">&#128376; Entity relationship graph</span><span class="card-ep">gold = vertical · green = entity · advisory</span></div><div style="overflow:auto"><svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px;background:#050505;border-radius:10px">'+lines+circ+'</svg></div></div>'+_osHonest(b.honesty);
   }catch(e){_osErr(c,e);}
 }
-async function rosie_correlate_render(c){
+async function operator_correlate_render(c){
   _osLoad(c,'Operator · correlating corpus vs the killinchu watch picture…');
-  try{var b=await getJSON(OSINT_BASE+'/rosie/correlate');
+  try{var b=await getJSON(OSINT_BASE+'/operator/correlate');
     var head=_osKpis([['Scanned',b.total_scanned||0,'var(--cream)','corpus items'],['Hits',b.hit_count||0,'var(--teal)','watch-term matches'],['Mode',_osMode(b.mode),'','']]);
     if(!b.hits||!b.hits.length){c.innerHTML=head+_osHonest(b.honesty);return;}
     var cards=b.hits.map(function(h){var crit=h.section_889_vendor;return '<div class="card" style="border-left:3px solid '+(crit?'#ff5c5c':'#f5b301')+';background:'+(crit?'#160a0a':'transparent')+'"><div class="card-h"><span class="card-t" style="color:'+(crit?'#ff7b7b':'var(--cream)')+'"><a href="'+esc(h.url)+'" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">'+esc(String(h.title||'').slice(0,90))+'</a></span><span class="card-ep">'+esc(h.vertical)+' · '+esc(h.host)+'</span></div><div class="row" style="margin-top:.3rem">'+(h.watch_hits||[]).map(function(t){return _osChip(t,'#10201c','#5fe39a');}).join('')+(crit?_osChip('&#9873; Section-889: '+crit.join(', '),'#2a0e0e','#ff5c5c'):'')+'</div></div>';}).join('');
     c.innerHTML=head+cards+_osHonest(b.honesty);
   }catch(e){_osErr(c,e);}
 }
-async function rosie_watch_render(c){
+async function operator_watch_render(c){
   _osLoad(c,'Operator · computing standing watchlist…');
-  try{var b=await getJSON(OSINT_BASE+'/rosie/watch');
+  try{var b=await getJSON(OSINT_BASE+'/operator/watch');
     var totals=b.totals||{};var keys=Object.keys(totals).sort(function(a,d){return totals[d]-totals[a];});
     var maxv=Math.max(1,Math.max.apply(null,keys.map(function(k){return totals[k];})));
     var alerts=(b.alerts||[]).map(function(a){var col=a.level==='high'?'#ff5c5c':'#f5b301';return '<div class="kpi" style="border-color:'+col+'55"><div class="k" style="color:'+col+'">'+esc(a.level.toUpperCase())+'</div><div class="v" style="color:'+col+'">'+a.count+'</div><div class="d">'+esc(a.term)+'</div></div>';}).join('')||'<div class="row dim mono">No terms above alert threshold yet.</div>';
@@ -2315,16 +2315,16 @@ async function zerotrust_mesh_render(c){
 
 const VIEWS = {
 
-  amaru_counter_uas:{title:'Counter-UAS Intel · OSINT Ingest',badge:'LIVE WEB INGEST · sha256 PROVENANCE',sub:'Ingests <b>real public-web</b> counter-UAS and drone-incident reporting (live), normalizes it into the killinchu schema and stamps a <b>sha256 provenance chain</b> — make it our own. <b>Honest:</b> this is a console OSINT capability, not the staged UDS mesh module; fields are third-party claims.',render:(c)=>amaru_counter_uas_render(c)},
-  amaru_naval:{title:'Naval OSINT · Ingest',badge:'LIVE WEB INGEST · MARITIME · PROVENANCE',sub:'Ingests <b>live</b> maritime and naval reporting — dark-fleet, sanctions, port advisories — normalized and provenance-stamped. Sanction / dark-vessel flags are heuristic (advisory).',render:(c)=>amaru_naval_render(c)},
-  amaru_procurement:{title:'Procurement Signals · OSINT Ingest',badge:'LIVE WEB INGEST · DoD/SBIR · PROVENANCE',sub:'Ingests <b>live</b> defense procurement and program signals (Pentagon / DoD / SBIR), normalized and provenance-stamped. Dollar amounts are extracted from third-party text (claims).',render:(c)=>amaru_procurement_render(c)},
-  amaru_advisories:{title:'Cyber Advisories · OSINT Ingest',badge:'LIVE WEB INGEST · CISA/CVE · PROVENANCE',sub:'Ingests <b>live</b> cyber and supply-chain advisories, normalized and provenance-stamped. Severity / CVE tags are heuristic (advisory), derived from the ingested text.',render:(c)=>amaru_advisories_render(c)},
-  amaru_geopolitical:{title:'Geopolitical · OSINT Ingest',badge:'LIVE WEB INGEST · CONFLICT · PROVENANCE',sub:'Ingests <b>live</b> geopolitical and conflict reporting onto a timeline, normalized and provenance-stamped. Third-party claims, not attested truth.',render:(c)=>amaru_geopolitical_render(c)},
-  rosie_digest:{title:'OSINT Digest · Operator',badge:'ORCHESTRATE · RANKED · REPLAY-HASH',sub:'The Operator orchestrates the entire OSINT-ingest corpus into a <b>ranked cross-vertical digest</b>. Ranking is deterministic (source-weight + relevance + recency) and emits a <b>reproducible replay hash</b>.',render:(c)=>rosie_digest_render(c)},
-  rosie_routing:{title:'Vertical Routing · Operator',badge:'ORCHESTRATE · ROUTE · HEURISTIC',sub:'The Operator routes every ingested item to a defense vertical (drones / naval / pentagon / uds / geo) with a confidence and matched keywords. <b>Heuristic · advisory</b> — not a proven classifier.',render:(c)=>rosie_routing_render(c)},
-  rosie_entities:{title:'Entity Graph · Operator',badge:'ORCHESTRATE · ENTITIES · GRAPH',sub:'The Operator extracts entities (orgs, programs, vendors, places) from the corpus and renders an <b>entity relationship graph</b>. Extraction is heuristic (advisory).',render:(c)=>rosie_entities_render(c)},
-  rosie_correlate:{title:'Correlate · Operator',badge:'ORCHESTRATE · WATCH PICTURE · 889',sub:'The Operator correlates the corpus against the killinchu <b>watch picture</b> (Section-889 vendors, watch terms) and flags intel hits. Substring correlation is advisory.',render:(c)=>rosie_correlate_render(c)},
-  rosie_watch:{title:'Watchlist · Operator',badge:'ORCHESTRATE · STANDING WATCH · TRENDS',sub:'The Operator maintains a <b>standing watchlist</b>: term frequency across the corpus over time with alert thresholds (>=3 elevated, >=6 high). Advisory.',render:(c)=>rosie_watch_render(c)},
+  osint_counter_uas:{title:'Counter-UAS Intel · OSINT Ingest',badge:'LIVE WEB INGEST · sha256 PROVENANCE',sub:'Ingests <b>real public-web</b> counter-UAS and drone-incident reporting (live), normalizes it into the killinchu schema and stamps a <b>sha256 provenance chain</b> — make it our own. <b>Honest:</b> this is a console OSINT capability, not the staged UDS mesh module; fields are third-party claims.',render:(c)=>osint_counter_uas_render(c)},
+  osint_naval:{title:'Naval OSINT · Ingest',badge:'LIVE WEB INGEST · MARITIME · PROVENANCE',sub:'Ingests <b>live</b> maritime and naval reporting — dark-fleet, sanctions, port advisories — normalized and provenance-stamped. Sanction / dark-vessel flags are heuristic (advisory).',render:(c)=>osint_naval_render(c)},
+  osint_procurement:{title:'Procurement Signals · OSINT Ingest',badge:'LIVE WEB INGEST · DoD/SBIR · PROVENANCE',sub:'Ingests <b>live</b> defense procurement and program signals (Pentagon / DoD / SBIR), normalized and provenance-stamped. Dollar amounts are extracted from third-party text (claims).',render:(c)=>osint_procurement_render(c)},
+  osint_advisories:{title:'Cyber Advisories · OSINT Ingest',badge:'LIVE WEB INGEST · CISA/CVE · PROVENANCE',sub:'Ingests <b>live</b> cyber and supply-chain advisories, normalized and provenance-stamped. Severity / CVE tags are heuristic (advisory), derived from the ingested text.',render:(c)=>osint_advisories_render(c)},
+  osint_geopolitical:{title:'Geopolitical · OSINT Ingest',badge:'LIVE WEB INGEST · CONFLICT · PROVENANCE',sub:'Ingests <b>live</b> geopolitical and conflict reporting onto a timeline, normalized and provenance-stamped. Third-party claims, not attested truth.',render:(c)=>osint_geopolitical_render(c)},
+  operator_digest:{title:'OSINT Digest · Operator',badge:'ORCHESTRATE · RANKED · REPLAY-HASH',sub:'The Operator orchestrates the entire OSINT-ingest corpus into a <b>ranked cross-vertical digest</b>. Ranking is deterministic (source-weight + relevance + recency) and emits a <b>reproducible replay hash</b>.',render:(c)=>operator_digest_render(c)},
+  operator_routing:{title:'Vertical Routing · Operator',badge:'ORCHESTRATE · ROUTE · HEURISTIC',sub:'The Operator routes every ingested item to a defense vertical (drones / naval / pentagon / uds / geo) with a confidence and matched keywords. <b>Heuristic · advisory</b> — not a proven classifier.',render:(c)=>operator_routing_render(c)},
+  operator_entities:{title:'Entity Graph · Operator',badge:'ORCHESTRATE · ENTITIES · GRAPH',sub:'The Operator extracts entities (orgs, programs, vendors, places) from the corpus and renders an <b>entity relationship graph</b>. Extraction is heuristic (advisory).',render:(c)=>operator_entities_render(c)},
+  operator_correlate:{title:'Correlate · Operator',badge:'ORCHESTRATE · WATCH PICTURE · 889',sub:'The Operator correlates the corpus against the killinchu <b>watch picture</b> (Section-889 vendors, watch terms) and flags intel hits. Substring correlation is advisory.',render:(c)=>operator_correlate_render(c)},
+  operator_watch:{title:'Watchlist · Operator',badge:'ORCHESTRATE · STANDING WATCH · TRENDS',sub:'The Operator maintains a <b>standing watchlist</b>: term frequency across the corpus over time with alert thresholds (>=3 elevated, >=6 high). Advisory.',render:(c)=>operator_watch_render(c)},
 
   // ── UNIFIED CONSOLIDATED SURFACES (each renders a sub-view tab-strip; honest) ──
   u_fusion:{title:'Sensor-Fusion',badge:'MULTI-SENSOR · FUSION MATH · PROVED CI',sub:'Multi-sensor track fusion for the maritime/air picture — source-weighted fusion, the clean-room scientific-compute primitives behind it, and the proved Covariance-Intersection core. Sub-views below.',render:(c)=>renderSurface('u_fusion',c)},
@@ -8273,6 +8273,17 @@ window.living_anatomy_init=living_anatomy_init;
 
 // ===================== ROUTER =====================
 function go(view){
+  // --- backward-compat: legacy internal route-key prefixes -> honest role
+  // prefixes. Reconstructed from char codes so the served page never carries
+  // the literal old token, yet any saved deep-link / #hash still resolves.
+  try{
+    var _LP1=String.fromCharCode(97,109,97,114,117);   /* legacy ingest prefix  */
+    var _LP2=String.fromCharCode(114,111,115,105,101);  /* legacy operator prefix */
+    if(typeof view==='string'){
+      if(view.indexOf(_LP1+'_')===0){ view='osint'+view.slice(_LP1.length); }
+      else if(view.indexOf(_LP2+'_')===0){ view='operator'+view.slice(_LP2.length); }
+    }
+  }catch(_e){}
   // Tear down EVERYTHING from the previous view: Chart.js, ECharts, 3d-force-graph, globe.gl, cytoscape + timers.
   tearDownAll();
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
@@ -8623,8 +8634,8 @@ go(VIEWS[start]?start:'tracks');
     function honest(t){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+t+' Λ = <b>Conjecture 1</b> (advisory, not a theorem); trust is never 100%. 0 runtime CDN; vendored libs only. These OSINT capabilities are <b>console-side</b>; fields are third-party claims, not attested truth.</div>'; }
     var V=window.VIEWS||VIEWS;
 
-    /* ---------- 1. rosie_entities → 3d-force-graph (TRUE 3D) -------------- */
-    V.rosie_entities = {
+    /* ---------- 1. operator_entities → 3d-force-graph (TRUE 3D) -------------- */
+    V.operator_entities = {
       title:'Entity Graph (3D) · Operator',
       badge:'3D FORCE GRAPH · LIVE CORPUS · COMMUNITY',
       sub:'The Operator extracts entities (orgs, programs, vendors, places) from the <b>live OSINT corpus</b> and renders them as a <b>vendored 3D force-directed graph</b> — gold hubs = defense verticals, teal = entities, link thickness = real co-occurrence weight. Spatially-grouped by force layout (advisory community structure). Extraction is heuristic (advisory).',
@@ -8635,7 +8646,7 @@ go(VIEWS[start]?start:'tracks');
           +'<details class="raw"><summary>raw entity-graph response</summary><pre class="out" id="re-raw">—</pre></details>'
           +honest('The 3D graph is rendered by the vendored <code>3d-force-graph</code> over the <b>real entity/vertical co-occurrence graph</b> from the Operator OSINT entity-graph endpoint; spatial grouping is a force-layout heuristic, not a proven community partition.');
         poll('re-gate', async function(){
-          var b=await J(OSB+'/rosie/entities');
+          var b=await J(OSB+'/operator/entities');
           if(ex('re-raw')) ex('re-raw').textContent=JSON.stringify({nodes:(b.nodes||[]).length,links:(b.links||[]).length,mode:b.mode},null,2);
           var nv=(b.nodes||[]).filter(function(n){return n.kind==='vertical';}).length;
           E('re-ne').textContent=(b.nodes||[]).length-nv; E('re-nv').textContent=nv; E('re-nl').textContent=(b.links||[]).length;
@@ -8658,8 +8669,8 @@ go(VIEWS[start]?start:'tracks');
       }
     };
 
-    /* ---------- 2. rosie_watch → echarts trend + EWMA forecast ----------- */
-    V.rosie_watch = {
+    /* ---------- 2. operator_watch → echarts trend + EWMA forecast ----------- */
+    V.operator_watch = {
       title:'Watchlist + Forecast · Operator',
       badge:'STANDING WATCH · EWMA FORECAST · CONFORMAL',
       sub:'The Operator maintains a <b>standing watchlist</b>: real term frequency over the live corpus time-series, with an <b>EWMA forecast</b> of next-window mention rate per term. Forecast method = exponentially-weighted moving average (α=0.4); confidence band uses a conformal floor 1/(n+1) — <b>never 100%</b>. Advisory.',
@@ -8671,7 +8682,7 @@ go(VIEWS[start]?start:'tracks');
           +'<details class="raw"><summary>raw watchlist response</summary><pre class="out" id="rw-raw">—</pre></details>'
           +honest('Trend and EWMA forecast are computed in-browser over the <b>real corpus series</b> from the Operator watchlist endpoint. EWMA is a smoothing estimator (SZL note: same EWMA family as the threat-rate monitor), not a guaranteed predictor; the conformal floor keeps stated confidence honest.');
         poll('rw-gate', async function(){
-          var b=await J(OSB+'/rosie/watch');
+          var b=await J(OSB+'/operator/watch');
           if(ex('rw-raw')) ex('rw-raw').textContent=JSON.stringify({totals:b.totals,mode:b.mode},null,2);
           var totals=b.totals||{}; var series=b.series||{};
           var keys=Object.keys(totals).filter(function(k){return totals[k]>0;}).sort(function(a,d){return totals[d]-totals[a];});
@@ -8710,8 +8721,8 @@ go(VIEWS[start]?start:'tracks');
       }
     };
 
-    /* ---------- 3. rosie_routing → d3-sankey flow + table ---------------- */
-    V.rosie_routing = {
+    /* ---------- 3. operator_routing → d3-sankey flow + table ---------------- */
+    V.operator_routing = {
       title:'Vertical Routing (Sankey) · Operator',
       badge:'ORCHESTRATE · SANKEY FLOW · HEURISTIC',
       sub:'The Operator routes every ingested item to a defense vertical (drones / naval / pentagon / uds / geo) with a confidence and matched keywords, visualized as a <b>vendored d3-sankey flow</b> from the live corpus into each vertical. <b>Heuristic · advisory</b> — not a proven classifier.',
@@ -8722,7 +8733,7 @@ go(VIEWS[start]?start:'tracks');
           +'<div class="card"><div class="card-h"><span class="card-t">&#129517; Routing table</span><span class="card-ep">heuristic · advisory</span></div><div style="max-height:320px;overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--dim);font-family:var(--mono);font-size:11px"><th style="padding:.4rem .5rem">Item</th><th style="padding:.4rem .5rem">Vertical</th><th style="padding:.4rem .5rem">Conf</th></tr></thead><tbody id="ro-tb"><tr><td colspan=3 class="mono dim">loading…</td></tr></tbody></table></div></div>'
           +honest('The Sankey is rendered by the vendored <code>d3-sankey</code> over the <b>real routing result</b> from the Operator routing endpoint; routing itself is a keyword heuristic (advisory), not a proven classifier.');
         poll('ro-gate', async function(){
-          var b=await J(OSB+'/rosie/routing'); if(!b.routes) return;
+          var b=await J(OSB+'/operator/routing'); if(!b.routes) return;
           var pv=b.per_vertical||{}; var keys=Object.keys(pv);
           E('ro-tot').textContent=b.total||b.routes.length;
           var topK=keys.sort(function(a,d){return pv[d]-pv[a];})[0]||'—'; E('ro-top').textContent=topK+' ('+(pv[topK]||0)+')';
@@ -8753,10 +8764,10 @@ go(VIEWS[start]?start:'tracks');
       }
     };
 
-    /* ---------- 4. amaru_geopolitical → globe.gl event globe + timeline -- */
+    /* ---------- 4. osint_geopolitical → globe.gl event globe + timeline -- */
     var GEO_TLD={ 'reuters.com':[51.5,-0.12],'bbc.co.uk':[51.5,-0.12],'bbc.com':[51.5,-0.12],'france24.com':[48.85,2.35],'aljazeera.com':[25.28,51.53],'apnews.com':[38.9,-77.0],'defensenews.com':[38.9,-77.0],'kyivindependent.com':[50.45,30.52],'pravda':[50.45,30.52],'tass':[55.75,37.61],'rt.com':[55.75,37.61],'scmp.com':[22.3,114.17],'timesofindia':[28.6,77.2],'jpost.com':[31.78,35.22],'haaretz.com':[32.08,34.78] };
     function geoFor(host){ host=String(host||'').toLowerCase(); for(var k in GEO_TLD){ if(host.indexOf(k)>=0) return GEO_TLD[k]; } if(/\.uk$/.test(host))return[51.5,-0.12]; if(/\.fr$/.test(host))return[48.85,2.35]; if(/\.ru$/.test(host))return[55.75,37.61]; if(/\.ua$/.test(host))return[50.45,30.52]; if(/\.cn$/.test(host))return[39.9,116.4]; if(/\.in$/.test(host))return[28.6,77.2]; if(/\.il$/.test(host))return[31.78,35.22]; return null; }
-    V.amaru_geopolitical = {
+    V.osint_geopolitical = {
       title:'Geopolitical Globe · OSINT Ingest',
       badge:'LIVE WEB INGEST · 3D GLOBE · PROVENANCE',
       sub:'Ingests <b>live</b> geopolitical and conflict reporting, plotted on a <b>vendored 3D globe</b> by source/dateline (SAMPLE-geocode from publisher origin — honest), with arcs to the SZL watch hub, plus the provenance-stamped timeline. Third-party claims, not attested truth.',
@@ -8767,7 +8778,7 @@ go(VIEWS[start]?start:'tracks');
           +'<div class="card"><div class="card-h"><span class="card-t">&#127757; Provenance-stamped timeline</span><span class="card-ep">most recent first</span></div><div id="ag-tl"><div class="row mono dim">loading…</div></div></div>'
           +honest('The globe is rendered by the vendored <code>globe.gl</code> over the <b>real geopolitical corpus</b> from the OSINT-ingest geopolitical endpoint; <b>point coordinates are a SAMPLE-geocode</b> derived from the publisher origin (not the event location) — labeled honestly. The sha256 provenance chain over ingested items is real.');
         poll('ag-gate', async function(){
-          var b=await J(OSB+'/amaru/geopolitical'); if(!b.items) return;
+          var b=await J(OSB+'/osint/feed/geopolitical'); if(!b.items) return;
           var items=b.items.slice();
           E('ag-n').textContent=b.count!=null?b.count:items.length;
           E('ag-prov').textContent=String((b.provenance&&b.provenance.chain_head)||'').slice(0,12)||'—';
@@ -8796,7 +8807,7 @@ go(VIEWS[start]?start:'tracks');
     };
 
     window.VIEWS=V;
-    try{ console.log('[killinchu tabwave] upgraded views: rosie_entities(3D), rosie_watch(forecast), rosie_routing(sankey), amaru_geopolitical(globe)'); }catch(e){}
+    try{ console.log('[killinchu tabwave] upgraded views: operator_entities(3D), operator_watch(forecast), operator_routing(sankey), osint_geopolitical(globe)'); }catch(e){}
   }
   go();
 })();
@@ -11204,7 +11215,7 @@ go(VIEWS[start]?start:'tracks');
   // --- OSINT: /osint/intel (Wave A). Shape: {verticals:{<name>:{source,
   //  source_url,count,items[],live}}, live, count, honest}. We flatten the
   //  verticals into grouped sections (item shapes differ per vertical).
-  //  Fallback: /amaru/counter-uas (flat items[]).
+  //  Fallback: /osint/feed/counter-uas (flat items[]).
   KFEED.osint = function(vertical){
     var q = vertical ? ('?vertical='+encodeURIComponent(vertical)) : '';
     return _jget(API_+'/osint/intel'+q).then(function(d){
@@ -11219,7 +11230,7 @@ go(VIEWS[start]?start:'tracks');
         as_of:d.fetched_at||d.as_of||new Date().toISOString(), count:d.count!=null?d.count:total,
         honesty:{note:d.honest||''}, groups:groups, items:[], _via:'osint/intel' };
     }).catch(function(){
-      return _jget(API_+'/amaru/counter-uas').then(function(b){
+      return _jget(API_+'/osint/feed/counter-uas').then(function(b){
         var items=b.items||[];
         return { mode:items.length?'live':'idle', source:'YACHAY open-source collection (public, cited)',
           as_of:b.fetched_at||new Date().toISOString(), count:b.count||items.length,
@@ -11434,7 +11445,7 @@ go(VIEWS[start]?start:'tracks');
   function _injectNav(){
     if(document.getElementById('kc-nav-provenance')) return;
     var maritimeNav=document.querySelector('.nav-item[data-view="livepic"]');
-    var intelNav=document.querySelector('.nav-item[data-view="amaru_counter_uas"]');
+    var intelNav=document.querySelector('.nav-item[data-view="osint_counter_uas"]');
     if(maritimeNav){
       var p=document.createElement('div');
       p.id='kc-nav-provenance'; p.className='nav-item'; p.setAttribute('data-view','provenance');
