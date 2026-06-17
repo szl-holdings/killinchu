@@ -1007,16 +1007,12 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-group" data-demo-sec="maritime" title="NAVY mission domain: live AIS maritime picture, NOAA AIS Aug-2024 sample, pirate/WPI overlays, dark-vessel hunt, ASW OSINT — governed risk + signed receipts.">&#9312; NAVY &middot; MARITIME</div>
     <a class="nav-item" href="/elite/maritime" style="color:var(--gold-bright)" title="Flagship unified Maritime Intel surface: live AIS vessel board (incl. China seas), dark-fleet/spoof threat flags, governed Lambda risk score, vessel forecast, honest submarine/ASW OSINT, the 3D globe, and a re-hashable signed provenance HUD. Advisory; effector SIMULATED; no vessel control or live submarine tracking."><span class="ico">&#9733;</span>Maritime Intel</a>
     <a class="nav-item" href="/elite/mesh" style="color:var(--gold-bright)" title="MESH: the live szl-mesh surface — real topology graph (spec 08), the 3-of-4 Khipu quorum (soft-safety AP; Khipu BFT unconditional = Conjecture 2), the DSSE-receipted CRDT chain with in-browser SHA-256 re-hash + tamper demo, and doctrine-gated enrollment. Real mesh state; no fabricated quorum."><span class="ico">&#9883;</span>MESH (live surface)</a>
-    <div class="nav-item" data-view="u_maritime" onclick="go('u_maritime')" title="Live AIS maritime picture + sanctions/dark-vessel screening + dark-vessel hunt."><span class="ico">&#9875;</span>Maritime Picture</div>
-    <div class="nav-item" data-view="u_fleet" onclick="go('u_fleet')" title="Fleet operations: overview, 3D health twin, maintenance, logs, voyages, briefings (live vessels)."><span class="ico">&#9204;</span>Fleet Operations</div>
-    <div class="nav-item" data-view="livepic" onclick="go('livepic')" title="Live common operating picture: military ADS-B (adsb.lol) + AIS (Digitraffic FI), auto-recording."><span class="ico">&#9673;</span>Live Picture</div>
+    <div class="nav-item" data-view="u_maritime" onclick="go('u_maritime')" title="Live Maritime Picture (unified): Live Track Board + live AIS maritime picture + Live Picture (COP) + sanctions/dark-vessel screening + dark-vessel hunt. Folds the former Track Board and Live Picture tabs in as sub-views."><span class="ico">&#9875;</span>Maritime Picture (Tracks/Map)</div>
     <div class="nav-item" data-view="u_space" onclick="go('u_space')" title="Space &amp; GEOINT: 3D LEO constellation globe, GEOINT planning, live USGS seismic forecast globe."><span class="ico">&#8853;</span>Constellations &amp; GEOINT (3D LEO)</div>
     <div class="nav-item" data-view="u_darkgraph" onclick="go('u_darkgraph')" title="Dark-vessel hunt: 3D threat graph + class DB + ranking + detection + drone DB."><span class="ico">&#10847;</span>Dark-Vessel Threat Graph (3D)</div>
 
     <div class="nav-group" data-demo-sec="cuas" title="ARMY / MARINES mission domain: live counter-UAS track feed, swarm-intent classifier over real ADS-B, governed engage/ROE, sensor-fusion — decision to DSSE-signed &Lambda;-receipt.">&#9313; ARMY &middot; COUNTER-UAS</div>
-    <div class="nav-item" data-view="osint_counter_uas" onclick="go('osint_counter_uas')" title="Live public-web counter-UAS / drone-incident reporting, normalized + sha256 provenance-stamped. Console OSINT capability; fields are third-party claims."><span class="ico">&#9650;</span>Counter-UAS Intel (live web)</div>
-    <div class="nav-item" data-view="u_swarm" onclick="go('u_swarm')" title="Swarm integrity: 3D topology + resilience monitor."><span class="ico">&#9785;</span>Swarm Integrity</div>
-    <div class="nav-item" data-view="swarm_intent" onclick="go('swarm_intent')" title="Real-time swarm-intent classifier over the LIVE military ADS-B stream: CONVERGING / LOITER / INGRESS / TRANSIT scored from real kinematics + pairwise closing geometry. MODEL-SCORED over real live data."><span class="ico">&#9683;</span>Swarm-Intent Classifier (live)</div>
+    <div class="nav-item" data-view="u_swarm" onclick="go('u_swarm')" title="Swarm (unified): 3D topology + resilience monitor + live swarm-intent classifier (CONVERGING/LOITER/INGRESS/TRANSIT over real ADS-B) + 3D swarm mesh galaxy. Folds the former Swarm-Intent and Swarm Mesh tabs in as sub-views."><span class="ico">&#9785;</span>Swarm (Integrity/Intent/Mesh)</div>
     <div class="nav-item" data-view="u_engage" onclick="go('u_engage')" title="Governed engagement: ROE, engage-safely, geofence, autonomy governance, companion-defense."><span class="ico">&#8862;</span>Engage &amp; ROE</div>
     <div class="nav-item" data-view="u_fusion" onclick="go('u_fusion')" title="Multi-sensor fusion + fusion math + proved Covariance-Intersection."><span class="ico">&#10710;</span>Sensor-Fusion</div>
     <div class="nav-item" data-view="operate" onclick="go('operate')" title="Select a track, issue a governed command, watch it clear the policy gate and emit a genuinely-signed receipt. Effector is a command demonstration, simulated."><span class="ico">&#9889;</span>Operate (governed control)</div>
@@ -1029,11 +1025,10 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 
     <div class="nav-group" data-demo-sec="core" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9315; GOVERNED CORE &middot; UDS</div>
     <div class="nav-item" data-view="lambda" onclick="go('lambda')" title="13-axis Trust score monitor. Lambda = Conjecture 1 (advisory, not a theorem)."><span class="ico">&#9672;</span>Trust Score Monitor (Λ)</div>
-    <div class="nav-item" data-view="u_consensus" onclick="go('u_consensus')" title="SKELETON organ: 3-of-4 consensus (BFT safety = Conjecture 2 OPEN unconditionally; CONDITIONAL agreement proven axiom-free, Wave23), quorum, mesh resilience, field net, oversight."><span class="ico">&#8859;</span>Mesh &amp; Consensus</div>
-    <div class="nav-item" data-view="mesh_resilience" onclick="go('mesh_resilience')" title="Live Fiedler lambda2 mesh-resilience monitor: real algebraic connectivity from networkx over the live C2 topology + an in-browser node-removal resilience sweep finding the mesh's real cut-vulnerability."><span class="ico">&#9741;</span>Mesh-Resilience (Fiedler &#955;2)</div>
+    <div class="nav-item" data-view="u_consensus" onclick="go('u_consensus')" title="Mesh &amp; Resilience (unified) — SKELETON organ: 3-of-4 consensus (BFT safety = Conjecture 2 OPEN unconditionally; CONDITIONAL agreement proven axiom-free, Wave23), quorum, the live Fiedler λ2 mesh-resilience monitor (real algebraic connectivity + node-removal sweep), field net, oversight. Folds the former Mesh-Resilience tab in as a sub-view."><span class="ico">&#8859;</span>Mesh &amp; Resilience</div>
     <div class="nav-item" data-view="retask_board" onclick="go('retask_board')" title="Live drift-triggered re-tasking board: real PSI/KS/ADWIN drift on the live ADS-B telemetry raises honest re-tasking recommendations bound to the actual triggering detector. Advisory; effector simulated."><span class="ico">&#8635;</span>Drift Re-Tasking Board (live)</div>
     <div class="nav-item" data-view="u_posture" onclick="go('u_posture')" title="Runtime assurance: real model/data-drift (PSI + KS + ADWIN) on live telemetry, real graph-theoretic topology &amp; health metrics (clustering / centrality / Fiedler lambda2), the attack-surface exposure graph and the zero-trust mesh — all from real telemetry + the real UDS Package CR. Honest verdicts and empty states."><span class="ico">&#9202;</span>Posture, Topology &amp; Zero-Trust</div>
-    <div class="nav-item" data-view="u_receipts" onclick="go('u_receipts')" title="CIRCULATORY organ: live signed-receipt chain (3D), audit, quantum-safe signing, evidence."><span class="ico">&#9939;</span>Receipt Ledger &amp; Verify</div>
+    <div class="nav-item" data-view="u_receipts" onclick="go('u_receipts')" title="Receipts &amp; Provenance (unified) — CIRCULATORY organ: live signed-receipt chain (3D), the real-data provenance ledger (DSSE/khipu hash-chain), audit, quantum-safe signing, evidence. Folds the former Real-Data Provenance tab in as a sub-view."><span class="ico">&#9939;</span>Receipts &amp; Provenance</div>
     <div class="nav-item" data-view="u_proofs" onclick="go('u_proofs')" title="BRAIN organ: knowledge &amp; formulas (exactly 8 locked), runtime theorem cards, safety gates."><span class="ico">&#8721;</span>Knowledge &amp; Runtime Proofs</div>
     <div class="nav-item" data-view="putnam" onclick="go('putnam')" title="Honest doctrine-v11 kernel verdict for the canonical Putnam 2025 set (A1-A6, B1-B6): the count of REAL Lean-kernel-checked theorems. SZL-native originals pending upstream."><span class="ico">&#931;</span>Putnam 2025 (kernel verdict)</div>
     <div class="nav-item" data-view="u_melt" onclick="go('u_melt')" title="NERVOUS organ: MELT observability, living-organism service graph (3D), model atlas."><span class="ico">&#8779;</span>Observability (MELT)</div>
@@ -1041,16 +1036,8 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="u_about" onclick="go('u_about')" title="What we claim (honest), research corpus, legal boundaries, deploy posture, UDS package."><span class="ico">&#8856;</span>About &amp; Claims</div>
 
     <div class="nav-group" data-demo-sec="intel" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9316; INTEL &amp; PROVENANCE</div>
-    <div class="nav-item" data-view="osint_naval" onclick="go('osint_naval')" title="Live maritime/naval OSINT (dark-fleet, sanctions, port advisories), normalized + provenance-stamped. Heuristic, advisory."><span class="ico">&#9875;</span>Naval OSINT (live web)</div>
-    <div class="nav-item" data-view="osint_procurement" onclick="go('osint_procurement')" title="Live defense procurement / SBIR / program signals, normalized + provenance-stamped."><span class="ico">&#128176;</span>Procurement Signals (live web)</div>
-    <div class="nav-item" data-view="osint_advisories" onclick="go('osint_advisories')" title="Live cyber / supply-chain advisories, normalized + provenance-stamped; severity/CVE tags heuristic."><span class="ico">&#9888;</span>Cyber Advisories (live web)</div>
-    <div class="nav-item" data-view="osint_geopolitical" onclick="go('osint_geopolitical')" title="Live geopolitical / conflict reporting onto a timeline, normalized + provenance-stamped."><span class="ico">&#127757;</span>Geopolitical (live web)</div>
-    <div class="nav-item" data-view="u_intel" onclick="go('u_intel')" title="World &amp; threat intel: live CISA KEV + NVD CVE + ATT&amp;CK."><span class="ico">&#9888;</span>World &amp; Threat Intel</div>
-    <div class="nav-item" data-view="operator_digest" onclick="go('operator_digest')" title="Operator orchestrates the OSINT corpus into a ranked cross-vertical digest with a reproducible replay hash."><span class="ico">&#9776;</span>OSINT Digest (Operator)</div>
-    <div class="nav-item" data-view="operator_routing" onclick="go('operator_routing')" title="Operator routes each ingested item to a defense vertical with confidence + matched keywords (heuristic, advisory)."><span class="ico">&#129517;</span>Vertical Routing (Operator)</div>
-    <div class="nav-item" data-view="operator_entities" onclick="go('operator_entities')" title="Operator extracts entities and renders an entity relationship graph (heuristic, advisory)."><span class="ico">&#128376;</span>Entity Graph (Operator)</div>
-    <div class="nav-item" data-view="operator_correlate" onclick="go('operator_correlate')" title="Operator correlates the corpus against the killinchu watch picture (Section-889 vendors, watch terms)."><span class="ico">&#128269;</span>Correlate (Operator)</div>
-    <div class="nav-item" data-view="operator_watch" onclick="go('operator_watch')" title="Operator maintains a standing watchlist: term frequency over the corpus with alert thresholds."><span class="ico">&#128065;</span>Watchlist (Operator)</div>
+    <div class="nav-item" data-view="u_intel" onclick="go('u_intel')" title="OSINT / Threat Intel (unified): live CISA KEV + NVD CVE + ATT&amp;CK, plus every live public-web OSINT feed — Naval, Procurement, Cyber Advisories, Geopolitical, Counter-UAS — and the aggregated cross-vertical intel surface, all normalized + sha256 provenance-stamped. Folds the former five OSINT feed tabs in as sub-views. Third-party claims; heuristic/advisory."><span class="ico">&#9888;</span>OSINT / Threat Intel</div>
+    <div class="nav-item" data-view="u_operator" onclick="go('u_operator')" title="Operator OSINT (unified): the Operator orchestrates the OSINT corpus — ranked cross-vertical digest (reproducible replay hash), vertical routing, entity graph, watch-picture correlation (Section-889) and a standing watchlist. Folds the former five Operator tabs in as sub-views. Heuristic/advisory."><span class="ico">&#9776;</span>Operator OSINT</div>
 
     <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 8 {F1,F4,F7,F11,F12,F18,F19,F22}; SLSA L2 build-attestation present; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
     <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>8 formulas formally proven<br>Build provenance: SLSA L2 build-attestation present<br>Drones + Maritime · signed receipts</div>
@@ -1066,12 +1053,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-group nav-group-exp-divider" data-demo-sec="experimental" style="border-top:2px dashed #6b5d2a;margin-top:.7rem;padding-top:.55rem;color:#caa84b">&#9888; EXPERIMENTAL / R&amp;D &middot; PROPOSED / SIMULATED</div>
     <div class="exp-fence-note">Below: experimental &amp; proposed surfaces — research-grade, not headline features. Effectors SIMULATED; Λ = Conjecture 1. Runtime-injected R&amp;D tabs (sovereignty, neuro, chain-of-title, entanglement, formula atlas, MBSE, WAQAY, YUPAY) attach in this section.</div>
     <div class="nav-group nav-group-exp" data-demo-sec-sub="experimental" style="margin-top:.35rem">&#9317; ARMY &middot; COUNTER-UAS C2 LAB &middot; EXPERIMENTAL</div>
-    <div class="nav-item" data-view="cuas_intercept" onclick="go('cuas_intercept')" title="Proportional-navigation intercept-feasibility solver (a_cmd = N*Vc*lambda-dot vs a_max). Zarchan/Palumbo. Effector SIMULATED — computes feasibility, never actuates."><span class="ico">&#10138;</span>Intercept Solver (SIM)</div>
-    <div class="nav-item" data-view="cuas_spoof" onclick="go('cuas_spoof')" title="GNSS-spoofing plausibility chi-square innovation gate (threshold 33.1). Joerger. Advisory monitor, EXPERIMENTAL-tier."><span class="ico">&#9888;</span>Spoof Sentinel (chi-sq)</div>
-    <div class="nav-item" data-view="cuas_fusion" onclick="go('cuas_fusion')" title="Covariance-intersection track fusion (Julier-Uhlmann/Bar-Shalom). Confidence capped below 1.0 — trust never 100%. EXPERIMENTAL-tier."><span class="ico">&#10710;</span>Fusion Picture (CI)</div>
-    <div class="nav-item" data-view="cuas_swarm" onclick="go('cuas_swarm')" title="Urgency-weighted graph-Laplacian swarm consensus rendered as a living 3D galaxy (Fiedler lambda2 convergence pulse). Olfati-Saber/Zelazo. Khipu-quorum analogue (Conjecture 2 OPEN)."><span class="ico">&#10059;</span>Swarm Mesh (3D galaxy)</div>
-    <div class="nav-item" data-view="cuas_triage" onclick="go('cuas_triage')" title="Greedy weapon-target-assignment triage maximizing expected destroyed value (Manne). Effector SIMULATED — ranks and allocates, never fires."><span class="ico">&#9697;</span>Threat Triage (SIM)</div>
-    <div class="nav-item" data-view="cuas_pq" onclick="go('cuas_pq')" title="Post-quantum SHA3-256 hash-chain receipt bus (ML-KEM-768 / ML-DSA-65 / SLH-DSA, NIST FIPS 203/204/205). Signature PROXY until oqs key provisioned. EXPERIMENTAL-tier."><span class="ico">&#9919;</span>PQ Provenance (SHA3)</div>
+    <div class="nav-item" data-view="cuas_lab" onclick="go('cuas_lab')" title="Counter-UAS C2 Lab (experimental, unified): proportional-navigation intercept feasibility (effector SIMULATED), the GNSS-spoofing chi-square Spoof Sentinel, greedy weapon-target-assignment Threat Triage (effector SIMULATED), and the post-quantum SHA3-256 PQ Provenance receipt bus. Folds the former Intercept / Spoof / Triage / PQ tabs in as sub-views. (Fusion Picture CI -> Sensor-Fusion; Swarm Mesh 3D -> Swarm.) EXPERIMENTAL-tier; Λ = Conjecture 1; effectors SIMULATED."><span class="ico">&#10138;</span>Counter-UAS C2 Lab (SIM)</div>
 
     <div class="nav-group nav-group-exp" data-demo-sec-sub="experimental" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9318; METABOLIC SCALING &middot; EXPERIMENTAL</div>
     <div class="nav-item" data-view="scaling" onclick="go('scaling')" title="Allometric scaling: Kleiber 3/4 metabolic law, lifetime-heartbeats invariant, PROPOSED SZL-Phi unification, universal-exponent comparator, Kaplan-2020 compute allometry. Live from /api/killinchu/v1/scaling/*. EXPERIMENTAL-tier; Lambda stays Conjecture 1; SZL-Phi is PROPOSED, NOT the formal Lambda."><span class="ico">&#9878;</span>Metabolic Scaling</div>
@@ -1863,24 +1845,72 @@ function w910theorem(o){
    ═══════════════════════════════════════════════════════════════════════════ */
 window._SUBMAP = {
   // surfaceKey : [ {k:'viewKey', l:'Sub-view label'}, ... ]   first = default
-  u_fusion:   [{k:'fusion',l:'Sensor-Fusion'},{k:'scicompute',l:'Fusion & Orbital Math'},{k:'w910ci',l:'Covariance-Intersection (proved)'}],
-  u_maritime: [{k:'maritime',l:'Maritime Picture (live AIS)'},{k:'sanctions',l:'Sanctions & Dark-Vessel'},{k:'darkhunt',l:'Dark-Vessel Hunt'}],
+  // \u2500\u2500 TAB-DEDUP (2026-06-17, feat/tab-dedup) \u2014 same-realm tabs folded in as
+  //    sub-views of one surviving surface; every OLD go() key kept as an alias
+  //    (see window.VIEW_ALIASES below) routing to {surface, sub} so deep links
+  //    never break. DELETE NOTHING: each sub-view is the original render fn.
+  u_fusion:   [{k:'fusion',l:'Sensor-Fusion'},{k:'cuas_fusion',l:'Fusion Picture CI'},{k:'scicompute',l:'Fusion & Orbital Math'},{k:'w910ci',l:'Covariance-Intersection (proved)'}],
+  // MARITIME PICTURE cluster: tracks (canonical) + livepic + maritime/sanctions/darkhunt
+  u_maritime: [{k:'tracks',l:'Live Track Board'},{k:'maritime',l:'Maritime Picture (live AIS)'},{k:'livepic',l:'Live Picture (COP)'},{k:'sanctions',l:'Sanctions & Dark-Vessel'},{k:'darkhunt',l:'Dark-Vessel Hunt'}],
   u_darkgraph:[{k:'darkgraph',l:'Threat Graph (3D)'},{k:'threats',l:'Threat Class DB'},{k:'threatrank',l:'Threat Ranking'},{k:'detection',l:'Detection Console'},{k:'dronedb',l:'Drone Database'}],
   u_fleet:    [{k:'fleet',l:'Fleet Overview'},{k:'healthtwin',l:'Health Twin (3D)'},{k:'fleetmaint',l:'Maintenance & Compliance'},{k:'fleetlogs',l:'Ops & Maintenance Logs'},{k:'fleetvoyages',l:'Voyages & Fleets'},{k:'fleetbrief',l:'Fleet Briefings'}],
-  u_swarm:    [{k:'swarm',l:'Swarm Topology (3D)'},{k:'swarmres',l:'Swarm Resilience'}],
+  // FLEET: fleet_c2 (canonical, governed C2) + the full u_fleet ops sub-views folded in
+  fleet_c2:   [{k:'fleet_c2_3d',l:'Fleet Health & Governed C2 (3D)'},{k:'fleet',l:'Fleet Overview'},{k:'healthtwin',l:'Health Twin (3D)'},{k:'fleetmaint',l:'Maintenance & Compliance'},{k:'fleetlogs',l:'Ops & Maintenance Logs'},{k:'fleetvoyages',l:'Voyages & Fleets'},{k:'fleetbrief',l:'Fleet Briefings'}],
+  // SWARM cluster: integrity (topology+resilience) + live intent classifier + 3D mesh galaxy
+  u_swarm:    [{k:'swarm',l:'Swarm Topology (3D)'},{k:'swarmres',l:'Swarm Resilience'},{k:'swarm_intent',l:'Swarm-Intent Classifier (live)'},{k:'cuas_swarm',l:'Swarm Mesh (3D galaxy)'}],
   u_engage:   [{k:'roe',l:'Engagement Rules'},{k:'engage',l:'Engage Safely'},{k:'geofence',l:'Geofence Zones'},{k:'beyond',l:'Autonomy Governance'},{k:'companion',l:'Companion Defense'}],
-  u_consensus:[{k:'bft',l:'Consensus (3-of-4)'},{k:'w910quorum',l:'Quorum / Byzantine bound'},{k:'w910mesh',l:'Mesh Resilience (k-1 survive)'},{k:'fieldnet',l:'Field Net (3D)'},{k:'autonomyov',l:'Autonomy Oversight (3D)'}],
+  // MESH cluster: consensus surface + the live Fiedler \u03bb2 resilience monitor
+  u_consensus:[{k:'bft',l:'Consensus (3-of-4)'},{k:'mesh_resilience',l:'Mesh-Resilience (Fiedler \u03bb2)'},{k:'w910quorum',l:'Quorum / Byzantine bound'},{k:'w910mesh',l:'Mesh Resilience (k-1 survive)'},{k:'fieldnet',l:'Field Net (3D)'},{k:'autonomyov',l:'Autonomy Oversight (3D)'}],
   u_proofs:   [{k:'kbformulas',l:'Knowledge & Formulas'},{k:'w910stl',l:'STL Monitor (\u03c1 margin)'},{k:'w910gg',l:'Command-Matrix Health'},{k:'w910audit',l:'Audit Receipts (Merkle+Replay)'},{k:'gates',l:'Safety Gates'}],
-  u_receipts: [{k:'unifiedledger',l:'Unified Ledger (LIVE)'},{k:'chain',l:'Receipt Chain (3D)'},{k:'audit',l:'Engagement Audit'},{k:'pqc',l:'Quantum-Safe Signing'},{k:'evidence',l:'Evidence & Research'}],
+  // RECEIPTS / PROVENANCE cluster: receipt ledger surface + the real-data provenance panel
+  u_receipts: [{k:'unifiedledger',l:'Unified Ledger (LIVE)'},{k:'chain',l:'Receipt Chain (3D)'},{k:'provenance',l:'Real-Data Provenance'},{k:'audit',l:'Engagement Audit'},{k:'pqc',l:'Quantum-Safe Signing'},{k:'evidence',l:'Evidence & Research'}],
   u_melt:     [{k:'melt',l:'MELT Observability'},{k:'organism',l:'Living Organism (3D)'},{k:'modelatlas',l:'Model Atlas'}],
-  u_intel:    [{k:'kev',l:'Known-Exploited (live CISA KEV)'},{k:'cve',l:'CVE Watch (live NVD)'},{k:'attack',l:'Adversary Techniques'}],
+  // OSINT / THREAT INTEL cluster (biggest): world/threat intel + every live OSINT feed + aggregate
+  u_intel:    [{k:'kev',l:'Known-Exploited (live CISA KEV)'},{k:'cve',l:'CVE Watch (live NVD)'},{k:'attack',l:'Adversary Techniques'},{k:'osint_intel',l:'Aggregated OSINT Intel'},{k:'osint_naval',l:'Naval OSINT (live web)'},{k:'osint_procurement',l:'Procurement Signals (live web)'},{k:'osint_advisories',l:'Cyber Advisories (live web)'},{k:'osint_geopolitical',l:'Geopolitical (live web)'},{k:'osint_counter_uas',l:'Counter-UAS Intel (live web)'}],
+  // OPERATOR cluster: the 5 Operator OSINT orchestration sub-views
+  u_operator: [{k:'operator_digest',l:'OSINT Digest'},{k:'operator_routing',l:'Vertical Routing'},{k:'operator_entities',l:'Entity Graph'},{k:'operator_correlate',l:'Correlate (Watch Picture)'},{k:'operator_watch',l:'Watchlist'}],
   u_space:    [{k:'constellations',l:'Constellations (3D LEO)'},{k:'geoint',l:'GEOINT Aggregation'},{k:'pulse',l:'Seismic Forecast (live USGS)'}],
   u_warhacker:[{k:'warhacker',l:'Maritime/Drone Warhacker (27)'},{k:'warboard',l:'Warhacker Proofs Board'}],
   u_minedops: [{k:'edgeest',l:'Edge VRAM Estimator'},{k:'telemem',l:'Telemetry Memory'},{k:'adaptsample',l:'Adaptive Sensor Sampling'},{k:'tacroute',l:'Tactical Routing'},{k:'prioritize',l:'Multi-Track Priority'}],
   u_about:    [{k:'honest',l:'What We Claim'},{k:'research',l:'Research Corpus'},{k:'legal',l:'Legal Boundaries'},{k:'deploy',l:'Deploy Posture'},{k:'uds_package',l:'UDS Package'}],
-  u_posture:  [{k:'posture_drift',l:'Posture & Drift'},{k:'topology_health',l:'Topology & Health'},{k:'attack_surface',l:'Attack-Surface Graph'},{k:'zerotrust_mesh',l:'Zero-Trust Mesh'}]
+  u_posture:  [{k:'posture_drift',l:'Posture & Drift'},{k:'topology_health',l:'Topology & Health'},{k:'attack_surface',l:'Attack-Surface Graph'},{k:'zerotrust_mesh',l:'Zero-Trust Mesh'}],
+  // COUNTER-UAS C2 LAB (experimental): intercept / spoof / triage / PQ provenance
+  // (cuas_fusion folded into Sensor-Fusion, cuas_swarm into Swarm per the merge map)
+  cuas_lab:   [{k:'cuas_intercept',l:'Intercept Solver (SIM)'},{k:'cuas_spoof',l:'Spoof Sentinel (chi-sq)'},{k:'cuas_triage',l:'Threat Triage (SIM)'},{k:'cuas_pq',l:'PQ Provenance (SHA3)'}]
 };
 window._curSurface=null;
+
+/* \u2500\u2500 TAB-DEDUP alias map (feat/tab-dedup, 2026-06-17) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+   Every OLD go() key that was folded into a merged surface is kept here as an
+   ALIAS -> {s:surfaceKey, k:subViewKey}. go() resolves an alias by routing to
+   the surviving surface and auto-selecting the right sub-view, so deep links
+   (#livepic, #cuas_swarm, #osint_naval, \u2026) and the self-audit NEVER break and
+   no feature/content is deleted \u2014 only consolidated. */
+window.VIEW_ALIASES = {
+  // MARITIME PICTURE -> u_maritime
+  tracks:{s:'u_maritime',k:'tracks'}, livepic:{s:'u_maritime',k:'livepic'},
+  // FLEET -> fleet_c2 (surface)
+  u_fleet:{s:'fleet_c2',k:'fleet'},
+  // SWARM -> u_swarm
+  swarm_intent:{s:'u_swarm',k:'swarm_intent'}, cuas_swarm:{s:'u_swarm',k:'cuas_swarm'},
+  // SENSOR-FUSION -> u_fusion
+  cuas_fusion:{s:'u_fusion',k:'cuas_fusion'},
+  // OSINT / THREAT INTEL -> u_intel
+  osint_intel:{s:'u_intel',k:'osint_intel'}, osint_naval:{s:'u_intel',k:'osint_naval'},
+  osint_procurement:{s:'u_intel',k:'osint_procurement'}, osint_advisories:{s:'u_intel',k:'osint_advisories'},
+  osint_geopolitical:{s:'u_intel',k:'osint_geopolitical'}, osint_counter_uas:{s:'u_intel',k:'osint_counter_uas'},
+  // OPERATOR -> u_operator
+  operator_digest:{s:'u_operator',k:'operator_digest'}, operator_routing:{s:'u_operator',k:'operator_routing'},
+  operator_entities:{s:'u_operator',k:'operator_entities'}, operator_correlate:{s:'u_operator',k:'operator_correlate'},
+  operator_watch:{s:'u_operator',k:'operator_watch'},
+  // MESH -> u_consensus
+  mesh_resilience:{s:'u_consensus',k:'mesh_resilience'},
+  // RECEIPTS / PROVENANCE -> u_receipts
+  provenance:{s:'u_receipts',k:'provenance'},
+  // COUNTER-UAS C2 LAB -> cuas_lab
+  cuas_intercept:{s:'cuas_lab',k:'cuas_intercept'}, cuas_spoof:{s:'cuas_lab',k:'cuas_spoof'},
+  cuas_triage:{s:'cuas_lab',k:'cuas_triage'}, cuas_pq:{s:'cuas_lab',k:'cuas_pq'}
+};
 
 /* ===== UNIVERSAL LOADING WATCHDOG (real-data-wiring) =====
    Doctrine: NO tab may sit on a perpetual spinner. Every live fetch is now hard-timed
@@ -8628,6 +8658,34 @@ function go(view){
       else if(view.indexOf(_LP2+'_')===0){ view='operator'+view.slice(_LP2.length); }
     }
   }catch(_e){}
+  // --- TAB-DEDUP (feat/tab-dedup): a folded realm key resolves to its merged
+  // surface + the right sub-view. Deep links / #hash keep the ORIGINAL alias key
+  // so saved links stay stable; the merged surface renders and auto-selects the
+  // sub-view. No dead keys, no deleted content — only consolidation.
+  var _alias=null;
+  try{
+    var _AL=window.VIEW_ALIASES||{};
+    if(typeof view==='string' && _AL[view]){ _alias=_AL[view]; }
+  }catch(_ae){}
+  if(_alias){
+    var _surf=_alias.s, _sub=_alias.k;
+    tearDownAll();
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===_surf));
+    var _sv=VIEWS[_surf];
+    if(_sv){
+      var _cc=el('content');
+      _cc.innerHTML=`<div class="view-head"><h1 class="view-title">${esc(_sv.title)}</h1><span class="view-badge">${esc(_sv.badge)}</span></div><p class="view-sub">${_sv.sub}</p><div id="vbody"></div>`;
+      _sv.render(el('vbody'));
+      // after the surface mounts its sub-strip, select the requested sub-view
+      try{ requestAnimationFrame(function(){ try{ window.subview && window.subview(_surf,_sub); }catch(_se){} }); }catch(_se2){ try{ window.subview && window.subview(_surf,_sub); }catch(_se3){} }
+      try{ window._armLoadingWatchdog&&window._armLoadingWatchdog('vbody'); }catch(_w){}
+    }
+    if(history.replaceState) history.replaceState(null,'','#'+view);
+    if(window.innerWidth<=820) toggleSide(false);
+    setTimeout(function(){try{_scheduleRefit();}catch(e){}},120);
+    setTimeout(function(){try{_scheduleRefit();}catch(e){}},650);
+    return;
+  }
   // Tear down EVERYTHING from the previous view: Chart.js, ECharts, 3d-force-graph, globe.gl, cytoscape + timers.
   tearDownAll();
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
@@ -8645,6 +8703,37 @@ function go(view){
   setTimeout(function(){try{_scheduleRefit();}catch(e){}},120);
   setTimeout(function(){try{_scheduleRefit();}catch(e){}},650);
 }
+
+/* ── TAB-DEDUP surface registration (feat/tab-dedup, 2026-06-17) ────────────
+   Register the NEW merged surfaces and re-point fleet_c2 onto its surface,
+   preserving the ORIGINAL fleet_c2 render fn as the 'fleet_c2_3d' sub-view so
+   nothing is lost. Idempotent + try/guarded. Runs after VIEWS is defined. */
+(function(){
+  try{
+    var V=(typeof VIEWS!=='undefined')?VIEWS:window.VIEWS; if(!V){ return; }
+    // FLEET: keep the original governed-C2 render as a sub-view, make fleet_c2 a surface.
+    if(V.fleet_c2 && !V.fleet_c2_3d){
+      V.fleet_c2_3d={title:V.fleet_c2.title,badge:V.fleet_c2.badge,sub:V.fleet_c2.sub,render:V.fleet_c2.render};
+      V.fleet_c2={title:'Fleet Health & Governed C2 (3D)',badge:'NAVY · MARITIME + ARMY · AIR · LIVE ADS-B + AIS · UNIFIED FLEET',
+        sub:'The unified fleet surface — the live 3D governed-C2 fleet picture (military ADS-B + AIS, Λ-gate hack detection, signed receipts) plus fleet operations: overview, the 3D health twin, maintenance & compliance, ops/maintenance logs, voyages and briefings. Governance loop real; effector link a command demonstration (simulated). Sub-views below.',
+        render:function(c){ renderSurface('fleet_c2',c); }};
+    }
+    // OPERATOR OSINT: the 5 Operator orchestration views as one surface.
+    if(!V.u_operator){
+      V.u_operator={title:'Operator OSINT',badge:'ORCHESTRATE · DIGEST · ROUTE · ENTITIES · WATCH',
+        sub:'The Operator orchestrates the entire OSINT-ingest corpus — a ranked cross-vertical digest (reproducible replay hash), vertical routing, an entity-relationship graph, watch-picture correlation (Section-889) and a standing watchlist. Heuristic / advisory. Sub-views below.',
+        render:function(c){ renderSurface('u_operator',c); }};
+    }
+    // COUNTER-UAS C2 LAB (experimental): intercept / spoof / triage / PQ provenance.
+    if(!V.cuas_lab){
+      V.cuas_lab={title:'Counter-UAS C2 Lab (experimental)',badge:'EXPERIMENTAL · INTERCEPT/SPOOF/TRIAGE/PQ · EFFECTOR SIMULATED',
+        sub:'The experimental Counter-UAS C2 laboratory — proportional-navigation intercept feasibility (effector SIMULATED), the GNSS-spoofing chi-square sentinel, greedy weapon-target-assignment triage (effector SIMULATED) and the post-quantum SHA3-256 receipt bus. EXPERIMENTAL-tier; Λ = Conjecture 1. Sub-views below.',
+        render:function(c){ renderSurface('cuas_lab',c); }};
+    }
+    window.VIEWS=V;
+    try{ console.log('[killinchu] tab-dedup surfaces registered: fleet_c2(+fleet ops), u_operator, cuas_lab; aliases='+Object.keys(window.VIEW_ALIASES||{}).length); }catch(e){}
+  }catch(_e){}
+})();
 
 const start = (location.hash||'#tracks').slice(1);
 go(VIEWS[start]?start:'tracks');
@@ -11787,25 +11876,12 @@ go(VIEWS[start]?start:'tracks');
   })();
 
   function _injectNav(){
-    if(document.getElementById('kc-nav-provenance')) return;
-    var maritimeNav=document.querySelector('.nav-item[data-view="livepic"]');
-    var intelNav=document.querySelector('.nav-item[data-view="osint_counter_uas"]');
-    if(maritimeNav){
-      var p=document.createElement('div');
-      p.id='kc-nav-provenance'; p.className='nav-item'; p.setAttribute('data-view','provenance');
-      p.setAttribute('onclick',"go('provenance')");
-      p.setAttribute('title','REAL-DATA PROVENANCE: which sensing feeds are LIVE now, their real public sources, last-update timestamps, and the honest doctrine note. Effector simulated.');
-      p.innerHTML='<span class="ico">&#11042;</span>Real-Data Provenance';
-      maritimeNav.parentNode.insertBefore(p, maritimeNav.nextSibling);
-    }
-    if(intelNav){
-      var q=document.createElement('div');
-      q.id='kc-nav-osint'; q.className='nav-item'; q.setAttribute('data-view','osint_intel');
-      q.setAttribute('onclick',"go('osint_intel')");
-      q.setAttribute('title','Intel · OSINT (public): real open-source defense/UAS/maritime reporting with source links + sha256 provenance, labelled OSINT (public).');
-      q.innerHTML='<span class="ico">&#9673;</span>Intel · OSINT (public)';
-      intelNav.parentNode.insertBefore(q, intelNav.nextSibling);
-    }
+    // TAB-DEDUP (feat/tab-dedup): provenance + osint_intel are now FOLDED into the
+    // unified surfaces (Receipts & Provenance -> u_receipts; OSINT/Threat Intel ->
+    // u_intel) and reachable as sub-views + via go() aliases. We no longer inject
+    // their own top-level nav items, but the V.provenance / V.osint_intel views
+    // stay registered above so the sub-views + deep-link aliases still resolve.
+    return;
   }
 
   // kick off the rewires once the DOM + console JS are present
