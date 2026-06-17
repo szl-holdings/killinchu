@@ -39,7 +39,7 @@ ecosystem-stage: "operational"
 **LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
 **Proof posture (two-tier):** 8 locked-proven `{F1, F4, F7, F11, F12, F18, F19, F22}` + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · ~1323 decls / 22 unique axioms — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1**; Byzantine BFT safety is **Khipu Conjecture 2 (open)**. Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
-[Live demo](#live) · [What it does](#what-it-does) · [Quickstart](#quickstart) · [Verify](#verify-it-yourself) · [Cookbook](#try-the-cookbook) · [Architecture](#architecture) · [API surface](#api-surface) · [Parity vs. leaders](#parity-vs-leaders) · [Why vs Anduril](#why-killinchu-vs-anduril-lattice) · [Honest status](#honest-status) · [Cite](#citation)
+[Live demo](#live) · [What it does](#what-it-does) · [Quickstart](#quickstart) · [Verify](#verify-it-yourself) · [Cookbook](#try-the-cookbook) · [Architecture](#architecture) · [Repo map](#repo-map) · [API surface](#api-surface) · [Parity vs. leaders](#parity-vs-leaders) · [Why vs Anduril](#why-killinchu-vs-anduril-lattice) · [Honest status](#honest-status) · [Cite](#citation)
 
 ---
 
@@ -199,6 +199,31 @@ graph TD
     ROE --> OP[Operator console\nhuman-on-the-loop\nconfirm + authorize]
     VRD --> A11[a11oy Khipu DAG\nreceipts.in = receipts.out]
 ```
+
+Full layout, the `register()` pattern, and the doctrine CI hard-gates →
+[`docs/architecture.md`](docs/architecture.md).
+
+---
+
+## Repo map
+
+killinchu is **flat-rooted** — most modules live beside `serve.py` (the boot entry +
+route assembly). The table below is a **logical** "where things live" guide; the modules
+listed already exist and run live. A user-visible surface is a self-contained module that
+exposes `register(app, ns="killinchu")` and is registered **before** the SPA catch-all
+(FastAPI matches routes in declaration order). Full table in
+[`docs/architecture.md`](docs/architecture.md).
+
+| Layer | Role | Representative modules |
+|---|---|---|
+| **entry** | boot + route assembly + SPA mount | `serve.py` |
+| **showcase console** | the `/elite` operator console (44 views) + view pages | `killinchu_elite_console`, `killinchu_elite_wiring`, `*_view`, `killinchu_nav_wireup` |
+| **decoders** | real protocol parsers (no mocks) | `killinchu_protocols`, `killinchu_kalman`, `killinchu_fusion`, `build_drone_db` |
+| **counter-UAS logic** | geofence + 13-axis Λ-gate + ROE | `killinchu_drone_routes`, `killinchu_autonomy`, `killinchu_ops_control`, `szl_cuas_formulas` |
+| **maritime / intel** | maritime risk, OSINT, globe surfaces | `killinchu_maritime_*`, `killinchu_osint`, `killinchu_mosaic` |
+| **provenance** | signed receipts (audit fiber) | `szl_dsse`, `szl_khipu_consensus`, `szl_provenance`, `szl_rekor` |
+| **governance** | doctrine gate + restraint / Λ + guards | `szl_qhawaq`, `szl_restraint`, `szl_codename_gate`, `szl_unay` |
+| **shared substrate** | **byte-identical** across a11oy + killinchu (CI-enforced) | `szl_*.py`, `a11oy_hf_assets.py` |
 
 ---
 
