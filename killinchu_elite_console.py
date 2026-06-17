@@ -732,6 +732,12 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
 #kf-list .row>span[style*="flex:1"],#kf-proven .row .spacer{min-width:0;overflow-wrap:anywhere;word-break:break-word;}
 #kf-list .row .spacer,#kf-proven .row .spacer{margin-left:0;flex:1 1 100%;}
 #kf-list .katex,#kf-list .katex-html{max-width:100%;overflow-x:auto;overflow-y:hidden;white-space:normal;}
+/* the visible KaTeX formula can't break mid-equation; give its flex column a min-width:0
+   so a long formula scrolls inside its own cell instead of widening the whole row, and
+   hard-clip the visually-hidden .katex-mathml a11y fallback (its scrollWidth is huge and
+   was inflating the container measurement though it never paints). */
+#kf-list .row>span[style*="flex:1"]{flex:1 1 100%;min-width:0;overflow-x:auto;overflow-y:hidden;}
+#kf-list .katex-mathml{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;}
 #kf-proven .row .badge,#kf-list .row .badge{flex:0 0 auto;}
 /* generic guard: a .row carrying long mono/receipt copy (no nested controls) should
    wrap rather than push its content off-screen. Applies to the C2 “why it matters”
