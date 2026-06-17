@@ -559,6 +559,12 @@ COPY killinchu_elite_wiring.py killinchu_flow_compartments.py ./
 # falls back to a STUB on the Space (merged-but-not-live). Mirrored to the HF
 # Space via hf-sync (on.push.paths + APP_FILES — copy-sync lockstep enforced).
 COPY killinchu_cot_interop.py ./
+# AIS Aug 2024 dataset connector: serve.py imports killinchu_ais_aug2024
+# (try/except-guarded) to register the NOAA coastal-US AIS Aug 2024 governed
+# source. Per-file COPY (this Dockerfile never uses `COPY . .`) or the guarded
+# import falls back to a STUB on the Space (merged-but-not-live). Mirrored to
+# the HF Space via hf-sync (on.push.paths + APP_FILES — copy-sync lockstep).
+COPY killinchu_ais_aug2024.py ./
 
 
 # --- ESTATE ECOSYSTEM FOUNDATION (Dev5, 2026-06): byte-identical shared modules ---
