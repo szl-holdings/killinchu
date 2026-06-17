@@ -88,6 +88,12 @@ ELITE_WIRING: Dict[str, Dict[str, Any]] = {
     # ── MARITIME · NAVY ──
     "u_maritime": {"endpoints": ["/api/{ns}/v1/ais/live"], "data_class": "live-feed",
                    "leaders": ["Digitraffic FI"], "note": "Live AIS + WEZ rings + dark-vessel screen."},
+    "ais_aug2024": {"endpoints": ["/api/{ns}/v1/ais/sources", "/api/{ns}/v1/ais/aug2024/tracks",
+                                  "/api/{ns}/v1/ais/aug2024/risk-board"],
+                    "data_class": "signed-loop", "leaders": ["NOAA/MarineCadastre AIS"],
+                    "note": ("Selectable NOAA Aug-2024 coastal-US AIS dataset (WarHacker) "
+                             "alongside live feed -> Λ risk -> DSSE receipt. SAMPLE of real "
+                             "AIS_2024_08_01 rows (NOT full month); live feed stays default.")},
     "u_fleet": {"endpoints": ["/api/{ns}/v1/fleet/all", "/api/{ns}/v1/twin/platforms"],
                 "data_class": "live-feed", "leaders": ["AIS"], "note": "Fleet ops + 3D health twin over live vessels."},
     "tracks": {"endpoints": ["/api/{ns}/v1/tracks/history"], "data_class": "real-compute",
