@@ -95,6 +95,15 @@ ELITE_WIRING: Dict[str, Dict[str, Any]] = {
     "livepic": {"endpoints": ["/api/{ns}/v1/adsb", "/api/{ns}/v1/ais/live"], "data_class": "live-feed",
                 "leaders": ["adsb.lol", "Digitraffic FI"],
                 "note": "Live COP; some track positions SIMULATED over real adversary signatures."},
+    "dataset_control": {"endpoints": ["/api/{ns}/v1/ais/live", "/api/{ns}/v1/ais/sources",
+                                      "/api/{ns}/v1/maritime/overlays/pirate-attacks",
+                                      "/api/{ns}/v1/maritime/overlays/world-port-index",
+                                      "/api/{ns}/v1/cot/status"],
+                        "data_class": "live-feed", "leaders": ["Digitraffic FI", "NOAA/MarineCadastre", "NGA WPI", "MITRE CoT"],
+                        "note": "Unified dataset/overlay control: Live AIS (default, on main) + NOAA Aug-2024 sample (PR#133) "
+                                "+ pirate/WPI overlays (PR#134) + CoT export (PR#132). Probes each route live; unmerged routes "
+                                "are honestly labelled 'available when PR #N merges' (the wiring health will show them "
+                                "needs-deploy until those PRs land). Additive; sample never claimed live."},
     "u_space": {"endpoints": ["/api/{ns}/v1/satellites", "/api/{ns}/v1/geoint/usgs", "/api/{ns}/v1/geoint"],
                 "data_class": "live-feed", "leaders": ["CelesTrak", "USGS"],
                 "note": "3D LEO globe + GEOINT + live USGS seismic."},
