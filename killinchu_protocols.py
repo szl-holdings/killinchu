@@ -229,12 +229,31 @@ def mavlink_parse(hexstr: str) -> dict[str, Any]:
         return {"ok": False, "protocol": "MAVLink",
                 "error": f"first byte 0x{magic:02X} is not a MAVLink start marker "
                          f"(v1=0xFE, v2=0xFD)"}
+    # JSON-safety coercion (ADDITIVE 2026-06-17, tabwave): pymavlink decoded
+    # fields can carry bytes/bytearray (e.g. a STATUSTEXT or an UNKNOWN_* msg's
+    # raw `data`). Those are NOT JSON-serializable and would surface as an HTTP
+    # 500 from JSONResponse — never an honest result. We hex-encode binary
+    # fields and stringify any other non-JSON scalar so the decode ALWAYS returns
+    # an honest JSON body. No fabrication: the bytes are shown verbatim as hex.
+    def _jsafe(v):
+        if isinstance(v, (bytes, bytearray)):
+            return {"_hex": bytes(v).hex(), "_len": len(v)}
+        if isinstance(v, (list, tuple)):
+            return [_jsafe(x) for x in v]
+        if isinstance(v, dict):
+            return {str(k): _jsafe(x) for k, x in v.items()}
+        if isinstance(v, (str, int, float, bool)) or v is None:
+            return v
+        return str(v)
+
     import io
-    from pymavlink.dialects.v20 import common as mavlink2
-    mav = mavlink2.MAVLink(io.BytesIO())
-    mav.robust_parsing = True
     msgs = []
     try:
+        # Import kept inside the guarded path so a missing/odd pymavlink build
+        # degrades to an HONEST 4xx-style JSON body, never a raw 500.
+        from pymavlink.dialects.v20 import common as mavlink2
+        mav = mavlink2.MAVLink(io.BytesIO())
+        mav.robust_parsing = True
         parsed = mav.parse_buffer(bytearray(raw)) or []
         for m in parsed:
             d = m.to_dict()
@@ -243,7 +262,7 @@ def mavlink_parse(hexstr: str) -> dict[str, Any]:
                 "msg_id": m.get_msgId(),
                 "src_system": m.get_srcSystem(),
                 "src_component": m.get_srcComponent(),
-                "fields": {k: v for k, v in d.items() if k != "mavpackettype"},
+                "fields": {k: _jsafe(v) for k, v in d.items() if k != "mavpackettype"},
             })
     except Exception as e:
         return {"ok": False, "protocol": f"MAVLink v{version}",

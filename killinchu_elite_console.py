@@ -5183,8 +5183,15 @@ async function bft_exec(){
 async function pqc_sign(mode){
   try{
     setOut('pqc-out','signing…');
-    const d = await postJSON(BASE+'/khipu/sign?mode='+mode,{
-      payload:{track_id:'TRK-0001',decision:'HOLD',ts:new Date().toISOString()}
+    // The /khipu/sign endpoint signs a REAL khipu receipt and refuses to sign
+    // garbage — it requires the canonical khipu fields {action, seq, prev_hash}
+    // at the top level (HONEST 4xx otherwise). Send a well-formed receipt so the
+    // signer returns a real, verifiable DSSE envelope. (FIX 2026-06-17 tabwave:
+    // previously sent {payload:{...}} which the signer correctly 422'd.)
+    const prevHash = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const d = await postJSON(API+'/khipu/sign?mode='+mode,{
+      action:'HOLD', seq:1, prev_hash:prevHash,
+      track_id:'TRK-0001', decision:'HOLD', ts:new Date().toISOString()
     });
     // Summarize for display
     const summary = {
@@ -8733,8 +8740,14 @@ go(VIEWS[start]?start:'tracks');
             var graph=sankey({nodes:snodes.map(function(d){return Object.assign({},d);}),links:slinks.map(function(d){return Object.assign({},d);})});
             var ns='http://www.w3.org/2000/svg';
             graph.links.forEach(function(l){ var p=d3.sankeyLinkHorizontal()(l); var path=document.createElementNS(ns,'path'); path.setAttribute('d',p); var col=VCOL[graph.nodes[l.target.index!=null?l.target.index:l.target].name]||TEAL; path.setAttribute('stroke',col); path.setAttribute('stroke-width',Math.max(1.5,l.width)); path.setAttribute('fill','none'); path.setAttribute('stroke-opacity','0.42'); svg.appendChild(path); });
-            graph.nodes.forEach(function(n){ var rect=document.createElementNS(ns,'rect'); rect.setAttribute('x',n.x0); rect.setAttribute('y',n.y0); rect.setAttribute('width',n.x1-n.x0); rect.setAttribute('height',Math.max(2,n.y1-n.y0)); var col=n.name==='corpus'?GOLD:(VCOL[n.name]||TEAL); rect.setAttribute('fill',col); rect.setAttribute('rx','2'); svg.appendChild(rect);
-              var t=document.createElementNS(ns,'text'); t.setAttribute('x',n.name==='corpus'?(n.x1+6):(n.x1+6)); t.setAttribute('y',(n.y0+n.y1)/2+4); t.setAttribute('fill','#cfd6e0'); t.setAttribute('font-size','11'); t.setAttribute('font-family','monospace'); t.textContent=n.name+(n.name!=='corpus'?(' ·'+(pv[n.name]||0)):''); svg.appendChild(t); });
+            // NaN-guard (FIX 2026-06-17 tabwave): a node with no inbound/outbound
+            // link (e.g. a vertical with pv==0 that still appears in nodeNames)
+            // gets undefined x0/y0 from d3-sankey, which previously wrote
+            // "NaN" into the SVG rect/text attributes (console errors). Skip any
+            // node whose layout coords are not finite — it simply isn't drawn.
+            var _fin=function(v){return typeof v==='number'&&isFinite(v);};
+            graph.nodes.forEach(function(n){ if(!(_fin(n.x0)&&_fin(n.y0)&&_fin(n.x1)&&_fin(n.y1))) return; var rect=document.createElementNS(ns,'rect'); rect.setAttribute('x',n.x0); rect.setAttribute('y',n.y0); rect.setAttribute('width',Math.max(0,n.x1-n.x0)); rect.setAttribute('height',Math.max(2,n.y1-n.y0)); var col=n.name==='corpus'?GOLD:(VCOL[n.name]||TEAL); rect.setAttribute('fill',col); rect.setAttribute('rx','2'); svg.appendChild(rect);
+              var t=document.createElementNS(ns,'text'); t.setAttribute('x',n.x1+6); t.setAttribute('y',(n.y0+n.y1)/2+4); t.setAttribute('fill','#cfd6e0'); t.setAttribute('font-size','11'); t.setAttribute('font-family','monospace'); t.textContent=n.name+(n.name!=='corpus'?(' ·'+(pv[n.name]||0)):''); svg.appendChild(t); });
           }catch(e){ svg.innerHTML='<text x="12" y="24" fill="#b06a5a" font-size="11" font-family="monospace">sankey unavailable: '+esc(e.message)+'</text>'; }
         });
       }
