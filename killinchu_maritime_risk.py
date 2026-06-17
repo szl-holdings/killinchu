@@ -88,6 +88,28 @@ try:
 except Exception:  # pragma: no cover
     _dsse = None  # type: ignore
 
+# Historical pirate-attack hot zones (WarHacker "Global Maritime Pirate Attacks
+# 1993-2020" overlay). Derived ONLY from the labelled SAMPLE rows in the overlay
+# connector — no fabricated zones. Drives the `pirate_zone` risk axis: a vessel
+# inside/near a historical hot zone reads higher dark-fleet risk.
+try:
+    from szl_connectors.data_sources.maritime_overlays import PIRATE_HOT_ZONES as _PIRATE_HOT_ZONES
+except Exception:  # pragma: no cover — risk module must never hard-depend on overlays
+    _PIRATE_HOT_ZONES = []  # type: ignore
+
+# Re-use the canonical great-circle helper (killinchu_live_feeds._haversine_nm);
+# never re-implement. Local fallback only if that module is unavailable.
+try:
+    from killinchu_live_feeds import _haversine_nm  # noqa: F401
+except Exception:  # pragma: no cover
+    def _haversine_nm(a_lat, a_lon, b_lat, b_lon) -> float:
+        r_nm = 3440.065
+        p1, p2 = math.radians(a_lat), math.radians(b_lat)
+        dp = math.radians(b_lat - a_lat)
+        dl = math.radians(b_lon - a_lon)
+        x = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+        return round(2 * r_nm * math.asin(min(1.0, math.sqrt(x))), 3)
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _DATA_PATH = os.path.join(_HERE, "fleet_vessels_data.json")
 
@@ -121,7 +143,7 @@ _TRUST_CEIL = 1.0 - 1e-6  # trust never 100% (doctrine clamp)
 # Default axis weighting (Egyptian unit-fraction / equal-weight geometric mean is the
 # kernel-canonical form; we expose an OPTIONAL weighted geometric mean so an analyst
 # can up-weight a theater's priority axis. Weights are normalised; equal by default).
-_AXES = ("gap_prob", "spoof", "port_history", "sts_history", "flag_origin", "loiter")
+_AXES = ("gap_prob", "spoof", "port_history", "sts_history", "flag_origin", "loiter", "pirate_zone")
 _DEFAULT_WEIGHTS = {a: 1.0 for a in _AXES}
 
 # Sanctioned / high-risk port substrings + flag-of-convenience registries (OSINT,
@@ -275,6 +297,24 @@ def derive_axes(vessel: dict[str, Any], w2: Optional[dict[str, Any]] = None) -> 
         loiter = 0.55 if (spd < 1.5 and near_hot) else (0.18 if spd < 1.5 else 0.05)
         axes["loiter"] = _axis(loiter, "heuristic:speed",
                               f"derived from sample speed={spd}kn near-hot={near_hot}")
+
+    # pirate_zone — proximity to historical pirate-attack hot zones (WarHacker
+    # "Global Maritime Pirate Attacks 1993-2020" overlay, labelled SAMPLE).
+    if "pirate_zone" in w2 and w2["pirate_zone"] is not None:
+        axes["pirate_zone"] = _axis(w2["pirate_zone"], "W2:pirate_zone",
+                                    "W2-supplied historical pirate-zone proximity risk")
+    else:
+        lat = vessel.get("currentLat")
+        lon = vessel.get("currentLon")
+        pz = pirate_zone_risk(lat if lat is None else float(lat),
+                              lon if lon is None else float(lon))
+        if pz["nearest_zone"]:
+            why = (f"near historical hot zone '{pz['nearest_zone']}' "
+                   f"({pz['distance_nm']}nm, inside={pz['inside']}) — "
+                   "pirate-attacks overlay (sample)")
+        else:
+            why = "no historical pirate hot-zone within range (pirate-attacks overlay sample)"
+        axes["pirate_zone"] = _axis(pz["risk"], "overlay:pirate_attacks(sample)", why)
     return axes
 
 
@@ -293,6 +333,41 @@ def _flag_risk(flag: str) -> float:
     if any(x in f for x in ("russia", "iran", "north korea", "syria", "venezuela")):
         return 0.80
     return 0.10
+
+
+def pirate_zone_risk(lat: Optional[float], lon: Optional[float]) -> dict[str, Any]:
+    """Risk contribution from proximity to historical pirate-attack hot zones.
+
+    Uses the WarHacker "Global Maritime Pirate Attacks 1993-2020" overlay's
+    hot-zone centroids (labelled SAMPLE, derived from the real schema). A vessel
+    INSIDE a zone takes that zone's intensity; just outside, the contribution
+    decays linearly to 0 over one extra zone-radius. The nearest dominating zone
+    wins. Advisory heuristic, not a legal determination.
+
+    Returns {risk, nearest_zone, distance_nm, inside} — risk ∈ [0,1].
+    """
+    if lat is None or lon is None or not _PIRATE_HOT_ZONES:
+        return {"risk": 0.0, "nearest_zone": None, "distance_nm": None, "inside": False}
+    best = {"risk": 0.0, "nearest_zone": None, "distance_nm": None, "inside": False}
+    best_dist = float("inf")
+    for z in _PIRATE_HOT_ZONES:
+        try:
+            d = _haversine_nm(float(lat), float(lon), float(z["lat"]), float(z["lon"]))
+        except Exception:
+            continue
+        radius = float(z.get("radius_nm", 150.0))
+        intensity = _clamp01(float(z.get("intensity", 0.5)))
+        if d <= radius:
+            contrib = intensity
+        elif d <= 2.0 * radius:
+            contrib = intensity * (1.0 - (d - radius) / radius)
+        else:
+            contrib = 0.0
+        if contrib > best["risk"] or (contrib == best["risk"] and d < best_dist):
+            best = {"risk": round(_clamp01(contrib), 4), "nearest_zone": z.get("name"),
+                    "distance_nm": round(d, 1), "inside": d <= radius}
+            best_dist = d
+    return best
 
 
 # ---------------------------------------------------------------------------
@@ -695,6 +770,55 @@ def register(app, ns: str = NS_DEFAULT) -> dict[str, Any]:
         fc["data_kind"] = "SAMPLE — fleet_vessels_data.json, not live AIS"
         return JSONResponse(fc)
 
+    # ── WarHacker OVERLAY layers (toggleable; independent of the live feed) ──
+    # Pirate-attacks risk overlay + World Port Index reference layer, served from
+    # the szl_connectors overlay connectors. Honest SAMPLE labels propagate.
+    def _overlay_read(cid: str, limit: int):
+        try:
+            import szl_connectors as _sc
+            c = _sc.get(cid)
+            if c is None:
+                return {"error": f"overlay '{cid}' unavailable", "records": [], "state": "error"}
+            return c.read({"limit": max(1, min(int(limit), 200))}).to_dict()
+        except Exception as e:  # honest error, never fabricate
+            return {"error": f"{type(e).__name__}: {e}", "records": [], "state": "error"}
+
+    @app.get(base + "/overlays", include_in_schema=False)
+    async def _overlays() -> JSONResponse:
+        """List the toggleable overlay layers for the track board (advisory)."""
+        return JSONResponse({
+            "schema": "szl.killinchu.maritime.overlays/v1",
+            "label": "WarHacker overlay layers — toggleable, independent of the live AIS/ADS-B feed.",
+            "layers": [
+                {"id": "pirate_attacks", "kind": "risk_heat",
+                 "title": "Global Maritime Pirate Attacks (1993-2020)",
+                 "read": f"{base}/overlays/pirate-attacks",
+                 "connector_read": f"/api/{ns}/v1/connectors/pirate_attacks/read",
+                 "ties_into": "maritime risk axis 'pirate_zone' (raises risk near historical hot zones)",
+                 "provenance": "IMB ICC / Kaggle schema (sample)"},
+                {"id": "world_port_index", "kind": "reference_ports",
+                 "title": "MSI World Port Index (NGA Pub 150)",
+                 "read": f"{base}/overlays/world-port-index",
+                 "connector_read": f"/api/{ns}/v1/connectors/world_port_index/read",
+                 "ties_into": "nearest-port reference context for vessel tracks",
+                 "provenance": "NGA MSI Pub 150 schema (sample)"},
+            ],
+            "doctrine": DOCTRINE,
+        })
+
+    @app.get(base + "/overlays/pirate-attacks", include_in_schema=False)
+    async def _ov_pirate(limit: int = 50) -> JSONResponse:
+        d = _overlay_read("pirate_attacks", limit)
+        d["hot_zones"] = list(_PIRATE_HOT_ZONES)
+        d["overlay_kind"] = "risk_heat"
+        return JSONResponse(d)
+
+    @app.get(base + "/overlays/world-port-index", include_in_schema=False)
+    async def _ov_wpi(limit: int = 50) -> JSONResponse:
+        d = _overlay_read("world_port_index", limit)
+        d["overlay_kind"] = "reference_ports"
+        return JSONResponse(d)
+
     @app.get(base + "/doctrine", include_in_schema=False)
     async def _doctrine() -> JSONResponse:
         return JSONResponse({
@@ -703,6 +827,14 @@ def register(app, ns: str = NS_DEFAULT) -> dict[str, Any]:
             "lambda_formula": "Λ_trust(x) = exp( ( Σ w_i · ln x_i ) / ( Σ w_i ) );  risk = 1 - Λ_trust",
             "operator": "weighted geometric mean (weakest-link, zero-absorption)",
             "axes": list(_AXES),
+            "pirate_zone_axis": (
+                "The 'pirate_zone' axis ties the WarHacker Global Maritime Pirate Attacks "
+                "(1993-2020) overlay (labelled SAMPLE) into the Λ fusion: a track near a "
+                "historical hot zone (Gulf of Aden, Strait of Malacca, Gulf of Guinea…) "
+                "reads higher dark-fleet risk. Advisory heuristic, not a legal determination."
+            ),
+            "overlays": [f"{base}/overlays", f"{base}/overlays/pirate-attacks",
+                         f"{base}/overlays/world-port-index"],
             "kernel_ref": "serve.py _lambda_aggregate (yuyay_v3); FORMULAS_DEEPDIVE.md §2",
             "forecast_method": "dead-reckoning + sea-lane prior; confidence decays with horizon",
             "doctrine": DOCTRINE,
@@ -716,6 +848,8 @@ def register(app, ns: str = NS_DEFAULT) -> dict[str, Any]:
     registered.extend([
         f"POST {base}/risk", f"GET {base}/risk", f"GET {base}/risk/fleet",
         f"POST {base}/forecast", f"GET {base}/forecast", f"GET {base}/doctrine",
+        f"GET {base}/overlays", f"GET {base}/overlays/pirate-attacks",
+        f"GET {base}/overlays/world-port-index",
     ])
     return {"module": "killinchu_maritime_risk", "registered_count": len(registered),
             "routes": registered, "signer": ("szl_dsse" if _dsse is not None else "unavailable")}

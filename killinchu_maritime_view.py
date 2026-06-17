@@ -360,6 +360,39 @@ details.raw{margin-top:.8rem;} details.raw summary{cursor:pointer;font-family:va
     </div>
   </section>
 
+  <!-- 4b · WARHACKER OVERLAYS -->
+  <section class="sect" id="overlays">
+    <div class="sect-h"><span class="sect-num">04b</span><span class="sect-t">&#9678; Overlay Layers</span>
+      <span class="sect-tag">WARHACKER DATASETS · TOGGLEABLE · INDEPENDENT OF LIVE FEED</span>
+      <span class="sect-ep mono">GET /maritime/overlays</span></div>
+    <p class="sect-desc">Two reference/risk overlay layers, toggled independently of the live AIS/ADS-B feed.
+      <span class="pill p-sample">SAMPLE</span> <b>Global Maritime Pirate Attacks (1993-2020)</b> — hostile-activity heat layer
+      on the real IMB/Kaggle schema; it ties into the &Lambda; risk score via the <code>pirate_zone</code> axis so a track near a
+      historical hot zone (Gulf of Aden, Strait of Malacca, Gulf of Guinea…) reads higher risk.
+      <span class="pill p-sample">SAMPLE</span> <b>MSI World Port Index (NGA Pub 150)</b> — reference port markers on the real
+      Pub 150 schema. Both honestly labelled <b>(sample)</b>; set <code>SZL_PIRATE_CSV_URL</code> / <code>SZL_WPI_CSV_URL</code>
+      to parse a real CSV live.</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h"><span class="card-t">&#9760; Pirate-Attacks risk overlay</span>
+          <span class="pill p-sample" id="ov-pirate-mode">—</span>
+          <label class="mono dim" style="font-size:11px;cursor:pointer"><input type="checkbox" id="ov-pirate-tog" checked> show</label></div>
+        <div class="mono dim" id="ov-pirate-src" style="font-size:10px;margin:.2rem 0 .5rem">—</div>
+        <div class="tbl-scroll"><table class="dtbl"><thead><tr><th>Date</th><th>Region</th><th>Attack</th><th>Lat</th><th>Lon</th></tr></thead>
+          <tbody id="ov-pirate-rows"><tr><td colspan="5" class="loading">loading…</td></tr></tbody></table></div>
+        <div class="mono dim" id="ov-pirate-zones" style="font-size:10px;margin-top:.4rem"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">&#9875; World Port Index reference</span>
+          <span class="pill p-sample" id="ov-wpi-mode">—</span>
+          <label class="mono dim" style="font-size:11px;cursor:pointer"><input type="checkbox" id="ov-wpi-tog" checked> show</label></div>
+        <div class="mono dim" id="ov-wpi-src" style="font-size:10px;margin:.2rem 0 .5rem">—</div>
+        <div class="tbl-scroll"><table class="dtbl"><thead><tr><th>WPI #</th><th>Port</th><th>Country</th><th>Size</th><th>Lat</th><th>Lon</th></tr></thead>
+          <tbody id="ov-wpi-rows"><tr><td colspan="6" class="loading">loading…</td></tr></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
   <!-- 5 · ASW / OSINT -->
   <section class="sect" id="asw">
     <div class="sect-h"><span class="sect-num">05</span><span class="sect-t">&#9925; Submarine / ASW</span>
@@ -550,6 +583,40 @@ async function loadForecast(){
   _provHud.forecast=d;
 }
 
+/* ---------- 4b · WARHACKER OVERLAYS ---------- */
+function _ovMode(state){const s=String(state||'').toLowerCase();return s==='connected'?'<span class="pill p-live">LIVE</span>':'<span class="pill p-sample">SAMPLE</span>';}
+async function loadOverlays(){
+  const [p,w]=await Promise.all([
+    getJSON('/maritime/overlays/pirate-attacks?limit=40'),
+    getJSON('/maritime/overlays/world-port-index?limit=40'),
+  ]);
+  const pm=document.getElementById('ov-pirate-mode');const pr=document.getElementById('ov-pirate-rows');
+  if(p.__error){pr.innerHTML='<tr><td colspan="5" class="loading">error: '+esc(p.__error)+'</td></tr>';}
+  else{
+    pm.innerHTML=_ovMode(p.state);
+    document.getElementById('ov-pirate-src').textContent='source: '+(p.source||'—');
+    const rows=p.records||[];
+    pr.innerHTML=rows.length?rows.slice(0,40).map(r=>
+      '<tr><td class="mono">'+esc(r.date||'—')+'</td><td>'+esc(r.region||'—')+'</td><td>'+esc(r.attack_type||'—')+'</td><td class="mono">'+num(r.lat,2)+'</td><td class="mono">'+num(r.lon,2)+'</td></tr>'
+    ).join(''):'<tr><td colspan="5" class="loading">no rows</td></tr>';
+    const zs=p.hot_zones||[];
+    document.getElementById('ov-pirate-zones').textContent=zs.length?('hot zones (sample): '+zs.map(z=>z.name+' ['+z.intensity+']').join(' · ')):'';
+    _provHud.overlay_pirate=p;
+  }
+  const wm=document.getElementById('ov-wpi-mode');const wr=document.getElementById('ov-wpi-rows');
+  if(w.__error){wr.innerHTML='<tr><td colspan="6" class="loading">error: '+esc(w.__error)+'</td></tr>';}
+  else{
+    wm.innerHTML=_ovMode(w.state);
+    document.getElementById('ov-wpi-src').textContent='source: '+(w.source||'—');
+    const rows=w.records||[];
+    wr.innerHTML=rows.length?rows.slice(0,40).map(r=>
+      '<tr><td class="mono">'+esc(r['World Port Index Number']||'—')+'</td><td>'+esc(r['Main Port Name']||'—')+'</td><td>'+esc(r.Country||'—')+'</td><td>'+esc(r['Harbor Size']||'—')+'</td><td class="mono">'+num(r.Latitude,2)+'</td><td class="mono">'+num(r.Longitude,2)+'</td></tr>'
+    ).join(''):'<tr><td colspan="6" class="loading">no rows</td></tr>';
+    _provHud.overlay_wpi=w;
+  }
+}
+function _wireOverlayToggle(togId,bodyId){const t=document.getElementById(togId);const b=document.getElementById(bodyId);if(t&&b){t.addEventListener('change',function(){b.closest('.card').style.opacity=t.checked?'1':'.4';});}}
+
 /* ---------- 5 · ASW ---------- */
 async function loadASW(){
   const o=await getJSON('/asw/osint');
@@ -606,6 +673,8 @@ async function loadHud(){
   if(_provHud.spoof){feeds.push(['AIS-spoof',(_provHud.spoof.ingest||[]).some(i=>i.feed_live),'correlation over REAL AIS',(_provHud.spoof.fetched_at||'').slice(11,19)]);}
   if(_provHud.risk){feeds.push(['Λ risk',true,'13-axis Λ (Conjecture 1)',(_provHud.risk.ts_utc||'').slice(11,19)]);}
   if(_provHud.osint){feeds.push(['ASW OSINT',_provHud.osint.live,((_provHud.osint.sources_tried||[]).find(x=>x.ok)||{}).source||'USNI/Naval News',''])}
+  if(_provHud.overlay_pirate){feeds.push(['Pirate-attacks overlay',_provHud.overlay_pirate.live,'IMB/Kaggle schema (sample)',''])}
+  if(_provHud.overlay_wpi){feeds.push(['World Port Index overlay',_provHud.overlay_wpi.live,'NGA Pub 150 schema (sample)',''])}
   grid.innerHTML=feeds.map(f=>'<div class="hud-feed"><div class="fn">'+modePill(f[1])+' '+esc(f[0])+'</div><div class="src">'+esc(String(f[2]).slice(0,40))+(f[3]?' · ts '+esc(f[3]):'')+'</div></div>').join('')||'<div class="hud-feed dim">feeds loading…</div>';
   // DSSE receipts (re-hashable)
   const recs=[];
@@ -621,7 +690,9 @@ async function loadHud(){
 (async function(){
   await loadStats();
   await loadVessels();
-  loadDark();loadSpoof();loadRisk();loadForecast();loadASW();
+  loadDark();loadSpoof();loadRisk();loadForecast();loadASW();loadOverlays();
+  _wireOverlayToggle('ov-pirate-tog','ov-pirate-rows');
+  _wireOverlayToggle('ov-wpi-tog','ov-wpi-rows');
   setTimeout(loadHud,2600);
 })();
 </script>
