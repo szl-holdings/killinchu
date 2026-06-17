@@ -194,6 +194,43 @@ ELITE_WIRING: Dict[str, Dict[str, Any]] = {
     "scaling": {"endpoints": ["/api/{ns}/v1/scaling/summary"], "data_class": "leader-cited",
                 "leaders": ["Kleiber", "West-Brown-Enquist", "Kaplan 2020"],
                 "note": "Allometric scaling; SZL-Φ is PROPOSED (not the formal Λ); Λ stays Conjecture 1."},
+    # ── DYNAMICALLY-REGISTERED FORMULA / OSINT / PROTOCOL TABS ──
+    # These views are attached to VIEWS at runtime by their own self-contained
+    # patch blocks in killinchu_elite_console.py (regAtlas / regNeuro / regChain /
+    # regEnt / regSovereignty + the osint_intel, conjecturefactory, decoders,
+    # mosaic, provenance, pqc registrations). They were previously absent from the
+    # wiring map, so the self-audit under-reported its own coverage. Endpoints +
+    # GET-readability verified in-process against the running app.
+    "atlas": {"endpoints": ["/api/{ns}/v1/scaling/summary", "/api/{ns}/v1/unified/summary",
+                            "/api/{ns}/v1/cuas/summary"],
+              "data_class": "leader-cited", "leaders": ["Kleiber", "Sherman-Morgan", "NIST"],
+              "note": "Formula Atlas: live GET→JSON index of every formula module; honest tier read live from /summary; Λ stays Conjecture 1; SZL claims no formula as its own."},
+    "neuro": {"endpoints": ["/api/{ns}/v1/neuro/summary"], "data_class": "leader-cited",
+              "leaders": ["Hebb", "Oja", "Bienenstock-Cooper-Munro", "Song-Abbott STDP"],
+              "note": "Neuroplasticity formulas (Hebb/Oja/BCM/STDP); EXPERIMENTAL — PROPOSED, not the formal Λ."},
+    "l6chain": {"endpoints": ["/api/{ns}/v1/chain/summary"], "data_class": "signed-loop",
+                "leaders": ["Denning lattice", "OSCAL"],
+                "note": "Chain-of-Title (L6): assemble/verify a signed chain-of-custody; honest tier from /summary."},
+    "entangle": {"endpoints": ["/api/{ns}/v1/entangle/summary"], "data_class": "leader-cited",
+                 "leaders": ["Wootters concurrence", "Vidal-Werner negativity", "CHSH"],
+                 "note": "Entanglement formulas (concurrence/negativity/CHSH/monogamy); capacity PROPOSED, not the formal Λ."},
+    "sovereignty": {"endpoints": ["/api/{ns}/v1/allodial/summary"], "data_class": "leader-cited",
+                    "leaders": ["Denning 1976", "Goguen-Meseguer 1982", "EU-CSF"],
+                    "note": "Allodial AI-sovereignty lattice + non-interference + SovScore; EXPERIMENTAL/PROPOSED."},
+    "mosaic": {"endpoints": ["/api/{ns}/v1/mosaic/cop"], "data_class": "real-compute",
+               "leaders": [], "note": "Mosaic common-operating-picture + hull-stress/score; compute routes are POST; effector SIMULATED."},
+    "provenance": {"endpoints": ["/api/{ns}/v1/receipt/ledger"], "data_class": "signed-loop",
+                   "leaders": ["NIST FIPS 204"], "note": "Live signed-receipt provenance ledger (DSSE/khipu hash-chain)."},
+    "osint_intel": {"endpoints": ["/api/{ns}/v1/osint/intel"], "data_class": "live-feed",
+                    "leaders": [], "note": "Aggregated cross-vertical OSINT intel surface; live|cached honest label; third-party claims."},
+    "conjecturefactory": {"endpoints": ["/api/{ns}/v1/conjecture-factory"], "data_class": "leader-cited",
+                          "leaders": [], "note": "Honest board of OPEN factory-generated conjectures; a conjecture is NEVER a theorem; Conjecture 1 stays OPEN."},
+    "pqc": {"endpoints": ["/api/{ns}/v1/cuas/pqbus"], "data_class": "signed-loop",
+            "leaders": ["NIST FIPS 203/204/205"],
+            "note": "Post-quantum SHA3-256 receipt bus; signature PROXY until oqs key provisioned (honest)."},
+    "decoders": {"endpoints": ["/api/{ns}/v1/drones/database", "/api/{ns}/v1/samples"],
+                 "data_class": "real-compute", "leaders": ["ASTM F3411 Remote ID", "DO-260 ADS-B", "MAVLink"],
+                 "note": "Protocol decoders (Remote ID / ADS-B / MAVLink); decode routes are POST; broadcasts are unverified claims — a lead, not proof."},
 }
 
 # Views whose data_class is SIMULATED by doctrine (effector/weapon-target/intercept).
