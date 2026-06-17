@@ -553,6 +553,12 @@ COPY killinchu_maritime_globe.py ./
 # killinchu_elite_wiring wires the /elite console; killinchu_flow_compartments backs the
 # flow-compartments surface. Per-file COPY (this Dockerfile never uses `COPY . .`).
 COPY killinchu_elite_wiring.py killinchu_flow_compartments.py ./
+# CoT INTEROP (MITRE Cursor on Target export/ingest): serve.py imports
+# killinchu_cot_interop (try/except-guarded) to serve /api/killinchu/v1/cot/*.
+# Per-file COPY (this Dockerfile never uses `COPY . .`) or the guarded import
+# falls back to a STUB on the Space (merged-but-not-live). Mirrored to the HF
+# Space via hf-sync (on.push.paths + APP_FILES — copy-sync lockstep enforced).
+COPY killinchu_cot_interop.py ./
 
 
 # --- ESTATE ECOSYSTEM FOUNDATION (Dev5, 2026-06): byte-identical shared modules ---
