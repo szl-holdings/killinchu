@@ -1068,6 +1068,94 @@ except Exception as _os_e:
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# ===========================================================================
+# SECURITY HEADERS (SAFE-NOW hardening, freeze June 20) — killinchu-only.
+# ---------------------------------------------------------------------------
+# szl_be_hardening already sets the conservative ENFORCED baseline on every
+# response (X-Content-Type-Options: nosniff, Referrer-Policy:
+# strict-origin-when-cross-origin, Strict-Transport-Security, and a CSP
+# `frame-ancestors 'self' + Hugging Face` that replaces the legacy
+# X-Frame-Options for clickjacking protection). This block is ADDITIVE and
+# does TWO things, both non-breaking:
+#
+#   1. A defensive FALLBACK: if szl_be_hardening failed to register (it is
+#      try/except-guarded and can no-op), re-assert the same baseline so the
+#      Space is never left without nosniff/Referrer-Policy/HSTS.
+#   2. A real Content-Security-Policy in REPORT-ONLY mode on HTML page loads.
+#      killinchu serves 3D/map/JS-heavy SPAs (the /elite console, radar scope,
+#      maritime/fleet globe) built from inlined scripts/styles + several CDNs.
+#      A blanket ENFORCED `default-src`/`script-src` CSP would white-screen
+#      those pages, so we ship `Content-Security-Policy-Report-Only`: browsers
+#      evaluate and (optionally) report violations but DO NOT block anything —
+#      zero risk to the demo surfaces while giving us the CSP coverage + the
+#      data needed to tighten toward an enforced policy later. We never touch
+#      the ENFORCED frame-ancestors CSP set above.
+#
+# Lives in serve.py (the per-app entrypoint, intentionally NOT byte-identical
+# a11oy<->killinchu, so this does not trip the shared-file drift gate). It is a
+# pure-stdlib BaseHTTPMiddleware wrapped in try/except so it can NEVER crash the
+# host app. Additive only — never overwrites a header a route already set.
+# Doctrine v11 LOCKED 749/14/163. SLSA L1 honest.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    from starlette.middleware.base import BaseHTTPMiddleware as _SECHDR_Base
+
+    # Report-Only CSP. Permissive enough NOT to break the 3D/map consoles:
+    # 'unsafe-inline'/'unsafe-eval' for the inlined SPA bundles + WASM globes,
+    # data:/blob: for inlined assets and worker-spawned 3D layers, and https:
+    # for the live data feeds + map tiles the consoles fetch. Report-Only means
+    # NONE of this is enforced — it cannot white-screen the demo.
+    _CSP_REPORT_ONLY = (
+        "default-src 'self' https: data: blob:; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; "
+        "style-src 'self' 'unsafe-inline' https:; "
+        "img-src 'self' data: blob: https:; "
+        "font-src 'self' data: https:; "
+        "connect-src 'self' https: wss: data: blob:; "
+        "worker-src 'self' blob:; "
+        "frame-ancestors 'self' https://huggingface.co "
+        "https://*.hf.space https://*.huggingface.co; "
+        "base-uri 'self'; "
+        "object-src 'none'"
+    )
+    _SECHDR_FALLBACK = {
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    }
+
+    class _SecurityHeadersKC(_SECHDR_Base):
+        async def dispatch(self, request, call_next):
+            resp = await call_next(request)
+            try:
+                # 1. Re-assert the baseline if (and ONLY if) it is absent — never
+                #    clobber a header szl_be_hardening / a route already set.
+                for _k, _v in _SECHDR_FALLBACK.items():
+                    if _k not in resp.headers:
+                        resp.headers[_k] = _v
+                # 2. Report-Only CSP on HTML page loads only (don't add weight to
+                #    JSON API / SSE / asset responses). Never overwrite one a route
+                #    already declared.
+                _ctype = resp.headers.get("content-type", "")
+                if "text/html" in _ctype.lower() and (
+                    "Content-Security-Policy-Report-Only" not in resp.headers
+                ):
+                    resp.headers["Content-Security-Policy-Report-Only"] = _CSP_REPORT_ONLY
+            except Exception:
+                pass
+            return resp
+
+    app.add_middleware(_SecurityHeadersKC)
+    print("[killinchu] security headers (CSP report-only + baseline fallback) registered",
+          file=sys.stderr)
+except Exception as _sechdr_e:  # pragma: no cover
+    print(f"[killinchu] security headers NOT registered (non-fatal): {_sechdr_e!r}",
+          file=__import__("sys").stderr)
+# ===========================================================================
+# END: SECURITY HEADERS
+# ===========================================================================
+
 # ---------------------------------------------------------------------------
 # Load curated drone database at startup
 # ---------------------------------------------------------------------------
