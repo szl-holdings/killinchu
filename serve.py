@@ -1150,17 +1150,23 @@ app.add_middleware(
 try:
     from starlette.middleware.base import BaseHTTPMiddleware as _SECHDR_Base
 
-    # Report-Only CSP. Permissive enough NOT to break the 3D/map consoles:
-    # 'unsafe-inline'/'unsafe-eval' for the inlined SPA bundles + WASM globes,
-    # data:/blob: for inlined assets and worker-spawned 3D layers, and https:
-    # for the live data feeds + map tiles the consoles fetch. Report-Only means
-    # NONE of this is enforced — it cannot white-screen the demo.
+    # Report-Only CSP. SEC-09 (tightened, additive, still Report-Only so it can
+    # NEVER white-screen the demo): all SPA bundles + vendor libs are same-origin
+    # ('self', under /vendor/), so the blanket `https:` source and `'unsafe-eval'`
+    # are dropped from script-src — no JS eval()/new Function() exists in the served
+    # app (verified) and WebGL shaders compile on the GPU, not via the JS CSP gate.
+    # `'unsafe-inline'` is RETAINED (the SPA ships 16 inline render scripts). The
+    # external `https:`/`wss:` allowances are kept ONLY where real cross-origin
+    # fetches happen: connect-src (live data feeds + websockets) and img-src (map
+    # tiles). data:/blob: kept where inlined assets / worker-spawned 3D layers need
+    # them. Tightening a Report-Only policy only sharpens its violation reports; it
+    # cannot break rendering.
     _CSP_REPORT_ONLY = (
-        "default-src 'self' https: data: blob:; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; "
-        "style-src 'self' 'unsafe-inline' https:; "
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' blob:; "
+        "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: blob: https:; "
-        "font-src 'self' data: https:; "
+        "font-src 'self' data:; "
         "connect-src 'self' https: wss: data: blob:; "
         "worker-src 'self' blob:; "
         "frame-ancestors 'self' https://huggingface.co "
@@ -1183,6 +1189,12 @@ try:
                 for _k, _v in _SECHDR_FALLBACK.items():
                     if _k not in resp.headers:
                         resp.headers[_k] = _v
+                # SEC-08 (defence-in-depth): drop any residual Server/X-Powered-By
+                # banner a proxy or sub-app may have re-added. Fingerprint removal
+                # only — never weakens a security gate.
+                for _hdr in ("server", "x-powered-by"):
+                    if _hdr in resp.headers:
+                        del resp.headers[_hdr]
                 # 2. Report-Only CSP on HTML page loads only (don't add weight to
                 #    JSON API / SSE / asset responses). Never overwrite one a route
                 #    already declared.
@@ -4800,4 +4812,6 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
     print(f"[killinchu] Andean Drone Intelligence on :{port} — Doctrine v11 — SPA at /", file=sys.stderr)
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    # SEC-08: suppress the `Server: uvicorn` banner (version/stack disclosure).
+    # Additive, non-functional — removes a fingerprinting header only.
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", server_header=False)

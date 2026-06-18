@@ -318,6 +318,25 @@ def register(
     registered.append("GET /elite")
     registered.append(f"GET /{ns}/elite")
 
+    # ------------------------------------------------------------------
+    # CoT manifest viewer (HD-kc1): the /cot/status endpoint returns a REAL
+    # MITRE Cursor-on-Target capability + honesty manifest as raw
+    # application/json. Opened bare in a browser tab that raw JSON wall looks
+    # like a broken/unstyled UI to a demo judge. This route is a TINY styled
+    # wrapper that fetches the SAME live endpoint (no fabrication — it pretty-
+    # prints exactly what /api/<ns>/v1/cot/status returns) inside the console
+    # theme, framed clearly as a RAW API manifest, with a one-click link to the
+    # raw JSON and the full CoT export. The raw endpoints are unchanged.
+    # ------------------------------------------------------------------
+    _cot_view_html = _COT_VIEW_HTML.replace("__NS__", ns)
+
+    async def _serve_cot_view() -> HTMLResponse:
+        return HTMLResponse(_cot_view_html)
+
+    app.get("/elite/cot")(_serve_cot_view)
+    app.get(f"/{ns}/elite/cot")(_serve_cot_view)
+    registered.append("GET /elite/cot (styled CoT manifest viewer)")
+
     return {
         "module": "killinchu_elite_console",
         "registered": registered,
@@ -327,6 +346,100 @@ def register(
 
 
 __all__ = ["register"]
+
+
+# ===========================================================================
+# Styled CoT manifest viewer (HD-kc1). Self-contained, 0-CDN. Fetches the REAL
+# /api/<ns>/v1/cot/status endpoint and pretty-prints it inside the console
+# theme, framed unambiguously as a RAW API manifest (not a broken UI tab).
+# No data is fabricated — it renders exactly what the live endpoint returns,
+# and links straight to the raw JSON + the full CoT export. Mobile-safe (pre
+# wraps + scrolls). __NS__ is substituted at registration.
+# ===========================================================================
+_COT_VIEW_HTML = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CoT Interop — API manifest · killinchu</title>
+<style>
+:root{--ground:#0a0a0a;--panel:#0e0e0e;--panel2:#080808;--gold:#c9b787;--gold-bright:#d6c69a;
+  --teal:#5fb3a3;--cream:#f5f5f5;--paragraph:#9a9a9a;--muted:#949494;--warn:#c9a05f;
+  --gold-line:rgba(201,183,135,0.15);--gold-soft:rgba(201,183,135,0.05);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --sans:'Space Grotesk',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ground);color:var(--cream);font-family:var(--sans);
+  line-height:1.5;padding:1.4rem 1.2rem 3rem;max-width:920px;margin:0 auto;}
+a{color:var(--gold-bright);}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);}
+h1{font-size:1.5rem;margin:.25rem 0 .4rem;color:var(--cream);font-weight:600;}
+.lead{color:var(--paragraph);font-size:14px;max-width:62ch;}
+.tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  padding:.18rem .5rem;border-radius:6px;border:1px solid var(--gold-line);background:var(--gold-soft);color:var(--gold);margin:.5rem .4rem .2rem 0;}
+.tag.api{color:var(--teal);border-color:rgba(95,179,163,0.3);background:rgba(95,179,163,0.08);}
+.btns{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0;}
+.btn{display:inline-flex;align-items:center;min-height:40px;font-family:var(--mono);font-size:12px;
+  padding:.5rem .9rem;border-radius:8px;border:1px solid var(--gold-line);background:transparent;
+  color:var(--cream);text-decoration:none;cursor:pointer;}
+.btn:hover{background:rgba(201,183,135,.08);border-color:rgba(201,183,135,.35);}
+.btn.teal{color:var(--teal);border-color:rgba(95,179,163,0.3);}
+.card{border:1px solid var(--gold-line);border-radius:11px;background:var(--panel);padding:1.1rem 1.2rem;margin:1rem 0;}
+.card-t{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);}
+pre.out{font-family:var(--mono);font-size:12px;line-height:1.6;color:var(--paragraph);background:var(--panel2);
+  border:1px solid var(--gold-line);border-radius:8px;padding:1rem;margin-top:.7rem;
+  overflow-x:auto;overflow-y:auto;white-space:pre-wrap;word-break:break-word;max-height:62vh;}
+.honesty{margin-top:1.2rem;padding:1rem 1.2rem;border:1px solid var(--gold-line);border-radius:9px;
+  background:var(--gold-soft);font-size:12.5px;color:var(--paragraph);line-height:1.7;}
+.honesty b{color:var(--gold);}
+.dim{color:var(--muted);font-family:var(--mono);font-size:11px;}
+</style>
+</head>
+<body>
+  <div class="eyebrow">killinchu · JOINT / MULTI-DOMAIN INTEROP</div>
+  <h1>CoT Interop &mdash; API manifest</h1>
+  <p class="lead">MITRE <b>Cursor-on-Target (CoT) 2.0</b> export / ingest, so killinchu's air &amp; sea
+  track picture flows into any DoD-standard C2 (TAK / ATAK-class). This is the live
+  <b>capability + honesty manifest</b> for that interop &mdash; the raw response of
+  <code>GET /api/__NS__/v1/cot/status</code>, rendered here so it reads as an API
+  manifest, not a UI tab.</p>
+  <span class="tag api">RAW API · application/json</span>
+  <span class="tag">GET /api/__NS__/v1/cot/status</span>
+  <div class="btns">
+    <a class="btn" href="/api/__NS__/v1/cot/status" target="_blank" rel="noopener">↗ Open raw JSON</a>
+    <a class="btn teal" href="/api/__NS__/v1/cot/export" target="_blank" rel="noopener">⬇ Full CoT export (all tracks)</a>
+    <a class="btn" href="/elite">← Back to console</a>
+  </div>
+  <div class="card">
+    <span class="card-t">Live manifest</span>
+    <pre class="out" id="cot-out">loading live manifest from /api/__NS__/v1/cot/status…</pre>
+    <div class="dim" id="cot-meta"></div>
+  </div>
+  <div class="honesty"><b>Honest by design.</b> Everything above is fetched live from the
+  killinchu CoT endpoint &mdash; no value is hard-coded here. The manifest itself flags which
+  capabilities are <b>live</b> (CoT XML export / ingest / schema validation) versus
+  <b>roadmap</b> (UDP multicast emit, live TAK-server stream, TLS client-cert enrolment are
+  honestly marked <code>wired:false</code> &mdash; not built in this image). The full
+  <code>/cot/export</code> emits a real CoT &lt;events&gt; document you can drop into TAK/ATAK.</div>
+<script>
+(async function(){
+  var out=document.getElementById('cot-out'), meta=document.getElementById('cot-meta');
+  var url='/api/__NS__/v1/cot/status';
+  try{
+    var ctl=new AbortController(); var t=setTimeout(function(){ctl.abort();},8000);
+    var r=await fetch(url,{signal:ctl.signal}); clearTimeout(t);
+    if(!r.ok){ out.textContent='Manifest endpoint returned HTTP '+r.status+'. Try the raw JSON link above.'; return; }
+    var j=await r.json();
+    out.textContent=JSON.stringify(j,null,2);
+    var live=j&&j.live||{}; var rm=j&&j.roadmap||{};
+    meta.textContent='live capabilities: '+Object.keys(live).length+' · roadmap (wired:false): '+Object.keys(rm).length+' · content-type application/json';
+  }catch(e){
+    out.textContent='Could not reach the live manifest ('+(e&&e.message||e)+'). Open the raw JSON endpoint directly via the link above.';
+  }
+})();
+</script>
+</body>
+</html>"""
 
 
 # ===========================================================================
@@ -360,26 +473,33 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
 <!-- VENDORED viz libs (no-CDN, sovereign / air-gap ready). Chart.js 4.4.1, 3d-force-graph 1.73.4,
      ECharts 5 + echarts-gl 2, globe.gl 2, Cytoscape 3, D3 7, KaTeX 0.16.9. Served from /vendor/* . -->
-<script src="/vendor/chart.umd.min.js"></script>
-<script src="/vendor/3d-force-graph.min.js"></script>
-<script src="/vendor/echarts.min.js"></script>
-<script src="/vendor/echarts-gl.min.js"></script>
-<script src="/vendor/globe.gl.min.js"></script>
-<script src="/vendor/cytoscape.min.js"></script>
-<script src="/vendor/d3.min.js"></script>
+<script defer src="/vendor/chart.umd.min.js"></script>
+<script defer src="/vendor/3d-force-graph.min.js"></script>
+<script defer src="/vendor/echarts.min.js"></script>
+<script defer src="/vendor/echarts-gl.min.js"></script>
+<script defer src="/vendor/globe.gl.min.js"></script>
+<script defer src="/vendor/cytoscape.min.js"></script>
+<script defer src="/vendor/d3.min.js"></script>
 <link rel="stylesheet" href="/vendor/katex.min.css"/>
-<script src="/vendor/katex.min.js"></script>
+<script defer src="/vendor/katex.min.js"></script>
 <!-- BATCH-1 distinctness libs (MIT/Apache/ISC, vendored, see /static/NOTICE):
      Three.js r160 (THREE) — 3D HEALTH TWIN; deck.gl (deck) — geospatial layers;
      Konva (Konva) — 2D schematic canvas; Sigma+Graphology (Sigma/graphology) +
      Dagre (dagre) — receipt-chain DAG. All UMD globals, 0 runtime CDN. -->
-<script src="/vendor/three.min.js"></script>
+<script defer src="/vendor/three.min.js"></script>
 <!-- THREE.Timer shim (0-CDN): vendored three.min.js (r160 core) does NOT export the Timer
      class that globe.gl expects (added to three core in r170+). globe.gl calls
      `new THREE.Timer().update()/.getDelta()`; without it -> "z0.Timer is not a constructor"
      and the globe canvases (fleet_c2 / pulse / constellations) blank intermittently.
      Faithful re-implementation of three's Timer API (delta/elapsed in seconds). -->
 <script>
+/* PERF: vendor libs now load with `defer` (parse-unblocking, in-order). The two
+   IIFEs below (benign-teardown error guard + THREE.Timer shim) depend on those
+   deferred libs having executed, so they are deferred to DOMContentLoaded — which
+   fires AFTER all deferred scripts run. Behaviour is unchanged; only timing moves. */
+(function(){
+  function __szlHeadInit(){
+
 /* teardown-race guard (additive, no behaviour change): regl-scatterplot's pub-sub-es
    backend can fire a deferred .notify() in a queued microtask/animation-frame AFTER the
    plot was destroyed on view-switch (its store is nulled), surfacing a benign uncaught
@@ -426,42 +546,45 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
   };
   THREE.Timer=Timer;
 })();
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',__szlHeadInit);}else{__szlHeadInit();}
+})();
 </script>
-<script src="/vendor/deck.min.js"></script>
-<script src="/vendor/konva.min.js"></script>
-<script src="/vendor/graphology.min.js"></script>
-<script src="/vendor/sigma.min.js"></script>
-<script src="/vendor/dagre.min.js"></script>
+<script defer src="/vendor/deck.min.js"></script>
+<script defer src="/vendor/konva.min.js"></script>
+<script defer src="/vendor/graphology.min.js"></script>
+<script defer src="/vendor/sigma.min.js"></script>
+<script defer src="/vendor/dagre.min.js"></script>
 <!-- BATCH-2 distinctness libs (MIT/ISC/BSD-3, vendored, see NOTICES.md):
      regl (createREGL) + pub-sub-es (createPubSub) -> regl-scatterplot (createScatterplot,
      factory at .default) — sensor-fusion covariance scatter; @observablehq/plot (Plot, reads
      global d3) — maintenance state timeline; d3-sankey (attaches d3.sankey to the d3 bundle
      above) — voyage + engagement-audit flow. Load order: d3(348) -> d3-sankey; regl ->
      pub-sub-es -> regl-scatterplot; plot. All UMD globals, 0 runtime CDN. -->
-<script src="/vendor/d3-sankey.min.js"></script>
-<script src="/vendor/regl.min.js"></script>
-<script src="/vendor/pub-sub-es.min.js"></script>
-<script src="/vendor/regl-scatterplot.min.js"></script>
-<script src="/vendor/plot.umd.min.js"></script>
+<script defer src="/vendor/d3-sankey.min.js"></script>
+<script defer src="/vendor/regl.min.js"></script>
+<script defer src="/vendor/pub-sub-es.min.js"></script>
+<script defer src="/vendor/regl-scatterplot.min.js"></script>
+<script defer src="/vendor/plot.umd.min.js"></script>
 <!-- SOVEREIGN: vendored anvaka graph stack (Andrei Kashcha, BSD-3/MIT) for deterministic
      seeded force-directed layout in the Posture/Topology/Attack-Surface/Zero-Trust graphs.
      0 runtime CDN — served from static/vendor/anvaka/*. Byte-identical with a11oy.
      Globals: createGraph, ngraphCreateLayout, ngraphPath, ngraphEvents, panzoom, Viva.
      Full LICENSE + ATTRIBUTION ship beside the files in static/vendor/anvaka/. -->
-<script src="/vendor/anvaka/ngraph.events.umd.js"></script>
-<script src="/vendor/anvaka/ngraph.graph.min.js"></script>
-<script src="/vendor/anvaka/ngraph.forcelayout.min.js"></script>
-<script src="/vendor/anvaka/ngraph.path.min.js"></script>
-<script src="/vendor/anvaka/panzoom.min.js"></script>
-<script src="/vendor/anvaka/vivagraph.min.js"></script>
+<script defer src="/vendor/anvaka/ngraph.events.umd.js"></script>
+<script defer src="/vendor/anvaka/ngraph.graph.min.js"></script>
+<script defer src="/vendor/anvaka/ngraph.forcelayout.min.js"></script>
+<script defer src="/vendor/anvaka/ngraph.path.min.js"></script>
+<script defer src="/vendor/anvaka/panzoom.min.js"></script>
+<script defer src="/vendor/anvaka/vivagraph.min.js"></script>
 <!-- Formerly-deferred anvaka libs, now vendored 0-CDN (bundled offline; see
      static/vendor/anvaka/ATTRIBUTION.md §Build provenance). three.map.control +
      ngraph.three load AFTER the in-image three.min.js (window.THREE, external -> not re-bundled).
      Globals added: ngraphCW (Chinese-Whispers clustering), threeMapControls, ngraphThree, wgl. -->
-<script src="/vendor/anvaka/ngraph.cw.min.js"></script>
-<script src="/vendor/anvaka/three.map.control.min.js"></script>
-<script src="/vendor/anvaka/ngraph.three.min.js"></script>
-<script src="/vendor/anvaka/w-gl.min.js"></script>
+<script defer src="/vendor/anvaka/ngraph.cw.min.js"></script>
+<script defer src="/vendor/anvaka/three.map.control.min.js"></script>
+<script defer src="/vendor/anvaka/ngraph.three.min.js"></script>
+<script defer src="/vendor/anvaka/w-gl.min.js"></script>
 <style>
 /* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
@@ -469,7 +592,7 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
   --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
   --gold:#c9b787; --gold-bright:#d6c69a;
   --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
-  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#949494; --dim:#949494;
   --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
   --teal-line:rgba(95,179,163,0.22);
   --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
@@ -561,7 +684,7 @@ a{color:inherit;text-decoration:none;}
 .btn.teal{color:var(--teal);border-color:var(--teal-line);background:var(--teal-soft);}
 .btns{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;}
 pre.out{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--paragraph);background:var(--panel2);
-  border:1px solid var(--gold-line);border-radius:8px;padding:.9rem 1rem;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:380px;}
+  border:1px solid var(--gold-line);border-radius:8px;padding:.9rem 1rem;overflow-x:auto;overflow-y:auto;white-space:pre-wrap;word-break:break-word;max-height:620px;}
 .honesty{margin-top:1.2rem;padding:1rem 1.2rem;border:1px solid var(--gold-line);border-radius:9px;background:var(--gold-soft);font-size:11.5px;color:var(--paragraph);line-height:1.7;}
 .honesty b{color:var(--gold);}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;}
@@ -866,6 +989,18 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
   .card{border-radius:12px;padding:1rem 1.05rem;margin-bottom:.85rem;}
   .kpi{border-radius:10px;}
   .content{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 4.5rem)!important;}
+
+  /* (8) NO HORIZONTAL CARD CLIP ON MOBILE (HD-kc1): four demo cards clipped content
+     off the right edge at 375px because (a) flex .row strips of buttons/long mono
+     stats didn't wrap, (b) long unbreakable mono filenames overflowed, (c) a wide
+     SVG graph viz exceeded the card. Root fix is mobile-scoped + additive: let card
+     rows WRAP, break long mono content, and give an over-wide SVG viz its own
+     horizontal scroll instead of clipping. Wide-screen layout is untouched. */
+  .card .row{flex-wrap:wrap;}
+  .card .row>*{min-width:0;overflow-wrap:anywhere;word-break:break-word;}
+  .card .mono{overflow-wrap:anywhere;word-break:break-word;}
+  /* an over-wide graph SVG/viz scrolls inside its card instead of clipping the right edge */
+  .card{overflow-x:auto;}
 }
 /* (4) very small phones — keep the bar tidy, never clip */
 @media (max-width:400px){
@@ -1018,7 +1153,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item nav-pinned" data-view="tracks" onclick="go('tracks')" title="Live track board off the air/sea picture, auto-recording. Real AIS/ADS-B + the NOAA AIS Aug-2024 dataset."><span class="ico">&#8853;</span>Live Track Board</div>
     <div class="nav-item nav-pinned" data-view="tamper_demo" onclick="go('tamper_demo')" title="Tamper a signed receipt and watch the SHA-256 hash chain visibly REJECT it in 3D."><span class="ico">&#9939;</span>Tamper a Receipt (3D)</div>
     <div class="nav-item nav-pinned" data-view="uds_package" onclick="go('uds_package')" title="killinchu as a UDS-pattern package: UDS Package CR, Pepr-style capability, Zarf flavors, Lula/OSCAL tying Lambda-gate + receipts to NIST 800-53 as claims-with-evidence."><span class="ico">&#11042;</span>UDS Package</div>
-    <a class="nav-item nav-pinned" href="/api/killinchu/v1/cot/status" target="_blank" rel="noopener" title="CoT Interop: MITRE Cursor-on-Target 2.0 export/ingest. Opens the live capability + honesty manifest (GET /api/killinchu/v1/cot/status); full export at /api/killinchu/v1/cot/export. DoD-standard interop; the Data Sources / Overlays panel triggers a CoT export action."><span class="ico">&#9741;</span>CoT Interop (export)</a>
+    <a class="nav-item nav-pinned" href="/elite/cot" rel="noopener" title="CoT Interop — styled API manifest viewer. MITRE Cursor-on-Target 2.0 export/ingest. Pretty-prints the live capability + honesty manifest (GET /api/killinchu/v1/cot/status) and links to the raw JSON + full /cot/export. DoD-standard interop; this is an API/data surface, not a console tab."><span class="ico">&#9741;</span>CoT Interop · API manifest</a>
     <div class="nav-item nav-pinned" data-view="u_warhacker" onclick="go('u_warhacker')" title="Sovereign Warhacker: 27 maritime/drone/counter-UAS live demos + proofs board."><span class="ico">&#10026;</span>Warhacker (27 demos)</div>
     <div class="nav-item nav-pinned" data-view="dataset_control" onclick="go('dataset_control')" title="Data Sources / Overlays: one panel to flip Live AIS (default), the NOAA AIS Aug-2024 sample, the Pirate-attack risk and World Port Index overlays, and a CoT export action. Datasets not yet deployed are honestly labelled 'available when PR #N merges'. Additive; sample is never live."><span class="ico">&#9707;</span>Data Sources / Overlays</div>
     <div class="nav-item nav-pinned" data-view="fleet_c2" onclick="go('fleet_c2')" title="Live 3D fleet picture: real military ADS-B + AIS vessels on a globe; governance loop real, effector link simulated."><span class="ico">&#9680;</span>Fleet Health &amp; Governed C2 (3D)</div>
@@ -1042,7 +1177,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="u_minedops" onclick="go('u_minedops')" title="Mined field-efficiency ops: edge VRAM, telemetry memory, adaptive sampling, routing, prioritization."><span class="ico">&#8752;</span>Mined Ops</div>
 
     <div class="nav-group" data-demo-sec="joint" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem" title="JOINT / MULTI-DOMAIN interop: MITRE Cursor-on-Target 2.0 export/ingest so killinchu's air + sea picture flows into any DoD-standard C2 (TAK/ATAK). Real REST endpoints; DoD-standard interop.">&#9314; JOINT &middot; INTEROP</div>
-    <a class="nav-item" href="/api/killinchu/v1/cot/status" target="_blank" rel="noopener" style="color:var(--gold-bright)" title="CoT Interop capability + honesty manifest (GET /api/killinchu/v1/cot/status). MITRE Cursor-on-Target 2.0; the joint/multi-domain interop story — killinchu tracks flow to any TAK/ATAK-class C2. LIVE endpoint."><span class="ico">&#9741;</span>CoT Status &amp; Manifest (live)</a>
+    <a class="nav-item" href="/elite/cot" rel="noopener" style="color:var(--gold-bright)" title="CoT capability + honesty manifest — styled viewer over the live GET /api/killinchu/v1/cot/status endpoint (links to the raw JSON). MITRE Cursor-on-Target 2.0; killinchu tracks flow to any TAK/ATAK-class C2. LIVE endpoint, API/data surface."><span class="ico">&#9741;</span>CoT Status &amp; Manifest · API</a>
     <a class="nav-item" href="/api/killinchu/v1/cot/export" target="_blank" rel="noopener" title="Export the full live air/sea track picture as a CoT &lt;events&gt; document (GET /api/killinchu/v1/cot/export) — drop straight into TAK/ATAK. DoD-standard interop; LIVE endpoint."><span class="ico">&#11015;</span>CoT Export — all tracks (live)</a>
     <div class="nav-item" data-view="dataset_control" onclick="go('dataset_control')" title="Data Sources / Overlays: flip Live AIS / NOAA AIS Aug-2024 sample / pirate-risk + WPI overlays and trigger a CoT export action — the joint-interop hand-off from this console. Additive; sample never live; honest labels."><span class="ico">&#9707;</span>Overlays &amp; CoT Export Panel</div>
 
@@ -2799,8 +2934,8 @@ const VIEWS = {
       <div class="kpi"><div class="k">Gate</div><div class="v" id="op-gate">—</div><div class="d">floor 0.90</div></div>
       <div class="kpi"><div class="k">Receipt</div><div class="v" id="op-sig">—</div><div class="d">DSSE · cosign</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Issue a governed command</span><span class="card-ep">real ROE policy · /roe/policy + /receipt/emit</span></div>
-        <div class="form-row"><label>Track</label><input id="op-track" value="TRK-0001" style="width:100%;padding:.5rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono)"/></div>
-        <div class="form-row"><label>Command</label><select id="op-action" style="width:100%;padding:.5rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono)"><option value="observe">observe</option><option value="track-and-warn">track + warn</option><option value="jam">jam (recommend)</option></select></div>
+        <div class="form-row"><label for="op-track">Track</label><input id="op-track" aria-label="Track" value="TRK-0001" style="width:100%;padding:.5rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono)"/></div>
+        <div class="form-row"><label for="op-action">Command</label><select id="op-action" aria-label="Command" style="width:100%;padding:.5rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono)"><option value="observe">observe</option><option value="track-and-warn">track + warn</option><option value="jam">jam (recommend)</option></select></div>
         <div class="btns"><button class="btn teal" onclick="operate_run()">▶ Issue governed command</button></div>
         <div id="op-body" style="margin-top:.5rem"><div class="row mono dim">awaiting command</div></div></div>
       <div class="honesty" style="margin-top:.6rem"><b>Effector:</b> command demonstration, simulated — the governance loop (command → Λ-gate → signed receipt) is real and live; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>
@@ -4124,15 +4259,15 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
   decoders:{title:'Protocol Decoders',badge:'3 PROTOCOLS',sub:'Read the raw radio broadcasts drones and aircraft put out. Paste a captured frame and see who it claims to be — Remote ID (the drone’s digital licence plate), ADS-B (aircraft position beacons), and MAVLink (drone autopilot messages). These are unverified broadcast claims — anyone can spoof them — so treat as a lead, not proof.',
     render:(c)=>{
       c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Remote ID — drone digital licence plate</span></div>
-        <div class="form-row"><label>Captured frame (hex)</label><input id="rid-hex" value="0D1A2B3C4D5E6F708192A3B4C5D6E7F8091A2B3C4D5E6F7081"/></div>
+        <div class="form-row"><label for="rid-hex">Captured frame (hex)</label><input id="rid-hex" aria-label="Captured frame (hex)" value="0D1A2B3C4D5E6F708192A3B4C5D6E7F8091A2B3C4D5E6F7081"/></div>
         <div class="btns"><button class="btn teal" onclick="decode_rid()">▶ Decode</button></div>
         <details class="raw"><summary>decoded fields</summary><pre class="out" id="rid-out">—</pre></details></div>
       <div class="card"><div class="card-h"><span class="card-t">ADS-B — aircraft position beacon</span></div>
-        <div class="form-row"><label>Captured frame (hex)</label><input id="adsb-hex" value="8D4840D6202CC371C32CE0576098"/></div>
+        <div class="form-row"><label for="adsb-hex">Captured frame (hex)</label><input id="adsb-hex" aria-label="Captured frame (hex)" value="8D4840D6202CC371C32CE0576098"/></div>
         <div class="btns"><button class="btn teal" onclick="decode_adsb()">▶ Decode</button></div>
         <details class="raw"><summary>decoded fields</summary><pre class="out" id="adsb-out">—</pre></details></div>
       <div class="card"><div class="card-h"><span class="card-t">MAVLink — drone autopilot message</span></div>
-        <div class="form-row"><label>Captured frame (hex)</label><input id="mav-hex" value="fd0900004200043b000000000000000000000000b4"/></div>
+        <div class="form-row"><label for="mav-hex">Captured frame (hex)</label><input id="mav-hex" aria-label="Captured frame (hex)" value="fd0900004200043b000000000000000000000000b4"/></div>
         <div class="btns"><button class="btn teal" onclick="decode_mav()">▶ Parse</button></div>
         <details class="raw"><summary>decoded fields</summary><pre class="out" id="mav-out">—</pre></details></div>
       ${HONEST}`;
@@ -12496,7 +12631,7 @@ go(VIEWS[start]?start:'tracks');
         return '<div class="kpi" style="background:#0a1412;border:1px solid #143028;border-radius:10px;padding:.55rem .7rem">'+
           '<div class="k" style="font-family:var(--mono,monospace);font-size:10px;color:#6f8d83;letter-spacing:.04em">'+label+'</div>'+
           '<div class="v" style="font-size:1.35rem;font-weight:600;color:'+(color||"#7CFFB2")+'">'+val+'</div>'+
-          '<div class="d" style="font-size:10px;color:#5a7068">'+sub+'</div></div>';
+          '<div class="d" style="font-size:10px;color:#8ca599">'+sub+'</div></div>';
       }
       // Pull live counts from globals the page already maintains (best-effort).
       var dk = (window.__KC_DARKFLEET!=null)?window.__KC_DARKFLEET:'—';
