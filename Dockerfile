@@ -82,6 +82,12 @@ RUN pip install --no-cache-dir "numpy==2.4.6"
 # surface. `|| true` keeps the build green if a wheel is unavailable.
 RUN pip install --no-cache-dir "scipy==1.17.1" "networkx==3.6.1" "PyYAML==6.0.3" || true
 
+# Hardens the Odoo ERP connector's XML-RPC parser against XML entity-expansion /
+# decompression-bomb attacks (bandit B411). szl_connectors/erp/odoo.py applies
+# defusedxml.xmlrpc.monkey_patch() before parsing untrusted server responses;
+# this pin makes that path active in the running image (pure-python wheel).
+RUN pip install --no-cache-dir "defusedxml==0.7.1"
+
 # Copy the pre-built SPA to the static root.
 # index.html + assets/* served directly at / and /assets/*; unknown GET -> index.html.
 COPY static/ ./static/
