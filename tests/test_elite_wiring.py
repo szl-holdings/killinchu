@@ -30,7 +30,7 @@ def test_every_view_has_a_real_endpoint():
                 f"{vid} endpoint {ep!r} is not a real API route"
         assert w["data_class"] in {
             "live-feed", "leader-cited", "real-compute", "curated",
-            "signed-loop", "SIMULATED",
+            "signed-loop", "SIMULATED", "interop-standard",
         }, f"{vid} has an unknown data_class {w['data_class']!r}"
 
 
