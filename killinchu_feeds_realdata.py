@@ -1254,14 +1254,25 @@ def register(app, ns="killinchu"):
                  "by the backend; advisory, computed over REAL AIS, NOT proven. Λ=Conjecture 1."),
     }
 
-    def _fetch_cached_meta(kind, fn, theater, limit, ttl=20, vtype=None):
+    def _fetch_cached_meta(kind, fn, theater, limit, ttl=20, vtype=None,
+                           cold_empty=None, cold_wait=4.0):
         """Short-TTL cache + SINGLE-FLIGHT so repeated/concurrent polls are instant
         and gentle on upstreams. Returns (val, as_of_iso, cache_hit).
 
         Honest: the served value is ALWAYS real live data (<=ttl old); `as_of`
         is the ISO timestamp of the real fetch that produced it. Under N
         concurrent misses, only ONE upstream fetch runs (single-flight) and the
-        others share its genuine result — never a fabricated value. (PERF-B fix.)"""
+        others share its genuine result — never a fabricated value. (PERF-B fix.)
+
+        Cold-cache abort fix: when there is NO prior value AND `cold_empty` is
+        supplied, we never block the browser past `cold_wait`s on a slow cold
+        upstream (feeds/aircraft taiwan_strait is 25-27s cold). We start the
+        REAL fetch in the background (single-flight) and wait at most `cold_wait`
+        for it; if it lands in time the caller gets the real value, otherwise we
+        return the honest EMPTY shape (`cold_empty`, e.g. mode='warming', empty
+        arrays — NEVER fabricated) and the very next poll picks up the now-cached
+        real value. SWR + this branch together mean the tab NEVER sees a bare
+        0/0/0 + signal-aborted from a cold OR stale slow upstream."""
         ck = "feed:%s:%s:%s:%s" % (kind, theater, limit, vtype or "all")
         now = time.time()
         with _LOCK:
@@ -1304,10 +1315,39 @@ def register(app, ns="killinchu"):
                 pass
             return ent["val"], ent.get("as_of") or _now_iso(), True
 
-        # COLD cache (no prior value): do the real fetch but bound the wait so a
-        # single slow upstream can't hang the tab past the client timeout. The
-        # single-flight leader still completes the real fetch and fills the cache
-        # for the very next poll; a follower that times out here re-reads cache.
+        # COLD cache (no prior value): bound the wait so a single slow upstream
+        # can't hang the tab past the client abort. We launch the REAL fetch in
+        # the background (single-flight leader completes it + fills cache) and
+        # wait at most `cold_wait`s for it. If it lands in time -> real value
+        # NOW; otherwise -> honest empty (`cold_empty`, mode='warming') and the
+        # next poll reads the cached real value. The fetched value is ALWAYS a
+        # real upstream result; the only fallback is an HONEST EMPTY, never
+        # fabricated data. (No cold_empty supplied -> preserve prior blocking
+        # behavior for callers that must have a real value inline.)
+        if cold_empty is not None:
+            _box = {}
+            _done = threading.Event()
+
+            def _cold_fetch():
+                try:
+                    _box["val"], _box["as_of"] = _single_flight(ck, _produce)
+                except Exception as e:
+                    _box["err"] = e
+                finally:
+                    _done.set()
+            try:
+                threading.Thread(target=_cold_fetch, name="feed-cold-%s" % ck,
+                                 daemon=True).start()
+            except Exception:
+                # Could not spawn — fall back to a real bounded inline fetch.
+                val, as_of = _single_flight(ck, _produce)
+                return val, as_of, False
+            if _done.wait(timeout=cold_wait) and "val" in _box:
+                return _box["val"], _box["as_of"], False
+            # Slow cold upstream still in flight: serve honest empty NOW; the
+            # background fetch keeps running and fills cache for the next poll.
+            return cold_empty, _now_iso(), False
+
         val, as_of = _single_flight(ck, _produce)
         return val, as_of, False
 
@@ -1329,8 +1369,17 @@ def register(app, ns="killinchu"):
         # PERF-B: per-theater cache (TTL 20s) + single-flight. Concurrent
         # requests for the same theater share ONE real upstream fetch and
         # return from cache <1s; a cold fetch is still a real OpenSky/adsb call.
+        # COLD-ABORT fix: a genuinely cold taiwan_strait fetch is 25-27s (slow
+        # OpenSky), longer than the 11s client abort -> bare 0/0/0 + signal-
+        # aborted. We bound the cold wait and serve an HONEST empty (mode=
+        # 'warming', no tracks, NEVER fabricated) if the real fetch is still in
+        # flight; the background fetch fills cache so the next poll renders LIVE.
+        _cold_empty_air = ([], [{"source": "warming (cold cache)", "ok": False,
+                                 "note": "real upstream fetch in flight; next poll renders live"}],
+                           "warming")
         (tracks, tried, mode), as_of, cache_hit = await _run(
-            _fetch_cached_meta, "air", _fetch_aircraft, theater, limit, 20)
+            _fetch_cached_meta, "air", _fetch_aircraft, theater, limit, 20,
+            None, _cold_empty_air)
         live = any(t.get("ok") for t in tried)
         _env = {
             "feed": "aircraft", "domain": "air",
@@ -1344,6 +1393,13 @@ def register(app, ns="killinchu"):
             "as_of": as_of, "cache_hit": cache_hit, "cache_ttl_s": 20,
             "honest": _HONEST, "doctrine": "v11", "fetched_at": _now_iso(),
         }
+        if mode == "warming":
+            # Cold cache + slow upstream still in flight: honest empty, NOT an
+            # error and NOT fabricated. The next poll (TTL 20s) renders LIVE.
+            _env["warming"] = True
+            _env["note"] = ("cold cache — the real upstream fetch (OpenSky/adsb.lol) is in "
+                            "flight; serving an HONEST empty now to avoid a client abort, the "
+                            "next poll renders live tracks. Never fabricated.")
         if not theater_valid:
             _env["note"] = (
                 "unknown theater %r — returning data for the default box %r instead; "
@@ -1482,6 +1538,24 @@ def register(app, ns="killinchu"):
             with _LOCK:
                 _CACHE[ck] = {"val": payload, "ts": time.time(), "as_of": as_of}
             return payload, as_of
+
+        # STALE-WHILE-REVALIDATE (cold-abort fix, parity with _fetch_cached_meta):
+        # the 10-theater rollup is ~5s cold (over the client abort window). If we
+        # hold a previous REAL rollup, serve it instantly (honestly aged via
+        # `as_of`) and refresh in the background; the served value is ALWAYS a
+        # real prior compute, never fabricated. The next poll picks up fresh.
+        if ent and ent.get("val") is not None:
+            def _bg_refresh():
+                try:
+                    _single_flight(ck, _produce)
+                except Exception:
+                    pass
+            try:
+                threading.Thread(target=_bg_refresh, name="stats-swr-%s" % ck,
+                                 daemon=True).start()
+            except Exception:
+                pass
+            return ent["val"], ent.get("as_of") or _now_iso(), True
 
         payload, as_of = _single_flight(ck, _produce, wait_timeout=30.0)
         return payload, as_of, False
