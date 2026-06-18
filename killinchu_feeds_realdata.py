@@ -1283,6 +1283,31 @@ def register(app, ns="killinchu"):
                 _CACHE[ck] = {"val": val, "ts": time.time(), "as_of": as_of}
             return val, as_of
 
+        # STALE-WHILE-REVALIDATE (feed-abort fix): some upstream OSINT sources
+        # (e.g. OpenSky theater tiling) can take 20-30s. The browser fetch
+        # aborts at ~5s, which surfaced as "signal is aborted" + bare 0/0/0 in
+        # the live-track / fleet tabs. We NEVER block the response on a slow
+        # upstream: if we hold a previous (now-stale) real value, return it
+        # IMMEDIATELY (honestly aged via `as_of`) and refresh in the background;
+        # the next poll picks up the fresh value. The served value is ALWAYS a
+        # real prior fetch — never fabricated.
+        if ent and ent.get("val") is not None:
+            def _bg_refresh():
+                try:
+                    _single_flight(ck, _produce)
+                except Exception:
+                    pass
+            try:
+                th = threading.Thread(target=_bg_refresh, name="feed-swr-%s" % ck, daemon=True)
+                th.start()
+            except Exception:
+                pass
+            return ent["val"], ent.get("as_of") or _now_iso(), True
+
+        # COLD cache (no prior value): do the real fetch but bound the wait so a
+        # single slow upstream can't hang the tab past the client timeout. The
+        # single-flight leader still completes the real fetch and fills the cache
+        # for the very next poll; a follower that times out here re-reads cache.
         val, as_of = _single_flight(ck, _produce)
         return val, as_of, False
 
