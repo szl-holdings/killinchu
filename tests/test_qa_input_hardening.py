@@ -57,11 +57,14 @@ PARSE_400 = [
 # Handlers that gracefully fall back to defaults (200) on an empty/odd body.
 GRACEFUL_200 = [
     "/api/killinchu/v1/counter-uas/evaluate",
-    "/api/killinchu/v1/rosie-companion/ponder",
-    "/api/killinchu/v1/rosie-companion/synthesize",
-    "/api/killinchu/v1/rosie-companion/evolve",
-    "/api/killinchu/v1/rosie-companion/brain-jack",
-    "/api/killinchu/v1/identify/with-rosie",
+    # Wire I companion handlers were de-codenamed (rosie-companion -> companion,
+    # identify/with-rosie -> identify/with-deep-reasoning) per the no-user-visible-
+    # codenames doctrine. Same graceful-200-on-empty-body contract, new honest paths.
+    "/api/killinchu/v1/companion/ponder",
+    "/api/killinchu/v1/companion/synthesize",
+    "/api/killinchu/v1/companion/evolve",
+    "/api/killinchu/v1/companion/brain-jack",
+    "/api/killinchu/v1/identify/with-deep-reasoning",
     "/api/killinchu/v4/inbox",
 ]
 
@@ -128,8 +131,8 @@ def test_command_valid_ok(client):
     assert r.status_code == 200
 
 
-def test_rosie_ponder_valid_ok(client):
-    r = client.post("/api/killinchu/v1/rosie-companion/ponder", json={"context": "x"})
+def test_companion_ponder_valid_ok(client):
+    r = client.post("/api/killinchu/v1/companion/ponder", json={"context": "x"})
     assert r.status_code == 200
 
 

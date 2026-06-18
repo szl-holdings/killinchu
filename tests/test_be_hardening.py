@@ -146,18 +146,27 @@ def test_honest_footer_exact_lock(client):
     assert body["footer"] == "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
 
 
-# ---- 2: rate limiting (60/min/IP) ------------------------------------------
+# ---- 2: rate limiting (RATE_LIMIT_PER_MIN/IP on the data surface) -----------
 def test_rate_limit_enforced():
     # isolated app/client so other tests' requests don't pollute the window
     app = FastAPI()
+    # The limiter is enforced on the DATA surface; health/readiness probes are
+    # deliberately EXEMT (an SRE invariant + the demo's health-probe exemption),
+    # so we must drive a non-exempt data route, not /healthz.
+    @app.get("/api/rl/v1/ping")
+    async def _ping():
+        return {"ok": True}
+
     with tempfile.TemporaryDirectory() as d:
         H.harden(app, organ="rl", khipu_path=os.path.join(d, "k.sqlite3"))
         c = TestClient(app)
-        statuses = [c.get("/healthz").status_code for _ in range(H.RATE_LIMIT_PER_MIN + 5)]
-        assert 429 in statuses, "expected at least one 429 after exceeding 60/min"
+        statuses = [c.get("/api/rl/v1/ping").status_code
+                    for _ in range(H.RATE_LIMIT_PER_MIN + 5)]
+        assert 429 in statuses, \
+            f"expected at least one 429 after exceeding {H.RATE_LIMIT_PER_MIN}/min"
         assert statuses[:H.RATE_LIMIT_PER_MIN] == [200] * H.RATE_LIMIT_PER_MIN
         # the 429 body is the uniform error envelope
-        last = c.get("/healthz")
+        last = c.get("/api/rl/v1/ping")
         assert last.status_code == 429
         assert last.json()["error"]["code"] == "rate_limited"
         assert last.json()["error"]["doctrine"] == "v11"
