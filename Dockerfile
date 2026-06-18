@@ -26,14 +26,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies — real protocol stacks, no mocks.
-# REPRODUCIBILITY (founder-flag #5, SWEEP-3): EXACT pins (==) on the SAFE
-# (non-`|| true`) installs. Each == is the version pip ACTUALLY resolved in the
-# current RUNNING build (HF Space commit f2f8c2e, build log 2026-06-18) — a
-# lockfile that preserves current behavior, NOT an upgrade. Every pin satisfies
-# its prior range. The `|| true` / fallback-chain installs below (psycopg,
-# websocket-client, scipy/networkx/PyYAML, sgp4, huggingface_hub) are LEFT as
-# ranges on purpose: exact-pinning a failure-tolerant install risks a silent
-# missing dep if a wheel is ever yanked — deferred to founder (see SWEEP-3 report).
+# REPRODUCIBILITY (founder-flag #5, SWEEP-3 + FINAL DEP-PIN): EXACT pins (==) on
+# ALL installs. Each == is the version pip ACTUALLY resolved in the RUNNING build
+# (HF Space build log, commit 6db0d2f, 2026-06-18, "Successfully installed" lines)
+# — a lockfile that preserves current behavior, NOT an upgrade. Every pin satisfies
+# its prior range. The previously-DEFERRED `|| true` / fallback-chain installs
+# below (psycopg 3.3.4, websocket-client 1.9.0, scipy 1.17.1 / networkx 3.6.1 /
+# PyYAML 6.0.3, sgp4 2.25, huggingface_hub 1.20.0) are now pinned to those exact
+# resolved versions under FULL founder authorization. Their `|| true` /
+# fallback-chain safety is INTENTIONALLY KEPT: if a wheel for the pinned version is
+# ever yanked, the build still stays green and the relevant organ degrades to its
+# honest pure-python / SQLite / ROADMAP-skeleton fallback (no fabricated data).
 RUN pip install --no-cache-dir \
     "fastapi==0.137.2" \
     "uvicorn[standard]==0.49.0" \
@@ -48,7 +51,7 @@ RUN pip install --no-cache-dir "slowapi==0.1.10"
 # when a DATABASE_URL is configured. Pure-python wheel; if absent the backend still runs
 # on durable SQLite (HF Spaces has no Postgres). `|| true` so a wheel hiccup can never
 # break the image build — the backend degrades to SQLite, never crashes.
-RUN pip install --no-cache-dir "psycopg[binary]>=3.1" || pip install --no-cache-dir "psycopg>=3.1" || true
+RUN pip install --no-cache-dir "psycopg[binary]==3.3.4" || pip install --no-cache-dir "psycopg==3.3.4" || true
 
 # ADDITIVE (Yachay / Provenance Hardening): cryptography for DSSE+Cosign Khipu signing.
 RUN pip install --no-cache-dir "cryptography==49.0.0"
@@ -64,7 +67,7 @@ RUN pip install --no-cache-dir "dilithium-py==1.4.0"
 # wss vessel collector (PRIMARY keyed AIS source). Optional — the vessels feed
 # degrades gracefully to the no-key Digitraffic REST fallback if this is absent
 # or no AISStream key is in the Space secret store. Real data either way.
-RUN pip install --no-cache-dir "websocket-client>=1.6.0" || true
+RUN pip install --no-cache-dir "websocket-client==1.9.0" || true
 # ADDITIVE (real-edge): numpy for the constant-velocity Kalman trajectory smoother
 # in szl_shared_formulas/kalman.py (real linear-algebra filter, no mocks).
 RUN pip install --no-cache-dir "numpy==2.4.6"
@@ -77,7 +80,7 @@ RUN pip install --no-cache-dir "numpy==2.4.6"
 # _topology.py ships pure-python/numpy fallbacks (identical Kolmogorov asymptotic KS,
 # numpy-based graph metrics, hand-rolled YAML reader) so a rebuild lag never breaks the
 # surface. `|| true` keeps the build green if a wheel is unavailable.
-RUN pip install --no-cache-dir "scipy>=1.11" "networkx>=3.0" "PyYAML>=6.0" || true
+RUN pip install --no-cache-dir "scipy==1.17.1" "networkx==3.6.1" "PyYAML==6.0.3" || true
 
 # Copy the pre-built SPA to the static root.
 # index.html + assets/* served directly at / and /assets/*; unknown GET -> index.html.
@@ -255,7 +258,7 @@ RUN pip install --no-cache-dir "lmdb==2.2.1" "sqlite-vss==0.1.2"
 # orbital propagator for the space-domain ROADMAP conjunction stub. Guarded with
 # `|| true` so a wheel/build hiccup never breaks the image — killinchu_mosaic falls
 # back to an honest ROADMAP SKELETON when sgp4 is absent (no conjunction fabricated).
-RUN pip install --no-cache-dir "sgp4>=2.20" || true
+RUN pip install --no-cache-dir "sgp4==2.25" || true
 # ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay / Perplexity Computer Agent):
 # explicit per-file COPY (this Dockerfile does not use `COPY . .`). serve.py imports
 # szl_unay_routes and calls .register(app, ns="killinchu") -> /api/killinchu/v2/unay/* +
@@ -275,7 +278,7 @@ RUN pip install --no-cache-dir "sgp4>=2.20" || true
 # szl_understudy` (and its substrate imports) fail and every /api/killinchu/v2/*
 # understudy route 404s. szl_brain/szl_rag/szl_formulas are VENDORED from the
 # platform monorepo (header in each file) until `pip install ./packages/*` lands.
-RUN pip install --no-cache-dir "huggingface_hub>=0.23" || true
+RUN pip install --no-cache-dir "huggingface_hub==1.20.0" || true
 # ADDITIVE (Defense Runtime Cookbook, 2026-06-01, Yachay / Perplexity Computer Agent):
 # the self-contained cookbook module. Explicit per-file COPY (this Dockerfile never uses
 # `COPY . .`); without it `import szl_killinchu_cookbook` fails and every /api/killinchu/
