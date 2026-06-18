@@ -595,6 +595,15 @@ ARG SZL_GIT_SHA=unknown
 ARG SZL_BUILD_TIME=unknown
 ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
     SZL_BUILD_TIME=${SZL_BUILD_TIME}
+
+# Container HEALTHCHECK for the standalone Docker path (DEPLOY.md §1, `docker run`).
+# The k8s manifests already wire liveness/readiness probes; this gives the same
+# signal to plain Docker / Compose / Watchtower so an unhealthy container is
+# self-reporting instead of looking "up" while the app is wedged. Hits the real
+# doctrine envelope endpoint (returns 200 JSON); stdlib-only, no curl dependency.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7860/api/killinchu/healthz', timeout=4).status==200 else 1)" || exit 1
+
 CMD ["python", "serve.py"]
 
 
