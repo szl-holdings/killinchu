@@ -1169,6 +1169,11 @@ try:
         "font-src 'self' data:; "
         "connect-src 'self' https: wss: data: blob:; "
         "worker-src 'self' blob:; "
+        # frame-src: the Living-Anatomy view intentionally embeds the sibling
+        # szlholdings-anatomy HF Space (a labelled, same-trust-boundary SZL Space).
+        # Declaring it keeps the Report-Only CSP honest (no spurious default-src
+        # 'self' violation on that one intended embed); same-origin everything else.
+        "frame-src 'self' https://*.hf.space https://*.huggingface.co; "
         "frame-ancestors 'self' https://huggingface.co "
         "https://*.hf.space https://*.huggingface.co; "
         "base-uri 'self'; "

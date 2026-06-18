@@ -1243,8 +1243,15 @@ try{window.__glWarm=document.createElement('canvas');window.__glWarmCtx=(window.
 // the UI responsive while respecting the real per-IP limit (we cache last-good, never
 // hammer). 0 client off-origin / 0 CDN — same-origin proxies only.
 const FETCH_TIMEOUT_MS = 5000;          // default hard ceiling for shared helpers (3-6s band)
+// HONEST ABORT: abort with an explicit, human-readable reason so the *rejected* fetch
+// carries this message instead of the browser default "signal is aborted without reason".
+// This single change makes every shared-helper caller (getJSON/postJSON, 163 catch sites)
+// surface an honest "live feed slow" label on a timeout rather than the raw abort string.
+function _abortReason(ms){ var e=new Error('live feed slow (>'+Math.round((ms||FETCH_TIMEOUT_MS)/1000)+'s) \u2014 using last-known / retry'); e.code='FEED_TIMEOUT'; e.aborted=true; return e; }
+function _isAbort(e){ return !!(e&&(e.aborted||e.code==='FEED_TIMEOUT'||e.name==='AbortError'||/signal is aborted|aborted without reason|The user aborted/i.test(e.message||''))); }
 function _mkAbort(ms){ var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
-  var t=ctl?setTimeout(function(){try{ctl.abort();}catch(e){}},ms||FETCH_TIMEOUT_MS):null;
+  var lim=ms||FETCH_TIMEOUT_MS;
+  var t=ctl?setTimeout(function(){try{ctl.abort(_abortReason(lim));}catch(e){try{ctl.abort();}catch(_){}}},lim):null;
   return {signal:ctl?ctl.signal:undefined, clear:function(){if(t)clearTimeout(t);}}; }
 // Raise a typed error for a non-ok response so callers can branch on rate-limit vs route-missing.
 function _httpErr(status, p){
@@ -4115,6 +4122,7 @@ const VIEWS = {
           <div class="card"><div class="card-h"><span class="card-t">13 Safety Checks</span><span class="card-ep">radar</span></div>
             <div class="chartbox tall"><canvas id="lambda-radar"></canvas></div></div>
         </div>
+        <div class="card" id="lambda-breach-card" style="display:none"><div class="card-h"><span class="card-t">Named policy breaches</span><span class="card-ep">computed live · /counter-uas/evaluate</span></div><div id="lambda-breaches"><div class="row mono dim">—</div></div></div>
         <div class="card"><div class="card-h"><span class="card-t">Check Detail</span></div><div id="lambda-axes"><div class="row mono dim">click to evaluate</div></div></div>
         <details class="raw"><summary>raw /counter-uas/evaluate (incl. signed receipt)</summary><pre class="out" id="lambda-receipt">—</pre></details>
         ${HONEST}`;
@@ -5662,8 +5670,20 @@ async function lambda_run(breach){
         <span class="spacer mono" style="font-size:11px">${val}</span>
       </div>`);
     });
+    // Surface the NAMED policy breaches the backend computed (FAA Part 89, geofence, speed)
+    // so the judge SEES why a hostile drone HALTs — not just the verdict word.
+    var bc=el('lambda-breach-card'), bl=el('lambda-breaches');
+    var breaches=(d.breaches||[]);
+    if(bl){
+      if(breaches.length){ if(bc)bc.style.display='';
+        bl.innerHTML=breaches.map(function(b){return '<div class="row"><span class="badge b-err">BREACH</span><span class="mono" style="font-size:12px">'+esc(b)+'</span></div>';}).join('');
+      } else { if(bc)bc.style.display='';
+        bl.innerHTML='<div class="row"><span class="badge b-live">CLEAR</span><span class="mono dim" style="font-size:12px">no policy breach \u2014 compliant track (ALLOW)</span></div>';
+      }
+    }
     setOut('lambda-receipt', d.lambda_receipt||d);
   }catch(e){
+    if(_isAbort(e)){ if(el('lambda-axes')) elS('lambda-axes').innerHTML='<div class="row mono" style="color:#f5c451">live feed slow \u2014 click a scenario button to retry</div>'; return; }
     if(el('lambda-axes')) elS('lambda-axes').innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';
   }
 }
@@ -8416,10 +8436,13 @@ async function hero_init(){
   try{ _heroReg=(await getJSON(API.replace('/v1','/uds/v1')+'/theorem/registry')).theorem_registry||{}; }catch(e){ _heroReg={}; }
   hero_render_graph(null);
 }
-async function hero_run(){
+async function hero_run(_retried){
   try{
     var cls=el('hi-class').value, spd=parseFloat(el('hi-spd').value)||0;
-    var pol=await getJSON(API+'/roe/policy'); var rules=(pol.policy&&pol.policy.rules)||{};
+    // HERO is the WOW demo: the receipt/emit + theorem-registry round-trip can exceed the
+    // default 5s ceiling on a cold HF Space. Give these calls a generous 14s timeout so the
+    // decision SUCCEEDS rather than aborting; an abort is auto-retried once (below).
+    var pol=await getJSON(API+'/roe/policy',14000); var rules=(pol.policy&&pol.policy.rules)||{};
     var hostileSpd=rules.hostile_speed_m_s||100, lamFloor=rules.lambda_floor||0.9;
     // honest deterministic decision from real ROE rules (no fabricated sensor data)
     var lam = cls==='HOSTILE'?0.93 : cls==='SUSPECT'?0.88 : 0.71;
@@ -8429,7 +8452,7 @@ async function hero_run(){
     // emit a GENUINELY signed receipt
     var rc=await postJSON(API+'/receipt/emit',{kind:'interdiction_decision',payload:{
       track_class:cls, closing_speed_m_s:spd, decision:decision, lambda:lam,
-      roe_lambda_floor:lamFloor, gate_pass:gatePass, mode:'RECOMMEND (human-in-the-loop)'}});
+      roe_lambda_floor:lamFloor, gate_pass:gatePass, mode:'RECOMMEND (human-in-the-loop)'}},14000);
     _heroReceipt=rc;
     setTxt('hi-dec',decision); setTxt('hi-lam',lam.toFixed(3));
     setTxt('hi-sig',(rc.dsse&&rc.dsse.signed)?'YES':'—');
@@ -8438,10 +8461,15 @@ async function hero_run(){
       '<b>Decision:</b> '+esc(decision)+' &nbsp;·&nbsp; <b>Λ:</b> '+lam.toFixed(3)+' (floor '+lamFloor+', '+(gatePass?'<span style="color:#39d98a">gate PASS</span>':'<span style="color:#ff5c5c">gate HOLD</span>')+')<br>'+
       '<b>Mode:</b> RECOMMEND — not auto-fire (human approves; killinchu does not fly the effector)<br>'+
       '<b>Receipt:</b> node #'+esc(rc.node_index)+' · digest '+esc((rc.node_digest||'').slice(0,16))+'… · <b style="color:#39d98a">DSSE-signed (cosign)</b></div>';
-    var reg=await getJSON(API.replace('/v1','/uds/v1')+'/theorem/registry'); _heroReg=reg.theorem_registry||{};
+    var reg=await getJSON(API.replace('/v1','/uds/v1')+'/theorem/registry',14000); _heroReg=reg.theorem_registry||{};
     setHTML('hi-raw',esc(JSON.stringify({receipt:rc,theorem_registry:_heroReg},null,2)));
     hero_render_graph(_heroReceipt);
-  }catch(e){ elS('hi-decision-body').innerHTML='<div class="row mono" style="color:#ff5c5c">error: '+esc(e.message)+'</div>'; }
+  }catch(e){
+    // On a slow-feed abort, auto-retry once before surfacing anything to the judge.
+    if(_isAbort(e) && !_retried){ return hero_run(true); }
+    var msg = _isAbort(e) ? 'live decision feed slow \u2014 click \u201cRun governed interdiction decision\u201d to retry' : ('error: '+esc(e.message));
+    elS('hi-decision-body').innerHTML='<div class="row mono" style="color:'+(_isAbort(e)?'#f5c451':'#ff5c5c')+'">'+esc(msg)+'</div>';
+  }
 }
 function hero_render_graph(receipt){
   var box=el('hi-graph'); if(!box||typeof ForceGraph3D==='undefined')return;

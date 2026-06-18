@@ -80,7 +80,12 @@ import os
 
 def git_blob_sha1(data: bytes) -> str:
     """git blob sha1 of raw bytes (== HF blob_id for non-LFS files)."""
-    h = hashlib.sha1()
+    # usedforsecurity=False: this is git's own object hashing (git blob sha1 == HF
+    # blob_id) for drift detection, NOT a security primitive. Clears bandit B324.
+    try:
+        h = hashlib.sha1(usedforsecurity=False)
+    except TypeError:  # Python < 3.9 has no usedforsecurity kwarg
+        h = hashlib.sha1()
     h.update(b"blob %d\0" % len(data))
     h.update(data)
     return h.hexdigest()
