@@ -505,6 +505,10 @@ COPY szl_connectors/data_sources/macro.py ./szl_connectors/data_sources/macro.py
 COPY szl_connectors/data_sources/maritime_air.py ./szl_connectors/data_sources/maritime_air.py
 COPY szl_connectors/data_sources/research.py ./szl_connectors/data_sources/research.py
 COPY szl_connectors/data_sources/security.py ./szl_connectors/data_sources/security.py
+# NOAA/MarineCadastre AIS Aug-2024 coastal-US connector — imported transitively
+# by killinchu_ais_aug2024.py (GET /api/killinchu/v1/ais/*). Without this per-file
+# COPY the connector import fails on the Space -> /ais/sources 500. (prr fix)
+COPY szl_connectors/data_sources/ais_noaa_aug2024.py ./szl_connectors/data_sources/ais_noaa_aug2024.py
 COPY szl_connectors/erp/__init__.py ./szl_connectors/erp/__init__.py
 COPY szl_connectors/erp/erpnext.py ./szl_connectors/erp/erpnext.py
 COPY szl_connectors/erp/odoo.py ./szl_connectors/erp/odoo.py
