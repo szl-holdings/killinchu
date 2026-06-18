@@ -11666,7 +11666,7 @@ go(VIEWS[start]?start:'tracks');
 .atlas-honest-doc{margin-top:.7rem;font-size:12px;color:#9aa3b1;line-height:1.8;border-top:1px solid rgba(255,255,255,.06);padding-top:.6rem;}
 .atlas-honest-doc b{color:#cfd6df;} .atlas-honest-doc code{color:var(--teal,#5fb3a3);font-family:var(--mono,monospace);}
 .atlas-badge{display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10.5px;font-weight:700;border:1px solid;white-space:nowrap;}
-.atlas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:1rem;}
+.atlas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(420px,100%),1fr));gap:1rem;}
 .atlas-card{border:1px solid var(--gold-line,rgba(201,183,135,.18));background:var(--panel,#12151b);border-radius:12px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.55rem;}
 .atlas-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem;flex-wrap:wrap;}
 .atlas-card-title{font-family:var(--display,inherit);font-size:15px;color:var(--cream,#f0f0f0);font-weight:600;}
@@ -11683,7 +11683,7 @@ go(VIEWS[start]?start:'tracks');
 .atlas-detail>summary:before{content:'\25B8 ';color:var(--gold,#c9b787);}
 .atlas-detail[open]>summary:before{content:'\25BE ';}
 .atlas-routes{display:flex;flex-wrap:wrap;gap:.35rem;margin:.6rem 0;}
-.atlas-route{font-family:var(--mono,monospace);font-size:10.5px;padding:.28rem .55rem;border-radius:6px;cursor:pointer;background:rgba(143,179,201,.08);color:var(--info,#8fb3c9);border:1px solid rgba(143,179,201,.3);transition:.12s;}
+.atlas-route{font-family:var(--mono,monospace);font-size:10.5px;padding:.28rem .55rem;border-radius:6px;cursor:pointer;background:rgba(143,179,201,.08);color:var(--info,#8fb3c9);border:1px solid rgba(143,179,201,.3);transition:.12s;max-width:100%;overflow-wrap:anywhere;word-break:break-word;text-align:left;}
 .atlas-route:hover{background:rgba(143,179,201,.2);color:#cfe0ec;}
 .atlas-section-k{font-size:10.5px;color:#8b93a3;text-transform:uppercase;letter-spacing:.04em;margin:.5rem 0 .3rem;font-family:var(--mono,monospace);}
 .atlas-cites{display:flex;flex-wrap:wrap;gap:.4rem;}
@@ -11695,6 +11695,19 @@ go(VIEWS[start]?start:'tracks');
 .atlas-foot{margin-top:1rem;font-size:11px;color:#7d8593;font-family:var(--mono,monospace);}
 .atlas-foot code{color:var(--teal,#5fb3a3);}
 .atlas-tier .atlas-dim{font-family:var(--mono,monospace);}
+/* HARDEN-DEEP UI-08 mobile-clip root fix (additive responsive wrap/shrink; NOT an overflow band-aid) */
+.atlas-tier{display:inline-flex;flex-wrap:wrap;align-items:center;gap:.25rem;max-width:100%;}
+.atlas-honest-tiers .atlas-badge,.atlas-tier .atlas-badge{white-space:normal;max-width:100%;overflow-wrap:anywhere;}
+.atlas-card{max-width:100%;min-width:0;}
+.atlas-card-title{overflow-wrap:anywhere;min-width:0;}
+.atlas-routes{max-width:100%;}
+@media (max-width:480px){
+  .atlas-grid{grid-template-columns:1fr;}
+  .atlas-card{padding:.85rem .9rem;}
+  .atlas-card-head{gap:.5rem;}
+  .atlas-route{font-size:10px;}
+  .atlas-honest{padding:.85rem .95rem;}
+}
 </style>
 
 <script id="kc-wave-b-real-data">
