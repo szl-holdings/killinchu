@@ -2192,7 +2192,46 @@ function _osProv(head){head=head||'';return '<span title="sha256 provenance chai
 function _osBar(v,max,color){var pct=max>0?Math.max(3,Math.round(100*v/max)):0;return '<div style="background:#0c0c0c;border-radius:4px;height:7px;overflow:hidden;border:1px solid #1a1a1a"><div style="height:100%;width:'+pct+'%;background:'+(color||'var(--teal)')+'"></div></div>';}
 function _osHonest(h){if(!h)return '';var x='<div class="card" style="border-color:#3a3206;background:#13110a;margin-top:.8rem"><div class="row mono" style="font-size:11px;line-height:1.7;color:#c9b87a">&#9888; HONESTY · '+esc(scrubText(h.note||''))+'<br>Provenance: '+esc(scrubText(h.provenance||''));['routing','ranking','extraction','correlation','watch','fields'].forEach(function(k){if(h[k])x+='<br>'+k+': '+esc(scrubText(h[k]));});return x+'</div></div>';}
 function _osKpis(arr){var h='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-bottom:.8rem">';arr.forEach(function(k){h+='<div class="kpi"><div class="k">'+esc(scrubText(k[0]))+'</div><div class="v" style="color:'+(k[2]||'var(--teal)')+'">'+(typeof k[1]==='string'?scrubText(k[1]):k[1])+'</div><div class="d">'+esc(scrubText(k[3]||''))+'</div></div>';});return h+'</div>';}
-function _osIdle(c,b,label){c.innerHTML='<div class="card"><div class="row mono dim" style="line-height:1.8">'+_osMode(b&&b.mode)+' '+esc(scrubText(label||'No live results and no cached corpus yet.'))+'<br><span style="font-size:11px">This tab scrapes the open web on demand. If the search key is unset on the Space it honestly shows IDLE rather than fabricating rows.</span></div>'+_osHonest(b&&b.honesty)+'</div>';}
+// Deterministic, clearly-LABELLED sample OSINT digest. Shown when the live search
+// is idle (Tavily key unset on this Space) so the operator tab degrades to a CLEAN
+// populated state instead of an empty UNREACHABLE box. Doctrine v11: these rows are
+// fixed reference examples explicitly badged SAMPLE — NOT presented as live results,
+// never fabricated "live" hits. Every row carries a real, resolvable source domain.
+var _OS_SAMPLE={
+  drones:[
+    {title:'C-UAS doctrine: layered detect-track-defeat (sample reference)',host:'apps.dtic.mil',url:'https://apps.dtic.mil/',summary:'Counter-small-UAS layered architecture — RF/radar/EO-IR detection feeding a governed defeat decision. Sample reference row.'},
+    {title:'Remote ID / ASTM F3411 broadcast standard (sample reference)',host:'astm.org',url:'https://www.astm.org/f3411-22a.html',summary:'Open Drone ID broadcast fields the console parses. Sample reference row.'}
+  ],
+  naval:[
+    {title:'AIS dark-activity / spoofing patterns (sample reference)',host:'marinecadastre.gov',url:'https://marinecadastre.gov/ais/',summary:'Public AIS reference behind the maritime board — gaps/teleport jumps flag spoof-suspect. Sample reference row.'},
+    {title:'World Port Index reference ports (sample reference)',host:'msi.nga.mil',url:'https://msi.nga.mil/Publications/WPI',summary:'NGA MSI Pub 150 reference ports overlay. Sample reference row.'}
+  ],
+  pentagon:[
+    {title:'SBIR/STTR defense procurement signals (sample reference)',host:'sbir.gov',url:'https://www.sbir.gov/',summary:'Public solicitation feed the procurement vertical normalizes. Sample reference row.'}
+  ],
+  uds:[
+    {title:'CISA Known Exploited Vulnerabilities catalog (sample reference)',host:'cisa.gov',url:'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',summary:'KEV entries cross-referenced against firmware families. Sample reference row.'}
+  ],
+  geo:[
+    {title:'USGS real-time seismic feed (sample reference)',host:'earthquake.usgs.gov',url:'https://earthquake.usgs.gov/earthquakes/feed/',summary:'Public geophysical event feed on the live globe. Sample reference row.'}
+  ]
+};
+function _osSampleRows(vertical){
+  var key=(vertical&&_OS_SAMPLE[vertical])?vertical:'drones';
+  var rows=_OS_SAMPLE[key]||[];
+  return rows.map(function(it){
+    return '<div class="card" style="border-left:3px solid #f5b301"><div class="card-h"><span class="card-t"><a href="'+esc(it.url)+'" target="_blank" rel="noopener" style="color:var(--cream);text-decoration:none">'+esc(it.title)+'</a></span><span class="card-ep">'+esc(it.host)+'</span></div><div class="row" style="font-size:12.5px;line-height:1.6;color:var(--paragraph);margin:.3rem 0">'+esc(it.summary)+'</div><div class="row">'+_osChip('SAMPLE','#2a2206','#f5b301')+_osChip('cached digest','#10201c','#5fe39a')+'</div></div>';
+  }).join('');
+}
+function _osIdle(c,b,label){
+  // CLEAN labelled-sample fallback (doctrine v11): live search idle (search key unset
+  // on this Space) -> show a small deterministic SAMPLE digest + honest provenance,
+  // never an empty UNREACHABLE box and never a fabricated "live" row.
+  var vertical=(b&&b.vertical)||'';
+  c.innerHTML='<div class="card" style="border-color:#3a3206;background:#13110a"><div class="row mono" style="line-height:1.8;color:#c9b87a">'+_osMode((b&&b.mode)||'cached')+' OSINT live search idle on this Space (search key unset) — showing cached / sample digest.'+'<br><span style="font-size:11px;color:var(--dim)">'+esc(scrubText(label||'No live results yet'))+' · This tab scrapes the open web on demand; with no search key it honestly shows a clearly-labelled SAMPLE digest rather than fabricating live rows.</span></div></div>'
+    +'<div style="margin-top:.7rem">'+_osSampleRows(vertical)+'</div>'
+    +_osHonest(b&&b.honesty);
+}
 function _osErr(c,e){c.innerHTML='<div class="card"><div class="row mono" style="color:#ff7b7b">OSINT endpoint error: '+esc(String(e&&e.message||e))+'</div></div>';}
 function _osLoad(c,label){c.innerHTML='<div class="card"><div class="row mono dim">&#8635; '+esc(scrubText(label||'ingesting the live web…'))+'</div></div>';}
 const _OS_VCOL={drones:'#5fe39a',naval:'#5cc8ff',pentagon:'#f5b301',uds:'#b39ddb',geo:'#ff9b9b'};
@@ -5750,22 +5789,77 @@ const TWIN_HEX={'nominal':'#5fb3a3','needs-fix':'#c9a05f','needs-upgrade':'#7f9b
 function twinHex(s){return TWIN_HEX[s]||'#888';}
 let _twinState=null, _twinSel=null, _twinTimer=null, _twinLive=true;
 
+// Deterministic, clearly-LABELLED sample twin state. Rendered ONLY when the live
+// twin/platforms (or twin/state) fetch times out / aborts / errors on a cold call,
+// so the 3D-twin Subsystems panel ALWAYS shows populated subsystem health instead
+// of a bare panel or a raw "signal is aborted" string. Doctrine v11: every field is
+// honestly badged INFERRED/SIM (no public feed exposes platform subsystem sensors),
+// and the headline/label both read "sample (last-known)".
+function _twinSampleState(){
+  function sub(name,status,metric,prov){
+    var s={nominal:0.06,'needs-fix':0.34,'needs-upgrade':0.22,'hacked':0.71,'damaged':0.55}[status];
+    if(s==null)s=0.2;
+    return {subsystem:name,status:status,metric:metric,nonconformity:s,trust:Math.round((1-s)*100)/100,
+      out_of_envelope:(status==='hacked'||status==='damaged'),value:{sample:true,metric:metric},
+      action:(status==='nominal'?'monitor':'review (sample — not a live alert)'),
+      derived:false,provenance:(prov||'INFERRED/SIMULATED (sample / last-known — live telemetry feed unreachable)')};
+  }
+  return {sample:true,label:'sample',platform_id:'SAMPLE-DDG',name:'DDG KESTREL (sample / last-known)',
+    kind:'destroyer',headline_status:'needs-fix',lambda:0.71,
+    yuyay_gate:{authorized:true},
+    conformal:{q:0.34,alpha:0.1,band:[0.0,0.9],method:'split-conformal (W5-3/W7-4) · sample'},
+    subsystems:[
+      sub('hull','nominal','plating integrity index 0.97 (inferred)'),
+      sub('propulsion','needs-fix','shaft vibration 4.1mm/s (inferred)'),
+      sub('comms','nominal','link freshness 2s (last-known)','INFERRED/SIM (sample — derived from last-known kinematic)'),
+      sub('sensors','needs-upgrade','radar MTBF margin 0.62 (inferred)'),
+      sub('nav','nominal','GNSS residual 1.4m (last-known)','INFERRED/SIM (sample — derived from last-known kinematic)'),
+      sub('payload','needs-fix','magazine readiness 0.78 (inferred)')
+    ],
+    compromise:{state:'clear',compromise_score:0.0,checks_fired:[],checks_evaluated:[],
+      firmware_feeds:{kev_available:false,nvd_available:false,kev_note:'sample state — live KEV feed not queried',nvd_note:''}}};
+}
 async function twin_load(){
   _twinLive=true;
   try{
-    const pl=await getJSON('/api/killinchu/v1/twin/platforms');
+    // root-cause: the default 5s shared-helper abort fired on a cold twin/platforms call
+    // (warm is <1s) -> raw "signal is aborted" leaked. Give the cold call real headroom.
+    const pl=await getJSON('/api/killinchu/v1/twin/platforms', 12000);
     const sel=el('tw-select'); if(!sel)return;
     sel.innerHTML=(pl.platforms||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${esc(p.kind)} · ${esc(p.label)}</option>`).join('');
     const feed=el('tw-feed'); if(feed){feed.textContent=(pl.feed_label==='live'?'● live AIS feed reached ('+pl.count+' platforms)':'sample-only (live AIS unreachable)');feed.style.color=(pl.feed_label==='live'?LIVE:WARN);}
     // build the 3D scene ONCE, then select the first platform
     twin_build3D();
     const first=(pl.platforms&&pl.platforms[0])?pl.platforms[0].id:'';
-    if(first){sel.value=first;await twin_select(first);} 
+    if(first){sel.value=first;await twin_select(first);}
   }catch(e){
-    const subs=el('tw-subs'); if(subs)subs.innerHTML='<div class="row mono" style="color:#b06a5a;padding:1rem">twin feed unavailable: '+esc(e.message)+'</div>';
+    // HONEST CLEAN FALLBACK (doctrine v11): a fetch timeout/abort/error must NEVER
+    // render a raw JS error string. Show a clean labelled message AND a populated
+    // sample subsystem panel so the 3D twin tab stays useful and honest.
+    twin_loadSample();
   }
 }
 window.twin_load=twin_load;
+
+// Render the labelled sample twin state into every twin surface. Used by the
+// twin_load catch so the panel degrades cleanly (never blank, never a raw abort).
+function twin_loadSample(){
+  const st=_twinSampleState();
+  _twinState=st; _twinSel=st.platform_id; _twinLive=false;
+  const sel=el('tw-select'); if(sel){sel.innerHTML='<option value="'+esc(st.platform_id)+'">'+esc(st.name)+' · '+esc(st.kind)+' · sample</option>';sel.value=st.platform_id;}
+  const feed=el('tw-feed'); if(feed){feed.textContent='subsystem feed: sample (last-known) — live twin feed unreachable';feed.style.color=WARN;}
+  try{ twin_build3D(); }catch(e){}
+  setTxt('tw-name', st.name);
+  const lab=el('tw-label'); if(lab){lab.innerHTML='<span style="color:'+WARN+'">sample (last-known)</span> · '+esc(st.kind);}
+  const hd=el('tw-headline'); if(hd){hd.textContent=st.headline_status;hd.style.color=twinHex(st.headline_status);}
+  const lm=el('tw-lambda'); if(lm){lm.textContent=st.lambda.toFixed(4);lm.style.color=GOLD;}
+  const gt=el('tw-gate'); if(gt){gt.textContent='PASS';gt.style.color=TEAL;}
+  try{ twin_renderSubs(st); }catch(e){}
+  try{ twin_renderCompromise(st); }catch(e){}
+  try{ twin_renderRemediate(st); }catch(e){}
+  try{ twin_applyColors(st); }catch(e){}
+}
+window.twin_loadSample=twin_loadSample;
 
 function twin_setLive(on){_twinLive=on; if(on&&_twinSel){twin_poll();} else if(_twinTimer){clearTimeout(_twinTimer);_twinTimer=null;}}
 window.twin_setLive=twin_setLive;
@@ -5786,8 +5880,14 @@ function twin_poll(){
 
 async function twin_fetch(){
   if(!_twinSel)return;
-  let st; try{ st=await getJSON('/api/killinchu/v1/twin/state?platform='+encodeURIComponent(_twinSel)); }catch(e){ return; }
-  if(st.error){return;}
+  let st; try{ st=await getJSON('/api/killinchu/v1/twin/state?platform='+encodeURIComponent(_twinSel), 12000); }catch(e){
+    // If we have NO state yet (cold first-load abort/timeout), degrade to the clean
+    // labelled sample panel instead of leaving the Subsystems panel blank. If a prior
+    // live state is already shown, keep it (a transient poll error must not wipe it).
+    if(!_twinState) twin_loadSample();
+    return;
+  }
+  if(st.error){ if(!_twinState) twin_loadSample(); return; }
   _twinState=st;
   // KPIs
   setTxt('tw-name', st.name||st.platform_id);
@@ -8424,6 +8524,24 @@ async function _fcFetchJSON(p, ms){
     return await r.json();
   } finally { clearTimeout(to); }
 }
+// Deterministic, clearly-LABELLED sample asset set. Used ONLY when the live
+// ADS-B/AIS feeds time out / abort / return nothing on a cold call, so the Fleet
+// globe NEVER paints a bare 0/0/0 with a raw "fallback" — it shows a real plotted
+// set of last-known platforms honestly badged "sample (last-known)". Doctrine v11:
+// this is NOT presented as live; the feed KPI + globe caption both say sample.
+// Coords are real, fixed reference positions (no random fabrication); one track
+// carries an implausible kinematic so the Λ-gate "flagged anomaly" path still
+// demonstrates honestly on the sample set.
+var _FC_SAMPLE=[
+  {kind:'air',   id:'SAMPLE-AIR-1', name:'CTM1192 (sample)', lat:43.9,  lon:33.5,  alt_baro:9100,  gs:455, track:238, squawk:'7600'},
+  {kind:'air',   id:'SAMPLE-AIR-2', name:'RCH285 (sample)',  lat:41.2,  lon:36.1,  alt_baro:10400, gs:472, track:118, squawk:'1352'},
+  {kind:'air',   id:'SAMPLE-AIR-3', name:'FORTE10 (sample)', lat:45.1,  lon:31.8,  alt_baro:15500, gs:388, track:271, squawk:'5421'},
+  {kind:'air',   id:'SAMPLE-AIR-4', name:'no-squawk (sample)',lat:44.3, lon:34.7,  alt_baro:8200,  gs:9999, track:90,  squawk:null},
+  {kind:'vessel',id:'SAMPLE-SEA-1', name:'MV KESTREL (sample)', lat:59.4, lon:22.0, sog:15.8, cog:89,  heading:88,  mmsi:'277569000'},
+  {kind:'vessel',id:'SAMPLE-SEA-2', name:'MV HARRIER (sample)', lat:60.1, lon:24.9, sog:11.2, cog:201, heading:200, mmsi:'220189000'},
+  {kind:'vessel',id:'SAMPLE-SEA-3', name:'no-MMSI (sample)',    lat:58.7, lon:20.3, sog:4.1,  cog:12,  heading:10,  mmsi:null}
+];
+function _fcSampleAssets(){ return _FC_SAMPLE.map(function(a){var c={};for(var k in a)c[k]=a[k];return c;}); }
 async function fleet_c2_init(){
   // STEP 1 — mount the globe IMMEDIATELY (before any feed await) so a canvas always
   // appears on view-activation regardless of how slow/hung the live feed is. This is the
@@ -8448,22 +8566,33 @@ async function fleet_c2_init(){
   // The user may have navigated away during the (slow) feed await — bail if so.
   if(!el('fc-globe')) return;
   assets=assets.filter(function(a){return a.lat!=null&&a.lon!=null;});
+  // HONEST CLEAN FALLBACK (doctrine v11): if the live feeds aborted/timed-out/were
+  // empty on this cold call, NEVER paint 0/0/0 — plot a clearly-labelled sample set
+  // so the globe + KPIs stay populated and useful. feedLive stays false so every
+  // surface (KPI, globe caption, raw block) honestly reads "sample (last-known)".
+  var feedSample=false;
+  if(assets.length===0){ assets=_fcSampleAssets(); feedLive=false; feedSample=true; }
   assets.forEach(function(a){a.health=_inferHealth(a);});
   _fcAssets=assets;
   var ok=assets.filter(function(a){return a.health.status==='nominal';}).length;
   var flagged=assets.filter(function(a){return a.health.status==='anomalous';});
   setTxt('fc-n',assets.length); setTxt('fc-ok',ok); setTxt('fc-flag',flagged.length);
-  setTxt('fc-feed',feedLive?'live':'fallback');
+  var feedLabel=feedLive?'live':(feedSample?'sample (last-known)':'sample (last-known)');
+  setTxt('fc-feed',feedLabel);
   var feedEl=el('fc-feed'); if(feedEl) feedEl.style.color=feedLive?'#39d98a':'#f5c451';
-  // emit signed receipt for the first flagged anomaly (the moat)
+  // globe caption: honest provenance line so the sample set is never mistaken for live
+  try{ var fcCap=document.querySelector('#fc-globe').closest('.card').querySelector('.card-ep');
+    if(fcCap) fcCap.textContent=feedLive?'real ADS-B mil air + AIS vessels (live)':'sample (last-known) — live ADS-B/AIS feed unreachable on this call'; }catch(e){}
+  // emit signed receipt for the first flagged anomaly (the moat) — only on a LIVE feed;
+  // we never mint a governed-anomaly receipt off the labelled sample set.
   var lastReceipt=null;
-  if(flagged.length){ try{
+  if(flagged.length && feedLive){ try{
     lastReceipt=await postJSON(API+'/receipt/emit',{kind:'anomaly_flag',payload:{
       asset:flagged[0].id, kind:flagged[0].kind, health:flagged[0].health.status,
       reasons:flagged[0].health.reasons, lambda_gate:'ADVISORY (Conjecture 1)',
       detector:'telemetry plausibility (inferred, not platform sensors)'}});
   }catch(e){} }
-  setHTML('fc-raw',esc(JSON.stringify({feed_live:feedLive,assets:assets.length,flagged:flagged.length,last_anomaly_receipt:lastReceipt},null,2)));
+  setHTML('fc-raw',esc(JSON.stringify({feed_live:feedLive,feed_mode:feedLabel,assets:assets.length,flagged:flagged.length,last_anomaly_receipt:lastReceipt},null,2)));
   // STEP 3 — feed-driven points onto the ALREADY-MOUNTED globe (no teardown → no canvas flicker).
   fleet_c2_setPoints(assets);
 }
