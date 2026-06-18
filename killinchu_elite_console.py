@@ -8017,8 +8017,18 @@ window.readiness_section_live=async function(id,btn){
     var d=await r.json(); if(d.section) body.innerHTML=window.rd_section_body(d.section);
   }catch(e){
     var note=document.createElement('div'); note.className='dim'; note.style.marginTop='.25rem';
-    note.textContent='re-read failed: '+((e&&e.message)||e)+' \u2014 showing last-known values'; body.appendChild(note);
+    note.textContent='re-read failed: '+window.rd_humanError(e)+' \u2014 showing last-known values'; body.appendChild(note);
   }finally{ if(btn){ btn.disabled=false; btn.textContent=old||'\u21bb Re-check live'; } }
+};
+// HONEST CLEAN ERROR (doctrine v11): a fetch timeout/abort/cancellation must NEVER
+// surface the raw browser string "signal is aborted without reason" to an operator.
+// Map abort/timeout to an honest, human-readable message; never fabricate data.
+window.rd_humanError=function(e){
+  var m=(e&&e.message)?String(e.message):String(e||'');
+  if((e&&e.name==='AbortError')||/signal is aborted|aborted without reason|the operation was aborted/i.test(m)){
+    return 'live readiness probe timed out (deployed app + GitHub + HF Space surfaces slow to respond) \u2014 nothing fabricated';
+  }
+  return m||'unknown error';
 };
 window.readiness_render=async function(c){
   c.innerHTML='<div class="card"><div class="dim">reading live deployment, repo and Space\u2026</div></div>';
@@ -8043,7 +8053,7 @@ window.readiness_render=async function(c){
     Array.prototype.forEach.call(c.querySelectorAll('.rd-live-btn'),function(b){
       b.addEventListener('click',function(){ window.readiness_section_live(b.getAttribute('data-rd'),b); });
     });
-  }catch(e){ c.innerHTML='<div class="card"><div class="dim">readiness layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
+  }catch(e){ c.innerHTML='<div class="card"><div class="dim">readiness layer unavailable: '+esc(window.rd_humanError(e))+'</div></div>'; }
 };
 /* end readiness-tab-patch */
 /* contracting-tab-patch — SAM/CAGE + SBIR/STTR contracting readiness (killinchu /elite tab).
