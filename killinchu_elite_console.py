@@ -11701,6 +11701,8 @@ go(VIEWS[start]?start:'tracks');
 .atlas-card{max-width:100%;min-width:0;}
 .atlas-card-title{overflow-wrap:anywhere;min-width:0;}
 .atlas-routes{max-width:100%;}
+.atlas-meta-row{min-width:0;}
+.atlas-meta-row span:last-child,.atlas-meta .atlas-mono{min-width:0;overflow-wrap:anywhere;word-break:break-all;}
 @media (max-width:480px){
   .atlas-grid{grid-template-columns:1fr;}
   .atlas-card{padding:.85rem .9rem;}
