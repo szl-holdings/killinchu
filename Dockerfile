@@ -26,15 +26,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies — real protocol stacks, no mocks.
+# REPRODUCIBILITY (founder-flag #5, SWEEP-3): EXACT pins (==) on the SAFE
+# (non-`|| true`) installs. Each == is the version pip ACTUALLY resolved in the
+# current RUNNING build (HF Space commit f2f8c2e, build log 2026-06-18) — a
+# lockfile that preserves current behavior, NOT an upgrade. Every pin satisfies
+# its prior range. The `|| true` / fallback-chain installs below (psycopg,
+# websocket-client, scipy/networkx/PyYAML, sgp4, huggingface_hub) are LEFT as
+# ranges on purpose: exact-pinning a failure-tolerant install risks a silent
+# missing dep if a wheel is ever yanked — deferred to founder (see SWEEP-3 report).
 RUN pip install --no-cache-dir \
-    "fastapi>=0.111.0,<1.0.0" \
-    "uvicorn[standard]>=0.29.0,<1.0.0" \
-    "httpx>=0.27.0,<1.0.0" \
-    "starlette>=0.37.0" \
-    "pyModeS>=3.3.0,<4.0" \
-    "pymavlink>=2.4.40"
+    "fastapi==0.137.2" \
+    "uvicorn[standard]==0.49.0" \
+    "httpx==0.28.1" \
+    "starlette==1.3.1" \
+    "pyModeS==3.3.0" \
+    "pymavlink==2.4.49"
 # BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
-RUN pip install --no-cache-dir "slowapi>=0.1.9"
+RUN pip install --no-cache-dir "slowapi==0.1.10"
 
 # Real persistent backend: psycopg (v3) so killinchu_backend is genuinely Postgres-first
 # when a DATABASE_URL is configured. Pure-python wheel; if absent the backend still runs
@@ -43,15 +51,15 @@ RUN pip install --no-cache-dir "slowapi>=0.1.9"
 RUN pip install --no-cache-dir "psycopg[binary]>=3.1" || pip install --no-cache-dir "psycopg>=3.1" || true
 
 # ADDITIVE (Yachay / Provenance Hardening): cryptography for DSSE+Cosign Khipu signing.
-RUN pip install --no-cache-dir "cryptography>=42.0"
+RUN pip install --no-cache-dir "cryptography==49.0.0"
 # ADDITIVE (Formulas real-edge-v2, Opus 4.8, 2026-06-03): numpy is REQUIRED for the real
 # Kalman trajectory smoother in szl_shared_formulas/kalman.py (no pure-Python mock path).
-RUN pip install --no-cache-dir "numpy>=1.26"
+RUN pip install --no-cache-dir "numpy==2.4.6"
 # ADDITIVE (Yachay / PQC): pure-Python ML-DSA-65 (NIST FIPS 204) backend for
 # /khipu/sign?mode={pqc,hybrid}. liboqs (oqs-python) is preferred in prod but is
 # a C lib not always installable; dilithium-py is the pure-Python fallback so
 # hybrid signing works in the Space. ECDSA stays the default regardless.
-RUN pip install --no-cache-dir "dilithium-py>=1.0.0"
+RUN pip install --no-cache-dir "dilithium-py==1.4.0"
 # ADDITIVE (Wave A real-data feeds): websocket-client for the AISStream.io live
 # wss vessel collector (PRIMARY keyed AIS source). Optional — the vessels feed
 # degrades gracefully to the no-key Digitraffic REST fallback if this is absent
@@ -59,7 +67,7 @@ RUN pip install --no-cache-dir "dilithium-py>=1.0.0"
 RUN pip install --no-cache-dir "websocket-client>=1.6.0" || true
 # ADDITIVE (real-edge): numpy for the constant-velocity Kalman trajectory smoother
 # in szl_shared_formulas/kalman.py (real linear-algebra filter, no mocks).
-RUN pip install --no-cache-dir "numpy>=1.26,<3.0"
+RUN pip install --no-cache-dir "numpy==2.4.6"
 
 # ADDITIVE (DEV-WIRE-K R1, Opus 4.8, 2026-06-09): scipy for exact KS two-sample
 # (scipy.stats.ks_2samp) in the Posture & Drift detectors; networkx for real graph
@@ -242,7 +250,7 @@ EXPOSE 7860
 # ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay): real durable lmdb persistence
 # + optional sqlite-vss vector recall (szl_unay degrades to honest cosine-fallback if
 # the extension cannot load in the slim image). Never affects existing routes.
-RUN pip install --no-cache-dir "lmdb>=1.4.0" "sqlite-vss>=0.1.2"
+RUN pip install --no-cache-dir "lmdb==2.2.1" "sqlite-vss==0.1.2"
 # ADDITIVE (Mosaic SDA elevation, 2026-06-13): python-sgp4 (MIT) is the sovereign
 # orbital propagator for the space-domain ROADMAP conjunction stub. Guarded with
 # `|| true` so a wheel/build hiccup never breaks the image — killinchu_mosaic falls
