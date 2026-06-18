@@ -742,7 +742,19 @@ label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:
   .content{padding:.85rem .85rem 1.6rem;}
   .card{padding:.85rem .9rem;}
   .view-title{font-size:1.2rem;}
-  .btns{gap:.4rem;}
+  .btns{gap:.4rem;flex-wrap:wrap;}
+  /* FN-gap2 D3: intra-card .row/.row.mono horizontal clip fix at 375px.
+     Parent .card is overflow-x:hidden but .row children were overflow-x:visible with
+     scrollWidth >> clientWidth (long mono hash/receipt lines, wide stat rows, multi-
+     button CTA rows) -> content hard-clipped off the right edge. Make rows wrap + allow
+     flex children to shrink (min-width:0); long mono/hash/receipt rows scroll INSIDE the
+     card instead of clipping. Layout-only, scoped to <=480px so desktop is untouched.
+     Covers u_engage, roe, u_proofs, hero_interdiction, healthtwin, audit, kbformulas,
+     modelatlas, warhacker, living_anatomy. */
+  .row{flex-wrap:wrap;min-width:0;max-width:100%;}
+  .row>*{min-width:0;max-width:100%;}
+  .row>span,.row>b,.row>div{overflow-wrap:anywhere;word-break:break-word;}
+  .row.mono,.row .mono,.mono.dim{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;}
 }
 /* ============ RESPONSIVE HARDENING v2 (2026-06 · VISUAL/LAYOUT ONLY) ============
    Mobile-first polish across phone/tablet/desktop/large display. Additive only —
@@ -3045,8 +3057,9 @@ const VIEWS = {
       <div class="kpi"><div class="k">Λ (trust)</div><div class="v warn">Conjecture 1</div><div class="d">advisory · NOT a theorem</div></div>
       <div class="kpi"><div class="k">Consensus mesh</div><div class="v" id="la-quorum">—</div><div class="d">Byzantine = Conjecture 2 OPEN</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Living anatomy (live 3D)</span><span class="card-ep">szlholdings-anatomy.hf.space</span></div>
-        <iframe id="la-frame" src="https://szlholdings-anatomy.hf.space" title="Living anatomy — one governed organism" style="width:100%;height:460px;border:1px solid var(--gold-line);border-radius:10px;background:#050505" loading="lazy"></iframe>
-        <div class="row mono dim" style="font-size:11px;margin-top:.3rem">Live embed of the shared anatomy scene. Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 8 locked-proven formulas (never inflated); CUT-2 conditional; SLSA L1 honest.</div></div>
+        <iframe id="la-frame" src="https://szlholdings-anatomy.hf.space/" title="Living anatomy — one governed organism" style="width:100%;height:460px;border:1px solid var(--gold-line);border-radius:10px;background:#050505" loading="lazy" onerror="(function(f){try{var d=document.getElementById('la-fallback');if(d){d.style.display='block';f.style.display='none';}}catch(e){}})(this)"></iframe>
+        <div id="la-fallback" style="display:none;padding:1rem;border:1px solid var(--gold-line);border-radius:10px;background:#050505"><div class="row mono" style="font-size:12px;color:var(--cream)">Live 3D anatomy embed temporarily unreachable. Open the verified-live scene directly: <a href="https://szlholdings-anatomy.hf.space/" target="_blank" rel="noopener" style="color:var(--teal)">szlholdings-anatomy.hf.space &#8599;</a> (HTTP 200). The organ-by-organ proven formulas below render regardless. Honest fallback — no fabricated scene.</div></div>
+        <div class="row mono dim" style="font-size:11px;margin-top:.3rem">Live embed of the shared anatomy scene (<a href="https://szlholdings-anatomy.hf.space/" target="_blank" rel="noopener" style="color:var(--teal)">open directly &#8599;</a>). Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 8 locked-proven formulas (never inflated); CUT-2 conditional; SLSA L1 honest.</div></div>
       <div class="card"><div class="card-h"><span class="card-t">Proven formulas living in the organs</span><span class="card-ep">theorem_ref + honest maturity</span></div>
         <div id="la-organs"></div></div>
       <details class="raw"><summary>raw consensus mesh state (/uds/v1/healthz) + theorem registry</summary><pre class="out" id="la-raw">—</pre></details>
@@ -9490,6 +9503,18 @@ go(VIEWS[start]?start:'tracks');
           +honest('The Sankey is rendered by the vendored <code>d3-sankey</code> over the <b>real routing result</b> from the Operator routing endpoint; routing itself is a keyword heuristic (advisory), not a proven classifier.');
         poll('ro-gate', async function(){
           var b=await J(OSB+'/operator/routing'); if(!b.routes) return;
+          // FN-gap2 D1: zero-node empty-state guard BEFORE the d3-sankey draw.
+          // Backend honestly returns {mode:'unreachable',total:0,routes:[]} when upstream
+          // OSINT feeds are unreachable. Feeding empty arrays to d3.sankey() produced an
+          // empty scale domain -> NaN x0/y0/width -> repeating invalid <rect>/<text> SVG
+          // console errors + a blank chart. Render an HONEST empty state and skip the sankey.
+          // No fabricated rows — doctrine-honest degradation only.
+          if(!b.routes.length || (b.total!=null && b.total===0)){
+            E('ro-tot').textContent='0'; E('ro-top').textContent='—'; E('ro-conf').textContent='0.00';
+            var _svg=ex('ro-sankey'); if(_svg) _svg.innerHTML='<text x="14" y="150" fill="#8a8f98" font-size="12" font-family="monospace">no live routing data ('+esc(b.mode||'unreachable')+') — upstream feeds warming; nothing to route</text>';
+            if(ex('ro-tb')) ex('ro-tb').innerHTML='<tr><td colspan=3 class="mono dim" style="padding:.5rem">no live routing data ('+esc(b.mode||'unreachable')+') — upstream OSINT feeds unreachable; no items to route. Honest empty state, not fabricated.</td></tr>';
+            return;
+          }
           var pv=b.per_vertical||{}; var keys=Object.keys(pv);
           E('ro-tot').textContent=b.total||b.routes.length;
           var topK=keys.sort(function(a,d){return pv[d]-pv[a];})[0]||'—'; E('ro-top').textContent=topK+' ('+(pv[topK]||0)+')';
