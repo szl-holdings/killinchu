@@ -131,6 +131,51 @@ and the **Cross-Flagship Borrowed Powers** panel (`GET /api/killinchu/v1/borrowe
 
 ---
 
+## 7a. Rollback (one step, tested)
+
+Every deploy is a pinned, cosign-signed image tag, so rollback is "re-point at
+the previous known-good digest" — no rebuild, no DB migration to unwind
+(killinchu's khipu DAG is in-memory and SQLite is additive). The last
+known-good tag is **`uds-v0.2.0`** (see §7).
+
+**Kubernetes / UDS bundle** — undo the most recent rollout:
+
+```bash
+# Roll the Deployment back to the previous ReplicaSet (one command)
+kubectl rollout undo -n killinchu deploy/killinchu
+
+# …or pin an explicit known-good image+digest and watch it converge
+kubectl set image -n killinchu deploy/killinchu \
+  killinchu=ghcr.io/szl-holdings/killinchu:uds-v0.2.0
+kubectl rollout status -n killinchu deploy/killinchu --timeout=120s
+```
+
+**Standalone Docker** — stop the bad container and run the prior tag:
+
+```bash
+docker rm -f killinchu 2>/dev/null || true
+docker run -d --name killinchu -p 7860:7860 \
+  ghcr.io/szl-holdings/killinchu:uds-v0.2.0
+```
+
+**Verify the rollback took (same check for either path):**
+
+```bash
+# Expect HTTP 200 + JSON {"status":"ok", ... "doctrine":"v11"}
+curl -fsS http://localhost:7860/api/killinchu/healthz | head -c 200; echo
+
+# Confirm the deployed commit is the one you rolled back to
+curl -fsS http://localhost:7860/api/killinchu/v1/honest | grep -o '"kernel_commit":"[^"]*"'
+```
+
+If `/healthz` is not 200 within ~60s, check `kubectl logs -n killinchu
+deploy/killinchu` (k8s) or `docker logs killinchu` (standalone) — see §9.
+
+> Tag a release before each deploy (`git tag -s vX.Y.Z && git push --tags`) so
+> the "previous known-good" is always an immutable, signed reference.
+
+---
+
 ## 8. API Endpoints
 
 | Endpoint | Method | Description |
