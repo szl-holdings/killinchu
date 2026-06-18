@@ -1066,7 +1066,56 @@ except Exception as _os_e:
     _tb_os.print_exc()
 # ── end OSINT verticals ──────────────────────────────────────────────────────
 
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# ===========================================================================
+# CORS LOCKDOWN (SAFE-NOW hardening, freeze June 20) — killinchu-only.
+# ---------------------------------------------------------------------------
+# Previously: allow_origins=["*"] reflected ANY origin (incl. attacker pages)
+# with Access-Control-Allow-Origin. Browsers were therefore allowed to read
+# cross-origin responses from any site. We restrict the browser CORS grant to
+# the known killinchu / a11oy estate:
+#   * killinchu.a11oy.net + a11oy.net (apex + any subdomain)
+#   * the HF Spaces that legitimately embed / call us (*.hf.space,
+#     *.huggingface.co) — this is how the founder views the Space and how the
+#     /jackin console + operator widget cross-call the a11oy substrate.
+# Localhost is allowed for dev only.
+#
+# This does NOT break public READ endpoints: CORS governs *browser cross-origin
+# JS reads* only. Same-origin page loads, server-to-server, and non-browser
+# clients (curl / SDKs / the consoles' own same-origin fetches) are unaffected —
+# they never consult Access-Control-Allow-Origin. allow_credentials stays False
+# (unchanged from the wildcard config), so no cookies/creds are exposed.
+#
+# Lives in serve.py (per-app entrypoint, intentionally NOT byte-identical
+# a11oy<->killinchu, so it does not trip the shared-file drift gate).
+# Doctrine v11 LOCKED 749/14/163. SLSA L1 honest.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+_CORS_ALLOW_ORIGINS = [
+    "https://killinchu.a11oy.net",
+    "https://a11oy.net",
+    "https://www.a11oy.net",
+    "https://szlholdings-killinchu.hf.space",
+    "https://huggingface.co",
+    "http://localhost:7860",
+    "http://127.0.0.1:7860",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+# Regex covers every a11oy.net subdomain + the HF Space / Hub estate (the only
+# legitimate cross-origin embedders/callers). Anchored, https-only.
+_CORS_ALLOW_ORIGIN_REGEX = (
+    r"^https://([a-z0-9-]+\.)*a11oy\.net$"
+    r"|^https://[a-z0-9-]+\.hf\.space$"
+    r"|^https://([a-z0-9-]+\.)*huggingface\.co$"
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_CORS_ALLOW_ORIGINS,
+    allow_origin_regex=_CORS_ALLOW_ORIGIN_REGEX,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=False,
+)
 
 # ===========================================================================
 # SECURITY HEADERS (SAFE-NOW hardening, freeze June 20) — killinchu-only.
