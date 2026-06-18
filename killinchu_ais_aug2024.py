@@ -47,13 +47,32 @@ except Exception:  # pragma: no cover
     JSONResponse = None  # type: ignore
 
 # Reuse the real NOAA connector (real schema + real rows + honest labelling).
+# If the connector module is not present in this deployment, the source is NOT
+# wired here — we degrade HONESTLY (label it "unavailable"), never fabricate the
+# provenance/schema. The except block defines safe placeholders so the static
+# manifest can still answer 200 with an honest "not wired" label instead of 500.
+NOAA_CONNECTOR_AVAILABLE = True
 try:
     from szl_connectors.data_sources.ais_noaa_aug2024 import (
         NoaaAisAug2024Connector, SAMPLE_BBOX, SAMPLE_WINDOW,
         PROVENANCE_FULL, PROVENANCE_SAMPLE, NOAA_AIS_AUG01_URL, NOAA_SCHEMA,
     )
 except Exception:  # pragma: no cover
+    NOAA_CONNECTOR_AVAILABLE = False
     NoaaAisAug2024Connector = None  # type: ignore
+    # Honest placeholders (NOT fabricated data): used only to label the source
+    # as not-wired in the manifest; no vessel rows/counts are ever invented.
+    SAMPLE_BBOX = None  # type: ignore
+    SAMPLE_WINDOW = None  # type: ignore
+    PROVENANCE_FULL = "NOAA/MarineCadastre AIS, Aug 2024, coastal US"  # type: ignore
+    PROVENANCE_SAMPLE = (  # type: ignore
+        "NOAA/MarineCadastre AIS (Aug 2024 coastal-US) connector not wired in "
+        "this deployment"
+    )
+    NOAA_AIS_AUG01_URL = (  # type: ignore
+        "https://coast.noaa.gov/htdata/CMSP/AISDataHandler/2024/AIS_2024_08_01.zip"
+    )
+    NOAA_SCHEMA = ()  # type: ignore
 
 # Reuse the governed Λ risk scorer + its REAL DSSE receipt signer.
 try:
@@ -154,43 +173,76 @@ def risk_board(*, limit: int | None = 60, sign: bool = False,
 
 
 def sources_manifest(ns: str = NS_DEFAULT) -> dict[str, Any]:
-    """Honest manifest of selectable AIS sources. LIVE is the default."""
+    """Honest manifest of selectable AIS sources. LIVE is the default.
+
+    Each source carries an explicit honest STATUS label:
+      LIVE         — a live feed wired and selectable now,
+      SAMPLE       — a bounded sample of REAL rows, wired and selectable now,
+      UNAVAILABLE  — connector NOT wired in this deployment (no fabrication).
+    This endpoint must NEVER 500: if the NOAA connector module is absent we still
+    return 200 and label that source honestly as UNAVAILABLE / not-wired.
+    """
+    noaa_wired = bool(NOAA_CONNECTOR_AVAILABLE)
+    noaa_status = "SAMPLE" if noaa_wired else "UNAVAILABLE"
+    noaa_source: dict[str, Any] = {
+        "id": NOAA_SOURCE_ID,
+        "label": "NOAA/MarineCadastre AIS — Aug 2024 coastal US (WarHacker dataset)",
+        "status": noaa_status,
+        "wired": noaa_wired,
+        "available": noaa_wired,
+        "endpoint": f"/api/{ns}/v1/ais/aug2024/tracks",
+        "risk_endpoint": f"/api/{ns}/v1/ais/aug2024/risk-board",
+        "kind": "historical-dataset",
+        "live": False,
+        "is_sample": noaa_wired,
+        "provenance": PROVENANCE_FULL,
+        "honest_label": PROVENANCE_SAMPLE,
+        "dataset_url": NOAA_AIS_AUG01_URL,
+        "note": (
+            ("Selectable alongside the live feed. Bounded SAMPLE of REAL rows "
+             "from AIS_2024_08_01.csv — NOT the full month.")
+            if noaa_wired else
+            ("NOAA Aug-2024 connector module is NOT deployed in this Space, so "
+             "this source is not wired here. No sample rows are served and none "
+             "are fabricated; select the LIVE source instead.")
+        ),
+    }
+    sources = [
+        {
+            "id": LIVE_SOURCE_ID,
+            "label": "Live AIS (Digitraffic) — DEFAULT",
+            "status": "LIVE",
+            "wired": True,
+            "available": True,
+            "endpoint": LIVE_ENDPOINT.format(ns=ns),
+            "kind": "live-feed",
+            "live": True,
+            "is_sample": False,
+            "note": "Live vessel positions; the default track-board source.",
+        },
+        noaa_source,
+    ]
+    wired_count = sum(1 for s in sources if s.get("wired"))
     return {
         "schema": "szl.killinchu.ais.sources/v1",
         "default": LIVE_SOURCE_ID,
-        "sources": [
-            {
-                "id": LIVE_SOURCE_ID,
-                "label": "Live AIS (Digitraffic) — DEFAULT",
-                "endpoint": LIVE_ENDPOINT.format(ns=ns),
-                "kind": "live-feed",
-                "live": True,
-                "is_sample": False,
-                "note": "Live vessel positions; the default track-board source.",
-            },
-            {
-                "id": NOAA_SOURCE_ID,
-                "label": "NOAA/MarineCadastre AIS — Aug 2024 coastal US (WarHacker dataset)",
-                "endpoint": f"/api/{ns}/v1/ais/aug2024/tracks",
-                "risk_endpoint": f"/api/{ns}/v1/ais/aug2024/risk-board",
-                "kind": "historical-dataset",
-                "live": False,
-                "is_sample": True,
-                "provenance": PROVENANCE_FULL,
-                "honest_label": PROVENANCE_SAMPLE,
-                "dataset_url": NOAA_AIS_AUG01_URL,
-                "note": ("Selectable alongside the live feed. Bounded SAMPLE of REAL "
-                         "rows from AIS_2024_08_01.csv — NOT the full month."),
-            },
-        ],
+        "sources_total": len(sources),
+        "sources_wired": wired_count,
+        "wired_summary": f"{wired_count}/{len(sources)} wired",
+        "sources": sources,
         "selector": {
             "endpoint": f"/api/{ns}/v1/ais/tracks",
             "param": "source",
             "values": [LIVE_SOURCE_ID, NOAA_SOURCE_ID],
             "default": LIVE_SOURCE_ID,
         },
-        "honesty": ("Live feed is the default; the Aug-2024 dataset is a selectable, "
-                    "honestly-labelled SAMPLE of real NOAA AIS. No fabricated rows."),
+        "honesty": (
+            "Live feed is the default and always wired. The Aug-2024 dataset is a "
+            "selectable, honestly-labelled SAMPLE of real NOAA AIS when its "
+            "connector is deployed; if that module is absent it is labelled "
+            "UNAVAILABLE (not wired) rather than fabricated."
+        ),
+        "doctrine": "v11",
     }
 
 
