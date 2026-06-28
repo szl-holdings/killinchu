@@ -1166,7 +1166,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item nav-pinned" data-view="tamper_demo" onclick="go('tamper_demo')" title="Tamper a signed receipt and watch the SHA-256 hash chain visibly REJECT it in 3D."><span class="ico">&#9939;</span>Tamper a Receipt (3D)</div>
     <div class="nav-item nav-pinned" data-view="uds_package" onclick="go('uds_package')" title="killinchu as a UDS-pattern package: UDS Package CR, Pepr-style capability, Zarf flavors, Lula/OSCAL tying Lambda-gate + receipts to NIST 800-53 as claims-with-evidence."><span class="ico">&#11042;</span>UDS Package</div>
     <a class="nav-item nav-pinned" href="/elite/cot" rel="noopener" title="CoT Interop — styled API manifest viewer. MITRE Cursor-on-Target 2.0 export/ingest. Pretty-prints the live capability + honesty manifest (GET /api/killinchu/v1/cot/status) and links to the raw JSON + full /cot/export. DoD-standard interop; this is an API/data surface, not a console tab."><span class="ico">&#9741;</span>CoT Interop · API manifest</a>
-    <div class="nav-item nav-pinned" data-view="u_warhacker" onclick="go('u_warhacker')" title="Sovereign Warhacker: 27 maritime/drone/counter-UAS live demos + proofs board."><span class="ico">&#10026;</span>Warhacker (27 demos)</div>
+    <div class="nav-item nav-pinned" data-view="u_warhacker" onclick="go('u_warhacker')" title="Defense Demo Suite: 27 live maritime/drone/counter-UAS demos and the proofs board."><span class="ico">&#10026;</span>Demo Suite</div>
     <div class="nav-item nav-pinned" data-view="dataset_control" onclick="go('dataset_control')" title="Data Sources / Overlays: one panel to flip Live AIS (default), the NOAA AIS Aug-2024 sample, the Pirate-attack risk and World Port Index overlays, and a CoT export action. Datasets not yet deployed are honestly labelled 'available when PR #N merges'. Additive; sample is never live."><span class="ico">&#9707;</span>Data Sources / Overlays</div>
     <div class="nav-item nav-pinned" data-view="fleet_c2" onclick="go('fleet_c2')" title="Live 3D fleet picture: real military ADS-B + AIS vessels on a globe; governance loop real, effector link simulated."><span class="ico">&#9680;</span>Fleet Health &amp; Governed C2 (3D)</div>
     <div class="nav-item nav-pinned" data-view="determinism_demo" onclick="go('determinism_demo')" title="Run the same governed decision 5x: byte-identical Merkle roots. Honest label A5 (measured)."><span class="ico">&#8801;</span>Determinism — Run 5x</div>
@@ -2892,7 +2892,7 @@ const VIEWS = {
   u_melt:{title:'Observability (MELT)',badge:'NERVOUS ORGAN · METRICS/EVENTS/LOGS/TRACES',sub:'The NERVOUS organ — Λ-signed MELT observability, the living-organism service graph (3D) and the model atlas. Sub-views below.',render:(c)=>renderSurface('u_melt',c)},
   u_intel:{title:'World & Threat Intel',badge:'LIVE CISA KEV · NVD CVE · ATT&CK',sub:'Cyber threat intelligence relevant to the mission — live CISA Known-Exploited Vulnerabilities, live NVD CVE feed, and adversary technique mapping. Sub-views below.',render:(c)=>renderSurface('u_intel',c)},
   u_space:{title:'Space & GEOINT',badge:'3D LEO · GEOINT · LIVE USGS',sub:'Space and geophysical intelligence — the 3D LEO constellation globe, multi-constellation GEOINT collection planning, and the live USGS seismic-forecast globe. Sub-views below.',render:(c)=>renderSurface('u_space',c)},
-  u_warhacker:{title:'Warhacker',badge:'27 LIVE DEMOS · PROOFS BOARD',sub:'The Sovereign Warhacker surface for the Defense Unicorns event — 27 maritime/drone/counter-UAS demos and the proofs board (nominal vs tamper diffs, honest evidence). Sub-views below.',render:(c)=>renderSurface('u_warhacker',c)},
+  u_warhacker:{title:'Demo Suite',badge:'27 LIVE DEMOS · PROOFS BOARD',sub:'The Defense Demo Suite surface for the Defense Unicorns event — 27 maritime/drone/counter-UAS demos and the proofs board (nominal vs tamper diffs, honest evidence). Sub-views below.',render:(c)=>renderSurface('u_warhacker',c)},
   u_minedops:{title:'Mined Ops (efficiency)',badge:'EDGE VRAM · TELEM MEM · ADAPT SAMPLE · ROUTING',sub:'Field-efficiency ops — edge VRAM estimation, priority telemetry memory, adaptive sensor sampling, survivable tactical routing and multi-track prioritization. Clean-room reimplementations; advisory. Sub-views below.',render:(c)=>renderSurface('u_minedops',c)},
   // ── POSTURE & TOPOLOGY sub-views (DEV-WIRE-K R1) — real drift detectors + graph metrics ──
   posture_drift:{title:'Posture & Drift',badge:'PSI + KS (scipy) + ADWIN · LIVE TELEMETRY',sub:'Real concept/data-drift detection on the <b>live ADS-B telemetry</b> (alt_baro / ground-speed / track) vs an in-image captured reference window. <b>PSI</b> (bands 0.10 / 0.25), <b>two-sample KS</b> (<code>scipy.stats.ks_2samp</code>, else identical numpy Kolmogorov asymptotic, &alpha;=0.05) and a <b>vendored ADWIN</b> streaming detector. Verdict is honestly thresholded <b>DRIFT DETECTED / STABLE</b> with the exact triggering detector named. Reference window is real captured telemetry — not fabricated. &Lambda; = Conjecture 1.',render:(c)=>posture_drift_render(c)},
@@ -12754,6 +12754,70 @@ go(VIEWS[start]?start:'tracks');
   } else {
     _boot();
   }
+})();
+</script>
+
+<script>
+/* ── killinchu sell-nav prune block (v1) ──────────────────────────────────
+   Deterministic prune: hide runtime-injected R&D surfaces from the nav bar.
+   Keys still resolve via go() / deep-link — DELETE NOTHING.
+   ADDITIVE ONLY. Injected once; idempotency marker data-kc-prune="v1".
+   Doctrine v11: 0 CDN, 0 codenames, never weakens a gate, additive-only.
+   ────────────────────────────────────────────────────────────────────────── */
+(function kc_prune(){
+  'use strict';
+  if (document.documentElement.dataset.kcPrune) return;
+  document.documentElement.dataset.kcPrune = 'v1';
+
+  // Nav items to suppress from the sidebar (RETIRE list).
+  // Keys remain callable via go() and deep-link URLs — only the nav item is hidden.
+  var RETIRE = [
+    'u_minedops', 'cuas_lab', 'scaling', 'anatomymap', 'bounties',
+    'conjecturefactory', 'entangle', 'neuro', 'sovereignty', 'verticals',
+    'putnam', 'living_anatomy', 'determinism_demo', 'u_melt',
+    'u_about', 'dataset_control'
+  ];
+
+  // Block runtime-injection of R&D nav groups (entangle/neuro/sovereignty/verticals/atlas/bounties/anatomy).
+  // These injectors check for the presence of their anchor nav-items before inserting;
+  // we suppress by marking their target anchors as already-injected.
+  var RT_BLOCKED = ['entangle-nav-item','neuro-nav-item','sovereignty-nav-item',
+                    'atlas-nav-item','l6c-nav-item','verticals-nav-item'];
+
+  function prune() {
+    RETIRE.forEach(function(key) {
+      var items = document.querySelectorAll('.nav-item[data-view="' + key + '"]');
+      items.forEach(function(el) {
+        el.style.display = 'none';
+        el.setAttribute('data-kc-pruned', 'retire');
+      });
+    });
+    // Suppress already-injected R&D items by id
+    RT_BLOCKED.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.style.display = 'none'; el.setAttribute('data-kc-pruned', 'rt-blocked'); }
+    });
+    // Block future injections: mark anchors as done
+    var anchors = ['entangle-nav-group','neuro-nav-group','atlas-nav-group',
+                   'l6c-nav-group','entangle-nav-group'];
+    anchors.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.style.display = 'none'; }
+    });
+    // Also collapse the EXPERIMENTAL nav-group-exp-divider entirely
+    var expDivs = document.querySelectorAll('.nav-group-exp-divider, .exp-fence-note, .nav-group-exp');
+    expDivs.forEach(function(el) { el.style.display = 'none'; });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { prune(); setTimeout(prune, 200); setTimeout(prune, 800); });
+  } else {
+    prune(); setTimeout(prune, 200); setTimeout(prune, 800);
+  }
+  // Re-prune on any nav click (runtime injectors run after go())
+  document.addEventListener('click', function(e) {
+    var t = e.target; if (t && t.classList && t.classList.contains('nav-item')) { setTimeout(prune, 50); }
+  }, true);
 })();
 </script>
 
