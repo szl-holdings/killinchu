@@ -31,9 +31,10 @@ comes from a real in-process probe at call time, exactly like the existing
 """
 from __future__ import annotations
 
+import os
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 _HONEST = (
     "Each /elite view is mapped to the REAL killinchu data endpoint it consumes. "
@@ -246,10 +247,134 @@ ELITE_WIRING: Dict[str, Dict[str, Any]] = {
     "decoders": {"endpoints": ["/api/{ns}/v1/drones/database", "/api/{ns}/v1/samples"],
                  "data_class": "real-compute", "leaders": ["ASTM F3411 Remote ID", "DO-260 ADS-B", "MAVLink"],
                  "note": "Protocol decoders (Remote ID / ADS-B / MAVLink); decode routes are POST; broadcasts are unverified claims — a lead, not proof."},
+    # ── CONSTITUTIONAL GOVERNANCE · FORMAL / LTL RING ──
+    # QHAWAQ is the per-ACTION formal monitor: every proposed agent/effector action
+    # is checked against LTL + predicate invariants BEFORE any (SIMULATED) effector,
+    # verdict ALLOW / REQUIRE-HUMAN-CONFIRM / BLOCK + proof-trace + signed receipt
+    # forwarded to the unified ledger (organ=killinchu-qhawaq). Previously absent
+    # from this map even though szl_qhawaq is registered, so the self-audit under-
+    # reported the formal ring. /invariants is GET (probed); /check is POST.
+    "qhawaq": {"endpoints": ["/api/{ns}/v1/qhawaq/invariants", "/api/{ns}/v1/qhawaq/check"],
+               "data_class": "signed-loop", "leaders": ["LTL runtime verification", "NIST AI RMF 1.0"],
+               "note": ("Formal/LTL runtime constitutional ring: each proposed action is "
+                        "checked BEFORE any SIMULATED effector — ALLOW / REQUIRE-HUMAN-CONFIRM "
+                        "/ BLOCK + proof-trace + signed BLOCK receipt forwarded to the unified "
+                        "ledger (organ=killinchu-qhawaq). Λ = Conjecture 1 (advisory); Khipu "
+                        "BFT safety = Conjecture 2, liveness = Conjecture 3 — proof-deferred, "
+                        "NOT proven. Effector SIMULATED human-on-loop.")},
 }
 
 # Views whose data_class is SIMULATED by doctrine (effector/weapon-target/intercept).
 SIMULATED_VIEWS = sorted(k for k, v in ELITE_WIRING.items() if v["data_class"] == "SIMULATED")
+
+
+# ── QHAWAQ intercept → unified ledger forward ───────────────────────────────
+# The unified receipt ledger lives in the a11oy Space (szl_lake_ingest). killinchu
+# forwards QHAWAQ's signed verdict/BLOCK receipts to that sink over HTTP, organ-
+# tagged "killinchu-qhawaq" so the cross-organ chain stays auditable. Env-overridable;
+# honest default. The intercept runs BEFORE any (SIMULATED) effector.
+LEDGER_SINK_URL = (os.environ.get("SZL_LAKE_SINK_URL")
+                   or "https://szlholdings-a11oy.hf.space/api/lake/v1").rstrip("/") + "/receipts"
+QHAWAQ_ORGAN = "killinchu-qhawaq"
+# Honest doctrine note carried on EVERY intercept response — NEVER claim BFT proven.
+QHAWAQ_CONJECTURE_NOTE = "Conjecture 2/3 proof-deferred, NOT proven"
+
+
+def forward_receipt_to_ledger(receipt: Dict[str, Any], organ: str = QHAWAQ_ORGAN,
+                              timeout: float = 4.0) -> Dict[str, Any]:
+    """Fire-and-forget POST of a signed QHAWAQ receipt to the unified ledger.
+
+    Never raises and never blocks a governed action — a sink hiccup degrades
+    honestly (status recorded; the verdict is unaffected)."""
+    if not isinstance(receipt, dict):
+        return {"ok": False, "reason": "receipt must be a JSON object"}
+    rec = dict(receipt)
+    rec.setdefault("organ", organ)
+    try:
+        import httpx
+        with httpx.Client(timeout=timeout) as c:
+            r = c.post(LEDGER_SINK_URL, json=rec)
+        return {"ok": r.status_code < 400, "status": r.status_code,
+                "sink": LEDGER_SINK_URL, "organ": organ}
+    except Exception as e:  # honest degrade — never raise into a governed turn
+        return {"ok": False, "reason": "ledger forward error: %r" % (e,),
+                "sink": LEDGER_SINK_URL, "organ": organ}
+
+
+def intercept_action(action: Dict[str, Any], sign_fn: Optional[Callable[[Any], dict]] = None,
+                     ns: str = "killinchu", forward: bool = True) -> Dict[str, Any]:
+    """QHAWAQ runtime intercept for the elite flow: check ONE proposed agent/effector
+    action against the formal LTL + predicate invariants BEFORE any (SIMULATED)
+    effector, and forward the signed verdict receipt to the unified ledger
+    (organ=killinchu-qhawaq).
+
+    Returns {verdict, allowed, requires_human, blocked, signed_receipt,
+    ledger_forward, checks, confidence, note}. ``verdict`` is one of
+    ALLOW / REQUIRE-HUMAN-CONFIRM / BLOCK. Honest: BFT safety/liveness are NOT
+    proven — ``note`` says so explicitly. Never raises; if QHAWAQ is unavailable it
+    FAILS CLOSED (REQUIRE-HUMAN-CONFIRM) rather than silently allowing an effector."""
+    try:
+        import szl_qhawaq
+    except Exception as e:  # fail CLOSED — never silently allow an effector
+        return {"verdict": "REQUIRE-HUMAN-CONFIRM", "allowed": False,
+                "requires_human": True, "blocked": False, "signed_receipt": None,
+                "ledger_forward": {"ok": False, "reason": "szl_qhawaq unavailable: %r" % (e,)},
+                "note": QHAWAQ_CONJECTURE_NOTE,
+                "honesty": "QHAWAQ unavailable — failing closed to human confirm; no effector."}
+    try:
+        result = szl_qhawaq.check_action(action, sign_fn=sign_fn, ns=ns)
+    except Exception as e:  # fail CLOSED on any monitor error
+        return {"verdict": "REQUIRE-HUMAN-CONFIRM", "allowed": False,
+                "requires_human": True, "blocked": False, "signed_receipt": None,
+                "ledger_forward": {"ok": False, "reason": "qhawaq check raised: %r" % (e,)},
+                "note": QHAWAQ_CONJECTURE_NOTE,
+                "honesty": "QHAWAQ monitor raised — failing closed to human confirm; no effector."}
+    verdict = result.get("verdict")
+    signed = result.get("signed_receipt")
+    fwd = None
+    if forward and isinstance(signed, dict):
+        fwd = forward_receipt_to_ledger(signed, organ=QHAWAQ_ORGAN)
+    return {
+        "verdict": verdict,
+        "allowed": verdict == "ALLOW",
+        "requires_human": verdict == "REQUIRE-HUMAN-CONFIRM",
+        "blocked": verdict == "BLOCK",
+        "signed_receipt": signed,
+        "ledger_forward": fwd,
+        "checks": result.get("checks"),
+        "confidence": result.get("confidence"),
+        "note": QHAWAQ_CONJECTURE_NOTE,
+    }
+
+
+def register_intercept(app, ns: str = "killinchu",
+                       sign_fn: Optional[Callable[[Any], dict]] = None) -> Dict[str, Any]:
+    """Mount the QHAWAQ elite intercept route (POST). Additive; called from serve.py's
+    QHAWAQ block so the REAL DSSE signer is in scope → genuinely signed receipts.
+
+    POST /api/{ns}/v1/elite/qhawaq/intercept  body: {"action": {...}} (or the action
+    object directly) → verdict + signed_receipt + ledger_forward + conjecture note."""
+    try:
+        from fastapi.responses import JSONResponse
+    except Exception:  # pragma: no cover
+        return {"registered": False, "reason": "fastapi unavailable"}
+
+    path = "/api/%s/v1/elite/qhawaq/intercept" % ns
+
+    @app.post(path)
+    async def _elite_qhawaq_intercept(request):  # noqa: ANN202
+        import asyncio
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        action = body.get("action") if isinstance(body, dict) and "action" in body else body
+        # check_action + ledger POST are blocking — run off the event loop.
+        out = await asyncio.to_thread(intercept_action, action, sign_fn, ns)
+        return JSONResponse(out)
+
+    return {"registered": True, "ns": ns, "route": path, "organ": QHAWAQ_ORGAN,
+            "sink": LEDGER_SINK_URL, "note": QHAWAQ_CONJECTURE_NOTE}
 
 
 def _now_iso() -> str:
@@ -437,4 +562,7 @@ def register(app, ns: str = "killinchu") -> Dict[str, Any]:
             "simulated_views": len(SIMULATED_VIEWS)}
 
 
-__all__ = ["register", "audit_map", "health", "ELITE_WIRING", "SIMULATED_VIEWS"]
+__all__ = ["register", "register_intercept", "intercept_action",
+           "forward_receipt_to_ledger", "audit_map", "health",
+           "ELITE_WIRING", "SIMULATED_VIEWS", "QHAWAQ_ORGAN",
+           "QHAWAQ_CONJECTURE_NOTE", "LEDGER_SINK_URL"]

@@ -4745,6 +4745,18 @@ try:
         app, ns="killinchu", sign_fn=_kc_qhawaq_sign, verify_fn=_kc_qhawaq_verify,
         signer_label="killinchu in-image cosign key (szl_dsse)")
     print(f"[killinchu] QHAWAQ runtime constitutional intercept registered: {_kc_qhawaq_status}", file=sys.stderr)
+
+    # ── ELITE_WIRING ledger wire: surface QHAWAQ in the /elite wiring map AND mount
+    # the elite intercept route that checks an action with the REAL DSSE signer in
+    # scope (genuinely signed receipts), forwarding each signed verdict to the
+    # unified ledger (organ="killinchu-qhawaq"). Additive, never crashes the Space.
+    try:
+        import killinchu_elite_wiring as _kc_kew
+        _kc_kew_intercept = _kc_kew.register_intercept(
+            app, ns="killinchu", sign_fn=_kc_qhawaq_sign)
+        print(f"[killinchu] QHAWAQ elite intercept + ledger wire: {_kc_kew_intercept}", file=sys.stderr)
+    except Exception as _kc_kew_e:  # pragma: no cover — additive, never crash
+        print(f"[killinchu] QHAWAQ elite intercept NOT wired (non-fatal): {_kc_kew_e!r}", file=sys.stderr)
 except Exception as _kc_qhawaq_e:  # pragma: no cover — additive, never crash
     import traceback as _kc_qhawaq_tb
     print(f"[killinchu] QHAWAQ NOT registered (non-fatal): {_kc_qhawaq_e!r}", file=sys.stderr)
