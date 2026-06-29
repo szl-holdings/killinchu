@@ -455,11 +455,11 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <meta name="description" content="killinchu is SZL Holdings' counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint."/>
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="killinchu · SZL Holdings" />
-<meta property="og:url" content="https://killinchu.a11oy.net/" />
+<meta property="og:url" content="https://killinchu.a-11-oy.com/" />
 <meta property="og:title" content="killinchu · Counter-UAS Governance" />
 <meta property="og:description" content="killinchu is SZL Holdings&#x27; counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint." />
-<meta property="og:image" content="https://killinchu.a11oy.net/og-card.png" />
-<meta property="og:image:secure_url" content="https://killinchu.a11oy.net/og-card.png" />
+<meta property="og:image" content="https://killinchu.a-11-oy.com/og-card.png" />
+<meta property="og:image:secure_url" content="https://killinchu.a-11-oy.com/og-card.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
@@ -467,7 +467,7 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="killinchu · Counter-UAS Governance" />
 <meta name="twitter:description" content="killinchu is SZL Holdings&#x27; counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint." />
-<meta name="twitter:image" content="https://killinchu.a11oy.net/og-card.png" />
+<meta name="twitter:image" content="https://killinchu.a-11-oy.com/og-card.png" />
 <meta name="twitter:image:alt" content="killinchu — counter-UAS governance: live track board, governed ROE, signed receipts" />
 <!-- SOVEREIGN: self-hosted fonts (0 runtime CDN; no fonts.googleapis.com / fonts.gstatic.com). Served from /vendor/fonts/. -->
 <link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
@@ -4691,7 +4691,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="card"><div class="card-h"><span class="card-t">OCI artifact + deploy targets</span><span class="card-ep">cloud \u2192 edge \u2192 air-gap \u00b7 honest</span></div>
         <div class="row"><span class="badge" style="color:#7fe0a8;border:1px solid #7fe0a8">PUBLISHED + SIGNED</span><span>UDS bundle artifact <code class="mono">oci://ghcr.io/szl-holdings/killinchu-bundle:0.5.0</code> \u2014 published to GHCR and cosign keyless-signed (GitHub OIDC). Manifest <code class="mono">sha256:e59921332c37408fb5a62b270eeeafb1f1ab44aebb350f18662c37aa2c67426f</code>; signature tag <code class="mono">sha256-e599\u2014.sig</code> present (verified live on the public registry). Verify: <code class="mono">cosign verify --certificate-oidc-issuer=https://token.actions.githubusercontent.com oci://ghcr.io/szl-holdings/killinchu-bundle:0.5.0</code>. SLSA L2 attested on organ images; L3 roadmap.</span></div>
         <div class="row"><span class="badge b-live">PULLABLE</span><span>Organ image <code class="mono">ghcr.io/szl-holdings/killinchu:uds-v0.2.0</code> \u2014 verified-pullable from GHCR, cosign <code>.sig</code> + SLSA L2 <code>.att</code> present.</span></div>
-        <div class="row"><span class="badge b-live">LIVE</span><span><b>Cloud</b> \u2014 HF Space (this surface) + a11oy.net (Hetzner), live now.</span></div>
+        <div class="row"><span class="badge b-live">LIVE</span><span><b>Cloud</b> \u2014 HF Space (this surface) + a-11-oy.com (Hetzner), live now.</span></div>
         <div class="row"><span class="badge" style="color:#c9b787;border:1px solid #c9b787">ROADMAP</span><span><b>Tactical edge / air-gap (DDIL)</b> \u2014 the <i>same</i> UDS/Zarf bundle is annotated <code>deployable-to-edge</code> + <code>ddil-ok</code> and is offline-verifiable (no network); answers Warhacker P2 air-gap + P7 edge twin. No hardcoded env/secrets.</span></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Verify it yourself (offline, no trust in us)</span><span class="card-ep">copy \u00b7 run</span></div>
         <pre class="out" id="dp-cmds" style="white-space:pre-wrap"></pre>
@@ -9599,7 +9599,7 @@ go(VIEWS[start]?start:'tracks');
 <script>
 /* anatomy-map-tab-patch :: SZL Anatomy — single honest map (formulas + agentic capabilities) ::
    Additive, self-contained, NS-aware. Snapshot mirror of the standalone deck
-   (a11oy.net/anatomy-map · HF static Space SZLHOLDINGS/anatomy). Honest by construction:
+   (a-11-oy.com/anatomy-map · HF static Space SZLHOLDINGS/anatomy). Honest by construction:
    8 LOCKED formulas {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1. No fabricated live pills. */
 (function(){
   var NS=(window.__rd_ns||(location.pathname.indexOf('killinchu')>=0?'killinchu':'a11oy'));
@@ -9621,8 +9621,8 @@ go(VIEWS[start]?start:'tracks');
      p:'Append-only SIGNED receipt DAG (Khipu) + quorum consensus: acyclic (F4 locked), FIFO-ordered (F7 locked), emit-monotone (F22 locked), CONDITIONAL Byzantine safety under 3-of-4 quorum. Unconditional safety stays Conjecture 2.',
      e:'szl_khipu_lmdb.py \u00b7 MCP khipu_sign / khipu_verify (live)', f:'F4, F7, F22 (locked) \u00b7 B2 quorum'},
     {k:'receipts', n:'Receipt store (YAWAR / szl-receipts)', s:'LIVE',
-     p:'Append-only SHA-256 receipt bus: h=sha256(canonical(packet)), never mutated/deleted. Ed25519/DSSE signing, Merkle inclusion (F18 locked), receipt-completeness (P1), replay-determinism, hash-chain tamper-evidence (P5). Live chain at a11oy.net/receipts.',
-     e:'YAWAR bus \u00b7 szl-receipts server + Pepr webhook (repo PRIVATE) \u00b7 a11oy.net/receipts/', f:'F1, F18 (locked) \u00b7 P1, P5'},
+     p:'Append-only SHA-256 receipt bus: h=sha256(canonical(packet)), never mutated/deleted. Ed25519/DSSE signing, Merkle inclusion (F18 locked), receipt-completeness (P1), replay-determinism, hash-chain tamper-evidence (P5). Live chain at a-11-oy.com/receipts.',
+     e:'YAWAR bus \u00b7 szl-receipts server + Pepr webhook (repo PRIVATE) \u00b7 a-11-oy.com/receipts/', f:'F1, F18 (locked) \u00b7 P1, P5'},
     {k:'mesh', n:'Mesh + OTel observability (UDS / VSP)', s:'CI-GREEN',
      p:'UDS Core ambient mesh (Istio, restricted PSA) carrying W3C TraceContext span lineage across brain\u2192effectors (efferent / afferent / proprioceptive). Replay verifier checks child.parent_span_id == parent.span_id over a cycle (P4); Menger cut/path + reachability monotonicity back the resilience claims.',
      e:'szl-uds-deployment (k3d uds-szl-demo) \u00b7 vsp-otel \u00b7 HUKLLA deadman reflex', f:'P4, F1 \u00b7 W9_MENGER, W10_REACH'},
@@ -9635,7 +9635,7 @@ go(VIEWS[start]?start:'tracks');
     h+='<div style="border:1px solid #2a2f37;border-radius:10px;padding:14px 16px;margin-bottom:14px;background:#11151a">'
       +'<div style="font-family:var(--mono,monospace);font-size:11px;color:'+DIM+';letter-spacing:.08em">SINGLE HONEST MAP</div>'
       +'<div style="font-size:13px;color:#cfd4da;margin-top:6px;line-height:1.5">Every agentic capability mapped to the <b>real</b> app(s)/repo(s) that implement it, alongside the formula/theorem ladder. Snapshot mirror of the full interactive deck \u2014 '
-      +'<a href="https://a11oy.net/anatomy-map/" target="_blank" rel="noopener" style="color:'+TEAL+'">a11oy.net/anatomy-map</a> \u00b7 '
+      +'<a href="https://a-11-oy.com/anatomy-map/" target="_blank" rel="noopener" style="color:'+TEAL+'">a-11-oy.com/anatomy-map</a> \u00b7 '
       +'<a href="https://szlholdings-anatomy.hf.space/" target="_blank" rel="noopener" style="color:'+TEAL+'">HF Space</a>. '
       +'Honesty: <b>8 LOCKED</b> kernel-verified formulas {F1, F4, F7, F11, F12, F18, F19, F22}; \u039b uniqueness = <b>Conjecture 1</b> (advisory, never a pass/fail oracle).</div></div>';
     CAPS.forEach(function(c){
@@ -9654,7 +9654,7 @@ go(VIEWS[start]?start:'tracks');
   function reg(){
     var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
     V.anatomymap={ title:'Anatomy Map', badge:(CAPS.length+' capabilities \u00b7 8 LOCKED'),
-      sub:'The single honest map: every agentic capability (RAG, MCP, ouroboros loop, khipu/consensus, receipt store, mesh/OTel, math/AP-12) mapped to the real app(s)/repo(s) that implement it \u2014 mirrored from the a11oy.net/anatomy-map deck. 8 LOCKED formulas; \u039b = Conjecture 1.',
+      sub:'The single honest map: every agentic capability (RAG, MCP, ouroboros loop, khipu/consensus, receipt store, mesh/OTel, math/AP-12) mapped to the real app(s)/repo(s) that implement it \u2014 mirrored from the a-11-oy.com/anatomy-map deck. 8 LOCKED formulas; \u039b = Conjecture 1.',
       render:render };
   }
   reg();
