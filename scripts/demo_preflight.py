@@ -26,7 +26,7 @@
 # Stdlib only (urllib + xml + argparse) so it runs anywhere python3 runs:
 #
 #   python3 scripts/demo_preflight.py
-#   python3 scripts/demo_preflight.py --base-url https://killinchu.a11oy.net
+#   python3 scripts/demo_preflight.py --base-url https://killinchu.a-11-oy.com
 #   python3 scripts/demo_preflight.py --json            # machine-readable
 #   python3 scripts/demo_preflight.py --include-pending  # probe pending routes too
 #
@@ -44,7 +44,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
-DEFAULT_BASE_URL = "https://killinchu.a11oy.net"
+DEFAULT_BASE_URL = "https://killinchu.a-11-oy.com"
 DEFAULT_TIMEOUT = 20.0
 
 # Verdicts.

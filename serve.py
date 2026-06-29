@@ -1073,7 +1073,7 @@ except Exception as _os_e:
 # with Access-Control-Allow-Origin. Browsers were therefore allowed to read
 # cross-origin responses from any site. We restrict the browser CORS grant to
 # the known killinchu / a11oy estate:
-#   * killinchu.a11oy.net + a11oy.net (apex + any subdomain)
+#   * killinchu.a-11-oy.com + a-11-oy.com (apex + any subdomain)
 #   * the HF Spaces that legitimately embed / call us (*.hf.space,
 #     *.huggingface.co) — this is how the founder views the Space and how the
 #     /jackin console + operator widget cross-call the a11oy substrate.
@@ -1091,9 +1091,9 @@ except Exception as _os_e:
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 # ===========================================================================
 _CORS_ALLOW_ORIGINS = [
-    "https://killinchu.a11oy.net",
-    "https://a11oy.net",
-    "https://www.a11oy.net",
+    "https://killinchu.a-11-oy.com",
+    "https://a-11-oy.com",
+    "https://www.a-11-oy.com",
     "https://szlholdings-killinchu.hf.space",
     "https://huggingface.co",
     "http://localhost:7860",
@@ -1101,10 +1101,10 @@ _CORS_ALLOW_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
 ]
-# Regex covers every a11oy.net subdomain + the HF Space / Hub estate (the only
+# Regex covers every a-11-oy.com subdomain + the HF Space / Hub estate (the only
 # legitimate cross-origin embedders/callers). Anchored, https-only.
 _CORS_ALLOW_ORIGIN_REGEX = (
-    r"^https://([a-z0-9-]+\.)*a11oy\.net$"
+    r"^https://([a-z0-9-]+\.)*a-11-oy\.com$"
     r"|^https://[a-z0-9-]+\.hf\.space$"
     r"|^https://([a-z0-9-]+\.)*huggingface\.co$"
 )
@@ -4794,7 +4794,7 @@ except Exception as _sapa_e:  # pragma: no cover
 
 
 # ============================================================================
-# SPACES ON a11oy.net (Dev2+3) — surface all 11 live HF Spaces same-origin.
+# SPACES ON a-11-oy.com (Dev2+3) — surface all 11 live HF Spaces same-origin.
 # (1) szl_spaces_proxy: reverse-proxy each Space under /spaces/<name> (server-side
 #     fetch, honest 502 on flap, allowlist only, a11oy/killinchu skipped as self/own-
 #     host). (2) szl_spaces_surface: /api/<ns>/v1/spaces/health (REAL probe + HF-API
@@ -4821,7 +4821,7 @@ try:
 except Exception as _szl_ss_e:  # pragma: no cover
     print(f"[killinchu] Spaces surface NOT registered: {_szl_ss_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 # ============================================================================
-# END: SPACES ON a11oy.net (Dev2+3)
+# END: SPACES ON a-11-oy.com (Dev2+3)
 # ============================================================================
 
 

@@ -62,7 +62,7 @@ _START_TS = time.time()
 # ADS-B is an UNAUTHENTICATED broadcast CLAIM, not attested truth (honest label).
 _MIL_ADSB_URL = "https://api.adsb.lol/v2/mil"
 _LIVE_CACHE_TTL = 60  # seconds a "live" scrape stays fresh before a re-fetch
-_USER_AGENT = "killinchu-backend/1.0 (+https://killinchu.a11oy.net)"
+_USER_AGENT = "killinchu-backend/1.0 (+https://killinchu.a-11-oy.com)"
 
 
 def _now_iso() -> str:

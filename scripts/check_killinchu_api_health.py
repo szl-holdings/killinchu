@@ -14,7 +14,7 @@ and no third-party GitHub Action (org policy: github-owned/verified actions only
 
 Usage:
   check_killinchu_api_health.py \
-      --target box=https://killinchu.a11oy.net \
+      --target box=https://killinchu.a-11-oy.com \
       --target hf=https://szlholdings-killinchu.hf.space \
       [--summary-file out.json] [--attempts 5] [--sleep 15] [--timeout 20]
 """
@@ -120,7 +120,7 @@ def main(argv=None):
         action="append",
         default=[],
         metavar="LABEL=BASE_URL",
-        help="Target to probe, e.g. box=https://killinchu.a11oy.net (repeatable).",
+        help="Target to probe, e.g. box=https://killinchu.a-11-oy.com (repeatable).",
     )
     ap.add_argument("--attempts", type=int, default=5, help="Retry attempts per endpoint (default 5).")
     ap.add_argument("--sleep", type=float, default=15.0, help="Seconds between retries (default 15).")

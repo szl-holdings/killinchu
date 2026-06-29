@@ -7,7 +7,7 @@
 # endpoints keep returning JSON (content-type application/json) carrying the
 # Doctrine v11 envelope {status, citations, fetchedAt} — i.e. it catches the
 # regression where the SPA HTML is served with a 200 instead of the real API
-# payload. Runs against BOTH live targets (box host killinchu.a11oy.net + HF
+# payload. Runs against BOTH live targets (box host killinchu.a-11-oy.com + HF
 # Space szlholdings-killinchu.hf.space), tolerant of transient rebuild states
 # (bounded retries), and alerts the team via the shared ntfy channel on a
 # sustained failure.
@@ -61,7 +61,7 @@ jobs:
         run: |
           set +e
           python3 scripts/check_killinchu_api_health.py \
-            --target "box=https://killinchu.a11oy.net" \
+            --target "box=https://killinchu.a-11-oy.com" \
             --target "hf=https://szlholdings-killinchu.hf.space" \
             --summary-file /tmp/killinchu-api-health.json | tee /tmp/probe.log
           code=$?
