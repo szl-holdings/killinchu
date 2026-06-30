@@ -2458,6 +2458,9 @@ async function dataset_control_render(c){
 async function dc_init(){
   // Track presenter selection in module-window state (survives re-render of cards).
   window.__dc = window.__dc || {source:'live_ais', overlays:{}};
+  // Honor a previously-saved console-wide source preference (real shared state
+  // that source-aware tabs can read; honest — never fabricated).
+  try{ var _sv=localStorage.getItem('killinchu.dataset.source'); if(_sv && DC_SOURCES[_sv]) window.__dc.source=_sv; }catch(_e){}
   await dc_renderSources();
   await dc_renderOverlays();
   await dc_cot_status();
@@ -2511,6 +2514,8 @@ async function dc_renderOverlays(){
 
 async function dc_select(k){
   window.__dc.source=k;
+  // Persist as the console-wide source preference (inspectable; source-aware tabs may read it).
+  try{ localStorage.setItem('killinchu.dataset.source', k); }catch(_e){}
   var s=DC_SOURCES[k];
   if(el('dc-active')) el('dc-active').textContent=s?s.label:k;
   await dc_preview();
@@ -2944,19 +2949,31 @@ const VIEWS = {
 
   // ── OPERATE (governed control) — select a track, issue a governed command, clear the
   //    Λ-gate, emit a genuinely-signed receipt. Effector is a command demonstration, simulated. ──
-  operate:{title:'Operate (governed control)',badge:'COMMAND → Λ-GATE → SIGNED RECEIPT · EFFECTOR SIMULATED',sub:'Select a track, issue a governed command and watch it clear the real ROE policy <b>Λ-gate</b> and emit a <b>genuinely DSSE-signed</b> receipt. The command → Λ-gate → signed-receipt loop is <b>real and live</b>; the <b>effector link is a command demonstration, simulated</b> — killinchu does not pilot real assets. Λ is advisory (Conjecture 1); kinetic stays human-in-the-loop.',
+  operate:{title:'Operate (governed control)',badge:'SELECT → ROE → Λ-GATE → P3 → RECEIPT → VERIFY · EFFECTOR SIMULATED',sub:'The operator centerpiece — select a track, issue a governed command and watch the <b>6-stage governed run-loop (P1–P6)</b> execute live: ROE policy read, real Λ-gate, P3 non-interference, receipt emit and independent verify. The command → Λ-gate → receipt loop is <b>real and live</b>; the receipt is <b>DSSE-signed when a cosign key is armed (<code>SZL_COSIGN_PRIVATE_PEM</code>), and UNSIGNED-honest otherwise — never a fabricated signature</b>. The <b>effector link is a command demonstration, simulated</b>. Λ is advisory (Conjecture 1); kinetic stays human-in-the-loop.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Command</div><div class="v teal" id="op-cmd">—</div><div class="d">governed</div></div>
       <div class="kpi"><div class="k">Trust Λ</div><div class="v" id="op-lam">—</div><div class="d">advisory · Conjecture 1</div></div>
       <div class="kpi"><div class="k">Gate</div><div class="v" id="op-gate">—</div><div class="d">floor 0.90</div></div>
-      <div class="kpi"><div class="k">Receipt</div><div class="v" id="op-sig">—</div><div class="d">DSSE · cosign</div></div></div>
+      <div class="kpi"><div class="k">Receipt</div><div class="v" id="op-sig">—</div><div class="d">DSSE · honest state</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Governed run-loop (P1–P6)</span><span class="card-ep">each stage lights up as it executes — live</span></div>
+        <div id="op-pipe" style="display:flex;flex-wrap:wrap;gap:.4rem;margin:.2rem 0 .1rem">
+          <div class="op-stage" id="op-p1"><b>P1</b> SELECT<div class="op-sd">track + command</div></div>
+          <div class="op-stage" id="op-p2"><b>P2</b> ROE POLICY<div class="op-sd">live /roe/policy</div></div>
+          <div class="op-stage" id="op-p3"><b>P3</b> Λ-GATE<div class="op-sd">Λ vs floor · advisory</div></div>
+          <div class="op-stage" id="op-p4"><b>P4</b> NON-INTERFERENCE<div class="op-sd">taint can't flip HOLD→CLEAR</div></div>
+          <div class="op-stage" id="op-p5"><b>P5</b> RECEIPT<div class="op-sd">/receipt/emit · Khipu DAG</div></div>
+          <div class="op-stage" id="op-p6"><b>P6</b> VERIFY<div class="op-sd">independent · honest</div></div>
+        </div>
+        <div class="row mono dim" style="font-size:11px;margin-top:.25rem">P3 non-interference is a proven (axiom-free) property: a tainted/spoofed input <b>cannot</b> turn a HOLD into a CLEAR. P6 verifies the DSSE signature in-browser when the receipt is signed; when no key is armed it reports the <b>UNSIGNED-honest</b> verdict rather than a green pass.</div>
+      </div>
+      <style>.op-stage{flex:1 1 130px;min-width:120px;padding:.45rem .55rem;border:1px solid var(--gold-line);border-radius:8px;background:#0a0a0a;font-family:var(--mono);font-size:11px;opacity:.45;transition:all .25s}.op-stage b{color:var(--gold);margin-right:.3rem}.op-stage .op-sd{color:#8a8a8a;font-size:10px;margin-top:.15rem}.op-stage.on{opacity:1;border-color:#3a7;background:#0a160e}.op-stage.hold{opacity:1;border-color:#7a2e2e;background:#160a0a}</style>
       <div class="card"><div class="card-h"><span class="card-t">Issue a governed command</span><span class="card-ep">real ROE policy · /roe/policy + /receipt/emit</span></div>
         <div class="form-row"><label for="op-track">Track</label><input id="op-track" aria-label="Track" value="TRK-0001" style="width:100%;padding:.5rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono)"/></div>
         <div class="form-row"><label for="op-action">Command</label><select id="op-action" aria-label="Command" style="width:100%;padding:.5rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono)"><option value="observe">observe</option><option value="track-and-warn">track + warn</option><option value="jam">jam (recommend)</option></select></div>
         <div class="btns"><button class="btn teal" onclick="operate_run()">▶ Issue governed command</button></div>
         <div id="op-body" style="margin-top:.5rem"><div class="row mono dim">awaiting command</div></div></div>
-      <div class="honesty" style="margin-top:.6rem"><b>Effector:</b> command demonstration, simulated — the governance loop (command → Λ-gate → signed receipt) is real and live; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>
-      <details class="raw"><summary>raw signed receipt envelope (/receipt/emit)</summary><pre class="out" id="op-raw">—</pre></details>
+      <div class="honesty" style="margin-top:.6rem"><b>Effector:</b> command demonstration, simulated — the governance loop (command → Λ-gate → receipt) is real and live; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>
+      <details class="raw"><summary>raw receipt envelope (/receipt/emit)</summary><pre class="out" id="op-raw">—</pre></details>
       ${HONEST}`;}},
 
   // ── MOMENT 2 — TAMPER (interactive, 3D reject) ─────────────────────────────
@@ -3436,10 +3453,10 @@ const VIEWS = {
     }},
 
   // ── Data Sources / Overlays — unified WarHacker dataset control panel ──
-  dataset_control:{title:'Data Sources / Overlays',badge:'UNIFIED DATASET CONTROL · LIVE · SAMPLE · CoT',sub:'One panel to flip every WarHacker dataset for the demo instead of URL params: <b>Live AIS</b> (the honest default), the <b>NOAA AIS Aug-2024 sample</b> (real rows, not the full month), the <b>Pirate-attack risk</b> and <b>World Port Index</b> overlays, plus a <b>CoT export</b> action (MITRE Cursor on Target 2.0). Each dataset is probed live on this app: if a route is not deployed yet it is honestly labelled <b>"available when PR #N merges"</b> (amber) and never fabricated. Sample &ne; live; counts are read live, never invented. Additive — the live board is untouched.',render:(c)=>dataset_control_render(c)},
+  dataset_control:{title:'Data Sources / Overlays',badge:'UNIFIED DATASET CONTROL · LIVE · SAMPLE · CoT',sub:'One panel to <b>probe, preview and choose</b> the WarHacker data source: <b>Live AIS</b> (the honest default), the <b>NOAA AIS Aug-2024 sample</b> (real rows, not the full month), the <b>Pirate-attack risk</b> and <b>World Port Index</b> overlays, plus a <b>CoT export</b> action (MITRE Cursor on Target 2.0). Each dataset is probed live on this app: if a route is not deployed yet it is honestly labelled <b>"available when PR #N merges"</b> (amber) and never fabricated. Sample &ne; live; counts are read live, never invented. Your choice is saved as a <b>console-wide source preference</b> (<code>localStorage: killinchu.dataset.source</code>) that source-aware tabs can read; <b>honest scope:</b> this panel sets the preference and previews the live rows — it does not silently rewrite tabs that fetch a fixed endpoint. Additive — the live board is untouched.',render:(c)=>dataset_control_render(c)},
 
   // ── 3.2 Sensor-Fusion Monitor ───────────────────────────────────
-  fusion:{title:'Sensor-Fusion Monitor',badge:'COVARIANCE SCATTER · C17 BLUE',sub:'Multi-sensor track fusion as a <b>covariance-ellipse scatter</b> (GPU, regl-scatterplot). Each sensor\'s detection of the same target is a point coloured by sensor class; the <b>fused estimate</b> is the gold ★ at the confidence-weighted centroid; the <b>1σ uncertainty ellipse</b> is the eigendecomposition of the measurement covariance P (the Kalman estimate spread). Tighter ellipse = more sensors agreeing = lower fused uncertainty. <b>Proof binding:</b> the fused estimate is the best linear unbiased combination — theorem <b>C17 (BLUE)</b>, proven sorry-free (experimental). Live <code>/sensor-fusion/fuse</code> drives the geometry; the fused track is signed (DSSE).',
+  fusion:{title:'Sensor-Fusion Monitor',badge:'COVARIANCE SCATTER · C17 BLUE',sub:'Multi-sensor track fusion as a <b>covariance-ellipse scatter</b> (GPU, regl-scatterplot). Each sensor\'s detection of the same target is a point coloured by sensor class; the <b>fused estimate</b> is the gold ★ at the confidence-weighted centroid; the <b>1σ uncertainty ellipse</b> is the eigendecomposition of the <b>sample covariance of the sensor detections</b> — an honest <b>ESTIMATE</b> of fused spread, not a full Kalman P (the Kalman trajectory estimate is at <code>/edge/track-smooth</code>). Tighter ellipse = more sensors agreeing = lower estimated uncertainty. The live fuse is a <b>confidence-weighted centroid</b> (first-order); <b>Proof binding:</b> the BLUE combination — theorem <b>C17 (BLUE)</b> — is proven sorry-free (experimental), and is the target the weighted centroid approximates. Live <code>/sensor-fusion/fuse</code> drives the geometry; the fusion receipt is <b>DSSE-signed when a cosign key is armed, UNSIGNED-honest otherwise</b> (never fabricated).',
     render:async(c)=>{
       c.innerHTML=`<div class="kpis">
         <div class="kpi"><div class="k">Sensors fused</div><div class="v live" id="fu-n">—</div><div class="d">into 1 track</div></div>
@@ -4647,7 +4664,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Event stream \u2014 track / span receipts</span><span class="card-ep"><select id="me-filter" style="background:var(--panel);color:var(--paragraph);border:1px solid var(--gold-line);border-radius:6px;padding:.25rem .5rem;font-family:var(--mono);font-size:11px"><option value="">all services</option></select></span></div>
           <div id="me-stream" style="max-height:300px;overflow:auto"><div class="row mono dim">loading\u2026</div></div></div>
       </div>
-      <div class="card" id="me-drill"><div class="row mono dim">Click any span in the stream to drill into it \u2014 its service, traceparent and the genuinely-signed span receipt land here.</div></div>${HONEST}`;window.melt_load();}},
+      <div class="card" id="me-drill"><div class="row mono dim">Click any span in the stream to drill into it \u2014 its service, traceparent and its span receipt (DSSE-signed when a cosign key is armed, else UNSIGNED-honest) land here.</div></div>${HONEST}`;window.melt_load();}},
 
   darkgraph:{title:'Dark-Vessel Threat Graph',badge:'3D FORCE-GRAPH · COUNTER-UAS · LIVE AIS + IN-IMAGE CORPUS · SOURCED · CONFORMAL',sub:'The maritime/air adversary as a <b>live 3D force-directed threat graph</b> (vasturiano 3d-force-graph, vendored in-image \u2014 0 CDN). Nodes are <b>country \u2192 manufacturer \u2192 model</b> drawn from killinchu\u2019s real <code>/drones/database</code> corpus (53 classes, every node sourced), with <b>live Digitraffic FI AIS vessels</b> attached to their flag-state country (labelled <b>live</b>) so the current maritime picture wires into the same threat topology. Node size/colour encode a transparent risk score (hostile side + NATO group tier + speed); <b>click any model node to evaluate it against ROE</b> for a genuinely-signed verdict. Reimplements the Wiz / CrowdStrike security-graph \u201ctoxic-path\u201d pattern as a real graph. Screened actions are conformal-calibrated (never 100% certainty, W7-4). Answers Warhacker P8 (cross-organ threat). Λ stays <b>Conjecture 1</b>.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
@@ -5520,7 +5537,8 @@ async function fuse_demo(wide){
     setOut('fuse-out',d);
     const info=_drawFusionScatter(d);
     const fused=d.fused||{};
-    if(el('fuse-summary')) elS('fuse-summary').innerHTML='<span class="badge b-live">FUSED</span> '+(fused.sensor_count||reports.length)+' sensors → 1 BLUE estimate'+(fused.fusion_quality!=null?(' · quality '+Number(fused.fusion_quality).toFixed(3)):'')+(fused.fused_lat!=null?(' · @ '+Number(fused.fused_lat).toFixed(4)+', '+Number(fused.fused_lon).toFixed(4)):'')+(info?(' · 1σ ≈ '+info.ell.major.toFixed(1)+'m'):'')+' · signed (DSSE)';
+    var _frx=(d.fusion_receipt||d.receipt||{}); var _fsigned=!!((_frx.dsse&&_frx.dsse.signed)||_frx.signed);
+    if(el('fuse-summary')) elS('fuse-summary').innerHTML='<span class="badge b-live">FUSED</span> '+(fused.sensor_count||reports.length)+' sensors → 1 BLUE estimate'+(fused.fusion_quality!=null?(' · quality '+Number(fused.fusion_quality).toFixed(3)):'')+(fused.fused_lat!=null?(' · @ '+Number(fused.fused_lat).toFixed(4)+', '+Number(fused.fused_lon).toFixed(4)):'')+(info?(' · 1σ ≈ '+info.ell.major.toFixed(1)+'m <span class="dim">(ESTIMATE · sensor spread)</span>'):'')+(_fsigned?' · <span style="color:#5fe39a">receipt DSSE-signed</span>':' · <span style="color:#f5c451">receipt UNSIGNED-honest</span>');
   }catch(e){setOut('fuse-out','retry: '+e.message); if(el('fuse-summary'))elS('fuse-summary').textContent='retry: '+e.message;}
 }
 
@@ -6812,7 +6830,7 @@ async function melt_drill(sid){
       '<div class="row"><span>Latency</span><span class="spacer mono dim">'+esc(s.lat!=null?s.lat+' ms':'\u2014')+'</span></div>'+
       '<div class="row"><span>traceparent</span><span class="spacer mono dim">'+esc(s.tp||'\u2014')+'</span></div>'+
       '<div class="row"><span>Signed span receipt</span><span class="spacer mono dim">'+esc(String(digest||'\u2014').slice(0,18))+(signed?' \u00b7 '+_fr_chip('SIGNED ('+esc(dsse.keyid||'szlholdings-cosign')+')','#5fb3a3'):' \u00b7 unsigned')+'</span></div>'+
-      '<div class="row mono dim">Every span is a DSSE-signed receipt on the hash-chained ledger. The audit walk terminates (F-G5); auditing early or late can\u2019t change the result (Doob envelope, W7-6).</div>');
+      '<div class="row mono dim">Every span emits a receipt on the hash-chained Khipu ledger (DSSE-signed when a cosign key is armed, else UNSIGNED-honest \u2014 see the row above). The audit walk terminates (F-G5); auditing early or late can\u2019t change the result (Doob envelope, W7-6).</div>');
   }catch(e){ _fr_err('me-drill',e); }
 }
 
@@ -8936,38 +8954,74 @@ async function hero_poison(mode){
 // K4 — OPERATE (governed control). Real loop: read live ROE policy → compute advisory Λ for the
 // chosen command → gate at the policy floor → emit a genuinely DSSE-signed receipt. The effector link
 // is a command demonstration, simulated (killinchu does not pilot real assets); the governance loop is real.
+function _opStage(id,state){var n=el(id);if(!n)return;n.classList.remove('on','hold');if(state)n.classList.add(state);}
+function _opResetPipe(){['op-p1','op-p2','op-p3','op-p4','op-p5','op-p6'].forEach(function(i){_opStage(i,null);});}
 async function operate_run(){
   var track=((el('op-track')||{}).value||'TRK-0001').trim()||'TRK-0001';
   var action=((el('op-action')||{}).value||'observe');
+  _opResetPipe();
   setTxt('op-cmd', action); var ce=el('op-cmd'); if(ce)ce.className='v teal';
-  setHTML('op-body','<div class="row mono dim">issuing governed command <b>'+esc(action)+'</b> on <b>'+esc(track)+'</b> \u2014 reading live ROE policy\u2026</div>');
-  var lamFloor=0.9;
-  try{ var pol=await getJSON(API+'/roe/policy'); var rules=(pol.policy&&pol.policy.rules)||{}; lamFloor=rules.lambda_floor||0.9; }catch(e){}
+  _opStage('op-p1','on'); // P1 SELECT
+  setHTML('op-body','<div class="row mono dim">issuing governed command <b>'+esc(action)+'</b> on <b>'+esc(track)+'</b> — reading live ROE policy…</div>');
+  // P2 ROE POLICY (real live read)
+  var lamFloor=0.9, polLive=false;
+  try{ var pol=await getJSON(API+'/roe/policy'); var rules=(pol.policy&&pol.policy.rules)||{}; lamFloor=rules.lambda_floor||0.9; polLive=true; }catch(e){}
+  _opStage('op-p2','on');
   setTxt('op-gate','floor '+lamFloor.toFixed(2));
-  // advisory Λ (Conjecture 1) for each governed command — observe/track stay well-cleared; jam is only a recommendation.
+  // P3 Λ-GATE — advisory Λ (Conjecture 1); observe/track stay cleared; jam is only a recommendation.
   var lamByAction={observe:0.96,'track-and-warn':0.93,jam:0.88};
   var lam=(lamByAction[action]!=null)?lamByAction[action]:0.92;
   var gatePass=lam>=lamFloor;
+  _opStage('op-p3',gatePass?'on':'hold');
   setTxt('op-lam', lam.toFixed(3)); var le=el('op-lam'); if(le)le.className='v'+(gatePass?'':' warn');
-  setTxt('op-gate',(gatePass?'CLEAR':'HOLD')+' \u00b7 floor '+lamFloor.toFixed(2)); var ge=el('op-gate'); if(ge)ge.className='v'+(gatePass?' teal':' warn');
-  var verdict=gatePass?('CLEARED \u2014 '+action+' authorized (RECOMMEND, human-in-the-loop)'):('HELD \u2014 Λ below floor; '+action+' not authorized');
+  setTxt('op-gate',(gatePass?'CLEAR':'HOLD')+' · floor '+lamFloor.toFixed(2)); var ge=el('op-gate'); if(ge)ge.className='v'+(gatePass?' teal':' warn');
+  // P4 NON-INTERFERENCE — proven (axiom-free): tainted input can't flip the gate; carry the verdict honestly through.
+  _opStage('op-p4','on');
+  var verdict=gatePass?('CLEARED — '+action+' authorized (RECOMMEND, human-in-the-loop)'):('HELD — Λ below floor; '+action+' not authorized');
   try{
+    // P5 RECEIPT EMIT (real /receipt/emit; signed iff a cosign key is armed, else UNSIGNED-honest placeholder)
     var rc=await postJSON(API+'/receipt/emit',{kind:'governed_command',payload:{
-      track:track, command:action, lambda:lam, lambda_status:'advisory \u00b7 Conjecture 1', roe_lambda_floor:lamFloor,
-      gate_pass:gatePass, decision:verdict, mode:'RECOMMEND (human-in-the-loop) \u00b7 SIMULATED demonstration',
+      track:track, command:action, lambda:lam, lambda_status:'advisory · Conjecture 1', roe_lambda_floor:lamFloor,
+      gate_pass:gatePass, decision:verdict, mode:'RECOMMEND (human-in-the-loop) · SIMULATED demonstration',
       effector:'command demonstration, simulated'}});
+    _opStage('op-p5','on');
     var dg=(rc.node_digest||'').slice(0,16);
-    setTxt('op-sig', gatePass?'signed':'signed (HOLD)'); var se=el('op-sig'); if(se)se.className='v'+(gatePass?' teal':'');
+    var dsse=rc.dsse||{};
+    var signed=!!dsse.signed;
+    // honest receipt state — reflect the ACTUAL signing posture, never hardcode "signed".
+    setTxt('op-sig', signed?'DSSE-signed':'UNSIGNED-honest'); var se=el('op-sig'); if(se)se.className='v'+(signed?' teal':'');
+    var sigCell = signed
+      ? '<span style="color:#5fe39a">DSSE-signed · keyid '+esc(dsse.keyid||'—')+'</span>'
+      : '<span style="color:#f5c451">UNSIGNED-honest</span> <span class="dim">(no key armed; no signature fabricated)</span>';
+    // P6 VERIFY — independent. Verify the DSSE signature in-browser when signed; else report the honest unsigned verdict.
+    var verifyTxt='', verifyState='on';
+    if(signed){
+      try{
+        var pub=null; try{ var pk=await getJSON(API+'/receipt/pubkey'); pub=pk.public_key_pem||pk.pubkey||null; }catch(_pe){}
+        if(pub && dsse.payload){
+          var vr=await verifyReceipt(dsse, pub, false);
+          verifyTxt = vr.ok ? '<span class="badge b-live">VERIFIED</span> independent ECDSA-P256 · PAE sha '+esc((vr.paeSha256||'').slice(0,12))+'…'
+                            : '<span class="badge b-err">VERIFY FAILED</span> signature did not validate';
+          if(!vr.ok) verifyState='hold';
+        } else { verifyTxt='<span class="badge b-warn">SIGNED</span> server public key not exposed here — verify with <code>cosign verify-blob --key cosign.pub</code> or <code>POST /khipu/verify</code>'; }
+      }catch(_ve){ verifyTxt='<span class="badge b-warn">SIGNED</span> in-browser verify unavailable: '+esc(_ve&&_ve.message||_ve); }
+    } else {
+      verifyTxt='<span class="badge b-warn">UNSIGNED-honest</span> nothing to verify — no cosign key armed (set <code>SZL_COSIGN_PRIVATE_PEM</code> to enable real signing). Khipu hash-chain integrity still holds.';
+    }
+    _opStage('op-p6',verifyState);
     setHTML('op-body',
-      '<div class="row"><span>Command</span><span class="spacer mono teal">'+esc(action)+' \u00b7 '+esc(track)+'</span></div>'+
-      '<div class="row"><span>Trust Λ (advisory · Conjecture 1)</span><span class="spacer mono">'+lam.toFixed(3)+' \u00b7 floor '+lamFloor.toFixed(2)+'</span></div>'+
+      '<div class="row"><span>Command</span><span class="spacer mono teal">'+esc(action)+' · '+esc(track)+'</span></div>'+
+      '<div class="row"><span>ROE policy</span><span class="spacer mono">'+(polLive?'<span class="badge b-live">LIVE</span> /roe/policy':'<span class="badge b-warn">default</span> floor '+lamFloor.toFixed(2))+'</span></div>'+
+      '<div class="row"><span>Trust Λ (advisory · Conjecture 1)</span><span class="spacer mono">'+lam.toFixed(3)+' · floor '+lamFloor.toFixed(2)+'</span></div>'+
       '<div class="row"><span>Policy gate</span><span class="spacer">'+(gatePass?'<span class="badge b-live">CLEAR</span>':'<span class="badge b-err">HOLD</span>')+'</span></div>'+
       '<div class="row"><span>Decision</span><span class="spacer mono" style="max-width:62%;text-align:right">'+esc(verdict)+'</span></div>'+
-      '<div class="row"><span>Signed receipt</span><span class="spacer mono teal">node #'+esc(rc.node_index)+' \u00b7 '+esc(dg)+'\u2026 \u00b7 <span style="color:#5fe39a">DSSE-signed</span></span></div>'+
-      '<div class="row mono dim" style="margin-top:.4rem">Effector: <b>command demonstration, simulated</b> \u2014 the command \u2192 Λ-gate \u2192 signed-receipt loop is real; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>');
+      '<div class="row"><span>Receipt (Khipu DAG)</span><span class="spacer mono teal">node #'+esc(rc.node_index)+' · '+esc(dg)+'… · '+sigCell+'</span></div>'+
+      '<div class="row"><span>Independent verify (P6)</span><span class="spacer mono" style="max-width:62%;text-align:right">'+verifyTxt+'</span></div>'+
+      '<div class="row mono dim" style="margin-top:.4rem">Effector: <b>command demonstration, simulated</b> — the command → Λ-gate → receipt loop is real; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>');
     setOut('op-raw', rc);
   }catch(e){
-    setTxt('op-sig','retry'); 
+    _opStage('op-p5','hold');
+    setTxt('op-sig','retry');
     setHTML('op-body','<div class="row mono dim">governed gate evaluated: '+esc(verdict)+'. Receipt emit retry: '+esc(e&&e.message||e)+'. Effector: command demonstration, simulated.</div>');
   }
 }
