@@ -2881,6 +2881,65 @@ except Exception as _elite_e:
 # ── end ELITE ────────────────────────────────────────────────────────────────
 
 # ===========================================================================
+# ADDITIVE (DEV 3): killinchu COMMON OPERATING PICTURE (COP) fusion surface.
+# A defense-leader-grade fused COP at /elite/cop — Anduril Lattice ENTITY MESH
+# (typed threat tracks → genuine ECDSA-P256 signed entity-state transitions via
+# killinchu_mesh), True Anomaly Mosaic-style Three.js holographic threat space +
+# governance/receipt/ROE panels on ONE screen, OODA-loop metrics, per-interdiction
+# DSSE receipt with a REAL 3-of-4 BFT cosign live-streamed (optimistic UI), and
+# SZL Capability Levels SCL-1/2/3 mapped to engagement authority (modelled on
+# DeepMind FSF CCLs). PRESERVES the real adsb.lol / Digitraffic AIS / CelesTrak
+# feeds (consumed, never mocked). HONEST: effectors SIMULATED, human-on-the-loop;
+# SCL-3 authority HELD (backing proof OPEN); Λ = Conjecture 1 (advisory); 0 CDN.
+# Additive, try/except-guarded, FRONT-INSERTED before the SPA catch-all.
+# ===========================================================================
+try:
+    import killinchu_cop_fusion as _kc_cop
+    _kc_cop_status = _kc_cop.register(app, ns="killinchu", emit_receipt=_emit_receipt)
+    print(f"[killinchu] COP fusion registered: {_kc_cop_status}", file=sys.stderr)
+
+    # Inject a single nav link into the /elite console HTML → /elite/cop.
+    from starlette.middleware.base import BaseHTTPMiddleware as _COP_Base
+    from starlette.responses import Response as _COP_SResp
+
+    _COP_LINK = (b'<a href="/elite/cop" '
+                 b'style="position:fixed;right:16px;bottom:16px;z-index:99998;'
+                 b'font:600 12px/1 JetBrains Mono,ui-monospace,monospace;letter-spacing:.5px;'
+                 b'color:#3af4c8;background:rgba(13,19,30,.92);border:1px solid rgba(58,244,200,.4);'
+                 b'border-radius:999px;padding:10px 14px;text-decoration:none;'
+                 b'box-shadow:0 2px 18px rgba(0,0,0,.5)">COP \xe2\x86\x97</a>')
+    _COP_MARK = b'href="/elite/cop"'
+
+    class _COPNavInjector(_COP_Base):
+        async def dispatch(self, request, call_next):
+            resp = await call_next(request)
+            try:
+                if request.url.path not in ("/elite", "/killinchu/elite"):
+                    return resp
+                ct = (resp.headers.get("content-type") or "").lower()
+                if "text/html" not in ct:
+                    return resp
+                body = b""
+                async for chunk in resp.body_iterator:
+                    body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
+                if _COP_MARK not in body and b"</body>" in body:
+                    body = body.replace(b"</body>", _COP_LINK + b"</body>", 1)
+                headers = dict(resp.headers)
+                headers.pop("content-length", None)
+                return _COP_SResp(content=body, status_code=resp.status_code,
+                                  headers=headers, media_type="text/html")
+            except Exception:
+                return resp
+
+    app.add_middleware(_COPNavInjector)
+    print("[killinchu] COP nav link injected into /elite", file=sys.stderr)
+except Exception as _kc_cop_e:
+    import traceback as _kc_cop_tb
+    print(f"[killinchu] COP fusion NOT registered (non-fatal): {_kc_cop_e!r}", file=sys.stderr)
+    _kc_cop_tb.print_exc()
+# ── end COP FUSION ───────────────────────────────────────────────────────────
+
+# ===========================================================================
 # ADDITIVE (2026-06-10, Yachay + Perplexity Computer Agent): OPERATOR WIDGET.
 # The SAME floating governed-operator surface ("Chaski") consolidated onto a11oy
 # is mounted here on killinchu too, so /elite and every killinchu HTML surface
