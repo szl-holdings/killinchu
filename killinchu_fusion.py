@@ -1150,6 +1150,44 @@ def register(app, space: str = "killinchu") -> dict[str, Any]:
         "    charts: [ { name: killinchu, valuesFiles: [ values/unicorn-values.yaml ] } ]\n"
         "    images: [ 'ghcr.io/szl-holdings/killinchu:0.5.0-wolfi' ]   # verify digest before deploy\n"
     )
+    def _uds_values(flavor, repo, tag, pub_status):
+        # Honest per-flavor Helm values (referenced by zarf.yaml valuesFiles).
+        # securityContext is hardened (non-root, read-only rootfs, no privilege
+        # escalation, all caps dropped). pub_status is stated verbatim — a not-yet
+        # published image is labelled, never claimed deployable.
+        return (
+            "# Copyright 2026 SZL Holdings\n"
+            "# SPDX-License-Identifier: Apache-2.0  (SZL Holdings; NOT a Defense Unicorns package)\n"
+            f"# Zarf flavor: {flavor}. Image publication status: {pub_status}\n"
+            "# Honest: registry1/unicorn images are NOT YET PUBLISHED — verify the digest\n"
+            "# before deploy; only the upstream ghcr image is public + cosign-signed (SLSA L1).\n"
+            "image:\n"
+            f"  repository: {repo}\n"
+            f"  tag: {tag}\n"
+            "  pullPolicy: IfNotPresent\n"
+            "service:\n"
+            "  type: ClusterIP\n"
+            "  port: 80\n"
+            "  targetPort: 8080\n"
+            "securityContext:\n"
+            "  runAsNonRoot: true\n"
+            "  runAsUser: 1001\n"
+            "  readOnlyRootFilesystem: true\n"
+            "  allowPrivilegeEscalation: false\n"
+            "  capabilities: { drop: [ ALL ] }\n"
+            "resources:\n"
+            "  requests: { cpu: 250m, memory: 512Mi }\n"
+            "  limits:   { cpu: '2',  memory: 2Gi }\n"
+        )
+
+    _UDS_VALUES = {
+        "upstream":  _uds_values("upstream (docker.io / ghcr)", "ghcr.io/szl-holdings/killinchu",
+                                 "uds-v0.2.0", "PUBLISHED — public, cosign-signed, SLSA L1"),
+        "registry1": _uds_values("registry1 (Iron Bank hardened)", "registry1.dso.mil/ironbank/szl/killinchu",
+                                 "uds-v0.2.0", "NOT YET PUBLISHED (Iron Bank push pending)"),
+        "unicorn":   _uds_values("unicorn (Chainguard/Wolfi)", "ghcr.io/szl-holdings/killinchu",
+                                 "0.5.0-wolfi", "NOT YET PUBLISHED (Wolfi image build pending)"),
+    }
     _UDS_ARTIFACTS = {
         "chart/templates/uds-package.yaml": _UDS_CR,
         "capabilities/szl-governance/pepr.ts": _UDS_PEPR,
@@ -1158,6 +1196,8 @@ def register(app, space: str = "killinchu") -> dict[str, Any]:
         "compliance/oscal-component-killinchu.yaml": _UDS_OSCAL,
         "NOTICE": _UDS_NOTICE,
     }
+    for _vk, _vv in _UDS_VALUES.items():
+        _UDS_ARTIFACTS[f"values/{_vk}-values.yaml"] = _vv
     for _k, _v in _UDS_VALIDATIONS.items():
         _UDS_ARTIFACTS[f"compliance/validations/{_k}.yaml"] = _v
 
