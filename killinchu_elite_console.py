@@ -2044,7 +2044,7 @@ window._SUBMAP = {
   u_intel:    [{k:'kev',l:'Known-Exploited (live CISA KEV)'},{k:'cve',l:'CVE Watch (live NVD)'},{k:'attack',l:'Adversary Techniques'},{k:'osint_intel',l:'Aggregated OSINT Intel'},{k:'osint_naval',l:'Naval OSINT (live web)'},{k:'osint_procurement',l:'Procurement Signals (live web)'},{k:'osint_advisories',l:'Cyber Advisories (live web)'},{k:'osint_geopolitical',l:'Geopolitical (live web)'},{k:'osint_counter_uas',l:'Counter-UAS Intel (live web)'}],
   // OPERATOR cluster: the 5 Operator OSINT orchestration sub-views
   u_operator: [{k:'operator_digest',l:'OSINT Digest'},{k:'operator_routing',l:'Vertical Routing'},{k:'operator_entities',l:'Entity Graph'},{k:'operator_correlate',l:'Correlate (Watch Picture)'},{k:'operator_watch',l:'Watchlist'}],
-  u_space:    [{k:'constellations',l:'Constellations (3D LEO)'},{k:'geoint',l:'GEOINT Aggregation'},{k:'pulse',l:'Seismic Forecast (live USGS)'}],
+  u_space:    [{k:'constellations',l:'Constellations (3D LEO)'},{k:'sda',l:'Live Orbits (SGP4 · SCREENING-GRADE)'},{k:'geoint',l:'GEOINT Aggregation'},{k:'pulse',l:'Seismic Forecast (live USGS)'}],
   u_warhacker:[{k:'warhacker',l:'Maritime/Drone Warhacker (27)'},{k:'warboard',l:'Warhacker Proofs Board'}],
   u_minedops: [{k:'edgeest',l:'Edge VRAM Estimator'},{k:'telemem',l:'Telemetry Memory'},{k:'adaptsample',l:'Adaptive Sensor Sampling'},{k:'tacroute',l:'Tactical Routing'},{k:'prioritize',l:'Multi-Track Priority'}],
   u_about:    [{k:'honest',l:'What We Claim'},{k:'research',l:'Research Corpus'},{k:'legal',l:'Legal Boundaries'},{k:'deploy',l:'Deploy Posture'},{k:'uds_package',l:'UDS Package'}],
@@ -3401,7 +3401,30 @@ const VIEWS = {
         <div class="card"><div class="card-h"><span class="card-t">Dark-network cluster</span><span class="card-ep">shared flag (gold) / operator (teal)</span></div><div id="dvh-net" style="height:300px"></div></div>
         <div class="card"><div class="card-h"><span class="card-t">Recurring AIS-gap timeline</span><span class="card-ep">Spire-style · sample window</span></div><div class="chartbox" style="height:300px"><canvas id="dvh-anom"></canvas></div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Suspect vessels — click to investigate</span></div><div id="dvh-list" style="max-height:320px;overflow:auto"><div class="row mono dim">loading…</div></div></div>${HONEST}`;window.darkhunt_load();}},
+      <div class="card"><div class="card-h"><span class="card-t">Suspect vessels — click to investigate</span></div><div id="dvh-list" style="max-height:320px;overflow:auto"><div class="row mono dim">loading…</div></div></div>
+      <div class="card" style="border-color:var(--teal-line)"><div class="card-h"><span class="card-t">${liveDot()}LIVE AIS-gap screen (real Digitraffic FI)</span><span class="card-ep">SCREENING-GRADE · single-snapshot gap proxy · GET /maritime/darkgaps</span></div>
+        <div class="kpis" style="margin-bottom:.5rem">
+          <div class="kpi"><div class="k">Screened (live)</div><div class="v teal" id="dvh-live-n">—</div><div class="d" id="dvh-live-mode">—</div></div>
+          <div class="kpi"><div class="k">AIS-quiet</div><div class="v" style="color:#b06a5a" id="dvh-live-dark">—</div><div class="d">report age ≥ threshold</div></div></div>
+        <div id="dvh-live-list" style="max-height:240px;overflow:auto"><div class="row mono dim">loading live AIS…</div></div>
+        <div class="mono dim" style="font-size:10.5px;margin-top:.4rem" id="dvh-live-honest">Real AIS-gap signal on live tracks — NOT a confirmed dark vessel; temporal history + SAR/RF cross-cue are roadmap.</div></div>
+      <details class="raw"><summary>raw /maritime/darkgaps</summary><pre class="out" id="dvh-live-raw">—</pre></details>${HONEST}`;
+      window.darkhunt_load();
+      (async()=>{ try{
+        const d=await getJSON(API+'/maritime/darkgaps?stale_s=600&limit=300');
+        if(el('dvh-live-raw')) setOut('dvh-live-raw',d);
+        if(!d.ok){ setHTML('dvh-live-list','<div class="row mono dim">live AIS unavailable: '+esc(d.error||'')+'</div>'); return; }
+        setTxt('dvh-live-n',d.screened_count); setTxt('dvh-live-mode',d.mode||'');
+        setTxt('dvh-live-dark',d.dark_count);
+        if(el('dvh-live-honest')) setTxt('dvh-live-honest',d.honesty||'');
+        const h=el('dvh-live-list'); h.innerHTML='';
+        const rows=(d.dark_vessels||[]);
+        if(!rows.length){ h.innerHTML='<div class="row mono dim">no AIS-quiet vessels in the current live snapshot (honest empty state)</div>'; return; }
+        rows.forEach(v=>{ h.insertAdjacentHTML('beforeend',`<div class="row" style="border-radius:6px"><span class="badge" style="color:#b06a5a;border:1px solid #b06a5a">AIS-QUIET</span>
+          <span class="mono">MMSI ${esc(v.mmsi||'—')}</span>
+          <span class="spacer mono dim" style="font-size:10.5px">age ${esc(Math.round(v.ais_age_s||0))}s · ${esc((v.lat||0).toFixed(2))},${esc((v.lon||0).toFixed(2))}</span></div>`); });
+      }catch(e){ setHTML('dvh-live-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>'); } })();
+    }},
 
 
 
@@ -4861,6 +4884,54 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
           </div>`);
         });
       }catch(e){setHTML('con-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
+    }},
+
+  // ── DI.3b SDA — live SGP4 orbit screening (REAL CelesTrak TLEs) ──
+  sda:{title:'Live Orbits (SDA)',badge:'SGP4 · SCREENING-GRADE · LIVE TLE',sub:'Real public <b>CelesTrak</b> element sets, <b>SGP4-propagated to NOW</b> into sub-satellite lat/lon/alt and plotted on a 3D globe. <b>SCREENING-GRADE</b>: orbit-screening situational awareness, NOT a calibrated catalogue or a conjunction screen — accuracy degrades with TLE age. If <code>sgp4</code> is absent the panel honestly degrades to the TLE registry (no fabricated positions). Live from <code>/api/killinchu/v1/sda/propagate?group=</code>.',
+    render:async(c)=>{
+      const GROUPS=['stations','starlink','oneweb','gps-ops','galileo','geo','science','last-30-days'];
+      c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Constellation group</span><span class="card-ep">CelesTrak gp.php · FORMAT=tle · free, no key</span></div>
+        <div class="btns" id="sda-groups">${GROUPS.map(g=>`<button class="btn" onclick="sda_load('${g}')" id="sda-g-${g}">${g}</button>`).join('')}</div>
+        <div class="kpis" style="margin-top:.6rem">
+          <div class="kpi"><div class="k">TLEs</div><div class="v teal" id="sda-tle">—</div><div class="d">element sets</div></div>
+          <div class="kpi"><div class="k">Propagated</div><div class="v" id="sda-prop">—</div><div class="d">to now (SGP4)</div></div>
+          <div class="kpi"><div class="k">Grade</div><div class="v" id="sda-grade" style="font-size:13px">—</div><div class="d">honest label</div></div>
+          <div class="kpi"><div class="k">Feed</div><div class="v" id="sda-mode" style="font-size:13px">—</div><div class="d">live / cached</div></div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Sub-satellite track globe (3D)</span><span class="card-ep">SGP4 TEME→ECEF(GMST)→WGS84 · screening-grade</span></div>
+        <div class="graph3d" id="sda-globe" style="height:460px;border-radius:10px;overflow:hidden;background:#03060c"></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Propagated objects</span><span class="card-ep" id="sda-epoch">—</span></div>
+        <div id="sda-list"><div class="row mono dim">pick a group…</div></div></div>
+      <details class="raw"><summary>raw /sda/propagate</summary><pre class="out" id="sda-raw">—</pre></details>
+      ${HONEST}`;
+      window.sda_load=async(g)=>{
+        document.querySelectorAll('#sda-groups .btn').forEach(b=>b.classList.remove('teal'));
+        const ab=el('sda-g-'+g); if(ab) ab.classList.add('teal');
+        setHTML('sda-list','<div class="row mono dim">propagating '+esc(g)+'…</div>');
+        try{
+          const d=await getJSON(API+'/sda/propagate?group='+encodeURIComponent(g)+'&limit=140');
+          setOut('sda-raw',d);
+          setTxt('sda-tle',d.tle_count!=null?d.tle_count:'—');
+          setTxt('sda-prop',d.propagated?d.propagated_count:'—');
+          const grade=el('sda-grade'); if(grade){ grade.textContent=d.grade||'—'; grade.style.color=d.propagated?'#5fb3a3':'#c9a05f'; }
+          setTxt('sda-mode',d.mode||'—');
+          if(el('sda-epoch')) setTxt('sda-epoch',d.epoch_utc?('epoch '+d.epoch_utc):(d.honesty||''));
+          const sats=(d.satellites||[]);
+          if(!d.propagated){
+            setHTML('sda-list','<div class="row"><span class="badge b-warn">'+esc(d.grade||'REGISTRY')+'</span><span class="mono dim" style="font-size:11.5px">'+esc(d.honesty||d.error||'no propagation')+'</span></div>'+
+              sats.slice(0,60).map(s=>'<div class="row mono dim" style="font-size:11px">'+esc(s.name)+'</div>').join(''));
+            try{ sda_globe([]); }catch(e){}
+            return;
+          }
+          try{ sda_globe(sats); }catch(e){}
+          const h=el('sda-list'); h.innerHTML='';
+          sats.slice(0,140).forEach(s=>{
+            h.insertAdjacentHTML('beforeend',`<div class="row" style="border-radius:6px"><span class="badge b-live">SGP4</span>
+              <span class="mono"><b>${esc(s.name)}</b></span>
+              <span class="spacer mono dim" style="font-size:10.5px">lat ${esc((s.lat||0).toFixed(2))} · lon ${esc((s.lon||0).toFixed(2))} · ${esc(Math.round(s.alt_km||0))} km</span></div>`);
+          });
+        }catch(e){ setHTML('sda-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>'); }
+      };
+      window.sda_load('stations');
     }},
 
   // ── DI.4 GEOINT Aggregation ─────────────────────────────────────
@@ -6931,6 +7002,29 @@ function constellations_globe(cons){
 function constellations_highlight(t){
   var row=document.getElementById('con-row-'+(t&&t.id||''));
   if(row){ row.scrollIntoView({block:'nearest',behavior:'smooth'}); row.style.outline='2px solid '+_con_color(t); setTimeout(function(){ try{ row.style.outline=''; }catch(e){} },1800); }
+}
+function sda_globe(sats){
+  var host=el('sda-globe'); if(!host||typeof Globe==='undefined') return;
+  try{ killGlobe(); }catch(e){}
+  host.innerHTML='';
+  var bw=host.clientWidth||host.offsetWidth||640, bh=host.clientHeight||460;
+  // REAL sub-satellite positions: globe altitude scaled from km (Earth R~6371km).
+  var pts=(sats||[]).map(function(s){
+    var altKm=s.alt_km||400, gAlt=Math.max(0.02,Math.min(1.2,altKm/6371));
+    var col=altKm<2000?'#5fb3a3':(altKm<25000?'#c9b787':'#7aa0d0'); // LEO/MEO/GEO
+    return {lat:s.lat,lng:s.lon,alt:gAlt,color:col,
+      label:s.name+' · SGP4 · '+Math.round(altKm)+' km · SCREENING-GRADE'};
+  });
+  _globe=Globe()(host)
+    .width(bw).height(bh)
+    .backgroundColor('#03060c')
+    .showGlobe(true).showAtmosphere(true).atmosphereColor('#3a6ea5').atmosphereAltitude(0.16)
+    .globeImageUrl('/vendor/earth-night.jpg')
+    .pointsData(pts).pointLat('lat').pointLng('lng').pointAltitude('alt').pointColor('color')
+    .pointRadius(0.26).pointLabel('label');
+  try{ _globe.pointOfView({lat:20,lng:0,altitude:2.6},0); var ctr=_globe.controls(); if(ctr){ ctr.autoRotate=true; ctr.autoRotateSpeed=0.35; } }catch(e){}
+  setTimeout(function(){ try{ _globe.width(host.clientWidth||bw).height(host.clientHeight||bh); }catch(e){} },120);
+  setTimeout(function(){ try{ _globe.width(host.clientWidth||bw).height(host.clientHeight||bh); }catch(e){} },600);
 }
 function darkgraph_sort(key){
   var s=window._tgSort||{key:'risk',dir:-1};

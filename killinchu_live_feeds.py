@@ -292,6 +292,8 @@ def _fetch_ais(limit: int = 12, lat: float | None = None,
             "heading": props.get("heading"), "navStat": props.get("navStat", 15),
             "lat": vlat, "lon": vlon,
             "raim": props.get("raim"), "posAcc": props.get("posAcc"),
+            # epoch-ms of the last AIS position report (Digitraffic), for dark-gap screening
+            "timestampExternal": props.get("timestampExternal"),
         }
         if lat is not None and lon is not None and radius is not None and vlat is not None:
             if abs(vlat - lat) > radius or abs((vlon or 0) - lon) > radius:
@@ -397,6 +399,211 @@ def _fetch(feed):
             out[k] = _http_get(base + urllib.parse.quote(q), timeout=12)
         return out
     raise ValueError("unknown feed: %s" % feed)
+
+
+# ---------------------------------------------------------------------------
+# SDA — real CelesTrak TLEs propagated to sub-satellite lat/lon/alt with sgp4.
+# SCREENING-GRADE, honestly labelled: positions are SGP4-propagated from public
+# CelesTrak element sets to NOW, TEME->ECEF via GMST, ECEF->geodetic (WGS84).
+# This is screening-grade orbit awareness — NOT a calibrated catalogue or a
+# conjunction screen. If sgp4 is not installed we degrade to an honest TLE
+# registry (count + sample names) and NEVER fabricate positions.
+# ---------------------------------------------------------------------------
+# Free, no-key CelesTrak GROUPs we allow (gp.php?GROUP=<g>&FORMAT=tle).
+_CELESTRAK_GROUPS = {
+    "stations", "starlink", "oneweb", "gps-ops", "galileo", "glo-ops",
+    "beidou", "geo", "science", "weather", "active", "last-30-days",
+    "cosmos-1408-debris", "iridium-NEXT", "planet", "spire",
+}
+_CELESTRAK_TLE_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"
+
+
+def _parse_tle_text(text):
+    """Parse CelesTrak 3-line TLE text into [(name, l1, l2), ...]."""
+    lines = [ln.rstrip() for ln in text.splitlines() if ln.strip()]
+    out = []
+    i = 0
+    while i + 2 < len(lines) + 1:
+        if i + 2 < len(lines) and lines[i + 1].startswith("1 ") and lines[i + 2].startswith("2 "):
+            out.append((lines[i].strip(), lines[i + 1], lines[i + 2]))
+            i += 3
+        elif i + 1 < len(lines) and lines[i].startswith("1 ") and lines[i + 1].startswith("2 "):
+            out.append(("UNNAMED", lines[i], lines[i + 1]))
+            i += 2
+        else:
+            i += 1
+    return out
+
+
+def _gmst_rad(jd_ut1):
+    """Greenwich Mean Sidereal Time (radians) — IAU 1982, screening-grade."""
+    t = (jd_ut1 - 2451545.0) / 36525.0
+    gmst_sec = (67310.54841 + (876600.0 * 3600.0 + 8640184.812866) * t
+                + 0.093104 * t * t - 6.2e-6 * t * t * t)
+    gmst = math.radians((gmst_sec % 86400.0) / 240.0)  # 240 s = 1 deg
+    return gmst % (2.0 * math.pi)
+
+
+def _teme_to_geodetic(x, y, z, gmst):
+    """TEME (km) -> ECEF rotation by GMST, then ECEF -> WGS84 lat/lon/alt (km)."""
+    cg, sg = math.cos(gmst), math.sin(gmst)
+    xe = cg * x + sg * y
+    ye = -sg * x + cg * y
+    ze = z
+    a = 6378.137            # WGS84 semi-major (km)
+    e2 = 6.69437999014e-3   # WGS84 first eccentricity squared
+    lon = math.degrees(math.atan2(ye, xe))
+    p = math.hypot(xe, ye)
+    lat = math.atan2(ze, p * (1.0 - e2))
+    for _ in range(6):  # Bowring iteration; converges in a few steps
+        sl = math.sin(lat)
+        n = a / math.sqrt(1.0 - e2 * sl * sl)
+        alt = p / math.cos(lat) - n
+        lat = math.atan2(ze, p * (1.0 - e2 * n / (n + alt)))
+    sl = math.sin(lat)
+    n = a / math.sqrt(1.0 - e2 * sl * sl)
+    alt = p / math.cos(lat) - n
+    if lon > 180.0:
+        lon -= 360.0
+    elif lon < -180.0:
+        lon += 360.0
+    return round(math.degrees(lat), 4), round(lon, 4), round(alt, 2)
+
+
+def _propagate_group(group, limit=120):
+    """Fetch real CelesTrak TLEs for a group and SGP4-propagate to NOW.
+
+    Returns an honest envelope. If sgp4 is absent or the feed is down, degrades
+    to a labelled TLE registry / cached state — never fabricates positions."""
+    if group not in _CELESTRAK_GROUPS:
+        return {"ok": False, "error": "unknown group", "group": group,
+                "available": sorted(_CELESTRAK_GROUPS)}
+    url = _CELESTRAK_TLE_URL % urllib.parse.quote(group)
+    ckey = "sda:%s" % group
+    now = time.time()
+    ttl = 2 * 3600
+    # 1) get TLE text (cached up to TTL; cached-honest on outage)
+    with _LOCK:
+        ent = _CACHE.get(ckey)
+    text = None
+    mode = "live"
+    if ent and (now - ent["ts"]) < ttl:
+        text, mode = ent["data"], "cached"
+    else:
+        try:
+            text = _http_get_raw(url, timeout=20).decode("utf-8", "replace")
+            with _LOCK:
+                _CACHE[ckey] = {"data": text, "ts": now, "mode": "live", "iso": _now_iso()}
+        except Exception as e:
+            if ent:
+                text, mode = ent["data"], "cached"
+            else:
+                return {"ok": False, "group": group, "source_url": url,
+                        "mode": "unreachable",
+                        "error": "CelesTrak unreachable (%s) and no cache" % type(e).__name__,
+                        "honesty": "No positions fabricated — feed is down."}
+    tles = _parse_tle_text(text)[: max(1, int(limit))]
+    base = {"ok": True, "group": group, "source": "CelesTrak GP element sets (free, no key)",
+            "source_url": url, "fetched_at": _now_iso(), "mode": mode,
+            "tle_count": len(tles)}
+    # 2) propagate with sgp4 if available; else honest registry-only fallback
+    try:
+        from sgp4.api import Satrec, jday
+    except Exception:
+        base.update({
+            "propagated": False,
+            "grade": "TLE-REGISTRY",
+            "satellites": [{"name": n} for (n, _l1, _l2) in tles],
+            "honesty": ("sgp4 not installed in this environment — showing the real CelesTrak "
+                        "TLE registry only. NO sub-satellite positions are fabricated. Install "
+                        "sgp4 (pinned in the Space image) for SCREENING-GRADE propagation."),
+        })
+        return base
+    dt = datetime.now(timezone.utc)
+    jd, fr = jday(dt.year, dt.month, dt.day, dt.hour, dt.minute,
+                  dt.second + dt.microsecond / 1e6)
+    gmst = _gmst_rad(jd + fr)
+    sats = []
+    errs = 0
+    for name, l1, l2 in tles:
+        try:
+            sat = Satrec.twoline2rv(l1, l2)
+            e, r, _v = sat.sgp4(jd, fr)
+            if e != 0:
+                errs += 1
+                continue
+            lat, lon, alt = _teme_to_geodetic(r[0], r[1], r[2], gmst)
+            sats.append({"name": name, "norad": getattr(sat, "satnum", None),
+                         "lat": lat, "lon": lon, "alt_km": alt})
+        except Exception:
+            errs += 1
+    base.update({
+        "propagated": True,
+        "grade": "SCREENING-GRADE",
+        "epoch_utc": dt.isoformat(),
+        "propagated_count": len(sats),
+        "propagation_errors": errs,
+        "satellites": sats,
+        "honesty": ("SCREENING-GRADE: positions are SGP4-propagated from public CelesTrak "
+                    "element sets to NOW (TEME->ECEF via GMST, ECEF->WGS84 geodetic). This is "
+                    "orbit-screening awareness, NOT a calibrated catalogue or a conjunction "
+                    "screen. Accuracy degrades with TLE age. No positions fabricated."),
+    })
+    return base
+
+
+# ---------------------------------------------------------------------------
+# Dark-vessel AIS-gap screening over the LIVE Digitraffic feed.
+# Honest scope: this is a SINGLE-SNAPSHOT proxy — for each live vessel we
+# measure the age of its last AIS position report (now - timestampExternal).
+# A stale report ("AIS went quiet") is the screening signal for a possibly-dark
+# vessel. Full temporal gap-history / SAR-RF cross-cue reconciliation is roadmap;
+# we never invent a vessel or a gap. If the live feed is down we say so.
+# ---------------------------------------------------------------------------
+def _darkgap_screen(stale_s=600, limit=300):
+    feed = get_feed("ais")  # live|cached|snapshot, honestly labelled
+    data = feed.get("data") or {}
+    vessels = data.get("vessels") if isinstance(data, dict) else None
+    if vessels is None:
+        # ais feed returns the raw geojson under data when fetched via get_feed;
+        # fall back to the direct fetcher which normalises to {"vessels":[...]}.
+        try:
+            data = _fetch_ais(limit)
+            vessels = data.get("vessels", [])
+            feed = {"mode": data.get("mode", "live"), "fetched_at": data.get("fetched_at"),
+                    "source": data.get("source"), "source_url": data.get("source_url")}
+        except Exception as e:
+            return {"ok": False, "mode": "unreachable",
+                    "error": "live AIS unreachable (%s)" % type(e).__name__,
+                    "honesty": "No vessels or gaps fabricated — Digitraffic AIS is down."}
+    now_ms = time.time() * 1000.0
+    screened, dark = [], []
+    for v in vessels[: max(1, int(limit))]:
+        ts = v.get("timestampExternal")
+        age_s = None
+        if isinstance(ts, (int, float)) and ts > 0:
+            age_s = round((now_ms - float(ts)) / 1000.0, 1)
+        is_dark = age_s is not None and age_s >= stale_s
+        rec = {"mmsi": v.get("mmsi"), "lat": v.get("lat"), "lon": v.get("lon"),
+               "sog": v.get("sog"), "ais_age_s": age_s,
+               "status": "AIS-QUIET" if is_dark else ("reporting" if age_s is not None else "no-timestamp")}
+        screened.append(rec)
+        if is_dark:
+            dark.append(rec)
+    dark.sort(key=lambda r: r["ais_age_s"], reverse=True)
+    return {
+        "ok": True, "grade": "SCREENING-GRADE",
+        "mode": feed.get("mode"), "fetched_at": feed.get("fetched_at"),
+        "source": feed.get("source"), "source_url": feed.get("source_url"),
+        "stale_threshold_s": stale_s,
+        "screened_count": len(screened), "dark_count": len(dark),
+        "dark_vessels": dark[:120], "screened": screened[:limit],
+        "honesty": ("SCREENING-GRADE single-snapshot AIS-gap proxy over LIVE Digitraffic: "
+                    "'AIS-QUIET' = last position report older than the staleness threshold. "
+                    "This is a real gap-detection signal on real tracks, NOT a confirmed dark "
+                    "vessel — temporal gap history + SAR/RF cross-cue are roadmap. No vessel "
+                    "or gap is fabricated; a vessel with no timestamp is labelled honestly."),
+    }
 
 
 def get_feed(feed):
@@ -809,6 +1016,31 @@ def register(app, ns="killinchu"):
         payload = await _run(_do_quake_forecast, lat, lon, mag, t_ms, mmin, radius_km)
         return JSONResponse(payload)
 
+    # ---- SDA: real CelesTrak TLEs propagated to sub-satellite lat/lon/alt ----
+    async def _sda_propagate(request):
+        qp = request.query_params
+        group = (qp.get("group") or "stations").strip().lower()
+        try:
+            limit = int(qp.get("limit", "120"))
+        except Exception:
+            limit = 120
+        payload = await _run(_propagate_group, group, limit)
+        return JSONResponse(payload)
+
+    # ---- Dark-vessel AIS-gap screening over the LIVE Digitraffic feed ----
+    async def _darkgaps(request):
+        qp = request.query_params
+        try:
+            stale_s = float(qp.get("stale_s", "600"))
+        except Exception:
+            stale_s = 600.0
+        try:
+            limit = int(qp.get("limit", "300"))
+        except Exception:
+            limit = 300
+        payload = await _run(_darkgap_screen, stale_s, limit)
+        return JSONResponse(payload)
+
     routes = [
         Route(base, _index, methods=["GET"], name="%s_live_index" % ns),
         Route(base + "/{feed}", _feed_route, methods=["GET"], name="%s_live_feed" % ns),
@@ -818,6 +1050,8 @@ def register(app, ns="killinchu"):
         Route("/api/%s/v1/proxy/{name}" % ns, _proxy_route, methods=["GET"], name="%s_proxy" % ns),
         Route("/api/%s/v1/gov/{name}" % ns, _gov_route, methods=["GET", "POST"], name="%s_gov" % ns),
         Route("/api/%s/v1/quake/forecast" % ns, _quake_forecast, methods=["GET"], name="%s_quake_forecast" % ns),
+        Route("/api/%s/v1/sda/propagate" % ns, _sda_propagate, methods=["GET"], name="%s_sda_propagate" % ns),
+        Route("/api/%s/v1/maritime/darkgaps" % ns, _darkgaps, methods=["GET"], name="%s_darkgaps" % ns),
     ]
     for r in reversed(routes):
         app.router.routes.insert(0, r)
