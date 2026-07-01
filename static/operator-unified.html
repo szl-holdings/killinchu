@@ -562,11 +562,12 @@
     else if (v.indexOf("REJECT")>=0||v.indexOf("FAIL")>=0) cls="reject";
     var card = document.createElement("div");
     card.className = "tcard " + cls;
-    card.innerHTML = '<div class="ts">'+(rec.ts||new Date().toISOString())+'</div>'
-      + '<div class="ln"><span class="glyph">'+glyphFor(rec.verb)+'</span> '
-      + '<b style="color:#D4A444">'+(rec.organ||SELF)+'</b> · '+(rec.verb||'cmd')
-      + ' · <span style="color:'+(cls==="pass"?"#00C389":cls==="reject"?"#DF2A4A":"#7C3AED")+'">'+(rec.verdict||"INFO")+'</span></div>'
-      + '<div class="hash">'+shortHash(rec.hash)+'</div>';
+    var esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(x){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x];});};
+    card.innerHTML = '<div class="ts">'+esc(rec.ts||new Date().toISOString())+'</div>'
+      + '<div class="ln"><span class="glyph">'+esc(glyphFor(rec.verb))+'</span> '
+      + '<b style="color:#D4A444">'+esc(rec.organ||SELF)+'</b> · '+esc(rec.verb||'cmd')
+      + ' · <span style="color:'+(cls==="pass"?"#00C389":cls==="reject"?"#DF2A4A":"#7C3AED")+'">'+esc(rec.verdict||"INFO")+'</span></div>'
+      + '<div class="hash">'+esc(shortHash(rec.hash))+'</div>';
     // stream top -> bottom: newest at top
     tstream.insertBefore(card, tstream.firstChild);
     if (tailLive){ tstream.scrollTop = 0; }
