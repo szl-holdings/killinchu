@@ -97,6 +97,7 @@ jobs:
         run: cp sibling/knowledge.json self/knowledge.json
 
       - name: Gate — content must be in sync AND honest before any branch/PR
+        id: gate
         if: steps.drift.outputs.drift == 'true'
         run: |
           # Same gate as knowledge-corpus-sync.yml. Exits non-zero (failing the job,
@@ -108,6 +109,7 @@ jobs:
             --self-name killinchu --sibling-name a11oy
 
       - name: Push sync branch and open PR
+        id: pr
         if: steps.drift.outputs.drift == 'true'
         working-directory: self
         run: |
@@ -117,6 +119,7 @@ jobs:
           short="${new_sha:0:8}"
           branch="${SYNC_BRANCH_PREFIX}-${short}"
           compare_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}?expand=1"
+          echo "compare_url=$compare_url" >> "$GITHUB_OUTPUT"
 
           git config user.name  "forge-autosync[bot]"
           git config user.email "forge-autosync@szlholdings.ai"
@@ -125,6 +128,7 @@ jobs:
           # run already opened the PR), do not churn — just surface it and stop.
           if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
             echo "::notice::branch $branch already exists (sync PR already open for a11oy@$short) — nothing to do."
+            echo "result=branch_exists" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -163,13 +167,16 @@ jobs:
           EOF
           )"
 
-          if gh pr create --base main --head "$branch" \
+          if pr_url=$(gh pr create --base main --head "$branch" \
                --title "chore(corpus): sync knowledge.json from a11oy@main ($short)" \
-               --body "$body"; then
-            echo "::notice::Opened sync PR for branch $branch."
+               --body "$body"); then
+            echo "::notice::Opened sync PR for branch $branch: $pr_url"
+            echo "result=pr_opened" >> "$GITHUB_OUTPUT"
+            echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::Branch $branch is pushed but 'gh pr create' was refused (org policy may block Actions-created PRs). Open the PR manually:"
             echo "::warning::$compare_url"
+            echo "result=pr_refused" >> "$GITHUB_OUTPUT"
             {
               echo "### Knowledge-corpus auto-sync: PR needs a manual open"
               echo ""
@@ -179,3 +186,56 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+
+      - name: Notify the team of the auto-sync outcome
+        # Silent on no-drift runs and on the idempotent "branch already exists"
+        # case (that PR was already announced by a prior run). always() so the
+        # BLOCKED / PR-refused failure paths still post before the run ends.
+        if: ${{ always() && steps.drift.outputs.drift == 'true' && steps.pr.outputs.result != 'branch_exists' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          GATE_OUTCOME: ${{ steps.gate.outcome }}
+          PR_RESULT: ${{ steps.pr.outputs.result }}
+          PR_URL: ${{ steps.pr.outputs.pr_url }}
+          COMPARE_URL: ${{ steps.pr.outputs.compare_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping notify. The run itself still stands as the signal."
+            exit 0
+          fi
+
+          # Classify the outcome into exactly one message. The corpus-sync gate
+          # fails the job (so the PR step is skipped and its result is empty) when
+          # a11oy's canonical corpus violates a Doctrine-v11 honesty invariant.
+          if [ "${PR_RESULT:-}" = "pr_opened" ]; then
+            text=":arrows_counterclockwise: *Killinchu knowledge-corpus auto-sync* — opened sync PR ${PR_URL}
+          killinchu's \`knowledge.json\` had drifted from a11oy@main; a PR is ready for review in ${REPO}.
+          *Run:* ${RUN_URL}"
+          elif [ "${GATE_OUTCOME:-}" = "failure" ]; then
+            text=":no_entry: *Killinchu knowledge-corpus auto-sync BLOCKED* — a11oy corpus failed the Doctrine-v11 honesty gate, so nothing was synced in ${REPO}. A dishonest corpus is never auto-synced.
+          *Run:* ${RUN_URL}"
+          elif [ "${PR_RESULT:-}" = "pr_refused" ]; then
+            text=":warning: *Killinchu knowledge-corpus auto-sync* — branch pushed but \`gh pr create\` was refused; open the PR manually: ${COMPARE_URL}
+          *Run:* ${RUN_URL}"
+          else
+            echo "::notice::Auto-sync ended in an unclassified state (gate=${GATE_OUTCOME:-none} pr=${PR_RESULT:-none}) — not posting to avoid noise. See the run for details."
+            exit 0
+          fi
+
+          # Compose with real newlines, then JSON-encode safely with jq
+          # (preinstalled on ubuntu-latest). The shared webhook is the team ntfy
+          # channel (via the szl-alert-relay); it renders the `text` field.
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+          echo "Posting knowledge-corpus auto-sync outcome to the shared webhook..."
+          code=$(curl -sS -o /tmp/resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Notify webhook POST failed (HTTP ${code}): $(cat /tmp/resp.txt)"
+            exit 1
+          fi
+          echo "Outcome delivered."
