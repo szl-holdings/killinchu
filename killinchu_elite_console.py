@@ -9227,9 +9227,9 @@ go(VIEWS[start]?start:'tracks');
 (function(){
   function reg(){
     var V=(typeof VIEWS!=='undefined')?VIEWS:window.VIEWS; if(!V){ return setTimeout(reg,80); }
-    var SHA='b7c3e382d56f6548945d93895c9d78c6411c40f8';
-    var SHORT='b7c3e38';
-    var COMPUTED='2026-06-09';
+    var SHA='baf483be3c832b64da47161b558e283d68da6650';
+    var SHORT='baf483b';
+    var COMPUTED='2026-06-15';
     var BASE='https://github.com/szl-holdings/lutar-lean/blob/'+SHA+'/Lutar/Putnam/';
     var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98';
     function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -9241,7 +9241,7 @@ go(VIEWS[start]?start:'tracks');
       ['A3','P_A3.lean','OPEN','statement only (True-shell); official answer withheld pending a real proof'],
       ['A4','P_A4.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
       ['A5','P_A5.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
-      ['A6','P_A6.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['A6','P_A6.lean','OPEN','general powers-of-two divisibility deferred (sorry); base data b1..b4 and d_pow_one are REAL, the naive linear-index reading is REAL-proven FALSE'],
       ['B1','P_B1.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
       ['B2','P_B2.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
       ['B3','P_B3.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
@@ -9775,7 +9775,7 @@ go(VIEWS[start]?start:'tracks');
      p:'UDS Core ambient mesh (Istio, restricted PSA) carrying W3C TraceContext span lineage across brain\u2192effectors (efferent / afferent / proprioceptive). Replay verifier checks child.parent_span_id == parent.span_id over a cycle (P4); Menger cut/path + reachability monotonicity back the resilience claims.',
      e:'szl-uds-deployment (k3d uds-szl-demo) \u00b7 vsp-otel \u00b7 HUKLLA deadman reflex', f:'P4, F1 \u00b7 W9_MENGER, W10_REACH'},
     {k:'math', n:'Math \u00b7 AP-12 generator + Putnam benchmark', s:'LIVE-GATED',
-     p:'AP-12 deterministic seedable generator + Lean-kernel benchmark scorecards with HONEST REAL/DEMO/OPEN verdicts. Putnam 2025: 0 REAL / 11 DEMO / 1 OPEN (doctrine v11). The locked-8 ladder and \u039b=Conjecture 1 are unchanged by this surface.',
+     p:'AP-12 deterministic seedable generator + Lean-kernel benchmark scorecards with HONEST REAL/DEMO/OPEN verdicts. Putnam 2025: 0 REAL / 10 DEMO / 2 OPEN (doctrine v11). The locked-8 ladder and \u039b=Conjecture 1 are unchanged by this surface.',
      e:'/api/math + /api/v1/math (box pm2 alloy-api; auth-gated \u2192 401, surface exists) \u00b7 lutar-lean kernel', f:'F1, F4, F7, F11, F12, F18, F19, F22 (locked-8)'}
   ];
   function render(host){
