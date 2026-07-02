@@ -37,7 +37,19 @@ import killinchu_elite_wiring as KEW
 # views (no data-view, no VIEWS entry, no dynamic registration in the console —
 # verified against origin/main). They are backend audit rows, not routable tabs,
 # so they are out of scope for the "every route key still resolves" contract.
-_NON_VIEW_AUDIT_KEYS = {"ais_aug2024", "cot_interop"}
+#
+# ``qhawaq`` belongs here too: it is the per-ACTION runtime constitutional monitor
+# (LTL + predicate invariants checked BEFORE any SIMULATED effector), exposed only
+# as backend endpoints — GET /api/{ns}/v1/qhawaq/{invariants,doctrine,samples,
+# receipts} + POST /qhawaq/{check,verify} + the /elite/qhawaq/intercept forward,
+# registered in serve.py via szl_qhawaq.register()/register_intercept(). It has NO
+# data-view, NO VIEWS entry and NO console registration (grep confirms zero refs in
+# killinchu_elite_console.py), so it is a governance ring, not a routable /elite tab
+# — same status as ais_aug2024 / cot_interop. It was added to the ELITE_WIRING
+# self-audit map without being carved out here, which is the only reason this guard
+# was flagging it; classifying it honestly (never inventing a fake UI tab for it)
+# restores the contract.
+_NON_VIEW_AUDIT_KEYS = {"ais_aug2024", "cot_interop", "qhawaq"}
 
 ORIGINAL_KEYS = sorted((set(KEW.ELITE_WIRING.keys()) - _NON_VIEW_AUDIT_KEYS) | {
     # realm members folded into merged surfaces (kept as aliases)
