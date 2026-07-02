@@ -3971,6 +3971,29 @@ except Exception as _kc_ef_e:
     print(f"[killinchu] real-edge formulas FAILED: {_kc_ef_e!r}", file=_kc_ef_sys.stderr)
     _kc_ef_tb.print_exc(file=_kc_ef_sys.stderr)
 
+# ---------------------------------------------------------------------------
+# PCGI proof-carrying ENGAGEMENT RECEIPT — killinchu (additive, T104).
+#   killinchu_engagement_receipt -> POST /edge/engagement-receipt
+# Turns ONE real counter-UAS decision output (the edge verdict) into a single
+# signed, verifiable szl-receipt binding input+output digests + governing policy
+# id, with energy = honest UNAVAILABLE (unmeasured on edge — never fabricated).
+# Uses the EXISTING szl-receipt lib, with a byte-identical vendored fallback.
+# ADDITIVE — inserts at route position 0, ahead of the SPA catch-all; never
+# breaks the app. Receipt = evidence trail, NOT a proof the autonomy is correct.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_engagement_receipt as _kc_engagement_receipt
+    _kc_engagement_status = _kc_engagement_receipt.register(app, ns="killinchu")
+    import sys as _kc_er_sys
+    print(f"[killinchu] engagement receipt registered: {_kc_engagement_status}",
+          file=_kc_er_sys.stderr)
+except Exception as _kc_er_e:
+    import sys as _kc_er_sys
+    import traceback as _kc_er_tb
+    print(f"[killinchu] engagement receipt NOT mounted: {_kc_er_e!r}; app unaffected",
+          file=_kc_er_sys.stderr)
+    _kc_er_tb.print_exc(file=_kc_er_sys.stderr)
+
 try:
     import killinchu_edge_console as _kc_edge_console
     _kc_edge_console_status = _kc_edge_console.register(app, ns="killinchu")

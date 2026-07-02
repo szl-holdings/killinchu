@@ -5,3 +5,7 @@
 # vsp-otel is also vendored per-file COPY under ./vsp_otel/ so the import
 # resolves offline (no PyPI dependency at build time) — honest, no-mock.
 vsp-otel>=0.1
+# PCGI proof-carrying engagement receipts (killinchu_engagement_receipt.py). The
+# module PREFERS this installed lib and falls back to a byte-identical vendored
+# implementation of the same shapes when the install is blocked (offline edge).
+szl-receipt @ git+https://github.com/szl-holdings/szl-receipt.git@v0.2.0
