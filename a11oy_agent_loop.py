@@ -142,6 +142,115 @@ def _conformal_floor(n: int) -> float:
 
 
 # --------------------------------------------------------------------------- #
+# OPTIONAL Wallpa (VOICE organ) FINALIZE fold-in — additive, default OFF.
+# Gated by A11OY_WALLPA_FINALIZE; when disabled or Wallpa is unreachable the
+# loop is byte-for-byte unchanged (honest skip, never fabricated). Doctrine
+# v13 §2.2: Wallpa expresses the governed answer; its receipt hash + factor
+# fold into the FINALIZE Khipu chain / Λ-gate as an admissible [0,1] factor.
+# --------------------------------------------------------------------------- #
+def _wallpa_finalize_enabled() -> bool:
+    return (os.environ.get("A11OY_WALLPA_FINALIZE") or "").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def _wallpa_speak_final(answer: str, timeout: float = 6.0) -> Optional[dict[str, Any]]:
+    """Best-effort call to the live Wallpa speak path; honest None on any failure.
+
+    Returns {"wallpa_factor", "khipu_hash", "audio_sha3", "voice"} on success.
+    Never raises, never fabricates: if Wallpa is unreachable we return None and
+    the caller records an honest skip (behavior otherwise unchanged).
+    """
+    text = (answer or "").strip()
+    if not text:
+        return None
+    import urllib.request
+    url = (os.environ.get("A11OY_WALLPA_URL")
+           or "http://127.0.0.1:7860/api/a11oy/wallpa/speak").strip()
+    voice = (os.environ.get("A11OY_WALLPA_VOICE") or "amaru-voice").strip()
+    # Cap the spoken text so FINALIZE stays bounded (synthesis is per-word).
+    payload = json.dumps({"text": text[:600], "voice": voice}).encode("utf-8")
+    try:
+        req = urllib.request.Request(
+            url, data=payload, method="POST",
+            headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read())
+    except Exception:
+        return None
+    receipt = data.get("khipu_receipt") or {}
+    return {
+        "wallpa_factor": data.get("wallpa_factor"),
+        "khipu_hash": receipt.get("hash") if isinstance(receipt, dict) else None,
+        "audio_sha3": data.get("audio_transcript_sha3"),
+        "voice": data.get("voice", voice),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# EXPERIMENTAL pre-steps (advisory only; recorded in the Λ-receipt, clearly
+# labeled EXPERIMENTAL; they DO NOT affect the locked-8, the Λ gate axes, or
+# the hard bounded-autonomy guards). Both are honest no-ops when their inputs
+# or optional backends are unavailable. Λ remains Conjecture 1 (advisory).
+# --------------------------------------------------------------------------- #
+def banach_convergence_guard(k_estimate: Optional[float],
+                             threshold: float = 1.0) -> dict[str, Any]:
+    """EXPERIMENTAL contraction check for the REFLECT→ACT retry loop.
+
+    Banach fixed-point intuition: a retry loop converges if its error-reduction
+    factor k is a contraction (k < 1). This is ADVISORY — it never overrides the
+    hard ``max_reflect_depth`` guard; it only annotates whether the observed
+    reflect dynamics look contractive. Honest no-op when k can't be estimated.
+
+    Prefers szl_agent_loop_banach.banach_convergence_guard if that module is
+    importable; otherwise uses this minimal local estimate.
+    """
+    try:
+        import szl_agent_loop_banach as _b  # type: ignore
+        if hasattr(_b, "banach_convergence_guard"):
+            return _b.banach_convergence_guard(k_estimate, threshold)  # type: ignore
+    except Exception:
+        pass
+    if k_estimate is None:
+        return {"experimental": True, "label": "EXPERIMENTAL",
+                "measurable": False, "note": "no k estimate — honest no-op (advisory)"}
+    k = float(k_estimate)
+    contraction = k < float(threshold)
+    return {"experimental": True, "label": "EXPERIMENTAL", "measurable": True,
+            "k_estimate": round(k, 6), "threshold": float(threshold),
+            "contraction": contraction, "converges": contraction,
+            "note": ("contractive (k<1): reflect loop expected to converge"
+                     if contraction else
+                     "non-contractive (k>=1): advisory only — hard depth guard still bounds it")}
+
+
+def _active_flux_tier_hint(task: str) -> Optional[dict[str, Any]]:
+    """EXPERIMENTAL routing pre-step: deterministic active-flux crossover tier hint.
+
+    If a11oy_active_flux_router is importable, map a coarse query-difficulty
+    estimate through its crossover law to a small/large tier hint, recorded
+    ALONGSIDE Λ (never replacing it). Honest None when the optional router is
+    absent or errors. MODELED, advisory — does not pick the model.
+    """
+    try:
+        import a11oy_active_flux_router as _afr  # type: ignore
+    except Exception:
+        return None
+    try:
+        # Coarse, transparent difficulty proxy in [0,1] from task length/breadth.
+        t = (task or "").strip()
+        difficulty = max(0.0, min(1.0, (len(t) / 400.0) + 0.05 * t.count("?")))
+        cross = _afr.router_crossover(query_difficulty=difficulty)
+        return {"experimental": True, "label": "EXPERIMENTAL", "basis": "MODELED",
+                "query_difficulty": round(difficulty, 4),
+                "route": cross.get("route"),
+                "crossover_difficulty": cross.get("crossover_difficulty"),
+                "note": "advisory tier hint weighted alongside Λ; Λ remains the gate"}
+    except Exception as exc:
+        return {"experimental": True, "label": "EXPERIMENTAL", "measurable": False,
+                "note": f"active-flux router present but errored: {str(exc)[:120]} (honest skip)"}
+
+
+# --------------------------------------------------------------------------- #
 # M2M envelope (machine-to-machine step record)
 # --------------------------------------------------------------------------- #
 @dataclass
@@ -497,6 +606,11 @@ class AgentLoop:
                               intent="construct + validate acyclic plan DAG",
                               args={"nodes": [n.id for n in plan], "order": order,
                                     "edges": sum(len(n.deps) for n in plan)})
+            # EXPERIMENTAL pre-step (advisory): active-flux crossover tier hint,
+            # recorded alongside Λ. Does NOT enter the gate axes / locked-8.
+            _flux = _active_flux_tier_hint(task)
+            if _flux is not None:
+                env.args["experimental_tier_hint"] = _flux
             # plan quality axes: coverage, acyclicity (proven), bounded size.
             size_ok = 1.0 if len(plan) <= self.max_steps else 0.5
             env = self._gate_step(env, [0.96, 1.0, size_ok])
@@ -506,6 +620,7 @@ class AgentLoop:
 
         plan_by_id = {n.id: n for n in plan}
         reflect_depth = 0
+        prev_reflect_deficit: Optional[float] = None  # EXPERIMENTAL Banach k-estimate
         accumulated_evidence: list[Evidence] = []
 
         # ---- execute plan nodes (RETRIEVE / ACT / OBSERVE / VERIFY) -------
@@ -612,8 +727,17 @@ class AgentLoop:
                         rid = _persist_reflection(self.run_id, reflect_depth,
                                                   f"VERIFY fail @ {node.tool}", lesson,
                                                   renv.khipu_hash)
+                        # EXPERIMENTAL Banach contraction guard (advisory). Estimate
+                        # the error-reduction factor k from successive VERIFY Λ
+                        # deficits; honest no-op on the first reflect (no prior).
+                        deficit = max(0.0, self.lambda_floor - float(env.lambda_))
+                        k_est = (deficit / prev_reflect_deficit
+                                 if prev_reflect_deficit and prev_reflect_deficit > 0 else None)
+                        prev_reflect_deficit = deficit
+                        banach = banach_convergence_guard(k_est)
                         renv.args = {"reflection_id": rid, "depth": reflect_depth,
-                                     "max_depth": self.max_reflect_depth}
+                                     "max_depth": self.max_reflect_depth,
+                                     "experimental_banach": banach}
                         _record(renv)
 
         # ---- FINALIZE -----------------------------------------------------
@@ -637,15 +761,32 @@ class AgentLoop:
                 completion = {"text": f"[honest error: model_complete failed: {str(exc)[:200]}]",
                               "model": "error", "stub": True}
             conf = _conformal_floor(len(grounded))
+            # OPTIONAL Wallpa (VOICE) fold-in — additive, default OFF. When enabled
+            # and Wallpa is reachable, the governed answer is expressed and Wallpa's
+            # factor folds in as an extra admissible [0,1] gate axis (can only gate
+            # harder, never inflate). Disabled / unreachable ⇒ honest skip.
+            wallpa: dict[str, Any] = {"status": "DISABLED"}
+            gate_axes = [0.96, conf, 0.95 if grounded else 0.6]
+            if _wallpa_finalize_enabled():
+                spoken = _wallpa_speak_final(completion.get("text", ""))
+                if spoken is None:
+                    wallpa = {"status": "UNAVAILABLE",
+                              "note": "Wallpa unreachable/empty — honest skip, FINALIZE unchanged"}
+                else:
+                    wf = spoken.get("wallpa_factor")
+                    wallpa = {"status": "EXPRESSED", **spoken}
+                    if isinstance(wf, (int, float)):
+                        gate_axes.append(max(0.0, min(1.0, float(wf))))
             env = M2MEnvelope(step=step_no, state=S_FINALIZE,
                               intent="synthesize grounded, cited answer",
                               conformal=conf, note=("i_dont_know" if i_dont_know else "grounded"))
-            env = self._gate_step(env, [0.96, conf, 0.95 if grounded else 0.6])
+            env = self._gate_step(env, gate_axes)
             _record(env)
             rec = self.khipu_emit("agent.finalize", {
                 "run_id": self.run_id, "steps": step_no, "grounded": len(grounded),
                 "i_dont_know": i_dont_know, "stub": bool(completion.get("stub")),
-                "reflect_depth": reflect_depth})
+                "reflect_depth": reflect_depth,
+                "wallpa": wallpa})
             return {
                 "ok": True,
                 "run_id": self.run_id,
@@ -665,6 +806,7 @@ class AgentLoop:
                            "lambda_floor": self.lambda_floor},
                 "khipu_hash": rec.get("hash"),
                 "chain_verified": rec.get("chain_verified", True),
+                "wallpa": wallpa,
             }
 
     def _halt(self, steps: list[dict[str, Any]], reason: str, task: str,

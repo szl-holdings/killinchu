@@ -73,6 +73,337 @@ except Exception:  # pragma: no cover - additive fallback, never crash the loop
     _ANAT = None
 
 # ----------------------------------------------------------------------------
+# UNIFIED RECEIPT ORGANS (ADDITIVE): the ONE per-turn receipt proves governed +
+# energy + (optional) multi-witness. Both are import-guarded so a host without
+# them keeps the receipt working EXACTLY as today (pure optional-field addition).
+#   - szl_energy_sovereign.energy_fields_for_receipt(): honest joules/carbon,
+#     labelled MEASURED (fresh on-box exporter) / ROADMAP (no meter) / UNAVAILABLE
+#     (module absent). NEVER fabricates a joule.
+#   - szl_khipu_consensus.run_consensus(): OPTIONAL Khipu 3-of-4 BFT multi-witness
+#     receipt (Conjecture 2), folded into the SAME hash chain. OFF by default;
+#     enable with env A11OY_MULTIWITNESS=1. Absent/disabled ⇒ honest SKIPPED.
+# ----------------------------------------------------------------------------
+try:
+    import szl_energy_sovereign as _ENERGY
+except Exception:  # pragma: no cover - additive fallback, never crash the loop
+    _ENERGY = None
+try:
+    import szl_khipu_consensus as _KHIPU_CONSENSUS
+except Exception:  # pragma: no cover - additive fallback, never crash the loop
+    _KHIPU_CONSENSUS = None
+
+
+def _energy_fields_for_receipt() -> dict:
+    """Honest per-turn energy attestation for the unified receipt. Delegates to
+    szl_energy_sovereign (MEASURED/ROADMAP) when present; honest UNAVAILABLE when
+    the kernel is absent. NEVER raises, NEVER fabricates a joule."""
+    if _ENERGY is None:
+        return {"joules_consumed": None, "carbon_g_co2eq": None,
+                "energy_label": "UNAVAILABLE",
+                "energy_source_note": ("szl_energy_sovereign not importable in this image "
+                                       "— per-receipt joules/carbon honestly UNAVAILABLE, "
+                                       "never fabricated.")}
+    try:
+        return _ENERGY.energy_fields_for_receipt()
+    except Exception as exc:  # a receipt helper must never take the loop down
+        return {"joules_consumed": None, "carbon_g_co2eq": None,
+                "energy_label": "UNAVAILABLE",
+                "energy_source_note": "energy attest fail-open: %s" % (str(exc)[:120],)}
+
+
+def _multiwitness_fields(action_hash: str, context: dict) -> dict:
+    """OPTIONAL Khipu 3-of-4 BFT multi-witness attestation. OFF unless env
+    A11OY_MULTIWITNESS=1 AND szl_khipu_consensus is importable AND no event loop
+    is already running in this thread. Honest SKIPPED otherwise. When it runs it
+    returns the consensus receipt hash + honest N-of-4 count (WITNESSED) so the
+    hash can be folded into the run's hash chain. NEVER raises."""
+    import os
+    if os.environ.get("A11OY_MULTIWITNESS") != "1":
+        return {"consensus_status": "SKIPPED",
+                "consensus_note": "multi-witness OFF (set A11OY_MULTIWITNESS=1 to enable)."}
+    if _KHIPU_CONSENSUS is None:
+        return {"consensus_status": "SKIPPED",
+                "consensus_note": "szl_khipu_consensus not importable in this image."}
+    try:
+        import asyncio
+        coro_factory = lambda: _KHIPU_CONSENSUS.run_consensus(action_hash, context)
+        try:
+            asyncio.get_running_loop()
+            # An event loop is already running in this thread (async route handler):
+            # asyncio.run would raise, so run the consensus in a fresh worker thread
+            # with its own loop. Keeps the multi-witness path REAL in production.
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                result = ex.submit(lambda: asyncio.run(coro_factory())).result(timeout=30)
+        except RuntimeError:
+            result = asyncio.run(coro_factory())
+        receipt = result.get("receipt") or {}
+        digest = hashlib.sha256(
+            json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        return {"consensus_status": "WITNESSED",
+                "khipu_consensus": receipt.get("khipu_consensus"),
+                "consensus_decision": receipt.get("decision"),
+                "consensus_threshold": receipt.get("threshold"),
+                "consensus_receipt_hash": digest,
+                "consensus_theorem": "Khipu Conjecture 2 (Byzantine quorum safety; OPEN — not a theorem)",
+                "consensus_note": "Khipu 3-of-4 BFT multi-witness executed; hash folded into the chain."}
+    except Exception as exc:
+        return {"consensus_status": "SKIPPED",
+                "consensus_note": "multi-witness fail-open: %s" % (str(exc)[:120],)}
+
+
+# ----------------------------------------------------------------------------
+# COGNITIVE DRIFT GUARD (ADDITIVE 2026-07-01): reimplements the platform
+# cognitive-runtime drift-detector PATTERN as a small, additive Python step.
+# Compares the current-step intent (the action) against the stated objective
+# (the run's query) via lexical token overlap; a low overlap means the agent's
+# trajectory is diverging from what it was asked to do. OFF by default; enable
+# with env A11OY_DRIFT_GUARD=1. Honest no-op (measured:false) when disabled or
+# when it cannot score (e.g. an empty objective). NEVER raises, NEVER fabricates
+# a score. This is a lexical proxy — labelled MEASURED (lexical) — NOT a semantic
+# embedding model; it never claims to understand meaning.
+# ----------------------------------------------------------------------------
+_DRIFT_STOPWORDS = frozenset((
+    "the", "a", "an", "to", "of", "and", "or", "for", "in", "on", "at", "by",
+    "with", "is", "are", "be", "this", "that", "it", "as", "from", "into",
+    "please", "should", "would", "could", "do", "does", "if", "then", "action",
+))
+
+
+def _drift_tokens(text: str) -> set:
+    """Lowercase alphanumeric word tokens minus stopwords. Pure, never raises."""
+    out = set()
+    word = []
+    for ch in (text or "").lower():
+        if ch.isalnum():
+            word.append(ch)
+        elif word:
+            tok = "".join(word)
+            word = []
+            if len(tok) > 2 and tok not in _DRIFT_STOPWORDS:
+                out.add(tok)
+    if word:
+        tok = "".join(word)
+        if len(tok) > 2 and tok not in _DRIFT_STOPWORDS:
+            out.add(tok)
+    return out
+
+
+def drift_check(objective: str, current_intent: str) -> dict:
+    """Governed drift-detection step (importable). Scores how far a current-step
+    intent has diverged from the stated objective using lexical token overlap
+    (Jaccard distance): 0.0 = perfectly aligned, 1.0 = fully diverged. OFF unless
+    env A11OY_DRIFT_GUARD=1. Honest no-op {measured:false} when disabled or when
+    it cannot score. When enabled and drift >= threshold (env A11OY_DRIFT_THRESHOLD,
+    default 0.85) it flags action='reflect' — an ADVISORY re-orient directive
+    recorded on the receipt; it does NOT rewrite the verdict or the gate. NEVER
+    raises, NEVER fabricates.
+
+    Returns: {measured: bool, score: float|null, action: 'none'|'reflect', note: str}
+    """
+    import os
+    if os.environ.get("A11OY_DRIFT_GUARD") != "1":
+        return {"measured": False, "score": None, "action": "none",
+                "note": "drift guard OFF (set A11OY_DRIFT_GUARD=1 to enable)."}
+    try:
+        obj = _drift_tokens(objective)
+        cur = _drift_tokens(current_intent)
+        if not obj or not cur:
+            return {"measured": False, "score": None, "action": "none",
+                    "note": ("drift unscoreable — objective or intent has no content "
+                             "tokens; honest no-op, never fabricated.")}
+        union = obj | cur
+        inter = obj & cur
+        overlap = len(inter) / len(union) if union else 0.0
+        score = round(1.0 - overlap, 4)  # lexical Jaccard distance
+        try:
+            threshold = float(os.environ.get("A11OY_DRIFT_THRESHOLD", "0.85"))
+        except Exception:
+            threshold = 0.85
+        action = "reflect" if score >= threshold else "none"
+        return {"measured": True, "score": score, "action": action,
+                "threshold": threshold,
+                "note": ("lexical Jaccard drift (MEASURED lexical, NOT semantic): "
+                         "%d shared / %d total content tokens. action='%s' is an "
+                         "ADVISORY re-orient flag; it does not alter the verdict."
+                         % (len(inter), len(union), action))}
+    except Exception as exc:  # a receipt helper must never take the loop down
+        return {"measured": False, "score": None, "action": "none",
+                "note": "drift fail-open: %s" % (str(exc)[:120],)}
+
+
+# ----------------------------------------------------------------------------
+# COUNTERFACTUAL CHECK (ADDITIVE 2026-07-01): reimplements the platform
+# cognitive-runtime counterfactual-engine PATTERN as a small, additive Python
+# step. BEFORE finalizing a HIGH-CONSEQUENCE decision (high severity OR
+# irreversible), it asks a reasoning brain a brief "what if the opposite were
+# true / what single fact would make this wrong?" question and folds the reply
+# into the VERIFY receipt. OFF by default; enable with env A11OY_COUNTERFACTUAL=1.
+#
+# HONESTY: this requires a REAL reasoning brain. This image ships szl_brain.route
+# as an explicit HONEST STUB (no model key wired), which is NOT a real generator,
+# so we DO NOT call it here — that would fabricate a counterfactual. A real brain
+# is injected by setting the module attribute _CF_GENERATOR (a callable str->str),
+# e.g. by the host app when a model endpoint is actually wired. When no real brain
+# is available the step is an honest no-op: counterfactual {ran:false}. It NEVER
+# fabricates a note and NEVER alters the gate/kernel verdict (advisory only).
+# ----------------------------------------------------------------------------
+# Optional injected reasoning-brain generator: callable(prompt:str)->str. None
+# (default) means no real brain is wired -> honest {ran:false}. NEVER auto-bound
+# to the honest-stub router (that would fabricate). Set by the host app / tests.
+_CF_GENERATOR = None
+
+
+def counterfactual_check(action: str, severity: str, confidence: float,
+                         reversible: bool, decision: str) -> dict:
+    """Governed counterfactual step (importable). For a HIGH-CONSEQUENCE decision
+    (severity high/critical OR irreversible) it asks the injected reasoning brain
+    (module attr _CF_GENERATOR) a brief "what would make this wrong?" question and
+    returns {ran: bool, note: str|null}. OFF unless env A11OY_COUNTERFACTUAL=1.
+    Honest no-op {ran:false} when disabled, when the action is not high-consequence,
+    or when no real brain is wired — NEVER fabricates a counterfactual, NEVER
+    raises, NEVER changes the verdict.
+
+    Returns: {ran: bool, note: str|null}
+    """
+    import os
+    if os.environ.get("A11OY_COUNTERFACTUAL") != "1":
+        return {"ran": False, "note": None,
+                "reason": "counterfactual OFF (set A11OY_COUNTERFACTUAL=1 to enable)."}
+    try:
+        sev_rank = {"low": 1, "medium": 2, "high": 3, "critical": 4}.get(severity, 2)
+        high_consequence = sev_rank >= 3 or not reversible
+        if not high_consequence:
+            return {"ran": False, "note": None,
+                    "reason": ("action is not high-consequence (low/medium severity and "
+                               "reversible) — counterfactual check not required.")}
+        gen = _CF_GENERATOR
+        if not callable(gen):
+            return {"ran": False, "note": None,
+                    "reason": ("no real reasoning brain wired (set module _CF_GENERATOR) — "
+                               "counterfactual honestly NOT run, never fabricated. The "
+                               "in-image szl_brain.route is an honest stub, not a generator.")}
+        prompt = ("Counterfactual check on a governed decision. The decision was %s for "
+                  "action %r (severity=%s, confidence=%.2f, reversible=%s). In 1-2 sentences: "
+                  "what if the opposite were true — what single fact would make this decision "
+                  "wrong, and how would we detect it?"
+                  % (decision, action, severity, confidence, reversible))
+        note = gen(prompt)
+        if not note or not str(note).strip():
+            return {"ran": False, "note": None,
+                    "reason": "reasoning brain returned empty — counterfactual honestly not run."}
+        return {"ran": True, "note": str(note).strip()[:600],
+                "reason": ("counterfactual generated by the wired reasoning brain; ADVISORY "
+                           "— recorded in the VERIFY receipt, does not alter the verdict.")}
+    except Exception as exc:  # a receipt helper must never take the loop down
+        return {"ran": False, "note": None,
+                "reason": "counterfactual fail-open: %s" % (str(exc)[:120],)}
+
+
+# ----------------------------------------------------------------------------
+# HUMAN-APPROVAL-INTERRUPT (ADDITIVE 2026-07-01): reimplements the platform
+# cognitive-runtime approval-interrupt PATTERN as a small, additive Python
+# primitive. It solves the "tool-call-committed-before-yes" problem: when a
+# state-CHANGING action clears the automated gate, it is HELD at a durable
+# checkpoint and does NOT fire until a human grants approval for that exact
+# checkpoint. OFF by default; enable with env A11OY_APPROVAL_INTERRUPT=1.
+#
+# COMPOSES WITH — never replaces — the existing gate: the deterministic deny-by-
+# default policy gate + advisory Λ trust floor + C10 3-of-4 quorum still run and
+# can still DENY. Approval-interrupt is a SECOND, human layer that only engages
+# AFTER an ALLOW, so injected input can never use it to flip a DENY to fire.
+# Default OFF ⇒ behaviour byte-identical to today (no hold, no chain link).
+# NEVER raises.
+#
+# A verb heuristic marks state-changing actions; when uncertain it errs toward
+# REQUIRING approval (deny-by-default spirit). A grant is honoured only if it
+# names the SAME checkpoint_id and carries a non-empty human approver identity.
+# ----------------------------------------------------------------------------
+_STATE_CHANGE_VERBS = (
+    "deploy", "delete", "remove", "drop", "engage", "fire", "launch", "write",
+    "update", "modify", "patch", "merge", "push", "transfer", "send", "pay",
+    "purchase", "provision", "terminate", "shutdown", "restart", "reboot",
+    "grant", "revoke", "rotate", "publish", "release", "execute", "run", "apply",
+    "create", "destroy", "kill", "scale", "migrate", "rollback", "commit",
+)
+
+
+def _is_state_changing(action: str, reversible: bool) -> bool:
+    """Heuristic: irreversible actions are state-changing; otherwise look for a
+    mutation verb in the action text. Errs toward True (deny-by-default) only for
+    the irreversible case; a purely read-only reversible query stays False."""
+    if not reversible:
+        return True
+    low = (action or "").lower()
+    return any(v in low for v in _STATE_CHANGE_VERBS)
+
+
+def approval_interrupt(action: str, severity: str, reversible: bool, decision: str,
+                       grant: dict | None = None) -> dict:
+    """Durable human-approval-interrupt primitive (importable). For a state-
+    CHANGING action that has ALREADY cleared the automated gate (decision=ALLOW),
+    it records a DURABLE checkpoint and requires an explicit human grant BEFORE
+    the action may fire. OFF unless env A11OY_APPROVAL_INTERRUPT=1.
+
+    The checkpoint_id is a stable hash of the action identity (action + severity +
+    reversibility) — NOT the per-run id — so a human can approve THAT checkpoint
+    and a later replay carrying the matching grant will fire. This is what makes
+    the interrupt durable across the pause.
+
+    Returns: {required: bool, granted: bool|null, checkpoint_id: str, note: str}
+      - required=False (disabled, or gate already DENYied, or non-state-changing):
+        no hold, granted=None.
+      - required=True, granted=None: HELD — awaiting a human grant for this exact
+        checkpoint_id; the caller MUST NOT fire the action.
+      - required=True, granted=True: a matching human grant was supplied; the
+        action may fire (still subject to the gate that already ALLOWed it).
+
+    Composes with — never replaces — the deny-by-default gate + Λ floor + quorum.
+    NEVER raises, NEVER fires the action itself, NEVER flips a DENY.
+    """
+    import os
+    checkpoint_id = hashlib.sha256(
+        json.dumps({"action": action, "severity": severity, "reversible": bool(reversible)},
+                   sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:32]
+    if os.environ.get("A11OY_APPROVAL_INTERRUPT") != "1":
+        return {"required": False, "granted": None, "checkpoint_id": checkpoint_id,
+                "note": "approval-interrupt OFF (set A11OY_APPROVAL_INTERRUPT=1 to enable)."}
+    try:
+        if decision != "ALLOW":
+            return {"required": False, "granted": None, "checkpoint_id": checkpoint_id,
+                    "note": ("gate verdict is DENY — nothing to approve. Approval-interrupt "
+                             "composes with, and never overrides, the deny-by-default gate.")}
+        if not _is_state_changing(action, reversible):
+            return {"required": False, "granted": None, "checkpoint_id": checkpoint_id,
+                    "note": ("action is reversible and shows no state-change verb — treated as "
+                             "read-only; no human approval interrupt required.")}
+        # State-changing + gate-allowed: a human MUST approve THIS checkpoint before firing.
+        granted = False
+        if isinstance(grant, dict):
+            approver = str(grant.get("approver") or "").strip()
+            approved = bool(grant.get("approved"))
+            cp = str(grant.get("checkpoint_id") or "")
+            if approved and approver and cp == checkpoint_id:
+                granted = True
+        if granted:
+            return {"required": True, "granted": True, "checkpoint_id": checkpoint_id,
+                    "approver": str(grant.get("approver")).strip()[:120],
+                    "note": ("human approval granted for this exact checkpoint — the "
+                             "gate-allowed state-changing action MAY now fire. This is an "
+                             "ADDITIONAL human layer on top of the automated gate.")}
+        return {"required": True, "granted": None, "checkpoint_id": checkpoint_id,
+                "note": ("HELD for human approval — a gate-allowed STATE-CHANGING action is "
+                         "NOT fired until a human grants approval for checkpoint %s. This "
+                         "solves the tool-call-committed-before-yes problem; it composes "
+                         "with (does not replace) the deny-by-default gate + Λ floor + "
+                         "3-of-4 quorum." % checkpoint_id)}
+    except Exception as exc:  # a governance primitive must never take the loop down;
+        # fail SAFE: on any error, HOLD rather than fire (deny-by-default spirit).
+        return {"required": True, "granted": None, "checkpoint_id": checkpoint_id,
+                "note": "approval-interrupt fail-safe HOLD: %s" % (str(exc)[:120],)}
+
+
+# ----------------------------------------------------------------------------
 # REAL in-image governance corpus (the thing the RAG hop retrieves over).
 # These are real doctrine/governance statements that ground the agent's tool
 # choice and the policy gate. No external dataset / no fabricated chunks.
@@ -379,7 +710,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
     _RUN_CHAIN = []  # list of {run_id, final_hash, prev_run_hash}
 
     def _do_run(query: str, action: str, severity: str, confidence: float,
-                reversible: bool, untrusted_input: str = ""):
+                reversible: bool, untrusted_input: str = "", approval_grant=None):
         tr = _Trace("governed_agent_run")
         hops = []
         # PER-RUN GENESIS (FIX 2026-06-06): seed each run's seq-0 receipt with the
@@ -537,9 +868,65 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         allowed = gate_allow and trust_pass
         decision = "ALLOW" if allowed else "DENY"
 
-        # ---- HOP 6: emit (ONLY on allow) + sign the final receipt ----
+        # ---- UNIFIED RECEIPT (ADDITIVE): energy + optional multi-witness ----
+        # Energy is a pure signed-field addition (never a new chain link, so the
+        # chain is byte-identical to today when the meter is absent). Multi-witness,
+        # when explicitly enabled and it runs, is FOLDED INTO THE HASH CHAIN via
+        # _chain_receipt so its hash is part of the tamper-evident linkage.
+        energy_attest = _energy_fields_for_receipt()
+        consensus_attest = _multiwitness_fields(prev_hash,
+                                                {"decision": decision, "action": action,
+                                                 "severity": severity, "run_id": tr.trace_id})
+        if consensus_attest.get("consensus_status") == "WITNESSED":
+            _chain_receipt("multiwitness", dict(consensus_attest))
+
+        # ---- COGNITIVE DRIFT GUARD (ADDITIVE, default OFF) ----
+        # Scores whether the current-step intent (action) has diverged from the
+        # stated objective (query). OFF unless A11OY_DRIFT_GUARD=1. When it runs
+        # it is FOLDED INTO THE HASH CHAIN so the drift verdict is tamper-evident;
+        # when disabled it is an honest no-op and adds NO chain link (default
+        # chain stays byte-identical). It never alters the gate/kernel verdict.
+        drift_attest = drift_check(query, action)
+        if drift_attest.get("measured"):
+            _chain_receipt("drift_check", dict(drift_attest))
+
+        # ---- COUNTERFACTUAL CHECK (ADDITIVE, default OFF) ----
+        # For a HIGH-CONSEQUENCE decision, asks the wired reasoning brain "what
+        # would make this wrong?" and folds the reply into the VERIFY receipt.
+        # OFF unless A11OY_COUNTERFACTUAL=1 AND a real brain is wired; honest
+        # {ran:false} otherwise. When it runs it is FOLDED INTO THE HASH CHAIN so
+        # the counterfactual is tamper-evident; when it does not run it adds NO
+        # chain link (default chain byte-identical). Never alters the verdict.
+        counterfactual_attest = counterfactual_check(action, severity, confidence,
+                                                     reversible, decision)
+        if counterfactual_attest.get("ran"):
+            _chain_receipt("counterfactual", dict(counterfactual_attest))
+
+        # ---- HUMAN-APPROVAL-INTERRUPT (ADDITIVE, default OFF) ----
+        # A SECOND, human layer on top of the automated gate: when enabled, a
+        # gate-ALLOWED state-changing action is HELD at a durable checkpoint and
+        # is NOT fired until a human grants approval for that exact checkpoint
+        # (solving tool-call-committed-before-yes). OFF unless
+        # A11OY_APPROVAL_INTERRUPT=1. When it engages (required) it is FOLDED INTO
+        # THE HASH CHAIN; when disabled it adds NO chain link and does NOT change
+        # the emit (default chain + behaviour byte-identical). It composes with —
+        # never overrides — the deny-by-default gate (a DENY stays a DENY).
+        approval_attest = approval_interrupt(action, severity, reversible, decision,
+                                             grant=approval_grant)
+        approval_hold = bool(approval_attest.get("required")) and not approval_attest.get("granted")
+        if approval_attest.get("required"):
+            _chain_receipt("approval", dict(approval_attest))
+
+        # ---- HOP 6: emit (ONLY on allow AND not held for human approval) ----
         with tr.span("emit", "emit") as sp:
-            if allowed:
+            if allowed and approval_hold:
+                effect = {"emitted": False,
+                          "action": action,
+                          "effect": ("HELD for human approval — gate ALLOWED but this "
+                                     "state-changing action is NOT fired until a human "
+                                     "approves checkpoint %s (tool-call-committed-before-yes "
+                                     "solved)." % approval_attest.get("checkpoint_id"))}
+            elif allowed:
                 effect = {"emitted": True,
                           "action": action,
                           "effect": ("recommendation emitted with rollback path"
@@ -548,7 +935,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                 effect = {"emitted": False,
                           "action": action,
                           "effect": "BLOCKED at the gate — no action taken (gate soundness)"}
-            sp.set(decision=decision, **effect)
+            sp.set(decision=decision, approval_hold=approval_hold, **effect)
             # Build the decision payload and SIGN it (host app's real signer).
             decision_payload = {
                 "run_id": tr.trace_id,
@@ -564,6 +951,11 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                 "chain_final_hash": prev_hash,
                 "chain_depth": len(chain),
                 "emitted": effect["emitted"],
+                "energy": energy_attest,
+                "consensus": consensus_attest,
+                "drift": drift_attest,
+                "counterfactual": counterfactual_attest,
+                "approval": approval_attest,
                 "issuer": ns,
                 "issued_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -662,6 +1054,11 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                       "axes": axes,
                       "status": "Trust score (advisory) — research conjecture, not a proven oracle"},
             "formula_proof": formula_proof,
+            "energy": energy_attest,
+            "consensus": consensus_attest,
+            "drift": drift_attest,
+            "counterfactual": counterfactual_attest,
+            "approval": approval_attest,
             "trace": tr.to_dict(),
             "receipt_chain": chain,
             "signed_receipt": envelope,
@@ -861,8 +1258,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         confidence = float(b.get("confidence", 0.9))
         reversible = bool(b.get("reversible", True))
         untrusted_input = b.get("untrusted_input") or b.get("untrusted") or ""
+        approval_grant = b.get("approval_grant") or b.get("approval")
         return JSONResponse(_do_run(query, action, severity, confidence, reversible,
-                                    untrusted_input=untrusted_input))
+                                    untrusted_input=untrusted_input,
+                                    approval_grant=approval_grant))
 
     async def _agent_tools(request: Request):
         return JSONResponse({"tools": _tool_catalog(ns), "count": len(_tool_catalog(ns)),
