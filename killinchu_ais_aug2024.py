@@ -247,6 +247,92 @@ def sources_manifest(ns: str = NS_DEFAULT) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Maritime OVERLAY GeoJSON endpoints (ADDITIVE — T004 overlay contract).
+# GET /api/{ns}/v1/overlays/pirate  and  /api/{ns}/v1/overlays/wpi return a
+# valid GeoJSON FeatureCollection (RFC 7946) built from the REAL szl_connectors
+# maritime overlay datasets (pirate_attacks / world_port_index). These reuse the
+# same governed connectors as killinchu_maritime_risk (never re-implemented).
+# HONESTY: each feature carries the connector's live/sample state + provenance.
+# SAMPLE rows are on the REAL schema at REAL coordinates and are NEVER labelled
+# LIVE; if a connector is not wired we return an EMPTY FeatureCollection labelled
+# UNAVAILABLE — no fabricated features, ever.
+# ---------------------------------------------------------------------------
+_OVERLAY_META: dict[str, dict[str, str]] = {
+    "pirate": {
+        "connector": "pirate_attacks",
+        "title": "Global Maritime Pirate Attacks (1993-2020)",
+        "provenance": "IMB ICC / Kaggle Global Maritime Pirate Attacks schema",
+        "kind": "risk_heat",
+    },
+    "wpi": {
+        "connector": "world_port_index",
+        "title": "MSI World Port Index (NGA Pub 150)",
+        "provenance": "NGA MSI World Port Index (Pub 150) schema",
+        "kind": "reference_ports",
+    },
+}
+
+
+def overlay_geojson(overlay_key: str, limit: int = 50) -> dict[str, Any]:
+    """Return a valid GeoJSON FeatureCollection for a maritime overlay, built
+    from the REAL szl_connectors overlay connector. Never fabricates rows: if the
+    connector is unavailable it returns an EMPTY FeatureCollection labelled
+    honestly (never a fabricated LIVE feature)."""
+    meta = _OVERLAY_META.get(overlay_key)
+    fc: dict[str, Any] = {"type": "FeatureCollection", "features": []}
+    if meta is None:
+        fc["error"] = f"unknown overlay '{overlay_key}'"
+        fc["data_label"] = "UNAVAILABLE"
+        fc["count"] = 0
+        return fc
+    fc["overlay"] = overlay_key
+    fc["title"] = meta["title"]
+    fc["overlay_kind"] = meta["kind"]
+    fc["provenance"] = meta["provenance"]
+    c = None
+    try:
+        import szl_connectors as _sc
+        c = _sc.get(meta["connector"])
+    except Exception as e:  # honest degrade — never fabricate
+        fc["error"] = f"{type(e).__name__}: {e}"
+    if c is None:
+        fc["data_label"] = "UNAVAILABLE"
+        fc["live"] = False
+        fc["count"] = 0
+        fc["note"] = ("overlay connector not wired in this deployment — no features "
+                      "served and none fabricated")
+        return fc
+    rec = c.read({"limit": max(1, min(int(limit), 200))}).to_dict()
+    records = rec.get("records", []) or []
+    live = bool(rec.get("live"))
+    fc["live"] = live
+    fc["state"] = rec.get("state", "sample")
+    fc["data_label"] = "LIVE" if live else "SAMPLE"
+    fc["note"] = rec.get("note", "")
+    fc["source"] = rec.get("source", meta["provenance"])
+    feats: list[dict[str, Any]] = []
+    for row in records:
+        lat = row.get("lat", row.get("Latitude"))
+        lon = row.get("lon", row.get("Longitude"))
+        try:
+            lonf = float(lon)
+            latf = float(lat)
+        except Exception:
+            continue  # drop coord-less rows; never fake a coordinate
+        props = {k: v for k, v in row.items()
+                 if k not in ("lat", "lon", "Latitude", "Longitude")}
+        props["data_label"] = fc["data_label"]
+        feats.append({
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [lonf, latf]},
+            "properties": props,
+        })
+    fc["features"] = feats
+    fc["count"] = len(feats)
+    return fc
+
+
+# ---------------------------------------------------------------------------
 # Route registration (ADDITIVE).
 # ---------------------------------------------------------------------------
 def register(app, ns: str = NS_DEFAULT) -> dict[str, Any]:
@@ -287,11 +373,25 @@ def register(app, ns: str = NS_DEFAULT) -> dict[str, Any]:
             "default": True,
         })
 
+    ov_base = f"/api/{ns}/v1/overlays"
+
+    @router.get(ov_base + "/pirate", include_in_schema=False)
+    async def _ov_geo_pirate(limit: int = 50) -> JSONResponse:
+        return JSONResponse(overlay_geojson("pirate", limit),
+                            media_type="application/geo+json")
+
+    @router.get(ov_base + "/wpi", include_in_schema=False)
+    async def _ov_geo_wpi(limit: int = 50) -> JSONResponse:
+        return JSONResponse(overlay_geojson("wpi", limit),
+                            media_type="application/geo+json")
+
     registered.extend([
         f"GET {base}/sources",
         f"GET {base}/aug2024/tracks",
         f"GET {base}/aug2024/risk-board",
         f"GET {base}/tracks",
+        f"GET {ov_base}/pirate",
+        f"GET {ov_base}/wpi",
     ])
     app.include_router(router)
     print(f"[killinchu] /ais Aug-2024 governed source registered: "
