@@ -1,0 +1,17 @@
+{
+  "_comment": "Page-claim honesty manifest for killinchu. Every comparative/superlative sentence rendered on a covered page must be enumerated here VERBATIM (normalized whitespace) with a justification + source, or CI fails. Every measurement-shaped number (exponential / percentage / x-fold) must be sourced here too. killinchu renders live metrics from its API at runtime rather than hardcoding them, so the covered static pages currently carry no such claims and the claims list is intentionally empty — it forward-protects the public copy: any future superlative or hardcoded number added to a covered page fails CI until it is enumerated here with a justification + source, or removed. results_artifact is null because killinchu commits no benchmark results.json; a hardcoded measurement number on a covered page must therefore be sourced via a manifest entry. Stale entries (text no longer on any page) also fail CI. Enforced by tools/page-claim-guard/check_page_claims.py via .github/workflows/page-claim-guard.yml; self-tested against .github/test-fixtures/page-claim-guard/ fixtures before it is trusted against the real pages.",
+  "results_artifact": null,
+  "covered_pages": [
+    "static/landing.html",
+    "static/index.html",
+    "static/operator-unified.html",
+    "static/uds.html",
+    "static/uds-compliance.html",
+    "static/navy.html",
+    "static/drone-3d.html",
+    "pages/integrations.html",
+    "live_wires.html",
+    "cathedral.html"
+  ],
+  "claims": []
+}

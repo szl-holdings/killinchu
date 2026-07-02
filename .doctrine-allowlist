@@ -1,0 +1,71 @@
+# .doctrine-allowlist (killinchu)
+#
+# Paths excluded from the doctrine-grep banned-token scan (.github/workflows/
+# doctrine-grep.yml). A path belongs here only when it legitimately enumerates
+# banned tokens for detection/reference, mirrors upstream doctrine text, carries
+# the token inside a vendored third-party bundle, holds domain/OSINT data where
+# the token is a proper noun, or uses "leading" in a technical sense — never as
+# marketing-hype prose on a user-facing surface. Format: one path prefix per
+# line (anchored at start of path); lines beginning with # are comments.
+
+# The grep workflow encodes the banned-token regex as shell data (belt-and-suspenders).
+.github/workflows/doctrine-grep.yml
+
+# Page-claim guard fixtures — the overclaim fixture intentionally carries comparative
+# claims so the guard's self-test can prove it rejects them.
+.github/test-fixtures/page-claim-guard/
+
+# In-image doctrine corpus mirrored from a11oy's LOCKED doctrine docs — they
+# ENUMERATE the banned legacy identities as "still banned"; the list IS the rule.
+# corpus/formulas/* mirror the crypto formula module ("leading N bytes").
+corpus/
+
+# Safe-route wiring doc — references the legacy INTERNAL route identifier under test
+# (rosie route module, /route path, and its /api/rosie/v1 endpoints); real route
+# strings verified against the live Space, not marketing prose.
+deploy/space/SAFE_ROUTE_WIRING.md
+
+# Server-side codename gate — enumerates the internal-codename TOKENS tuple plus the
+# honest remap that STRIPS every codename at the API boundary. Enumeration-for-
+# detection: it exists so no codename ever reaches a user surface.
+szl_codename_gate.py
+
+# Browser-side twin of szl_codename_gate.py — same TOKENS enumeration + remap so no
+# codename is ever user-visible; its one "leading" is "preserving a leading capital".
+static/shared/szl_codename_sanitizer.js
+
+# Elite console — carries the codename remap map/regex that rewrites internal
+# codenames to honest roles at the render boundary, plus a self-test asserting none
+# appear in the DOM. Enumeration-for-remapping; also a technical use of "leading".
+killinchu_elite_console.py
+
+# Chain-of-thought interop module — "leading" used in a technical sense.
+killinchu_cot_interop.py
+
+# Cryptographic formula module — "leading N bytes" is a commitment-prefix term.
+szl_formulas.py
+
+# NOAA AIS data connector — "leading" in a technical/data sense.
+szl_connectors/data_sources/ais_noaa_aug2024.py
+
+# Built SPA bundle (Vite) — minified third-party strings; the flagged token is an
+# HTML boolean-attribute name inside the vendored React DOM property table.
+static/assets/
+
+# Vendored third-party libraries (minified) — upstream author strings, not SZL prose.
+static/vendor/
+
+# Vendored CesiumJS build — upstream third-party strings ("leading" technical).
+static/cesium/
+
+# Fleet vessel OSINT scenario data — the flagged token is part of the proper noun for
+# the IRGC (a real maritime actor) inside a vessel track report, not a superlative.
+fleet_vessels_data.json
+
+# CISA Known Exploited Vulnerabilities catalog snapshot — verbatim US-gov feed; every
+# "leading" is technical CVE prose ("leading to remote code execution").
+live_snapshots/kev.json
+
+# This allowlist enumerates the banned identities in its own comments (to explain WHY
+# each path is exempt) — the documentation IS the rule, not a violation.
+.doctrine-allowlist
