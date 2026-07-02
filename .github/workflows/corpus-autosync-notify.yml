@@ -1,0 +1,42 @@
+name: Corpus auto-sync notify classification
+
+# Guards the knowledge-corpus auto-sync notify classifier: the notify step in
+# knowledge-corpus-autosync.yml must pick exactly one of three Slack/ntfy
+# messages (PR opened / BLOCKED by the honesty gate / PR refused — open
+# manually) and stay silent on the no-op paths (branch already exists, no
+# drift, webhook not configured). Drives the REAL bash classifier extracted
+# from the workflow YAML for every outcome, with curl stubbed (no network).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/knowledge-corpus-autosync.yml
+      - tests/test_corpus_autosync_notify.py
+      - .github/workflows/corpus-autosync-notify.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/knowledge-corpus-autosync.yml
+      - tests/test_corpus_autosync_notify.py
+      - .github/workflows/corpus-autosync-notify.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  corpus-autosync-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps
+        run: python -m pip install --disable-pip-version-check pytest pyyaml
+      - name: Run corpus auto-sync notify classification test
+        run: python -m pytest tests/test_corpus_autosync_notify.py -q
