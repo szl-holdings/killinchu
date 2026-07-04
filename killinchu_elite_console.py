@@ -1163,29 +1163,23 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-group nav-group-pinned" data-demo-sec="demo" data-demo-open="1" style="color:#f5b301;border-top:2px solid #f5b301;margin-top:.2rem;padding-top:.5rem">&#9733; DEMO &middot; START HERE</div>
     <div class="nav-item nav-pinned" data-view="hero_interdiction" onclick="go('hero_interdiction')" title="HERO: live counter-UAS decision -> DSSE-signed Lambda-receipt -> trace the exact Lean theorem, kernel sha, axioms, DOI and honest maturity label."><span class="ico">&#9733;</span>Provable Interdiction (HERO 3D)</div>
     <div class="nav-item nav-pinned" data-view="tracks" onclick="go('tracks')" title="Live track board off the air/sea picture, auto-recording. Real AIS/ADS-B + the NOAA AIS Aug-2024 dataset."><span class="ico">&#8853;</span>Live Track Board</div>
-    <div class="nav-item nav-pinned" data-view="tamper_demo" onclick="go('tamper_demo')" title="Tamper a signed receipt and watch the SHA-256 hash chain visibly REJECT it in 3D."><span class="ico">&#9939;</span>Tamper a Receipt (3D)</div>
-    <div class="nav-item nav-pinned" data-view="uds_package" onclick="go('uds_package')" title="killinchu as a UDS-pattern package: UDS Package CR, Pepr-style capability, Zarf flavors, Lula/OSCAL tying Lambda-gate + receipts to NIST 800-53 as claims-with-evidence."><span class="ico">&#11042;</span>UDS Package</div>
     <a class="nav-item nav-pinned" href="/elite/cot" rel="noopener" title="CoT Interop — styled API manifest viewer. MITRE Cursor-on-Target 2.0 export/ingest. Pretty-prints the live capability + honesty manifest (GET /api/killinchu/v1/cot/status) and links to the raw JSON + full /cot/export. DoD-standard interop; this is an API/data surface, not a console tab."><span class="ico">&#9741;</span>CoT Interop · API manifest</a>
     <div class="nav-item nav-pinned" data-view="u_warhacker" onclick="go('u_warhacker')" title="Defense Demo Suite: 27 live maritime/drone/counter-UAS demos and the proofs board."><span class="ico">&#10026;</span>Demo Suite</div>
     <div class="nav-item nav-pinned" data-view="dataset_control" onclick="go('dataset_control')" title="Data Sources / Overlays: one panel to flip Live AIS (default), the NOAA AIS Aug-2024 sample, the Pirate-attack risk and World Port Index overlays, and a CoT export action. Datasets not yet deployed are honestly labelled 'available when PR #N merges'. Additive; sample is never live."><span class="ico">&#9707;</span>Data Sources / Overlays</div>
     <div class="nav-item nav-pinned" data-view="fleet_c2" onclick="go('fleet_c2')" title="Live 3D fleet picture: real military ADS-B + AIS vessels on a globe; governance loop real, effector link simulated."><span class="ico">&#9680;</span>Fleet Health &amp; Governed C2 (3D)</div>
-    <div class="nav-item nav-pinned" data-view="determinism_demo" onclick="go('determinism_demo')" title="Run the same governed decision 5x: byte-identical Merkle roots. Honest label A5 (measured)."><span class="ico">&#8801;</span>Determinism — Run 5x</div>
-    <div class="nav-item nav-pinned" data-view="decoders" onclick="go('decoders')" title="Protocol Decoders: paste a captured Remote ID / ADS-B / MAVLink frame and see the claimed identity. Unverified broadcast claims — a lead, not proof."><span class="ico">&#9670;</span>Protocol Decoders</div>
-    <div class="nav-item nav-pinned" data-view="pqc" onclick="go('pqc')" title="Quantum-Safe Signing: sign a decision with today's standard signature, a quantum-resistant one, or both at once (hybrid). Demo keys reset on restart."><span class="ico">&#9883;</span>Quantum-Safe Signing</div>
-    <div class="nav-item nav-pinned" data-view="readiness" onclick="go('readiness')" title="Operational Readiness: deployed-vs-repo truth read live from the deployed app, the GitHub repo API and the Hugging Face Space API. Every value labelled live/cached/unreachable; nothing fabricated."><span class="ico">&#10003;</span>Operational Readiness</div>
+    <div class="nav-item nav-pinned" data-view="decoders" onclick="go('decoders')" title="Protocol Decoders (unified): paste a captured Remote ID / ADS-B / MAVLink frame and see the claimed identity. Unverified broadcast claims — a lead, not proof. Folds the former Quantum-Safe Signing tab in as a sub-view."><span class="ico">&#9670;</span>Protocol Decoders</div>
+    <div class="nav-item nav-pinned" data-view="u_assurance" onclick="go('u_assurance')" title="Assurance (unified): tamper-evidence (watch a SHA-256 receipt chain visibly REJECT a tampered entry in 3D), determinism (run the same governed decision 5x for byte-identical Merkle roots — honest label A5, measured), operational readiness (deployed-vs-repo live truth) and the UDS-pattern package (CR / Pepr / Zarf / Lula-OSCAL). Folds the former Tamper, Determinism, Readiness and UDS Package tabs in as sub-views."><span class="ico">&#9878;</span>Assurance (Tamper/Determinism/Readiness/UDS)</div>
 
     <div class="nav-group" data-demo-sec="maritime" title="NAVY mission domain: live AIS maritime picture, NOAA AIS Aug-2024 sample, pirate/WPI overlays, dark-vessel hunt, ASW OSINT — governed risk + signed receipts.">&#9312; NAVY &middot; MARITIME</div>
     <a class="nav-item" href="/elite/maritime" style="color:var(--gold-bright)" title="Flagship unified Maritime Intel surface: live AIS vessel board (incl. China seas), dark-fleet/spoof threat flags, governed Lambda risk score, vessel forecast, honest submarine/ASW OSINT, the 3D globe, and a re-hashable signed provenance HUD. Advisory; effector SIMULATED; no vessel control or live submarine tracking."><span class="ico">&#9733;</span>Maritime Intel</a>
     <a class="nav-item" href="/elite/mesh" style="color:var(--gold-bright)" title="MESH: the live szl-mesh surface — real topology graph (spec 08), the 3-of-4 Khipu quorum (soft-safety AP; Khipu BFT unconditional = Conjecture 2), the DSSE-receipted CRDT chain with in-browser SHA-256 re-hash + tamper demo, and doctrine-gated enrollment. Real mesh state; no fabricated quorum."><span class="ico">&#9883;</span>MESH (live surface)</a>
     <div class="nav-item" data-view="u_maritime" onclick="go('u_maritime')" title="Live Maritime Picture (unified): Live Track Board + live AIS maritime picture + Live Picture (COP) + sanctions/dark-vessel screening + dark-vessel hunt. Folds the former Track Board and Live Picture tabs in as sub-views."><span class="ico">&#9875;</span>Maritime Picture (Tracks/Map)</div>
     <div class="nav-item" data-view="u_space" onclick="go('u_space')" title="Space &amp; GEOINT: 3D LEO constellation globe, GEOINT planning, live USGS seismic forecast globe."><span class="ico">&#8853;</span>Constellations &amp; GEOINT (3D LEO)</div>
-    <div class="nav-item" data-view="u_darkgraph" onclick="go('u_darkgraph')" title="Dark-vessel hunt: 3D threat graph + class DB + ranking + detection + drone DB."><span class="ico">&#10847;</span>Dark-Vessel Threat Graph (3D)</div>
 
     <div class="nav-group" data-demo-sec="cuas" title="ARMY / MARINES mission domain: live counter-UAS track feed, swarm-intent classifier over real ADS-B, governed engage/ROE, sensor-fusion — decision to DSSE-signed &Lambda;-receipt.">&#9313; ARMY &middot; COUNTER-UAS</div>
     <div class="nav-item" data-view="u_swarm" onclick="go('u_swarm')" title="Swarm (unified): 3D topology + resilience monitor + live swarm-intent classifier (CONVERGING/LOITER/INGRESS/TRANSIT over real ADS-B) + 3D swarm mesh galaxy. Folds the former Swarm-Intent and Swarm Mesh tabs in as sub-views."><span class="ico">&#9785;</span>Swarm (Integrity/Intent/Mesh)</div>
     <div class="nav-item" data-view="u_engage" onclick="go('u_engage')" title="Governed engagement: ROE, engage-safely, geofence, autonomy governance, companion-defense."><span class="ico">&#8862;</span>Engage &amp; ROE</div>
     <div class="nav-item" data-view="u_fusion" onclick="go('u_fusion')" title="Multi-sensor fusion + fusion math + proved Covariance-Intersection."><span class="ico">&#10710;</span>Sensor-Fusion</div>
-    <div class="nav-item" data-view="operate" onclick="go('operate')" title="Select a track, issue a governed command, watch it clear the policy gate and emit a genuinely-signed receipt. Effector is a command demonstration, simulated."><span class="ico">&#9889;</span>Operate (governed control)</div>
     <div class="nav-item" data-view="u_minedops" onclick="go('u_minedops')" title="Mined field-efficiency ops: edge VRAM, telemetry memory, adaptive sampling, routing, prioritization."><span class="ico">&#8752;</span>Mined Ops</div>
 
     <div class="nav-group" data-demo-sec="joint" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem" title="JOINT / MULTI-DOMAIN interop: MITRE Cursor-on-Target 2.0 export/ingest so killinchu's air + sea picture flows into any DoD-standard C2 (TAK/ATAK). Real REST endpoints; DoD-standard interop. CoT Status/Manifest and the Overlays/CoT-export panel are the same surfaces pinned in DEMO &middot; START HERE (deep-links /elite/cot and the dataset_control tab still resolve) — de-duplicated here so each tab earns its place.">&#9314; JOINT &middot; INTEROP</div>
@@ -1194,13 +1188,10 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-group" data-demo-sec="core" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9315; GOVERNED CORE &middot; UDS</div>
     <div class="nav-item" data-view="lambda" onclick="go('lambda')" title="13-axis Trust score monitor. Lambda = Conjecture 1 (advisory, not a theorem)."><span class="ico">&#9672;</span>Trust Score Monitor (Λ)</div>
     <div class="nav-item" data-view="u_consensus" onclick="go('u_consensus')" title="Mesh &amp; Resilience (unified) — SKELETON organ: 3-of-4 consensus (BFT safety = Conjecture 2 OPEN unconditionally; CONDITIONAL agreement proven axiom-free, Wave23), quorum, the live Fiedler λ2 mesh-resilience monitor (real algebraic connectivity + node-removal sweep), field net, oversight. Folds the former Mesh-Resilience tab in as a sub-view."><span class="ico">&#8859;</span>Mesh &amp; Resilience</div>
-    <div class="nav-item" data-view="retask_board" onclick="go('retask_board')" title="Live drift-triggered re-tasking board: real PSI/KS/ADWIN drift on the live ADS-B telemetry raises honest re-tasking recommendations bound to the actual triggering detector. Advisory; effector simulated."><span class="ico">&#8635;</span>Drift Re-Tasking Board (live)</div>
     <div class="nav-item" data-view="u_posture" onclick="go('u_posture')" title="Runtime assurance: real model/data-drift (PSI + KS + ADWIN) on live telemetry, real graph-theoretic topology &amp; health metrics (clustering / centrality / Fiedler lambda2), the attack-surface exposure graph and the zero-trust mesh — all from real telemetry + the real UDS Package CR. Honest verdicts and empty states."><span class="ico">&#9202;</span>Posture, Topology &amp; Zero-Trust</div>
     <div class="nav-item" data-view="u_receipts" onclick="go('u_receipts')" title="Receipts &amp; Provenance (unified) — CIRCULATORY organ: live signed-receipt chain (3D), the real-data provenance ledger (DSSE/khipu hash-chain), audit, quantum-safe signing, evidence. Folds the former Real-Data Provenance tab in as a sub-view."><span class="ico">&#9939;</span>Receipts &amp; Provenance</div>
     <div class="nav-item" data-view="u_proofs" onclick="go('u_proofs')" title="BRAIN organ: knowledge &amp; formulas (exactly 8 locked), runtime theorem cards, safety gates."><span class="ico">&#8721;</span>Knowledge &amp; Runtime Proofs</div>
-    <div class="nav-item" data-view="putnam" onclick="go('putnam')" title="Honest doctrine-v11 kernel verdict for the canonical Putnam 2025 set (A1-A6, B1-B6): the count of REAL Lean-kernel-checked theorems. SZL-native originals pending upstream."><span class="ico">&#931;</span>Putnam 2025 (kernel verdict)</div>
     <div class="nav-item" data-view="u_melt" onclick="go('u_melt')" title="NERVOUS organ: MELT observability, living-organism service graph (3D), model atlas."><span class="ico">&#8779;</span>Observability (MELT)</div>
-    <div class="nav-item" data-view="living_anatomy" onclick="go('living_anatomy')" title="a11oy + killinchu as one governed organism: live 3D anatomy with proven formulas in each organ."><span class="ico">&#10050;</span>Living Anatomy (3D)</div>
     <div class="nav-item" data-view="u_about" onclick="go('u_about')" title="What we claim (honest), research corpus, legal boundaries, deploy posture, UDS package."><span class="ico">&#8856;</span>About &amp; Claims</div>
 
     <div class="nav-group" data-demo-sec="intel" style="border-top:1px solid #2a2a2a;margin-top:.45rem;padding-top:.5rem">&#9316; INTEL &amp; PROVENANCE</div>
@@ -2026,20 +2017,20 @@ window._SUBMAP = {
   //    never break. DELETE NOTHING: each sub-view is the original render fn.
   u_fusion:   [{k:'fusion',l:'Sensor-Fusion'},{k:'cuas_fusion',l:'Fusion Picture CI'},{k:'scicompute',l:'Fusion & Orbital Math'},{k:'w910ci',l:'Covariance-Intersection (proved)'}],
   // MARITIME PICTURE cluster: tracks (canonical) + livepic + maritime/sanctions/darkhunt
-  u_maritime: [{k:'tracks',l:'Live Track Board'},{k:'maritime',l:'Maritime Picture (live AIS)'},{k:'livepic',l:'Live Picture (COP)'},{k:'sanctions',l:'Sanctions & Dark-Vessel'},{k:'darkhunt',l:'Dark-Vessel Hunt'}],
-  u_darkgraph:[{k:'darkgraph',l:'Threat Graph (3D)'},{k:'threats',l:'Threat Class DB'},{k:'threatrank',l:'Threat Ranking'},{k:'detection',l:'Detection Console'},{k:'dronedb',l:'Drone Database'}],
+  u_maritime: [{k:'tracks',l:'Live Track Board'},{k:'maritime',l:'Maritime Picture (live AIS)'},{k:'livepic',l:'Live Picture (COP)'},{k:'sanctions',l:'Sanctions & Dark-Vessel'},{k:'darkhunt',l:'Dark-Vessel Hunt'},{k:'darkgraph',l:'Threat Graph (3D)'},{k:'threats',l:'Threat Class DB'},{k:'threatrank',l:'Threat Ranking'},{k:'detection',l:'Detection Console'},{k:'dronedb',l:'Drone Database'}],
+  // TAB-FOLD (2026-07-02): u_darkgraph folded INTO u_maritime (its 5 sub-views appended above); u_darkgraph kept as an alias -> {u_maritime,darkgraph}. Lossless, deletes nothing.
   u_fleet:    [{k:'fleet',l:'Fleet Overview'},{k:'healthtwin',l:'Health Twin (3D)'},{k:'fleetmaint',l:'Maintenance & Compliance'},{k:'fleetlogs',l:'Ops & Maintenance Logs'},{k:'fleetvoyages',l:'Voyages & Fleets'},{k:'fleetbrief',l:'Fleet Briefings'}],
   // FLEET: fleet_c2 (canonical, governed C2) + the full u_fleet ops sub-views folded in
   fleet_c2:   [{k:'fleet_c2_3d',l:'Fleet Health & Governed C2 (3D)'},{k:'fleet',l:'Fleet Overview'},{k:'healthtwin',l:'Health Twin (3D)'},{k:'fleetmaint',l:'Maintenance & Compliance'},{k:'fleetlogs',l:'Ops & Maintenance Logs'},{k:'fleetvoyages',l:'Voyages & Fleets'},{k:'fleetbrief',l:'Fleet Briefings'}],
   // SWARM cluster: integrity (topology+resilience) + live intent classifier + 3D mesh galaxy
   u_swarm:    [{k:'swarm',l:'Swarm Topology (3D)'},{k:'swarmres',l:'Swarm Resilience'},{k:'swarm_intent',l:'Swarm-Intent Classifier (live)'},{k:'cuas_swarm',l:'Swarm Mesh (3D galaxy)'}],
-  u_engage:   [{k:'roe',l:'Engagement Rules'},{k:'engage',l:'Engage Safely'},{k:'geofence',l:'Geofence Zones'},{k:'beyond',l:'Autonomy Governance'},{k:'companion',l:'Companion Defense'}],
+  u_engage:   [{k:'roe',l:'Engagement Rules'},{k:'engage',l:'Engage Safely'},{k:'geofence',l:'Geofence Zones'},{k:'beyond',l:'Autonomy Governance'},{k:'companion',l:'Companion Defense'},{k:'operate',l:'Operate (governed control)'}],
   // MESH cluster: consensus surface + the live Fiedler \u03bb2 resilience monitor
   u_consensus:[{k:'bft',l:'Consensus (3-of-4)'},{k:'mesh_resilience',l:'Mesh-Resilience (Fiedler \u03bb2)'},{k:'w910quorum',l:'Quorum / Byzantine bound'},{k:'w910mesh',l:'Mesh Resilience (k-1 survive)'},{k:'fieldnet',l:'Field Net (3D)'},{k:'autonomyov',l:'Autonomy Oversight (3D)'}],
-  u_proofs:   [{k:'kbformulas',l:'Knowledge & Formulas'},{k:'w910stl',l:'STL Monitor (\u03c1 margin)'},{k:'w910gg',l:'Command-Matrix Health'},{k:'w910audit',l:'Audit Receipts (Merkle+Replay)'},{k:'gates',l:'Safety Gates'}],
+  u_proofs:   [{k:'kbformulas',l:'Knowledge & Formulas'},{k:'w910stl',l:'STL Monitor (\u03c1 margin)'},{k:'w910gg',l:'Command-Matrix Health'},{k:'w910audit',l:'Audit Receipts (Merkle+Replay)'},{k:'gates',l:'Safety Gates'},{k:'putnam',l:'Putnam 2025 (kernel verdict)'}],
   // RECEIPTS / PROVENANCE cluster: receipt ledger surface + the real-data provenance panel
   u_receipts: [{k:'unifiedledger',l:'Unified Ledger (LIVE)'},{k:'chain',l:'Receipt Chain (3D)'},{k:'provenance',l:'Real-Data Provenance'},{k:'audit',l:'Engagement Audit'},{k:'pqc',l:'Quantum-Safe Signing'},{k:'evidence',l:'Evidence & Research'}],
-  u_melt:     [{k:'melt',l:'MELT Observability'},{k:'organism',l:'Living Organism (3D)'},{k:'modelatlas',l:'Model Atlas'}],
+  u_melt:     [{k:'melt',l:'MELT Observability'},{k:'organism',l:'Living Organism (3D)'},{k:'modelatlas',l:'Model Atlas'},{k:'living_anatomy',l:'Living Anatomy (3D)'}],
   // OSINT / THREAT INTEL cluster (biggest): world/threat intel + every live OSINT feed + aggregate
   u_intel:    [{k:'kev',l:'Known-Exploited (live CISA KEV)'},{k:'cve',l:'CVE Watch (live NVD)'},{k:'attack',l:'Adversary Techniques'},{k:'osint_intel',l:'Aggregated OSINT Intel'},{k:'osint_naval',l:'Naval OSINT (live web)'},{k:'osint_procurement',l:'Procurement Signals (live web)'},{k:'osint_advisories',l:'Cyber Advisories (live web)'},{k:'osint_geopolitical',l:'Geopolitical (live web)'},{k:'osint_counter_uas',l:'Counter-UAS Intel (live web)'}],
   // OPERATOR cluster: the 5 Operator OSINT orchestration sub-views
@@ -2048,10 +2039,15 @@ window._SUBMAP = {
   u_warhacker:[{k:'warhacker',l:'Maritime/Drone Warhacker (27)'},{k:'warboard',l:'Warhacker Proofs Board'}],
   u_minedops: [{k:'edgeest',l:'Edge VRAM Estimator'},{k:'telemem',l:'Telemetry Memory'},{k:'adaptsample',l:'Adaptive Sensor Sampling'},{k:'tacroute',l:'Tactical Routing'},{k:'prioritize',l:'Multi-Track Priority'}],
   u_about:    [{k:'honest',l:'What We Claim'},{k:'research',l:'Research Corpus'},{k:'legal',l:'Legal Boundaries'},{k:'deploy',l:'Deploy Posture'},{k:'uds_package',l:'UDS Package'}],
-  u_posture:  [{k:'posture_drift',l:'Posture & Drift'},{k:'topology_health',l:'Topology & Health'},{k:'attack_surface',l:'Attack-Surface Graph'},{k:'zerotrust_mesh',l:'Zero-Trust Mesh'}],
+  u_posture:  [{k:'posture_drift',l:'Posture & Drift'},{k:'topology_health',l:'Topology & Health'},{k:'attack_surface',l:'Attack-Surface Graph'},{k:'zerotrust_mesh',l:'Zero-Trust Mesh'},{k:'retask_board',l:'Drift Re-Tasking Board (live)'}],
   // COUNTER-UAS C2 LAB (experimental): intercept / spoof / triage / PQ provenance
   // (cuas_fusion folded into Sensor-Fusion, cuas_swarm into Swarm per the merge map)
-  cuas_lab:   [{k:'cuas_intercept',l:'Intercept Solver (SIM)'},{k:'cuas_spoof',l:'Spoof Sentinel (chi-sq)'},{k:'cuas_triage',l:'Threat Triage (SIM)'},{k:'cuas_pq',l:'PQ Provenance (SHA3)'}]
+  cuas_lab:   [{k:'cuas_intercept',l:'Intercept Solver (SIM)'},{k:'cuas_spoof',l:'Spoof Sentinel (chi-sq)'},{k:'cuas_triage',l:'Threat Triage (SIM)'},{k:'cuas_pq',l:'PQ Provenance (SHA3)'}],
+  // TAB-FOLD (2026-07-02) — pqc folded into a Decoders surface; the tamper /
+  // determinism / readiness / uds_package assurance demos folded into one
+  // Assurance surface. Lossless: every sub is the ORIGINAL VIEWS render fn.
+  decoders:    [{k:'decoders_home',l:'Protocol Decoders'},{k:'pqc',l:'Quantum-Safe Signing'}],
+  u_assurance: [{k:'tamper_demo',l:'Tamper a Receipt (3D)'},{k:'determinism_demo',l:'Determinism \u2014 Run 5x'},{k:'readiness',l:'Operational Readiness'},{k:'uds_package',l:'UDS Package'}]
 };
 window._curSurface=null;
 
@@ -2084,7 +2080,21 @@ window.VIEW_ALIASES = {
   provenance:{s:'u_receipts',k:'provenance'},
   // COUNTER-UAS C2 LAB -> cuas_lab
   cuas_intercept:{s:'cuas_lab',k:'cuas_intercept'}, cuas_spoof:{s:'cuas_lab',k:'cuas_spoof'},
-  cuas_triage:{s:'cuas_lab',k:'cuas_triage'}, cuas_pq:{s:'cuas_lab',k:'cuas_pq'}
+  cuas_triage:{s:'cuas_lab',k:'cuas_triage'}, cuas_pq:{s:'cuas_lab',k:'cuas_pq'},
+  // TAB-FOLD (2026-07-02) — realm consolidation: darkgraph->maritime, operate->engage,
+  // retask->posture, putnam->proofs, anatomy->melt, pqc->decoders, and
+  // tamper/determinism/readiness/uds_package -> the Assurance surface. Lossless:
+  // every folded go() key routes to {surface, sub}; deep links never break.
+  u_darkgraph:{s:'u_maritime',k:'darkgraph'},
+  operate:{s:'u_engage',k:'operate'},
+  retask_board:{s:'u_posture',k:'retask_board'},
+  putnam:{s:'u_proofs',k:'putnam'},
+  living_anatomy:{s:'u_melt',k:'living_anatomy'},
+  pqc:{s:'decoders',k:'pqc'},
+  tamper_demo:{s:'u_assurance',k:'tamper_demo'},
+  determinism_demo:{s:'u_assurance',k:'determinism_demo'},
+  readiness:{s:'u_assurance',k:'readiness'},
+  uds_package:{s:'u_assurance',k:'uds_package'}
 };
 
 /* ===== UNIVERSAL LOADING WATCHDOG (real-data-wiring) =====
@@ -9214,8 +9224,21 @@ function go(view){
         sub:'The experimental Counter-UAS C2 laboratory — proportional-navigation intercept feasibility (effector SIMULATED), the GNSS-spoofing chi-square sentinel, greedy weapon-target-assignment triage (effector SIMULATED) and the post-quantum SHA3-256 receipt bus. EXPERIMENTAL-tier; Λ = Conjecture 1. Sub-views below.',
         render:function(c){ renderSurface('cuas_lab',c); }};
     }
+    // ASSURANCE (2026-07-02 fold): tamper_demo / determinism_demo / readiness / uds_package as ONE surface.
+    if(!V.u_assurance){
+      V.u_assurance={title:'Assurance',badge:'TAMPER-EVIDENCE · DETERMINISM (A5, measured) · READINESS · UDS PACKAGE',
+        sub:'The assurance surface — tamper-evidence (a real SHA-256 receipt chain visibly REJECTS a tampered entry in 3D), determinism (the same governed decision run 5x yields byte-identical Merkle roots; honest label A5, measured — not a theorem), operational readiness (deployed-vs-repo live truth from /healthz + the GitHub and Hugging Face APIs, every value labelled live/cached/unreachable) and the UDS-pattern package (UDS Package CR / Pepr / Zarf / Lula-OSCAL). Sub-views below.',
+        render:function(c){ renderSurface('u_assurance',c); }};
+    }
+    // DECODERS (2026-07-02 fold): keep the original Protocol Decoders render as a sub-view, make decoders a surface that also carries Quantum-Safe Signing (pqc).
+    if(V.decoders && !V.decoders_home){
+      V.decoders_home={title:V.decoders.title,badge:V.decoders.badge,sub:V.decoders.sub,render:V.decoders.render};
+      V.decoders={title:'Protocol Decoders',badge:'DECODE · REMOTE-ID / ADS-B / MAVLINK · + QUANTUM-SAFE SIGNING',
+        sub:'Protocol decoders — paste a captured Remote ID / ADS-B / MAVLink frame and see the claimed identity (unverified broadcast claims; a lead, not proof) — plus quantum-safe signing (classical, post-quantum, or hybrid; demo keys reset on restart). Sub-views below.',
+        render:function(c){ renderSurface('decoders',c); }};
+    }
     window.VIEWS=V;
-    try{ console.log('[killinchu] tab-dedup surfaces registered: fleet_c2(+fleet ops), u_operator, cuas_lab; aliases='+Object.keys(window.VIEW_ALIASES||{}).length); }catch(e){}
+    try{ console.log('[killinchu] tab-dedup surfaces registered: fleet_c2(+fleet ops), u_operator, cuas_lab, u_assurance, decoders(+pqc); aliases='+Object.keys(window.VIEW_ALIASES||{}).length); }catch(e){}
   }catch(_e){}
 })();
 

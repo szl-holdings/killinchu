@@ -53,6 +53,23 @@ _BARE_SURFACE_REDIRECTS = {
     "/platform-dynamics": "/elite/platform-dynamics",
 }
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (tab-fold wave, 2026-07-02): fold the thin bare SPA pages
+#   /counter-uas  /drones  /map
+# into their canonical /elite console equivalents via 308 redirects. UNLIKE the
+# bare-surface redirects above, these paths ALREADY exist as SPA history-fallback
+# routes (serve.py spa_counter_uas / spa_drones / spa_map), so the redirect Route
+# is inserted at index 0 to take PRECEDENCE without removing the original route
+# (additive — nothing is deleted). The /elite console selects its active tab from
+# location.hash on load, so the fragment opens the equivalent surface. Honest
+# same-app 308 redirect; 0 CDN; never weakens a gate.
+# ---------------------------------------------------------------------------
+_LEGACY_FOLD_REDIRECTS = {
+    "/counter-uas": "/elite#cuas_lab",
+    "/drones": "/elite#dronedb",
+    "/map": "/elite#tracks",
+}
+
 # The a11oy-hosted Restraint surfaces (same estate, NOT a third-party CDN).
 _A11OY_BASE = "https://szlholdings-a11oy.hf.space"
 _RESTRAINT_URL = _A11OY_BASE + "/restraint"
@@ -61,6 +78,18 @@ _RESTRAINT_BENCH_URL = _A11OY_BASE + "/restraint-bench"
 # Idempotency markers.
 _NAV_MARKER = b'data-nav-restraint="r5"'
 _REL_MARKER = b'data-related-restraint="r5"'
+
+# Brand-bridge (aesthetic) markers. The injector adds a <link> to the VENDORED,
+# same-origin /static/brand-bridge.css (+ its /static/brand-tokens.css dependency)
+# into <head> on HTML pages that don't already carry it. 0 CDN: both stylesheets
+# live under THIS app's own /static tree. Idempotent via the plain href substring
+# (also skips pages like static/index.html that already reference brand-bridge.css).
+_BRAND_BRIDGE_HREF = b"brand-bridge.css"
+_HEAD_CLOSE = b"</head>"
+_BRAND_LINKS = (
+    b'<link rel="stylesheet" href="/static/brand-tokens.css" data-kc-brand="tokens"/>'
+    b'<link rel="stylesheet" href="/static/brand-bridge.css" data-kc-brand="bridge"/>'
+)
 
 # Sidebar anchor: the killinchu sidebar ends with <div class="side-foot">…; we
 # place the Restraint nav-item immediately before it (last item in the aside).
@@ -165,6 +194,15 @@ def _make_injector():
                 if p in _FLAGSHIP_PATHS and _REL_MARKER not in body and b"</body>" in body:
                     body = body.replace(b"</body>", _build_related_strip(p) + b"</body>", 1)
 
+                # (3) Brand-bridge aesthetic <link> — inject the VENDORED, same-origin
+                #     brand-tokens + brand-bridge stylesheets into <head> on HTML pages
+                #     that don't already carry them. Idempotent via the href substring
+                #     (also skips static/index.html, which already links brand-bridge.css).
+                #     0 CDN: both files live under this app's /static tree. Variables-only
+                #     CSS: it re-points existing tokens, never touching markup/layout.
+                if _BRAND_BRIDGE_HREF not in body and _HEAD_CLOSE in body:
+                    body = body.replace(_HEAD_CLOSE, _BRAND_LINKS + _HEAD_CLOSE, 1)
+
                 # body_iterator was fully consumed; MUST rebuild the Response from
                 # the buffered bytes even when unchanged (returning the exhausted
                 # resp would emit an EMPTY body -> white-screen).
@@ -214,6 +252,42 @@ def _register_bare_surface_redirects(app) -> List[str]:
     return out
 
 
+def _register_legacy_fold_redirects(app) -> List[str]:
+    """ADDITIVE + idempotent: fold the thin bare SPA pages /counter-uas /drones
+    /map into their canonical /elite console equivalents via 308 redirects.
+
+    These paths ALREADY exist as SPA history-fallback routes (serve.py), so the
+    redirect Route is inserted at index 0 to take PRECEDENCE over the original
+    WITHOUT removing it (additive — nothing is deleted). Idempotent via a per-path
+    route-name sentinel so re-runs never double-insert."""
+    out: List[str] = []
+    from starlette.responses import RedirectResponse
+    from starlette.routing import Route
+    try:
+        existing_names = {getattr(r, "name", None) for r in getattr(app, "routes", [])}
+    except Exception:
+        existing_names = set()
+    for bare, target in _LEGACY_FOLD_REDIRECTS.items():
+        nm = "kc_fold_" + bare.strip("/")
+        if nm in existing_names:
+            out.append("%s already folded (skipped)" % bare)
+            continue
+
+        def _make(dest):
+            async def _redirect(request):
+                # 308 keeps method + is cacheable; the /elite console is same-app
+                # and selects the folded tab from the URL fragment on load.
+                return RedirectResponse(url=dest, status_code=308)
+            return _redirect
+
+        try:
+            app.router.routes.insert(0, Route(bare, _make(target), methods=["GET"], name=nm))
+            out.append("GET %s -> 308 %s" % (bare, target))
+        except Exception as exc:
+            out.append("%s fold redirect FAILED: %r" % (bare, exc))
+    return out
+
+
 def register(app, ns: str = "killinchu") -> Dict[str, Any]:
     """Attach the idempotent Restraint nav cross-link injector + register the
     bare-surface -> /elite/* redirects (FE wiring wave). ADDITIVE; the injector
@@ -227,14 +301,21 @@ def register(app, ns: str = "killinchu") -> Dict[str, Any]:
         registered.extend(_register_bare_surface_redirects(app))
     except Exception:
         pass
+    # Tab-fold wave: fold thin /counter-uas /drones /map into /elite equivalents.
+    try:
+        registered.extend(_register_legacy_fold_redirects(app))
+    except Exception:
+        pass
     app.add_middleware(_make_injector())
     registered.append("MIDDLEWARE killinchu Restraint nav cross-link injector (R5)")
     return {
         "registered": registered,
         "count": len(registered),
-        "capability": "Restraint Nav Cross-Link (R5) + bare-surface redirects (FE)",
+        "capability": ("Restraint Nav Cross-Link (R5) + bare-surface redirects (FE) "
+                       "+ brand-bridge aesthetic <link> injector + legacy tab folds"),
         "links": {"restraint": _RESTRAINT_URL, "restraint_bench": _RESTRAINT_BENCH_URL},
         "bare_redirects": _BARE_SURFACE_REDIRECTS,
+        "legacy_folds": _LEGACY_FOLD_REDIRECTS,
         "data_label": "NAV",
     }
 
@@ -271,14 +352,42 @@ if __name__ == "__main__":
     async def _elite_organism(req):
         return HTMLResponse('<html><body><h1>ORGANISM</h1></body></html>')
 
+    # A server-rendered HTML page WITH a <head> (like the /elite console) that
+    # does NOT already carry brand-bridge.css -> the injector must add it.
+    async def _branded(req):
+        return HTMLResponse('<html><head><title>x</title></head><body>k</body></html>')
+
     app = Starlette(routes=[Route("/", _console), Route("/ecosystem", _eco),
+                            Route("/branded", _branded),
                             Route("/elite/organism", _elite_organism)])
     st = register(app, ns="killinchu")
-    # 3 bare redirects + 1 middleware line == 4 registered entries.
-    assert st["count"] == 1 + len(_BARE_SURFACE_REDIRECTS), st["registered"]
+    # 3 bare redirects + 3 legacy folds + 1 middleware line == 7 registered entries.
+    assert st["count"] == 1 + len(_BARE_SURFACE_REDIRECTS) + len(_LEGACY_FOLD_REDIRECTS), \
+        st["registered"]
     assert st["links"]["restraint"].endswith("/restraint")
     assert st["bare_redirects"]["/organism"] == "/elite/organism"
+    assert st["legacy_folds"]["/counter-uas"] == "/elite#cuas_lab"
     c = TestClient(app)
+
+    # Tab folds: bare /counter-uas /drones /map must 308-redirect to /elite#<tab>.
+    for bare, target in _LEGACY_FOLD_REDIRECTS.items():
+        rf = c.get(bare, follow_redirects=False)
+        assert rf.status_code == 308, (bare, rf.status_code)
+        assert rf.headers["location"] == target, (bare, rf.headers.get("location"))
+    # idempotent: re-registering the folds must NOT double-insert.
+    lf_again = _register_legacy_fold_redirects(app)
+    assert any("already folded" in x for x in lf_again), lf_again
+
+    # Brand-bridge injection: a head-bearing page gets BOTH vendored, same-origin
+    # stylesheets exactly once, idempotently, and 0-CDN (only /static/ hrefs).
+    b1 = c.get("/branded").text
+    b2 = c.get("/branded").text
+    assert b1.count("/static/brand-bridge.css") == 1, "brand-bridge must inject exactly once"
+    assert b1.count("/static/brand-tokens.css") == 1, "brand-tokens dependency must inject once"
+    assert b2.count("/static/brand-bridge.css") == 1, "brand-bridge inject must be idempotent"
+    assert b1 == b2, "second branded render must be byte-identical (idempotent)"
+    assert 'data-kc-brand="bridge"></head>'.replace("></head>", "") in b1  # marker present
+    assert "http://" not in b1 and "https://" not in b1, "brand links must be same-origin (0 CDN)"
 
     # FE wiring: bare /organism must 308-redirect to the real /elite/organism page.
     r_follow = c.get("/organism")  # TestClient follows redirects by default
