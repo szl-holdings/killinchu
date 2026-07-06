@@ -4930,10 +4930,10 @@ for _w13_mod, _w13_label, _w13_route in _WAVE13_ORGANS:
             for _w13_r in reversed(_w13_added):
                 app.router.routes.insert(0, _w13_r)
         print(f"[killinchu] Wave13 organ {_w13_label} registered: {_w13_route} (status={_w13_status})",
-              file=_frontier_sys.stderr)
+              file=sys.stderr)
     except Exception as _w13_e:  # pragma: no cover
         print(f"[killinchu] Wave13 organ {_w13_label} ({_w13_mod}) NOT registered: {_w13_e!r}; "
-              f"SPA + other organs unaffected", file=_frontier_sys.stderr)
+              f"SPA + other organs unaffected", file=sys.stderr)
 # ============================================================================
 # END: WAVE 13 ORGANS — killinchu
 # ============================================================================
