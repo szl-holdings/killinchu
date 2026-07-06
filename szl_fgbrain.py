@@ -283,6 +283,146 @@ def _graph(_seed: int = 42) -> Dict[str, Any]:
     }
 
 
+
+# ---------------------------------------------------------------------------
+# WAVE-16: Self-repairing formula BODY. Ports killinchu_organism.self_repair()'s
+# Growing-NCA local-diffusion rule ( s += rate*(mean(neighbour_state) - s) ) onto
+# the REAL formula graph, plus a pure-stdlib Fiedler lambda2 (graph-Laplacian 2nd
+# eigenvalue) as the live "is the brain still one connected mind" metric.
+# EXPERIMENTAL: a real discrete local rule on the real topology, MODELED (not a
+# trained NCA). Lesioning a node models a broken proof / deleted formula; healthy
+# neighbours re-grow the surrounding tissue. Locked-8 never "self-heal to proven"
+# from nothing — a lesioned locked node stays down (a broken proof is broken);
+# only its NEIGHBOURHOOD tissue-health recovers, honestly.
+# ---------------------------------------------------------------------------
+def _undirected_neighbours() -> Dict[str, List[str]]:
+    nb: Dict[str, List[str]] = {n["id"]: [] for n in NODES}
+    for a, b, _ in EDGES:
+        if a in nb and b in nb:
+            if b not in nb[a]:
+                nb[a].append(b)
+            if a not in nb[b]:
+                nb[b].append(a)
+    return nb
+
+
+def _fiedler_lambda2(active_ids: List[str]) -> float:
+    """Algebraic connectivity (2nd-smallest Laplacian eigenvalue) of the subgraph
+    on active_ids. Pure stdlib: symmetric Jacobi eigenvalue iteration on L = D - A.
+    lambda2 > 0  <=>  the (remaining) graph is one connected component."""
+    ids = list(active_ids)
+    n = len(ids)
+    if n <= 1:
+        return 0.0
+    idx = {i: k for k, i in enumerate(ids)}
+    aset = set(ids)
+    # adjacency + degree over the induced subgraph
+    L = [[0.0] * n for _ in range(n)]
+    nb = _undirected_neighbours()
+    for i in ids:
+        for j in nb[i]:
+            if j in aset and j != i:
+                a, b = idx[i], idx[j]
+                L[a][b] = -1.0
+        deg = sum(1 for j in nb[i] if j in aset and j != i)
+        L[idx[i]][idx[i]] = float(deg)
+    # Jacobi eigenvalue iteration (symmetric). n is small (<=25), converges fast.
+    A = [row[:] for row in L]
+    for _sweep in range(60):
+        # find largest off-diagonal
+        p, qd, mx = 0, 1, 0.0
+        for a in range(n):
+            for b in range(a + 1, n):
+                if abs(A[a][b]) > mx:
+                    mx = abs(A[a][b]); p, qd = a, b
+        if mx < 1e-10:
+            break
+        app_, aqq, apq = A[p][p], A[qd][qd], A[p][qd]
+        if abs(apq) < 1e-15:
+            continue
+        theta = (aqq - app_) / (2.0 * apq)
+        t = (1.0 if theta >= 0 else -1.0) / (abs(theta) + math.sqrt(theta * theta + 1.0))
+        c = 1.0 / math.sqrt(t * t + 1.0)
+        s = t * c
+        for k in range(n):
+            akp, akq = A[k][p], A[k][qd]
+            A[k][p] = c * akp - s * akq
+            A[k][qd] = s * akp + c * akq
+        for k in range(n):
+            apk, aqk = A[p][k], A[qd][k]
+            A[p][k] = c * apk - s * aqk
+            A[qd][k] = s * apk + c * aqk
+    eig = sorted(A[k][k] for k in range(n))
+    # lambda2 = second smallest (lambda1 ~ 0 for a connected graph)
+    return round(max(0.0, eig[1]) if len(eig) >= 2 else 0.0, 6)
+
+
+def _repair(down: str = "", steps: int = 12, rate: float = 0.5) -> Dict[str, Any]:
+    ids = [n["id"] for n in NODES]
+    tier = {n["id"]: n["tier"] for n in NODES}
+    nb = _undirected_neighbours()
+    down = down if down in ids else ""
+    state = {o: 1.0 for o in ids}
+    if down:
+        state[down] = 0.0
+    trace = [{"step": 0, "state": dict(state)}]
+    for step in range(1, steps + 1):
+        new = dict(state)
+        for o in ids:
+            if o == down:
+                new[o] = 0.0            # a broken proof / deleted node stays down
+                continue
+            live_nb = [x for x in nb[o] if x != down and state.get(x, 0.0) > 0.15]
+            target = (sum(state[x] for x in live_nb) / len(live_nb)) if live_nb else state[o]
+            new[o] = max(0.0, min(1.0, state[o] + rate * (target - state[o])))
+        state = new
+        trace.append({"step": step, "state": {k: round(v, 4) for k, v in state.items()}})
+    active = [o for o in ids if o != down]
+    healthy = [o for o in active if state[o] >= 0.85]
+    lam2_before = _fiedler_lambda2(ids)
+    lam2_after = _fiedler_lambda2(active)
+    body_health = round(sum(state[o] for o in active) / max(1, len(active)), 4)
+    return {
+        "label": "MODELED",
+        "lesion": down or None,
+        "lesion_tier": tier.get(down) if down else None,
+        "steps": steps, "rate": rate,
+        "final_state": {k: round(v, 4) for k, v in state.items()},
+        "trace": trace,
+        "recovered_nodes": healthy,
+        "body_health_excl_lesion": body_health,
+        "fiedler_lambda2_before": lam2_before,
+        "fiedler_lambda2_after": lam2_after,
+        "still_connected_after_lesion": lam2_after > 1e-9,
+        "locked_count": sum(1 for n in NODES if n["tier"] == "locked"),
+        "rule": "s += rate*(mean(live_neighbour_state) - s); lesion pinned to 0; Fiedler lambda2 = connectivity",
+        "honest_note": _HONEST_NOTE + (
+            " WAVE-16 REPAIR: a MODELED Growing-NCA local-diffusion heal on the real graph "
+            "(ported from killinchu_organism.self_repair). A lesioned node stays down (a broken "
+            "proof is broken); only surrounding tissue-health recovers. lambda2>0 => still one "
+            "connected mind after the lesion. EXPERIMENTAL, not a trained CA."
+        ),
+        "citations": dict(CITATIONS, **{
+            "killinchu_organism self-repair (Growing-NCA local rule)":
+                "https://github.com/szl-holdings/killinchu/blob/main/killinchu_organism.py",
+            "Growing Neural Cellular Automata (Mordvintsev et al., Distill 2020)":
+                "https://distill.pub/2020/growing-ca/",
+        }),
+    }
+
+
+async def _h_repair(request):  # type: ignore
+    q = getattr(request, "query_params", {}) or {}
+    def _int(name, dflt):
+        try:
+            return int(q.get(name, dflt))
+        except Exception:
+            return dflt
+    down = str(q.get("down", "")) if q else ""
+    steps = max(1, min(_int("steps", 12), 40))
+    return JSONResponse(_repair(down=down, steps=steps))
+
+
 # ---------------------------------------------------------------------------
 # HTTP handlers
 # ---------------------------------------------------------------------------
@@ -309,6 +449,7 @@ def register(app, ns: str = "killinchu"):
     handlers = [
         (f"{base}/graph", _h_graph),
         (f"{base}/fire", _h_fire),
+        (f"{base}/repair", _h_repair),
     ]
     try:
         add_api_route = getattr(app, "add_api_route", None)
@@ -342,4 +483,14 @@ if __name__ == "__main__":
     # determinism
     assert _snapshot(42, 10) == _snapshot(42, 10), "must be deterministic"
     assert _snapshot(7, 10) != _snapshot(42, 10), "must be seed-sensitive"
+    # ---- wave-16 self-repair checks ----
+    rep = _repair(down="F1", steps=12)
+    assert rep["label"] == "MODELED"
+    assert rep["locked_count"] == 8
+    assert rep["final_state"]["F1"] == 0.0, "lesioned node stays down (broken proof is broken)"
+    assert rep["fiedler_lambda2_before"] > 1e-9, "full graph must be connected"
+    assert _repair(down="F1", steps=12) == _repair(down="F1", steps=12), "repair deterministic"
+    print("szl_fgbrain wave16: repair OK — lesion F1 -> body_health",
+          rep["body_health_excl_lesion"], "| lambda2 before/after",
+          rep["fiedler_lambda2_before"], "/", rep["fiedler_lambda2_after"])
     print("szl_fgbrain: ALL OK — real graph, MODELED firing anchored on locked-8, conjectures gray, deterministic.")
