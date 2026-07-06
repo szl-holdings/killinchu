@@ -161,6 +161,17 @@ COPY szl_energy_sovereign.py szl_joules_truth.py ./
 # serve.py's guarded import degrades to a not-registered stub. Per-file COPY (NEVER `COPY . .`).
 COPY szl_kc_tda_fracture.py ./
 
+# FRONTIER backends (2026-07): back the a11oy frontier surfaces ccattest.js + sement.js.
+# szl_kc_cc_attest.py  -> GET /api/killinchu/v1/cc-attest/verify (NVIDIA H100 CC measured-boot
+#   attestation-chain SIMULATION; MODELED, no real GPU/TEE/NRAS/network).
+# szl_kc_sement.py     -> GET /api/killinchu/v1/sement/estimate (semantic-entropy / effective-rank
+#   epistemic-uncertainty estimator; MODELED/EXPERIMENTAL synthetic demo, NOT live model sampling;
+#   advisory input to Λ = Conjecture 1). Both PURE STDLIB; import szl_dsse (already COPYed) for
+#   REAL ECDSA receipts in-Space, honest UNSIGNED marker otherwise. MUST be COPY'd or serve.py's
+#   guarded imports degrade to not-registered stubs and the two flagship tabs 404 again.
+# Per-file COPY (NEVER `COPY . .`).
+COPY szl_kc_cc_attest.py szl_kc_sement.py ./
+
 # ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
 # knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to
 # a11oy's knowledge.json. serve.py serves it at /knowledge.json so the /elite
