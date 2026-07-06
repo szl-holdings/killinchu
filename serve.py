@@ -4907,6 +4907,38 @@ except Exception as _szl_ss_e:  # pragma: no cover
 # ============================================================================
 
 
+
+# ============================================================================
+# BEGIN: WAVE 13 ORGANS — killinchu (Wave 13 deploy)
+# Mirrors the Wave 12 register+front-move pattern. 3 frontier organs, each
+# try/except-guarded so a failure never affects the SPA or other organs.
+# ============================================================================
+_WAVE13_ORGANS = [
+    ("szl_muon",     "Muon Orthogonalized-Momentum Optimizer", "/api/killinchu/v1/muon/orthogonalize"),
+    ("szl_specexec", "Tree Speculative Execution",             "/api/killinchu/v1/specexec/tree"),
+    ("szl_nvfp4",    "NVFP4 4-bit Training Format",            "/api/killinchu/v1/nvfp4/quantize"),
+]
+
+for _w13_mod, _w13_label, _w13_route in _WAVE13_ORGANS:
+    try:
+        _w13_before = len(app.router.routes)
+        _w13_m = __import__(_w13_mod)
+        _w13_status = _w13_m.register(app, ns="killinchu")
+        _w13_added = app.router.routes[_w13_before:]
+        if _w13_added:
+            del app.router.routes[_w13_before:]
+            for _w13_r in reversed(_w13_added):
+                app.router.routes.insert(0, _w13_r)
+        print(f"[killinchu] Wave13 organ {_w13_label} registered: {_w13_route} (status={_w13_status})",
+              file=_frontier_sys.stderr)
+    except Exception as _w13_e:  # pragma: no cover
+        print(f"[killinchu] Wave13 organ {_w13_label} ({_w13_mod}) NOT registered: {_w13_e!r}; "
+              f"SPA + other organs unaffected", file=_frontier_sys.stderr)
+# ============================================================================
+# END: WAVE 13 ORGANS — killinchu
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
