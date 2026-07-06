@@ -4950,6 +4950,7 @@ _WAVE15_ORGANS = [
     ("szl_dla",      "Dynamic Linear Attention",              "/api/killinchu/v1/dla/attention"),
     ("szl_ctxready", "Context-Ready Transformer",             "/api/killinchu/v1/ctxready/unroll"),
     ("szl_opera",    "OPERA Perplexity-Reward Alignment",     "/api/killinchu/v1/opera/reward"),
+    ("szl_fgbrain",  "Formula-Graph Brain (SZL original)",     "/api/killinchu/v1/fgbrain/graph"),
 ]
 
 for _w15_mod, _w15_label, _w15_route in _WAVE15_ORGANS:
