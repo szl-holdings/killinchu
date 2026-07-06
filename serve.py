@@ -213,6 +213,38 @@ try:
 except Exception as _szl_kctda_e:  # pragma: no cover
     print(f"[killinchu] TDA-Fracture regime detector NOT registered: {_szl_kctda_e!r}", file=__import__("sys").stderr)
 
+# FRONTIER — Confidential-Compute Attestation Chain (backs a11oy static/3d/surfaces/ccattest.js).
+# Deterministic seeded TEE measured-boot attestation-chain SIMULATION in the NVIDIA H100
+# Confidential Computing style: device_identity (sha384) -> measurement_chain[] (bootloader ->
+# firmware -> driver -> microcode -> gpu-vbios) -> final_digest checked vs a seed-derived golden
+# reference (golden_match). HONEST: MODELED — NOT a real TDX/SEV-SNP/NRAS verifier, no real GPU/
+# key/network. Cites NVIDIA H100 CC blog + NVIDIA NRAS. Adds /api/killinchu/v1/cc-attest/verify.
+# PURE STDLIB. Additive, try/except-guarded, before the SPA catch-all. Adds nothing to the
+# locked-8; Λ stays Conjecture 1; trust never 100%.
+try:
+    import szl_kc_cc_attest as _szl_kc_cc_attest
+    _szl_kc_cc_attest.register(app, ns="killinchu")
+    print("[killinchu] Confidential-Compute Attestation registered: /api/killinchu/v1/cc-attest/verify", file=__import__("sys").stderr)
+except Exception as _szl_ccattest_e:  # pragma: no cover
+    print(f"[killinchu] Confidential-Compute Attestation NOT registered: {_szl_ccattest_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER — Semantic-Entropy / Effective-Rank epistemic uncertainty (backs a11oy static/3d/
+# surfaces/sement.js). Deterministic seeded SIMULATION of the semantic-entropy hallucination-
+# detection method (Farquhar et al., Nature 2024, DOI 10.1038/s41586-024-07421-0) + the 2025
+# spectral effective-rank signal (Wang et al., arXiv:2510.08389): K synthetic answers per regime
+# -> meaning clusters -> semantic_entropy -> answer/abstain gate vs threshold, contrasting a
+# CONFIDENT vs CONFABULATING regime so semantic entropy & effective rank both rise on confabulation.
+# HONEST: MODELED/EXPERIMENTAL — a synthetic-demo SIMULATION of the METHOD, NOT live model sampling
+# and NOT a real LLM (hand-specified clustering, synthetic hidden states). The gate is an ADVISORY
+# input to Λ (Conjecture 1), NOT a proof, never 'green'. Adds /api/killinchu/v1/sement/estimate.
+# PURE STDLIB. Additive, try/except-guarded, before the SPA catch-all. Adds nothing to the locked-8.
+try:
+    import szl_kc_sement as _szl_kc_sement
+    _szl_kc_sement.register(app, ns="killinchu")
+    print("[killinchu] Semantic-Entropy uncertainty registered: /api/killinchu/v1/sement/estimate", file=__import__("sys").stderr)
+except Exception as _szl_sement_e:  # pragma: no cover
+    print(f"[killinchu] Semantic-Entropy uncertainty NOT registered: {_szl_sement_e!r}", file=__import__("sys").stderr)
+
 # Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
 # generated OPEN conjectures from the real disclosure ledger (szl-lake khipu,
 # kind=conjecture-disclosure-anchor). Byte-identical module shared with a11oy. A
