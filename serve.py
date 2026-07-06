@@ -4941,6 +4941,38 @@ for _w13_mod, _w13_label, _w13_route in _WAVE13_ORGANS:
 
 
 # ============================================================================
+# BEGIN: WAVE 15 ORGANS — killinchu (2026 field leaders)
+# dla (Dynamic Linear Attention, arXiv:2606.10650), ctxready (Context-Ready
+# Transformer, arXiv:2606.27538), opera (OPERA perplexity-RL, arXiv:2606.25757).
+# Mirrors wave-14 register+front-move; uses sys.stderr (module-level import).
+# ============================================================================
+_WAVE15_ORGANS = [
+    ("szl_dla",      "Dynamic Linear Attention",              "/api/killinchu/v1/dla/attention"),
+    ("szl_ctxready", "Context-Ready Transformer",             "/api/killinchu/v1/ctxready/unroll"),
+    ("szl_opera",    "OPERA Perplexity-Reward Alignment",     "/api/killinchu/v1/opera/reward"),
+]
+
+for _w15_mod, _w15_label, _w15_route in _WAVE15_ORGANS:
+    try:
+        _w15_before = len(app.router.routes)
+        _w15_m = __import__(_w15_mod)
+        _w15_status = _w15_m.register(app, ns="killinchu")
+        _w15_added = app.router.routes[_w15_before:]
+        if _w15_added:
+            del app.router.routes[_w15_before:]
+            for _w15_r in reversed(_w15_added):
+                app.router.routes.insert(0, _w15_r)
+        print(f"[killinchu] Wave15 organ {_w15_label} registered: {_w15_route} (status={_w15_status})",
+              file=sys.stderr)
+    except Exception as _w15_e:  # pragma: no cover
+        print(f"[killinchu] Wave15 organ {_w15_label} ({_w15_mod}) NOT registered: {_w15_e!r}; "
+              f"SPA + other organs unaffected", file=sys.stderr)
+# ============================================================================
+# END: WAVE 15 ORGANS — killinchu
+# ============================================================================
+
+
+# ============================================================================
 # BEGIN: WAVE 14 ORGANS — killinchu (2026 field leaders)
 # keyless (value-only-cache attention), gitthoughts (version-controlled reasoning
 # memory + copyability threshold), herotq (Hessian-conditioned low-bit quant).
