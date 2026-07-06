@@ -4939,6 +4939,39 @@ for _w13_mod, _w13_label, _w13_route in _WAVE13_ORGANS:
 # ============================================================================
 
 
+
+# ============================================================================
+# BEGIN: WAVE 14 ORGANS — killinchu (2026 field leaders)
+# keyless (value-only-cache attention), gitthoughts (version-controlled reasoning
+# memory + copyability threshold), herotq (Hessian-conditioned low-bit quant).
+# Mirrors wave-12/13 register+front-move; uses sys.stderr (module-level import).
+# ============================================================================
+_WAVE14_ORGANS = [
+    ("szl_keyless",     "Keyless Attention (Value-Only Cache)",     "/api/killinchu/v1/keyless/attention"),
+    ("szl_gitthoughts", "GitOfThoughts (Version-Controlled Reasoning)", "/api/killinchu/v1/gitthoughts/tree"),
+    ("szl_herotq",      "HeRo-Q Hessian-Conditioned Quantization",  "/api/killinchu/v1/herotq/quantize"),
+]
+
+for _w14_mod, _w14_label, _w14_route in _WAVE14_ORGANS:
+    try:
+        _w14_before = len(app.router.routes)
+        _w14_m = __import__(_w14_mod)
+        _w14_status = _w14_m.register(app, ns="killinchu")
+        _w14_added = app.router.routes[_w14_before:]
+        if _w14_added:
+            del app.router.routes[_w14_before:]
+            for _w14_r in reversed(_w14_added):
+                app.router.routes.insert(0, _w14_r)
+        print(f"[killinchu] Wave14 organ {_w14_label} registered: {_w14_route} (status={_w14_status})",
+              file=sys.stderr)
+    except Exception as _w14_e:  # pragma: no cover
+        print(f"[killinchu] Wave14 organ {_w14_label} ({_w14_mod}) NOT registered: {_w14_e!r}; "
+              f"SPA + other organs unaffected", file=sys.stderr)
+# ============================================================================
+# END: WAVE 14 ORGANS — killinchu
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
