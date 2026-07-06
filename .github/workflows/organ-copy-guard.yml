@@ -1,0 +1,35 @@
+name: Registered-organ COPY guard
+
+# Catches the reverse of dockerfile-copy-guard: an organ registered in a
+# _WAVEn_ORGANS block of serve.py whose szl_<name>.py has NO Dockerfile COPY.
+# Such an organ syncs to the HF Space but is never baked into the image, so its
+# endpoint 404s silently (the wave-14 failure mode). Fails the build so the COPY
+# line is never forgotten again.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "serve.py"
+      - "Dockerfile"
+      - ".github/scripts/organ_copy_check.py"
+      - ".github/workflows/organ-copy-guard.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  organ-copy-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Every registered organ has a Dockerfile COPY
+        run: python3 .github/scripts/organ_copy_check.py serve.py Dockerfile
