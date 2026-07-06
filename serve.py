@@ -245,6 +245,55 @@ try:
 except Exception as _szl_sement_e:  # pragma: no cover
     print(f"[killinchu] Semantic-Entropy uncertainty NOT registered: {_szl_sement_e!r}", file=__import__("sys").stderr)
 
+# FRONTIER WAVE B — Test-Time-Compute governed budget allocator (backs a11oy static/3d/surfaces/
+# testtime.js). Closed-form scaling-law SIMULATION of the THIRD scaling axis: pass@N best-of-N
+# coverage (1-(1-p)^N) + sequential-revision diminishing returns, plus a GOVERNED, joule-metered
+# compute-budget allocator that routes easy->TTC vs hard->bigger-model and emits the compute-optimal
+# choice as a receipt. Cites Snell et al. arXiv:2408.03314 + Large Language Monkeys arXiv:2407.21787.
+# HONEST: MODELED — NO LLM calls, NO live sampling, NO GPU; p/r are inputs, joules are MODELED
+# order-of-magnitude (not a live wattmeter). Adds /api/killinchu/v1/testtime/scaling. PURE STDLIB.
+# Additive, try/except-guarded, before the SPA catch-all. Adds nothing to the locked-8; Λ stays
+# Conjecture 1 (allocator decision is ADVISORY, never 'green'); trust never 100%.
+try:
+    import szl_kc_ttc as _szl_kc_ttc
+    _szl_kc_ttc.register(app, ns="killinchu")
+    print("[killinchu] Test-Time-Compute allocator registered: /api/killinchu/v1/testtime/scaling", file=__import__("sys").stderr)
+except Exception as _szl_ttc_e:  # pragma: no cover
+    print(f"[killinchu] Test-Time-Compute allocator NOT registered: {_szl_ttc_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER WAVE B — Speculative-Decoding energy-receipt simulator (backs a11oy static/3d/surfaces/
+# specdecode.js). Deterministic seeded accept/reject SIMULATION of draft/verify speculative decoding:
+# acceptance_rate, mean accepted tokens/step, throughput speedup, per-step accepted lengths, and the
+# SZL addition — a live J/token-SAVED energy receipt (each accepted draft token = one fewer target
+# decode step). Cites QSpec arXiv:2410.11305, QuantSpec arXiv:2502.10424, DeepSeek-V3 arXiv:2412.19437.
+# HONEST: MODELED — NOT Medusa/EAGLE/QSpec running, NO live model, NO GPU, NO real KV cache; 'lossless'
+# is the rejection-sampling ALGORITHM property (honestly labeled), joules are MODELED order-of-magnitude
+# (not a live wattmeter). Adds /api/killinchu/v1/specdecode/simulate. PURE STDLIB. Additive, try/except-
+# guarded, before the SPA catch-all. Adds nothing to the locked-8; Λ stays Conjecture 1; trust never 100%.
+try:
+    import szl_kc_specdec as _szl_kc_specdec
+    _szl_kc_specdec.register(app, ns="killinchu")
+    print("[killinchu] Speculative-Decoding energy receipt registered: /api/killinchu/v1/specdecode/simulate", file=__import__("sys").stderr)
+except Exception as _szl_specdec_e:  # pragma: no cover
+    print(f"[killinchu] Speculative-Decoding energy receipt NOT registered: {_szl_specdec_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER WAVE B — Governed World-Model latent rollout (backs a11oy static/3d/surfaces/worldmodel.js).
+# Deterministic seeded closed-form latent-DYNAMICS SIMULATION: a stable f advances an OBSERVED
+# ground-truth latent trajectory; a JEPA-style predictor gives zhat_{t+1} whose per-step L2 error is
+# the 'physical surprise', with prediction_error, free_energy_consistency (1/(1+err)), and
+# action_anticipation_acc. Framed as a GOVERNED counterfactual rollout — every simulated interdiction
+# emits a receipt (Decision-Simulation vs historical state). Cites Genie 3 (DeepMind) + DreamerV3
+# arXiv:2301.04104. HONEST: MODELED — NOT Genie/Dreamer running, NO learned model, NO video, NO GPU,
+# NO live environment; latents are synthetic. Adds /api/killinchu/v1/worldmodel/predict. PURE STDLIB.
+# Additive, try/except-guarded, before the SPA catch-all. Adds nothing to the locked-8; Λ stays
+# Conjecture 1 (rollout advisory, never 'green'); effector SIMULATED · human-on-loop; trust never 100%.
+try:
+    import szl_kc_worldmodel as _szl_kc_worldmodel
+    _szl_kc_worldmodel.register(app, ns="killinchu")
+    print("[killinchu] Governed World-Model rollout registered: /api/killinchu/v1/worldmodel/predict", file=__import__("sys").stderr)
+except Exception as _szl_worldmodel_e:  # pragma: no cover
+    print(f"[killinchu] Governed World-Model rollout NOT registered: {_szl_worldmodel_e!r}", file=__import__("sys").stderr)
+
 # Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
 # generated OPEN conjectures from the real disclosure ledger (szl-lake khipu,
 # kind=conjecture-disclosure-anchor). Byte-identical module shared with a11oy. A

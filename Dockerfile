@@ -176,6 +176,19 @@ COPY szl_kc_tda_fracture.py ./
 # Per-file COPY (NEVER `COPY . .`).
 COPY szl_kc_cc_attest.py szl_kc_sement.py ./
 
+# FRONTIER backends WAVE B (2026-07): back the a11oy frontier surfaces testtime.js + specdecode.js
+# + worldmodel.js (same proven pattern as the ccattest/sement backends above).
+# szl_kc_ttc.py        -> GET /api/killinchu/v1/testtime/scaling (governed test-time-compute budget
+#   allocator; closed-form pass@N + sequential-revision scaling; joule-metered; MODELED, NO LLM/GPU).
+# szl_kc_specdec.py    -> GET /api/killinchu/v1/specdecode/simulate (speculative-decoding accept/reject
+#   simulation + J/token-saved energy receipt; MODELED, NOT a live model/KV cache).
+# szl_kc_worldmodel.py -> GET /api/killinchu/v1/worldmodel/predict (governed world-model latent rollout;
+#   MODELED, NOT Genie/Dreamer running, synthetic latents). All three PURE STDLIB; import szl_dsse
+#   (already COPYed) for REAL ECDSA receipts in-Space, honest UNSIGNED marker otherwise. MUST be COPY'd
+#   or serve.py's guarded imports degrade to not-registered stubs and the three tabs 404 again.
+# Per-file COPY (NEVER `COPY . .`).
+COPY szl_kc_ttc.py szl_kc_specdec.py szl_kc_worldmodel.py ./
+
 # ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
 # knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to
 # a11oy's knowledge.json. serve.py serves it at /knowledge.json so the /elite
