@@ -38,6 +38,7 @@ HONESTY (Doctrine v11):
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 from typing import Any, Dict, List, Tuple
 
@@ -548,6 +549,131 @@ async def _h_plasticity(request):  # type: ignore
     return JSONResponse(_plasticity(seed=seed, rounds=rounds))
 
 
+
+# ---------------------------------------------------------------------------
+# WAVE-18: write-back MEMORY loop. Closes the synthesis's #1 gap (szl_rag is
+# retrieval-only). Fuses szl_heart_blood's HEART/BLOOD hash-chained receipt
+# heartbeat (each beat carries prev_beat_hash -> tamper-evident append-only
+# chain) with A-MEM reconsolidation (arXiv:2502.12110: fired-node traces become
+# durable notes that bias future firing) and Zep/Graphiti temporal ordering
+# (arXiv:2501.13956: the trace is queryable in time order). Across "sessions"
+# (deterministic seeds), the brain replays its own firing history and lets
+# frequently co-fired node-pairs raise a MODELED prior on those edges.
+# HONESTY: this is a MODELED, deterministic, in-memory demo of the write-back
+# LOOP mechanism. The hash chain is real (sha256, verifiable) but SAMPLE-signed
+# (HMAC placeholder, NOT a real cosign/Sigstore key). It trains no model, writes
+# to no external store, and NEVER changes a formula's honesty tier. Locked==8.
+# ---------------------------------------------------------------------------
+def _memory(seed: int = 42, sessions: int = 3, fires_per_session: int = 8) -> Dict[str, Any]:
+    ids = [n["id"] for n in NODES]
+    tier = {n["id"]: n["tier"] for n in NODES}
+    adj = _adj()
+
+    # append-only, hash-chained receipt trace (HEART/BLOOD beat pattern).
+    chain: List[Dict[str, Any]] = []
+    def _beat(receipt: Dict[str, Any]) -> str:
+        prev = chain[-1]["beat_hash"] if chain else ""
+        seq = len(chain)
+        # canonical payload -> sha256 linked to prev (verbatim BloodDSSEChain rule)
+        payload = json.dumps({"seq": seq, "prev": prev, "receipt": receipt},
+                             sort_keys=True, separators=(",", ":")).encode()
+        # SAMPLE signature (HMAC placeholder — honest: NOT a real cosign key)
+        sig = hashlib.sha256(b"SAMPLE_KEY::" + payload).hexdigest()[:16]
+        bh = hashlib.sha256(payload + sig.encode()).hexdigest()
+        chain.append({"seq": seq, "prev_beat_hash": prev, "receipt": receipt,
+                      "sample_sig": sig, "beat_hash": bh})
+        return bh
+
+    # co-fire memory: (a,b) -> count of times both fired in the same session window.
+    cofire: Dict[tuple, int] = {}
+    session_reports = []
+    rng = _LCG(seed)
+    for s in range(sessions):
+        # a session: spreading from a rotating seed set; record which nodes fired.
+        seed_node = ids[rng.next_u32() % len(ids)]
+        fired: List[str] = [seed_node]
+        frontier = [seed_node]
+        for _ in range(fires_per_session):
+            if not frontier:
+                break
+            cur = frontier.pop(0)
+            for (nb, ew) in adj.get(cur, []):
+                if tier[nb] == "conjecture":
+                    continue  # conjecture nodes never "fire" into memory as proven
+                # A-MEM: bias toward nodes we co-fired with in PRIOR sessions
+                prior = cofire.get(tuple(sorted((cur, nb))), 0)
+                p = 0.5 + 0.15 * ew + 0.1 * min(prior, 3)  # prior raises the odds
+                if rng.uniform() < p and nb not in fired:
+                    fired.append(nb)
+                    frontier.append(nb)
+        # record co-fires + emit a hash-chained beat for this session
+        for i in range(len(fired)):
+            for j in range(i + 1, len(fired)):
+                key = tuple(sorted((fired[i], fired[j])))
+                cofire[key] = cofire.get(key, 0) + 1
+        bh = _beat({"session": s, "seed_node": seed_node, "fired": fired,
+                    "n_fired": len(fired), "ts_order": s})
+        session_reports.append({"session": s, "seed_node": seed_node,
+                                "n_fired": len(fired), "beat_hash": bh[:12]})
+
+    # verify the chain is intact (tamper-evident) — recompute every link.
+    chain_ok = True
+    for k, e in enumerate(chain):
+        prev = chain[k - 1]["beat_hash"] if k > 0 else ""
+        payload = json.dumps({"seq": e["seq"], "prev": prev, "receipt": e["receipt"]},
+                            sort_keys=True, separators=(",", ":")).encode()
+        sig = hashlib.sha256(b"SAMPLE_KEY::" + payload).hexdigest()[:16]
+        if hashlib.sha256(payload + sig.encode()).hexdigest() != e["beat_hash"] or e["prev_beat_hash"] != prev:
+            chain_ok = False
+            break
+
+    # the LEARNED priors: top co-fired pairs (what the brain "remembers")
+    top = sorted(cofire.items(), key=lambda kv: kv[1], reverse=True)[:6]
+    learned = [{"pair": f"{a}<->{b}", "cofire_count": c,
+                "tiers": tier[a] + "/" + tier[b]} for (a, b), c in top]
+    # did memory make later sessions reach more? (reconsolidation working)
+    reach = [r["n_fired"] for r in session_reports]
+    return {
+        "label": "MODELED",
+        "seed": seed, "sessions": sessions,
+        "locked_count": sum(1 for n in NODES if n["tier"] == "locked"),
+        "beats_written": len(chain),
+        "chain_intact": chain_ok,                 # tamper-evident hash chain verified
+        "reach_per_session": reach,               # A-MEM: should trend up as priors form
+        "reconsolidation_gain": (reach[-1] - reach[0]) if len(reach) >= 2 else 0,
+        "learned_priors_top": learned,            # what the brain remembers across sessions
+        "distinct_cofire_pairs": len(cofire),
+        "last_beat_hash": chain[-1]["beat_hash"][:16] if chain else None,
+        "signing": "SAMPLE (HMAC placeholder) — tamper-evident, NOT a real cosign key",
+        "honest_note": _HONEST_NOTE + (
+            " WAVE-18 MEMORY: a MODELED write-back loop fusing szl_heart_blood's HEART/BLOOD "
+            "hash-chained receipt heartbeat with A-MEM reconsolidation and Zep temporal order. "
+            "Fired-node traces are written as tamper-evident (sample-signed) beats; across "
+            "sessions the brain replays its own history so co-fired pairs raise a prior. It "
+            "writes to NO external store, trains NO model, and NEVER upgrades an honesty tier. "
+            "Conjecture nodes never fire into memory as proven. EXPERIMENTAL, deterministic."
+        ),
+        "citations": dict(CITATIONS, **{
+            "szl_heart_blood (HEART sigma-bus + BLOOD DSSE hash-chain)":
+                "https://github.com/szl-holdings/a11oy/blob/main/szl_heart_blood.py",
+            "A-MEM agentic memory (Xu et al., NeurIPS 2025)": "https://arxiv.org/abs/2502.12110",
+            "Zep/Graphiti temporal KG memory": "https://arxiv.org/abs/2501.13956",
+        }),
+    }
+
+
+async def _h_memory(request):  # type: ignore
+    q = getattr(request, "query_params", {}) or {}
+    def _int(name, dflt):
+        try:
+            return int(q.get(name, dflt))
+        except Exception:
+            return dflt
+    seed = _int("seed", 42)
+    sessions = max(1, min(_int("sessions", 3), 20))
+    return JSONResponse(_memory(seed=seed, sessions=sessions))
+
+
 # ---------------------------------------------------------------------------
 # HTTP handlers
 # ---------------------------------------------------------------------------
@@ -576,6 +702,7 @@ def register(app, ns: str = "killinchu"):
         (f"{base}/fire", _h_fire),
         (f"{base}/repair", _h_repair),
         (f"{base}/plasticity", _h_plasticity),
+        (f"{base}/memory", _h_memory),
     ]
     try:
         add_api_route = getattr(app, "add_api_route", None)
@@ -628,4 +755,14 @@ if __name__ == "__main__":
     print("szl_fgbrain wave17: plasticity OK — locked canon frozen:",
           pl["locked_edges_unchanged"], "| plasticity_score", pl["plasticity_score"],
           "| ewc_core_protection", pl["ewc_core_protection_penalty"])
+    # ---- wave-18 memory checks ----
+    mem = _memory(seed=42, sessions=4)
+    assert mem["label"] == "MODELED"
+    assert mem["locked_count"] == 8
+    assert mem["chain_intact"] is True, "HEART/BLOOD hash chain must verify"
+    assert mem["beats_written"] == 4, "one beat per session"
+    assert _memory(42, 4) == _memory(42, 4), "memory deterministic"
+    print("szl_fgbrain wave18: memory OK — beats", mem["beats_written"],
+          "chain_intact", mem["chain_intact"], "reconsolidation_gain",
+          mem["reconsolidation_gain"], "distinct_pairs", mem["distinct_cofire_pairs"])
     print("szl_fgbrain: ALL OK — real graph, MODELED firing anchored on locked-8, conjectures gray, deterministic.")
