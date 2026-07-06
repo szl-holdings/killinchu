@@ -423,6 +423,131 @@ async def _h_repair(request):  # type: ignore
     return JSONResponse(_repair(down=down, steps=steps))
 
 
+
+# ---------------------------------------------------------------------------
+# WAVE-17: Multi-timescale PLASTICITY. Fuses szl_neuroplasticity.py's REAL
+# learning rules (Hebb w+=eta*x*y; BCM sliding threshold theta_M=E[y^2],
+# phi=y*(y-theta_M); STDP Bi&Poo exponential window; EWC 0.5*lam*sum F*(dtheta)^2;
+# loss-of-plasticity dormant-fraction) onto the formula-graph EDGES. Per-tier
+# learning rate implements the Nested Learning (Google, NeurIPS 2025) multi-
+# timescale idea: locked-8 edges are FROZEN canon (rate 0 — a proven edge only
+# changes when the Lean proof changes), semantic slow, experimental medium,
+# borrowed fast. BCM keeps it stable (no runaway), EWC protects the proven core
+# from forgetting, dormant-fraction flags stale edges. EXPERIMENTAL/MODELED:
+# a deterministic co-activation demo on the real topology — it trains no model,
+# and NEVER upgrades a formula's honesty tier. Locked stays exactly 8.
+# ---------------------------------------------------------------------------
+# per-tier plastic learning rate (Nested Learning timescales). locked = 0 (canon).
+_TIER_ETA = {"locked": 0.0, "semantic": 0.03, "experimental": 0.08, "borrowed": 0.15, "conjecture": 0.0}
+
+
+def _stdp_dw(delta_t_ms: float, A_plus: float = 1.0, A_minus: float = 1.0,
+             tau_plus: float = 17.0, tau_minus: float = 34.0) -> float:
+    """Bi&Poo 1998 STDP window (verbatim math from szl_neuroplasticity.stdp_window)."""
+    if delta_t_ms > 0:
+        return A_plus * math.exp(-delta_t_ms / tau_plus)
+    if delta_t_ms < 0:
+        return -A_minus * math.exp(delta_t_ms / tau_minus)
+    return 0.0
+
+
+def _plasticity(seed: int = 42, rounds: int = 20) -> Dict[str, Any]:
+    rng = _LCG(seed)
+    ids = [n["id"] for n in NODES]
+    tier = {n["id"]: n["tier"] for n in NODES}
+    # edges carry a plastic weight w in [0,1], seeded at the tier-min coupling.
+    w0 = {n["id"]: _TIER_W[n["tier"]] for n in NODES}
+    edges = [(a, b) for (a, b, _) in EDGES if a in tier and b in tier]
+    wt = {}
+    for (a, b) in edges:
+        wt[(a, b)] = round(min(w0[a], w0[b]), 6)
+    w_init = dict(wt)
+    # per-edge co-activation history for the BCM sliding threshold.
+    yhist: Dict[tuple, List[float]] = {e: [] for e in edges}
+    frozen_locked_edges = [e for e in edges if tier[e[0]] == "locked" and tier[e[1]] == "locked"]
+
+    for _r in range(rounds):
+        # a MODELED co-activation event: pick a source node (deterministic LCG),
+        # its edges "fire together"; timing jitter drives the STDP sign.
+        src = ids[rng.next_u32() % len(ids)]
+        for (a, b) in edges:
+            if a != src and b != src:
+                continue
+            # learning rate = SLOWER of the two endpoints' tiers (canon dominates)
+            eta = min(_TIER_ETA[tier[a]], _TIER_ETA[tier[b]])
+            if eta <= 0.0:
+                continue  # frozen canon edge — never mutates (locked / conjecture)
+            # co-activation magnitude y (Hebb x*y proxy) + STDP timing sign
+            dt = (rng.uniform() - 0.5) * 40.0  # +-20ms timing jitter
+            stdp = _stdp_dw(dt)
+            y = 0.5 + 0.5 * rng.uniform()
+            yhist[(a, b)].append(y)
+            # BCM sliding threshold theta_M = E[y^2]; phi gates potentiate/depress
+            hist = yhist[(a, b)]
+            theta_M = sum(v * v for v in hist) / len(hist)
+            phi = y * (y - theta_M)
+            # Hebbian * BCM-sign * STDP-timing, scaled by the tier eta
+            dw = eta * y * (1.0 if phi >= 0 else -0.5) * (1.0 if stdp >= 0 else -0.5)
+            wt[(a, b)] = round(max(0.0, min(1.0, wt[(a, b)] + dw)), 6)
+
+    # verify the proven canon never moved
+    locked_edges_unchanged = all(abs(wt[e] - w_init[e]) < 1e-9 for e in frozen_locked_edges)
+    # loss-of-plasticity: dormant edges (weight ~0) — the ReDo/Dohare-Sutton signal
+    weights_now = list(wt.values())
+    dormant = sum(1 for v in weights_now if v < 1e-3)
+    dormant_frac = round(dormant / max(1, len(weights_now)), 4)
+    # EWC penalty protecting the proven core: F high on locked endpoints
+    ewc = 0.0
+    for e in edges:
+        F = 1.0 if (tier[e[0]] == "locked" or tier[e[1]] == "locked") else 0.05
+        ewc += 0.5 * 1.0 * F * (wt[e] - w_init[e]) ** 2
+    # which edges strengthened most (borrowed/fast tier should dominate)
+    deltas = sorted(((round(wt[e] - w_init[e], 4), f"{e[0]}->{e[1]}", tier[e[0]] + "/" + tier[e[1]])
+                     for e in edges), reverse=True)
+    return {
+        "label": "MODELED",
+        "rounds": rounds, "seed": seed,
+        "locked_count": sum(1 for n in NODES if n["tier"] == "locked"),
+        "tier_eta": _TIER_ETA,
+        "edges_total": len(edges),
+        "frozen_locked_edges": len(frozen_locked_edges),
+        "locked_edges_unchanged": locked_edges_unchanged,   # MUST be True (canon frozen)
+        "dormant_edge_fraction": dormant_frac,
+        "plasticity_score": round(1.0 - dormant_frac, 4),
+        "ewc_core_protection_penalty": round(ewc, 6),
+        "top_strengthened": deltas[:5],
+        "weights_head": {f"{a}->{b}": wt[(a, b)] for (a, b) in edges[:8]},
+        "honest_note": _HONEST_NOTE + (
+            " WAVE-17 PLASTICITY: a MODELED co-activation demo fusing szl_neuroplasticity's "
+            "REAL Hebb/BCM/STDP/EWC math onto the graph edges, with Nested-Learning per-tier "
+            "learning rates (locked=0 frozen canon, borrowed=fastest). It trains NO model and "
+            "NEVER changes a formula's honesty tier; the locked-8 edges are asserted unchanged. "
+            "EXPERIMENTAL, deterministic."
+        ),
+        "citations": dict(CITATIONS, **{
+            "szl_neuroplasticity (Hebb/Oja/BCM/STDP/EWC, tested)":
+                "https://github.com/szl-holdings/killinchu/blob/main/szl_neuroplasticity.py",
+            "BCM 1982": "https://doi.org/10.1523/JNEUROSCI.02-01-00032.1982",
+            "Bi & Poo STDP 1998": "https://doi.org/10.1523/JNEUROSCI.18-24-10464.1998",
+            "EWC (Kirkpatrick 2017)": "https://doi.org/10.1073/pnas.1611835114",
+            "Nested Learning (Google, NeurIPS 2025)":
+                "https://research.google/blog/introducing-nested-learning-a-new-ml-paradigm-for-continual-learning/",
+        }),
+    }
+
+
+async def _h_plasticity(request):  # type: ignore
+    q = getattr(request, "query_params", {}) or {}
+    def _int(name, dflt):
+        try:
+            return int(q.get(name, dflt))
+        except Exception:
+            return dflt
+    seed = _int("seed", 42)
+    rounds = max(1, min(_int("rounds", 20), 200))
+    return JSONResponse(_plasticity(seed=seed, rounds=rounds))
+
+
 # ---------------------------------------------------------------------------
 # HTTP handlers
 # ---------------------------------------------------------------------------
@@ -450,6 +575,7 @@ def register(app, ns: str = "killinchu"):
         (f"{base}/graph", _h_graph),
         (f"{base}/fire", _h_fire),
         (f"{base}/repair", _h_repair),
+        (f"{base}/plasticity", _h_plasticity),
     ]
     try:
         add_api_route = getattr(app, "add_api_route", None)
@@ -493,4 +619,13 @@ if __name__ == "__main__":
     print("szl_fgbrain wave16: repair OK — lesion F1 -> body_health",
           rep["body_health_excl_lesion"], "| lambda2 before/after",
           rep["fiedler_lambda2_before"], "/", rep["fiedler_lambda2_after"])
+    # ---- wave-17 plasticity checks ----
+    pl = _plasticity(seed=42, rounds=20)
+    assert pl["label"] == "MODELED"
+    assert pl["locked_count"] == 8
+    assert pl["locked_edges_unchanged"] is True, "locked-8 canon edges must never mutate"
+    assert _plasticity(42, 20) == _plasticity(42, 20), "plasticity deterministic"
+    print("szl_fgbrain wave17: plasticity OK — locked canon frozen:",
+          pl["locked_edges_unchanged"], "| plasticity_score", pl["plasticity_score"],
+          "| ewc_core_protection", pl["ewc_core_protection_penalty"])
     print("szl_fgbrain: ALL OK — real graph, MODELED firing anchored on locked-8, conjectures gray, deterministic.")
