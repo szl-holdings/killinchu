@@ -1,0 +1,83 @@
+name: COPY-Completeness Guard
+
+# Root-cause fix for the recurring "module reachable from serve.py but not in the
+# image -> silent 404 / advisory no-op" pattern. This guard parses serve.py (+
+# other entrypoints) for locally-imported root .py modules AND follows the
+# TRANSITIVE local-import closure (a module imported by a registered submodule is
+# also required), then verifies every one appears in the Dockerfile per-file COPY
+# set. It is ADDITIVE to the existing dockerfile-copy-guard (COPY sources exist)
+# and organ-copy-guard (registered organs are copied): this guard checks the
+# complementary + deeper direction (reachable imports, transitively, are in COPY).
+#
+# The killinchu import graph shares szl_* modules with a11oy (single source of
+# truth), so the SAME transitive drift class applies here. When first added this
+# guard caught three real reachable-but-uncopied modules
+# (killinchu_cop_fusion, killinchu_engagement_receipt, szl_agent_loop_banach).
+#
+# NOTES FOR BRANCH PROTECTION
+# ----------------------------
+# Add "COPY completeness / import-vs-copy check" to the required status checks
+# for main to make this guard required (recommend to the founder; do not change
+# protection rules from here).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'serve.py'
+      - 'szl_connectors_serve.py'
+      - 'Dockerfile'
+      - '.github/scripts/copy_completeness.py'
+      - 'tests/test_copy_completeness_transitive.py'
+      - '**.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'serve.py'
+      - 'szl_connectors_serve.py'
+      - 'Dockerfile'
+      - '.github/scripts/copy_completeness.py'
+      - 'tests/test_copy_completeness_transitive.py'
+      - '**.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  import-vs-copy:
+    name: COPY completeness / import-vs-copy check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Run COPY-completeness guard (TRANSITIVE closure)
+        run: |
+          python3 .github/scripts/copy_completeness.py \
+            --dockerfile Dockerfile \
+            --root . \
+            --entrypoints serve.py szl_connectors_serve.py
+        # Exit 1 = missing modules detected → fails the build.
+        # Exit 0 = every module REACHABLE from an entrypoint is present in COPY.
+
+      - name: Run built-in self-test (guard catches deliberate omission)
+        run: |
+          python3 .github/scripts/copy_completeness.py \
+            --dockerfile Dockerfile \
+            --root . \
+            --missing-test
+
+      - name: Run transitive-closure regression tests (pytest)
+        run: |
+          pip install --quiet pytest
+          python3 -m pytest tests/test_copy_completeness_transitive.py -q
