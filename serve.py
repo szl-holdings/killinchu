@@ -589,6 +589,20 @@ try:
 except Exception as _szl_loopforge_metrics_e:  # pragma: no cover
     print(f"[killinchu] Loop Forge metrics NOT registered: {_szl_loopforge_metrics_e!r}", file=__import__("sys").stderr)
 
+# WAVE-26 One-Bit (1-bit / ternary sovereign inference): a MODELED-honest estimator
+# fusing Microsoft's bitnet.cpp / BitNet b1.58 line with SZL's MEASURED-vs-MODELED
+# joules doctrine. It NEVER presents a MODELED energy number as measured; it keeps
+# Microsoft-MEASURED, Microsoft-ESTIMATED, and SZL-MODELED channels strictly separate
+# and attaches the honest independent-RAPL counter-figure. Real MEASURED joules require
+# the SZL CPU fleet (offline behind a machine-side tunnel) — no fabricated fleet data.
+# Additive, pure-stdlib, guarded. bitnet cited, never claimed as SZL's own.
+try:
+    import szl_kc_onebit as _szl_kc_onebit
+    _szl_kc_onebit.register(app, ns="killinchu")
+    print("[killinchu] One-Bit registered: /api/killinchu/v1/onebit/{manifest,estimate,methodology,fleet-readiness}", file=__import__("sys").stderr)
+except Exception as _szl_onebit_e:  # pragma: no cover
+    print(f"[killinchu] One-Bit NOT registered: {_szl_onebit_e!r}", file=__import__("sys").stderr)
+
 
 
 # Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
