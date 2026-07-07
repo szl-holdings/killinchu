@@ -130,6 +130,8 @@ COPY szl_kc_flower.py szl_kc_flower_metrics.py ./
 COPY szl_kc_loop_forge.py szl_kc_loop_forge_metrics.py ./
 # WAVE-26 One-Bit organ (MODELED 1-bit/ternary sovereign-inference energy estimator).
 COPY szl_kc_onebit.py ./
+# WAVE-28 JPT organ + HEART/BLOOD spine (measured joules-per-token, Brain-wired).
+COPY szl_kc_jpt.py szl_heart_blood.py ./
 # Wave 14 frontier organs (keyless value-only-cache attention, GitOfThoughts reasoning memory, HeRo-Q quant).
 COPY szl_keyless.py szl_gitthoughts.py szl_herotq.py ./
 # Wave 13 frontier organs (muon optimizer, tree speculative execution, NVFP4 4-bit format).

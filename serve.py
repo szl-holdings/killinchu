@@ -624,6 +624,19 @@ try:
 except Exception as _szl_onebit_e:  # pragma: no cover
     print(f"[killinchu] One-Bit NOT registered: {_szl_onebit_e!r}", file=__import__("sys").stderr)
 
+# WAVE-28 JPT (measured joules-per-token): the Brain gains a real energy sense.
+# Benchmarks MEASURED J/token per fleet node (meter-delta around a real generation),
+# emits a HEART beat + BLOOD-signed receipt per measurement, and persists a
+# hash-chained ledger. MEASURED only when a node's meter+GPU respond live THIS run;
+# otherwise OFFLINE, never a fabricated joule; monotonic-reset detection. Additive,
+# pure-stdlib, guarded. Cites the real meter/exporter + Flower memory petal.
+try:
+    import szl_kc_jpt as _szl_kc_jpt
+    _szl_kc_jpt.register(app, ns="killinchu")
+    print("[killinchu] JPT registered: /api/killinchu/v1/jpt/{manifest,benchmark,nodes,ledger,summary}", file=__import__("sys").stderr)
+except Exception as _szl_jpt_e:  # pragma: no cover
+    print(f"[killinchu] JPT NOT registered: {_szl_jpt_e!r}", file=__import__("sys").stderr)
+
 
 
 # Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
