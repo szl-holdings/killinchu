@@ -122,6 +122,8 @@ COPY szl_dla.py szl_ctxready.py szl_opera.py ./
 COPY szl_fgbrain.py ./szl_fgbrain.py
 # WAVE-23 surface organs (36-dead-tab wiring): one COPY layer for all 34 new szl_kc_* organs.
 COPY szl_kc_agentcoh.py szl_kc_elf.py szl_kc_graphmem.py szl_kc_kan.py szl_kc_moe.py szl_kc_qhall.py szl_kc_titans.py szl_kc_aimc.py szl_kc_flowmatch.py szl_kc_grpo.py szl_kc_kla.py szl_kc_mor.py szl_kc_rauq.py szl_kc_ssm.py szl_kc_blt.py szl_kc_formalmath.py szl_kc_hrm.py szl_kc_kvcache.py szl_kc_nested.py szl_kc_ringattn.py szl_kc_steering.py szl_kc_catq.py szl_kc_genie.py szl_kc_inplacettt.py szl_kc_matgran.py szl_kc_nsa.py szl_kc_s3search.py szl_kc_ternary.py szl_kc_dllm.py szl_kc_goat.py szl_kc_interpretability.py szl_kc_mla.py szl_kc_pfield.py szl_kc_slidesparse.py ./
+# WAVE-24 Flower Brain organ + metrics
+COPY szl_kc_flower.py szl_kc_flower_metrics.py ./
 # Wave 14 frontier organs (keyless value-only-cache attention, GitOfThoughts reasoning memory, HeRo-Q quant).
 COPY szl_keyless.py szl_gitthoughts.py szl_herotq.py ./
 # Wave 13 frontier organs (muon optimizer, tree speculative execution, NVFP4 4-bit format).
