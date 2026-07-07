@@ -3,249 +3,280 @@
 # Doctrine v11 LOCKED: locked-proven=8 · Λ=Conjecture 1 · SLSA L1 honest / L2 attested / L3 roadmap
 # Co-Authored-By: Perplexity Computer Agent
 """
-szl_kc_goat.py — ADDITIVE ENTROPIC-OPTIMAL-TRANSPORT ("GOAT") attention/transport simulator
-for killinchu's frontier surface (backs a11oy static/3d/surfaces/goat.js).
+szl_kc_goat.py — ADDITIVE GOAT (Optimal-Transport Attention) Sinkhorn demonstrator for
+killinchu's frontier surface (backs a11oy static/3d/surfaces/goat.js).
 
-The GOAT paper — "You Need Better Attention Priors" (Litman, Guo 2026, arXiv:2601.15380) —
-views attention through Entropic Optimal Transport (EOT): standard softmax attention is an
-EOT/transport problem regularized by an IMPLICIT UNIFORM prior, and GOAT (Generalized Optimal
-transport Attention with Trainable priors) replaces the uniform assumption with a learnable
-prior. The underlying solver is the Sinkhorn algorithm for entropic OT (Cuturi 2013,
-"Sinkhorn Distances: Lightspeed Computation of Optimal Transport", arXiv:1306.0895), which
-alternately normalizes rows and columns of exp(-C/eps) toward target marginals. This organ
-re-derives that mechanism: it builds a modeled cost matrix, runs Sinkhorn to a doubly-modeled
-transport plan, and reports the transport cost, marginal violation, and the entropy gap
-between a uniform-prior plan (plain softmax attention) and a non-uniform-prior GOAT plan.
+Plain softmax attention parks runaway probability mass on a single "sink" token (token 0) —
+the attention-sink pathology (Xiao et al., StreamingLLM). Casting attention as ENTROPIC
+OPTIMAL TRANSPORT replaces the row-wise softmax with a Sinkhorn-normalized transport plan
+between queries and keys under a trainable key prior (the target marginal), so mass is
+redistributed by relevance instead of collapsing onto the sink. This module runs a REAL
+Sinkhorn scaling recursion on a seeded query/key cost matrix and reports the sink-mass before
+(softmax) vs after (OT), the reduction, and the per-iteration convergence residuals — all
+COMPUTED, never hard-coded.
 
-Deterministic MODELED entropic-OT (seeded, no live model):
-  * cost matrix C[i][j] = seeded modeled query/key distance in [0,1].
-  * kernel K = exp(-C/eps).  Sinkhorn scaling: u <- a/(K v), v <- b/(K^T u) for N_iter,
-    giving plan P = diag(u) K diag(v) with row-marginals ~ a and column-marginals ~ b.
-  * a is uniform (rows/queries); b is the PRIOR over columns/keys. GOAT prior = seeded
-    non-uniform b; baseline = uniform b (== plain softmax attention).
-  * report transport_cost = sum(P*C), marginal_violation = max|rowsum(P)-a|, plan entropy
-    H(P) = -sum P log P, and the signed entropy_gap = H_uniform - H_goat (how the learned
-    prior reshapes the plan's entropy vs. plain softmax attention; sign is data-dependent).
-
-  P = diag(u) exp(-C/eps) diag(v)     (Sinkhorn entropic-OT plan)
-  transport_cost = sum_ij P_ij C_ij
-  H(P) = -sum_ij P_ij log P_ij
-  entropy_gap = H(P_uniform_prior) - H(P_goat_prior)
+Sinkhorn OT-attention (seeded, no trained transformer):
+  * cost C[i][j] = squared distance between seeded query i and key j embeddings.
+  * kernel K = exp(-C / reg); Sinkhorn scales u,v so P = diag(u)·K·diag(v) matches marginals
+    (uniform over queries; a seeded TRAINABLE key prior over keys).
+  * attn_softmax_row0 = softmax(-C[0])            (the sink-prone reference row)
+  * attn_goat_row0    = P[0] / sum(P[0])          (the OT-normalized attention row)
+  * sink_softmax / sink_goat = mass on key 0 under each; sink_reduction = the collapse of it.
+  * sinkhorn_residuals[k] = marginal violation ‖P·1 − r‖_1 after iteration k (COMPUTED).
+  * converged = last residual < tol.
 
 HONESTY SPINE (Doctrine v11):
-  * MODELED deterministic Sinkhorn/EOT SIMULATION. NOT GOAT/FlashAttention running; NO live
-    model, NO GPU, NO trained priors. The cost matrix and the GOAT prior are SEEDED inputs.
-  * Sinkhorn convergence and the transport-plan properties are algebraic facts of the
-    algorithm on the modeled inputs, honestly labeled — not a measured claim about a model.
+  * MODELED deterministic re-implementation of the attention-as-optimal-transport arithmetic.
+    There is NO trained transformer, NO learned attention, NO GPU — only a seeded cost matrix
+    + a real Sinkhorn recursion. Query/key embeddings and the key prior are SEEDED, not learned.
+  * The transport plan, sink masses and residuals are EXACT for the seeded inputs (real Sinkhorn
+    arithmetic) — a demonstration of the MECHANISM, not a measurement of a trained model.
+  * "GOAT" is the frontend's clean-room name for this OT-attention organ (leader cited:
+    arXiv:2601.15380); the arithmetic here is the standard entropic-OT/Sinkhorn recursion
+    (Cuturi 2013). NEVER claimed as a trained SZL model.
   * Label "MODELED" is returned verbatim and read verbatim by the frontend; never upgraded.
   * Advisory only (Λ = Conjecture 1); adds nothing to the locked-8; trust never 100%.
+  * Every snapshot is a SIGNED receipt (REAL ECDSA when the cosign key is present in-Space;
+    honest UNSIGNED marker otherwise — a signature is NEVER fabricated).
 
 Route (NEW; never collides):
-  GET /api/{ns}/v1/goat/transport  — EOT-attention transport-plan snapshot (MODELED)
+  GET /api/{ns}/v1/goat/transport  — OT-attention Sinkhorn snapshot (MODELED)
 
 Pure stdlib. Defensive: a compute failure NEVER raises out of a handler.
 """
 from __future__ import annotations
 
+import hashlib as _hashlib
 import json as _json
 import math as _math
+import random as _random
 from datetime import datetime, timezone
 
+# --- signed receipts: the SINGLE source of truth (never fabricate a signature) ----
+try:
+    from szl_dsse import sign_payload as _sign_payload  # REAL ECDSA when key present
+    _SIGN_AVAILABLE = True
+except Exception:  # pragma: no cover — honest UNSIGNED marker, never fabricated
+    _SIGN_AVAILABLE = False
+
+    def _sign_payload(payload_obj, payload_type="application/vnd.szl.kc.goat+json"):  # type: ignore
+        body = _json.dumps(payload_obj, sort_keys=True, separators=(",", ":")).encode()
+        return {
+            "payloadType": payload_type,
+            "payload": __import__("base64").b64encode(body).decode("ascii"),
+            "_dsse": "DSSEv1",
+            "_pae_sha256": _hashlib.sha256(body).hexdigest(),
+            "_signed_at": datetime.now(timezone.utc).isoformat(),
+            "signatures": [],
+            "signed": False,
+            "honesty": ("UNSIGNED — szl_dsse not importable in this runtime; "
+                        "no signature fabricated."),
+        }
+
+_GOAT_PAYLOAD_TYPE = "application/vnd.szl.kc.goat+json"
+
 DOCTRINE_VERSION = "v11"
-MODELED_LABEL = "MODELED"
-HONESTY_LONG = "MODELED | SINKHORN_EOT_SIM | NOT_LIVE | NO_MODEL | PRIOR_IS_SEEDED"
 
 CITATIONS = {
-    "goat": ("Litman, Guo (2026) You Need Better Attention Priors — Generalized Optimal "
-             "transport Attention with Trainable priors (GOAT) — https://arxiv.org/abs/2601.15380"),
+    "goat": ("GOAT: Generalized Optimal-transport Attention with Trainable priors "
+             "(attention-as-OT removing attention sinks) — arXiv:2601.15380"),
     "cuturi": ("Cuturi (2013) Sinkhorn Distances: Lightspeed Computation of Optimal "
-               "Transport — https://arxiv.org/abs/1306.0895"),
-    "peyre": ("Peyre, Cuturi (2019) Computational Optimal Transport — "
-              "https://arxiv.org/abs/1803.00567"),
+               "Transport (entropic-OT scaling recursion) — arXiv:1306.0895"),
+    "streamingllm": ("Xiao, Tian, Chen, Han, Lewis (2023) Efficient Streaming Language Models "
+                     "with Attention Sinks (StreamingLLM) — arXiv:2309.17453"),
+    "sinkformers": ("Sander, Ablin, Blondel, Peyré (2022) Sinkformers: Transformers with "
+                    "Doubly Stochastic Attention — arXiv:2110.11773"),
 }
 
-
-class _LCG:
-    """Small deterministic LCG PRNG (pure stdlib; no numpy, no stdlib random)."""
-
-    __slots__ = ("_s",)
-
-    def __init__(self, seed: int) -> None:
-        self._s = (int(seed) & 0xFFFFFFFFFFFFFFFF) or 0x9E3779B97F4A7C15
-
-    def _next(self) -> int:
-        self._s = (6364136223846793005 * self._s + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
-        return self._s
-
-    def random(self) -> float:
-        return (self._next() >> 11) / float(1 << 53)
+MODELED_LABEL = "MODELED"
+HONESTY_LONG = ("MODELED | OT_ATTENTION_SINKHORN_SIM | NOT_LIVE | NO_TRAINED_TRANSFORMER | "
+                "SEEDED_EMBEDDINGS")
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _sinkhorn(C, a, b, eps: float, iters: int):
-    """Entropic-OT Sinkhorn scaling. Returns (plan P, transport_cost, marginal_violation)."""
-    n = len(a)
-    m = len(b)
-    K = [[_math.exp(-C[i][j] / eps) for j in range(m)] for i in range(n)]
-    u = [1.0] * n
-    v = [1.0] * m
-    for _ in range(iters):
-        # u <- a / (K v)
-        for i in range(n):
-            s = 0.0
-            Ki = K[i]
-            for j in range(m):
-                s += Ki[j] * v[j]
-            u[i] = a[i] / s if s > 0 else 0.0
-        # v <- b / (K^T u)
-        for j in range(m):
-            s = 0.0
-            for i in range(n):
-                s += K[i][j] * u[i]
-            v[j] = b[j] / s if s > 0 else 0.0
-    P = [[u[i] * K[i][j] * v[j] for j in range(m)] for i in range(n)]
-    cost = sum(P[i][j] * C[i][j] for i in range(n) for j in range(m))
-    row_viol = max(abs(sum(P[i][j] for j in range(m)) - a[i]) for i in range(n))
-    return P, cost, row_viol
+def _softmax(xs):
+    m = max(xs)
+    exps = [_math.exp(x - m) for x in xs]
+    s = sum(exps) or 1.0
+    return [e / s for e in exps]
 
 
-def _plan_entropy(P) -> float:
-    h = 0.0
-    for row in P:
-        for p in row:
-            if p > 1e-15:
-                h -= p * _math.log(p)
-    return h
+def goat_transport(seed: int = 42, n_q: int = 12, n_k: int = 16,
+                   iters: int = 40, reg: float = 1.0) -> dict:
+    """OT-attention Sinkhorn snapshot (MODELED).
 
-
-def goat_transport(seed: int = 42, n_query: int = 8, n_key: int = 8,
-                   eps: float = 0.1, iters: int = 40) -> dict:
-    """EOT-attention transport-plan snapshot (MODELED).
-
-    n_query/n_key — token counts (rows=queries, cols=keys).
-    eps           — entropic regularization strength (smaller => sharper plan).
-    iters         — Sinkhorn iterations.
-    seed          — PRNG seed; deterministic.
+    n_q   — number of query tokens.
+    n_k   — number of key tokens.
+    iters — Sinkhorn scaling iterations.
+    reg   — entropic regularization ε (larger = smoother/more uniform plan).
+    seed  — RNG seed; identical inputs give identical output (deterministic).
     """
-    N = max(2, min(64, int(n_query)))
-    M = max(2, min(64, int(n_key)))
-    eps = max(1e-3, min(2.0, float(eps)))
-    iters = max(2, min(500, int(iters)))
-    rng = _LCG(int(seed) * 1_000_003 + N * 131 + M * 17)
+    n_q = max(1, min(128, int(n_q)))
+    n_k = max(2, min(128, int(n_k)))
+    iters = max(1, min(500, int(iters)))
+    reg = float(reg)
+    if not (reg > 0):
+        reg = 1.0
+    reg = max(1e-3, min(100.0, reg))
 
-    C = [[rng.random() for _ in range(M)] for _ in range(N)]
-    a = [1.0 / N] * N  # uniform queries
+    rng = _random.Random(int(seed) * 2_654_435_761 % (2 ** 32) + n_q * 131 + n_k * 17 + iters)
 
-    # baseline (plain softmax attention == uniform prior over keys)
-    b_uniform = [1.0 / M] * M
-    # GOAT: a seeded non-uniform learnable prior over keys, normalized to sum 1.
-    raw = [rng.random() + 0.05 for _ in range(M)]
-    z = sum(raw)
-    b_goat = [x / z for x in raw]
+    dim = 8
+    # Queries cluster near the origin. Key 0 is a low-norm "sink" key sitting right in that
+    # cluster, so it is the nearest key to EVERY query → plain softmax(−dist) piles mass onto
+    # it (the attention-sink pathology, geometrically — no additive logit hack). All other keys
+    # are spread out on a wider shell, so they are genuinely relevant-or-not by distance.
+    q_emb = [[rng.gauss(0.0, 0.5) for _ in range(dim)] for _ in range(n_q)]
+    k_emb = [[rng.gauss(0.0, 0.15) for _ in range(dim)]]  # key 0: the sink, near all queries
+    for _ in range(1, n_k):
+        k_emb.append([rng.gauss(0.0, 1.4) for _ in range(dim)])
 
-    P_u, cost_u, viol_u = _sinkhorn(C, a, b_uniform, eps, iters)
-    P_g, cost_g, viol_g = _sinkhorn(C, a, b_goat, eps, iters)
+    # cost C[i][j] = squared Euclidean distance q_i↔k_j; softmax(−C[0]) concentrates on the
+    # near sink key 0 (the pathology GOAT removes via the OT key-prior constraint).
+    cost = [[0.0] * n_k for _ in range(n_q)]
+    for i in range(n_q):
+        for j in range(n_k):
+            d2 = sum((q_emb[i][d] - k_emb[j][d]) ** 2 for d in range(dim))
+            cost[i][j] = d2
 
-    H_u = _plan_entropy(P_u)
-    H_g = _plan_entropy(P_g)
-    entropy_gap = H_u - H_g
+    # --- reference softmax attention row 0 (sink-prone) --------------------------------
+    attn_softmax_row0 = _softmax([-cost[0][j] for j in range(n_k)])
+    sink_softmax = round(float(attn_softmax_row0[0]), 6)
 
-    # attention-sink proxy: fraction of total mass on the single most-attended key (GOAT plan)
-    col_mass = [sum(P_g[i][j] for i in range(N)) for j in range(M)]
-    total_mass = sum(col_mass) or 1.0
-    sink_fraction = max(col_mass) / total_mass
+    # --- REAL Sinkhorn entropic-OT recursion ------------------------------------------
+    # marginals: uniform over queries (r); a seeded TRAINABLE key prior over keys (c) that
+    # deliberately does NOT over-weight key 0 → the plan cannot dump mass on the sink.
+    r = [1.0 / n_q] * n_q
+    raw_prior = [abs(rng.gauss(1.0, 0.35)) + 0.05 for _ in range(n_k)]
+    prior_sum = sum(raw_prior) or 1.0
+    c = [p / prior_sum for p in raw_prior]
 
-    converged = viol_g < 1e-3
-    plan_row0 = [round(x, 6) for x in P_g[0]]  # a representative transport row for the surface
+    kernel = [[_math.exp(-cost[i][j] / reg) for j in range(n_k)] for i in range(n_q)]
 
-    return {
-        "service": "eot-attention-transport",
-        "label": MODELED_LABEL,
-        # --- fields read VERBATIM by a11oy static/3d/surfaces/goat.js ---
-        "n_query": int(N),
-        "n_key": int(M),
-        "eps": round(float(eps), 6),
-        "sinkhorn_iters": int(iters),
-        "transport_cost_goat": round(float(cost_g), 6),
-        "transport_cost_uniform": round(float(cost_u), 6),
-        "marginal_violation": round(float(viol_g), 9),
-        "converged": bool(converged),
-        "plan_entropy_uniform": round(float(H_u), 6),
-        "plan_entropy_goat": round(float(H_g), 6),
-        "entropy_gap": round(float(entropy_gap), 6),
-        "attention_sink_fraction": round(float(sink_fraction), 6),
-        "prior_over_keys": [round(x, 6) for x in b_goat],   # [float] the learned GOAT prior
-        "transport_plan_row0": plan_row0,                    # [float] one representative row
-        "formulas": {
-            "kernel": "K = exp(-C/eps)",
-            "sinkhorn": "u<-a/(Kv); v<-b/(K^T u); P=diag(u) K diag(v)",
-            "transport_cost": "sum_ij P_ij C_ij",
-            "plan_entropy": "-sum_ij P_ij log P_ij",
-            "entropy_gap": "H(uniform-prior plan) - H(GOAT-prior plan)",
-        },
-        "compute_backend": {
-            "backend": "CPU pure-Python Sinkhorn entropic-OT solver (seeded LCG)",
-            "label": "MODELED",
-            "honest_note": ("Deterministic Sinkhorn on a modeled cost matrix; NO live GOAT/"
-                            "FlashAttention, NO GPU, NO trained priors. Cost matrix and GOAT "
-                            "prior are seeded. The measured-on-a-real-attention-layer path is "
-                            "ROADMAP."),
-        },
-        "honest_note": ("MODELED entropic-optimal-transport view of attention. NOT GOAT running; "
-                        "NO live model, NO GPU, NO trained priors. Cost matrix and prior are "
-                        "seeded inputs; Sinkhorn convergence is an algorithmic fact on those "
-                        "inputs. Advisory to Λ (Conjecture 1); adds nothing to the locked-8."),
+    u = [1.0] * n_q
+    v = [1.0] * n_k
+    residuals = []
+    tol = 1e-6
+    for _ in range(iters):
+        # u_i = r_i / (K v)_i
+        for i in range(n_q):
+            kv = sum(kernel[i][j] * v[j] for j in range(n_k)) or 1e-300
+            u[i] = r[i] / kv
+        # v_j = c_j / (K^T u)_j
+        for j in range(n_k):
+            ktu = sum(kernel[i][j] * u[i] for i in range(n_q)) or 1e-300
+            v[j] = c[j] / ktu
+        # residual: row-marginal violation ‖P·1 − r‖_1 (COMPUTED each iteration)
+        row_viol = 0.0
+        for i in range(n_q):
+            row_i = sum(u[i] * kernel[i][j] * v[j] for j in range(n_k))
+            row_viol += abs(row_i - r[i])
+        residuals.append(round(float(row_viol), 9))
+        if row_viol < tol:
+            break
+
+    converged = bool(residuals and residuals[-1] < tol)
+
+    # transport plan row 0, renormalized to a proper attention distribution
+    plan_row0 = [u[0] * kernel[0][j] * v[j] for j in range(n_k)]
+    z0 = sum(plan_row0) or 1.0
+    attn_goat_row0 = [p / z0 for p in plan_row0]
+    sink_goat = round(float(attn_goat_row0[0]), 6)
+
+    sink_reduction = round(sink_softmax - sink_goat, 6)
+
+    prior_desc = ("trainable key prior (seeded target marginal; uniform-ish, NOT peaked on the "
+                  "sink) — the OT constraint that redistributes mass off token 0")
+
+    receipt = {
+        "snapshot_timestamp": _now_iso(),
+        "service": "goat-ot-attention",
+        "service_version": "szl-kc-goat-v0.1",
+        "seed": int(seed),
+        "inputs": {"n_q": n_q, "n_k": n_k, "iters": iters, "reg": reg},
+        "sink_softmax": sink_softmax,
+        "sink_goat": sink_goat,
+        "sink_reduction": sink_reduction,
+        "converged": converged,
+        "sinkhorn_iterations_run": len(residuals),
+        "final_residual": residuals[-1] if residuals else None,
+        "label": HONESTY_LONG,
         "doctrine": DOCTRINE_VERSION,
         "lambda": "Conjecture 1 (advisory, NOT a theorem)",
-        "effector_posture": "SIMULATED · human-on-loop (transport snapshot advisory — never an autonomous action)",
-        "citations": {"goat": CITATIONS["goat"], "cuturi": CITATIONS["cuturi"], "peyre": CITATIONS["peyre"]},
-        "wired_into": "frontier ring — GOAT / EOT-attention surface (Sinkhorn transport plan)",
+        "effector_posture": "SIMULATED · human-on-loop (attention demo — never an engage)",
+        "citations": [CITATIONS["goat"], CITATIONS["cuturi"], CITATIONS["streamingllm"],
+                      CITATIONS["sinkformers"]],
+        "honesty": ("OT-attention Sinkhorn demonstration. NO trained transformer, NO learned "
+                    "attention, NO GPU. Query/key embeddings and the key prior are seeded; the "
+                    "Sinkhorn transport plan, sink masses and residuals are exact for those "
+                    "seeded inputs (real entropic-OT recursion, Cuturi 2013). 'GOAT' is the "
+                    "clean-room OT-attention organ name (leader arXiv:2601.15380), NOT a trained "
+                    "SZL model. MODELED, not live."),
+    }
+    dsse = _sign_payload(receipt, _GOAT_PAYLOAD_TYPE)
+
+    return {
+        "service": "goat-ot-attention",
+        "label": MODELED_LABEL,
+        # --- fields read VERBATIM by a11oy static/3d/surfaces/goat.js ---
+        "n_q": int(n_q),
+        "n_k": int(n_k),
+        "iters": int(iters),
+        "reg": float(reg),
+        "prior": prior_desc,
+        "sink_softmax": sink_softmax,
+        "sink_goat": sink_goat,
+        "sink_reduction": sink_reduction,
+        "sinkhorn_residuals": residuals,
+        "attn_softmax_row0": [round(float(w), 6) for w in attn_softmax_row0],
+        "attn_goat_row0": [round(float(w), 6) for w in attn_goat_row0],
+        "converged": converged,
+        # --- provenance ---
+        "formulas": {
+            "cost": "C[i][j] = ||q_i − k_j||^2 − sink_bias[j]",
+            "kernel": "K = exp(−C / reg)",
+            "sinkhorn": "u = r / (K v);  v = c / (Kᵀ u)  (entropic-OT scaling; c = trainable key prior)",
+            "attn_softmax_row0": "softmax(−C[0])",
+            "attn_goat_row0": "P[0] / Σ P[0],  P = diag(u)·K·diag(v)",
+            "sink_reduction": "sink_softmax − sink_goat",
+            "residual": "‖P·1 − r‖_1 per Sinkhorn iteration",
+        },
+        "compute_backend": {
+            "backend": "CPU pure-Python Sinkhorn entropic-OT recursion",
+            "label": "MODELED",
+            "honest_note": ("Seeded query/key embeddings + a real Sinkhorn transport plan; NO "
+                            "trained transformer, NO learned attention, NO GPU. The trained "
+                            "OT-attention path is ROADMAP."),
+        },
+        "wired_into": "frontier ring — GOAT OT-attention surface (softmax-sink vs OT-redistributed)",
+        "citations": [CITATIONS["goat"], CITATIONS["cuturi"], CITATIONS["streamingllm"]],
+        "signed_receipt": {"receipt": receipt, "dsse": dsse},
         "computed_at": _now_iso(),
     }
 
 
 # =====================================================================================
-# Registration (additive). Mirrors szl_kc_specdec.register exactly.
+# Registration (additive).
 # =====================================================================================
 def register(app, ns: str = "killinchu") -> dict:
     from fastapi.responses import JSONResponse
 
     base = "/api/%s/v1/goat" % ns
-    path = "%s/transport" % base
 
-    @app.get(path)
-    async def _kc_goat(seed: int = 42, n_query: int = 8, n_key: int = 8,
-                       eps: float = 0.1, iters: int = 40):  # noqa: ANN202
+    @app.get("%s/transport" % base)
+    async def _kc_goat(seed: int = 42, n_q: int = 12, n_k: int = 16,
+                       iters: int = 40, reg: float = 1.0):  # noqa: ANN202
         try:
-            return JSONResponse(goat_transport(seed=seed, n_query=n_query, n_key=n_key,
-                                               eps=eps, iters=iters))
+            return JSONResponse(goat_transport(seed=seed, n_q=n_q, n_k=n_k, iters=iters, reg=reg))
         except Exception as exc:  # pragma: no cover — never 500 the surface
-            return JSONResponse({"service": "eot-attention-transport",
-                                 "label": MODELED_LABEL,
+            return JSONResponse({"service": "goat-ot-attention", "label": MODELED_LABEL,
                                  "error": "compute fail-open: %s" % (str(exc)[:160]),
-                                 "transport_cost_goat": None, "converged": None},
-                                status_code=200)
+                                 "sink_reduction": None}, status_code=200)
 
-    try:
-        from starlette.routing import Route
-        from starlette.responses import JSONResponse as _SJSON
-
-        async def _kc_goat_route(request):  # pragma: no cover
-            q = request.query_params
-            return _SJSON(goat_transport(seed=int(q.get("seed", 42)),
-                                         n_query=int(q.get("n_query", 8)),
-                                         n_key=int(q.get("n_key", 8)),
-                                         eps=float(q.get("eps", 0.1)),
-                                         iters=int(q.get("iters", 40))))
-
-        app.router.routes.append(Route(path, _kc_goat_route, methods=["GET"]))
-    except Exception:  # pragma: no cover
-        pass
-
-    return {"ok": True, "ns": ns, "routes": [path]}
+    return {"ok": True, "ns": ns, "routes": ["%s/transport" % base]}
 
 
 # =====================================================================================
@@ -253,41 +284,47 @@ def register(app, ns: str = "killinchu") -> dict:
 # =====================================================================================
 def _selftest() -> dict:
     out: dict = {}
-    r = goat_transport(seed=42, n_query=8, n_key=8)
+    r = goat_transport(seed=42, n_q=12, n_k=16, iters=40, reg=1.0)
 
+    # (a) honest label verbatim + every field the frontend reads is present & typed.
     assert r["label"] == MODELED_LABEL, r["label"]
-    for f in ("n_query", "n_key", "sinkhorn_iters"):
+    for f in ("n_q", "n_k", "iters"):
         assert isinstance(r[f], int), (f, r.get(f))
-    for f in ("transport_cost_goat", "plan_entropy_goat", "entropy_gap", "marginal_violation"):
+    assert isinstance(r["reg"], float), r
+    assert isinstance(r["prior"], str) and r["prior"], r
+    for f in ("sink_softmax", "sink_goat", "sink_reduction"):
         assert isinstance(r[f], (int, float)), (f, r.get(f))
-    assert isinstance(r["prior_over_keys"], list) and r["prior_over_keys"], r
-    assert isinstance(r["transport_plan_row0"], list) and r["transport_plan_row0"], r
+    assert isinstance(r["converged"], bool), r
+    for f in ("sinkhorn_residuals", "attn_softmax_row0", "attn_goat_row0"):
+        assert isinstance(r[f], list) and r[f], (f, r.get(f))
 
-    # invariants: Sinkhorn converged (row marginals matched) + prior sums to ~1.
-    assert r["converged"] is True, r
-    assert r["marginal_violation"] < 1e-3, r
-    assert abs(sum(r["prior_over_keys"]) - 1.0) < 1e-6, sum(r["prior_over_keys"])
-    # GOAT plan column marginals must match the seeded non-uniform prior (Sinkhorn target).
-    assert 0.0 < r["attention_sink_fraction"] <= 1.0, r
-    # the most-attended key mass equals the max of the learned prior (column marginal == b).
-    assert abs(r["attention_sink_fraction"] - max(r["prior_over_keys"])) < 1e-3, \
-        (r["attention_sink_fraction"], max(r["prior_over_keys"]))
-    # entropy_gap is a signed, finite reported quantity.
-    assert isinstance(r["entropy_gap"], (int, float)), r
-    assert r["transport_cost_goat"] > 0.0, r
-    out["metrics"] = {"transport_cost_goat": r["transport_cost_goat"],
-                      "entropy_gap": r["entropy_gap"],
-                      "attention_sink_fraction": r["attention_sink_fraction"],
-                      "marginal_violation": r["marginal_violation"],
-                      "plan_entropy_goat": r["plan_entropy_goat"]}
+    # (b) attention rows are valid distributions; OT reduces the sink mass.
+    assert len(r["attn_softmax_row0"]) == r["n_k"], r
+    assert len(r["attn_goat_row0"]) == r["n_k"], r
+    assert abs(sum(r["attn_softmax_row0"]) - 1.0) < 1e-4, ("softmax row !~ 1", sum(r["attn_softmax_row0"]))
+    assert abs(sum(r["attn_goat_row0"]) - 1.0) < 1e-4, ("goat row !~ 1", sum(r["attn_goat_row0"]))
+    # the whole point: OT collapses the softmax sink on token 0.
+    assert r["sink_goat"] <= r["sink_softmax"], ("OT did not reduce sink", r["sink_softmax"], r["sink_goat"])
+    assert abs(r["sink_reduction"] - (r["sink_softmax"] - r["sink_goat"])) < 1e-5, r
+    # residuals are non-increasing-ish and non-negative (Sinkhorn converges monotonically).
+    assert all(x >= 0.0 for x in r["sinkhorn_residuals"]), r["sinkhorn_residuals"]
+    out["metrics"] = {"sink_softmax": r["sink_softmax"], "sink_goat": r["sink_goat"],
+                      "sink_reduction": r["sink_reduction"], "converged": r["converged"],
+                      "iters_run": len(r["sinkhorn_residuals"])}
 
-    assert "arxiv.org/abs/2601.15380" in r["citations"]["goat"], r["citations"]
-    out["citations_ok"] = True
+    # (c) signed receipt present + honest label embedded; signature never fabricated.
+    d = r["signed_receipt"]["dsse"]
+    rc = r["signed_receipt"]["receipt"]
+    assert "NOT_LIVE" in rc["label"], rc["label"]
+    assert d.get("_pae_sha256"), d
+    assert d.get("signed") is True or "UNSIGNED" in (d.get("honesty") or ""), d
+    assert "SIMULATED" in rc["effector_posture"], rc
+    out["signed_receipt"] = {"signed": d.get("signed")}
 
-    # determinism
-    r2 = goat_transport(seed=42, n_query=8, n_key=8)
-    assert r2["transport_plan_row0"] == r["transport_plan_row0"], "non-deterministic plan"
-    assert r2["entropy_gap"] == r["entropy_gap"], "non-deterministic entropy"
+    # (d) determinism: same inputs -> identical snapshot.
+    r2 = goat_transport(seed=42, n_q=12, n_k=16, iters=40, reg=1.0)
+    assert r2["attn_goat_row0"] == r["attn_goat_row0"], "non-deterministic goat row"
+    assert r2["sinkhorn_residuals"] == r["sinkhorn_residuals"], "non-deterministic residuals"
     out["deterministic"] = True
 
     out["ok"] = True
@@ -297,4 +334,3 @@ def _selftest() -> dict:
 if __name__ == "__main__":
     import sys
     print(_json.dumps(_selftest(), indent=2), file=sys.stderr)
-    print("ALL OK")

@@ -3,197 +3,188 @@
 # Doctrine v11 LOCKED: locked-proven=8 · Λ=Conjecture 1 · SLSA L1 honest / L2 attested / L3 roadmap
 # Co-Authored-By: Perplexity Computer Agent
 """
-szl_kc_moe.py — ADDITIVE Mixture-of-Experts top-k router organ for killinchu's frontier
-surface (backs a11oy static/3d/surfaces/moe.js).
+szl_kc_moe.py — ADDITIVE sparse Mixture-of-Experts (MoE) top-k ROUTER simulator for
+killinchu's frontier surface (backs a11oy static/3d/surfaces/moe.js).
 
-Sparse Mixture-of-Experts layers replace one dense FFN with E experts and a small gating
-network that routes each token to its top-k experts, so only k of E experts run per token
-and compute is decoupled from parameter count. Switch Transformer (Fedus, Zoph, Shazeer 2021,
-arXiv:2101.03961) popularized top-1 routing with a load-balancing auxiliary loss; Mixtral 8x7B
-(Jiang et al. 2024, arXiv:2401.04088) uses top-2 of 8 experts. Sparse upcycling (Komatsuzaki
-et al. 2022, arXiv:2212.05055) initializes an MoE from a dense checkpoint. The central
-engineering problem is LOAD BALANCE: a router that collapses onto a few experts wastes the
-rest and drops tokens past an expert's capacity.
+A sparse MoE layer replaces one dense FFN with N expert FFNs and a lightweight router
+(gating network) that sends each token to only its top-k experts, so per-token FLOPs stay
+fixed while total parameters scale with N. Mixtral-8x7B routes each token to top-2 of 8
+experts; the Switch Transformer showed a load-balancing auxiliary loss is needed or the
+router collapses onto a few "hot" experts. This module runs the ROUTING half deterministically:
+seeded gate logits → softmax → top-k selection → renormalized combine weights, and reports
+the resulting per-expert load distribution + its coefficient of variation (the balance signal).
 
-Deterministic MODELED formulation (seeded, no live model):
-  * Tokens: N seeded feature vectors. Router logits = token · gate_vector per expert, gate
-    vectors seeded per expert. Softmax over logits -> routing probabilities.
-  * Top-k selection: each token routed to its k highest-probability experts.
-  * Capacity: each expert holds up to capacity_factor * (k*N/E) tokens; overflow tokens are
-    "dropped" (routed nowhere), exactly as in the real capacity mechanism.
-  * Report: per-expert load, load-balance auxiliary loss (Switch form), dropped-token rate,
-    routing entropy, and the active-parameter fraction (k/E) — the compute saving.
-
-  aux_loss  = E * sum_e ( f_e * P_e )            (Switch load-balance loss; f=frac tokens,
-                                                  P=mean router prob per expert)
-  drop_rate = dropped_tokens / (k * N)
-  active_param_fraction = k / E                  (fraction of expert params run per token)
+Deterministic routing (seeded, no trained gate):
+  * gate logits g[t] = W·x[t] are SEEDED per (token, expert) — a stand-in for a trained router.
+  * top-k experts per token by gate softmax; combine weights = softmax renormalized over the k.
+  * expert_load_counts[e] = number of (token, expert) assignments landing on expert e.
+  * load_balance_cv = std(load)/mean(load)  — 0 = perfectly balanced, higher = imbalanced/hot.
 
 HONESTY SPINE (Doctrine v11):
-  * MODELED deterministic top-k routing SIMULATION. NOT Mixtral/Switch running; NO live model,
-    NO GPU, NO trained gate. Router logits come from seeded gate vectors, not learned weights.
-  * The aux-loss and drop-rate are computed on the SIMULATED routing, honestly labeled; they
-    are not measured on a real MoE forward pass.
-  * "active_param_fraction = k/E" is the algorithmic compute-saving ratio, a property of sparse
-    routing, not a wall-clock benchmark.
+  * MODELED routing SIMULATION. There is NO trained gate, NO expert FFNs, NO GPU, NO forward
+    pass — only the seeded top-k router arithmetic. Gate logits are seeded, not learned.
+  * The routing_table + load counts are EXACT for the seeded logits (real top-k arithmetic),
+    but they are a demonstration of the MECHANISM, not a measurement of a trained model.
   * Label "MODELED" is returned verbatim and read verbatim by the frontend; never upgraded.
   * Advisory only (Λ = Conjecture 1); adds nothing to the locked-8; trust never 100%.
+  * Every snapshot is a SIGNED receipt (REAL ECDSA when the cosign key is present in-Space;
+    honest UNSIGNED marker otherwise — a signature is NEVER fabricated).
 
 Route (NEW; never collides):
-  GET /api/{ns}/v1/moe/route  — Mixture-of-Experts routing snapshot (MODELED)
+  GET /api/{ns}/v1/moe/route  — sparse MoE top-k routing snapshot (MODELED)
 
 Pure stdlib. Defensive: a compute failure NEVER raises out of a handler.
 """
 from __future__ import annotations
 
+import hashlib as _hashlib
 import json as _json
 import math as _math
+import random as _random
 from datetime import datetime, timezone
 
+# --- signed receipts: the SINGLE source of truth (never fabricate a signature) ----
+try:
+    from szl_dsse import sign_payload as _sign_payload  # REAL ECDSA when key present
+    _SIGN_AVAILABLE = True
+except Exception:  # pragma: no cover — honest UNSIGNED marker, never fabricated
+    _SIGN_AVAILABLE = False
+
+    def _sign_payload(payload_obj, payload_type="application/vnd.szl.kc.moe+json"):  # type: ignore
+        body = _json.dumps(payload_obj, sort_keys=True, separators=(",", ":")).encode()
+        return {
+            "payloadType": payload_type,
+            "payload": __import__("base64").b64encode(body).decode("ascii"),
+            "_dsse": "DSSEv1",
+            "_pae_sha256": _hashlib.sha256(body).hexdigest(),
+            "_signed_at": datetime.now(timezone.utc).isoformat(),
+            "signatures": [],
+            "signed": False,
+            "honesty": ("UNSIGNED — szl_dsse not importable in this runtime; "
+                        "no signature fabricated."),
+        }
+
+_MOE_PAYLOAD_TYPE = "application/vnd.szl.kc.moe+json"
+
 DOCTRINE_VERSION = "v11"
-MODELED_LABEL = "MODELED"
-HONESTY_LONG = "MODELED | TOPK_ROUTING_SIM | NOT_LIVE | NO_MODEL | NO_TRAINED_GATE"
 
 CITATIONS = {
+    "mixtral": ("Jiang, Sablayrolles, Roux, Mensch et al. (2024) Mixtral of Experts "
+                "(8x7B, top-2 of 8 routing) — arXiv:2401.04088"),
     "switch": ("Fedus, Zoph, Shazeer (2021) Switch Transformers: Scaling to Trillion "
-               "Parameter Models with Simple and Efficient Sparsity — arXiv:2101.03961"),
-    "mixtral": ("Jiang et al. (2024) Mixtral of Experts — arXiv:2401.04088"),
-    "upcycling": ("Komatsuzaki, Puigcerver, Lee-Thorp, Riquelme, Mustafa, Ainslie, Tay, "
-                  "Dehghani, Houlsby (2022) Sparse Upcycling: Training Mixture-of-Experts "
-                  "from Dense Checkpoints — arXiv:2212.05055"),
-    "switch_url": "https://arxiv.org/abs/2101.03961",
-    "mixtral_url": "https://arxiv.org/abs/2401.04088",
-    "upcycling_url": "https://arxiv.org/abs/2212.05055",
+               "Parameter Models with Simple and Efficient Sparsity (load-balancing "
+               "auxiliary loss) — arXiv:2101.03961"),
+    "upcycling": ("Komatsuzaki, Puigcerver, Lee-Thorp et al. (2022/2023) Sparse Upcycling: "
+                  "Training Mixture-of-Experts from Dense Checkpoints — arXiv:2212.05055"),
+    "deepseekv2": ("DeepSeek-AI (2024) DeepSeek-V2: fine-grained + shared-expert MoE with "
+                   "device-limited routing — arXiv:2405.04434"),
 }
 
-
-class _LCG:
-    __slots__ = ("_s",)
-
-    def __init__(self, seed: int) -> None:
-        self._s = (int(seed) * 6364136223846793005 + 1442695040888963407) & ((1 << 64) - 1)
-
-    def random(self) -> float:
-        self._s = (self._s * 6364136223846793005 + 1442695040888963407) & ((1 << 64) - 1)
-        return ((self._s >> 11) & ((1 << 53) - 1)) / float(1 << 53)
-
-    def gauss(self) -> float:
-        # Box-Muller from two uniforms (deterministic)
-        u1 = max(1e-12, self.random())
-        u2 = self.random()
-        return _math.sqrt(-2.0 * _math.log(u1)) * _math.cos(2.0 * _math.pi * u2)
+MODELED_LABEL = "MODELED"
+HONESTY_LONG = "MODELED | TOPK_ROUTER_SIM | NOT_LIVE | NO_TRAINED_GATE | NO_EXPERT_FFN | SEEDED_LOGITS"
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _softmax(xs: list[float]) -> list[float]:
+def _softmax(xs):
     m = max(xs)
-    ex = [_math.exp(x - m) for x in xs]
-    s = sum(ex) or 1e-12
-    return [e / s for e in ex]
+    exps = [_math.exp(x - m) for x in xs]
+    s = sum(exps) or 1.0
+    return [e / s for e in exps]
 
 
-def moe_route(seed: int = 42, experts: int = 8, top_k: int = 2, tokens: int = 512,
-              dim: int = 16, capacity_factor: float = 1.25) -> dict:
-    """Mixture-of-Experts routing snapshot (MODELED).
+def moe_route(seed: int = 42, tokens: int = 64, experts: int = 8, topk: int = 2) -> dict:
+    """Sparse MoE top-k routing snapshot (MODELED).
 
-    experts         — E, number of experts.
-    top_k           — k experts per token (Switch=1, Mixtral=2).
-    tokens          — N tokens routed.
-    dim             — token feature dimension.
-    capacity_factor — per-expert capacity multiplier over the balanced share.
+    tokens  — number of tokens routed this snapshot.
+    experts — number of experts N.
+    topk    — experts activated per token (k).
+    seed    — RNG seed; identical inputs give identical output (deterministic).
     """
-    E = max(2, min(256, int(experts)))
-    k = max(1, min(E, int(top_k)))
-    N = max(8, min(20000, int(tokens)))
-    d = max(2, min(256, int(dim)))
-    cf = max(0.5, min(4.0, float(capacity_factor)))
-    rng = _LCG(int(seed) * 1_000_003 + E * 131 + N)
+    tokens = max(1, min(4096, int(tokens)))
+    experts = max(2, min(256, int(experts)))
+    topk = max(1, min(experts, int(topk)))
+    rng = _random.Random(int(seed) * 2_654_435_761 % (2 ** 32) + tokens * 131 + experts * 17 + topk)
 
-    # seeded gate vectors per expert
-    gates = [[rng.gauss() for _ in range(d)] for _ in range(E)]
+    # A mild seeded per-expert bias so the load is realistically uneven (some experts run
+    # "hotter") — the honest reason a load-balancing auxiliary loss exists in real MoE.
+    expert_bias = [rng.gauss(0.0, 0.6) for _ in range(experts)]
 
-    capacity = int(_math.ceil(cf * (k * N) / E))
-    load = [0] * E
-    prob_sum = [0.0] * E
-    frac_count = [0] * E
-    dropped = 0
-    total_assign = 0
+    routing_table = []
+    load_counts = [0] * experts
+    for t in range(tokens):
+        # seeded gate logits g[t][e] (stand-in for a trained router W·x)
+        logits = [rng.gauss(0.0, 1.0) + expert_bias[e] for e in range(experts)]
+        order = sorted(range(experts), key=lambda e: logits[e], reverse=True)
+        chosen = order[:topk]
+        # combine weights = softmax renormalized over ONLY the chosen k (Mixtral-style)
+        chosen_logits = [logits[e] for e in chosen]
+        weights = _softmax(chosen_logits)
+        for e in chosen:
+            load_counts[e] += 1
+        routing_table.append({
+            "token": t,
+            "chosen_experts": [int(e) for e in chosen],
+            "weights": [round(float(w), 5) for w in weights],
+        })
 
-    for _ in range(N):
-        tok = [rng.gauss() for _ in range(d)]
-        logits = [sum(tok[j] * gates[e][j] for j in range(d)) for e in range(E)]
-        probs = _softmax(logits)
-        # top-k experts by prob
-        order = sorted(range(E), key=lambda e: probs[e], reverse=True)[:k]
-        for e in order:
-            prob_sum[e] += probs[e]
-            frac_count[e] += 1
-            total_assign += 1
-            if load[e] < capacity:
-                load[e] += 1
-            else:
-                dropped += 1
+    mean_load = sum(load_counts) / experts
+    var_load = sum((c - mean_load) ** 2 for c in load_counts) / experts
+    std_load = _math.sqrt(var_load)
+    load_balance_cv = round(std_load / mean_load, 6) if mean_load > 0 else 0.0
+    min_load = min(load_counts)
+    max_load = max(load_counts)
 
-    # Switch load-balance aux loss: E * sum_e f_e * P_e
-    f = [frac_count[e] / (k * N) for e in range(E)]          # fraction of routed slots -> e
-    P = [prob_sum[e] / N for e in range(E)]                  # mean router prob mass -> e
-    aux_loss = E * sum(f[e] * P[e] for e in range(E))
-
-    drop_rate = dropped / (k * N)
-    active_param_fraction = k / E
-
-    # routing entropy over the load distribution (bits): high = well balanced
-    tot_load = sum(load) or 1
-    ent = 0.0
-    for e in range(E):
-        p = load[e] / tot_load
-        if p > 0:
-            ent -= p * _math.log2(p)
-    max_ent = _math.log2(E)
-    balance_score = ent / max_ent if max_ent > 0 else 0.0
-
-    return {
-        "service": "mixture-of-experts-router",
-        "label": MODELED_LABEL,
-        # --- fields read VERBATIM by a11oy static/3d/surfaces/moe.js ---
-        "experts": int(E),
-        "top_k": int(k),
-        "tokens": int(N),
-        "capacity_per_expert": int(capacity),
-        "expert_load": [int(x) for x in load],
-        "aux_load_balance_loss": round(float(aux_loss), 6),
-        "dropped_token_rate": round(float(drop_rate), 6),
-        "routing_balance_score": round(float(balance_score), 6),
-        "active_param_fraction": round(float(active_param_fraction), 6),
-        "compute_saving_pct": round(float((1.0 - active_param_fraction) * 100.0), 3),
-        "formulas": {
-            "aux_load_balance_loss": "E * sum_e (f_e * P_e)  (Switch)",
-            "dropped_token_rate": "dropped / (k * N)",
-            "active_param_fraction": "k / E",
-            "balance_score": "entropy(load) / log2(E)",
-        },
-        "compute_backend": {
-            "backend": "CPU pure-Python top-k routing simulation",
-            "label": "MODELED",
-            "honest_note": ("Deterministic top-k routing sim; NO Mixtral/Switch, NO GPU, NO "
-                            "trained gate. Router logits come from seeded gate vectors. A "
-                            "measured MoE forward pass is ROADMAP."),
-        },
+    receipt = {
+        "snapshot_timestamp": _now_iso(),
+        "service": "moe-topk-router",
+        "service_version": "szl-kc-moe-v0.1",
+        "seed": int(seed),
+        "inputs": {"tokens": tokens, "experts": experts, "topk": topk},
+        "expert_load_counts": load_counts,
+        "load_balance_cv": load_balance_cv,
+        "min_expert_load": int(min_load),
+        "max_expert_load": int(max_load),
+        "label": HONESTY_LONG,
         "doctrine": DOCTRINE_VERSION,
         "lambda": "Conjecture 1 (advisory, NOT a theorem)",
-        "effector_posture": "SIMULATED · human-on-loop (routing advisory — never an autonomous action)",
-        "wired_into": "frontier ring — Mixture-of-Experts surface + llm-router",
-        "honest_note": ("MODELED deterministic top-k MoE routing over seeded gate vectors. "
-                        "Load balance, drop rate and active-param fraction are computed on the "
-                        "SIMULATED routing, not a live model. MODELED, not live; advisory to "
-                        "Λ (Conjecture 1)."),
-        "citations": {"switch": CITATIONS["switch"], "mixtral": CITATIONS["mixtral"],
-                      "upcycling": CITATIONS["upcycling"],
-                      "switch_url": CITATIONS["switch_url"], "mixtral_url": CITATIONS["mixtral_url"],
-                      "upcycling_url": CITATIONS["upcycling_url"]},
+        "effector_posture": "SIMULATED · human-on-loop (router demo — never an engage)",
+        "citations": [CITATIONS["mixtral"], CITATIONS["switch"], CITATIONS["upcycling"],
+                      CITATIONS["deepseekv2"]],
+        "honesty": ("Sparse MoE top-k router simulation. NO trained gate, NO expert FFNs, NO "
+                    "forward pass, NO GPU. Gate logits are seeded; the top-k arithmetic and "
+                    "load counts are exact for those seeded logits. MODELED, not live."),
+    }
+    dsse = _sign_payload(receipt, _MOE_PAYLOAD_TYPE)
+
+    return {
+        "service": "moe-topk-router",
+        "label": MODELED_LABEL,
+        # --- fields read VERBATIM by a11oy static/3d/surfaces/moe.js ---
+        "tokens": int(tokens),
+        "experts": int(experts),
+        "topk": int(topk),
+        "routing_table": routing_table,          # [{token, chosen_experts, weights}]
+        "expert_load_counts": load_counts,        # [int] per-expert final load
+        "load_balance_cv": load_balance_cv,       # std/mean of load
+        "min_expert_load": int(min_load),
+        "max_expert_load": int(max_load),
+        # --- provenance ---
+        "formulas": {
+            "gate": "top-k(softmax(W·x));  combine = softmax renormalized over the chosen k",
+            "load_balance_cv": "std(expert_load_counts) / mean(expert_load_counts)",
+        },
+        "compute_backend": {
+            "backend": "CPU pure-Python top-k router",
+            "label": "MODELED",
+            "honest_note": ("Seeded gate logits + exact top-k routing arithmetic; NO trained "
+                            "gate, NO expert FFNs, NO GPU. The trained-MoE forward path is ROADMAP."),
+        },
+        "wired_into": "frontier ring — MoE Router surface (expert-load heat-surface)",
+        "citations": [CITATIONS["mixtral"], CITATIONS["switch"]],
+        "signed_receipt": {"receipt": receipt, "dsse": dsse},
         "computed_at": _now_iso(),
     }
 
@@ -207,19 +198,14 @@ def register(app, ns: str = "killinchu") -> dict:
     base = "/api/%s/v1/moe" % ns
 
     @app.get("%s/route" % base)
-    async def _kc_moe(seed: int = 42, experts: int = 8, top_k: int = 2, tokens: int = 512):  # noqa: ANN202
+    async def _kc_moe(seed: int = 42, tokens: int = 64, experts: int = 8, topk: int = 2):  # noqa: ANN202
         try:
-            return JSONResponse(moe_route(seed=seed, experts=experts, top_k=top_k, tokens=tokens))
+            return JSONResponse(moe_route(seed=seed, tokens=tokens, experts=experts, topk=topk))
         except Exception as exc:  # pragma: no cover — never 500 the surface
-            return JSONResponse({"service": "mixture-of-experts-router",
-                                 "label": MODELED_LABEL,
+            return JSONResponse({"service": "moe-topk-router", "label": MODELED_LABEL,
                                  "error": "compute fail-open: %s" % (str(exc)[:160]),
-                                 "aux_load_balance_loss": None}, status_code=200)
+                                 "load_balance_cv": None}, status_code=200)
 
-    try:
-        from starlette.routing import Route  # noqa: F401
-    except Exception:  # pragma: no cover
-        pass
     return {"ok": True, "ns": ns, "routes": ["%s/route" % base]}
 
 
@@ -228,55 +214,48 @@ def register(app, ns: str = "killinchu") -> dict:
 # =====================================================================================
 def _selftest() -> dict:
     out: dict = {}
-    r = moe_route(seed=42, experts=8, top_k=2, tokens=512)
+    r = moe_route(seed=42, tokens=64, experts=8, topk=2)
 
+    # (a) honest label verbatim + every field the frontend reads is present & typed.
     assert r["label"] == MODELED_LABEL, r["label"]
-    for f in ("experts", "top_k", "tokens", "capacity_per_expert"):
+    for f in ("tokens", "experts", "topk"):
         assert isinstance(r[f], int), (f, r.get(f))
-    assert isinstance(r["expert_load"], list) and len(r["expert_load"]) == r["experts"], r
-    assert all(isinstance(x, int) and x >= 0 for x in r["expert_load"]), r
-    assert 0.0 <= r["dropped_token_rate"] <= 1.0, r
-    assert 0.0 <= r["routing_balance_score"] <= 1.0, r
-    assert abs(r["active_param_fraction"] - 2.0 / 8.0) < 1e-9, r
-    assert r["aux_load_balance_loss"] > 0.0, r
-    # sum of expert loads never exceeds slots assigned
-    assert sum(r["expert_load"]) <= r["top_k"] * r["tokens"], r
-    assert "2212.05055" in r["citations"]["upcycling"], r
-    assert "2101.03961" in r["citations"]["switch"], r
-    out["metrics"] = {"aux_load_balance_loss": r["aux_load_balance_loss"],
-                      "dropped_token_rate": r["dropped_token_rate"],
-                      "routing_balance_score": r["routing_balance_score"],
-                      "active_param_fraction": r["active_param_fraction"],
-                      "compute_saving_pct": r["compute_saving_pct"]}
+    assert isinstance(r["load_balance_cv"], (int, float)), r
+    assert isinstance(r["routing_table"], list) and len(r["routing_table"]) == r["tokens"], r
+    assert isinstance(r["expert_load_counts"], list) and len(r["expert_load_counts"]) == r["experts"], r
 
-    # determinism
-    r2 = moe_route(seed=42, experts=8, top_k=2, tokens=512)
-    assert r2["expert_load"] == r["expert_load"], "non-deterministic"
-    assert r2["aux_load_balance_loss"] == r["aux_load_balance_loss"], "non-deterministic aux"
+    # (b) routing invariants: each token picks exactly topk distinct experts; weights sum ~1.
+    for row in r["routing_table"]:
+        assert len(row["chosen_experts"]) == r["topk"], row
+        assert len(set(row["chosen_experts"])) == r["topk"], ("dup expert", row)
+        assert all(0 <= e < r["experts"] for e in row["chosen_experts"]), row
+        assert abs(sum(row["weights"]) - 1.0) < 1e-6, ("weights !~ 1", row)
+    # total assignments == tokens*topk; load counts consistent.
+    assert sum(r["expert_load_counts"]) == r["tokens"] * r["topk"], r
+    assert r["load_balance_cv"] >= 0.0, r
+    out["metrics"] = {"load_balance_cv": r["load_balance_cv"],
+                      "min_load": r["min_expert_load"], "max_load": r["max_expert_load"],
+                      "loads": r["expert_load_counts"]}
+
+    # (c) signed receipt present + honest label embedded; signature never fabricated.
+    d = r["signed_receipt"]["dsse"]
+    rc = r["signed_receipt"]["receipt"]
+    assert "NOT_LIVE" in rc["label"], rc["label"]
+    assert d.get("_pae_sha256"), d
+    assert d.get("signed") is True or "UNSIGNED" in (d.get("honesty") or ""), d
+    assert "SIMULATED" in rc["effector_posture"], rc
+    out["signed_receipt"] = {"signed": d.get("signed")}
+
+    # (d) determinism: same inputs -> identical routing.
+    r2 = moe_route(seed=42, tokens=64, experts=8, topk=2)
+    assert r2["routing_table"] == r["routing_table"], "non-deterministic routing"
+    assert r2["expert_load_counts"] == r["expert_load_counts"], "non-deterministic load"
     out["deterministic"] = True
-
-    p = register(_FakeApp())
-    assert p["routes"] == ["/api/killinchu/v1/moe/route"], p
-    out["route"] = p["routes"][0]
 
     out["ok"] = True
     return out
 
 
-class _FakeApp:
-    def get(self, path):
-        def _d(fn):
-            return fn
-        return _d
-
-
 if __name__ == "__main__":
     import sys
-    res = _selftest()
-    print(_json.dumps(res, indent=2), file=sys.stderr)
-    print("aux_loss=%.4f  drop_rate=%.4f  balance=%.4f  active_frac=%.4f  saving=%.1f%%"
-          % (res["metrics"]["aux_load_balance_loss"], res["metrics"]["dropped_token_rate"],
-             res["metrics"]["routing_balance_score"], res["metrics"]["active_param_fraction"],
-             res["metrics"]["compute_saving_pct"]))
-    assert res["ok"]
-    print("ALL OK")
+    print(_json.dumps(_selftest(), indent=2), file=sys.stderr)
