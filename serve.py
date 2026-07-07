@@ -179,7 +179,10 @@ except Exception as _kew_e:  # pragma: no cover
 # live/cached/unreachable labels. Same resilience pattern as evidence module.
 # Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
 try:
-    import szl_readiness as _szl_readiness
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_readiness as _szl_readiness  # single source of truth
+    except Exception:
+        import szl_readiness as _szl_readiness
     _szl_readiness.register(app, ns="killinchu")
     print("[killinchu] Operational Readiness registered: /api/killinchu/v1/readiness", file=__import__("sys").stderr)
 except Exception as _szl_rd_e:  # pragma: no cover
@@ -191,7 +194,10 @@ except Exception as _szl_rd_e:  # pragma: no cover
 # faked. Adds /energy + /api/killinchu/v1/energy/*. Additive, try/except-guarded, before
 # the SPA catch-all. Pure stdlib (+ optional shared szl_joules_truth).
 try:
-    import szl_energy_sovereign as _szl_energy_sovereign
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_energy_sovereign as _szl_energy_sovereign  # single source of truth
+    except Exception:
+        import szl_energy_sovereign as _szl_energy_sovereign
     _szl_energy_sovereign.register(app, ns="killinchu")
     print("[killinchu] Energy/Sovereign-Compute mirror registered: /energy + /api/killinchu/v1/energy/*", file=__import__("sys").stderr)
 except Exception as _szl_es_e:  # pragma: no cover
@@ -660,7 +666,10 @@ except Exception as _szl_cf_e:  # pragma: no cover
 # a coherent-AND-charged execution gate + magnetosensitive routing primitive. Additive,
 # try/except-guarded, pure stdlib (+optional numpy). Effector stays SIMULATED.
 try:
-    import szl_quantum_bio as _szl_quantum_bio
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_quantum_bio as _szl_quantum_bio  # single source of truth
+    except Exception:
+        import szl_quantum_bio as _szl_quantum_bio
     _szl_quantum_bio.register(app, ns="killinchu")
     print("[killinchu] Quantum-Bio Λ-v5 registered: /api/killinchu/v1/qbio/*", file=__import__("sys").stderr)
 except Exception as _szl_qb_e:  # pragma: no cover
@@ -671,7 +680,10 @@ except Exception as _szl_qb_e:  # pragma: no cover
 # ORIGINAL author cited; SZL borrows structure only. coherence_crossing PROPOSED (mirrors
 # lutar-lean CoherenceDecay). Shared module byte-identical a11oy↔killinchu. Effector stays SIMULATED.
 try:
-    import szl_unified_formulas as _szl_unified
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_unified_formulas as _szl_unified  # single source of truth
+    except Exception:
+        import szl_unified_formulas as _szl_unified
     _szl_unified.register(app, ns="killinchu")
     print("[killinchu] Unified formulas registered: /api/killinchu/v1/unified/*", file=__import__("sys").stderr)
 except Exception as _szl_uf_e:  # pragma: no cover
@@ -687,7 +699,10 @@ except Exception as _szl_uf_e:  # pragma: no cover
 # effector stays SIMULATED; trust never 100%. Shared module byte-identical
 # a11oy↔killinchu. Additive, try/except-guarded, before the SPA catch-all.
 try:
-    import szl_cuas_formulas as _szl_cuas
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_cuas_formulas as _szl_cuas  # single source of truth
+    except Exception:
+        import szl_cuas_formulas as _szl_cuas
     _szl_cuas.register(app, ns="killinchu")
     print("[killinchu] CUAS formulas registered: /api/killinchu/v1/cuas/*", file=__import__("sys").stderr)
 except Exception as _szl_cuas_e:  # pragma: no cover
@@ -916,7 +931,10 @@ except Exception as _kc_rs_e:  # pragma: no cover
 # NO fabricated registration numbers/dates/verdicts — unknowns are flagged.
 # Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
 try:
-    import szl_contracting as _szl_contracting
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_contracting as _szl_contracting  # single source of truth
+    except Exception:
+        import szl_contracting as _szl_contracting
     _szl_contracting.register(app, ns="killinchu")
     print("[killinchu] Contracting Readiness registered: /api/killinchu/v1/contracting", file=__import__("sys").stderr)
 except Exception as _szl_ct_e:  # pragma: no cover
@@ -1191,7 +1209,10 @@ try:
 except Exception as _szl_mbse_cosim_e:  # additive: never break the Space
     print(f"[killinchu] MBSE co-sim ENGINE NOT registered: {_szl_mbse_cosim_e!r}; app unaffected", file=sys.stderr)
 try:
-    import szl_mbse_nav as _szl_mbse_nav
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_mbse_nav as _szl_mbse_nav  # single source of truth
+    except Exception:
+        import szl_mbse_nav as _szl_mbse_nav
     _szl_mbse_nav_status = _szl_mbse_nav.register(app, ns="killinchu")
     print(f"[killinchu] MBSE pages + nav registered: /mbse /mbse-6dof /mbse-pipeline "
           f"({_szl_mbse_nav_status})", file=sys.stderr)
@@ -1407,7 +1428,10 @@ except Exception as _otel_e:
 # Doctrine v11 LOCKED 749/14/163 (public). NEVER crashes the host app.
 # ---------------------------------------------------------------------------
 try:
-    import szl_khipu_consensus as _kc
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_khipu_consensus as _kc  # single source of truth
+    except Exception:
+        import szl_khipu_consensus as _kc
     _kc_status = _kc.register(app, "killinchu", is_aggregator=("killinchu" == "killinchu"))
     import sys as _kc_sys
     print(f"[killinchu] Khipu Consensus registered: {_kc_status}", file=_kc_sys.stderr)
@@ -2796,7 +2820,10 @@ except Exception as _uds_pe:
 # /{full_path:path} catch-all. NEVER crash the existing app.
 # ===========================================================================
 try:
-    import szl_rosie_companion as _rc
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_rosie_companion as _rc  # single source of truth
+    except Exception:
+        import szl_rosie_companion as _rc
 
     _KILLINCHU_SHADOW = _rc.RosieShadow("killinchu")
     _IDENTIFY_CONF_FLOOR = 0.7
@@ -4779,7 +4806,10 @@ except Exception as _fleet2_e:
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
 try:
-    import szl_agentic_loop as _szl_loop
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_agentic_loop as _szl_loop  # single source of truth
+    except Exception:
+        import szl_agentic_loop as _szl_loop
     import sys as _kloop_sys
 
     def _killinchu_loop_sign(payload_obj):
@@ -4849,7 +4879,10 @@ except Exception as _kloop_e:
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
 try:
-    import szl_formula_wiring as _szl_fw
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_formula_wiring as _szl_fw  # single source of truth
+    except Exception:
+        import szl_formula_wiring as _szl_fw
     import sys as _kfw_sys
     _kfw_status = _szl_fw.register(app, "killinchu")
     print(f"[killinchu] formula-wiring surface registered: {_kfw_status}", file=_kfw_sys.stderr)
@@ -4877,7 +4910,10 @@ except Exception as _kfw_e:
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
 try:
-    import a11oy_code_engine as _kc_code
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import a11oy_code_engine as _kc_code  # single source of truth
+    except Exception:
+        import a11oy_code_engine as _kc_code
     import sys as _kc_code_sys
     # Reuse the loop's REAL persistent cosign signer/verifier (defined above).
     _kc_code_status = _kc_code.register(
@@ -5235,7 +5271,10 @@ except Exception as _waqay_e:
     print(f"[killinchu] WAQAY NOT registered (non-fatal): {_waqay_e!r}", file=_waqay_sys.stderr)
     _waqay_tb.print_exc(file=_waqay_sys.stderr)
 try:
-    import a11oy_waqay_nav as _a11oy_waqay_nav
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import a11oy_waqay_nav as _a11oy_waqay_nav  # single source of truth
+    except Exception:
+        import a11oy_waqay_nav as _a11oy_waqay_nav
     _waqay_nav_status = _a11oy_waqay_nav.register(app, ns="killinchu")
     print(f"[killinchu] WAQAY nav wire-up registered: {_waqay_nav_status['registered']} "
           f"(tab: {_waqay_nav_status['tab_route']}) — idempotent, additive, SPA source NOT edited",
@@ -5271,7 +5310,10 @@ except Exception as _yupay_e:
     print(f"[killinchu] YUPAY NOT registered (non-fatal): {_yupay_e!r}", file=_yupay_sys.stderr)
     _yupay_tb.print_exc(file=_yupay_sys.stderr)
 try:
-    import a11oy_yupay_nav as _a11oy_yupay_nav
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import a11oy_yupay_nav as _a11oy_yupay_nav  # single source of truth
+    except Exception:
+        import a11oy_yupay_nav as _a11oy_yupay_nav
     _yupay_nav_status = _a11oy_yupay_nav.register(app, ns="killinchu")
     print(f"[killinchu] YUPAY nav wire-up registered: {_yupay_nav_status['registered']} "
           f"(tab: {_yupay_nav_status['tab_route']}) — idempotent, additive, SPA source NOT edited",
@@ -5384,14 +5426,20 @@ except Exception as _sapa_e:  # pragma: no cover
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
 try:
-    import szl_spaces_proxy as _szl_spaces_proxy
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_spaces_proxy as _szl_spaces_proxy  # single source of truth
+    except Exception:
+        import szl_spaces_proxy as _szl_spaces_proxy
     _szl_spaces_proxy_status = _szl_spaces_proxy.register(app, ns="killinchu")
     print(f"[killinchu] Spaces reverse-proxy registered: {_szl_spaces_proxy_status}", file=__import__("sys").stderr)
 except Exception as _szl_sp_e:  # pragma: no cover
     print(f"[killinchu] Spaces reverse-proxy NOT registered: {_szl_sp_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 try:
-    import szl_spaces_surface as _szl_spaces_surface
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_spaces_surface as _szl_spaces_surface  # single source of truth
+    except Exception:
+        import szl_spaces_surface as _szl_spaces_surface
     _szl_spaces_surface_status = _szl_spaces_surface.register(app, ns="killinchu")
     print(f"[killinchu] Spaces surface registered: {_szl_spaces_surface_status}", file=__import__("sys").stderr)
 except Exception as _szl_ss_e:  # pragma: no cover
