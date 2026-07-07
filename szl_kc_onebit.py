@@ -66,7 +66,10 @@ from __future__ import annotations
 
 import json as _json
 import math as _math
-from typing import Any, Dict, List
+import os as _os
+import time as _time
+import urllib.request as _urllib_request
+from typing import Any, Dict, List, Optional
 
 MODELED_LABEL = "MODELED"
 DOCTRINE_VERSION = "v11"
@@ -126,6 +129,12 @@ CITATIONS: Dict[str, str] = {
     "rapl_in_action_acm": "https://dl.acm.org/doi/10.1145/3177754",
     "szl_joules_truth": "a11oy/szl_joules_truth.py (Doctrine v11 single-source-of-truth label)",
     "szl_kc_ternary": "kc_main/szl_kc_ternary.py (absmean ternarization organ, arXiv:2402.17764 fused)",
+    # The live SZL tower joule-meter (Cloudflare-fronted). Serves REAL NVML power via
+    # nvidia-smi on the omen anchor. This is the ONLY endpoint that can flip a number
+    # to MEASURED-live in this organ, and only when it responds with live=true readings.
+    "szl_live_joule_meter": "https://meter.a-11-oy.com/",
+    "szl_joule_exporter": "omen-joule-exporter (real NVML via nvidia-smi)",
+    "szl_energy_operator": "a11W/szl_energy_operator.py (the meter-scraping energy operator daemon)",
 }
 
 # --------------------------------------------------------------------------------------
@@ -241,6 +250,199 @@ _HONEST_NOTE = (
 )
 
 
+# --------------------------------------------------------------------------------------
+# LIVE METER READER — the ONLY path in this organ that can yield a MEASURED-live number.
+# Fully guarded (Doctrine v11, NON-NEGOTIABLE): on ANY error/timeout/unreachable it
+# returns None and the organ degrades to the existing MODELED/OFFLINE path. It NEVER
+# fabricates a joule, NEVER caches a stale constant, NEVER raises out of a handler.
+# Pure stdlib urllib only (no httpx, no requests) — mirrors szl_energy_operator's probe.
+# --------------------------------------------------------------------------------------
+# Default meter endpoint: env A11OY_JOULE_METER_URL, else the Cloudflare-fronted tower
+# meter. Read at call time (never hardcoded past this default) so the endpoint can move.
+_METER_URL_DEFAULT = "https://meter.a-11-oy.com/"
+# Browser-like User-Agent so the Cloudflare-fronted meter does not 403 the probe under
+# bot protection (same convention as szl_energy_operator._PROBE_UA). Overridable.
+_METER_PROBE_UA = _os.environ.get(
+    "SZL_PROBE_USER_AGENT",
+    "Mozilla/5.0 (compatible; szl-kc-onebit/1.0; +https://a-11-oy.com)")
+# Short timeout so an unreachable meter degrades fast (never blocks the handler).
+try:
+    _METER_TIMEOUT_S = float(_os.environ.get("SZL_ONEBIT_METER_TIMEOUT", "4.0"))
+except (TypeError, ValueError):
+    _METER_TIMEOUT_S = 4.0
+
+
+def _meter_url() -> str:
+    """Resolve the live joule-meter URL at call time (env override, else the tower meter).
+    Never hardcodes a wattage — this only selects WHERE to read a real reading from."""
+    u = (_os.environ.get("A11OY_JOULE_METER_URL") or "").strip()
+    return u or _METER_URL_DEFAULT
+
+
+def read_live_meter(url: Optional[str] = None,
+                    timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
+    """GET the live NVML joule-meter and parse engines/gpus/totals, or None on ANY failure.
+
+    Guarded by design (Doctrine v11): a timeout, an unreachable host, a non-200, malformed
+    JSON, or a shape that carries no live=true real reading ALL return None — the organ then
+    degrades to the existing MODELED / OFFLINE path. This function NEVER fabricates a joule,
+    NEVER raises, and NEVER trusts a reading unless a GPU reports live=true with a numeric
+    power_w. Pure stdlib urllib (browser-like UA for the Cloudflare-fronted meter).
+
+    Returns, on success, a normalized dict:
+      {"url": str, "exporter": str|None, "ts": float|None, "fetched_at": float,
+       "totals": {"joules": float|None},
+       "engines": [{"engine": str, "joules": float|None,
+                    "gpus": [{"index": int|None, "name": str, "power_w": float,
+                              "joules": float|None, "live": True}]}],
+       "live": True}
+    with ONLY live=true GPUs retained. When no engine has a live=true real GPU reading,
+    returns None (there is nothing honestly measured to report).
+    """
+    target = (url or _meter_url()).strip()
+    to = _METER_TIMEOUT_S if timeout is None else float(timeout)
+    fetched_at = _time.time()
+    try:
+        req = _urllib_request.Request(target, headers={"User-Agent": _METER_PROBE_UA})
+        with _urllib_request.urlopen(req, timeout=to) as r:  # noqa: S310
+            status = getattr(r, "status", None)
+            if status is None:
+                try:
+                    status = r.getcode()
+                except Exception:  # noqa: BLE001
+                    status = 200
+            if not (200 <= int(status) < 300):
+                return None
+            raw = r.read().decode("utf-8", "replace")
+        doc = _json.loads(raw)
+    except Exception:  # noqa: BLE001 — unreachable/timeout/malformed => degrade, stay honest
+        return None
+    if not isinstance(doc, dict):
+        return None
+
+    engines_out: List[Dict[str, Any]] = []
+    for e in (doc.get("engines") or []):
+        if not isinstance(e, dict):
+            continue
+        gpus_out: List[Dict[str, Any]] = []
+        for g in (e.get("gpus") or []):
+            if not isinstance(g, dict):
+                continue
+            # HARD honesty gate: keep a GPU ONLY when it is live=true AND carries a real
+            # numeric power_w. Anything else is not a live reading and is dropped.
+            if g.get("live") is not True:
+                continue
+            pw = g.get("power_w")
+            if not isinstance(pw, (int, float)):
+                continue
+            gj = g.get("joules")
+            gpus_out.append({
+                "index": g.get("index") if isinstance(g.get("index"), int) else None,
+                "name": str(g.get("name") or "unknown-gpu"),
+                "power_w": float(pw),
+                "joules": float(gj) if isinstance(gj, (int, float)) else None,
+                "live": True,
+            })
+        if not gpus_out:
+            continue  # no live GPU on this engine => nothing measured here
+        ej = e.get("joules")
+        engines_out.append({
+            "engine": str(e.get("engine") or "unknown-engine"),
+            "joules": float(ej) if isinstance(ej, (int, float)) else None,
+            "gpus": gpus_out,
+        })
+    if not engines_out:
+        # Meter responded but reported NO live=true real reading => nothing measured.
+        return None
+
+    totals = doc.get("totals") if isinstance(doc.get("totals"), dict) else {}
+    tj = totals.get("joules")
+    ts = doc.get("ts")
+    return {
+        "url": target,
+        "exporter": str(doc.get("exporter")) if doc.get("exporter") is not None else None,
+        "ts": float(ts) if isinstance(ts, (int, float)) else None,
+        "fetched_at": fetched_at,
+        "totals": {"joules": float(tj) if isinstance(tj, (int, float)) else None},
+        "engines": engines_out,
+        "live": True,
+    }
+
+
+def _measured_live_channel(meter: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Build the FOURTH honesty channel — SZL_MEASURED_LIVE — from a live meter read.
+
+    This is the ONLY channel in the whole organ allowed to be labeled MEASURED, and ONLY
+    when the meter actually responded with live=true real NVML readings THIS request. It
+    reports the real engine, GPU name, power_w, cumulative joules, live=true, the source
+    url + exporter + the meter/exporter timestamps. Returns None when the meter was
+    unreachable / had no live reading — then the organ shows NO measured channel (honest).
+    A number here is measured because it came from a live meter read with live=true this
+    request; it is NEVER a stale or fabricated constant.
+    """
+    if not isinstance(meter, dict) or meter.get("live") is not True:
+        return None
+    engines = meter.get("engines") or []
+    if not engines:
+        return None
+    engine_views: List[Dict[str, Any]] = []
+    present_engines: List[str] = []
+    total_power_w = 0.0
+    for e in engines:
+        if not isinstance(e, dict):
+            continue
+        gpu_views = []
+        for g in (e.get("gpus") or []):
+            if not isinstance(g, dict) or g.get("live") is not True:
+                continue
+            pw = g.get("power_w")
+            if not isinstance(pw, (int, float)):
+                continue
+            total_power_w += float(pw)
+            gpu_views.append({
+                "index": g.get("index"),
+                "name": g.get("name"),
+                "power_w_measured": float(pw),
+                "joules_cumulative_measured": g.get("joules"),
+                "live": True,
+            })
+        if not gpu_views:
+            continue  # an engine with no live GPU carries nothing measured
+        present_engines.append(e.get("engine"))
+        engine_views.append({
+            "engine": e.get("engine"),
+            "joules_cumulative_measured": e.get("joules"),
+            "gpus": gpu_views,
+        })
+    if not engine_views:
+        # A live=true doc that carries NO live GPU reading is not measured => None.
+        return None
+    totals = meter.get("totals") if isinstance(meter.get("totals"), dict) else {}
+    return {
+        "label": "MEASURED (real NVML via nvidia-smi)",
+        "is_measured": True,   # the ONLY True is_measured in this organ — live read only
+        "live": True,
+        "note": ("REAL watts/joules read from the live SZL tower joule-meter THIS request "
+                 "(live=true, real NVML via nvidia-smi). This is the ONLY MEASURED channel "
+                 "and it exists ONLY while the meter is reachable and reports live readings. "
+                 "It is NEVER conflated with the SZL-MODELED estimate, the Microsoft "
+                 "instrument-unstated Table 6, or the Microsoft 'Estimated' column. When the "
+                 "meter is down this channel is absent and NO joule is fabricated."),
+        "engines_present": present_engines,
+        "engines": engine_views,
+        "total_power_w_measured": round(total_power_w, 6),
+        "totals": {"joules_cumulative_measured": totals.get("joules")},
+        "source": {
+            "meter_url": meter.get("url") or CITATIONS["szl_live_joule_meter"],
+            "exporter": meter.get("exporter") or CITATIONS["szl_joule_exporter"],
+            "meter_ts": meter.get("ts"),
+            "fetched_at": meter.get("fetched_at"),
+        },
+        "citation": [CITATIONS["szl_live_joule_meter"], CITATIONS["szl_joule_exporter"],
+                     CITATIONS["szl_energy_operator"]],
+    }
+
+
 # =====================================================================================
 # /manifest — organ manifest + honesty invariants.
 # =====================================================================================
@@ -261,7 +463,14 @@ def onebit_manifest() -> Dict[str, Any]:
             "/api/<ns>/v1/onebit/methodology",
             "/api/<ns>/v1/onebit/fleet-readiness",
         ],
-        "channels_separated": ["MEASURED_by_microsoft", "ESTIMATED_by_microsoft", "SZL_MODELED"],
+        "channels_separated": ["MEASURED_by_microsoft", "ESTIMATED_by_microsoft", "SZL_MODELED",
+                               "SZL_MEASURED_LIVE (real NVML, present ONLY when the live meter "
+                               "responds with live=true readings this request)"],
+        "measured_live_channel": ("SZL_MEASURED_LIVE is the ONLY channel allowed to be labeled "
+                                  "measured, and ONLY when %s responds with live=true real NVML "
+                                  "readings THIS request (%s). Absent + never fabricated when the "
+                                  "meter is down. The estimator itself stays MODELED."
+                                  % (CITATIONS["szl_live_joule_meter"], CITATIONS["szl_joule_exporter"])),
         "largest_released_model": _LARGEST_RELEASED,
         "contested_sota": _CONTESTED_SOTA,
         "lambda": "Conjecture 1 (advisory, NOT a theorem, never green)",
@@ -276,7 +485,9 @@ def onebit_manifest() -> Dict[str, Any]:
 # /estimate — MODELED ternary inference energy/speed estimate, three channels separated.
 # =====================================================================================
 def onebit_estimate(model_params_b: float = 2.4, n_tokens: int = 512,
-                    sparsity: float = _MODELED_SPARSITY, seed: int = 42) -> Dict[str, Any]:
+                    sparsity: float = _MODELED_SPARSITY, seed: int = 42,
+                    meter: Optional[Dict[str, Any]] = None,
+                    read_meter: bool = True) -> Dict[str, Any]:
     """MODELED ternary {-1,0,+1} inference energy/speed estimate.
 
     Inputs (ALL modeled — no live model, no real weights, no meter):
@@ -289,6 +500,14 @@ def onebit_estimate(model_params_b: float = 2.4, n_tokens: int = 512,
     footprint — with the MEASURED-vs-ESTIMATED-vs-MODELED distinction EXPLICIT, and the
     honest independent-RAPL counter-figure attached. A MODELED number is NEVER labeled
     measured.
+
+    When the live meter is reachable (read_meter=True and it responds with live=true
+    readings, or an already-fetched `meter` dict is passed in), a MEASURED-live
+    ``measured_context`` block is ALSO attached so a reader sees the REAL device watts
+    (e.g. the RTX 4060 Ti power_w) right next to the MODELED estimate. The measured
+    context is explicitly labeled MEASURED-live and is NEVER conflated with, mixed into,
+    or used to alter the MODELED number. When the meter is down, ``measured_context`` is
+    None and the estimate is purely MODELED — no joule is fabricated.
     """
     # ---- clamp inputs to sane MODELED ranges ----
     p_b = max(0.01, min(1000.0, float(model_params_b)))
@@ -352,16 +571,51 @@ def onebit_estimate(model_params_b: float = 2.4, n_tokens: int = 512,
         "is_measured": False,   # HARD: a MODELED number is NEVER measured
     }
 
+    # ---- MEASURED-live context (Doctrine v11): the REAL current device power, read from
+    # the live meter THIS request, attached ALONGSIDE (never mixed into) the MODELED
+    # estimate. If the meter is down, measured_context is None and the estimate stays
+    # purely MODELED. A caller may pass an already-fetched `meter` (e.g. shared across
+    # endpoints in one request) or let read_meter fetch one; read_meter=False disables
+    # the network entirely (deterministic, offline self-test path). ----
+    live = meter if isinstance(meter, dict) else (read_live_meter() if read_meter else None)
+    measured_ch = _measured_live_channel(live)
+    if measured_ch is not None:
+        measured_context: Optional[Dict[str, Any]] = {
+            "label": "MEASURED-live (real NVML via nvidia-smi)",
+            "is_measured": True,
+            "note": ("REAL current device power read from the live meter THIS request, shown "
+                     "NEXT TO the MODELED estimate for context. It is NOT the MODELED number, "
+                     "was NOT used to compute it, and is NEVER conflated with it: the "
+                     "SZL-MODELED joules/token above stays MODELED. When the meter is down "
+                     "this block is null and NO joule is fabricated."),
+            "engines_present": measured_ch["engines_present"],
+            "total_power_w_measured": measured_ch["total_power_w_measured"],
+            "engines": measured_ch["engines"],
+            "totals": measured_ch["totals"],
+            "source": measured_ch["source"],
+            "citation": measured_ch["citation"],
+            "vs_modeled": ("MODELED joules/token here are relative arithmetic units, NOT watts; "
+                           "the measured power_w is real instantaneous device draw. They are "
+                           "different quantities and are deliberately not divided against each "
+                           "other — no MODELED number is upgraded to MEASURED."),
+        }
+    else:
+        measured_context = None
+
     return {
         "service": SERVICE,
         "label": MODELED_LABEL,
         "doctrine": DOCTRINE_VERSION,
-        # --- the three strictly-separated channels ---
+        # --- the channels: three modeled/estimated/reported + the OPTIONAL measured-live ---
         "channels": {
             "a_measured_by_microsoft": _MS_TABLE6,
             "b_estimated_by_microsoft": _MS_ESTIMATED,
             "c_szl_modeled": szl_modeled,
+            "d_szl_measured_live": measured_ch,  # None when meter down (never fabricated)
         },
+        # --- REAL device power alongside the MODELED estimate (null when meter down) ---
+        "measured_context": measured_context,
+        "meter_reachable": measured_ch is not None,
         # --- the honest independent counter-figure, always attached to any estimate ---
         "independent_rapl_counter_figure": _RAPL_COUNTER,
         "contested_sota": _CONTESTED_SOTA,
@@ -370,7 +624,14 @@ def onebit_estimate(model_params_b: float = 2.4, n_tokens: int = 512,
             "szl_number_is_measured": False,
             "microsoft_table6_is_measured": False,   # reported, instrument-unstated
             "microsoft_12x_is_measured": False,       # explicitly 'Estimated'
-            "only_measured_path": "SZL CPU-fleet RAPL/wall-power on a real ternary model — see /fleet-readiness",
+            # The MODELED estimator is NEVER measured. The ONLY measured thing here is the
+            # optional measured_context (real live device watts/joules) — and only when the
+            # meter responded live=true this request.
+            "measured_context_is_measured": measured_context is not None,
+            "only_measured_path": ("the live SZL joule-meter (real NVML via nvidia-smi) for real "
+                                   "device watts/joules — see measured_context / /fleet-readiness; "
+                                   "AND SZL CPU-fleet RAPL/wall-power on a real ternary model for a "
+                                   "measured joules/token — see /fleet-readiness flip conditions."),
         },
         "lambda": "Conjecture 1 (advisory input to Λ, never a theorem, never green)",
         "citations": CITATIONS,
@@ -468,7 +729,22 @@ def onebit_methodology() -> Dict[str, Any]:
 # /fleet-readiness — HONEST: real MEASURED joules require the SZL CPU fleet (offline).
 # NO fabricated fleet data. Only the conditions that flip each MODELED number to MEASURED.
 # =====================================================================================
-def onebit_fleet_readiness() -> Dict[str, Any]:
+def onebit_fleet_readiness(meter: Optional[Dict[str, Any]] = None,
+                           read_meter: bool = True) -> Dict[str, Any]:
+    """Fleet-readiness — now MEASURED-aware.
+
+    When the live joule-meter is reachable (read_meter=True and it responds with live=true
+    real NVML readings, or a pre-fetched `meter` is passed), the fleet is reported ONLINE
+    with the REAL per-engine power_w + cumulative joules from THIS live read, the engines
+    present are listed (omen now; betterwithage etc. when its meter aggregates), and SZL
+    energy is stated to be MEASURED on the reachable node(s). A wattage is NEVER hardcoded
+    — it comes only from the live read (or is null).
+
+    When the meter is unreachable, the honest OFFLINE / measured_joules=null behavior is
+    kept exactly as before — no fabricated fleet data, only the conditions that flip a
+    MODELED number to MEASURED. read_meter=False forces the offline/deterministic path
+    (no network) for the self-test.
+    """
     flip_conditions = [
         {
             "modeled_number": "joules_per_token_modeled (from /estimate)",
@@ -493,22 +769,86 @@ def onebit_fleet_readiness() -> Dict[str, Any]:
             "instrument": "per-node RAPL sample x real grid price; joules_truth freshness window",
         },
     ]
+    # ---- LIVE READ: the fleet came back ONLINE. Report the REAL readings from the meter
+    # (never a hardcoded wattage). Meter down => keep the honest OFFLINE/null path below. ----
+    live = meter if isinstance(meter, dict) else (read_live_meter() if read_meter else None)
+    measured_ch = _measured_live_channel(live)
+
+    base_common = {
+        "service": SERVICE,
+        "label": MODELED_LABEL,   # the estimator is still MODELED overall
+        "doctrine": DOCTRINE_VERSION,
+        "all_current_modeled_numbers_are": MODELED_LABEL,
+        "what_flips_modeled_to_measured": flip_conditions,
+    }
+
+    if measured_ch is not None:
+        # Real per-engine watts/joules from THIS live read (no hardcoding).
+        engines_present = measured_ch["engines_present"]
+        per_engine = []
+        for ev in measured_ch["engines"]:
+            gpus = [{"index": g["index"], "name": g["name"],
+                     "power_w_measured": g["power_w_measured"],
+                     "joules_cumulative_measured": g["joules_cumulative_measured"],
+                     "live": True} for g in ev["gpus"]]
+            per_engine.append({
+                "engine": ev["engine"],
+                "joules_cumulative_measured": ev["joules_cumulative_measured"],
+                "gpus": gpus,
+            })
+        out = dict(base_common)
+        out.update({
+            "fleet_status": "ONLINE",
+            "fleet_reachability": ("the live SZL tower joule-meter responded with live=true real "
+                                   "NVML readings this request — SZL energy is now MEASURED on the "
+                                   "reachable node(s)"),
+            "engines_present": engines_present,
+            "engines_expected": ["omen (always-on anchor, live now)",
+                                 "betterwithage (joins when its meter aggregates into this endpoint)"],
+            "measured_joules_available": True,
+            # HONEST: the fleet-total cumulative joules from the live meter (real NVML).
+            "measured_joules": measured_ch["totals"]["joules_cumulative_measured"],
+            "measured_total_power_w": measured_ch["total_power_w_measured"],
+            "measured_per_engine": per_engine,
+            "measured_channel": measured_ch,        # the full SZL_MEASURED_LIVE channel
+            "measured_evidence": measured_ch["source"],
+            "szl_energy_is_now": ("MEASURED on the reachable node(s) — real watts/joules read live "
+                                  "from %s via %s. The ternary /estimate itself stays MODELED; only "
+                                  "the live device power/energy is MEASURED."
+                                  % (CITATIONS["szl_live_joule_meter"], CITATIONS["szl_joule_exporter"])),
+            "why_measured": ("a live meter read with live=true this request is the only thing that "
+                             "flips SZL device energy to MEASURED; it did, so the real power_w/joules "
+                             "are reported here — never a stale or fabricated constant."),
+            "citations": {k: CITATIONS[k] for k in
+                          ("szl_live_joule_meter", "szl_joule_exporter", "szl_energy_operator",
+                           "rapl_in_action_acm", "rapl_remeasurement_zenn", "szl_joules_truth",
+                           "bitnet_2b4t_hf_card", "bitnet_cpp_repo")},
+            "honesty": _HONEST_NOTE,
+        })
+        return out
+
+    # ---- Meter unreachable => the honest OFFLINE / null behavior (unchanged). ----
     return {
         "service": SERVICE,
         "label": MODELED_LABEL,
         "doctrine": DOCTRINE_VERSION,
         "fleet_status": "OFFLINE",
-        "fleet_reachability": "SZL CPU fleet nodes are currently offline behind a machine-side tunnel",
+        "fleet_reachability": ("the live SZL joule-meter is not reachable this request — fleet reads "
+                               "OFFLINE (no fabricated fleet data)"),
+        "engines_present": [],
         "measured_joules_available": False,
         "measured_joules": None,          # HONEST null — no fabricated fleet data
+        "measured_channel": None,         # HONEST null — no live channel when meter down
         "measured_evidence": {},          # HONEST empty — no exporter sample present
-        "why_no_measured_number": ("real MEASURED joules require a live RAPL/wall-power reading on a real "
-                                   "CPU fleet node running a real ternary model; the fleet is offline, so "
-                                   "NO measured number exists and none is fabricated."),
+        "why_no_measured_number": ("real MEASURED joules require a live meter read (live=true) OR a "
+                                   "live RAPL/wall-power reading on a real fleet node; the meter is "
+                                   "unreachable this request, so NO measured number exists and none "
+                                   "is fabricated."),
         "all_current_numbers_are": MODELED_LABEL,
         "what_flips_modeled_to_measured": flip_conditions,
         "measurement_stack_rigor_order": [
             "physical wall-power meter (true AC draw, whole-system, gold standard)",
+            "live NVML power/energy via nvidia-smi (the SZL joule-meter, real GPU device draw)",
             "RAPL package/DRAM MSRs (intel-rapl:0/energy_uj) — the realistic CPU-fleet tool",
             "Intel Power Gadget / CPPJoules (user-space RAPL wrappers)",
             "analytical per-op energy model (Horowitz 2014) — MODELED, NEVER measured",
@@ -517,7 +857,8 @@ def onebit_fleet_readiness() -> Dict[str, Any]:
                           "everything else is MODELED/sample/ESTIMATE — never fabricated, never upgraded "
                           "(mirrors %s)." % CITATIONS["szl_joules_truth"]),
         "citations": {k: CITATIONS[k] for k in
-                      ("rapl_in_action_acm", "rapl_remeasurement_zenn", "szl_joules_truth",
+                      ("szl_live_joule_meter", "szl_joule_exporter", "rapl_in_action_acm",
+                       "rapl_remeasurement_zenn", "szl_joules_truth",
                        "bitnet_2b4t_hf_card", "bitnet_cpp_repo")},
         "honesty": _HONEST_NOTE,
     }
@@ -527,23 +868,42 @@ def onebit_fleet_readiness() -> Dict[str, Any]:
 # Honesty invariants (surfaced in /manifest and asserted in self-test + verifier).
 # =====================================================================================
 def _honesty_invariants() -> Dict[str, bool]:
-    est = onebit_estimate()
+    # Invariants are computed on the OFFLINE (read_meter=False) path so the manifest stays
+    # deterministic and network-independent: the invariant block asserts the organ's HARD
+    # honesty rules, which hold identically whether or not the meter is reachable. The
+    # measured-live channel is proven separately (channel absent offline, present + real
+    # only on a genuine live=true read).
+    est = onebit_estimate(read_meter=False)
     meth = onebit_methodology()
-    fleet = onebit_fleet_readiness()
+    fleet = onebit_fleet_readiness(read_meter=False)
     c = est["channels"]
+    # Offline: the three modeled/estimated/reported channels are present and the OPTIONAL
+    # measured-live channel is None (never fabricated). The three canonical channels are
+    # always separated; d_szl_measured_live is the additive, meter-gated fourth.
+    three_present = {"a_measured_by_microsoft", "b_estimated_by_microsoft",
+                     "c_szl_modeled"}.issubset(set(c.keys()))
     return {
         "label_is_MODELED": (onebit_manifest.__doc__ is None or True) and MODELED_LABEL == "MODELED",
         "szl_number_never_measured": c["c_szl_modeled"]["is_measured"] is False,
-        "measured_and_modeled_separated": set(c.keys()) == {
-            "a_measured_by_microsoft", "b_estimated_by_microsoft", "c_szl_modeled"},
+        "measured_and_modeled_separated": three_present,
         "microsoft_12x_labeled_estimated": "Estimated" in _MS_ESTIMATED["column_header_verbatim"],
         "microsoft_table6_instrument_unstated": "UNDISCLOSED" in _MS_TABLE6["instrument"],
         "independent_rapl_counter_present": "1.26x-1.7x" in _RAPL_COUNTER["finding_same_class"],
         "every_claim_has_citation": meth["every_claim_has_citation"] is True,
-        "fleet_offline_no_measured": fleet["measured_joules_available"] is False
+        # Offline the fleet must be OFFLINE with NO fabricated joules (unchanged honesty).
+        "fleet_offline_no_measured_when_meter_down": fleet["measured_joules_available"] is False
                                      and fleet["measured_joules"] is None,
         "lambda_is_conjecture_not_theorem": True,
         "bitnet_cited_not_claimed_as_own": CITATIONS["bitnet_cpp_repo"].startswith("https://github.com/microsoft"),
+        # NEW (measured-live discipline): the SZL_MEASURED_LIVE channel is the ONLY channel
+        # that may be labeled measured, and ONLY when a live meter read returns live=true.
+        # Offline it is absent (None) and NO joule is fabricated — proven here structurally.
+        "measured_channel_only_when_live_true": (c.get("d_szl_measured_live") is None
+                                                 and est["measured_context"] is None
+                                                 and est["meter_reachable"] is False),
+        "never_fabricate_when_meter_down": (fleet["measured_joules"] is None
+                                            and fleet.get("measured_channel") is None
+                                            and est["measured_context"] is None),
     }
 
 
@@ -634,10 +994,14 @@ def register(app, ns: str = "killinchu") -> List[str]:
 if __name__ == "__main__":
     import sys
 
+    # HARD invariants are asserted on the OFFLINE (read_meter=False) path so the self-test
+    # is deterministic and passes with or without network (Doctrine v11: meter unreachable
+    # => graceful MODELED/OFFLINE, ALL OK). A separate LIVE section below exercises the
+    # meter-reachable behavior when the meter answers (graceful skip if it does not).
     mf = onebit_manifest()
-    est = onebit_estimate(model_params_b=2.4, n_tokens=512)
+    est = onebit_estimate(model_params_b=2.4, n_tokens=512, read_meter=False)
     meth = onebit_methodology()
-    fleet = onebit_fleet_readiness()
+    fleet = onebit_fleet_readiness(read_meter=False)
 
     # ---- report ----
     print("label:", mf["label"])
@@ -668,8 +1032,13 @@ if __name__ == "__main__":
     assert est["measured_vs_modeled"]["microsoft_table6_is_measured"] is False
     assert est["measured_vs_modeled"]["microsoft_12x_is_measured"] is False
 
-    # three channels strictly separated
-    assert set(c.keys()) == {"a_measured_by_microsoft", "b_estimated_by_microsoft", "c_szl_modeled"}
+    # three canonical channels always present + separated; the meter-gated measured-live
+    # channel is the additive fourth key (None on this OFFLINE path, never fabricated).
+    assert {"a_measured_by_microsoft", "b_estimated_by_microsoft",
+            "c_szl_modeled"}.issubset(set(c.keys()))
+    assert c.get("d_szl_measured_live") is None, "measured-live channel must be absent when meter down"
+    assert est["measured_context"] is None and est["meter_reachable"] is False
+    assert est["measured_vs_modeled"]["measured_context_is_measured"] is False
 
     # the MS estimated figure is literally labeled 'Estimated'; Table 6 instrument undisclosed
     assert "Estimated" in c["b_estimated_by_microsoft"]["column_header_verbatim"]
@@ -693,16 +1062,19 @@ if __name__ == "__main__":
     assert meth["every_claim_has_citation"] is True
     assert meth["real_count"] >= 1 and meth["modeled_count"] >= 1 and meth["measurable_count"] >= 1
 
-    # fleet: offline, NO fabricated measured data
+    # fleet: OFFLINE when the meter is unreachable, NO fabricated measured data
     assert fleet["fleet_status"] == "OFFLINE"
     assert fleet["measured_joules_available"] is False
     assert fleet["measured_joules"] is None
+    assert fleet["measured_channel"] is None
     assert fleet["measured_evidence"] == {}
     assert len(fleet["what_flips_modeled_to_measured"]) >= 3
 
-    # honesty invariants block all True
+    # honesty invariants block all True (incl. the NEW measured-live discipline invariants)
     inv = mf["honesty_invariants"]
     assert all(inv.values()), inv
+    assert inv["measured_channel_only_when_live_true"] is True
+    assert inv["never_fabricate_when_meter_down"] is True
 
     # Λ stays Conjecture (never a theorem, never green)
     assert "Conjecture 1" in mf["lambda"]
@@ -711,13 +1083,17 @@ if __name__ == "__main__":
     # bitnet cited, not claimed as SZL's own
     assert CITATIONS["bitnet_cpp_repo"].startswith("https://github.com/microsoft")
 
-    # determinism: same inputs => identical
-    assert onebit_estimate(2.4, 512) == onebit_estimate(2.4, 512), "estimate must be deterministic"
+    # determinism (OFFLINE path): same inputs => identical. Manifest is deterministic
+    # because its honesty_invariants are computed on the OFFLINE path (no network).
+    assert (onebit_estimate(2.4, 512, read_meter=False)
+            == onebit_estimate(2.4, 512, read_meter=False)), "estimate must be deterministic"
     assert onebit_manifest() == onebit_manifest()
     assert onebit_methodology() == onebit_methodology()
-    assert onebit_fleet_readiness() == onebit_fleet_readiness()
+    assert (onebit_fleet_readiness(read_meter=False)
+            == onebit_fleet_readiness(read_meter=False))
     # input-sensitive
-    assert onebit_estimate(7.0, 512) != onebit_estimate(2.4, 512), "estimate must respond to model size"
+    assert (onebit_estimate(7.0, 512, read_meter=False)
+            != onebit_estimate(2.4, 512, read_meter=False)), "estimate must respond to model size"
 
     # banned-token rejection works; this module's own honest note is clean
     _assert_no_banned(_HONEST_NOTE)
@@ -741,7 +1117,70 @@ if __name__ == "__main__":
     ], paths
 
     print("register paths:", paths)
-    print("szl_kc_onebit: ALL OK — MODELED ternary estimator, three channels separated, "
-          "SZL number never measured, fleet offline (no fabricated joules), full provenance, "
-          "deterministic.", file=sys.stderr)
+
+    # ---- GUARD proof: a bad/empty/malformed meter NEVER yields a measured number ----
+    # read_live_meter must return None on unreachable/garbage; a None meter must produce
+    # NO measured channel and NO fabricated joule (the whole honesty spine of the upgrade).
+    assert read_live_meter(url="http://127.0.0.1:1/", timeout=0.2) is None, "unreachable meter must be None"
+    assert _measured_live_channel(None) is None
+    assert _measured_live_channel({}) is None
+    # a meter dict with NO live GPU is NOT a live reading => None (never measured)
+    assert _measured_live_channel({"live": True, "engines": [
+        {"engine": "omen", "joules": 1.0, "gpus": []}], "totals": {"joules": 1.0}}) is None
+    est_off = onebit_estimate(read_meter=False)
+    assert est_off["channels"]["d_szl_measured_live"] is None
+    assert est_off["measured_context"] is None
+    fleet_off = onebit_fleet_readiness(read_meter=False)
+    assert fleet_off["fleet_status"] == "OFFLINE" and fleet_off["measured_joules"] is None
+    print("guard: unreachable/garbage meter => None, MODELED/OFFLINE, no fabricated joule — OK")
+
+    # ---- MEASURED path proof via a SYNTHETIC live meter (no network needed) ----
+    # Prove that WHEN the meter reports live=true real readings, the SZL_MEASURED_LIVE
+    # channel populates with the real device watts and fleet flips ONLINE — deterministic,
+    # no network. Mirrors the real meter.a-11-oy.com shape (omen RTX 4060 Ti).
+    _synthetic = {
+        "url": CITATIONS["szl_live_joule_meter"],
+        "exporter": "omen-joule-exporter (real NVML via nvidia-smi)",
+        "ts": 1783435960.47, "fetched_at": 1783435961.0,
+        "totals": {"joules": 6937.669},
+        "engines": [{"engine": "omen", "joules": 6937.669, "gpus": [
+            {"index": 0, "name": "NVIDIA GeForce RTX 4060 Ti",
+             "power_w": 6.17, "joules": 6937.669, "live": True}]}],
+        "live": True,
+    }
+    est_on = onebit_estimate(meter=_synthetic)
+    mc = est_on["measured_context"]
+    assert mc is not None and mc["is_measured"] is True, "measured_context must populate on a live read"
+    assert mc["total_power_w_measured"] == 6.17
+    assert est_on["channels"]["d_szl_measured_live"]["engines"][0]["gpus"][0]["name"] \
+        == "NVIDIA GeForce RTX 4060 Ti"
+    # HARD: the MODELED number is UNCHANGED whether or not the meter is present.
+    assert (est_on["channels"]["c_szl_modeled"]["joules_per_token_modeled"]
+            == est_off["channels"]["c_szl_modeled"]["joules_per_token_modeled"]), \
+        "live measured context must NEVER change the MODELED number"
+    fleet_on = onebit_fleet_readiness(meter=_synthetic)
+    assert fleet_on["fleet_status"] == "ONLINE"
+    assert fleet_on["measured_joules"] == 6937.669
+    assert "omen" in fleet_on["engines_present"]
+    assert fleet_on["measured_per_engine"][0]["gpus"][0]["power_w_measured"] == 6.17
+    print("synthetic live meter => SZL_MEASURED_LIVE populated (omen RTX 4060 Ti 6.17W, "
+          "6937.669 J), fleet ONLINE, MODELED number unchanged — OK")
+
+    # ---- OPTIONAL: real live meter (graceful — never fails the self-test) ----
+    _live = read_live_meter()
+    if _live is not None:
+        _mc = _measured_live_channel(_live)
+        print("LIVE METER reachable: engines=%s total_power_w=%s totals_joules=%s"
+              % (_mc["engines_present"], _mc["total_power_w_measured"],
+                 _mc["totals"]["joules_cumulative_measured"]))
+        _flr = onebit_fleet_readiness()
+        assert _flr["fleet_status"] == "ONLINE" and _flr["measured_joules"] is not None
+    else:
+        print("LIVE METER unreachable this run — graceful MODELED/OFFLINE degrade (honest)")
+
+    print("szl_kc_onebit: ALL OK — MODELED ternary estimator; three channels separated + "
+          "the meter-gated SZL_MEASURED_LIVE fourth channel; SZL modeled number never "
+          "measured; measured ONLY on a live meter read (live=true); no fabricated joule "
+          "when the meter is down; full provenance; deterministic (offline path).",
+          file=sys.stderr)
     print("ALL OK")
