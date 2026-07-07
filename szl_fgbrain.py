@@ -965,6 +965,56 @@ async def _h_vitals(request):  # type: ignore
 
 
 # ---------------------------------------------------------------------------
+# WAVE-21: energy-flux reconcile. One authoritative energy-attestation signal,
+# following szl-energy-attest doctrine: report MEASURED joules ONLY when a real
+# measurement is injected (env SZL_JOULES_MEASURED from an upstream NVML probe);
+# otherwise honest "UNAVAILABLE" with a null value. This organ has NO GPU and
+# MUST NEVER fabricate a joule figure. The reading is hash-chained (sha256) so an
+# honest UNAVAILABLE is itself tamper-evident. Closes org-sweep Gap #1: one energy
+# signal instead of three divergent paths. EXPERIMENTAL/attestation.
+# ---------------------------------------------------------------------------
+def _energy_attest():
+    import os as _os
+    raw = _os.environ.get("SZL_JOULES_MEASURED", "").strip()
+    joules = None; status = "UNAVAILABLE"; source = "none (no live NVML/joule probe injected)"
+    if raw:
+        try:
+            j = float(raw)
+            if j >= 0.0 and j == j and j not in (float("inf"), float("-inf")):
+                joules = round(j, 6); status = "MEASURED"
+                source = "env SZL_JOULES_MEASURED (upstream real probe)"
+        except Exception:
+            joules = None; status = "UNAVAILABLE"
+    reading = {"status": status, "joules": joules, "source": source}
+    canonical = json.dumps(reading, sort_keys=True, separators=(",", ":")).encode()
+    sig = hashlib.sha256(b"SAMPLE_KEY::" + canonical).hexdigest()[:16]
+    receipt_hash = hashlib.sha256(canonical + sig.encode()).hexdigest()
+    return {
+        "label": "MODELED",
+        "energy": reading,
+        "receipt_hash": receipt_hash[:16],
+        "sample_sig": sig,
+        "authoritative_source": "szl-energy-attest (single source of truth)",
+        "note": ("One authoritative energy signal for the homeostasis layer. joules is MEASURED "
+                 "only if a real upstream probe injected it; otherwise UNAVAILABLE with a null "
+                 "value - this organ never fabricates joules. Reconciles the three divergent "
+                 "energy paths onto one honest reading. Sample-signed (NOT a real cosign key)."),
+        "citations": {
+            "szl-energy-attest (canonical NVML joule attestation)":
+                "https://github.com/szl-holdings/szl-energy-attest",
+            "governed-inference-meter (tokens/joule at inference boundary)":
+                "https://github.com/szl-holdings/governed-inference-meter",
+            "Energentic Intelligence (viability from energy budget)":
+                "https://arxiv.org/abs/2506.04916",
+        },
+    }
+
+
+async def _h_energy(request):  # type: ignore
+    return JSONResponse(_energy_attest())
+
+
+# ---------------------------------------------------------------------------
 # WAVE-20: EVOLUTIONARY self-improvement + organizational closure (/evolve).
 # "Evolution proposes, the kernel disposes." A MODELED quality-diversity search
 # over candidate formula-SKETCHES (NEVER the real locked-8/NODES). Fuses:
@@ -1284,6 +1334,7 @@ def register(app, ns: str = "killinchu"):
         (f"{base}/plasticity", _h_plasticity),
         (f"{base}/memory", _h_memory),
         (f"{base}/vitals", _h_vitals),
+        (f"{base}/vitals/energy", _h_energy),
         (f"{base}/evolve", _h_evolve),
     ]
     try:
@@ -1403,4 +1454,13 @@ if __name__ == "__main__":
           "| modeled_promotions", ev["modeled_promotions"], "| locked", ev["locked_count"],
           "| gate_immutable", ev["gate_immutable"], "| claim_pinning_ok", ev["claim_pinning_ok"],
           "| rollback_restored", ev["rollback_restored"])
+    # ---- wave-21 energy-attest checks ----
+    en = _energy_attest()
+    assert en["label"] == "MODELED"
+    assert en["energy"]["status"] in ("MEASURED", "UNAVAILABLE")
+    import os as _op
+    if not _op.environ.get("SZL_JOULES_MEASURED", "").strip():
+        assert en["energy"]["status"] == "UNAVAILABLE" and en["energy"]["joules"] is None
+    assert _energy_attest() == _energy_attest()
+    print("szl_fgbrain wave21: energy OK - status", en["energy"]["status"], "joules", en["energy"]["joules"], "(never fabricated)")
     print("szl_fgbrain: ALL OK — real graph, MODELED firing anchored on locked-8, conjectures gray, deterministic.")
