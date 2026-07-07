@@ -9,3 +9,13 @@ vsp-otel>=0.1
 # module PREFERS this installed lib and falls back to a byte-identical vendored
 # implementation of the same shapes when the install is blocked (offline edge).
 szl-receipt @ git+https://github.com/szl-holdings/szl-receipt.git@v0.2.0
+# ADDITIVE (szl-substrate repoint, Wave J Dev 2): the shared substrate package is
+# the single source of truth for modules duplicated across a11oy + killinchu
+# (szl-holdings/szl-substrate). killinchu's serve.py registration call sites now
+# PREFER `from szl_substrate import <module>` and fall back to the local vendored
+# byte-copy if the package is absent — so the HF Space build (which per-file COPYs
+# the local copies and has no PyPI egress) keeps working UNCHANGED. This makes the
+# byte-copies a FALLBACK, not the source of truth. Uncomment to install the package
+# where egress is available; private repo, so installed via git. The guarded
+# fallback makes this OPTIONAL (mirrors a11oy/requirements.txt).
+# szl-substrate @ git+https://github.com/szl-holdings/szl-substrate@main
