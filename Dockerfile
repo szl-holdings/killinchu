@@ -189,6 +189,24 @@ COPY szl_kc_cc_attest.py szl_kc_sement.py ./
 # Per-file COPY (NEVER `COPY . .`).
 COPY szl_kc_ttc.py szl_kc_specdec.py szl_kc_worldmodel.py ./
 
+# FRONTIER backends WAVE C (2026-07): back the a11oy frontier surfaces episodic.js + qec.js
+# + the signed-energy-receipt organ (same proven pattern as the Wave A/B backends above).
+# szl_kc_episodic.py -> GET /api/killinchu/v1/episodic/recall (governed episodic-memory / temporal
+#   knowledge-graph; receipt-keyed writes; closed-form recency×salience×relatedness recall; MODELED,
+#   synthetic episodes, hash-seeded MODELED embeddings — NOT a trained model). Cites Zep/Graphiti
+#   arXiv:2501.13956.
+# szl_kc_qec.py      -> GET /api/killinchu/v1/qec/surface-code (topological QEC below-threshold scaling
+#   + Reed-Solomon RS(10,6) Khipu-DAG erasure survival — "receipts survive corruption like logical
+#   qubits survive noise"; MODELED scaling law, RS math EXACT, NO QPU). Cites Google Willow (Nature
+#   2024, arXiv:2408.13687).
+# szl_kc_energy.py   -> GET /api/killinchu/v1/energy/receipt (signed, hash-chained energy receipt:
+#   joules/token + tokens/joule + gCO2/token + carbon-aware ADVISORY; MODELED, NO on-box NVML, never
+#   upgraded to MEASURED). Cites NVML + carbon-aware compute. All three PURE STDLIB; import szl_dsse
+#   (already COPYed) for REAL ECDSA receipts in-Space, honest UNSIGNED marker otherwise. MUST be COPY'd
+#   or serve.py's guarded imports degrade to not-registered stubs and the three tabs 404 again.
+# Per-file COPY (NEVER `COPY . .`).
+COPY szl_kc_episodic.py szl_kc_qec.py szl_kc_energy.py ./
+
 # ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
 # knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to
 # a11oy's knowledge.json. serve.py serves it at /knowledge.json so the /elite

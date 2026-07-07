@@ -294,6 +294,55 @@ try:
 except Exception as _szl_worldmodel_e:  # pragma: no cover
     print(f"[killinchu] Governed World-Model rollout NOT registered: {_szl_worldmodel_e!r}", file=__import__("sys").stderr)
 
+# FRONTIER WAVE C — Governed Episodic-Memory / temporal knowledge-graph (backs a11oy static/3d/
+# surfaces/episodic.js). Deterministic seeded episodic graph: discrete episodes on a TIME axis,
+# temporal-succession + semantic-relatedness edges, closed-form recency×salience×relatedness recall,
+# receipt-keyed writes (episode id = sha256(content)[:12]), per-episode HONEST-STUB receipt. Cites
+# Zep/Graphiti arXiv:2501.13956 + MemMachine + Tulving (1972). HONEST: MODELED — synthetic/public
+# episodes, hash-seeded MODELED embeddings (NOT a trained model), no vector DB, no live session store.
+# Adds /api/killinchu/v1/episodic/recall. PURE STDLIB. Additive, try/except-guarded, before the SPA
+# catch-all. Adds nothing to the locked-8; Λ stays Conjecture 1; trust never 100%.
+try:
+    import szl_kc_episodic as _szl_kc_episodic
+    _szl_kc_episodic.register(app, ns="killinchu")
+    print("[killinchu] Episodic-Memory temporal-KG registered: /api/killinchu/v1/episodic/recall", file=__import__("sys").stderr)
+except Exception as _szl_episodic_e:  # pragma: no cover
+    print(f"[killinchu] Episodic-Memory temporal-KG NOT registered: {_szl_episodic_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER WAVE C — Topological QEC / rotated surface-code (backs a11oy static/3d/surfaces/qec.js),
+# with the SZL map "receipts survive corruption like logical qubits survive noise": Reed-Solomon
+# RS(10,6) Khipu-DAG erasure survival (EXACT binomial) alongside the below-threshold surface-code
+# scaling (p_L(d,p), suppression Λ_QEC=p_L(d)/p_L(d+2)). Cites Google Willow below-threshold QEC
+# (Nature 2024, arXiv:2408.13687) + Fowler et al. + Kitaev + Reed-Solomon (1960). HONEST: MODELED —
+# simulation of the scaling law, NO QPU, NO measured syndromes; RS math EXACT. Λ_QEC (a physics figure
+# of merit) is DISTINCT from and NOT promoted into SZL's Λ = Conjecture 1. Adds /api/killinchu/v1/qec/
+# surface-code. PURE STDLIB. Additive, try/except-guarded, before the SPA catch-all. Adds nothing to
+# the locked-8; Λ stays Conjecture 1; trust never 100%.
+try:
+    import szl_kc_qec as _szl_kc_qec
+    _szl_kc_qec.register(app, ns="killinchu")
+    print("[killinchu] Topological-QEC surface-code registered: /api/killinchu/v1/qec/surface-code", file=__import__("sys").stderr)
+except Exception as _szl_qec_e:  # pragma: no cover
+    print(f"[killinchu] Topological-QEC surface-code NOT registered: {_szl_qec_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER WAVE C — Signed Energy Receipt (frontier energy organ). Deterministic hash-chained energy
+# receipt for a MODELED inference request: joules/token, tokens/joule, gCO2/token, plus a carbon-aware
+# "shift now?" ADVISORY verdict (never 'green'). Each receipt commits to the previous receipt's hash
+# (khipu-style tamper-evident ledger) and carries an HONEST signed marker. Cites NVML + carbon-aware
+# compute (Patterson arXiv:2104.10350, Google Carbon-Intelligent Computing, Electricity Maps). HONEST:
+# MODELED — NO on-box NVML on this Space, so joules are order-of-magnitude from a documented power
+# profile (NOT a live wattmeter) and grid carbon is a SAMPLE constant (NOT a live feed); we NEVER
+# upgrade MODELED to MEASURED (MEASURED joules are the a11oy on-box NVML exporter's job). Hash-chain
+# REAL; signatures REAL ECDSA only in-Space, honest UNSIGNED otherwise — never fabricated. Adds
+# /api/killinchu/v1/energy/receipt. PURE STDLIB. Additive, try/except-guarded, before the SPA catch-all.
+# Adds nothing to the locked-8; Λ stays Conjecture 1 (carbon-shift verdict advisory); trust never 100%.
+try:
+    import szl_kc_energy as _szl_kc_energy
+    _szl_kc_energy.register(app, ns="killinchu")
+    print("[killinchu] Signed Energy Receipt registered: /api/killinchu/v1/energy/receipt", file=__import__("sys").stderr)
+except Exception as _szl_energy_e:  # pragma: no cover
+    print(f"[killinchu] Signed Energy Receipt NOT registered: {_szl_energy_e!r}", file=__import__("sys").stderr)
+
 # Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
 # generated OPEN conjectures from the real disclosure ledger (szl-lake khipu,
 # kind=conjecture-disclosure-anchor). Byte-identical module shared with a11oy. A
