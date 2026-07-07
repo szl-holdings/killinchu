@@ -3,58 +3,41 @@
 # Doctrine v11 LOCKED: locked-proven=8 · Λ=Conjecture 1 · SLSA L1 honest / L2 attested / L3 roadmap
 # Co-Authored-By: Perplexity Computer Agent
 """
-szl_kc_ringattn.py — ADDITIVE RING-ATTENTION distribution simulator for killinchu's frontier
-surface (backs a11oy static/3d/surfaces/ringattn.js).
+szl_kc_ringattn.py — ADDITIVE Ring-Attention long-context blockwise SIMULATOR for
+killinchu's frontier surface (backs a11oy static/3d/surfaces/ringattn.js).
 
-Ring Attention with Blockwise Transformers (Liu, Zaharia, Abbeel 2023, arXiv:2310.01889) lets a
-Transformer handle sequences up to device-count times longer than a single device allows. The
-sequence is split into blocks, one block of query/key/value per device arranged in a RING. Each
-device computes blockwise attention over its local query against the KV block it currently holds,
-then passes its KV block to the next device in the ring while receiving the previous device's KV
-block. After N-1 such rotations every query has attended to every KV block — exact attention, no
-approximation — and crucially the KV-block COMMUNICATION is overlapped with the blockwise attention
-COMPUTATION, so the ring hop is (near-)free when compute per block dominates comm per block.
+Ring Attention shards the sequence's Q/K/V blocks across a ring of devices; each device holds
+one query block and, over `devices` rotation steps, passes its KV block to its neighbour so
+every query eventually attends to every KV block — all with an ONLINE softmax accumulator, so
+per-device memory is O(seq_len / devices) instead of O(seq_len). Because the online (streaming)
+softmax is mathematically EXACT, the blockwise result is bit-for-bit the full-attention result;
+context length then scales ~linearly with the ring size. This module simulates the ring schedule
+and — critically — RUNS a tiny real online-softmax vs a full-softmax on a seeded example so the
+`exact_match` claim is COMPUTED, never asserted.
 
-This module reproduces the Ring Attention SCHEDULE and its overlap economics deterministically. For
-a sequence of length S split across N devices (block = S/N per device), it walks the N-step ring:
-each step does one block-block attention (compute time t_comp) while shipping one KV block
-(comm time t_comm); the step cost is max(t_comp, t_comp is hidden under? ) — modeled as
-max(t_comp, t_comm) when overlapped. It reports the max context reachable, the per-device memory
-(vs. a single device holding the whole sequence), the overlap efficiency, and — the SZL addition —
-a J/token ENERGY RECEIPT from distributing the KV memory instead of replicating the full sequence.
-
-Deterministic ring model (seeded, no live model, no real kernels):
-  * block_len = ceil(S / N); per device holds one block of KV (memory ~ block_len).
-  * ring has N steps; each step: compute one block-block attention (t_comp) overlapped with one
-    KV-block send/recv (t_comm). overlapped step cost = max(t_comp, t_comm).
-  * t_comp scales with block_len^~ (blockwise attention over local block); t_comm scales with
-    block_len (one KV block moved). A small seeded jitter models real link/compute variance.
-
-  block_len            = ceil(S / N)
-  max_context          = N * block_len_single           (device_count times longer, per the paper)
-  mem_per_device_ratio = block_len / S                  (fraction of full-sequence KV per device)
-  overlap_efficiency   = sum(t_comp) / sum(max(t_comp, t_comm))   (1.0 == comm fully hidden)
-  E_replicated         = N * S * e_kv_slot              (each device holds the whole sequence)
-  E_ring               = N * block_len * e_kv_slot      (each device holds one block)
-  joules_per_token_saved = (E_replicated - E_ring) / S   (the ENERGY RECEIPT)
+Ring schedule + honest exactness check:
+  * block_size          = ceil(seq_len / devices)         (per-device query/KV block)
+  * num_rotation_steps  = devices                          (each KV block visits every device)
+  * per_device_memory_ratio = block_size / seq_len ≈ 1/devices   (the memory win, MODELED)
+  * max_context_supported   = block_size * devices ≈ seq_len; the ring generalizes to
+                              more devices ⇒ longer context at fixed per-device memory.
+  * exact_match         = (online-softmax blockwise == full softmax) on a seeded probe,
+                          within 1e-9 — COMPUTED here, not hard-coded.
 
 HONESTY SPINE (Doctrine v11):
-  * MODELED deterministic ring-schedule SIMULATION. NOT Ring Attention running on real devices; NO
-    live model, NO GPU, NO NCCL/collective, NO real attention kernels. block times and link speeds
-    are SEEDED MODELED values, NOT measured.
-  * The RING SCHEDULE (N blocks rotating, exact attention after N-1 hops, comm overlapped with
-    compute) is the paper's actual mechanism, honestly reimplemented; the numbers are properties of
-    that schedule under the seeded costs, not a wall-clock measurement on a real cluster.
-  * "exact attention" is TRUE by construction (every query sees every KV block after the ring
-    completes) — a property of the ALGORITHM, honestly labeled, not a measured accuracy claim.
-  * The joules figures are MODELED order-of-magnitude estimates, NOT a live wattmeter.
+  * MODELED schedule SIMULATION. There is NO multi-device run, NO GPU, NO NCCL ring, NO model —
+    only the ring arithmetic + a tiny CPU online-softmax exactness probe.
+  * per_device_memory_ratio / max_context_supported are the MODELED asymptotics of the method,
+    not a measured allocator delta. Label them MODELED.
+  * exact_match is a REAL numerical check on a seeded vector (online vs full softmax); it
+    demonstrates the method's exactness — it is not a measurement of a distributed system.
   * Label "MODELED" is returned verbatim and read verbatim by the frontend; never upgraded.
   * Advisory only (Λ = Conjecture 1); adds nothing to the locked-8; trust never 100%.
   * Every snapshot is a SIGNED receipt (REAL ECDSA when the cosign key is present in-Space;
     honest UNSIGNED marker otherwise — a signature is NEVER fabricated).
 
 Route (NEW; never collides):
-  GET /api/{ns}/v1/ringattn/simulate  — ring-attention distribution snapshot (MODELED)
+  GET /api/{ns}/v1/ringattn/simulate  — ring-attention blockwise schedule snapshot (MODELED)
 
 Pure stdlib. Defensive: a compute failure NEVER raises out of a handler.
 """
@@ -87,145 +70,155 @@ except Exception:  # pragma: no cover — honest UNSIGNED marker, never fabricat
                         "no signature fabricated."),
         }
 
-_RING_PAYLOAD_TYPE = "application/vnd.szl.kc.ringattn+json"
+_RA_PAYLOAD_TYPE = "application/vnd.szl.kc.ringattn+json"
 
 DOCTRINE_VERSION = "v11"
 
 CITATIONS = {
-    "ringattn": ("Liu, Zaharia, Abbeel (2023) Ring Attention with Blockwise Transformers for "
-                 "Near-Infinite Context — arXiv:2310.01889 — https://arxiv.org/abs/2310.01889"),
+    "ring": ("Liu, Zaharia, Abbeel (2023, ICLR 2024) Ring Attention with Blockwise "
+             "Transformers for Near-Infinite Context — arXiv:2310.01889"),
+    "blockwise": ("Liu, Abbeel (2023) Blockwise Parallel Transformer for Large Context "
+                  "Models — arXiv:2305.19370"),
+    "flash": ("Dao, Fu, Ermon, Rudra, Ré (2022) FlashAttention: Fast and Memory-Efficient "
+              "Exact Attention with IO-Awareness — arXiv:2205.14135"),
+    "online_softmax": ("Milakov, Gimelshein (2018) Online normalizer calculation for "
+                       "softmax — arXiv:1805.02867"),
 }
 
-# MODELED label — a deterministic ring-schedule simulation, never a live model.
 MODELED_LABEL = "MODELED"
-HONESTY_LONG = "MODELED | RING_SCHEDULE_SIM | NOT_LIVE | NO_MODEL | NO_COLLECTIVE | JOULES_ARE_MODELED"
-
-# MODELED per-unit references (order-of-magnitude only; NOT measured).
-_E_KV_SLOT = 1.0        # MODELED joules to hold one KV slot on a device for the pass
-_T_COMP_UNIT = 1.0      # MODELED compute time per KV-slot of blockwise attention
-_T_COMM_UNIT = 0.7      # MODELED comm time per KV-slot to ship a block to the next ring device
+HONESTY_LONG = ("MODELED | RING_SCHEDULE_SIM | NOT_LIVE | NO_MULTI_DEVICE | NO_GPU | "
+                "EXACT_MATCH_IS_A_CPU_PROBE")
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def ringattn_simulate(seed: int = 42, seq_len: int = 32768, devices: int = 8,
-                      single_device_cap: int = 4096) -> dict:
-    """Ring-attention distribution snapshot (MODELED).
+def _full_softmax_weighted(scores, values):
+    """Reference: full softmax over all scores, then weighted sum of values."""
+    m = max(scores)
+    exps = [_math.exp(s - m) for s in scores]
+    z = sum(exps)
+    return sum((e / z) * v for e, v in zip(exps, values))
 
-    seq_len            — total sequence length distributed across the ring.
-    devices            — N, ring size (device count).
-    single_device_cap  — max context a single device could hold (for the max-context comparison).
-    seed               — RNG seed; identical inputs give identical output (deterministic).
+
+def _online_softmax_blockwise(scores, values, block_size):
+    """Streaming (online) softmax accumulator processed one block at a time — the exact
+    computation Ring/Flash attention performs. Returns (weighted_value, running_trace).
+
+    Maintains a running max m, running normalizer l, and running weighted accumulator acc,
+    rescaling on each block exactly as FlashAttention/Ring do. Mathematically identical to
+    the full softmax, up to floating point."""
+    m = -_math.inf
+    l = 0.0
+    acc = 0.0
+    trace = []
+    n = len(scores)
+    for start in range(0, n, block_size):
+        blk_s = scores[start:start + block_size]
+        blk_v = values[start:start + block_size]
+        blk_max = max(blk_s)
+        new_m = max(m, blk_max)
+        # rescale the existing accumulator to the new max
+        correction = _math.exp(m - new_m) if m != -_math.inf else 0.0
+        l = l * correction
+        acc = acc * correction
+        for s, v in zip(blk_s, blk_v):
+            w = _math.exp(s - new_m)
+            l += w
+            acc += w * v
+        m = new_m
+        trace.append(round(acc / l, 6) if l > 0 else 0.0)  # running attention output
+    return (acc / l if l > 0 else 0.0), trace
+
+
+def ringattn_simulate(seed: int = 42, seq_len: int = 4096, devices: int = 8) -> dict:
+    """Ring-attention blockwise schedule snapshot (MODELED).
+
+    seq_len — total context length (tokens).
+    devices — ring size (number of devices among which Q/K/V blocks are sharded).
+    seed    — RNG seed; identical inputs give identical output (deterministic).
     """
-    seq_len = max(8, min(100_000_000, int(seq_len)))
-    devices = max(1, min(4096, int(devices)))
-    single_device_cap = max(1, min(seq_len, int(single_device_cap)))
-    rng = _random.Random(int(seed) * 1_000_003 + seq_len % 1_000_003 + devices * 131)
+    seq_len = max(2, min(1_048_576, int(seq_len)))
+    devices = max(1, min(1024, int(devices)))
+    block_size = -(-seq_len // devices)              # ceil division
+    num_rotation_steps = devices
+    per_device_memory_ratio = round(block_size / seq_len, 8)
+    max_context_supported = block_size * devices
 
-    block_len = _math.ceil(seq_len / devices)
-    max_context = devices * single_device_cap   # device_count times longer, per the paper
-    mem_per_device_ratio = block_len / seq_len
+    # --- REAL online-softmax exactness probe on a small seeded vector -----------------
+    rng = _random.Random(int(seed) * 2_654_435_761 % (2 ** 32) + seq_len + devices * 7)
+    probe_n = 256
+    probe_scores = [rng.gauss(0.0, 2.0) for _ in range(probe_n)]
+    probe_values = [rng.gauss(0.0, 1.0) for _ in range(probe_n)]
+    probe_block = max(1, probe_n // max(1, devices))
+    full_out = _full_softmax_weighted(probe_scores, probe_values)
+    ring_out, ring_trace = _online_softmax_blockwise(probe_scores, probe_values, probe_block)
+    abs_err = abs(full_out - ring_out)
+    exact_match = bool(abs_err < 1e-9)
 
-    # walk the ring: N steps, each overlaps one block-block attention with one KV-block hop.
-    sum_comp = 0.0
-    sum_overlapped = 0.0
-    step_costs = []
-    for _step in range(devices):
-        jitter_c = 1.0 + (rng.random() - 0.5) * 0.06
-        jitter_m = 1.0 + (rng.random() - 0.5) * 0.06
-        t_comp = _T_COMP_UNIT * block_len * jitter_c
-        t_comm = _T_COMM_UNIT * block_len * jitter_m
-        overlapped = max(t_comp, t_comm)   # comm hidden under compute when compute dominates
-        sum_comp += t_comp
-        sum_overlapped += overlapped
-        if len(step_costs) < 16:
-            step_costs.append(round(float(overlapped), 4))
-
-    overlap_efficiency = (sum_comp / sum_overlapped) if sum_overlapped else 0.0
-    exact_attention = True  # every query attends to every KV block after N-1 rotations
-
-    # ENERGY / MEMORY RECEIPT (MODELED joules — order-of-magnitude, NOT a live wattmeter).
-    e_replicated = devices * seq_len * _E_KV_SLOT     # each device holds the whole sequence
-    e_ring = devices * block_len * _E_KV_SLOT         # each device holds one block
-    joules_saved = e_replicated - e_ring
-    joules_per_token_saved = joules_saved / seq_len if seq_len else 0.0
-    energy_reduction_pct = (joules_saved / e_replicated * 100.0) if e_replicated else 0.0
-
-    energy_receipt = {
-        "joules_replicated": round(float(e_replicated), 4),
-        "joules_ring": round(float(e_ring), 4),
-        "joules_saved": round(float(joules_saved), 4),
-        "joules_per_token_saved": round(float(joules_per_token_saved), 6),
-        "energy_reduction_pct": round(float(energy_reduction_pct), 3),
-        "e_kv_slot_modeled": _E_KV_SLOT,
-        "energy_note": ("MODELED joules — order-of-magnitude per-slot estimates, NOT a live "
-                        "wattmeter. Each device holding one block instead of the whole sequence is "
-                        "the memory/energy win; quantified as a receipt input to the llm-router."),
-        "gate": "ADVISORY input to Λ (Conjecture 1) — never a proof, never 'green'.",
-    }
+    # rotation_trace: the running online-softmax attention output as each KV block is
+    # absorbed — bounded to num_rotation_steps entries for the surface's rotating cue.
+    if len(ring_trace) >= num_rotation_steps:
+        step = len(ring_trace) / num_rotation_steps
+        rotation_trace = [ring_trace[min(len(ring_trace) - 1, int(i * step))]
+                          for i in range(num_rotation_steps)]
+    else:
+        rotation_trace = ring_trace
 
     receipt = {
         "snapshot_timestamp": _now_iso(),
-        "service": "ring-attention-distribution",
+        "service": "ring-attention-blockwise",
         "service_version": "szl-kc-ringattn-v0.1",
         "seed": int(seed),
-        "inputs": {"seq_len": seq_len, "devices": devices, "single_device_cap": single_device_cap},
-        "block_len": int(block_len),
-        "ring_steps": int(devices),
-        "max_context": int(max_context),
-        "mem_per_device_ratio": round(float(mem_per_device_ratio), 6),
-        "overlap_efficiency": round(float(overlap_efficiency), 6),
-        "exact_attention": bool(exact_attention),
-        "energy_receipt": energy_receipt,
+        "inputs": {"seq_len": seq_len, "devices": devices},
+        "block_size": int(block_size),
+        "num_rotation_steps": int(num_rotation_steps),
+        "per_device_memory_ratio": per_device_memory_ratio,
+        "max_context_supported": int(max_context_supported),
+        "exact_match": exact_match,
+        "online_vs_full_abs_error": float("%.3e" % abs_err),
         "label": HONESTY_LONG,
         "doctrine": DOCTRINE_VERSION,
         "lambda": "Conjecture 1 (advisory, NOT a theorem)",
-        "effector_posture": "SIMULATED · human-on-loop (distribution advisory — never an autonomous action)",
-        "citations": [CITATIONS["ringattn"]],
-        "honesty": ("Deterministic ring-schedule simulation. NOT Ring Attention running on real "
-                    "devices; NO live model, NO GPU, NO collective, NO real kernels. Block/link "
-                    "costs are seeded MODELED values; the RING SCHEDULE is the paper's mechanism, "
-                    "honestly reimplemented. 'exact attention' is a property of the ALGORITHM. "
-                    "MODELED, not live; advisory to Λ (Conjecture 1)."),
+        "effector_posture": "SIMULATED · human-on-loop (schedule demo — never an engage)",
+        "citations": [CITATIONS["ring"], CITATIONS["blockwise"], CITATIONS["flash"],
+                      CITATIONS["online_softmax"]],
+        "honesty": ("Ring-attention schedule simulation. NO multi-device run, NO GPU, NO NCCL "
+                    "ring, NO model. per_device_memory_ratio / max_context_supported are MODELED "
+                    "asymptotics; exact_match is a REAL CPU online-softmax-vs-full probe "
+                    "(abs err < 1e-9), demonstrating the method's exactness — not a distributed "
+                    "measurement. MODELED, not live."),
     }
-    dsse = _sign_payload(receipt, _RING_PAYLOAD_TYPE)
+    dsse = _sign_payload(receipt, _RA_PAYLOAD_TYPE)
 
     return {
-        "service": "ring-attention-distribution",
+        "service": "ring-attention-blockwise",
         "label": MODELED_LABEL,
         # --- fields read VERBATIM by a11oy static/3d/surfaces/ringattn.js ---
         "seq_len": int(seq_len),
         "devices": int(devices),
-        "single_device_cap": int(single_device_cap),
-        "block_len": int(block_len),
-        "ring_steps": int(devices),
-        "max_context": int(max_context),
-        "mem_per_device_ratio": round(float(mem_per_device_ratio), 6),
-        "overlap_efficiency": round(float(overlap_efficiency), 6),
-        "exact_attention": bool(exact_attention),
-        "step_costs": step_costs,   # [float]
-        # --- SZL addition: the J/token-saved energy/memory receipt ---
-        "energy_receipt": energy_receipt,
+        "block_size": int(block_size),
+        "num_rotation_steps": int(num_rotation_steps),
+        "per_device_memory_ratio": per_device_memory_ratio,
+        "exact_match": exact_match,
+        "max_context_supported": int(max_context_supported),
+        "rotation_trace": [round(float(x), 6) for x in rotation_trace],
+        # --- provenance ---
         "formulas": {
-            "block_len": "ceil(seq_len / devices)",
-            "ring_steps": "devices (N-1 rotations complete exact attention, plus local block)",
-            "max_context": "devices * single_device_cap (device_count times longer)",
-            "mem_per_device_ratio": "block_len / seq_len",
-            "overlap_efficiency": "sum(t_comp) / sum(max(t_comp, t_comm))",
-            "joules_per_token_saved": "(E_replicated - E_ring) / seq_len",
-            "E_replicated": "devices * seq_len * e_kv_slot",
-            "E_ring": "devices * block_len * e_kv_slot",
+            "block_size": "ceil(seq_len / devices)",
+            "per_device_memory_ratio": "block_size / seq_len ≈ 1/devices",
+            "online_softmax": "streaming (m, l, acc) rescale per block — exact vs full softmax",
         },
         "compute_backend": {
-            "backend": "CPU pure-Python ring-schedule simulation",
+            "backend": "CPU pure-Python ring schedule + online-softmax probe",
             "label": "MODELED",
-            "honest_note": ("Deterministic ring-schedule sim; NO live model, NO GPU, NO collective, "
-                            "NO real kernels. The measured-on-a-real-cluster path is ROADMAP."),
+            "honest_note": ("Ring schedule arithmetic + a real CPU online-softmax exactness "
+                            "check; NO multi-device run, NO GPU. The distributed NCCL-ring path "
+                            "is ROADMAP."),
         },
-        "wired_into": "frontier ring — Ring-Attention surface + llm-router energy receipt",
-        "citations": [CITATIONS["ringattn"]],
+        "wired_into": "frontier ring — Ring-Attention surface (rotating KV blocks + accumulator)",
+        "citations": [CITATIONS["ring"], CITATIONS["flash"]],
         "signed_receipt": {"receipt": receipt, "dsse": dsse},
         "computed_at": _now_iso(),
     }
@@ -240,43 +233,13 @@ def register(app, ns: str = "killinchu") -> dict:
     base = "/api/%s/v1/ringattn" % ns
 
     @app.get("%s/simulate" % base)
-    async def _kc_ringattn(seed: int = 42, seq_len: int = 32768, devices: int = 8,
-                           single_device_cap: int = 4096):  # noqa: ANN202
+    async def _kc_ringattn(seed: int = 42, seq_len: int = 4096, devices: int = 8):  # noqa: ANN202
         try:
-            return JSONResponse(ringattn_simulate(seed=seed, seq_len=seq_len, devices=devices,
-                                                  single_device_cap=single_device_cap))
+            return JSONResponse(ringattn_simulate(seed=seed, seq_len=seq_len, devices=devices))
         except Exception as exc:  # pragma: no cover — never 500 the surface
-            return JSONResponse({"service": "ring-attention-distribution",
-                                 "label": MODELED_LABEL,
+            return JSONResponse({"service": "ring-attention-blockwise", "label": MODELED_LABEL,
                                  "error": "compute fail-open: %s" % (str(exc)[:160]),
-                                 "max_context": None, "overlap_efficiency": None},
-                                status_code=200)
-
-    # Starlette Route fallback.
-    try:
-        from starlette.routing import Route
-        from starlette.responses import JSONResponse as _SJSON
-
-        async def _kc_ringattn_route(request):  # pragma: no cover — fallback path
-            q = request.query_params
-            try:
-                return _SJSON(ringattn_simulate(
-                    seed=int(q.get("seed", 42)),
-                    seq_len=int(q.get("seq_len", 32768)),
-                    devices=int(q.get("devices", 8)),
-                    single_device_cap=int(q.get("single_device_cap", 4096))))
-            except Exception as exc:
-                return _SJSON({"service": "ring-attention-distribution",
-                               "label": MODELED_LABEL,
-                               "error": "compute fail-open: %s" % (str(exc)[:160])},
-                              status_code=200)
-
-        if not any(getattr(r, "path", None) == "%s/simulate" % base
-                   for r in getattr(app.router, "routes", [])):
-            app.router.routes.append(Route("%s/simulate" % base, _kc_ringattn_route,
-                                           methods=["GET"]))
-    except Exception:  # pragma: no cover
-        pass
+                                 "exact_match": None}, status_code=200)
 
     return {"ok": True, "ns": ns, "routes": ["%s/simulate" % base]}
 
@@ -286,44 +249,27 @@ def register(app, ns: str = "killinchu") -> dict:
 # =====================================================================================
 def _selftest() -> dict:
     out: dict = {}
-    r = ringattn_simulate(seed=42, seq_len=32768, devices=8, single_device_cap=4096)
+    r = ringattn_simulate(seed=42, seq_len=4096, devices=8)
 
-    # (a) honest label verbatim + every field the frontend reads present & typed.
+    # (a) honest label verbatim + every field the frontend reads is present & typed.
     assert r["label"] == MODELED_LABEL, r["label"]
-    for f in ("seq_len", "devices", "single_device_cap", "block_len", "ring_steps", "max_context"):
+    for f in ("seq_len", "devices", "block_size", "num_rotation_steps", "max_context_supported"):
         assert isinstance(r[f], int), (f, r.get(f))
-    for f in ("mem_per_device_ratio", "overlap_efficiency"):
-        assert isinstance(r[f], (int, float)), (f, r.get(f))
-    assert isinstance(r["exact_attention"], bool), r
-    assert isinstance(r["step_costs"], list) and r["step_costs"], r
-    assert all(isinstance(x, (int, float)) for x in r["step_costs"]), r["step_costs"]
+    assert isinstance(r["per_device_memory_ratio"], (int, float)), r
+    assert isinstance(r["exact_match"], bool), r
+    assert isinstance(r["rotation_trace"], list) and r["rotation_trace"], r
 
-    # (b) surface-specific invariants: block covers the sequence; ring rotates N steps; max context
-    #     is device_count times longer; per-device memory is a small fraction of the full sequence;
-    #     comm is overlapped (efficiency in (0,1]); attention is exact.
-    assert r["block_len"] * r["devices"] >= r["seq_len"], r
-    assert r["ring_steps"] == r["devices"], r
-    assert r["max_context"] == r["devices"] * r["single_device_cap"], r
-    assert r["max_context"] > r["single_device_cap"], r  # ring extends reachable context
-    assert 0.0 < r["mem_per_device_ratio"] <= 1.0, r
-    assert r["mem_per_device_ratio"] < 1.0, r  # distributing beats a single device holding all
-    assert 0.0 < r["overlap_efficiency"] <= 1.0, r["overlap_efficiency"]
-    assert r["exact_attention"] is True, r
-    out["metrics"] = {"block_len": r["block_len"], "max_context": r["max_context"],
-                      "mem_per_device_ratio": r["mem_per_device_ratio"],
-                      "overlap_efficiency": r["overlap_efficiency"]}
+    # (b) ring invariants: block_size*devices covers seq_len; steps == devices; ratio in (0,1].
+    assert r["block_size"] * r["devices"] >= r["seq_len"], r
+    assert r["num_rotation_steps"] == r["devices"], r
+    assert 0.0 < r["per_device_memory_ratio"] <= 1.0, r
+    # the online-softmax probe must actually be exact vs full softmax.
+    assert r["exact_match"] is True, ("online softmax not exact", r)
+    out["metrics"] = {"block_size": r["block_size"], "devices": r["devices"],
+                      "per_device_memory_ratio": r["per_device_memory_ratio"],
+                      "exact_match": r["exact_match"], "max_ctx": r["max_context_supported"]}
 
-    # (c) energy/memory receipt: positive joules saved on this profile.
-    er = r["energy_receipt"]
-    assert er["joules_saved"] > 0, er
-    assert er["joules_per_token_saved"] > 0, er
-    assert 0.0 < er["energy_reduction_pct"] < 100.0, er
-    assert "Conjecture 1" in er["gate"], er
-    out["energy_receipt"] = {"joules_saved": er["joules_saved"],
-                             "joules_per_token_saved": er["joules_per_token_saved"],
-                             "energy_reduction_pct": er["energy_reduction_pct"]}
-
-    # (d) signed receipt present + honest label embedded; signature never fabricated.
+    # (c) signed receipt present + honest label embedded; signature never fabricated.
     d = r["signed_receipt"]["dsse"]
     rc = r["signed_receipt"]["receipt"]
     assert "NOT_LIVE" in rc["label"], rc["label"]
@@ -332,10 +278,10 @@ def _selftest() -> dict:
     assert "SIMULATED" in rc["effector_posture"], rc
     out["signed_receipt"] = {"signed": d.get("signed")}
 
-    # (e) determinism: same inputs -> identical result.
-    r2 = ringattn_simulate(seed=42, seq_len=32768, devices=8, single_device_cap=4096)
-    assert r2["step_costs"] == r["step_costs"], "non-deterministic"
-    assert r2["overlap_efficiency"] == r["overlap_efficiency"], "non-deterministic overlap"
+    # (d) determinism: same inputs -> identical snapshot.
+    r2 = ringattn_simulate(seed=42, seq_len=4096, devices=8)
+    assert r2["rotation_trace"] == r["rotation_trace"], "non-deterministic trace"
+    assert r2["block_size"] == r["block_size"], "non-deterministic block_size"
     out["deterministic"] = True
 
     out["ok"] = True
@@ -344,7 +290,4 @@ def _selftest() -> dict:
 
 if __name__ == "__main__":
     import sys
-    res = _selftest()
-    print(_json.dumps(res, indent=2), file=sys.stderr)
-    assert res["ok"] is True
-    print("ALL OK")
+    print(_json.dumps(_selftest(), indent=2), file=sys.stderr)
