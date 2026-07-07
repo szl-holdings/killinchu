@@ -2633,6 +2633,19 @@ async def spa_map() -> FileResponse:
     """SPA history fallback — serves index.html for /map."""
     return FileResponse(INDEX_HTML, media_type="text/html")
 
+
+@app.get("/killinchu")
+async def spa_killinchu() -> FileResponse:
+    """Explicit route for /killinchu — the exact URL a-11-oy.com links to for this
+    vertical. The built SPA router has NO /killinchu route, so React rendered a
+    "404 · No such route" view into #root directly beneath the always-present live
+    counter-UAS command deck. index.html now carries a try/guarded deck-route guard
+    that hides that empty 404 shell whenever the SPA genuinely 404s and the live
+    deck is present, so /killinchu serves the deck as a complete, honest page.
+    Additive; no existing route shadowed; falls back to INDEX_HTML like the other
+    SPA paths. Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
 # ============================================================================
 # END: SPA HISTORY FALLBACK explicit routes
 # ============================================================================
