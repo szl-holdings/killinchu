@@ -175,6 +175,19 @@ COPY szl_energy_sovereign.py szl_joules_truth.py ./
 # serve.py's guarded import degrades to a not-registered stub. Per-file COPY (NEVER `COPY . .`).
 COPY szl_kc_tda_fracture.py ./
 
+# ADDITIVE (Wave-H Team-4 counter-UAS/sensor-fusion): GOVERNED multi-sensor TRACK FUSION organ.
+# szl_kc_trackfusion.py -> GET /api/killinchu/v1/trackfusion/associate. Full multi-sensor <->
+# multi-target JPDA-style data association (Fortmann-Bar-Shalom-Scheffe 1983 validation gate +
+# feasible joint-event enumeration + marginal beta_{jt}; Reid-1979 MHT top-K), CI variance fusion
+# (Julier-Uhlmann), swarm-intent classification (Fiedler lambda2 formation coherence + closing-
+# vector behavioural intent; DroneShield-AI arXiv:2606.11687), and a Lambda-gated ROE advisory
+# (Conjecture 1, never 'green') emitting ONE signed engagement receipt. HONEST: MODELED |
+# SIMULATED_SENSORS | NOT_LIVE; effector SIMULATED, human-on-loop, NEVER an autonomous engage.
+# PURE STDLIB; imports szl_dsse (already COPYed) for REAL ECDSA-P256 receipts in-Space, honest
+# UNSIGNED-LOCAL marker otherwise. MUST be COPY'd or serve.py's guarded import degrades to a
+# not-registered stub and the counter-UAS fusion tab 404s. Per-file COPY (NEVER `COPY . .`).
+COPY szl_kc_trackfusion.py ./
+
 # FRONTIER backends (2026-07): back the a11oy frontier surfaces ccattest.js + sement.js.
 # szl_kc_cc_attest.py  -> GET /api/killinchu/v1/cc-attest/verify (NVIDIA H100 CC measured-boot
 #   attestation-chain SIMULATION; MODELED, no real GPU/TEE/NRAS/network).
