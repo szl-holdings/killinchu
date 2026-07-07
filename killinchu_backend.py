@@ -26,7 +26,25 @@
 #   DELETE /api/killinchu/watchlists/{wid}      — delete
 #
 # Tables: snapshots, facts, events, watchlists, triggers, notifications.
+"""Persistent, honest-by-default backend for the killinchu Space.
 
+Exposes the ``/api/killinchu/*`` REST surface backed by a durable store that is
+Postgres-first and falls back to SQLite so the module also runs on the Hugging
+Face Docker Space (which has no Postgres). The backend is pure stdlib (``urllib``
++ ``sqlite3``); ``psycopg`` (v3) is imported lazily and used ONLY when it is both
+importable and a ``DATABASE_URL`` is configured.
+
+Doctrine v11 contract enforced here:
+
+* ``register()`` is fully guarded and NEVER crashes the host FastAPI app.
+* Every endpoint returns an envelope of ``{status, citations, fetchedAt}``.
+* Status labels are honest end-to-end: ``live`` (fresh upstream read this
+  request), ``cached`` (last-good snapshot served from the DB because the
+  upstream was unreachable), or ``degraded`` (no durable backend / empty
+  result). No figures are ever fabricated.
+
+See the endpoint/table map in the header comment above for the full route list.
+"""
 from __future__ import annotations
 
 import json
@@ -398,9 +416,16 @@ class _Store:
         # postgres connection is autocommit
 
     def ok(self) -> bool:
+        """Return True when a durable backend (postgres or sqlite) is available."""
         return self.backend in ("postgres", "sqlite")
 
     def ping(self) -> bool:
+        """Probe the backend with ``SELECT 1``, recording latency and outcome.
+
+        Updates ``last_ping_ok``/``last_ping_ms``/``last_ping_at`` and returns the
+        boolean result. Failures are logged to stderr and reported as False
+        rather than raised, so callers can degrade honestly.
+        """
         t0 = time.time()
         try:
             with self._lock:
@@ -417,6 +442,7 @@ class _Store:
         return bool(self.last_ping_ok)
 
     def execute(self, sql: str, params: Tuple = ()) -> None:
+        """Run a write statement under the store lock, then commit."""
         with self._lock:
             cur = self._cursor()
             cur.execute(self._q(sql), params)
@@ -424,6 +450,11 @@ class _Store:
             cur.close()
 
     def insert_returning_id(self, sql: str, params: Tuple = ()) -> Optional[int]:
+        """Insert a row and return its new ``id``, or None if nothing was returned.
+
+        Appends ``RETURNING id`` to *sql*; works identically on Postgres and on
+        the SQLite fallback (where the row is read back via ``sqlite3.Row``).
+        """
         with self._lock:
             cur = self._cursor()
             cur.execute(self._q(sql + " RETURNING id"), params)
@@ -435,6 +466,7 @@ class _Store:
         return int(row[0] if not isinstance(row, sqlite3.Row) else row["id"])
 
     def query(self, sql: str, params: Tuple = ()) -> List[Dict[str, Any]]:
+        """Run a read query and return rows as a list of column-keyed dicts."""
         with self._lock:
             cur = self._cursor()
             cur.execute(self._q(sql), params)
@@ -450,6 +482,11 @@ class _Store:
         return out
 
     def health(self) -> Dict[str, Any]:
+        """Ping the backend and return a health dict for ``/db/health`` + ``/healthz``.
+
+        The returned mapping describes the active backend, whether it is durable,
+        and the most recent ping outcome/latency.
+        """
         self.ping()
         return {
             "backend": self.backend,
@@ -875,6 +912,14 @@ def start_scheduler(app) -> str:
 # FastAPI registration
 # ---------------------------------------------------------------------------
 def register(app, ns: str = "killinchu") -> str:
+    """Mount the killinchu backend routes on *app* and return the base path.
+
+    Registers every ``/api/{ns}/*`` handler BEFORE the SPA catch-all so the API
+    is reachable, and returns the mounted base (e.g. ``/api/killinchu``). Follows
+    the FastAPI 0.137.2 convention: POST handlers taking a raw ``Request`` are
+    added via the router so they bind correctly. The whole body is caller-guarded
+    upstream so a failure here can never crash the host app.
+    """
     from fastapi import Request
     from fastapi.responses import JSONResponse
 
@@ -890,10 +935,12 @@ def register(app, ns: str = "killinchu") -> str:
 
     # -- db health (used by /healthz) --------------------------------------
     async def db_health(request: Request) -> JSONResponse:
+        """GET /db/health — report the durable store's backend + last ping."""
         return JSONResponse(_envelope("ok", {"db": _store().health()}, []))
 
     # -- live (cached scrape) ---------------------------------------------
     async def live(request: Request) -> JSONResponse:
+        """POST /live — on-demand cached read with citations; degrades honestly."""
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, _adsb_citation()), status_code=200)
@@ -919,10 +966,12 @@ def register(app, ns: str = "killinchu") -> str:
 
     # -- crawl/run (manual) ------------------------------------------------
     async def crawl_run(request: Request) -> JSONResponse:
+        """POST /crawl/run — trigger a manual crawl and return its result envelope."""
         return JSONResponse(run_crawl(mode="crawl"))
 
     # -- crawl/status (auto-crawl scheduler health) ------------------------
     async def crawl_status(request: Request) -> JSONResponse:
+        """GET /crawl/status — report the auto-crawl scheduler configuration + health."""
         cfg = scheduler_config()
         data = {
             "config": {
@@ -940,6 +989,7 @@ def register(app, ns: str = "killinchu") -> str:
 
     # -- timeline ----------------------------------------------------------
     async def timeline(request: Request) -> JSONResponse:
+        """GET /timeline — return the events timeline from the durable store."""
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"events": []}, []))
@@ -956,6 +1006,7 @@ def register(app, ns: str = "killinchu") -> str:
 
     # -- alerts/recent -----------------------------------------------------
     async def alerts_recent(request: Request) -> JSONResponse:
+        """GET /alerts/recent — return recent watchlist-hit notifications."""
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"alerts": []}, []))
@@ -984,6 +1035,7 @@ def register(app, ns: str = "killinchu") -> str:
         return d
 
     async def watchlists_list(request: Request) -> JSONResponse:
+        """GET /watchlists — list watchlists (empty + degraded when no backend)."""
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"watchlists": []}, []))
@@ -992,6 +1044,7 @@ def register(app, ns: str = "killinchu") -> str:
         return JSONResponse(_envelope("ok", {"watchlists": out, "count": len(out)}, []))
 
     async def watchlists_create(request: Request) -> JSONResponse:
+        """POST /watchlists — create a watchlist and its triggers."""
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, []), status_code=503)
@@ -1017,6 +1070,7 @@ def register(app, ns: str = "killinchu") -> str:
         return JSONResponse(_envelope("ok", {"watchlist": _watchlist_dto(s, wid)}, []), status_code=201)
 
     async def watchlists_update(request: Request) -> JSONResponse:
+        """PUT /watchlists/{wid} — update a watchlist and its triggers."""
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, []), status_code=503)
@@ -1051,6 +1105,7 @@ def register(app, ns: str = "killinchu") -> str:
         return JSONResponse(_envelope("ok", {"watchlist": _watchlist_dto(s, wid)}, []))
 
     async def watchlists_delete(request: Request) -> JSONResponse:
+        """DELETE /watchlists/{wid} — delete a watchlist and its triggers."""
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, []), status_code=503)
@@ -1086,6 +1141,12 @@ def register(app, ns: str = "killinchu") -> str:
 
 # Used by serve.py /healthz to add uptime + db ping without shadowing the route.
 def health_fields() -> Dict[str, Any]:
+    """Return backend health fields for the host ``/healthz`` payload.
+
+    Reports process uptime and the durable-store health block. Any exception is
+    swallowed and surfaced as ``db.backend == "error"`` so ``/healthz`` itself
+    never breaks.
+    """
     try:
         st = _store()
         return {"uptime_seconds": round(time.time() - _START_TS, 1), "db": st.health()}
