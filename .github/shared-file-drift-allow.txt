@@ -18,38 +18,34 @@
 #
 # Seeded 2026-06-08 with the drift that existed when the guard was added.
 # 2026-06-09 reconciliation pass: szl_rag.py and szl_khipu_lmdb.py were synced to
-# a single canonical copy in BOTH repos and removed from this list. The remaining
-# entries are GENUINE, intentional app-specific divergences (one-line reason each)
-# kept on purpose — the two demos are NOT meant to be byte-identical here, so they
-# are documented rather than force-synced.
-
+# a single canonical copy in BOTH repos and removed from this list.
 # 2026-06-14 reconciliation pass (frontier shared-drift fix): a11oy_code_engine.py
-#   (a11oy canonical 353c8017 locked-5->8) and szl_provenance.py (killinchu canonical
-#   deae62de additive Rekor/cited-proofs) were synced to a single byte-identical copy in
-#   BOTH repos and removed from this list. szl_dsse.py rotated cosign key (a11oy d13df64c)
-#   synced killinchu->canonical; it was never allow-listed (enforced identical).
+#   and szl_provenance.py synced to a single byte-identical copy in BOTH repos.
+# 2026-06-30 reconciliation pass (CI sweep Dev C): removed 7 stale-allow entries
+#   now byte-identical: szl_alloy_models.py, szl_llm_registry.py, operator_shell_v4.py,
+#   live_wires_3d.js, szl_khipu_consensus.py, szl_energy_sovereign.py, szl_live_wires.py,
+#   live_wires.html.
+#
+# 2026-07-07 reconciliation pass (Wave-K substrate-finish): the two repos' allow-lists
+#   had drifted apart (a11oy carried 8 entries killinchu lacked). Verified those 8
+#   files are once again byte-identical a11oy<->killinchu at HEAD and removed the now-
+#   STALE entries to tighten the ratchet and restore this file to being IDENTICAL in
+#   both repos:
+#     a11oy_agent_loop.py, a11oy_code_engine.py, static-vendor/a11oy-operator-widget.js,
+#     szl_agentic_loop.py, szl_joules_truth.py, szl_llm_registry.py, szl_rag.py,
+#     szl_v4_fleet.py  (all confirmed `cmp`-identical). The three GENUINE app-specific
+#   divergences below are kept on purpose.
 
 # --- App-specific feature sets: each demo ships features the other does not.
-
-# 2026-06-30 reconciliation pass (CI sweep Dev C): removed 7 stale-allow entries
-#   that are now byte-identical: szl_alloy_models.py, szl_llm_registry.py,
-#   operator_shell_v4.py, live_wires_3d.js, szl_khipu_consensus.py,
-#   szl_energy_sovereign.py, szl_live_wires.py, live_wires.html. Tightening ratchet.
 szl_evidence_research.py   # killinchu-only finance/real-estate/risk vertical CLAIMS (PR #115) absent from a11oy's organ console
-
-# --- Doctrine / honesty-claim state that differs per demo.
-# 2026-06-10: szl_brain.py and szl_formulas.py were union-merged to a single
-#   canonical byte-identical copy in BOTH repos tonight, so they are removed from
-#   this list to tighten the ratchet (they are now ENFORCED identical).
 
 # --- Vendored binary-asset blob bundle: each demo vendors a different set of
 #     fonts / 3D / chart assets as base64 blobs, so this file legitimately
 #     differs (a11oy ~1.52MB vs killinchu ~1.30MB). NOT a shared logic module.
 _vendor_blobs.py           # per-app vendored asset blob bundle (different asset sets)
 
-# --- 2026-06-14: killinchu QA5 demo-floor rate-limit fix. killinchu exempts
-#     its own page/static routes (/elite, /maritime, /globe, /jackin, ...) from
-#     the per-IP limiter so the showcase always renders; a11oy serves different
-#     routes, so this hardening module is intentionally app-specific. Reconcile
-#     only if both demos ever adopt one shared limiter.
+# --- killinchu QA5 demo-floor rate-limit fix. killinchu exempts its own page/static
+#     routes (/elite, /maritime, /globe, /jackin, ...) from the per-IP limiter so the
+#     showcase always renders; a11oy serves different routes, so this hardening module
+#     is intentionally app-specific. Reconcile only if both demos adopt one limiter.
 szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (app-specific routes)
