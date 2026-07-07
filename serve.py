@@ -213,6 +213,27 @@ try:
 except Exception as _szl_kctda_e:  # pragma: no cover
     print(f"[killinchu] TDA-Fracture regime detector NOT registered: {_szl_kctda_e!r}", file=__import__("sys").stderr)
 
+# FRONTIER (Wave-H Team-4 counter-UAS/sensor-fusion) — GOVERNED multi-sensor TRACK FUSION
+# organ. The killinchu-native gap: szl_cuas_formulas.py had only SINGLE-PAIR covariance-
+# intersection + one Mahalanobis gate + WTA; this adds a FULL multi-sensor ↔ multi-target
+# JPDA-style data-association matrix (Fortmann-Bar-Shalom-Scheffe 1983 validation gate +
+# feasible joint-event enumeration + marginal β_{jt}; Reid-1979 MHT top-K view), CI variance
+# fusion (Julier-Uhlmann), swarm-intent classification (formation Fiedler λ2 + closing-vector
+# behavioural intent, DroneShield-AI arXiv:2606.11687), and a Λ-gated ROE advisory (weighted
+# geometric mean, Conjecture 1 — NEVER 'green') that emits ONE signed engagement receipt (REAL
+# ECDSA-P256 in-Space via szl_dsse, honest UNSIGNED-LOCAL otherwise). Studies + folds the
+# GOVERNED version of the leaders (Anduril Lattice, Palantir Maven, DroneShield/Fortem/Dedrone).
+# HONEST: MODELED | SIMULATED_SENSORS | NOT_LIVE | ROE_ADVISORY_HUMAN_ON_LOOP — effector always
+# SIMULATED, human-on-loop, NEVER an autonomous engage. Adds /api/killinchu/v1/trackfusion/
+# associate. PURE STDLIB. Additive, try/except-guarded, BEFORE the SPA catch-all. Adds nothing
+# to the locked-8; Λ stays Conjecture 1; trust never 100%.
+try:
+    import szl_kc_trackfusion as _szl_kc_trackfusion
+    _szl_kc_trackfusion.register(app, ns="killinchu")
+    print("[killinchu] Track-Fusion (JPDA/MHT + swarm-intent + Λ-ROE) registered: /api/killinchu/v1/trackfusion/associate", file=__import__("sys").stderr)
+except Exception as _szl_kctf_e:  # pragma: no cover
+    print(f"[killinchu] Track-Fusion NOT registered: {_szl_kctf_e!r}", file=__import__("sys").stderr)
+
 # FRONTIER — Confidential-Compute Attestation Chain (backs a11oy static/3d/surfaces/ccattest.js).
 # Deterministic seeded TEE measured-boot attestation-chain SIMULATION in the NVIDIA H100
 # Confidential Computing style: device_identity (sha384) -> measurement_chain[] (bootloader ->
