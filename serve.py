@@ -645,7 +645,10 @@ except Exception as _szl_jpt_e:  # pragma: no cover
 # conjecture is NEVER a theorem; stays OPEN until independently verified; Conjecture 1
 # (Λ uniqueness) remains OPEN. Additive, try/except-guarded. Pure stdlib.
 try:
-    import szl_conjecture_factory as _szl_conjecture_factory
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_conjecture_factory as _szl_conjecture_factory  # single source of truth
+    except Exception:
+        import szl_conjecture_factory as _szl_conjecture_factory  # fall back to local vendored copy
     _szl_conjecture_factory.register(app, ns="killinchu")
     print("[killinchu] Conjecture Factory registered: /api/killinchu/v1/conjecture-factory", file=__import__("sys").stderr)
 except Exception as _szl_cf_e:  # pragma: no cover
@@ -792,7 +795,10 @@ except Exception as _qa_cuas_e:  # pragma: no cover — additive; never break th
 # adds NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Shared
 # module byte-identical a11oy↔killinchu. Additive, try/except-guarded.
 try:
-    import szl_scaling as _szl_scaling
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_scaling as _szl_scaling  # single source of truth
+    except Exception:
+        import szl_scaling as _szl_scaling  # fall back to local vendored copy
     _szl_scaling.register(app, ns="killinchu")
     print("[killinchu] Scaling formulas registered: /api/killinchu/v1/scaling/*", file=__import__("sys").stderr)
 except Exception as _szl_scaling_e:  # pragma: no cover
@@ -805,7 +811,10 @@ except Exception as _szl_scaling_e:  # pragma: no cover
 # locked 8; Λ stays Conjecture 1; trust never 100%. Shared module byte-identical
 # a11oy↔killinchu. Additive, try/except-guarded.
 try:
-    import szl_allodial as _szl_allodial
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_allodial as _szl_allodial  # single source of truth
+    except Exception:
+        import szl_allodial as _szl_allodial  # fall back to local vendored copy
     _szl_allodial.register(app, ns="killinchu")
     print("[killinchu] Allodial formulas registered: /api/killinchu/v1/allodial/*", file=__import__("sys").stderr)
 except Exception as _szl_allodial_e:  # pragma: no cover
@@ -825,7 +834,10 @@ except Exception as _szl_allodial_e:  # pragma: no cover
 # summary(). Pure stdlib. Shared module byte-identical a11oy↔killinchu. The
 # killinchu effector surface stays SIMULATED. Additive, try/except-guarded.
 try:
-    import szl_entanglement as _szl_entanglement
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_entanglement as _szl_entanglement  # single source of truth
+    except Exception:
+        import szl_entanglement as _szl_entanglement  # fall back to local vendored copy
     _szl_entanglement.register(app, ns="killinchu")
     print("[killinchu] Entanglement formulas registered: /api/killinchu/v1/entangle/*", file=__import__("sys").stderr)
 except Exception as _szl_entanglement_e:  # pragma: no cover
@@ -844,7 +856,10 @@ except Exception as _szl_entanglement_e:  # pragma: no cover
 # NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Pure stdlib. Shared
 # module byte-identical a11oy↔killinchu. The killinchu effector surface stays SIMULATED. Additive, try/except-guarded.
 try:
-    import szl_neuroplasticity as _szl_neuroplasticity
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_neuroplasticity as _szl_neuroplasticity  # single source of truth
+    except Exception:
+        import szl_neuroplasticity as _szl_neuroplasticity  # fall back to local vendored copy
     _szl_neuroplasticity.register(app, ns="killinchu")
     print("[killinchu] Neuroplasticity formulas registered: /api/killinchu/v1/neuro/*", file=__import__("sys").stderr)
 except Exception as _szl_neuroplasticity_e:  # pragma: no cover
@@ -869,7 +884,10 @@ except Exception as _szl_neuroplasticity_e:  # pragma: no cover
 # never 100%. Pure stdlib. Shared module byte-identical a11oy<->killinchu. The
 # killinchu effector surface stays SIMULATED. Additive, try/except-guarded.
 try:
-    import szl_chain_of_title as _szl_chain_of_title
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_chain_of_title as _szl_chain_of_title  # single source of truth
+    except Exception:
+        import szl_chain_of_title as _szl_chain_of_title  # fall back to local vendored copy
     _szl_chain_of_title.register(app, ns="killinchu")
     print("[killinchu] Chain-of-Title (L6) registered: /api/killinchu/v1/chain/*", file=__import__("sys").stderr)
 except Exception as _szl_chain_of_title_e:  # pragma: no cover
@@ -1076,7 +1094,10 @@ except Exception as _kasw_e:  # additive: never break the Space
 _szl_connectors_serve = None
 _szl_connectors_status = "connectors-not-wired"
 try:
-    import szl_connectors_serve as _szl_connectors_serve
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_connectors_serve as _szl_connectors_serve  # single source of truth
+    except Exception:
+        import szl_connectors_serve as _szl_connectors_serve  # fall back to local vendored copy
     _szl_connectors_status = _szl_connectors_serve.register(app, ns="killinchu")
     print(f"[killinchu] enterprise connectors wired ({_szl_connectors_status})", file=sys.stderr)
 except Exception as _szc_e:  # additive: never break the Space
@@ -1114,7 +1135,10 @@ except Exception as _kan_e:  # additive: never break the Space
 _szl_ecosystem = None
 _szl_ecosystem_status = "ecosystem-not-wired"
 try:
-    import szl_ecosystem_routes as _szl_ecosystem
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_ecosystem_routes as _szl_ecosystem  # single source of truth
+    except Exception:
+        import szl_ecosystem_routes as _szl_ecosystem  # fall back to local vendored copy
     _szl_ecosystem_status = _szl_ecosystem.register(app, ns="killinchu")
     print(f"[killinchu] ecosystem foundation wired ({_szl_ecosystem_status})", file=sys.stderr)
 except Exception as _eco_e:  # additive: never break the Space
@@ -2426,7 +2450,10 @@ async def vessels_catch(path: str) -> JSONResponse:
 # PLACEHOLDER -> REAL: every receipt now DSSE-signed with szlholdings-cosign.
 # ---------------------------------------------------------------------------
 try:
-    import szl_provenance as _prov
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_provenance as _prov  # single source of truth
+    except Exception:
+        import szl_provenance as _prov  # fall back to local vendored copy
     _prov_status = _prov.register_provenance(app, "killinchu")
     print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L1 honest; L2 roadmap): {{_prov_status}}", file=sys.stderr)
 except Exception as _pe:  # pragma: no cover - defensive, additive-only
@@ -2438,7 +2465,10 @@ except Exception as _pe:  # pragma: no cover - defensive, additive-only
 # + /api/killinchu/v3/doctrine + /wires/D. Real DSSE via szl_dsse. v11 verbatim.
 # ---------------------------------------------------------------------------
 try:
-    import szl_warhacker_aliases as _wh_aliases
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_warhacker_aliases as _wh_aliases  # single source of truth
+    except Exception:
+        import szl_warhacker_aliases as _wh_aliases  # fall back to local vendored copy
     _wh_status = _wh_aliases.register(app, "killinchu", build_sha=os.environ.get("SPACE_COMMIT_SHA", "warhacker-aliases-v1"))
     print(f"[killinchu] Warhacker aliases registered: {_wh_status}", file=sys.stderr)
 except Exception as _wh_e:
@@ -3065,7 +3095,10 @@ except Exception as _sb_e:
 
 # ── operator_shell_v4 (V4 routes: healthz/inbox/receipts/map/state/stream) ───
 try:
-    import operator_shell_v4 as _kc_osh_v4
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import operator_shell_v4 as _kc_osh_v4  # single source of truth
+    except Exception:
+        import operator_shell_v4 as _kc_osh_v4  # fall back to local vendored copy
     _kc_osh_v4_status = _kc_osh_v4.register(app, "killinchu", web_dir="/app/web")
     import sys as _kc_osh_sys
     print(f"[killinchu] PARITY: Operator Shell v4 registered: {_kc_osh_v4_status}", file=_kc_osh_sys.stderr)
@@ -3484,7 +3517,10 @@ except Exception as _opw_kc_e:  # never crash the app — additive only
 # Additive, try/except-guarded, registered BEFORE the SPA catch-all.
 # ===========================================================================
 try:
-    import szl_restraint as _szl_restraint
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_restraint as _szl_restraint  # single source of truth
+    except Exception:
+        import szl_restraint as _szl_restraint  # fall back to local vendored copy
 
     def _kc_restraint_sign(_obj):
         # Reuse the SAME real cosign DSSE signer killinchu uses elsewhere. HONEST:
@@ -4457,7 +4493,10 @@ except Exception as _kc_ec_e:
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
 try:
-    import szl_ken as _ken
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_ken as _ken  # single source of truth
+    except Exception:
+        import szl_ken as _ken  # fall back to local vendored copy
     import sys as _sys
     # Detect flagship from FastAPI app title
     _kf = "unknown"
@@ -4928,7 +4967,10 @@ except Exception as _kops_e:
 # browser CDN (server-side fetch, not a browser CDN load).
 # ============================================================================
 try:
-    import a11oy_hf_assets as _kc_hf_assets
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import a11oy_hf_assets as _kc_hf_assets  # single source of truth
+    except Exception:
+        import a11oy_hf_assets as _kc_hf_assets  # fall back to local vendored copy
     import sys as _kchfa_sys
     _kchfa_status = _kc_hf_assets.register(app, ns="killinchu")
     print(f"[killinchu] dev3 HF assets instill registered: {_kchfa_status}", file=_kchfa_sys.stderr)
@@ -4956,7 +4998,10 @@ except Exception as _kchfa_e:
 # can NEVER take the Space down. Shared module byte-identical a11oy<->killinchu.
 # ============================================================================
 try:
-    import szl_metrics_prom as _szl_prom
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_metrics_prom as _szl_prom  # single source of truth
+    except Exception:
+        import szl_metrics_prom as _szl_prom  # fall back to local vendored copy
     import sys as _prom_sys
     _prom_status = _szl_prom.register(app, ns="killinchu")
     print(f"[killinchu] szl_metrics_prom: {_prom_status}", file=_prom_sys.stderr)
