@@ -39,10 +39,14 @@ def check(name, cond, detail=""):
 def main() -> int:
     print("1-bit sovereign inference — deploy-agnostic Doctrine-v11 verifier\n")
 
+    # Deploy-agnostic + NETWORK-INDEPENDENT: the honesty invariants are exercised on the
+    # OFFLINE (read_meter=False) path so this verifier is deterministic whether or not the
+    # live meter is reachable (Doctrine v11: meter down => graceful MODELED/OFFLINE). The
+    # MEASURED-live path is proven separately below with a synthetic live meter (no network).
     mf = OB.onebit_manifest()
-    est = OB.onebit_estimate(model_params_b=2.4, n_tokens=512)
+    est = OB.onebit_estimate(model_params_b=2.4, n_tokens=512, read_meter=False)
     meth = OB.onebit_methodology()
-    fleet = OB.onebit_fleet_readiness()
+    fleet = OB.onebit_fleet_readiness(read_meter=False)
     c = est["channels"]
     szl = c["c_szl_modeled"]
 
@@ -65,9 +69,13 @@ def main() -> int:
 
     # ---- measured vs modeled separation present (three distinct channels) ----
     print("MEASURED vs ESTIMATED vs SZL-MODELED separation present:")
-    check("three channels present",
-          set(c.keys()) == {"a_measured_by_microsoft", "b_estimated_by_microsoft", "c_szl_modeled"},
+    check("three canonical channels present + separated",
+          {"a_measured_by_microsoft", "b_estimated_by_microsoft",
+           "c_szl_modeled"}.issubset(set(c.keys())),
           f"got {sorted(c.keys())}")
+    check("measured-live channel absent when meter down (never fabricated)",
+          c.get("d_szl_measured_live") is None and est["measured_context"] is None
+          and est["meter_reachable"] is False)
     check("MS Table6 baseline is vs llama.cpp not FP16",
           "NOT vs FP16" in c["a_measured_by_microsoft"]["baseline"])
     check("MS Table6 instrument UNDISCLOSED",
@@ -115,11 +123,12 @@ def main() -> int:
     check("contested-SOTA claim present (Intel PyTorch-TPP)",
           any("uncontested SOTA" in c2["claim"] for c2 in meth["claims"]))
 
-    # ---- fleet-readiness: OFFLINE, NO fabricated measured joules ----
-    print("fleet-readiness OFFLINE with NO fabricated measured joules:")
+    # ---- fleet-readiness: OFFLINE when meter down, NO fabricated measured joules ----
+    print("fleet-readiness OFFLINE (meter down) with NO fabricated measured joules:")
     check("fleet_status OFFLINE", fleet["fleet_status"] == "OFFLINE")
     check("measured_joules_available False", fleet["measured_joules_available"] is False)
     check("measured_joules is None", fleet["measured_joules"] is None)
+    check("measured_channel is None", fleet["measured_channel"] is None)
     check("measured_evidence empty", fleet["measured_evidence"] == {})
     check("all current numbers labeled MODELED", fleet["all_current_numbers_are"] == "MODELED")
     check(">=3 flip conditions (modeled->measured)",
@@ -135,8 +144,10 @@ def main() -> int:
     for k in ("label_is_MODELED", "szl_number_never_measured", "measured_and_modeled_separated",
               "microsoft_12x_labeled_estimated", "microsoft_table6_instrument_unstated",
               "independent_rapl_counter_present", "every_claim_has_citation",
-              "fleet_offline_no_measured", "lambda_is_conjecture_not_theorem",
-              "bitnet_cited_not_claimed_as_own"):
+              "fleet_offline_no_measured_when_meter_down", "lambda_is_conjecture_not_theorem",
+              "bitnet_cited_not_claimed_as_own",
+              # NEW measured-live discipline invariants
+              "measured_channel_only_when_live_true", "never_fabricate_when_meter_down"):
         check(f"invariant {k}", inv.get(k) is True, f"got {inv.get(k)}")
 
     # ---- Λ stays Conjecture 1; bitnet cited not owned ----
@@ -149,12 +160,16 @@ def main() -> int:
 
     # ---- determinism + input sensitivity ----
     print("determinism (same inputs => identical) + input sensitivity:")
-    check("estimate deterministic", OB.onebit_estimate(2.4, 512) == OB.onebit_estimate(2.4, 512))
+    check("estimate deterministic (offline path)",
+          OB.onebit_estimate(2.4, 512, read_meter=False)
+          == OB.onebit_estimate(2.4, 512, read_meter=False))
     check("manifest deterministic", OB.onebit_manifest() == OB.onebit_manifest())
     check("methodology deterministic", OB.onebit_methodology() == OB.onebit_methodology())
-    check("fleet deterministic", OB.onebit_fleet_readiness() == OB.onebit_fleet_readiness())
+    check("fleet deterministic (offline path)",
+          OB.onebit_fleet_readiness(read_meter=False) == OB.onebit_fleet_readiness(read_meter=False))
     check("estimate responds to model size",
-          OB.onebit_estimate(7.0, 512) != OB.onebit_estimate(2.4, 512))
+          OB.onebit_estimate(7.0, 512, read_meter=False)
+          != OB.onebit_estimate(2.4, 512, read_meter=False))
 
     # ---- banned-token guard works ----
     print("banned-token guard:")
@@ -185,6 +200,45 @@ def main() -> int:
         "/api/killinchu/v1/onebit/methodology",
         "/api/killinchu/v1/onebit/fleet-readiness",
     ], f"got {routes}")
+
+    # ---- MEASURED-live path (synthetic live meter — no network, deterministic) ----
+    print("MEASURED-live path with a synthetic live meter (only measured on live=true):")
+    synthetic = {
+        "url": OB.CITATIONS["szl_live_joule_meter"],
+        "exporter": "omen-joule-exporter (real NVML via nvidia-smi)",
+        "ts": 1783435960.47, "fetched_at": 1783435961.0,
+        "totals": {"joules": 6937.669},
+        "engines": [{"engine": "omen", "joules": 6937.669, "gpus": [
+            {"index": 0, "name": "NVIDIA GeForce RTX 4060 Ti",
+             "power_w": 6.17, "joules": 6937.669, "live": True}]}],
+        "live": True,
+    }
+    est_on = OB.onebit_estimate(2.4, 512, meter=synthetic)
+    est_off = OB.onebit_estimate(2.4, 512, read_meter=False)
+    mc = est_on["measured_context"]
+    check("measured_context populates on live=true", mc is not None and mc["is_measured"] is True)
+    check("measured_context has real 4060 Ti watts",
+          mc is not None and mc["total_power_w_measured"] == 6.17, f"got {mc}")
+    check("SZL_MEASURED_LIVE channel names the real GPU",
+          est_on["channels"]["d_szl_measured_live"]["engines"][0]["gpus"][0]["name"]
+          == "NVIDIA GeForce RTX 4060 Ti")
+    check("live measured context NEVER changes the MODELED number",
+          est_on["channels"]["c_szl_modeled"]["joules_per_token_modeled"]
+          == est_off["channels"]["c_szl_modeled"]["joules_per_token_modeled"])
+    check("measured_vs_modeled marks measured_context measured only when live",
+          est_on["measured_vs_modeled"]["measured_context_is_measured"] is True
+          and est_off["measured_vs_modeled"]["measured_context_is_measured"] is False)
+    flr_on = OB.onebit_fleet_readiness(meter=synthetic)
+    check("fleet ONLINE on live meter", flr_on["fleet_status"] == "ONLINE")
+    check("fleet reports real measured joules (not null, not hardcoded)",
+          flr_on["measured_joules"] == 6937.669)
+    check("fleet lists engines present (omen)", "omen" in flr_on["engines_present"])
+    check("fleet real per-engine 4060 Ti watts from live read",
+          flr_on["measured_per_engine"][0]["gpus"][0]["power_w_measured"] == 6.17)
+    # Guard: unreachable/garbage meter never yields a measured number.
+    check("unreachable meter reads None (guarded, no crash)",
+          OB.read_live_meter(url="http://127.0.0.1:1/", timeout=0.2) is None)
+    check("None meter => no measured channel", OB._measured_live_channel(None) is None)
 
     print()
     if FAILS:
