@@ -1,0 +1,242 @@
+[
+  {
+    "path": "/api/killinchu/v1/agentcoh/sync",
+    "query": "seed=42&num_agents=3&num_artifacts=4&write_fraction=0.35&mode=mesi",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/aimc/attend",
+    "query": "seed=42&seq_len=128&dim=64&noise_sigma=0.05",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/blt/entropy-patch",
+    "query": "seed=42&threshold=2.5",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/catq/calibrate",
+    "query": "seed=42&num_weights=256&num_calibration_samples=512&mode=catq",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/cc-attest/verify",
+    "query": "seed=42&stages=5",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/ctxready/unroll",
+    "query": "seed=42&K=10&levels=10",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/dla/attention",
+    "query": "seed=42&L=32&capacity=8",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/dllm/denoise",
+    "query": "seed=42&steps=8&length=64",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/elf/flow",
+    "query": "seed=42&num_euler_steps=8&guidance_scale=2.0",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/episodic/recall",
+    "query": "seed=42&k=3&query=what%20did%20I%20ask%20about%20earlier%3F&n_episodes=12",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/flower/bloom",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/flower/graph",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/flowmatch/sample",
+    "query": "seed=42&steps=8&dims=3",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/formalmath/retrieve",
+    "query": "seed=42&goal=theorem%20add_comm_example%20(a%20b%20%3A%20Nat)%20%3A%20a%20%2B%20b%20%3D%20b%20%2B%20a&corpus_size=24&k=5",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/genie/rollout",
+    "query": "seed=42&grid=8&horizon=16&n_latent_actions=6",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/gitthoughts/tree",
+    "query": "seed=42&depth=4&branch=3",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/goat/transport",
+    "query": "seed=42&n_q=12&n_k=16&iters=40&reg=1.0",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/graphmem/traverse",
+    "query": "seed=42&query_type=why_query&max_hops=3&top_k=4",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/grpo/reward-dynamics",
+    "query": "seed=42&group_size=8&steps=200&kl_beta=0.04",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/herotq/quantize",
+    "query": "seed=42&size=32&bits=3",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/hrm/solve",
+    "query": "seed=42&n=4&h_ticks=12&l_steps=8",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/inplacettt/adapt",
+    "query": "seed=42&chunk_size=16&learning_rate=0.2&num_chunks=24",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/interpretability/features",
+    "query": "seed=42&top_k=8&d_model=512&n_features=4096",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/keyless/attention",
+    "query": "seed=42&L=16&d=16&m=3",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/kla/update",
+    "query": "seed=42&dim=8&steps=256&lr=1.0",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/kvcache/h2o-evict",
+    "query": "seed=42&seq_len=512&capacity=128&window=32",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/matgran/truncate",
+    "query": "seed=42&D=32&prefixes=2,4,8,16,32&num_classes=6&num_points=240&nesting=1&distill=1",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/mla/latent-compress",
+    "query": "seed=42&seq_len=128&n_heads=8&d_head=64&d_latent=128",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/moe/route",
+    "query": "seed=42&tokens=64&experts=8&topk=2",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/muon/orthogonalize",
+    "query": "seed=42&m=32&n=32&ns_steps=5",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/nested/schedule",
+    "query": "seed=42&num_tasks=6&k_fast=1&k_med=8&k_slow=64&gate=0.15",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/nsa/simulate",
+    "query": "seed=42&seq_len=256&dim=16&block_size=16&topk=4&window=16",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/nvfp4/quantize",
+    "query": "seed=42&size=32&outliers=3",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/opera/reward",
+    "query": "seed=42&traces=8&steps=12",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/pfield/coordinate",
+    "query": "seed=42&n_agents=8&grid=6&decay=0.8&steps=200",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/qec/surface-code",
+    "query": "seed=42&distance=5&p=0.003",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/qhall/quantify",
+    "query": "seed=42&n_generations=8&bond_dim=4&threshold=0.9",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/rauq/score",
+    "query": "seed=42&seq_len=8&num_heads=6&num_selected_heads=2&preceding_window=1&confidence_weight=0.4&threshold=0.5",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/ringattn/simulate",
+    "query": "seed=42&seq_len=4096&devices=8",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/s3search/search",
+    "query": "seed=42&frontier_width=6&branch_factor=3&num_denoise_steps=8",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/sement/estimate",
+    "query": "seed=42&K=40&n_clusters=5&threshold=0.6",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/slidesparse/pack",
+    "query": "seed=42&N=4&mode=slidesparse",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/specdecode/simulate",
+    "query": "seed=42&draft_len=6&trials=256",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/specexec/tree",
+    "query": "seed=42&depth=4&branch=3&budget=24",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/ssm/scan",
+    "query": "seed=42&seq_len=32&state_dim=16&task=parity",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/steering/sweep",
+    "query": "seed=42&layer=12&d_model=512&n_coeffs=9&coeff_max=6",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/testtime/scaling",
+    "query": "seed=42&p=0.2&N=64&steps=8",
+    "method": "GET"
+  },
+  {
+    "path": "/api/killinchu/v1/worldmodel/predict",
+    "query": "seed=42&horizon=12&latent_dim=16",
+    "method": "GET"
+  }
+]
