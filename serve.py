@@ -343,6 +343,216 @@ try:
 except Exception as _szl_energy_e:  # pragma: no cover
     print(f"[killinchu] Signed Energy Receipt NOT registered: {_szl_energy_e!r}", file=__import__("sys").stderr)
 
+# ==== WAVE-23 surface organs (36-dead-tab wiring): fashion-thought field-leader
+# mechanisms, MODELED, pure-stdlib, each backs a a11oy holographic surface. Additive,
+# try/except-guarded, before the SPA catch-all. Add nothing to the locked-8; Λ stays Conjecture 1.
+
+try:
+    import szl_kc_agentcoh as _szl_kc_agentcoh
+    _szl_kc_agentcoh.register(app, ns="killinchu")
+    print("[killinchu] surface organ agentcoh registered: /api/killinchu/v1/agentcoh/sync", file=__import__("sys").stderr)
+except Exception as _szl_kc_agentcoh_e:  # pragma: no cover
+    print(f"[killinchu] surface organ agentcoh NOT registered: {_szl_kc_agentcoh_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_elf as _szl_kc_elf
+    _szl_kc_elf.register(app, ns="killinchu")
+    print("[killinchu] surface organ elf registered: /api/killinchu/v1/elf/flow", file=__import__("sys").stderr)
+except Exception as _szl_kc_elf_e:  # pragma: no cover
+    print(f"[killinchu] surface organ elf NOT registered: {_szl_kc_elf_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_graphmem as _szl_kc_graphmem
+    _szl_kc_graphmem.register(app, ns="killinchu")
+    print("[killinchu] surface organ graphmem registered: /api/killinchu/v1/graphmem/traverse", file=__import__("sys").stderr)
+except Exception as _szl_kc_graphmem_e:  # pragma: no cover
+    print(f"[killinchu] surface organ graphmem NOT registered: {_szl_kc_graphmem_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_kan as _szl_kc_kan
+    _szl_kc_kan.register(app, ns="killinchu")
+    print("[killinchu] surface organ kan registered: /api/killinchu/v1/kan/fit", file=__import__("sys").stderr)
+except Exception as _szl_kc_kan_e:  # pragma: no cover
+    print(f"[killinchu] surface organ kan NOT registered: {_szl_kc_kan_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_moe as _szl_kc_moe
+    _szl_kc_moe.register(app, ns="killinchu")
+    print("[killinchu] surface organ moe registered: /api/killinchu/v1/moe/route", file=__import__("sys").stderr)
+except Exception as _szl_kc_moe_e:  # pragma: no cover
+    print(f"[killinchu] surface organ moe NOT registered: {_szl_kc_moe_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_qhall as _szl_kc_qhall
+    _szl_kc_qhall.register(app, ns="killinchu")
+    print("[killinchu] surface organ qhall registered: /api/killinchu/v1/qhall/quantify", file=__import__("sys").stderr)
+except Exception as _szl_kc_qhall_e:  # pragma: no cover
+    print(f"[killinchu] surface organ qhall NOT registered: {_szl_kc_qhall_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_titans as _szl_kc_titans
+    _szl_kc_titans.register(app, ns="killinchu")
+    print("[killinchu] surface organ titans registered: /api/killinchu/v1/titans/recall", file=__import__("sys").stderr)
+except Exception as _szl_kc_titans_e:  # pragma: no cover
+    print(f"[killinchu] surface organ titans NOT registered: {_szl_kc_titans_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_aimc as _szl_kc_aimc
+    _szl_kc_aimc.register(app, ns="killinchu")
+    print("[killinchu] surface organ aimc registered: /api/killinchu/v1/aimc/attend", file=__import__("sys").stderr)
+except Exception as _szl_kc_aimc_e:  # pragma: no cover
+    print(f"[killinchu] surface organ aimc NOT registered: {_szl_kc_aimc_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_flowmatch as _szl_kc_flowmatch
+    _szl_kc_flowmatch.register(app, ns="killinchu")
+    print("[killinchu] surface organ flowmatch registered: /api/killinchu/v1/flowmatch/sample", file=__import__("sys").stderr)
+except Exception as _szl_kc_flowmatch_e:  # pragma: no cover
+    print(f"[killinchu] surface organ flowmatch NOT registered: {_szl_kc_flowmatch_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_grpo as _szl_kc_grpo
+    _szl_kc_grpo.register(app, ns="killinchu")
+    print("[killinchu] surface organ grpo registered: /api/killinchu/v1/grpo/reward-dynamics", file=__import__("sys").stderr)
+except Exception as _szl_kc_grpo_e:  # pragma: no cover
+    print(f"[killinchu] surface organ grpo NOT registered: {_szl_kc_grpo_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_kla as _szl_kc_kla
+    _szl_kc_kla.register(app, ns="killinchu")
+    print("[killinchu] surface organ kla registered: /api/killinchu/v1/kla/update", file=__import__("sys").stderr)
+except Exception as _szl_kc_kla_e:  # pragma: no cover
+    print(f"[killinchu] surface organ kla NOT registered: {_szl_kc_kla_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_mor as _szl_kc_mor
+    _szl_kc_mor.register(app, ns="killinchu")
+    print("[killinchu] surface organ mor registered: /api/killinchu/v1/mor/route", file=__import__("sys").stderr)
+except Exception as _szl_kc_mor_e:  # pragma: no cover
+    print(f"[killinchu] surface organ mor NOT registered: {_szl_kc_mor_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_rauq as _szl_kc_rauq
+    _szl_kc_rauq.register(app, ns="killinchu")
+    print("[killinchu] surface organ rauq registered: /api/killinchu/v1/rauq/score", file=__import__("sys").stderr)
+except Exception as _szl_kc_rauq_e:  # pragma: no cover
+    print(f"[killinchu] surface organ rauq NOT registered: {_szl_kc_rauq_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_ssm as _szl_kc_ssm
+    _szl_kc_ssm.register(app, ns="killinchu")
+    print("[killinchu] surface organ ssm registered: /api/killinchu/v1/ssm/scan", file=__import__("sys").stderr)
+except Exception as _szl_kc_ssm_e:  # pragma: no cover
+    print(f"[killinchu] surface organ ssm NOT registered: {_szl_kc_ssm_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_blt as _szl_kc_blt
+    _szl_kc_blt.register(app, ns="killinchu")
+    print("[killinchu] surface organ blt registered: /api/killinchu/v1/blt/entropy-patch", file=__import__("sys").stderr)
+except Exception as _szl_kc_blt_e:  # pragma: no cover
+    print(f"[killinchu] surface organ blt NOT registered: {_szl_kc_blt_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_formalmath as _szl_kc_formalmath
+    _szl_kc_formalmath.register(app, ns="killinchu")
+    print("[killinchu] surface organ formalmath registered: /api/killinchu/v1/formalmath/retrieve", file=__import__("sys").stderr)
+except Exception as _szl_kc_formalmath_e:  # pragma: no cover
+    print(f"[killinchu] surface organ formalmath NOT registered: {_szl_kc_formalmath_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_hrm as _szl_kc_hrm
+    _szl_kc_hrm.register(app, ns="killinchu")
+    print("[killinchu] surface organ hrm registered: /api/killinchu/v1/hrm/solve", file=__import__("sys").stderr)
+except Exception as _szl_kc_hrm_e:  # pragma: no cover
+    print(f"[killinchu] surface organ hrm NOT registered: {_szl_kc_hrm_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_kvcache as _szl_kc_kvcache
+    _szl_kc_kvcache.register(app, ns="killinchu")
+    print("[killinchu] surface organ kvcache registered: /api/killinchu/v1/kvcache/h2o-evict", file=__import__("sys").stderr)
+except Exception as _szl_kc_kvcache_e:  # pragma: no cover
+    print(f"[killinchu] surface organ kvcache NOT registered: {_szl_kc_kvcache_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_nested as _szl_kc_nested
+    _szl_kc_nested.register(app, ns="killinchu")
+    print("[killinchu] surface organ nested registered: /api/killinchu/v1/nested/schedule", file=__import__("sys").stderr)
+except Exception as _szl_kc_nested_e:  # pragma: no cover
+    print(f"[killinchu] surface organ nested NOT registered: {_szl_kc_nested_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_ringattn as _szl_kc_ringattn
+    _szl_kc_ringattn.register(app, ns="killinchu")
+    print("[killinchu] surface organ ringattn registered: /api/killinchu/v1/ringattn/simulate", file=__import__("sys").stderr)
+except Exception as _szl_kc_ringattn_e:  # pragma: no cover
+    print(f"[killinchu] surface organ ringattn NOT registered: {_szl_kc_ringattn_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_steering as _szl_kc_steering
+    _szl_kc_steering.register(app, ns="killinchu")
+    print("[killinchu] surface organ steering registered: /api/killinchu/v1/steering/sweep", file=__import__("sys").stderr)
+except Exception as _szl_kc_steering_e:  # pragma: no cover
+    print(f"[killinchu] surface organ steering NOT registered: {_szl_kc_steering_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_catq as _szl_kc_catq
+    _szl_kc_catq.register(app, ns="killinchu")
+    print("[killinchu] surface organ catq registered: /api/killinchu/v1/catq/calibrate", file=__import__("sys").stderr)
+except Exception as _szl_kc_catq_e:  # pragma: no cover
+    print(f"[killinchu] surface organ catq NOT registered: {_szl_kc_catq_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_genie as _szl_kc_genie
+    _szl_kc_genie.register(app, ns="killinchu")
+    print("[killinchu] surface organ genie registered: /api/killinchu/v1/genie/rollout", file=__import__("sys").stderr)
+except Exception as _szl_kc_genie_e:  # pragma: no cover
+    print(f"[killinchu] surface organ genie NOT registered: {_szl_kc_genie_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_inplacettt as _szl_kc_inplacettt
+    _szl_kc_inplacettt.register(app, ns="killinchu")
+    print("[killinchu] surface organ inplacettt registered: /api/killinchu/v1/inplacettt/adapt", file=__import__("sys").stderr)
+except Exception as _szl_kc_inplacettt_e:  # pragma: no cover
+    print(f"[killinchu] surface organ inplacettt NOT registered: {_szl_kc_inplacettt_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_matgran as _szl_kc_matgran
+    _szl_kc_matgran.register(app, ns="killinchu")
+    print("[killinchu] surface organ matgran registered: /api/killinchu/v1/matgran/truncate", file=__import__("sys").stderr)
+except Exception as _szl_kc_matgran_e:  # pragma: no cover
+    print(f"[killinchu] surface organ matgran NOT registered: {_szl_kc_matgran_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_nsa as _szl_kc_nsa
+    _szl_kc_nsa.register(app, ns="killinchu")
+    print("[killinchu] surface organ nsa registered: /api/killinchu/v1/nsa/simulate", file=__import__("sys").stderr)
+except Exception as _szl_kc_nsa_e:  # pragma: no cover
+    print(f"[killinchu] surface organ nsa NOT registered: {_szl_kc_nsa_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_s3search as _szl_kc_s3search
+    _szl_kc_s3search.register(app, ns="killinchu")
+    print("[killinchu] surface organ s3search registered: /api/killinchu/v1/s3search/search", file=__import__("sys").stderr)
+except Exception as _szl_kc_s3search_e:  # pragma: no cover
+    print(f"[killinchu] surface organ s3search NOT registered: {_szl_kc_s3search_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_ternary as _szl_kc_ternary
+    _szl_kc_ternary.register(app, ns="killinchu")
+    print("[killinchu] surface organ ternary registered: /api/killinchu/v1/ternary/quantize", file=__import__("sys").stderr)
+except Exception as _szl_kc_ternary_e:  # pragma: no cover
+    print(f"[killinchu] surface organ ternary NOT registered: {_szl_kc_ternary_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_dllm as _szl_kc_dllm
+    _szl_kc_dllm.register(app, ns="killinchu")
+    print("[killinchu] surface organ dllm registered: /api/killinchu/v1/dllm/denoise", file=__import__("sys").stderr)
+except Exception as _szl_kc_dllm_e:  # pragma: no cover
+    print(f"[killinchu] surface organ dllm NOT registered: {_szl_kc_dllm_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_goat as _szl_kc_goat
+    _szl_kc_goat.register(app, ns="killinchu")
+    print("[killinchu] surface organ goat registered: /api/killinchu/v1/goat/transport", file=__import__("sys").stderr)
+except Exception as _szl_kc_goat_e:  # pragma: no cover
+    print(f"[killinchu] surface organ goat NOT registered: {_szl_kc_goat_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_interpretability as _szl_kc_interpretability
+    _szl_kc_interpretability.register(app, ns="killinchu")
+    print("[killinchu] surface organ interpretability registered: /api/killinchu/v1/interpretability/features", file=__import__("sys").stderr)
+except Exception as _szl_kc_interpretability_e:  # pragma: no cover
+    print(f"[killinchu] surface organ interpretability NOT registered: {_szl_kc_interpretability_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_mla as _szl_kc_mla
+    _szl_kc_mla.register(app, ns="killinchu")
+    print("[killinchu] surface organ mla registered: /api/killinchu/v1/mla/latent-compress", file=__import__("sys").stderr)
+except Exception as _szl_kc_mla_e:  # pragma: no cover
+    print(f"[killinchu] surface organ mla NOT registered: {_szl_kc_mla_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_pfield as _szl_kc_pfield
+    _szl_kc_pfield.register(app, ns="killinchu")
+    print("[killinchu] surface organ pfield registered: /api/killinchu/v1/pfield/coordinate", file=__import__("sys").stderr)
+except Exception as _szl_kc_pfield_e:  # pragma: no cover
+    print(f"[killinchu] surface organ pfield NOT registered: {_szl_kc_pfield_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_slidesparse as _szl_kc_slidesparse
+    _szl_kc_slidesparse.register(app, ns="killinchu")
+    print("[killinchu] surface organ slidesparse registered: /api/killinchu/v1/slidesparse/pack", file=__import__("sys").stderr)
+except Exception as _szl_kc_slidesparse_e:  # pragma: no cover
+    print(f"[killinchu] surface organ slidesparse NOT registered: {_szl_kc_slidesparse_e!r}", file=__import__("sys").stderr)
+
+
 # Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
 # generated OPEN conjectures from the real disclosure ledger (szl-lake khipu,
 # kind=conjecture-disclosure-anchor). Byte-identical module shared with a11oy. A
