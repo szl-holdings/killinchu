@@ -2207,10 +2207,20 @@ except Exception as _kc_ar_e:
 
 @app.get("/")
 async def spa_root():
-    """FRONT DOOR = the ONE killinchu surface: the /elite Counter-UAS Governance deck
-    (25 tabs, all real work, live endpoints). Opening killinchu lands directly in /elite
-    — no intermediate 3D landing. The cinematic 3D hero remains available at /hero and
-    the UDS operator at /operator, but /elite is the single face. ADDITIVE redirect."""
+    """FRONT DOOR = a polished HOME page (static/landing.html) that tells the
+    defense-buyer story — what killinchu is (governed counter-UAS + maritime C2),
+    the differentiator (Lean-checked ROE gate + BFT witness quorum + signed
+    engagement receipt), plain proof points, and a clear CTA into the operator
+    console at /elite. Previously `/` 307-redirected straight into the dense
+    /elite console with no front door; now it renders the home page instead.
+    /elite stays fully working (registered by killinchu_elite_console). The
+    cinematic 3D hero remains at /hero and the UDS operator at /operator.
+    ADDITIVE — no existing route touched. Doctrine v11 LOCKED unchanged."""
+    _home = STATIC_DIR / "landing.html"
+    if _home.is_file():
+        return FileResponse(_home, media_type="text/html")
+    # Honest fallback: if the home page asset is missing, hand off to /elite
+    # rather than serving a blank shell (deny-by-default, never a half-state).
     from starlette.responses import RedirectResponse as _RootRedir
     return _RootRedir(url="/elite", status_code=307)
 

@@ -309,6 +309,15 @@ def register(
     # The elite console HTML (self-contained, in-module).
     # ------------------------------------------------------------------
     html = _CONSOLE_HTML.replace("__NS__", ns)
+    # ADDITIVE: a light CEO / investor overlay on /elite. The dense operator
+    # view is unchanged and stays the default; this is a pure overlay toggled
+    # by a floating button. It shows 5-7 plain-English proof points with the
+    # shared honesty-badge convention (LIVE/SAMPLE/SIMULATED/...) and hides raw
+    # JSON + the long honest-disclosure text behind <details> collapsibles.
+    # Injected once, just before </body>, so no existing markup is shadowed.
+    # __NS__ already substituted above; _CEO_OVERLAY_HTML uses no __NS__.
+    if "__SZL_CEO_OVERLAY__" not in html:
+        html = html.replace("</body>", _CEO_OVERLAY_HTML + "\n</body>", 1)
 
     async def _serve_console() -> HTMLResponse:
         return HTMLResponse(html)
@@ -346,6 +355,229 @@ def register(
 
 
 __all__ = ["register"]
+
+
+# ===========================================================================
+# CEO / INVESTOR OVERLAY (ADDITIVE, light). A floating "Investor view" button
+# on /elite opens a single clean screen of 5-7 plain-English proof points, each
+# tagged with the estate honesty vocabulary (LIVE / SAMPLE / SIMULATED /
+# PROVEN / CONJECTURE) rendered by the SHARED szl_label_engine.js when it is
+# reachable (0-CDN, same-origin /static/shared/), with a fail-soft plain-text
+# pill fallback so the page never fabricates a green state. Raw JSON (the live
+# /borrowed-powers + /honest endpoints) and the long disclaimer text live
+# behind <details> collapsibles — nothing is hidden, just tidied. The dense
+# operator console is untouched and remains the default view. Honest labels
+# only. Λ = Conjecture 1, stated plainly. Nothing here touches locked-8.
+# ===========================================================================
+_CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (additive, 0-CDN) -->
+<style>
+#szl-ceo-fab{position:fixed;right:16px;bottom:16px;z-index:2147483000;display:inline-flex;align-items:center;gap:8px;
+  font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  padding:11px 16px;min-height:44px;border-radius:10px;border:1px solid rgba(201,183,135,.45);
+  background:rgba(201,183,135,.12);color:#d6c69a;cursor:pointer;backdrop-filter:blur(8px);
+  box-shadow:0 8px 26px -10px rgba(0,0,0,.7);}
+#szl-ceo-fab:hover{background:rgba(201,183,135,.2);border-color:rgba(201,183,135,.7);}
+#szl-ceo-fab .dot{width:8px;height:8px;border-radius:50%;background:#5fb3a3;box-shadow:0 0 0 3px rgba(95,179,163,.18);}
+#szl-ceo{position:fixed;inset:0;z-index:2147483001;display:none;overflow-y:auto;
+  background:rgba(6,6,6,.94);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  font-family:'Space Grotesk',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#f5f5f5;}
+#szl-ceo.on{display:block;}
+.szl-ceo-wrap{max-width:1000px;margin:0 auto;padding:clamp(20px,4vw,52px) clamp(16px,4vw,32px) 72px;}
+.szl-ceo-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.szl-ceo-eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#949494;}
+.szl-ceo h1{font-size:clamp(24px,4vw,38px);font-weight:600;letter-spacing:-.02em;margin:.3rem 0 .5rem;color:#f5f5f5;}
+.szl-ceo .lead{color:#b9bfc8;font-size:clamp(14px,1.5vw,17px);max-width:64ch;line-height:1.55;margin:0;}
+.szl-ceo-close{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  padding:10px 15px;min-height:44px;border-radius:9px;border:1px solid rgba(201,183,135,.3);
+  background:transparent;color:#f5f5f5;cursor:pointer;}
+.szl-ceo-close:hover{background:rgba(201,183,135,.1);border-color:rgba(201,183,135,.55);}
+.szl-ceo-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:30px;}
+@media(max-width:720px){.szl-ceo-grid{grid-template-columns:1fr;}}
+.szl-pp{border:1px solid rgba(201,183,135,.16);border-radius:12px;background:#0e0e0e;padding:20px 22px;display:flex;flex-direction:column;gap:9px;}
+.szl-pp .n{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#a89868;}
+.szl-pp h3{font-size:17px;font-weight:600;margin:0;color:#f5f5f5;letter-spacing:-.01em;line-height:1.25;}
+.szl-pp p{font-size:14px;color:#9a9a9a;margin:0;line-height:1.6;}
+.szl-pp .badges{margin-top:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.szl-pp a{color:#d6c69a;}
+.szl-pp-tag{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.12em;
+  padding:2px 8px;border-radius:5px;border:1px solid rgba(201,183,135,.25);color:#a89868;}
+.szl-pp-tag.proven{color:#5fb3a3;border-color:rgba(95,179,163,.4);background:rgba(95,179,163,.07);}
+.szl-pp-tag.conj{color:#c9b787;border-color:rgba(201,183,135,.4);background:rgba(201,183,135,.07);}
+.szl-ceo-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px;}
+.szl-ceo-btn{display:inline-flex;align-items:center;gap:9px;font-family:'JetBrains Mono',monospace;font-size:12px;
+  letter-spacing:.06em;text-transform:uppercase;padding:12px 18px;min-height:44px;border-radius:9px;
+  border:1px solid rgba(201,183,135,.3);background:transparent;color:#f5f5f5;text-decoration:none;cursor:pointer;}
+.szl-ceo-btn.primary{background:#c9b787;color:#0a0a0a;border-color:#c9b787;font-weight:600;}
+.szl-ceo-btn:hover{background:rgba(201,183,135,.12);}
+.szl-ceo-btn.primary:hover{background:#d8c79b;}
+.szl-ceo details{margin-top:16px;border:1px solid rgba(201,183,135,.16);border-radius:11px;background:#0b0b0b;padding:2px 4px;}
+.szl-ceo summary{cursor:pointer;list-style:none;padding:14px 18px;font-family:'JetBrains Mono',monospace;font-size:12px;
+  letter-spacing:.08em;text-transform:uppercase;color:#c9b787;}
+.szl-ceo summary::-webkit-details-marker{display:none;}
+.szl-ceo summary:before{content:"\25B8 ";color:#a89868;}
+.szl-ceo details[open] summary:before{content:"\25BE ";}
+.szl-ceo pre{font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.6;color:#9a9a9a;background:#070707;
+  border-top:1px solid rgba(201,183,135,.12);margin:0;padding:14px 18px;overflow:auto;white-space:pre-wrap;word-break:break-word;max-height:46vh;}
+.szl-ceo .disc{padding:6px 18px 16px;color:#9a9a9a;font-size:13px;line-height:1.7;}
+.szl-ceo .disc b{color:#c9b787;}
+.szl-ceo-foot{margin-top:34px;padding-top:18px;border-top:1px solid rgba(201,183,135,.14);
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:#949494;line-height:1.7;letter-spacing:.02em;}
+</style>
+
+<button id="szl-ceo-fab" type="button" aria-controls="szl-ceo" aria-expanded="false">
+  <span class="dot"></span> Investor view
+</button>
+
+<div id="szl-ceo" role="dialog" aria-modal="true" aria-label="killinchu — investor view">
+  <div class="szl-ceo-wrap">
+    <div class="szl-ceo-top">
+      <div>
+        <div class="szl-ceo-eyebrow">SZL Holdings · killinchu · investor view</div>
+        <h1>Governed counter-UAS that proves every decision.</h1>
+      </div>
+      <button class="szl-ceo-close" type="button" data-szl-ceo-close>✕ Operator view</button>
+    </div>
+    <p class="lead">The plain-English version of what the operator console does. Every claim below is
+    labeled with what is genuinely live versus a demonstration — no fabricated state, ever.</p>
+
+    <div class="szl-ceo-grid">
+      <div class="szl-pp">
+        <span class="n">01</span>
+        <h3>Every engagement ships a signed receipt you can verify yourself.</h3>
+        <p>Real ECDSA&nbsp;P-256 signature over a DSSE envelope, chained into a tamper-evident ledger. Verify it offline — no SZL service required.</p>
+        <div class="badges"><span data-szl-badge="LIVE"></span> <a href="/api/killinchu/v1/receipt/export" target="_blank" rel="noopener">export a receipt →</a></div>
+      </div>
+      <div class="szl-pp">
+        <span class="n">02</span>
+        <h3>The rules-of-engagement gate is deny-by-default and machine-checked in Lean.</h3>
+        <p>ROE + geofence containment are enforced by a proven gate — not a config file anyone can quietly loosen. Nothing acts unless the gate admits it.</p>
+        <div class="badges"><span data-szl-badge="LIVE"></span></div>
+      </div>
+      <div class="szl-pp">
+        <span class="n">03</span>
+        <h3>No engagement without a 3-of-4 BFT witness quorum.</h3>
+        <p>Four independent witnesses (Policy / Reasoning / a11oy / Killinchu) must agree. One faulty or compromised node cannot force an action.</p>
+        <div class="badges"><span data-szl-badge="LIVE"></span></div>
+      </div>
+      <div class="szl-pp">
+        <span class="n">04</span>
+        <h3>The trust math is a machine-checked estate — 8 locked formulas, 0 gaps.</h3>
+        <p>Eight formulas are locked-proven in Lean (kernel c7c0ba17). The single trust score (Λ) is <b style="color:#c9b787">Conjecture&nbsp;1, not a theorem</b> — and we say so on every surface.</p>
+        <div class="badges"><span class="szl-pp-tag proven">PROVEN × 8</span> <span class="szl-pp-tag conj">Λ = CONJECTURE 1</span></div>
+      </div>
+      <div class="szl-pp">
+        <span class="n">05</span>
+        <h3>Runs air-gapped / on-prem — zero runtime CDN.</h3>
+        <p>Fonts, viz libraries and signing all self-hosted same-origin. Nothing phones home at runtime; deployable behind an air gap.</p>
+        <div class="badges"><span data-szl-badge="LIVE"></span></div>
+      </div>
+      <div class="szl-pp">
+        <span class="n">06</span>
+        <h3>The effector is SIMULATED — human on the loop, always.</h3>
+        <p>killinchu governs and records the engagement decision; it does not fire anything. Defensive by doctrine, every engagement needs a human.</p>
+        <div class="badges"><span data-szl-badge="SIMULATED"></span></div>
+      </div>
+      <div class="szl-pp">
+        <span class="n">07</span>
+        <h3>Maritime screening runs on sample / replay AIS today.</h3>
+        <p>Sanctions and dark-vessel checks are demonstrated on sample / replay data — an honest demonstration, not a live feed.</p>
+        <div class="badges"><span data-szl-badge="SAMPLE"></span></div>
+      </div>
+    </div>
+
+    <div class="szl-ceo-cta">
+      <a class="szl-ceo-btn primary" href="#" data-szl-ceo-close>Enter the operator console →</a>
+      <a class="szl-ceo-btn" href="/">← killinchu home</a>
+      <a class="szl-ceo-btn" href="https://a-11-oy.com/" target="_blank" rel="noopener">Part of the SZL substrate · a-11-oy.com →</a>
+    </div>
+
+    <details>
+      <summary>Raw capability manifest (live JSON) — /borrowed-powers</summary>
+      <pre id="szl-ceo-json">open to load the live capability + honesty manifest…</pre>
+    </details>
+    <details>
+      <summary>Full honest disclosure &amp; disclaimers</summary>
+      <div class="disc">
+        <b>What is real:</b> receipt signatures (ECDSA&nbsp;P-256), the hash-chained ledger,
+        geofence containment, and the deny-by-default ROE gate. <b>What is a demonstration:</b>
+        much of the track picture and all maritime AIS run on sample / replay data. <b>The effector
+        is SIMULATED</b> — no live weapon or jammer is controlled. <b>Trust score (Λ) is Conjecture&nbsp;1</b>,
+        never presented as a proven theorem; the locked-proven set is 8 formulas. Build provenance is
+        SLSA&nbsp;L1 (honest), with SLSA&nbsp;L2 build-attestations emitted but not independently verified;
+        NOT FedRAMP / Iron Bank / CMMC (roadmap). PQC hybrid signing is roadmap, never shown as deployed.
+        <a href="/api/killinchu/v1/honest" target="_blank" rel="noopener">Read the live honest-disclosure endpoint →</a>
+      </div>
+    </details>
+
+    <div class="szl-ceo-foot">
+      Doctrine v11 LOCKED · locked-proven = 8 · Trust score (Λ) = Conjecture&nbsp;1, never a theorem ·
+      receipts genuinely signed · effector SIMULATED · AIS = sample/replay · canonical: a-11-oy.com
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var fab=document.getElementById("szl-ceo-fab");
+  var panel=document.getElementById("szl-ceo");
+  if(!fab||!panel) return;
+  var jsonLoaded=false, badgesDone=false;
+
+  function paintBadges(){
+    if(badgesDone) return;
+    var nodes=panel.querySelectorAll("[data-szl-badge]");
+    function fallback(){
+      nodes.forEach(function(n){
+        if(n.getAttribute("data-szl-done")) return;
+        n.textContent=(n.getAttribute("data-szl-badge")||"").toUpperCase();
+        n.style.cssText="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.14em;padding:2px 7px;border-radius:5px;border:1px solid rgba(201,183,135,.25);color:#a89868;";
+        n.setAttribute("data-szl-done","1");
+      });
+      badgesDone=true;
+    }
+    function paint(){
+      if(!window.SZLLabels||!window.SZLLabels.badgeHTML){ fallback(); return; }
+      try{ window.SZLLabels.ensureStyle(document); }catch(e){}
+      nodes.forEach(function(n){
+        if(n.getAttribute("data-szl-done")) return;
+        try{ n.innerHTML=window.SZLLabels.badgeHTML(n.getAttribute("data-szl-badge")); n.setAttribute("data-szl-done","1"); }catch(e){}
+      });
+      badgesDone=true;
+    }
+    if(window.SZLLabels&&window.SZLLabels.badgeHTML){ paint(); return; }
+    var s=document.createElement("script");
+    s.src="/static/shared/szl_label_engine.js"; s.async=true;
+    s.onload=paint; s.onerror=fallback;
+    document.head.appendChild(s);
+    setTimeout(paint,1200);
+  }
+
+  function loadJSON(){
+    if(jsonLoaded) return; jsonLoaded=true;
+    var pre=document.getElementById("szl-ceo-json"); if(!pre) return;
+    fetch("/api/killinchu/v1/borrowed-powers",{cache:"no-store"})
+      .then(function(r){ return r.ok?r.json():Promise.reject(r.status); })
+      .then(function(d){ pre.textContent=JSON.stringify(d,null,2); })
+      .catch(function(){ pre.textContent="live manifest unreachable right now — not fabricating a value. Try /api/killinchu/v1/borrowed-powers directly."; jsonLoaded=false; });
+  }
+
+  function open(){ panel.classList.add("on"); fab.setAttribute("aria-expanded","true");
+    document.documentElement.style.overflow="hidden"; paintBadges(); }
+  function close(){ panel.classList.remove("on"); fab.setAttribute("aria-expanded","false");
+    document.documentElement.style.overflow=""; }
+
+  fab.addEventListener("click", open);
+  panel.addEventListener("click", function(e){
+    var t=e.target;
+    if(t&&t.closest&&t.closest("[data-szl-ceo-close]")){ e.preventDefault(); close(); }
+  });
+  var det=panel.querySelector("details");
+  if(det){ det.addEventListener("toggle", function(){ if(det.open) loadJSON(); }); }
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape"&&panel.classList.contains("on")) close(); });
+})();
+</script>
+"""
 
 
 # ===========================================================================
