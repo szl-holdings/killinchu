@@ -174,10 +174,12 @@
 
       <div class="kcd-links">
         <a class="primary" href="/uds.html">Open UDS Command Center</a>
-        <a href="#root">Aerial twin (3D)</a>
+        <a href="/drone-3d.html">Aerial twin (3D)</a>
         <a href="/api/killinchu/v1/honest">Honest disclosure</a>
         <a href="/operator">Operator shell v4</a>
         <a href="/flow-compartments" title="Flow compartments — engineering method (CFD), not a locked theorem">Flow Compartments (CFD)</a>
+        <a href="https://a-11-oy.com/" rel="noopener" title="killinchu is one vertical of the a11oy governed-inference platform">a11oy platform ↗</a>
+        <a href="https://a-11-oy.com/verify" rel="noopener" title="Re-verify a signed a11oy receipt yourself, offline, in your browser">Verify a receipt ↗</a>
       </div>
     </div>
 
@@ -281,5 +283,53 @@
 
 
     <div id="root"></div>
+
+    <!-- SZL KILLINCHU DECK-ROUTE GUARD (ADDITIVE) — Sign: Stephen P. Lutar Jr. + Perplexity Computer Agent
+         WHY: static/index.html carries the always-present, self-contained, LIVE counter-UAS
+         command deck (#szl-cmd-deck) AND the React SPA root (#root). The built SPA router only
+         knows a fixed set of paths (/counter-uas, /drones, /map, /swarm, …). For paths it does
+         NOT know — notably /killinchu itself, the exact URL a-11-oy.com links to — React renders a
+         "404 · No such route" view INTO #root, so a visitor to /killinchu saw a fully live command
+         deck with a red "No such route" 404 stacked directly beneath it. Contradictory and
+         embarrassing on the flagship defense surface.
+         FIX (no bandaid, honest): the live command deck IS the intended page for these deck-only
+         entry paths. When — and ONLY when — the SPA has rendered its own "No such route" 404 into
+         #root AND the live deck is present, we hide the empty 404 shell so the deck stands alone as
+         a complete, honest page. Real SPA routes (which render actual content, never the 404 text)
+         are untouched. Nothing is faked: the deck's numbers stay wired to /api/killinchu/v1/*, and
+         if a route genuinely has no content the deck's own honest states still show. Pure DOM read;
+         no route is added, shadowed, or claimed. Fully try/guarded so it can never break the app. -->
+    <script>
+    (function(){
+      try{
+        function rootShows404(){
+          var r = document.getElementById("root");
+          if(!r) return false;
+          var t = (r.textContent || "").trim();
+          // The built SPA's NotFound view renders exactly: "404 No such route. Return to overview."
+          // We match ONLY that error text, so a real route (which renders actual content) is
+          // never touched — the guard reacts to the genuine 404, not to any particular path.
+          return /No such route/i.test(t);
+        }
+        function deckPresent(){ return !!document.getElementById("szl-cmd-deck"); }
+        function reconcile(){
+          try{
+            var r = document.getElementById("root");
+            if(!r) return;
+            if(deckPresent() && rootShows404()){
+              // The SPA has no route for this path; the live command deck IS the page. Hide the
+              // empty 404 shell rather than stack a "No such route" error under a live deck.
+              r.setAttribute("hidden", "");
+              r.style.display = "none";
+            }
+          }catch(_e){}
+        }
+        // Run after React has had a chance to mount + render its route (incl. its 404).
+        function schedule(){ setTimeout(reconcile, 60); setTimeout(reconcile, 400); setTimeout(reconcile, 1200); }
+        if(document.readyState !== "loading") schedule();
+        else document.addEventListener("DOMContentLoaded", schedule);
+      }catch(_e){ /* additive: never break the app */ }
+    })();
+    </script>
   </body>
 </html>
