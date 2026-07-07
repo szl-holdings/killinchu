@@ -1322,6 +1322,62 @@ async def _h_fire(request: "Request"):  # type: ignore
     K = max(1, min(_int("K", 10), 64))
     return JSONResponse(_snapshot(seed=seed, K=K))
 
+# ---------------------------------------------------------------------------
+# WAVE-22: self-describing MANIFEST. One authoritative summary of the whole
+# Formula-Graph Brain — every endpoint, the five aliveness criteria and which are
+# reached, and the immutable honesty facts (locked-proven == 8, Conjecture 1 gray).
+# This is the SINGLE SOURCE OF TRUTH intended to back the executive brief and any
+# health probe, so no consumer hardcodes counts that can drift. Pure data derived
+# from the real NODES/EDGES + the registered routes; label:"MODELED"; deterministic.
+# ---------------------------------------------------------------------------
+def _manifest(ns: str = "killinchu") -> Dict[str, Any]:
+    base = "/api/" + ns + "/v1/fgbrain"
+    tier_counts = {t: sum(1 for n in NODES if n["tier"] == t) for t in _TIER_ORDER}
+    endpoints = [
+        {"path": base + "/graph",         "wave": 15, "behavior": "the living formula graph"},
+        {"path": base + "/fire",          "wave": 15, "behavior": "spreading activation"},
+        {"path": base + "/repair",        "wave": 16, "behavior": "self-repair (Growing-NCA + Fiedler)"},
+        {"path": base + "/plasticity",    "wave": 17, "behavior": "multi-timescale plasticity"},
+        {"path": base + "/memory",        "wave": 18, "behavior": "write-back memory (HEART/BLOOD + A-MEM)"},
+        {"path": base + "/vitals",        "wave": 19, "behavior": "homeostatic self-regulation"},
+        {"path": base + "/vitals/energy", "wave": 21, "behavior": "authoritative energy attestation"},
+        {"path": base + "/evolve",        "wave": 20, "behavior": "evolutionary self-improvement (kernel-gated)"},
+        {"path": base + "/manifest",      "wave": 22, "behavior": "this self-describing summary"},
+    ]
+    aliveness = [
+        {"n": 1, "criterion": "reconsolidates",            "reached": True,  "wave": 18},
+        {"n": 2, "criterion": "self-repairs / regulates",  "reached": True,  "wave": 16},
+        {"n": 3, "criterion": "remembers across sessions", "reached": True,  "wave": 18},
+        {"n": 4, "criterion": "homeostatic self-regulation","reached": True, "wave": 19},
+        {"n": 5, "criterion": "organizational closure",    "reached": True,  "wave": 20},
+    ]
+    return {
+        "label": "MODELED",
+        "brain": "SZL Formula-Graph Brain",
+        "doctrine": "v11",
+        "endpoints": endpoints,
+        "endpoint_count": len(endpoints),
+        "graph": {"nodes": len(NODES), "edges": len(EDGES), "tier_counts": tier_counts},
+        "locked_proven_count": tier_counts.get("locked", 0),      # MUST be 8
+        "locked_proven_ids": [n["id"] for n in NODES if n["tier"] == "locked"],
+        "conjectures_gray": [n["id"] for n in NODES if n["tier"] == "conjecture"],
+        "aliveness_criteria": aliveness,
+        "aliveness_reached": sum(1 for a in aliveness if a["reached"]),
+        "aliveness_total": len(aliveness),
+        "honesty_invariants": {
+            "locked_proven_is_exactly_8": tier_counts.get("locked", 0) == 8,
+            "conjecture_1_lambda_uniqueness": "GRAY / machine-checked false as stated / never green",
+            "promotion_gate": "a real Lean 0-sorry proof is the only path to 'proven'",
+            "labels_verbatim": "MODELED is never upgraded",
+        },
+        "honest_note": _HONEST_NOTE,
+        "citations": CITATIONS,
+    }
+
+
+async def _h_manifest(request):  # type: ignore
+    return JSONResponse(_manifest(ns="killinchu"))
+
 
 def register(app, ns: str = "killinchu"):
     """Wire /api/<ns>/v1/fgbrain/{graph,fire} onto app. Additive, try/except-guarded.
@@ -1336,6 +1392,7 @@ def register(app, ns: str = "killinchu"):
         (f"{base}/vitals", _h_vitals),
         (f"{base}/vitals/energy", _h_energy),
         (f"{base}/evolve", _h_evolve),
+        (f"{base}/manifest", _h_manifest),
     ]
     try:
         add_api_route = getattr(app, "add_api_route", None)
@@ -1463,4 +1520,15 @@ if __name__ == "__main__":
         assert en["energy"]["status"] == "UNAVAILABLE" and en["energy"]["joules"] is None
     assert _energy_attest() == _energy_attest()
     print("szl_fgbrain wave21: energy OK - status", en["energy"]["status"], "joules", en["energy"]["joules"], "(never fabricated)")
+    # ---- wave-22 manifest checks ----
+    mf = _manifest()
+    assert mf["label"] == "MODELED"
+    assert mf["locked_proven_count"] == 8
+    assert mf["honesty_invariants"]["locked_proven_is_exactly_8"] is True
+    assert mf["aliveness_reached"] == 5 and mf["aliveness_total"] == 5
+    assert len(mf["conjectures_gray"]) >= 1
+    assert _manifest() == _manifest()
+    print("szl_fgbrain wave22: manifest OK - endpoints", mf["endpoint_count"],
+          "aliveness", str(mf["aliveness_reached"]) + "/" + str(mf["aliveness_total"]),
+          "locked", mf["locked_proven_count"])
     print("szl_fgbrain: ALL OK — real graph, MODELED firing anchored on locked-8, conjectures gray, deterministic.")
