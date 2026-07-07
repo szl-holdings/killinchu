@@ -552,6 +552,24 @@ try:
 except Exception as _szl_kc_slidesparse_e:  # pragma: no cover
     print(f"[killinchu] surface organ slidesparse NOT registered: {_szl_kc_slidesparse_e!r}", file=__import__("sys").stderr)
 
+# WAVE-24 Flower Brain: 8-petal radial knowledge organism unifying the proven core,
+# verified theorems, experimental proofs, cited unified formulas, Ouroboros codexes, the
+# 64 surfaces, memory/provenance, and conjectures (gray). MODELED, pure-stdlib. Adds nothing
+# to the locked-8; Λ stays Conjecture 1; conjecture petal never green. Additive, guarded.
+try:
+    import szl_kc_flower as _szl_kc_flower
+    _szl_kc_flower.register(app, ns="killinchu")
+    print("[killinchu] Flower Brain registered: /api/killinchu/v1/flower/{graph,bloom,manifest}", file=__import__("sys").stderr)
+except Exception as _szl_flower_e:  # pragma: no cover
+    print(f"[killinchu] Flower Brain NOT registered: {_szl_flower_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_flower_metrics as _szl_kc_flower_metrics
+    _szl_kc_flower_metrics.register(app, ns="killinchu")
+    print("[killinchu] Flower metrics registered: /api/killinchu/v1/flower/metrics", file=__import__("sys").stderr)
+except Exception as _szl_flower_metrics_e:  # pragma: no cover
+    print(f"[killinchu] Flower metrics NOT registered: {_szl_flower_metrics_e!r}", file=__import__("sys").stderr)
+
+
 
 # Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
 # generated OPEN conjectures from the real disclosure ledger (szl-lake khipu,
