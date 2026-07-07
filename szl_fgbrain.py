@@ -675,6 +675,586 @@ async def _h_memory(request):  # type: ignore
 
 
 # ---------------------------------------------------------------------------
+# WAVE-19: HOMEOSTATIC self-regulation (/vitals). A MODELED MAPE-K loop
+# (Monitor->Analyze->Plan->Execute-Knowledge) grounded in HRRL drive-reduction
+# reward. Fuses: NVIDIA MAPE-K data-flywheel self-healing (arXiv:2510.27051) and
+# SLO/cost-aware autoscaling (arXiv:2512.23415) as the operational skeleton;
+# HRRL drive-reduction reward (arXiv:2507.04998) where reward = reduction in
+# distance between the graph's internal-state vector and its homeostatic
+# set-points; and the Energentic viability horizon (arXiv:2506.04916) as a
+# rolling estimate of sustainable search cycles before a compute budget runs out.
+#
+# HARD DOCTRINE (v11): the homeostat regulates META-STATISTICS ONLY (link
+# density, proof staleness, orphan fraction, staging-queue depth). It NEVER reads
+# or writes any formula's truth-value or tier, NEVER promotes a tier, and asserts
+# locked_count==8 unchanged. Corrective actions are INFRA-ONLY and operate on a
+# COPY of the candidate/exploration meta-state (re-link an orphan to its nearest
+# hub, prune a dormant candidate edge, reprioritize the staging queue) — they may
+# NEVER touch a locked- or conjecture-tier node's status. Λ appears only as the
+# CONJECTURE-1 heart set-point label (uniqueness unproven), never "proven".
+# Fail-closed: when the compute budget is exhausted the loop STOPS proposing and
+# never auto-promotes. Deterministic, pure-stdlib LCG (no numpy, no stdlib random).
+# ---------------------------------------------------------------------------
+# per-round compute cost of one MAPE-K corrective cycle (Energentic budget units).
+_VITALS_BUDGET = 100.0
+_VITALS_ROUND_COST = 7.0
+# homeostatic set-points over META-STATISTICS ONLY (target + weight in the drive).
+# Λ is referenced ONLY as CONJECTURE-1 (heart set-point label), never as proven.
+_SETPOINTS = {
+    # link_density: live-edge coverage of the candidate/exploration layer; target band midpoint.
+    "link_density":         {"target": 0.60, "weight": 1.0, "lo": 0.45, "hi": 0.75,
+                             "desc": "live candidate edges / possible (infra meta-stat)"},
+    # proof_staleness: MODELED rounds since a candidate node's meta was 'touched' (target low).
+    "proof_staleness":      {"target": 0.15, "weight": 0.8, "lo": 0.0,  "hi": 0.30,
+                             "desc": "normalized staleness of candidate-layer meta (infra)"},
+    # orphan_fraction: candidate nodes with no live edge (target 0).
+    "orphan_fraction":      {"target": 0.0,  "weight": 1.2, "lo": 0.0,  "hi": 0.10,
+                             "desc": "candidate nodes with no live edge (infra, CONJECTURE-1 Λ node included)"},
+    # staging_queue_depth: normalized backlog of candidate re-link/prune proposals (target low).
+    "staging_queue_depth":  {"target": 0.20, "weight": 0.6, "lo": 0.0,  "hi": 0.45,
+                             "desc": "normalized staging backlog on the exploration layer (infra)"},
+}
+
+
+def _vitals_meta_state():
+    """Build the COPY of candidate/exploration meta-state the homeostat regulates.
+    NON-locked, NON-conjecture-status: we snapshot ONLY infra meta-statistics of
+    the candidate layer (semantic/experimental/borrowed nodes + their edges).
+    Locked and conjecture nodes are read for CONNECTIVITY context only; their
+    truth-values/tiers are never copied, mutated, or promoted."""
+    tier = {n["id"]: n["tier"] for n in NODES}
+    # candidate/exploration layer = the infra-mutable tiers (never locked/conjecture).
+    candidate = [n["id"] for n in NODES if tier[n["id"]] in ("semantic", "experimental", "borrowed")]
+    nb = _undirected_neighbours()
+    # live-edge flag per candidate node, on a COPY (infra meta only).
+    live_edges = {}
+    for cid in candidate:
+        live_edges[cid] = [j for j in nb[cid]]
+    return {"tier": tier, "candidate": candidate, "nb": nb, "live_edges": live_edges}
+
+
+def _vitals_measure(ms, staleness, queue) -> Dict[str, float]:
+    """MONITOR: compute current values of each META-STATISTIC set-point from the
+    candidate-layer COPY. Reads NO truth-value or tier — pure infra topology."""
+    cand = ms["candidate"]
+    ncand = max(1, len(cand))
+    # link_density: fraction of candidate nodes that currently hold >=1 live edge,
+    # blended with mean normalized degree (both are pure infra meta-stats).
+    deg = [len(ms["live_edges"][c]) for c in cand]
+    max_deg = max(1, max(deg) if deg else 1)
+    density = (sum(1 for d in deg if d > 0) / ncand) * 0.5 + (sum(deg) / (ncand * max_deg)) * 0.5
+    orphan = sum(1 for d in deg if d == 0) / ncand
+    stale = sum(staleness[c] for c in cand) / ncand
+    qdepth = min(1.0, queue / max(1, ncand))
+    return {
+        "link_density": round(density, 6),
+        "proof_staleness": round(stale, 6),
+        "orphan_fraction": round(orphan, 6),
+        "staging_queue_depth": round(qdepth, 6),
+    }
+
+
+def _vitals_drive(cur: Dict[str, float]) -> float:
+    """ANALYZE: HRRL drive = weighted distance between the internal-state vector
+    and the homeostatic set-points (arXiv:2507.04998). Lower drive = healthier."""
+    d = 0.0
+    for name, sp in _SETPOINTS.items():
+        d += sp["weight"] * abs(cur[name] - sp["target"])
+    return round(d, 6)
+
+
+def _homeostasis(seed: int = 42, rounds: int = 12) -> Dict[str, Any]:
+    """Run the MODELED MAPE-K homeostatic loop over META-STATISTICS ONLY.
+    Deterministic (LCG). Drive must trend DOWN. Fail-closed on budget exhaustion."""
+    rng = _LCG(seed)
+    ms = _vitals_meta_state()
+    cand = ms["candidate"]
+    tier = ms["tier"]
+    locked_before = sum(1 for n in NODES if n["tier"] == "locked")
+    locked_tiers_before = {n["id"]: n["tier"] for n in NODES if n["tier"] in ("locked", "conjecture")}
+
+    # candidate-layer meta COPY we are allowed to regulate (infra only):
+    #  * staleness[c] in [0,1] — MODELED "rounds since touched", seeded high-ish.
+    #  * live_edges[c] — infra adjacency copy we may re-link / prune on the COPY.
+    staleness = {c: round(0.30 + 0.40 * rng.uniform(), 6) for c in cand}
+    # seed a couple of MODELED orphans + a staging backlog so the loop has work.
+    order = sorted(cand)
+    if order:
+        ms["live_edges"][order[0]] = []  # MODELED orphan #1 (infra only)
+    if len(order) > 1:
+        ms["live_edges"][order[-1]] = []  # MODELED orphan #2 (infra only)
+    queue = float(max(2, len(cand) // 2))  # initial staging backlog (infra proposals)
+
+    budget = _VITALS_BUDGET
+    drive_per_round: List[float] = []
+    actions_taken: List[Dict[str, Any]] = []
+    stopped_reason = None
+
+    for r in range(rounds):
+        # EXECUTE-guard / Energentic viability: fail-closed when budget can't fund a cycle.
+        if budget < _VITALS_ROUND_COST:
+            stopped_reason = "budget_exhausted_fail_closed"
+            break
+        cur = _vitals_measure(ms, staleness, queue)
+        drive_before = _vitals_drive(cur)
+        drive_per_round.append(drive_before)
+
+        # PLAN: evaluate the INFRA-ONLY action set on a trial COPY; pick the one that
+        # most reduces drive. Actions NEVER touch locked/conjecture status or any tier.
+        best = None  # (drive_after, action_dict, apply_fn)
+
+        def _eval(action_dict, mutate):
+            trial_live = {k: list(v) for k, v in ms["live_edges"].items()}
+            trial_stale = dict(staleness)
+            trial_queue = queue
+            trial_live, trial_stale, trial_queue = mutate(trial_live, trial_stale, trial_queue)
+            trial_ms = {"candidate": cand, "live_edges": trial_live}
+            after = _vitals_drive(_vitals_measure(trial_ms, trial_stale, trial_queue))
+            return after, action_dict, mutate
+
+        # Action A: re-link an orphan candidate to its nearest hub (highest-degree
+        # NON-locked-status neighbour candidate). Infra edge added on the COPY only.
+        orphans = [c for c in cand if not ms["live_edges"][c]]
+        if orphans:
+            orph = sorted(orphans)[0]
+            # nearest hub = candidate with max live degree (deterministic tiebreak by id).
+            hubs = sorted(cand, key=lambda c: (-len(ms["live_edges"][c]), c))
+            hub = next((h for h in hubs if h != orph), None)
+            if hub is not None:
+                def _mut_relink(lv, st, q, orph=orph, hub=hub):
+                    lv[orph] = lv.get(orph, []) + [hub]
+                    lv[hub] = lv.get(hub, []) + [orph]
+                    st[orph] = 0.0  # re-linking 'touches' the candidate meta (infra)
+                    return lv, st, max(0.0, q - 1.0)
+                cand_eval = _eval({"action": "relink_orphan", "orphan": orph, "hub": hub,
+                                   "layer": "candidate/exploration", "infra_only": True}, _mut_relink)
+                if best is None or cand_eval[0] < best[0]:
+                    best = cand_eval
+
+        # Action B: prune a dormant candidate edge (a stale over-connected node sheds
+        # one infra link). Reduces staleness pressure + queue; COPY only.
+        stale_nodes = sorted(cand, key=lambda c: (-staleness[c], c))
+        pruneable = next((c for c in stale_nodes if len(ms["live_edges"][c]) > 1), None)
+        if pruneable is not None:
+            def _mut_prune(lv, st, q, node=pruneable):
+                if lv.get(node):
+                    drop = sorted(lv[node])[-1]
+                    lv[node] = [x for x in lv[node] if x != drop]
+                    if drop in lv:
+                        lv[drop] = [x for x in lv[drop] if x != node]
+                st[node] = max(0.0, st[node] - 0.25)  # pruning refreshes the meta (infra)
+                return lv, st, max(0.0, q - 1.0)
+            b = _eval({"action": "prune_dormant_edge", "node": pruneable,
+                       "layer": "candidate/exploration", "infra_only": True}, _mut_prune)
+            if best is None or b[0] < best[0]:
+                best = b
+
+        # Action C: reprioritize staging (drain part of the backlog + refresh staleness).
+        def _mut_reprio(lv, st, q):
+            for c in cand:
+                st[c] = max(0.0, st[c] - 0.10)  # a MODELED refresh pass (infra meta)
+            return lv, st, max(0.0, q - 2.0)
+        c_eval = _eval({"action": "reprioritize_staging", "drained": 2,
+                        "layer": "candidate/exploration", "infra_only": True}, _mut_reprio)
+        if best is None or c_eval[0] < best[0]:
+            best = c_eval
+
+        # Action D (HOLD): the homeostatic no-op. Once at equilibrium, perturbing the
+        # meta-state only raises drive, so the loop HOLDS (drive unchanged). This keeps
+        # the HRRL drive monotone non-increasing and models a settled set-point.
+        def _mut_hold(lv, st, q):
+            return lv, st, q
+        hold_eval = _eval({"action": "hold_equilibrium", "layer": "candidate/exploration",
+                           "infra_only": True}, _mut_hold)
+        # never CHOOSE an action that increases drive above holding: fail-closed to HOLD.
+        if best is None or best[0] > hold_eval[0]:
+            best = hold_eval
+
+        # EXECUTE (MODELED): apply the chosen infra-only action to the COPY meta-state.
+        after_drive, action_dict, mutate = best
+        new_live, new_stale, new_queue = mutate(
+            {k: list(v) for k, v in ms["live_edges"].items()}, dict(staleness), queue)
+        ms["live_edges"] = new_live
+        staleness = new_stale
+        queue = new_queue
+        # HRRL intrinsic homeostatic reward = drive reduction achieved this cycle.
+        reward = round(max(0.0, drive_before - after_drive), 6)
+        budget -= _VITALS_ROUND_COST
+        actions_taken.append(dict(action_dict, round=r, drive_before=drive_before,
+                                  drive_after=after_drive, reward=reward,
+                                  budget_left=round(budget, 3)))
+
+    # final drive reading after the last applied action.
+    final_cur = _vitals_measure(ms, staleness, queue)
+    drive_final = _vitals_drive(final_cur)
+    drive_per_round.append(drive_final)
+
+    # Energentic viability_horizon: sustainable further cycles at the current cost.
+    viability_horizon = int(budget // _VITALS_ROUND_COST) if budget >= _VITALS_ROUND_COST else 0
+
+    # set-point report (target/current/in_band) on META-STATISTICS ONLY.
+    setpoints = {}
+    for name, sp in _SETPOINTS.items():
+        v = final_cur[name]
+        setpoints[name] = {"target": sp["target"], "current": v,
+                           "in_band": bool(sp["lo"] <= v <= sp["hi"]),
+                           "desc": sp["desc"]}
+    in_band_count = sum(1 for s in setpoints.values() if s["in_band"])
+
+    # DOCTRINE invariants: locked untouched, no locked/conjecture tier changed.
+    locked_after = sum(1 for n in NODES if n["tier"] == "locked")
+    locked_tiers_after = {n["id"]: n["tier"] for n in NODES if n["tier"] in ("locked", "conjecture")}
+    locked_untouched = (locked_after == locked_before == 8) and (locked_tiers_after == locked_tiers_before)
+
+    return {
+        "label": "MODELED",
+        "seed": seed, "rounds": rounds,
+        "locked_count": locked_after,                     # MUST be 8, unchanged
+        "setpoints": setpoints,
+        "in_band_count": in_band_count,
+        "setpoint_count": len(setpoints),
+        "drive_per_round": drive_per_round,               # HRRL: MUST trend down
+        "drive_final": drive_final,
+        "drive_reduced": round(drive_per_round[0] - drive_final, 6) if drive_per_round else 0.0,
+        "viability_horizon": viability_horizon,           # Energentic sustainable cycles
+        "budget_start": _VITALS_BUDGET,
+        "budget_left": round(budget, 3),
+        "round_cost": _VITALS_ROUND_COST,
+        "fail_closed": stopped_reason is not None,
+        "stopped_reason": stopped_reason,                 # None unless budget exhausted
+        "actions_taken": actions_taken,                   # INFRA-ONLY corrective actions
+        "actions_are_infra_only": all(a.get("infra_only") is True for a in actions_taken),
+        "locked_untouched": locked_untouched,             # MUST be True
+        "regulated_layer": "candidate/exploration meta-statistics (semantic/experimental/borrowed) — COPY only",
+        "conjecture_note": (
+            "Λ unconditional uniqueness is CONJECTURE-1 (uniqueness unproven, machine-checked FALSE as "
+            "stated); it is referenced here only as the heart set-point label and is NEVER promoted or "
+            "rendered proven. Khipu BFT (Conj-2/3) likewise stays conjecture."),
+        "honest_note": _HONEST_NOTE + (
+            " WAVE-19 VITALS: a MODELED MAPE-K homeostatic loop grounded in HRRL drive-reduction reward. "
+            "It regulates META-STATISTICS ONLY (link density, proof staleness, orphan fraction, staging-"
+            "queue depth) on a COPY of the candidate/exploration layer. It NEVER reads or writes any "
+            "formula's truth-value or tier, NEVER promotes a tier, and touches NO proof status; the "
+            "locked set stays EXACTLY 8. Corrective actions are INFRA-ONLY (re-link an orphan, prune a "
+            "dormant candidate edge, reprioritize staging). Λ is CONJECTURE-1 (uniqueness unproven), "
+            "never proven. Fail-closed: when the Energentic compute budget is exhausted the loop STOPS "
+            "proposing and never auto-promotes. Deterministic, pure stdlib."),
+        "citations": dict(CITATIONS, **{
+            "MAPE-K data-flywheel self-healing (NVIDIA, arXiv:2510.27051)":
+                "https://arxiv.org/abs/2510.27051",
+            "SLO-driven cost-aware autoscaling (arXiv:2512.23415)":
+                "https://arxiv.org/abs/2512.23415",
+            "HRRL drive-reduction reward — Linking Homeostasis to RL (arXiv:2507.04998)":
+                "https://arxiv.org/abs/2507.04998",
+            "Energentic viability horizon — Enduring Artificial Life (arXiv:2506.04916)":
+                "https://arxiv.org/abs/2506.04916",
+        }),
+    }
+
+
+async def _h_vitals(request):  # type: ignore
+    q = getattr(request, "query_params", {}) or {}
+    def _int(name, dflt):
+        try:
+            return int(q.get(name, dflt))
+        except Exception:
+            return dflt
+    seed = _int("seed", 42)
+    rounds = max(1, min(_int("rounds", 12), 100))
+    return JSONResponse(_homeostasis(seed=seed, rounds=rounds))
+
+
+# ---------------------------------------------------------------------------
+# WAVE-20: EVOLUTIONARY self-improvement + organizational closure (/evolve).
+# "Evolution proposes, the kernel disposes." A MODELED quality-diversity search
+# over candidate formula-SKETCHES (NEVER the real locked-8/NODES). Fuses:
+#   * Darwin Godel Machine (arXiv:2505.22954) + Hyperagents/DGM-H (arXiv:2603.19461):
+#     an OPEN archive of candidate-generating strategies; keep ALL variants, sample
+#     the archive (not only the single best) to spawn new candidates.
+#   * MAP-Elites (arXiv:1504.04909) + POET (arXiv:1901.01753): the archive is a
+#     grid indexed by a 2-axis behavior descriptor (proof-length bucket x sub-theory);
+#     keep the ELITE per cell (diversity), transfer stepping-stones between cells.
+#   * KERNEL GATE = a hard, NON-agentic, IMMUTABLE Lean-check simulation. Promotion
+#     to "proven" is gated ONLY by a MODELED 0-sorry proof check AND claim-pinning
+#     (original statement == final statement). DeepSeek-Prover-V2 (arXiv:2504.21801)
+#     + Goedel-Prover-V2 (arXiv:2508.03613) model the propose->Lean-check->self-
+#     correct loop; the gate is what the strategies CANNOT touch.
+#   * Organizational closure (Minary arXiv:2601.04501): the ADMISSION RULE is itself
+#     a mutable node the loop may revise — but its OUTPUT stays on the CANDIDATE side
+#     of the kernel gate; it can never mint a real proof.
+#   * Governance drift monitor (Tallam arXiv:2604.14717): track hysteresis drift of
+#     the admission-rule node from its last AUDITED checkpoint; if drift exceeds a
+#     threshold, FREEZE and ROLL BACK to the audited snapshot (append-only version log).
+#
+# HARD DOCTRINE (v11): the real locked-8 is NEVER incremented. MODELED "promotions"
+# go to a SEPARATE staging_promoted counter labeled MODELED — NOT the locked tier.
+# The gate's 0-sorry criterion is hand-coded and immutable: evolving strategies
+# change WHAT/ORDER is proposed, never the gate. Claim-pinning rejects weakened
+# claims. Drift rollback truly restores the audited admission-rule. Deterministic,
+# pure-stdlib LCG (no numpy, no stdlib random; hashlib OK). label:"MODELED".
+# ---------------------------------------------------------------------------
+# Behavior-descriptor axes for the MAP-Elites grid (MODELED, candidate-only).
+_EVO_LEN_BUCKETS = 4      # proof-length axis: 0..3 (short -> long MODELED sketches)
+_EVO_SUBTHEORY = ["replay", "dag", "coupling", "coding"]  # sub-theory axis (4 cells)
+_EVO_DRIFT_THRESHOLD = 0.35   # Tallam hysteresis: rollback when drift exceeds this.
+
+# The AUDITED baseline admission_rule (organizational-closure node). Append-only
+# version log tracks every revision; rollback restores THIS exact snapshot.
+_EVO_AUDITED_ADMISSION_RULE = {
+    # which descriptor cells the loop is allowed to draw candidates from (eligibility)
+    "eligible_len_buckets": [0, 1, 2, 3],
+    "eligible_subtheories": list(_EVO_SUBTHEORY),
+    # priority order the strategy proposes cells in (evolvable WHAT/ORDER, not the gate)
+    "priority": ["replay", "dag", "coupling", "coding"],
+    "version": 0,
+}
+
+
+def _evo_admission_drift(rule: Dict[str, Any], audited: Dict[str, Any]) -> float:
+    """Tallam-style hysteresis drift: normalized distance of the (mutable) admission
+    rule from its last AUDITED checkpoint. Symmetric-difference over eligibility sets
+    + a Kendall-like disorder term over the priority permutation. Range ~[0,1]."""
+    def _setdrift(a: List[Any], b: List[Any]) -> float:
+        sa, sb = set(a), set(b)
+        union = sa | sb
+        if not union:
+            return 0.0
+        return len(sa ^ sb) / len(union)
+    d_len = _setdrift(rule.get("eligible_len_buckets", []), audited["eligible_len_buckets"])
+    d_sub = _setdrift(rule.get("eligible_subtheories", []), audited["eligible_subtheories"])
+    # priority disorder: fraction of adjacent pairs out of audited order.
+    pr = [p for p in rule.get("priority", []) if p in audited["priority"]]
+    rank = {p: i for i, p in enumerate(audited["priority"])}
+    inv = 0
+    pairs = 0
+    for i in range(len(pr)):
+        for j in range(i + 1, len(pr)):
+            pairs += 1
+            if rank.get(pr[i], 0) > rank.get(pr[j], 0):
+                inv += 1
+    d_pri = (inv / pairs) if pairs else 0.0
+    return round((d_len + d_sub + d_pri) / 3.0, 6)
+
+
+def _evo_lean_check(candidate: Dict[str, Any]) -> Dict[str, Any]:
+    """THE IMMUTABLE KERNEL GATE (hand-coded, NON-agentic). A MODELED 0-sorry Lean
+    check + claim-pinning. This function's 0-sorry criterion NEVER changes; evolving
+    strategies may change WHICH candidates reach it and in WHAT order, never this.
+
+    A candidate passes ONLY iff:
+      (1) its MODELED proof carries ZERO sorries (sorries == 0), AND
+      (2) claim-pinning holds: statement_original == statement_final (no weakening).
+    Deterministic hash-derived difficulty makes MOST candidates FAIL -> promotion rare.
+    Returns {promoted, sorries, claim_pinned, reason}. Touches NO real node/tier."""
+    stmt_o = candidate.get("statement_original", "")
+    stmt_f = candidate.get("statement_final", "")
+    claim_pinned = (stmt_o == stmt_f) and bool(stmt_o)
+    # MODELED sorry-count: a deterministic function of the candidate's content hash and
+    # its proof-difficulty. Hard by construction so that promotion is RARE.
+    h = hashlib.sha256(("KERNEL::" + stmt_f + "::" + str(candidate.get("difficulty", 0))).encode()).hexdigest()
+    # take a byte; 0 sorries only when the low bits clear AND difficulty is low enough.
+    hv = int(h[:4], 16)
+    diff = float(candidate.get("difficulty", 1.0))
+    sorries = 0 if (hv % 17 == 0 and diff < 0.34) else (1 + (hv % 5))
+    promoted = (sorries == 0) and claim_pinned
+    reason = "0-sorry + claim-pinned" if promoted else (
+        "claim_weakened" if not claim_pinned else f"{sorries}_sorries")
+    return {"promoted": promoted, "sorries": sorries, "claim_pinned": claim_pinned, "reason": reason}
+
+
+# a FIXED probe candidate used to assert the gate is immutable (same result pre/post).
+_EVO_PROBE = {"id": "PROBE", "statement_original": "probe: additive fragment bounded",
+              "statement_final": "probe: additive fragment bounded", "difficulty": 0.10,
+              "len_bucket": 0, "subtheory": "replay"}
+
+
+def _evolve(seed: int = 42, generations: int = 15) -> Dict[str, Any]:
+    """MODELED evolutionary QD loop. Proposes candidate formula-SKETCHES, fills a
+    MAP-Elites archive by behavior descriptor, sends each through the IMMUTABLE
+    kernel gate. Revises the admission_rule (organizational closure) and rolls it
+    back on drift (Tallam). NEVER touches the real locked-8/NODES truth or tier."""
+    rng = _LCG(seed)
+    locked_before = sum(1 for n in NODES if n["tier"] == "locked")
+
+    # Kernel-immutability probe: capture the gate's verdict BEFORE any evolution.
+    gate_probe_before = _evo_lean_check(dict(_EVO_PROBE))
+
+    # MAP-Elites archive: (len_bucket, subtheory) -> elite candidate (best yield).
+    archive: Dict[Tuple[int, str], Dict[str, Any]] = {}
+    # DGM open archive of STRATEGIES (mutation biases); keep ALL, sample to spawn.
+    strategies: List[Dict[str, float]] = [{"len_bias": 0.0, "yield_bias": 0.0, "score": 0.0}]
+
+    # Mutable admission_rule (organizational-closure node) + append-only version log.
+    admission_rule = json.loads(json.dumps(_EVO_AUDITED_ADMISSION_RULE))  # deep copy
+    rule_version_log: List[Dict[str, Any]] = [json.loads(json.dumps(admission_rule))]
+
+    candidates_generated = 0
+    modeled_promotions = 0            # MODELED promotions ONLY (never the real locked-8)
+    promotion_events: List[Dict[str, Any]] = []
+    claim_pin_violation_rejected = 0  # weakened-claim candidates the gate REJECTED
+    claim_pinning_ok = True           # no PROMOTED candidate ever had a weakened claim
+
+    def _spawn(gen: int) -> Dict[str, Any]:
+        # sample a strategy from the OPEN archive (DGM: not just the best).
+        st = strategies[rng.next_u32() % len(strategies)]
+        lb = int((rng.uniform() + st["len_bias"]) * _EVO_LEN_BUCKETS) % _EVO_LEN_BUCKETS
+        sub = admission_rule["priority"][rng.next_u32() % len(admission_rule["priority"])]
+        diff = round(0.05 + 0.9 * rng.uniform(), 4)
+        # MODELED empirical yield (DGM proxy for proof-throughput), diversity-shaped.
+        yld = round(max(0.0, min(1.0, (1.0 - diff) * (0.6 + 0.4 * rng.uniform()) + st["yield_bias"])), 6)
+        stmt = f"cand[g{gen}]:{sub}:len{lb}:d{diff}"
+        return {"id": f"C{gen}_{candidates_generated}", "len_bucket": lb, "subtheory": sub,
+                "difficulty": diff, "yield": yld,
+                "statement_original": stmt, "statement_final": stmt}
+
+    forced_drift_gen = max(1, generations - 3)  # late gen: force admission-rule drift.
+    for gen in range(generations):
+        # propose a small batch of candidates from archived elites (stepping stones).
+        batch = max(3, 2 + (gen % 3))
+        for _ in range(batch):
+            cand = _spawn(gen)
+            candidates_generated += 1
+            # respect the (evolvable) admission_rule eligibility — CANDIDATE side only.
+            if cand["len_bucket"] not in admission_rule["eligible_len_buckets"]:
+                continue
+            if cand["subtheory"] not in admission_rule["eligible_subtheories"]:
+                continue
+            key = (cand["len_bucket"], cand["subtheory"])
+            # MAP-Elites: keep the ELITE (highest yield) per descriptor cell.
+            cur = archive.get(key)
+            if cur is None or cand["yield"] > cur["yield"]:
+                archive[key] = cand
+            # KERNEL GATE (immutable): only 0-sorry + claim-pinned candidates promote.
+            verdict = _evo_lean_check(cand)
+            if not verdict["claim_pinned"]:
+                claim_pin_violation_rejected += 1
+            if verdict["promoted"]:
+                # claim-pinning invariant: a PROMOTED candidate MUST be claim-pinned.
+                if cand["statement_original"] != cand["statement_final"]:
+                    claim_pinning_ok = False
+                modeled_promotions += 1   # MODELED counter — NOT the real locked tier.
+                promotion_events.append({"cand": cand["id"], "cell": [key[0], key[1]],
+                                         "yield": cand["yield"], "sorries": verdict["sorries"],
+                                         "label": "MODELED"})
+        # DGM: grow the OPEN strategy archive from the current best-yield elite.
+        if archive:
+            best_elite = max(archive.values(), key=lambda c: c["yield"])
+            strategies.append({"len_bias": round(0.05 * (gen % 3), 4),
+                               "yield_bias": round(0.02 * rng.uniform(), 6),
+                               "score": best_elite["yield"]})
+
+        # ORGANIZATIONAL CLOSURE: the loop may REVISE the admission_rule (candidate
+        # side only). At forced_drift_gen we intentionally push it PAST the Tallam
+        # threshold to prove rollback truly restores the audited snapshot.
+        if gen == forced_drift_gen:
+            # heavy revision: shuffle priority + drop eligibility -> large drift.
+            admission_rule["priority"] = list(reversed(admission_rule["priority"]))
+            admission_rule["eligible_subtheories"] = admission_rule["eligible_subtheories"][:1]
+            admission_rule["eligible_len_buckets"] = admission_rule["eligible_len_buckets"][:1]
+            admission_rule["version"] = admission_rule["version"] + 1
+            rule_version_log.append(json.loads(json.dumps(admission_rule)))
+        elif gen < forced_drift_gen and gen % 4 == 3:
+            # a small, in-bounds reprioritization (stays below the drift threshold).
+            pr = admission_rule["priority"]
+            if len(pr) >= 2:
+                pr[0], pr[1] = pr[1], pr[0]
+            admission_rule["version"] = admission_rule["version"] + 1
+            rule_version_log.append(json.loads(json.dumps(admission_rule)))
+
+        # DRIFT MONITOR + ROLLBACK (Tallam hysteresis): if the admission_rule drifts
+        # beyond threshold from the AUDITED checkpoint, FREEZE and roll back to it.
+        drift = _evo_admission_drift(admission_rule, _EVO_AUDITED_ADMISSION_RULE)
+        if drift > _EVO_DRIFT_THRESHOLD:
+            admission_rule = json.loads(json.dumps(_EVO_AUDITED_ADMISSION_RULE))
+            rule_version_log.append(json.loads(json.dumps(admission_rule)))
+
+    # Kernel-immutability probe: capture the gate's verdict AFTER evolution.
+    gate_probe_after = _evo_lean_check(dict(_EVO_PROBE))
+    gate_immutable = (gate_probe_before == gate_probe_after)
+
+    # Tallam rollback assertion: after the forced drift, the live admission_rule MUST
+    # equal the audited snapshot (reversion truly restored).
+    admission_rule_drift = _evo_admission_drift(admission_rule, _EVO_AUDITED_ADMISSION_RULE)
+    rollback_restored = (
+        admission_rule["eligible_len_buckets"] == _EVO_AUDITED_ADMISSION_RULE["eligible_len_buckets"]
+        and admission_rule["eligible_subtheories"] == _EVO_AUDITED_ADMISSION_RULE["eligible_subtheories"]
+        and admission_rule["priority"] == _EVO_AUDITED_ADMISSION_RULE["priority"]
+    )
+
+    # top elites (by yield) with their descriptor cell — the diversity map.
+    elites_sorted = sorted(archive.items(), key=lambda kv: kv[1]["yield"], reverse=True)
+    top_elites = [{"descriptor": {"len_bucket": k[0], "subtheory": k[1]},
+                   "yield": v["yield"], "difficulty": v["difficulty"],
+                   "cand": v["id"], "label": "MODELED"} for k, v in elites_sorted[:6]]
+
+    locked_after = sum(1 for n in NODES if n["tier"] == "locked")
+
+    return {
+        "label": "MODELED",
+        "seed": seed, "generations": generations,
+        "locked_count": locked_after,                    # MUST be 8, real locked-8 untouched
+        "real_locked_before": locked_before,
+        "real_locked_after": locked_after,
+        "archive_cells_possible": _EVO_LEN_BUCKETS * len(_EVO_SUBTHEORY),
+        "archive_cells_filled": len(archive),            # MAP-Elites diversity coverage
+        "archive_size": len(archive),
+        "strategy_archive_size": len(strategies),        # DGM OPEN archive (keep ALL)
+        "candidates_generated": candidates_generated,
+        "modeled_promotions": modeled_promotions,        # MODELED — NOT the real locked tier
+        "modeled_promotion_events": promotion_events[:8],
+        "claim_pin_violation_rejected": claim_pin_violation_rejected,
+        "gate_immutable": gate_immutable,                # MUST be True (gate never evolves)
+        "gate_probe_before": gate_probe_before,
+        "gate_probe_after": gate_probe_after,
+        "claim_pinning_ok": claim_pinning_ok,            # MUST be True (no weakened promotions)
+        "admission_rule": admission_rule,                # live rule (post-rollback == audited)
+        "audited_admission_rule": _EVO_AUDITED_ADMISSION_RULE,
+        "admission_rule_versions": len(rule_version_log),
+        "admission_rule_drift": admission_rule_drift,     # ~0 after rollback
+        "drift_threshold": _EVO_DRIFT_THRESHOLD,
+        "rollback_restored": rollback_restored,          # MUST be True (Tallam reversion)
+        "top_elites": top_elites,
+        "promotion_tier_note": (
+            "MODELED promotions are counted ONLY in modeled_promotions (a staging counter); "
+            "they NEVER enter the real locked tier. locked_count stays EXACTLY 8."),
+        "honest_note": _HONEST_NOTE + (
+            " WAVE-20 EVOLVE: a MODELED evolutionary quality-diversity loop — 'evolution proposes, "
+            "the kernel disposes.' Candidate formula-SKETCHES are scored by a MODELED empirical yield "
+            "and mapped into a MAP-Elites archive (behavior descriptor: proof-length x sub-theory), "
+            "with a DGM-style OPEN strategy archive (keep ALL variants, sample to spawn). Strategies "
+            "evolve WHAT and in WHAT ORDER candidates are proposed; the Lean kernel gate is the SOLE "
+            "immutable, hand-coded, non-agentic arbiter (0-sorry + claim-pinning) and is asserted "
+            "identical before/after evolution. Promotions shown are MODELED (a separate staging counter) "
+            "— NOT real Lean proofs and NEVER the real locked-8, which stays EXACTLY 8 and untouched. "
+            "The admission_rule is an organizational-closure node the loop may revise on the CANDIDATE "
+            "side only; a Tallam hysteresis monitor freezes and rolls it back to the AUDITED snapshot "
+            "(append-only version log) when drift exceeds threshold. Deterministic, pure stdlib."),
+        "citations": dict(CITATIONS, **{
+            "Darwin Godel Machine (open-ended self-improving agents)": "https://arxiv.org/abs/2505.22954",
+            "Hyperagents / DGM-H (open archive of strategies)": "https://arxiv.org/abs/2603.19461",
+            "MAP-Elites (Illuminating search spaces by mapping elites)": "https://arxiv.org/abs/1504.04909",
+            "POET (Paired Open-Ended Trailblazer, stepping stones)": "https://arxiv.org/abs/1901.01753",
+            "DeepSeek-Prover-V2 (Lean-check subgoal decomposition)": "https://arxiv.org/abs/2504.21801",
+            "Goedel-Prover-V2 (verifier-guided self-correction)": "https://arxiv.org/abs/2508.03613",
+            "Minary organizational closure (admission-rule as node)": "https://arxiv.org/abs/2601.04501",
+            "Tallam governance-drift monitor (hysteresis rollback)": "https://arxiv.org/abs/2604.14717",
+        }),
+    }
+
+
+async def _h_evolve(request):  # type: ignore
+    q = getattr(request, "query_params", {}) or {}
+    def _int(name, dflt):
+        try:
+            return int(q.get(name, dflt))
+        except Exception:
+            return dflt
+    seed = _int("seed", 42)
+    generations = max(1, min(_int("generations", 15), 100))
+    return JSONResponse(_evolve(seed=seed, generations=generations))
+
+
+# ---------------------------------------------------------------------------
 # HTTP handlers
 # ---------------------------------------------------------------------------
 async def _h_graph(request: "Request"):  # type: ignore
@@ -703,6 +1283,8 @@ def register(app, ns: str = "killinchu"):
         (f"{base}/repair", _h_repair),
         (f"{base}/plasticity", _h_plasticity),
         (f"{base}/memory", _h_memory),
+        (f"{base}/vitals", _h_vitals),
+        (f"{base}/evolve", _h_evolve),
     ]
     try:
         add_api_route = getattr(app, "add_api_route", None)
@@ -765,4 +1347,60 @@ if __name__ == "__main__":
     print("szl_fgbrain wave18: memory OK — beats", mem["beats_written"],
           "chain_intact", mem["chain_intact"], "reconsolidation_gain",
           mem["reconsolidation_gain"], "distinct_pairs", mem["distinct_cofire_pairs"])
+    # ---- wave-19 homeostasis (/vitals) checks ----
+    vit = _homeostasis(seed=42, rounds=12)
+    assert vit["label"] == "MODELED"
+    assert vit["locked_count"] == 8, "homeostat must leave locked-proven EXACTLY 8"
+    assert vit["locked_untouched"] is True, "no locked/conjecture tier may change"
+    assert vit["actions_are_infra_only"] is True, "corrective actions must be INFRA-ONLY"
+    dpr = vit["drive_per_round"]
+    assert len(dpr) >= 2, "need a drive trace"
+    # HRRL: drive must trend DOWN (final strictly below the start; non-increasing overall).
+    assert dpr[-1] < dpr[0], "drive must trend down (homeostatic reward positive)"
+    assert all(dpr[i + 1] <= dpr[i] + 1e-9 for i in range(len(dpr) - 1)), "drive must be monotone non-increasing"
+    assert "CONJECTURE-1" in vit["conjecture_note"], "Λ must be labeled CONJECTURE-1"
+    assert vit["viability_horizon"] >= 0
+    assert _homeostasis(42, 12) == _homeostasis(42, 12), "vitals deterministic"
+    # fail-closed: a long run must exhaust budget and STOP proposing (never auto-promote).
+    fc = _homeostasis(seed=42, rounds=100)
+    assert fc["fail_closed"] is True and fc["stopped_reason"] == "budget_exhausted_fail_closed", "must fail-closed on budget exhaustion"
+    assert fc["locked_count"] == 8 and fc["locked_untouched"] is True
+    assert fc["viability_horizon"] == 0, "exhausted budget => zero further sustainable cycles"
+    print("szl_fgbrain wave19: vitals OK — drive", dpr[0], "->", vit["drive_final"],
+          "| in_band", vit["in_band_count"], "/", vit["setpoint_count"],
+          "| viability_horizon", vit["viability_horizon"],
+          "| locked_untouched", vit["locked_untouched"], "| actions", len(vit["actions_taken"]))
+    # ---- wave-20 evolution + organizational-closure (/evolve) checks ----
+    ev = _evolve(seed=42, generations=15)
+    assert ev["label"] == "MODELED"
+    # DOCTRINE: real locked-8 NEVER incremented by evolution/archive/promotion.
+    assert ev["locked_count"] == 8, "evolution must leave the real locked-proven set EXACTLY 8"
+    assert ev["real_locked_before"] == 8 and ev["real_locked_after"] == 8, "locked==8 pre AND post"
+    assert sum(1 for n in NODES if n["tier"] == "locked") == 8, "NODES locked tier still exactly 8"
+    # MODELED promotions go to a SEPARATE staging counter, NOT the locked tier.
+    assert ev["modeled_promotions"] >= 0 and ev["modeled_promotions"] < ev["candidates_generated"], "promotions must be a rare subset"
+    # KERNEL GATE immutable: identical verdict on the fixed probe before/after evolution.
+    assert ev["gate_immutable"] is True, "kernel gate must be immutable across evolution"
+    assert ev["gate_probe_before"] == ev["gate_probe_after"], "gate probe verdict must match pre/post"
+    # Independent immutability check: the gate function on the fixed probe is stable.
+    assert _evo_lean_check(dict(_EVO_PROBE)) == _evo_lean_check(dict(_EVO_PROBE)), "gate deterministic"
+    # CLAIM-PINNING: no promoted candidate ever had a weakened claim.
+    assert ev["claim_pinning_ok"] is True, "promoted candidates must be claim-pinned (no weakening)"
+    # a weakened-claim candidate MUST be rejected by the gate (never promoted).
+    _weak = {"statement_original": "strong: additive fragment bounded",
+             "statement_final": "weak: sometimes bounded", "difficulty": 0.05}
+    assert _evo_lean_check(_weak)["promoted"] is False, "weakened claim must be rejected by the gate"
+    # DRIFT ROLLBACK (Tallam): after forced drift the admission_rule == audited snapshot.
+    assert ev["rollback_restored"] is True, "drift rollback must restore the audited admission_rule"
+    assert ev["admission_rule"]["priority"] == ev["audited_admission_rule"]["priority"], "priority restored"
+    assert ev["admission_rule"]["eligible_subtheories"] == ev["audited_admission_rule"]["eligible_subtheories"], "eligibility restored"
+    # MAP-Elites diversity + determinism.
+    assert ev["archive_cells_filled"] >= 1, "archive must fill at least one descriptor cell"
+    assert ev["archive_cells_filled"] <= ev["archive_cells_possible"], "cannot exceed grid capacity"
+    assert _evolve(42, 15) == _evolve(42, 15), "evolve deterministic"
+    print("szl_fgbrain wave20: evolve OK — archive_cells_filled", ev["archive_cells_filled"],
+          "/", ev["archive_cells_possible"], "| candidates", ev["candidates_generated"],
+          "| modeled_promotions", ev["modeled_promotions"], "| locked", ev["locked_count"],
+          "| gate_immutable", ev["gate_immutable"], "| claim_pinning_ok", ev["claim_pinning_ok"],
+          "| rollback_restored", ev["rollback_restored"])
     print("szl_fgbrain: ALL OK — real graph, MODELED firing anchored on locked-8, conjectures gray, deterministic.")
