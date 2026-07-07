@@ -5499,6 +5499,31 @@ for _w14_mod, _w14_label, _w14_route in _WAVE14_ORGANS:
 # ============================================================================
 
 
+# ============================================================================
+# BEGIN: WAVE K / DEV 5 — killinchu FRONTIER FULL-WIRE (ADDITIVE)
+# The wave-built frontier BACKENDS (trackfusion, onebit, cc-attest, sement,
+# ttc/testtime, specdec, worldmodel, episodic, qec, energy) are LIVE 200 on
+# killinchu but were NOT surfaced in the operator deck (/elite). This wires each
+# into the deck as a REAL tab that fetches its LIVE endpoint with an HONEST label
+# (LIVE/SIMULATED/MODELED, never green) + cross-links to a-11-oy.com and /verify.
+# ADDITIVE: serves /killinchu_frontier_wave_surfaces.js + a single idempotent
+# <script src> injector on deck HTML; the elite console + SPA shell are NOT edited.
+# Registered BEFORE the SPA /{full_path:path} catch-all (register() front-inserts
+# the .js route). Effector SIMULATED human-on-loop; Λ = Conjecture 1.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ============================================================================
+try:
+    import killinchu_frontier_wave_surfaces as _kc_wave_surfaces
+    _kc_wave_status = _kc_wave_surfaces.register(app, ns="killinchu")
+    print(f"[killinchu] Wave-K frontier full-wire registered: {_kc_wave_status}", file=sys.stderr)
+except Exception as _kc_wave_e:  # pragma: no cover — never break SPA/other organs
+    print(f"[killinchu] Wave-K frontier full-wire NOT registered: {_kc_wave_e!r}; "
+          f"SPA + other organs unaffected", file=sys.stderr)
+# ============================================================================
+# END: WAVE K / DEV 5 — killinchu FRONTIER FULL-WIRE
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))

@@ -231,6 +231,8 @@ COPY szl_kc_ttc.py szl_kc_specdec.py szl_kc_worldmodel.py ./
 #   or serve.py's guarded imports degrade to not-registered stubs and the three tabs 404 again.
 # Per-file COPY (NEVER `COPY . .`).
 COPY szl_kc_episodic.py szl_kc_qec.py szl_kc_energy.py ./
+# WAVE K / DEV 5: killinchu frontier full-wire surface bootstrap (additive)
+COPY killinchu_frontier_wave_surfaces.py ./
 
 # ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
 # knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to
