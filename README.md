@@ -288,7 +288,7 @@ Five pillars, each mapped to a component SZL runs in production with an honest p
 
 - **Protocol-Bounded Execution** — governed-decision loop + YUYAY 13-axis conjunctive gate (deny-by-default). *Gate soundness proven over the locked F-set.*
 - **Verifiable Intent-to-Execution** — DSSE-signed receipt chain + Lean-theorem trace. *ECDSA-P256 signed, SHA-256 hash-chained, tamper-evident.*
-- **Bounded-Recursion Control Plane** — Ouroboros bounded-recursion loop (P1–P6). *Loop invariants proven.*
+- **Bounded-Recursion Control Plane** — Ouroboros bounded-recursion loop (P1–P6), following the estate's canonical bounded-loop pattern ([`ouroboros/src/loop-kernel.ts`](https://github.com/szl-holdings/ouroboros/blob/main/src/loop-kernel.ts) `runLoop`) and instilled here as the governed agent loop ([`szl_agentic_loop.py`](szl_agentic_loop.py), registered identically in a11oy + killinchu). *Loop invariants proven.*
 - **Semantic Quorum Assurance** — Khipu BFT quorum + Wave23 conditional safety theorem (`khipu_quorum_safety_conditional`, agreement under non-equivocation). *Conditional theorem; unconditional Byzantine safety = Conjecture 2 (open).*
 - **Epistemic State Replication** — YAWAR append-only receipt bus + deterministic replay + Verifiable Semantic Rollback. *Receipts/replay live; full ESR semantics = open R&D (roadmap).*
 
@@ -307,6 +307,8 @@ See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platfo
 ---
 
 ## Honest status
+
+**Label legend (a-11-oy tab standard):** **MEASURED** = independently verified live this session · **REPORTED** = self-disclosed by the running app at [`/v1/honest`](https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest) · **UNKNOWN** = not independently verifiable here. Live probe 2026-07-09: HF Space `/elite` → **MEASURED HTTP 200** (page title `killinchu — Counter-UAS Governance · SZL Holdings`).
 
 | Claim | Status |
 |---|---|
@@ -442,6 +444,8 @@ We are a precision substrate, not a vibes company.
 
 One sovereign substrate, many organs — every decision carries a signed, checkable receipt.
 
+**[a-11-oy.com — the estate front-door](https://a-11-oy.com)** — the live estate hub (a11oy flagship). killinchu's own live face is its HF Space `/elite` below.
+
 **[◇ Holographic Estate — the showcase](https://szlholdings-holographic.static.hf.space)** ·
 [🛡️ a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ·
 [🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
@@ -456,6 +460,10 @@ One sovereign substrate, many organs — every decision carries a signed, checka
 [📐 governed-receipt-spec](https://github.com/szl-holdings/governed-receipt-spec) ·
 [✅ receipt verifier](https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier) ·
 [📦 receipts bench](https://huggingface.co/datasets/SZLHOLDINGS/governed-receipts-bench)
+
+**Formula provenance** — killinchu's edge formulas and 13-axis Λ-gate are machine-checked in the estate's formula ledger and Lean corpus (honest ledger; Λ = Conjecture 1, never proven):
+[🧮 szl-formula-ledger](https://github.com/szl-holdings/szl-formula-ledger) ·
+[📐 lutar-lean](https://github.com/szl-holdings/lutar-lean)
 
 <sub>Doctrine v11 · Λ = Conjecture 1, never green · honest by design · public data only.</sub>
 
