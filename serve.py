@@ -41,6 +41,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 import killinchu_protocols as kp
+from killinchu_receipt_export import build_receipt_export
 
 _APP_ROOT = Path(os.environ.get("KILLINCHU_ROOT", "/app"))
 STATIC_DIR = _APP_ROOT / "static"
@@ -1799,6 +1800,14 @@ def _lambda_aggregate(axes: list[float]) -> float:
 if ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
+# The shared brand injector deliberately uses absolute ``/static/...`` URLs so
+# every HTML surface (including nested ``/elite/*`` pages) resolves the same
+# zero-CDN assets. Mount the packaged public tree before the SPA catch-all so
+# CSS, fonts and other explicitly referenced static assets keep their real
+# media types under strict browser MIME checking.
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
 
 # ---------------------------------------------------------------------------
 # Health
@@ -2217,64 +2226,20 @@ async def cosign_pub() -> Response:
 
 @app.get("/api/killinchu/v1/receipt/export")
 async def receipt_export(index: int = -1) -> JSONResponse:
-    """Export ONE signed receipt + step-by-step offline verify instructions.
+    """Export one bounded receipt or an explicit, typed empty state.
 
-    The on-stage 'verify it yourself' artifact: gives the judge the DSSE
-    envelope, the public-key URL, and the exact two commands to verify the
-    signature with cosign — no trust in killinchu's infrastructure required.
+    ``signed`` is true only after the reconstructed DSSE envelope verifies
+    against the public key. Missing receipts or signing capability are never
+    represented by a fabricated envelope.
     """
-    if not _KHIPU_DAG:
-        return JSONResponse({"ok": False, "error": "no receipts yet — run a /beyond demo first"},
-                            status_code=404)
-    try:
-        node = _KHIPU_DAG[index]
-    except IndexError:
-        node = _KHIPU_DAG[-1]
-    dsse = dict(node.get("dsse") or {})
-    sigs = dsse.get("signatures") or []
-    signed = bool(sigs and sigs[0].get("keyid") not in (None, "PENDING"))
-    # RECONSTRUCT the full verifiable DSSE envelope. The signature was computed by
-    # szl_dsse.sign_payload over canonical_json(node["receipt"]); the stored node
-    # kept only the signatures, so re-derive the exact base64 payload here. Without
-    # this, an offline `cosign verify-blob` would have nothing to verify against.
-    payload_b64 = None
-    pae_sha256 = None
-    receipt_obj = node.get("receipt")
-    if receipt_obj is not None and _szl_dsse is not None:
-        try:
-            import base64 as _b64_exp
-            body = _szl_dsse.canonical_json(receipt_obj)
-            payload_b64 = _b64_exp.b64encode(body).decode("ascii")
-            ptype = dsse.get("payloadType", "application/vnd.szl.receipt+json")
-            pae_sha256 = hashlib.sha256(_szl_dsse.pae(ptype, body)).hexdigest()
-            dsse["payload"] = payload_b64
-            dsse["_dsse"] = "DSSEv1"
-            dsse["_pae_sha256"] = pae_sha256
-        except Exception:
-            pass
-    return JSONResponse({
-        "ok": True,
-        "node_index": node.get("index"),
-        "node_digest": node.get("digest"),
-        "khipu_root": _khipu_root(),
-        "dsse": dsse,
-        "payload_b64": payload_b64,
-        "signed": signed,
-        "keyid": (sigs[0].get("keyid") if sigs else None),
-        "public_key_url": "https://szlholdings-killinchu.hf.space/cosign.pub",
-        "verify_offline": [
-            "# 1. Save the public key",
-            "curl -s https://szlholdings-killinchu.hf.space/cosign.pub -o cosign.pub",
-            "# 2. Save this DSSE envelope's payload + signature, then:",
-            "cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin",
-            "# OR verify the whole DAG via the live endpoint:",
-            "curl -s -X POST https://szlholdings-killinchu.hf.space/khipu/verify -H 'Content-Type: application/json' -d @receipt.json",
-        ],
-        "honesty": ("REAL ECDSA-P256-SHA256 DSSE when signed=true (keyid szlholdings-cosign); "
-                    "an honest UNSIGNED placeholder otherwise. The public key is the same one "
-                    "published at szl-holdings/.github/cosign.pub — verify without trusting us."),
-        "doctrine": DOCTRINE,
-    })
+    body, status_code = build_receipt_export(
+        _KHIPU_DAG,
+        index=index,
+        doctrine=DOCTRINE,
+        dsse_module=_szl_dsse,
+        khipu_root=_khipu_root(),
+    )
+    return JSONResponse(body, status_code=status_code)
 
 
 @app.get("/api/killinchu/v1/lambda")
