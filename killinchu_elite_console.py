@@ -4771,6 +4771,10 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="kpi"><div class="k">Signing key</div><div class="v live" id="ul-key">—</div><div class="d">keyid · ECDSA-P256</div></div>
       <div class="kpi"><div class="k">Surfaces spanned</div><div class="v teal" id="ul-src">—</div><div class="d">air · sea · gov · consensus</div></div>
       <div class="kpi"><div class="k">Recording</div><div class="v" id="poll-ts-ul-tape">${window.autoPill?window.autoPill('ul-tape'):'AUTO'}</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">One-click proof</span><span class="card-ep">in-browser DSSE · WebCrypto · no server trust</span></div>
+        <div class="row" style="gap:.5rem;flex-wrap:wrap;align-items:center"><button class="btn" onclick="unifiedledger_verify(false)">Verify latest receipt now</button><button class="btn" onclick="unifiedledger_verify(true)">Tamper test</button><span id="ul-verify-badge"></span></div>
+        <div class="mono dim" id="ul-verify-detail" style="font-size:11px;line-height:1.7;margin-top:.4rem">Verifies the newest signed receipt locally against <code>/cosign.pub</code> (ECDSA&#8209;P256&#8209;SHA256) — no server round-trip is trusted. The <b>Khipu root</b> above binds the whole chain; per-receipt DSSE proves each row is authentic &amp; unmodified. Sigstore/Rekor transparency-log CI signing stays roadmap (honest).</div>
+        <details class="raw"><summary>raw receipt envelope (/receipt/export) + public key (/cosign.pub)</summary><pre class="out" id="ul-verify-out">—</pre></details></div>
       <div class="card"><div class="card-h"><span class="card-t">Unified ledger tape — newest first</span><span class="card-ep">live DSSE · auto-recording</span></div>
         <div class="feedtail" id="ul-tape" style="max-height:420px;overflow:auto"><div class="row mono dim">connecting to live receipt ledger…</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Receipts by surface</span><span class="card-ep">cross-mission span</span></div><div id="ul-bysrc"><div class="row mono dim">loading…</div></div>
@@ -5533,6 +5537,33 @@ async function unifiedledger_load(){
     setOut('ul-raw',{wire:d.wire,khipu_root:d.khipu_root,count:d.count,doctrine:d.doctrine,honesty:d.honesty,newest:nodes.slice(-1)[0]||null});
   }catch(e){const t=el('ul-tape');if(t)t.innerHTML='<div class="row mono dim" style="padding:1rem">live receipt ledger unavailable: '+esc(e.message)+'</div>';setTxt('ul-count','—');}}
 window.unifiedledger_load=unifiedledger_load;
+
+// One-click proof on the ledger surface: verify the newest signed receipt IN-BROWSER,
+// reusing the exact proven DSSE path (/receipt/export + /cosign.pub + verifyReceipt) shipped
+// on the audit/deploy tabs. Honest scope: this proves the LATEST receipt's ECDSA-P256 DSSE
+// signature locally; the Khipu root binds the whole chain. tamper=true flips a byte to prove FAIL.
+async function unifiedledger_verify(tamper){
+  const bw=el('ul-verify-badge'), det=el('ul-verify-detail');
+  const setB=(cls,txt)=>{if(bw)bw.innerHTML='<span class="badge '+cls+'">'+esc(txt)+'</span>';};
+  setB('b-warn', tamper?'TAMPER TEST RUNNING…':'VERIFYING…');
+  if(det) det.textContent='Fetching the newest receipt + public key, then verifying locally…';
+  try{
+    const exp=await getJSON(API+'/receipt/export');
+    const pub=await (await fetch(BASE+'/cosign.pub')).text();
+    const env=exp.dsse||exp;
+    setOut('ul-verify-out',{public_key:pub.trim(),envelope:env});
+    if(!env||!env.payload||!(env.signatures&&env.signatures.length)){setB('b-warn','NO SIGNATURE PRESENT');if(det)det.textContent='This receipt is unsigned (no signing key on this runtime).';return;}
+    const res=await verifyReceipt(env,pub,!!tamper);
+    if(tamper){
+      if(res.ok){setB('b-err','UNEXPECTED: tampered receipt still verified');}
+      else{setB('b-teal','TAMPER DETECTED — signature correctly FAILED');if(det)det.innerHTML='We flipped one byte of the signed payload; the signature no longer matches → <b>rejected</b>. Any edit breaks the seal. Key: '+esc(res.keyid)+'.';}
+    }else{
+      if(res.ok){setB('b-teal','PASS — signature is valid');if(det)det.innerHTML='Verified in your browser against killinchu’s public key — the newest receipt is authentic and unmodified. ECDSA P-256 / SHA-256 · key '+esc(res.keyid)+' · content hash '+esc(res.paeSha256.slice(0,24))+'…';}
+      else{setB('b-err','FAIL — signature did not verify');if(det)det.textContent='The signature did not verify against the published key.';}
+    }
+  }catch(e){setB('b-err','ERROR');if(det)det.textContent='retry: '+e.message;}
+}
+window.unifiedledger_verify=unifiedledger_verify;
 
 // Seismic Forecast showcase — live USGS earthquakes on a 3D globe + Reasenberg-Jones aftershock forecast.
 // Color/size by magnitude, depth extrusion (inward stems), USGS PAGER alert rings. Click M>=5 to forecast.
