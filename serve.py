@@ -1800,6 +1800,14 @@ def _lambda_aggregate(axes: list[float]) -> float:
 if ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
+# The shared brand injector deliberately uses absolute ``/static/...`` URLs so
+# every HTML surface (including nested ``/elite/*`` pages) resolves the same
+# zero-CDN assets. Mount the packaged public tree before the SPA catch-all so
+# CSS, fonts and other explicitly referenced static assets keep their real
+# media types under strict browser MIME checking.
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
 
 # ---------------------------------------------------------------------------
 # Health
