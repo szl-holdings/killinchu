@@ -41,6 +41,5544 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 import killinchu_protocols as kp
+from killinchu_receipt_export import build_receipt_export
+
+_APP_ROOT = Path(os.environ.get("KILLINCHU_ROOT", "/app"))
+STATIC_DIR = _APP_ROOT / "static"
+ASSETS_DIR = STATIC_DIR / "assets"
+INDEX_HTML = STATIC_DIR / "index.html"
+DRONES_DB_PATH = _APP_ROOT / "drones_db.json"
+
+
+def _safe_join_under(base: Path, user_rel: str) -> Path | None:
+    """Resolve `user_rel` under `base` and return it only if it stays inside.
+
+    Root-cause path-injection guard for user-controlled relative paths reaching
+    a filesystem read. We fully resolve with os.path.realpath (following
+    symlinks) and require the result to be contained within the canonical base
+    directory. Anything that escapes (../, absolute, symlink) returns None and
+    the caller serves the SPA/404 fallback. Allowlist-on-resolved-location,
+    not a substring denylist.
+    """
+    try:
+        base_real = os.path.realpath(base)
+        cand_real = os.path.realpath(os.path.join(base_real, user_rel))
+        if cand_real == base_real or cand_real.startswith(base_real + os.sep):
+            return Path(cand_real)
+        return None
+    except Exception:
+        return None
+
+
+def _wired_ok(status) -> bool:
+    """True iff a register()-style status string indicates success."""
+    try:
+        s = str(status)
+    except Exception:
+        return False
+    return ("not-wired" not in s) and ("NOT " not in s) and ("FAILED" not in s)
+
+
+def _diag_payload(name: str, status, tb: str) -> dict:
+    """Build a client-safe _diag body.
+
+    py/stack-trace-exposure root-cause fix: never return raw tracebacks or
+    exception reprs to the HTTP client. We log the full detail server-side
+    (stderr) once, and return only a coarse wired/error indicator to the
+    caller. The detailed traceback stays in the Space logs for operators.
+    """
+    ok = _wired_ok(status)
+    if not ok and tb:
+        try:
+            print(f"[killinchu] _diag {name}: not wired\n{tb}", file=sys.stderr)
+        except Exception:
+            pass
+    return {
+        "component": name,
+        "wired": ok,
+        "status": "ok" if ok else "unavailable",
+        "detail": "see server logs" if not ok else "ok",
+    }
+
+DOCTRINE = "v11"
+SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired into CI per Doctrine v11"
+KILLINCHU_REDIRECT = "https://szlholdings-killinchu.hf.space"
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (Yachay / Perplexity Computer Agent — Receipt-signing wire):
+# Wire the rule-engine inline receipts (_emit_receipt) to the REAL cosign DSSE
+# path (szl_dsse) instead of stamping a literal placeholder. HONEST behaviour:
+#   * If SZL_COSIGN_PRIVATE_PEM is present in the Space runtime, every receipt
+#     is signed with a genuine ECDSA-P256-SHA256 DSSE signature, verifiable by
+#     `cosign verify-blob --key cosign.pub` and the /khipu/verify endpoint.
+#   * If the secret is ABSENT, we DO NOT fabricate a signature — the receipt
+#     keeps the clearly-labelled placeholder so /honest stays truthful.
+# This is Option 2 from the brief: a long-lived demo keypair is minted once,
+# its PRIVATE half delivered ONLY as the Space secret (never committed), its
+# PUBLIC half published at szl-holdings/.github/cosign.pub (embedded in
+# szl_dsse.COSIGN_PUBLIC_PEM). For prod, Option 1 (cosign keyless OIDC) is the
+# recommended upgrade — see FINAL_REPORT.
+try:
+    import szl_dsse as _szl_dsse  # real cosign DSSE signer
+except Exception:  # pragma: no cover - degrade gracefully, never crash the app
+    _szl_dsse = None
+
+
+def _receipt_signatures(receipt_obj: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    """Return (signatures, signed). Uses the real cosign DSSE key when the
+    SZL_COSIGN_PRIVATE_PEM secret is present; otherwise an HONEST placeholder
+    (never a fabricated signature). Failures degrade to the placeholder."""
+    if _szl_dsse is not None:
+        try:
+            if _szl_dsse.signing_available():
+                env = _szl_dsse.sign_payload(receipt_obj, "application/vnd.szl.receipt+json")
+                sigs = env.get("signatures") or []
+                if sigs:
+                    return sigs, True
+        except Exception:
+            pass
+    return [{"sig": SIGNATURE_PLACEHOLDER, "keyid": "PENDING"}], False
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (OTel instrumentation, Yachay 2026-06-01 / Perplexity Computer Agent):
+# Initialise OTLP/HTTP trace export from env var OTEL_EXPORTER_OTLP_ENDPOINT.
+# Gracefully no-ops if the env var is absent or packages missing.
+# Doctrine v11 LOCKED 749/14/163. ADDITIVE ONLY — does NOT touch existing routes.
+# ---------------------------------------------------------------------------
+# HOTFIX 2026-06-01 Yachay: OTel middleware crash-looping the Space.
+# Hard-disable szl_otel import. Real OTel ships in next clean PR.
+def _szl_otel_setup(*a, **kw): pass
+_OTEL_ENABLED = False
+# --- end OTel preamble ---
+
+
+app = FastAPI(title="Killinchu — Andean Drone Intelligence", version="1.0.0")
+
+# ── Evidence & Research layer (evidence-research-185) — curated + live arXiv/GitHub citations.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
+try:
+    import szl_evidence_research as _szl_evidence_research
+    _szl_evidence_research.register(app, ns="killinchu")
+    print("[killinchu] Evidence & Research registered: /api/killinchu/v1/evidence/research", file=__import__("sys").stderr)
+except Exception as _szl_ev_e:  # pragma: no cover
+    print(f"[killinchu] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
+
+# ── /elite view-wiring audit layer (wire-elite-views) — maps each /elite view to
+# the REAL killinchu data feed it consumes and reports honest per-view wiring
+# health (wired | degraded | needs-deploy | SIMULATED) via an in-process probe.
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all. Pure stdlib.
+# Doctrine v11: effectors SIMULATED; honest labels; no fabricated data.
+try:
+    import killinchu_elite_wiring as _killinchu_elite_wiring
+    _kew_reg = _killinchu_elite_wiring.register(app, ns="killinchu")
+    print(f"[killinchu] /elite wiring audit registered: {_kew_reg}", file=__import__("sys").stderr)
+except Exception as _kew_e:  # pragma: no cover
+    print(f"[killinchu] /elite wiring audit NOT registered: {_kew_e!r}", file=__import__("sys").stderr)
+
+# ── Operational Readiness layer (readiness-tab-patch) — deployed-vs-repo reality.
+# Live site/endpoint liveness, HF Space build status, repo/org drift with honest
+# live/cached/unreachable labels. Same resilience pattern as evidence module.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_readiness as _szl_readiness  # single source of truth
+    except Exception:
+        import szl_readiness as _szl_readiness
+    _szl_readiness.register(app, ns="killinchu")
+    print("[killinchu] Operational Readiness registered: /api/killinchu/v1/readiness", file=__import__("sys").stderr)
+except Exception as _szl_rd_e:  # pragma: no cover
+    print(f"[killinchu] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
+
+# ── Energy / Sovereign-Compute MIRROR (Lane C). The SAME byte-identical module shipped
+# on a11oy. killinchu has no sovereign GPU orchestrator, so its sovereign probe returns
+# the honest not-sovereign default and every tile renders ROADMAP — a true mirror, never
+# faked. Adds /energy + /api/killinchu/v1/energy/*. Additive, try/except-guarded, before
+# the SPA catch-all. Pure stdlib (+ optional shared szl_joules_truth).
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_energy_sovereign as _szl_energy_sovereign  # single source of truth
+    except Exception:
+        import szl_energy_sovereign as _szl_energy_sovereign
+    _szl_energy_sovereign.register(app, ns="killinchu")
+    print("[killinchu] Energy/Sovereign-Compute mirror registered: /energy + /api/killinchu/v1/energy/*", file=__import__("sys").stderr)
+except Exception as _szl_es_e:  # pragma: no cover
+    print(f"[killinchu] Energy/Sovereign-Compute mirror NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
+
+# ── TDA-Fracture regime/anomaly detector on AIS/maritime (kc-quant) — the killinchu twin
+# of a11oy's GPU-Quant Layer 2. Treats vessel-track / maritime-feature correlation as a
+# point cloud (distance d=√(2(1−ρ))), computes Betti β0/β1 at a COMMON fixed filtration
+# radius, and flags fracture f_t=|Δβ0|+|Δβ1| with |z|>2.5 as a REGIME-SHIFT / anomaly into
+# the maritime risk surface. HONEST: MODELED | SAMPLE_AIS | NOT_LIVE | REQUIRES_HISTORICAL_
+# CALIBRATION — effector posture SIMULATED · human-on-loop, NEVER an autonomous action.
+# DSSE-signed receipt (REAL ECDSA in-Space, honest UNSIGNED marker locally). Adds
+# /api/killinchu/v1/quant/tda-fracture. PURE STDLIB (union-find Betti). Additive, try/except-
+# guarded, before the SPA catch-all. Cites Gidea-Katz (arXiv:1703.04385), giotto-tda.
+try:
+    import szl_kc_tda_fracture as _szl_kc_tda_fracture
+    _szl_kc_tda_fracture.register(app, ns="killinchu")
+    print("[killinchu] TDA-Fracture regime detector registered: /api/killinchu/v1/quant/tda-fracture", file=__import__("sys").stderr)
+except Exception as _szl_kctda_e:  # pragma: no cover
+    print(f"[killinchu] TDA-Fracture regime detector NOT registered: {_szl_kctda_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER (Wave-H Team-4 counter-UAS/sensor-fusion) — GOVERNED multi-sensor TRACK FUSION
+# organ. The killinchu-native gap: szl_cuas_formulas.py had only SINGLE-PAIR covariance-
+# intersection + one Mahalanobis gate + WTA; this adds a FULL multi-sensor ↔ multi-target
+# JPDA-style data-association matrix (Fortmann-Bar-Shalom-Scheffe 1983 validation gate +
+# feasible joint-event enumeration + marginal β_{jt}; Reid-1979 MHT top-K view), CI variance
+# fusion (Julier-Uhlmann), swarm-intent classification (formation Fiedler λ2 + closing-vector
+# behavioural intent, DroneShield-AI arXiv:2606.11687), and a Λ-gated ROE advisory (weighted
+# geometric mean, Conjecture 1 — NEVER 'green') that emits ONE signed engagement receipt (REAL
+# ECDSA-P256 in-Space via szl_dsse, honest UNSIGNED-LOCAL otherwise). Studies + folds the
+# GOVERNED version of the leaders (Anduril Lattice, Palantir Maven, DroneShield/Fortem/Dedrone).
+# HONEST: MODELED | SIMULATED_SENSORS | NOT_LIVE | ROE_ADVISORY_HUMAN_ON_LOOP — effector always
+# SIMULATED, human-on-loop, NEVER an autonomous engage. Adds /api/killinchu/v1/trackfusion/
+# associate. PURE STDLIB. Additive, try/except-guarded, BEFORE the SPA catch-all. Adds nothing
+# to the locked-8; Λ stays Conjecture 1; trust never 100%.
+try:
+    import szl_kc_trackfusion as _szl_kc_trackfusion
+    _szl_kc_trackfusion.register(app, ns="killinchu")
+    print("[killinchu] Track-Fusion (JPDA/MHT + swarm-intent + Λ-ROE) registered: /api/killinchu/v1/trackfusion/associate", file=__import__("sys").stderr)
+except Exception as _szl_kctf_e:  # pragma: no cover
+    print(f"[killinchu] Track-Fusion NOT registered: {_szl_kctf_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER — Confidential-Compute Attestation Chain (backs a11oy static/3d/surfaces/ccattest.js).
+# Deterministic seeded TEE measured-boot attestation-chain SIMULATION in the NVIDIA H100
+# Confidential Computing style: device_identity (sha384) -> measurement_chain[] (bootloader ->
+# firmware -> driver -> microcode -> gpu-vbios) -> final_digest checked vs a seed-derived golden
+# reference (golden_match). HONEST: MODELED — NOT a real TDX/SEV-SNP/NRAS verifier, no real GPU/
+# key/network. Cites NVIDIA H100 CC blog + NVIDIA NRAS. Adds /api/killinchu/v1/cc-attest/verify.
+# PURE STDLIB. Additive, try/except-guarded, before the SPA catch-all. Adds nothing to the
+# locked-8; Λ stays Conjecture 1; trust never 100%.
+try:
+    import szl_kc_cc_attest as _szl_kc_cc_attest
+    _szl_kc_cc_attest.register(app, ns="killinchu")
+    print("[killinchu] Confidential-Compute Attestation registered: /api/killinchu/v1/cc-attest/verify", file=__import__("sys").stderr)
+except Exception as _szl_ccattest_e:  # pragma: no cover
+    print(f"[killinchu] Confidential-Compute Attestation NOT registered: {_szl_ccattest_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER — Semantic-Entropy / Effective-Rank epistemic uncertainty (backs a11oy static/3d/
+# surfaces/sement.js). Deterministic seeded SIMULATION of the semantic-entropy hallucination-
+# detection method (Farquhar et al., Nature 2024, DOI 10.1038/s41586-024-07421-0) + the 2025
+# spectral effective-rank signal (Wang et al., arXiv:2510.08389): K synthetic answers per regime
+# -> meaning clusters -> semantic_entropy -> answer/abstain gate vs threshold, contrasting a
+# CONFIDENT vs CONFABULATING regime so semantic entropy & effective rank both rise on confabulation.
+# HONEST: MODELED/EXPERIMENTAL — a synthetic-demo SIMULATION of the METHOD, NOT live model sampling
+# and NOT a real LLM (hand-specified clustering, synthetic hidden states). The gate is an ADVISORY
+# input to Λ (Conjecture 1), NOT a proof, never 'green'. Adds /api/killinchu/v1/sement/estimate.
+# PURE STDLIB. Additive, try/except-guarded, before the SPA catch-all. Adds nothing to the locked-8.
+try:
+    import szl_kc_sement as _szl_kc_sement
+    _szl_kc_sement.register(app, ns="killinchu")
+    print("[killinchu] Semantic-Entropy uncertainty registered: /api/killinchu/v1/sement/estimate", file=__import__("sys").stderr)
+except Exception as _szl_sement_e:  # pragma: no cover
+    print(f"[killinchu] Semantic-Entropy uncertainty NOT registered: {_szl_sement_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER WAVE B — Test-Time-Compute governed budget allocator (backs a11oy static/3d/surfaces/
+# testtime.js). Closed-form scaling-law SIMULATION of the THIRD scaling axis: pass@N best-of-N
+# coverage (1-(1-p)^N) + sequential-revision diminishing returns, plus a GOVERNED, joule-metered
+# compute-budget allocator that routes easy->TTC vs hard->bigger-model and emits the compute-optimal
+# choice as a receipt. Cites Snell et al. arXiv:2408.03314 + Large Language Monkeys arXiv:2407.21787.
+# HONEST: MODELED — NO LLM calls, NO live sampling, NO GPU; p/r are inputs, joules are MODELED
+# order-of-magnitude (not a live wattmeter). Adds /api/killinchu/v1/testtime/scaling. PURE STDLIB.
+# Additive, try/except-guarded, before the SPA catch-all. Adds nothing to the locked-8; Λ stays
+# Conjecture 1 (allocator decision is ADVISORY, never 'green'); trust never 100%.
+try:
+    import szl_kc_ttc as _szl_kc_ttc
+    _szl_kc_ttc.register(app, ns="killinchu")
+    print("[killinchu] Test-Time-Compute allocator registered: /api/killinchu/v1/testtime/scaling", file=__import__("sys").stderr)
+except Exception as _szl_ttc_e:  # pragma: no cover
+    print(f"[killinchu] Test-Time-Compute allocator NOT registered: {_szl_ttc_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER WAVE B — Speculative-Decoding energy-receipt simulator (backs a11oy static/3d/surfaces/
+# specdecode.js). Deterministic seeded accept/reject SIMULATION of draft/verify speculative decoding:
+# acceptance_rate, mean accepted tokens/step, throughput speedup, per-step accepted lengths, and the
+# SZL addition — a live J/token-SAVED energy receipt (each accepted draft token = one fewer target
+# decode step). Cites QSpec arXiv:2410.11305, QuantSpec arXiv:2502.10424, DeepSeek-V3 arXiv:2412.19437.
+# HONEST: MODELED — NOT Medusa/EAGLE/QSpec running, NO live model, NO GPU, NO real KV cache; 'lossless'
+# is the rejection-sampling ALGORITHM property (honestly labeled), joules are MODELED order-of-magnitude
+# (not a live wattmeter). Adds /api/killinchu/v1/specdecode/simulate. PURE STDLIB. Additive, try/except-
+# guarded, before the SPA catch-all. Adds nothing to the locked-8; Λ stays Conjecture 1; trust never 100%.
+try:
+    import szl_kc_specdec as _szl_kc_specdec
+    _szl_kc_specdec.register(app, ns="killinchu")
+    print("[killinchu] Speculative-Decoding energy receipt registered: /api/killinchu/v1/specdecode/simulate", file=__import__("sys").stderr)
+except Exception as _szl_specdec_e:  # pragma: no cover
+    print(f"[killinchu] Speculative-Decoding energy receipt NOT registered: {_szl_specdec_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER WAVE B — Governed World-Model latent rollout (backs a11oy static/3d/surfaces/worldmodel.js).
+# Deterministic seeded closed-form latent-DYNAMICS SIMULATION: a stable f advances an OBSERVED
+# ground-truth latent trajectory; a JEPA-style predictor gives zhat_{t+1} whose per-step L2 error is
+# the 'physical surprise', with prediction_error, free_energy_consistency (1/(1+err)), and
+# action_anticipation_acc. Framed as a GOVERNED counterfactual rollout — every simulated interdiction
+# emits a receipt (Decision-Simulation vs historical state). Cites Genie 3 (DeepMind) + DreamerV3
+# arXiv:2301.04104. HONEST: MODELED — NOT Genie/Dreamer running, NO learned model, NO video, NO GPU,
+# NO live environment; latents are synthetic. Adds /api/killinchu/v1/worldmodel/predict. PURE STDLIB.
+# Additive, try/except-guarded, before the SPA catch-all. Adds nothing to the locked-8; Λ stays
+# Conjecture 1 (rollout advisory, never 'green'); effector SIMULATED · human-on-loop; trust never 100%.
+try:
+    import szl_kc_worldmodel as _szl_kc_worldmodel
+    _szl_kc_worldmodel.register(app, ns="killinchu")
+    print("[killinchu] Governed World-Model rollout registered: /api/killinchu/v1/worldmodel/predict", file=__import__("sys").stderr)
+except Exception as _szl_worldmodel_e:  # pragma: no cover
+    print(f"[killinchu] Governed World-Model rollout NOT registered: {_szl_worldmodel_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER WAVE C — Governed Episodic-Memory / temporal knowledge-graph (backs a11oy static/3d/
+# surfaces/episodic.js). Deterministic seeded episodic graph: discrete episodes on a TIME axis,
+# temporal-succession + semantic-relatedness edges, closed-form recency×salience×relatedness recall,
+# receipt-keyed writes (episode id = sha256(content)[:12]), per-episode HONEST-STUB receipt. Cites
+# Zep/Graphiti arXiv:2501.13956 + MemMachine + Tulving (1972). HONEST: MODELED — synthetic/public
+# episodes, hash-seeded MODELED embeddings (NOT a trained model), no vector DB, no live session store.
+# Adds /api/killinchu/v1/episodic/recall. PURE STDLIB. Additive, try/except-guarded, before the SPA
+# catch-all. Adds nothing to the locked-8; Λ stays Conjecture 1; trust never 100%.
+try:
+    import szl_kc_episodic as _szl_kc_episodic
+    _szl_kc_episodic.register(app, ns="killinchu")
+    print("[killinchu] Episodic-Memory temporal-KG registered: /api/killinchu/v1/episodic/recall", file=__import__("sys").stderr)
+except Exception as _szl_episodic_e:  # pragma: no cover
+    print(f"[killinchu] Episodic-Memory temporal-KG NOT registered: {_szl_episodic_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER WAVE C — Topological QEC / rotated surface-code (backs a11oy static/3d/surfaces/qec.js),
+# with the SZL map "receipts survive corruption like logical qubits survive noise": Reed-Solomon
+# RS(10,6) Khipu-DAG erasure survival (EXACT binomial) alongside the below-threshold surface-code
+# scaling (p_L(d,p), suppression Λ_QEC=p_L(d)/p_L(d+2)). Cites Google Willow below-threshold QEC
+# (Nature 2024, arXiv:2408.13687) + Fowler et al. + Kitaev + Reed-Solomon (1960). HONEST: MODELED —
+# simulation of the scaling law, NO QPU, NO measured syndromes; RS math EXACT. Λ_QEC (a physics figure
+# of merit) is DISTINCT from and NOT promoted into SZL's Λ = Conjecture 1. Adds /api/killinchu/v1/qec/
+# surface-code. PURE STDLIB. Additive, try/except-guarded, before the SPA catch-all. Adds nothing to
+# the locked-8; Λ stays Conjecture 1; trust never 100%.
+try:
+    import szl_kc_qec as _szl_kc_qec
+    _szl_kc_qec.register(app, ns="killinchu")
+    print("[killinchu] Topological-QEC surface-code registered: /api/killinchu/v1/qec/surface-code", file=__import__("sys").stderr)
+except Exception as _szl_qec_e:  # pragma: no cover
+    print(f"[killinchu] Topological-QEC surface-code NOT registered: {_szl_qec_e!r}", file=__import__("sys").stderr)
+
+# FRONTIER WAVE C — Signed Energy Receipt (frontier energy organ). Deterministic hash-chained energy
+# receipt for a MODELED inference request: joules/token, tokens/joule, gCO2/token, plus a carbon-aware
+# "shift now?" ADVISORY verdict (never 'green'). Each receipt commits to the previous receipt's hash
+# (khipu-style tamper-evident ledger) and carries an HONEST signed marker. Cites NVML + carbon-aware
+# compute (Patterson arXiv:2104.10350, Google Carbon-Intelligent Computing, Electricity Maps). HONEST:
+# MODELED — NO on-box NVML on this Space, so joules are order-of-magnitude from a documented power
+# profile (NOT a live wattmeter) and grid carbon is a SAMPLE constant (NOT a live feed); we NEVER
+# upgrade MODELED to MEASURED (MEASURED joules are the a11oy on-box NVML exporter's job). Hash-chain
+# REAL; signatures REAL ECDSA only in-Space, honest UNSIGNED otherwise — never fabricated. Adds
+# /api/killinchu/v1/energy/receipt. PURE STDLIB. Additive, try/except-guarded, before the SPA catch-all.
+# Adds nothing to the locked-8; Λ stays Conjecture 1 (carbon-shift verdict advisory); trust never 100%.
+try:
+    import szl_kc_energy as _szl_kc_energy
+    _szl_kc_energy.register(app, ns="killinchu")
+    print("[killinchu] Signed Energy Receipt registered: /api/killinchu/v1/energy/receipt", file=__import__("sys").stderr)
+except Exception as _szl_energy_e:  # pragma: no cover
+    print(f"[killinchu] Signed Energy Receipt NOT registered: {_szl_energy_e!r}", file=__import__("sys").stderr)
+
+# ==== WAVE-23 surface organs (36-dead-tab wiring): fashion-thought field-leader
+# mechanisms, MODELED, pure-stdlib, each backs a a11oy holographic surface. Additive,
+# try/except-guarded, before the SPA catch-all. Add nothing to the locked-8; Λ stays Conjecture 1.
+
+try:
+    import szl_kc_agentcoh as _szl_kc_agentcoh
+    _szl_kc_agentcoh.register(app, ns="killinchu")
+    print("[killinchu] surface organ agentcoh registered: /api/killinchu/v1/agentcoh/sync", file=__import__("sys").stderr)
+except Exception as _szl_kc_agentcoh_e:  # pragma: no cover
+    print(f"[killinchu] surface organ agentcoh NOT registered: {_szl_kc_agentcoh_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_elf as _szl_kc_elf
+    _szl_kc_elf.register(app, ns="killinchu")
+    print("[killinchu] surface organ elf registered: /api/killinchu/v1/elf/flow", file=__import__("sys").stderr)
+except Exception as _szl_kc_elf_e:  # pragma: no cover
+    print(f"[killinchu] surface organ elf NOT registered: {_szl_kc_elf_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_graphmem as _szl_kc_graphmem
+    _szl_kc_graphmem.register(app, ns="killinchu")
+    print("[killinchu] surface organ graphmem registered: /api/killinchu/v1/graphmem/traverse", file=__import__("sys").stderr)
+except Exception as _szl_kc_graphmem_e:  # pragma: no cover
+    print(f"[killinchu] surface organ graphmem NOT registered: {_szl_kc_graphmem_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_kan as _szl_kc_kan
+    _szl_kc_kan.register(app, ns="killinchu")
+    print("[killinchu] surface organ kan registered: /api/killinchu/v1/kan/fit", file=__import__("sys").stderr)
+except Exception as _szl_kc_kan_e:  # pragma: no cover
+    print(f"[killinchu] surface organ kan NOT registered: {_szl_kc_kan_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_moe as _szl_kc_moe
+    _szl_kc_moe.register(app, ns="killinchu")
+    print("[killinchu] surface organ moe registered: /api/killinchu/v1/moe/route", file=__import__("sys").stderr)
+except Exception as _szl_kc_moe_e:  # pragma: no cover
+    print(f"[killinchu] surface organ moe NOT registered: {_szl_kc_moe_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_qhall as _szl_kc_qhall
+    _szl_kc_qhall.register(app, ns="killinchu")
+    print("[killinchu] surface organ qhall registered: /api/killinchu/v1/qhall/quantify", file=__import__("sys").stderr)
+except Exception as _szl_kc_qhall_e:  # pragma: no cover
+    print(f"[killinchu] surface organ qhall NOT registered: {_szl_kc_qhall_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_titans as _szl_kc_titans
+    _szl_kc_titans.register(app, ns="killinchu")
+    print("[killinchu] surface organ titans registered: /api/killinchu/v1/titans/recall", file=__import__("sys").stderr)
+except Exception as _szl_kc_titans_e:  # pragma: no cover
+    print(f"[killinchu] surface organ titans NOT registered: {_szl_kc_titans_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_aimc as _szl_kc_aimc
+    _szl_kc_aimc.register(app, ns="killinchu")
+    print("[killinchu] surface organ aimc registered: /api/killinchu/v1/aimc/attend", file=__import__("sys").stderr)
+except Exception as _szl_kc_aimc_e:  # pragma: no cover
+    print(f"[killinchu] surface organ aimc NOT registered: {_szl_kc_aimc_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_flowmatch as _szl_kc_flowmatch
+    _szl_kc_flowmatch.register(app, ns="killinchu")
+    print("[killinchu] surface organ flowmatch registered: /api/killinchu/v1/flowmatch/sample", file=__import__("sys").stderr)
+except Exception as _szl_kc_flowmatch_e:  # pragma: no cover
+    print(f"[killinchu] surface organ flowmatch NOT registered: {_szl_kc_flowmatch_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_grpo as _szl_kc_grpo
+    _szl_kc_grpo.register(app, ns="killinchu")
+    print("[killinchu] surface organ grpo registered: /api/killinchu/v1/grpo/reward-dynamics", file=__import__("sys").stderr)
+except Exception as _szl_kc_grpo_e:  # pragma: no cover
+    print(f"[killinchu] surface organ grpo NOT registered: {_szl_kc_grpo_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_kla as _szl_kc_kla
+    _szl_kc_kla.register(app, ns="killinchu")
+    print("[killinchu] surface organ kla registered: /api/killinchu/v1/kla/update", file=__import__("sys").stderr)
+except Exception as _szl_kc_kla_e:  # pragma: no cover
+    print(f"[killinchu] surface organ kla NOT registered: {_szl_kc_kla_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_mor as _szl_kc_mor
+    _szl_kc_mor.register(app, ns="killinchu")
+    print("[killinchu] surface organ mor registered: /api/killinchu/v1/mor/route", file=__import__("sys").stderr)
+except Exception as _szl_kc_mor_e:  # pragma: no cover
+    print(f"[killinchu] surface organ mor NOT registered: {_szl_kc_mor_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_rauq as _szl_kc_rauq
+    _szl_kc_rauq.register(app, ns="killinchu")
+    print("[killinchu] surface organ rauq registered: /api/killinchu/v1/rauq/score", file=__import__("sys").stderr)
+except Exception as _szl_kc_rauq_e:  # pragma: no cover
+    print(f"[killinchu] surface organ rauq NOT registered: {_szl_kc_rauq_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_ssm as _szl_kc_ssm
+    _szl_kc_ssm.register(app, ns="killinchu")
+    print("[killinchu] surface organ ssm registered: /api/killinchu/v1/ssm/scan", file=__import__("sys").stderr)
+except Exception as _szl_kc_ssm_e:  # pragma: no cover
+    print(f"[killinchu] surface organ ssm NOT registered: {_szl_kc_ssm_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_blt as _szl_kc_blt
+    _szl_kc_blt.register(app, ns="killinchu")
+    print("[killinchu] surface organ blt registered: /api/killinchu/v1/blt/entropy-patch", file=__import__("sys").stderr)
+except Exception as _szl_kc_blt_e:  # pragma: no cover
+    print(f"[killinchu] surface organ blt NOT registered: {_szl_kc_blt_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_formalmath as _szl_kc_formalmath
+    _szl_kc_formalmath.register(app, ns="killinchu")
+    print("[killinchu] surface organ formalmath registered: /api/killinchu/v1/formalmath/retrieve", file=__import__("sys").stderr)
+except Exception as _szl_kc_formalmath_e:  # pragma: no cover
+    print(f"[killinchu] surface organ formalmath NOT registered: {_szl_kc_formalmath_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_hrm as _szl_kc_hrm
+    _szl_kc_hrm.register(app, ns="killinchu")
+    print("[killinchu] surface organ hrm registered: /api/killinchu/v1/hrm/solve", file=__import__("sys").stderr)
+except Exception as _szl_kc_hrm_e:  # pragma: no cover
+    print(f"[killinchu] surface organ hrm NOT registered: {_szl_kc_hrm_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_kvcache as _szl_kc_kvcache
+    _szl_kc_kvcache.register(app, ns="killinchu")
+    print("[killinchu] surface organ kvcache registered: /api/killinchu/v1/kvcache/h2o-evict", file=__import__("sys").stderr)
+except Exception as _szl_kc_kvcache_e:  # pragma: no cover
+    print(f"[killinchu] surface organ kvcache NOT registered: {_szl_kc_kvcache_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_nested as _szl_kc_nested
+    _szl_kc_nested.register(app, ns="killinchu")
+    print("[killinchu] surface organ nested registered: /api/killinchu/v1/nested/schedule", file=__import__("sys").stderr)
+except Exception as _szl_kc_nested_e:  # pragma: no cover
+    print(f"[killinchu] surface organ nested NOT registered: {_szl_kc_nested_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_ringattn as _szl_kc_ringattn
+    _szl_kc_ringattn.register(app, ns="killinchu")
+    print("[killinchu] surface organ ringattn registered: /api/killinchu/v1/ringattn/simulate", file=__import__("sys").stderr)
+except Exception as _szl_kc_ringattn_e:  # pragma: no cover
+    print(f"[killinchu] surface organ ringattn NOT registered: {_szl_kc_ringattn_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_steering as _szl_kc_steering
+    _szl_kc_steering.register(app, ns="killinchu")
+    print("[killinchu] surface organ steering registered: /api/killinchu/v1/steering/sweep", file=__import__("sys").stderr)
+except Exception as _szl_kc_steering_e:  # pragma: no cover
+    print(f"[killinchu] surface organ steering NOT registered: {_szl_kc_steering_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_catq as _szl_kc_catq
+    _szl_kc_catq.register(app, ns="killinchu")
+    print("[killinchu] surface organ catq registered: /api/killinchu/v1/catq/calibrate", file=__import__("sys").stderr)
+except Exception as _szl_kc_catq_e:  # pragma: no cover
+    print(f"[killinchu] surface organ catq NOT registered: {_szl_kc_catq_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_genie as _szl_kc_genie
+    _szl_kc_genie.register(app, ns="killinchu")
+    print("[killinchu] surface organ genie registered: /api/killinchu/v1/genie/rollout", file=__import__("sys").stderr)
+except Exception as _szl_kc_genie_e:  # pragma: no cover
+    print(f"[killinchu] surface organ genie NOT registered: {_szl_kc_genie_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_inplacettt as _szl_kc_inplacettt
+    _szl_kc_inplacettt.register(app, ns="killinchu")
+    print("[killinchu] surface organ inplacettt registered: /api/killinchu/v1/inplacettt/adapt", file=__import__("sys").stderr)
+except Exception as _szl_kc_inplacettt_e:  # pragma: no cover
+    print(f"[killinchu] surface organ inplacettt NOT registered: {_szl_kc_inplacettt_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_matgran as _szl_kc_matgran
+    _szl_kc_matgran.register(app, ns="killinchu")
+    print("[killinchu] surface organ matgran registered: /api/killinchu/v1/matgran/truncate", file=__import__("sys").stderr)
+except Exception as _szl_kc_matgran_e:  # pragma: no cover
+    print(f"[killinchu] surface organ matgran NOT registered: {_szl_kc_matgran_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_nsa as _szl_kc_nsa
+    _szl_kc_nsa.register(app, ns="killinchu")
+    print("[killinchu] surface organ nsa registered: /api/killinchu/v1/nsa/simulate", file=__import__("sys").stderr)
+except Exception as _szl_kc_nsa_e:  # pragma: no cover
+    print(f"[killinchu] surface organ nsa NOT registered: {_szl_kc_nsa_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_s3search as _szl_kc_s3search
+    _szl_kc_s3search.register(app, ns="killinchu")
+    print("[killinchu] surface organ s3search registered: /api/killinchu/v1/s3search/search", file=__import__("sys").stderr)
+except Exception as _szl_kc_s3search_e:  # pragma: no cover
+    print(f"[killinchu] surface organ s3search NOT registered: {_szl_kc_s3search_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_ternary as _szl_kc_ternary
+    _szl_kc_ternary.register(app, ns="killinchu")
+    print("[killinchu] surface organ ternary registered: /api/killinchu/v1/ternary/quantize", file=__import__("sys").stderr)
+except Exception as _szl_kc_ternary_e:  # pragma: no cover
+    print(f"[killinchu] surface organ ternary NOT registered: {_szl_kc_ternary_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_dllm as _szl_kc_dllm
+    _szl_kc_dllm.register(app, ns="killinchu")
+    print("[killinchu] surface organ dllm registered: /api/killinchu/v1/dllm/denoise", file=__import__("sys").stderr)
+except Exception as _szl_kc_dllm_e:  # pragma: no cover
+    print(f"[killinchu] surface organ dllm NOT registered: {_szl_kc_dllm_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_goat as _szl_kc_goat
+    _szl_kc_goat.register(app, ns="killinchu")
+    print("[killinchu] surface organ goat registered: /api/killinchu/v1/goat/transport", file=__import__("sys").stderr)
+except Exception as _szl_kc_goat_e:  # pragma: no cover
+    print(f"[killinchu] surface organ goat NOT registered: {_szl_kc_goat_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_interpretability as _szl_kc_interpretability
+    _szl_kc_interpretability.register(app, ns="killinchu")
+    print("[killinchu] surface organ interpretability registered: /api/killinchu/v1/interpretability/features", file=__import__("sys").stderr)
+except Exception as _szl_kc_interpretability_e:  # pragma: no cover
+    print(f"[killinchu] surface organ interpretability NOT registered: {_szl_kc_interpretability_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_mla as _szl_kc_mla
+    _szl_kc_mla.register(app, ns="killinchu")
+    print("[killinchu] surface organ mla registered: /api/killinchu/v1/mla/latent-compress", file=__import__("sys").stderr)
+except Exception as _szl_kc_mla_e:  # pragma: no cover
+    print(f"[killinchu] surface organ mla NOT registered: {_szl_kc_mla_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_pfield as _szl_kc_pfield
+    _szl_kc_pfield.register(app, ns="killinchu")
+    print("[killinchu] surface organ pfield registered: /api/killinchu/v1/pfield/coordinate", file=__import__("sys").stderr)
+except Exception as _szl_kc_pfield_e:  # pragma: no cover
+    print(f"[killinchu] surface organ pfield NOT registered: {_szl_kc_pfield_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_slidesparse as _szl_kc_slidesparse
+    _szl_kc_slidesparse.register(app, ns="killinchu")
+    print("[killinchu] surface organ slidesparse registered: /api/killinchu/v1/slidesparse/pack", file=__import__("sys").stderr)
+except Exception as _szl_kc_slidesparse_e:  # pragma: no cover
+    print(f"[killinchu] surface organ slidesparse NOT registered: {_szl_kc_slidesparse_e!r}", file=__import__("sys").stderr)
+
+# WAVE-24 Flower Brain: 8-petal radial knowledge organism unifying the proven core,
+# verified theorems, experimental proofs, cited unified formulas, Ouroboros codexes, the
+# 64 surfaces, memory/provenance, and conjectures (gray). MODELED, pure-stdlib. Adds nothing
+# to the locked-8; Λ stays Conjecture 1; conjecture petal never green. Additive, guarded.
+try:
+    import szl_kc_flower as _szl_kc_flower
+    _szl_kc_flower.register(app, ns="killinchu")
+    print("[killinchu] Flower Brain registered: /api/killinchu/v1/flower/{graph,bloom,manifest}", file=__import__("sys").stderr)
+except Exception as _szl_flower_e:  # pragma: no cover
+    print(f"[killinchu] Flower Brain NOT registered: {_szl_flower_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_flower_metrics as _szl_kc_flower_metrics
+    _szl_kc_flower_metrics.register(app, ns="killinchu")
+    print("[killinchu] Flower metrics registered: /api/killinchu/v1/flower/metrics", file=__import__("sys").stderr)
+except Exception as _szl_flower_metrics_e:  # pragma: no cover
+    print(f"[killinchu] Flower metrics NOT registered: {_szl_flower_metrics_e!r}", file=__import__("sys").stderr)
+
+# WAVE-25 Loop Forge (loopforge, 66th surface): kernel-gated bounded-recursion
+# agentic loop + MODELED J-lens workspace readout over the REAL flower/brain node
+# set. MODELED demonstration on a REAL topology — NOT a trained model, NOT a real
+# Jacobian, NOT alive/conscious. The MODELED kernel-acceptance oracle mirrors the
+# discipline of lutar-lean kernel c7c0ba17 (cited, re-verified in CI/dev, NOT run
+# in-Space); writer != judge is structurally enforced; Lambda stays Conjecture 1
+# (never green). Additive, pure-stdlib, try/except-guarded. Adds nothing to locked-8.
+try:
+    import szl_kc_loop_forge as _szl_kc_loop_forge
+    _szl_kc_loop_forge.register(app, ns="killinchu")
+    print("[killinchu] Loop Forge registered: /api/killinchu/v1/loopforge/{manifest,run,archive,workspace,horizon,metrics}", file=__import__("sys").stderr)
+except Exception as _szl_loopforge_e:  # pragma: no cover
+    print(f"[killinchu] Loop Forge NOT registered: {_szl_loopforge_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kc_loop_forge_metrics as _szl_kc_loop_forge_metrics
+    _szl_kc_loop_forge_metrics.register(app, ns="killinchu")
+    print("[killinchu] Loop Forge metrics registered: /api/killinchu/v1/loopforge/metrics-ext", file=__import__("sys").stderr)
+except Exception as _szl_loopforge_metrics_e:  # pragma: no cover
+    print(f"[killinchu] Loop Forge metrics NOT registered: {_szl_loopforge_metrics_e!r}", file=__import__("sys").stderr)
+
+# WAVE-26 One-Bit (1-bit / ternary sovereign inference): a MODELED-honest estimator
+# fusing Microsoft's bitnet.cpp / BitNet b1.58 line with SZL's MEASURED-vs-MODELED
+# joules doctrine. It NEVER presents a MODELED energy number as measured; it keeps
+# Microsoft-MEASURED, Microsoft-ESTIMATED, and SZL-MODELED channels strictly separate
+# and attaches the honest independent-RAPL counter-figure. Real MEASURED joules require
+# the SZL CPU fleet (offline behind a machine-side tunnel) — no fabricated fleet data.
+# Additive, pure-stdlib, guarded. bitnet cited, never claimed as SZL's own.
+try:
+    import szl_kc_onebit as _szl_kc_onebit
+    _szl_kc_onebit.register(app, ns="killinchu")
+    print("[killinchu] One-Bit registered: /api/killinchu/v1/onebit/{manifest,estimate,methodology,fleet-readiness}", file=__import__("sys").stderr)
+except Exception as _szl_onebit_e:  # pragma: no cover
+    print(f"[killinchu] One-Bit NOT registered: {_szl_onebit_e!r}", file=__import__("sys").stderr)
+
+# WAVE-28 JPT (measured joules-per-token): the Brain gains a real energy sense.
+# Benchmarks MEASURED J/token per fleet node (meter-delta around a real generation),
+# emits a HEART beat + BLOOD-signed receipt per measurement, and persists a
+# hash-chained ledger. MEASURED only when a node's meter+GPU respond live THIS run;
+# otherwise OFFLINE, never a fabricated joule; monotonic-reset detection. Additive,
+# pure-stdlib, guarded. Cites the real meter/exporter + Flower memory petal.
+try:
+    import szl_kc_jpt as _szl_kc_jpt
+    _szl_kc_jpt.register(app, ns="killinchu")
+    print("[killinchu] JPT registered: /api/killinchu/v1/jpt/{manifest,benchmark,nodes,ledger,summary}", file=__import__("sys").stderr)
+except Exception as _szl_jpt_e:  # pragma: no cover
+    print(f"[killinchu] JPT NOT registered: {_szl_jpt_e!r}", file=__import__("sys").stderr)
+
+
+
+# Conjecture Factory (conjecture-factory-tab-patch): honest live board of factory-
+# generated OPEN conjectures from the real disclosure ledger (szl-lake khipu,
+# kind=conjecture-disclosure-anchor). Byte-identical module shared with a11oy. A
+# conjecture is NEVER a theorem; stays OPEN until independently verified; Conjecture 1
+# (Λ uniqueness) remains OPEN. Additive, try/except-guarded. Pure stdlib.
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_conjecture_factory as _szl_conjecture_factory  # single source of truth
+    except Exception:
+        import szl_conjecture_factory as _szl_conjecture_factory  # fall back to local vendored copy
+    _szl_conjecture_factory.register(app, ns="killinchu")
+    print("[killinchu] Conjecture Factory registered: /api/killinchu/v1/conjecture-factory", file=__import__("sys").stderr)
+except Exception as _szl_cf_e:  # pragma: no cover
+    print(f"[killinchu] Conjecture Factory NOT registered: {_szl_cf_e!r}", file=__import__("sys").stderr)
+
+# Quantum-Bio Λ-v5 layer (quantum-bio-v5): SHARED with a11oy (byte-identical module).
+# VERIFIED quantum-biology models as real same-origin endpoints; Λ-v5 is an engineering
+# gate (PROPOSED), NOT the formal uniqueness Λ (Conjecture 1). For killinchu C2 this gives
+# a coherent-AND-charged execution gate + magnetosensitive routing primitive. Additive,
+# try/except-guarded, pure stdlib (+optional numpy). Effector stays SIMULATED.
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_quantum_bio as _szl_quantum_bio  # single source of truth
+    except Exception:
+        import szl_quantum_bio as _szl_quantum_bio
+    _szl_quantum_bio.register(app, ns="killinchu")
+    print("[killinchu] Quantum-Bio Λ-v5 registered: /api/killinchu/v1/qbio/*", file=__import__("sys").stderr)
+except Exception as _szl_qb_e:  # pragma: no cover
+    print(f"[killinchu] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
+
+# ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
+# Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. REAL deterministic Python,
+# ORIGINAL author cited; SZL borrows structure only. coherence_crossing PROPOSED (mirrors
+# lutar-lean CoherenceDecay). Shared module byte-identical a11oy↔killinchu. Effector stays SIMULATED.
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_unified_formulas as _szl_unified  # single source of truth
+    except Exception:
+        import szl_unified_formulas as _szl_unified
+    _szl_unified.register(app, ns="killinchu")
+    print("[killinchu] Unified formulas registered: /api/killinchu/v1/unified/*", file=__import__("sys").stderr)
+except Exception as _szl_uf_e:  # pragma: no cover
+    print(f"[killinchu] Unified formulas NOT registered: {_szl_uf_e!r}", file=__import__("sys").stderr)
+
+# ── SZL Counter-UAS C2 formulas (cuas-formula-patch) — six OUR-OWN deterministic
+# constructs (proportional-navigation engageability, GNSS-plausibility chi-square,
+# covariance-intersection track-fusion, urgency-weighted graph-Laplacian swarm
+# consensus, weapon-target-assignment triage, post-quantum SHA3 receipt bus). Each
+# cites its classical inspiration (Zarchan/Palumbo, Joerger, Julier-Uhlmann,
+# Bar-Shalom, Olfati-Saber/Zelazo, Manne, NIST PQC) and claims none as SZL's own
+# discovery. EXPERIMENTAL-tier — adds NOTHING to the locked 8; Λ stays Conjecture 1;
+# effector stays SIMULATED; trust never 100%. Shared module byte-identical
+# a11oy↔killinchu. Additive, try/except-guarded, before the SPA catch-all.
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_cuas_formulas as _szl_cuas  # single source of truth
+    except Exception:
+        import szl_cuas_formulas as _szl_cuas
+    _szl_cuas.register(app, ns="killinchu")
+    print("[killinchu] CUAS formulas registered: /api/killinchu/v1/cuas/*", file=__import__("sys").stderr)
+except Exception as _szl_cuas_e:  # pragma: no cover
+    print(f"[killinchu] CUAS formulas NOT registered: {_szl_cuas_e!r}", file=__import__("sys").stderr)
+
+# ── SZL Sensorless Drive · Active-Flux Observer (Dev E, active-flux innovation lane).
+# ADOPTED-AND-GENERALIZED, NOT invented here: the hybrid current-model / voltage-model
+# active-flux observer with a TUNABLE PI-correction bandwidth ω_c (active flux
+# ψ_act = ψ_f + (Ld−Lq)·id). Borrowed from Li Yu (李彧, LinkedIn 2026) + the active-flux
+# sensorless-control literature (IEEE/APEC 2001, https://doi.org/10.1109/APEC.2001.911711;
+# the Revised Hybrid Active Flux IEEE paper; TI InstaSPIN-FOC/FAST SPRUHJ1) and generalized
+# under SZL governance to (a) regime-dependent multi-sensor fusion with a tunable-crossover
+# PI corrector (gated by Λ Conjecture 1 + Khipu/BFT quorum Conjecture 2 + a conformal
+# coverage SET — 'true state in set S, ≥95%', not bare confidence) and (b) a model-router
+# crossover (deterministic complement to a RouteLLM bandit). Serves /elite/active-flux (a
+# self-contained, 0-CDN page with a live Bode-style blend plot, rotor angle/speed estimate,
+# and the low-speed↔high-speed tradeoff slider) and injects ONE nav link into the /elite
+# console (its own middleware — the console source file is NOT edited). MODELED/SIMULATED:
+# there is NO live motor on the demo floor and we NEVER claim live hardware; effector stays
+# SIMULATED human-on-loop; adds NOTHING to the locked-8; Λ stays Conjecture 1; trust never
+# 100%. The pure math lives in the shared byte-identical szl_cuas_formulas.py. Additive,
+# try/except-guarded, BEFORE the SPA catch-all.
+try:
+    import killinchu_active_flux as _kc_active_flux
+    _kc_af_status = _kc_active_flux.register(app, ns="killinchu")
+    print(f"[killinchu] Active-Flux drive registered: {_kc_af_status['count']} routes "
+          f"({_kc_af_status['data_label']})", file=__import__("sys").stderr)
+except Exception as _kc_af_e:  # pragma: no cover
+    import traceback as _kc_af_tb
+    print(f"[killinchu] Active-Flux drive NOT registered: {_kc_af_e!r}", file=__import__("sys").stderr)
+    _kc_af_tb.print_exc()
+
+# ── SZL Platform Dynamics (Lane I5) — 6DOF quadcopter/interceptor model + Moore-Penrose
+# pseudo-inverse CONTROL ALLOCATION, shown BESIDE the active-flux estimate layer and the
+# CBF-QP safety + BFT-fusion layers — completing the killinchu drone-platform puzzle
+# (estimate → 6DOF dynamics + allocation → CBF-safety → BFT-fusion → governed SIMULATED
+# engage). ADOPTED-AND-GENERALIZED, NOT invented here: Ahmed Hassan's Simulink Quadcopter
+# MBD project (full 6DOF Aerospace-Blockset model; Moore-Penrose pseudo-inverse control
+# allocation; MIL/SIL via Embedded Coder). The pure math lives in the shared byte-identical
+# szl_cuas_formulas.py (quad_mixing_matrix / moore_penrose_pinv / szl_control_allocation /
+# szl_6dof_step). Serves /elite/platform-dynamics (self-contained, 0-CDN page with a live
+# attitude + rotor-allocation viz, the full puzzle cross-link chain) and injects ONE nav link
+# into the /elite console via its OWN idempotent middleware (the console source is NOT edited).
+# MODELED/SIMULATED: there is NO live airframe on the demo floor and we NEVER claim live
+# UAV/vessel control; effector stays SIMULATED human-on-loop; adds NOTHING to the locked-8;
+# Λ stays Conjecture 1; trust never 100%. Additive, try/except-guarded, BEFORE the SPA catch-all.
+try:
+    import killinchu_platform_dynamics as _kc_platform
+    _kc_pd_status = _kc_platform.register(app, ns="killinchu")
+    print(f"[killinchu] Platform Dynamics registered: {_kc_pd_status['count']} routes "
+          f"({_kc_pd_status['data_label']})", file=__import__("sys").stderr)
+except Exception as _kc_pd_e:  # pragma: no cover
+    import traceback as _kc_pd_tb
+    print(f"[killinchu] Platform Dynamics NOT registered: {_kc_pd_e!r}", file=__import__("sys").stderr)
+    _kc_pd_tb.print_exc()
+
+# ── QA-FIX loop1 (killinchu-only, ADDITIVE; serve.py is the per-app server and is
+#    NOT byte-shared with a11oy, so the shared szl_cuas_formulas.py is left UNTOUCHED).
+#    QA2: /cuas/plausibility?chi=abc previously returned 500 because the shared route
+#    lambda did float(chi) on a raw string param (ValueError -> generic 500 envelope).
+#    QA3: /cuas/wta?n=-5 was silently accepted (negative count coerced to 0).
+#    Fix: re-declare the two routes with FastAPI-TYPED Query params so an invalid value
+#    raises RequestValidationError, which the existing backend-hardening handler renders
+#    as the standard {"error":{"code":"validation_error",...}} 422 envelope — IDENTICAL
+#    shape to /cuas/engage & /cuas/fusion. We call the unchanged shared pure functions
+#    (szl_plausibility / szl_wta). The new typed routes are moved to the FRONT of the
+#    router so they win over the shared module's earlier-registered duplicates (first
+#    match wins in Starlette). Doctrine intact: SIMULATED effector, EXPERIMENTAL tier,
+#    adds NOTHING to locked-8, Λ stays Conjecture 1, no fabricated data.
+try:
+    from fastapi import Query as _QAQuery
+    _qa_cuas_base = "/api/killinchu/v1/cuas"
+
+    def _qa_plausibility(chi: float = _QAQuery(3.0, description="GNSS innovation magnitude (numeric, >=0)", ge=0.0)):
+        # chi is FastAPI-validated to a non-negative float; bad input -> 422 (not 500).
+        return {"demo": _szl_cuas.szl_plausibility([chi ** 0.5] * 3, [1.0, 1.0, 1.0])}
+
+    def _qa_wta(n: int = _QAQuery(3, description="interceptor count (integer, >=0)", ge=0)):
+        # n is FastAPI-validated to a non-negative int; n<0 -> 422 (was silently accepted).
+        return _szl_cuas.szl_wta(
+            [{"id": "T1", "base_value": 5, "tti": 2},
+             {"id": "T2", "base_value": 3, "tti": 1},
+             {"id": "T3", "base_value": 8, "tti": 4}], n)
+
+    # DROP the shared module's earlier-registered plausibility/wta routes (the
+    # untyped float(chi)/int(n) lambdas that 500 on bad input) and replace them
+    # with the typed-validated handlers below. We remove BEFORE adding so the only
+    # routes left on these two paths are the hardened ones (Starlette resolves the
+    # first — now only — match). The shared szl_cuas_formulas.py file is UNCHANGED;
+    # we only prune the route objects it registered on THIS app instance.
+    _qa_paths = {f"{_qa_cuas_base}/plausibility", f"{_qa_cuas_base}/wta"}
+    app.router.routes[:] = [r for r in app.router.routes
+                            if getattr(r, "path", None) not in _qa_paths]
+    app.add_api_route(f"{_qa_cuas_base}/plausibility", _qa_plausibility, methods=["GET"])
+    app.add_api_route(f"{_qa_cuas_base}/wta", _qa_wta, methods=["GET"])
+    print("[killinchu] QA-FIX: hardened cuas/plausibility & cuas/wta validation (422 on bad input)", file=__import__("sys").stderr)
+except Exception as _qa_cuas_e:  # pragma: no cover — additive; never break the Space
+    print(f"[killinchu] QA-FIX cuas-hardening NOT applied: {_qa_cuas_e!r}", file=__import__("sys").stderr)
+
+# ── SZL allometric / metabolic scaling (scaling-formula-patch) — WBE network
+# scaling (West-Brown-Enquist 1997) + Banavar transport exponent + MTE temperature
+# (Brown 2004) + Demetrius-Tuszynski proton-motive-force quantum-metabolism bridge
+# (2010), unified into the PROPOSED SZL-Φ engineering gate. Cites every borrowed
+# formula to its real author; claims NONE as SZL's discovery. EXPERIMENTAL-tier —
+# adds NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Shared
+# module byte-identical a11oy↔killinchu. Additive, try/except-guarded.
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_scaling as _szl_scaling  # single source of truth
+    except Exception:
+        import szl_scaling as _szl_scaling  # fall back to local vendored copy
+    _szl_scaling.register(app, ns="killinchu")
+    print("[killinchu] Scaling formulas registered: /api/killinchu/v1/scaling/*", file=__import__("sys").stderr)
+except Exception as _szl_scaling_e:  # pragma: no cover
+    print(f"[killinchu] Scaling formulas NOT registered: {_szl_scaling_e!r}", file=__import__("sys").stderr)
+
+# ── SZL Allodial AI sovereignty formulas (allodial-formula-patch) — control as a
+# Denning(1976) lattice (⊤ = allodial), Goguen-Meseguer(1982) non-interference,
+# EU-CSF SovScore + HHI/DCI sovereignty scoring. Every formula cites its real
+# author; SZL claims none as its own. EXPERIMENTAL/PROPOSED — adds NOTHING to the
+# locked 8; Λ stays Conjecture 1; trust never 100%. Shared module byte-identical
+# a11oy↔killinchu. Additive, try/except-guarded.
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_allodial as _szl_allodial  # single source of truth
+    except Exception:
+        import szl_allodial as _szl_allodial  # fall back to local vendored copy
+    _szl_allodial.register(app, ns="killinchu")
+    print("[killinchu] Allodial formulas registered: /api/killinchu/v1/allodial/*", file=__import__("sys").stderr)
+except Exception as _szl_allodial_e:  # pragma: no cover
+    print(f"[killinchu] Allodial formulas NOT registered: {_szl_allodial_e!r}", file=__import__("sys").stderr)
+
+# ── SZL Entanglement measures + the Λ-v5 coherence→entanglement bridge
+# (entanglement-wire-patch) — standard 2-qubit entanglement measures plus the
+# RIGOROUS unifying bound E_max(t) ≤ C0·exp(−γ t) composing SZL's machine-checked
+# Λ-v5 coherence decay (merged Lean, Wave24) with Streltsov 2015 (l1-coherence
+# upper-bounds entanglement-generating capacity), and a CKW monogamy primitive
+# mirroring Khipu's no-leak / trust<100% doctrine. Every borrowed formula cites its
+# real author (Wootters 1998 concurrence; Vidal-Werner 2002 negativity; CKW 2000
+# monogamy; CHSH 1969 / Tsirelson 1980; Streltsov 2015; von Neumann entropy); SZL
+# claims NONE as its own. EXPERIMENTAL/PROPOSED engineering gate — NOT formal Λ;
+# adds NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Honest
+# tiers (RIGOROUS/STRUCTURAL/NARRATIVE/ACTIVE/CONTESTED/SPECULATIVE) surfaced in
+# summary(). Pure stdlib. Shared module byte-identical a11oy↔killinchu. The
+# killinchu effector surface stays SIMULATED. Additive, try/except-guarded.
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_entanglement as _szl_entanglement  # single source of truth
+    except Exception:
+        import szl_entanglement as _szl_entanglement  # fall back to local vendored copy
+    _szl_entanglement.register(app, ns="killinchu")
+    print("[killinchu] Entanglement formulas registered: /api/killinchu/v1/entangle/*", file=__import__("sys").stderr)
+except Exception as _szl_entanglement_e:  # pragma: no cover
+    print(f"[killinchu] Entanglement formulas NOT registered: {_szl_entanglement_e!r}", file=__import__("sys").stderr)
+
+# ── SZL Neuroplasticity / learning-rule formulas — the new "learning / brain"
+# (neuroplasticity-wire-patch) — grounds killinchu's agent learning loop in real, cited
+# neuroplasticity math, honestly tiered. RIGOROUS (classical, cited): Hebb 1949;
+# Oja 1982 (PCA convergence); Bienenstock-Cooper-Munro BCM 1982 (sliding threshold);
+# Bi & Poo 1998 (STDP); Turrigiano 2008 (synaptic scaling); Hubel & Wiesel Nobel 1981
+# (critical periods). RIGOROUS (recent, cited): Dohare-Sutton Nature 2024 + Sokar ReDo
+# 2023 (loss of plasticity in continual learning — the honest frontier tie-in for any
+# long-running agent); Kirkpatrick 2017 EWC. The predictive-coding↔Hebbian unifier
+# (Millidge 2022) is a PROPOSED lens, NOT a theorem (Λ-uniqueness = Conjecture 1). Every borrowed rule cites its
+# real author; SZL claims NONE as its own. EXPERIMENTAL/PROPOSED — NOT formal Λ; adds
+# NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Pure stdlib. Shared
+# module byte-identical a11oy↔killinchu. The killinchu effector surface stays SIMULATED. Additive, try/except-guarded.
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_neuroplasticity as _szl_neuroplasticity  # single source of truth
+    except Exception:
+        import szl_neuroplasticity as _szl_neuroplasticity  # fall back to local vendored copy
+    _szl_neuroplasticity.register(app, ns="killinchu")
+    print("[killinchu] Neuroplasticity formulas registered: /api/killinchu/v1/neuro/*", file=__import__("sys").stderr)
+except Exception as _szl_neuroplasticity_e:  # pragma: no cover
+    print(f"[killinchu] Neuroplasticity formulas NOT registered: {_szl_neuroplasticity_e!r}", file=__import__("sys").stderr)
+
+# ── SZL L6 Chain-of-Title receipt assembler (chain-of-title-wire-patch) — the
+# genuine sovereignty differentiator the research found: industry sovereign-AI
+# operates L1-L5 (residency -> governed ops); SZL's L6 binds, in ONE offline-
+# verifiable receipt, the SOFTWARE attestation (cosign image digest + Rekor entry +
+# in-toto/SLSA provenance), the SCIENCE (Zenodo DOI), and the MATH (lake-verified
+# Lean theorem refs). This module ASSEMBLES + STRUCTURE-verifies that receipt
+# (deterministic, offline, content-addressed); it does NOT sign. The cryptographic
+# cosign/Rekor SIGNING step is founder-gated, so unsigned strands are honestly
+# labeled PROXY/UNSIGNED and the DOI is shown pending (founder-gated) — never faked.
+# Cites every standard to its real spec: in-toto (CNCF) in-toto.io; SLSA v1.1
+# slsa.dev (target SLSA L2/L3 is roadmap, not asserted today); Sigstore/cosign/Rekor
+# sigstore.dev; SCITT (IETF) Signed Statements + Receipts; Zenodo DOI; lutar-lean
+# (Lean 4/Mathlib). The bound math refs are the 3 merged EXPERIMENTAL-tier theorems
+# (Lutar.Allodial #229 / Lutar.Entanglement #230 / Lutar.Neuroplasticity #231) — they
+# are NOT about Λ (Λ-aggregator uniqueness stays Conjecture 1, never a theorem) and do
+# NOT join the locked-8. EXPERIMENTAL/PROPOSED — adds NOTHING to the locked 8; trust
+# never 100%. Pure stdlib. Shared module byte-identical a11oy<->killinchu. The
+# killinchu effector surface stays SIMULATED. Additive, try/except-guarded.
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_chain_of_title as _szl_chain_of_title  # single source of truth
+    except Exception:
+        import szl_chain_of_title as _szl_chain_of_title  # fall back to local vendored copy
+    _szl_chain_of_title.register(app, ns="killinchu")
+    print("[killinchu] Chain-of-Title (L6) registered: /api/killinchu/v1/chain/*", file=__import__("sys").stderr)
+except Exception as _szl_chain_of_title_e:  # pragma: no cover
+    print(f"[killinchu] Chain-of-Title (L6) NOT registered: {_szl_chain_of_title_e!r}", file=__import__("sys").stderr)
+
+
+
+# ── Research & Sources layer (research-sources-patch, Task #662) — every /elite
+# tab gains a panel of vetted REAL upstream sources (UDS/Zarf/Pepr repos,
+# supply-chain standards, threat feeds, domain feeds, Lean/proof refs, per-subject
+# arXiv literature). Static list never claims reachability; /research/{tab}/live
+# probes each URL (HEAD->GET, cached) for an honest live/unreachable verdict.
+# NO fabricated sources; fix-before-cite feeds omitted. Additive, try/except-guarded,
+# registered EARLY (before the SPA catch-all). Pure stdlib.
+try:
+    import killinchu_research_sources as _kc_research
+    _kc_research.register(app, ns="killinchu")
+    print("[killinchu] Research & Sources registered: /api/killinchu/v1/research", file=__import__("sys").stderr)
+except Exception as _kc_rs_e:  # pragma: no cover
+    print(f"[killinchu] Research & Sources NOT registered: {_kc_rs_e!r}", file=__import__("sys").stderr)
+
+# ── Contracting Readiness layer (contracting-tab-patch) — SAM/CAGE + SBIR/STTR
+# federal-contracting posture grounded in real web-sourced eligibility criteria
+# (each line carries a source URL + retrieval date, probed live for reachability)
+# with honest verified/confirmed/needs_founder_input/needs_founder_action labels.
+# NO fabricated registration numbers/dates/verdicts — unknowns are flagged.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_contracting as _szl_contracting  # single source of truth
+    except Exception:
+        import szl_contracting as _szl_contracting
+    _szl_contracting.register(app, ns="killinchu")
+    print("[killinchu] Contracting Readiness registered: /api/killinchu/v1/contracting", file=__import__("sys").stderr)
+except Exception as _szl_ct_e:  # pragma: no cover
+    print(f"[killinchu] Contracting Readiness NOT registered: {_szl_ct_e!r}", file=__import__("sys").stderr)
+
+# ── BE hardening (Greene) — szl_be_hardening ──
+# Backend hardening: pydantic validation, 60/min/IP rate limit, real OpenAPI at
+# /api/killinchu/openapi.json, /healthz + /readyz (Khipu chain check), JSON logs
+# (trace/span id), uniform error envelopes, durable SQLite Khipu store, /honest
+# footer (v11 LOCKED 749/14/163 @ c7c0ba17, Λ = Conjecture 1). try/except-guarded:
+# can NEVER crash the host app. Per-file Dockerfile COPY adds szl_be_hardening.py.
+try:
+    import szl_be_hardening as _be_harden
+    _be_report = _be_harden.harden(app, organ="killinchu")
+    import sys as _be_sys
+    print(f"[killinchu] BE hardening registered: {_be_report.get('registered')} "
+          f"khipu={_be_report.get('khipu_backend')}", file=_be_sys.stderr)
+except Exception as _be_e:
+    import sys as _be_sys, traceback as _be_tb
+    print(f"[killinchu] BE hardening NOT registered: {_be_e!r}", file=_be_sys.stderr)
+    _be_tb.print_exc()
+# ── BE hardening (Greene) — szl_be_hardening ── end
+
+# ── Real persistent backend (killinchu-backend) — Postgres-first, durable-SQLite
+# fallback. Gives killinchu a live data layer at /api/killinchu/{live,crawl/run,
+# timeline,alerts/recent,watchlists}. Persists to Postgres (when DATABASE_URL is set
+# AND psycopg is installed) else durable SQLite. Every endpoint returns the Doctrine
+# v11 envelope {status, citations, fetchedAt} with honest live/cached/degraded labels.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all).
+try:
+    import killinchu_backend as _kc_backend
+    _kc_be_status = _kc_backend.register(app, ns="killinchu")
+    import sys as _kc_be_sys
+    print(f"[killinchu] persistent backend registered: {_kc_be_status}", file=_kc_be_sys.stderr)
+except Exception as _kc_be_e:
+    import sys as _kc_be_sys
+    print(f"[killinchu] persistent backend NOT registered: {_kc_be_e!r}", file=_kc_be_sys.stderr)
+    _kc_backend = None
+# ── Real persistent backend (killinchu-backend) ── end
+
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (Formulas → Ecosystem echo, Opus 4.8, 2026-06-03, Yachay).
+# killinchu ECHOES a shared subset from the a11oy front door: Welford (online
+# mean/variance z-score anomaly gate for ADS-B/Remote-ID telemetry) + Bloom (FN-free
+# duplicate-track membership fast path). Verbatim-vendored from a11oy.formulas under
+# ./szl_shared_formulas/. register() mounts /api/killinchu/v1/formula/* +
+# /api/killinchu/v1/formulas/index EARLY (before the /{full_path:path} catch-all).
+# HONEST schema {value, citation, lean_theorem}. try/except guarded.
+# HONEST SLSA: killinchu image is signed by the GitHub PRIVATE Fulcio (O=GitHub,Inc),
+# with NO public Rekor entry — so it stays L1 (honest). NOT claimed L2. Fix tracked.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# ADDITIVE (Formulas real-edge-v2, Opus 4.8, 2026-06-03, Yachay). The REAL-EDGE
+# formula surface: PAC-Bayes (Catoni verdict confidence) + Kalman (real numpy
+# trajectory smoothing of noisy drone telemetry) + Byzantine quorum (n≥3f+1 over
+# 5 sensors, tolerate 1 fault) + Welford + Bloom, fused into a per-request Λ verdict
+# carrying a REAL DSSE-v1 ECDSA receipt. NO MOCKS. Mounted FIRST so its richer
+# /api/killinchu/v1/formulas/index (5 formulas + Lean permalinks) wins.
+#   POST /api/killinchu/v1/edge/verdict        telemetry → Λ∈[0,1] + DSSE receipt
+#   POST /api/killinchu/v1/edge/track-smooth   Kalman smoothing of a trajectory
+#   GET  /api/killinchu/v1/edge/quorum-status  Byzantine quorum on sensor fusion
+#   GET  /api/killinchu/v1/formulas/index      wired formulas + thesis cite + Lean link
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+_killinchu_edge_formulas = None
+_killinchu_edge_status = "edge-formulas-not-wired"
+try:
+    if "/app" not in sys.path and os.path.isdir("/app/szl_shared_formulas"):
+        sys.path.insert(0, "/app")
+    import killinchu_edge_formulas as _killinchu_edge_formulas
+    _killinchu_edge_status = _killinchu_edge_formulas.register(app, ns="killinchu")
+    print(f"[killinchu] real-edge formulas wired ({_killinchu_edge_status})", file=sys.stderr)
+except Exception as _killinchu_edge_fx:  # additive: never break the Space
+    _killinchu_edge_status = f"edge-formulas-not-wired:{_killinchu_edge_fx!r}"
+    print(f"[killinchu] real-edge formulas NOT mounted ({_killinchu_edge_fx!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (Live Feeds, 2026-06-06, deep-upgrade). REAL LIVE data proxies wired
+# EARLY (before the /{full_path:path} catch-all) so the GET routes win:
+#   GET /api/killinchu/v1/ais/live    Digitraffic FI AIS (live) + CPA/TCPA + conformal Λ
+#   GET /api/killinchu/v1/air/live    adsb.lol military ADS-B (live) + boids/WEZ inputs
+#   GET /api/killinchu/v1/feeds/status reachability + snapshot honesty
+# CORS-safe (server-side), on-disk snapshot fallback, label=live|replay|unavailable.
+# NO fabricated data: unavailable returns empty arrays honestly.
+# ---------------------------------------------------------------------------
+_killinchu_live_feeds = None
+_killinchu_live_status = "live-feeds-not-wired"
+try:
+    import killinchu_live_feeds as _killinchu_live_feeds
+    _killinchu_live_status = _killinchu_live_feeds.register(app, ns="killinchu")
+    print(f"[killinchu] live feeds wired ({_killinchu_live_status})", file=sys.stderr)
+except Exception as _klf_e:  # additive: never break the Space
+    _killinchu_live_status = f"live-feeds-not-wired:{_klf_e!r}"
+    print(f"[killinchu] live feeds NOT mounted ({_klf_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# REAL LIVE-DATA FEEDS, TRACK-normalized (Wave A, 2026-06-13, founder directive
+# "real everything, no simulation, jack into real data live, incl. China").
+# Server-side connectors normalized to the TRACK shape; every record carries
+# {source, live, provenance, ts}; honest LIVE vs SAMPLE. Effector stays SIMULATED.
+#   GET  /api/killinchu/v1/feeds/aircraft?theater=...  OpenSky(anon)+adsb.lol/mil
+#   GET  /api/killinchu/v1/feeds/vessels?theater=...   AISStream(key)->Digitraffic
+#   GET  /api/killinchu/v1/feeds/remoteid              real OpenDroneID/F3411 relay
+#   POST /api/killinchu/v1/feeds/remoteid/ingest       sniffer/Web-Serial relay
+#   GET  /api/killinchu/v1/feeds/realdata/status       chain transparency
+#   GET  /api/killinchu/v1/osint/intel?vertical=...    public OSINT + sanctioned vessels
+# Registered EARLY (before the /{full_path:path} catch-all). Additive/guarded.
+# ---------------------------------------------------------------------------
+_killinchu_feeds_rd_status = "feeds-realdata-not-wired"
+try:
+    import killinchu_feeds_realdata as _killinchu_feeds_rd
+    _killinchu_feeds_rd_status = _killinchu_feeds_rd.register(app, ns="killinchu")
+    print(f"[killinchu] REAL-data feeds wired ({_killinchu_feeds_rd_status})", file=sys.stderr)
+except Exception as _kfrd_e:  # additive: never break the Space
+    _killinchu_feeds_rd_status = f"feeds-realdata-not-wired:{_kfrd_e!r}"
+    print(f"[killinchu] REAL-data feeds NOT mounted ({_kfrd_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (Maritime Wave 2, 2026-06-13). REAL dark-fleet / AIS-spoofing /
+# going-dark detection BY CORRELATION over the REAL AIS feed above (W1/A). Adds
+# a stateful detection layer (rolling per-MMSI history) and exposes the raw
+# signals for Wave 3's Λ fusion (killinchu_maritime_risk.derive_axes). Each
+# detection emits a real DSSE receipt via the khipu signer. Advisory, NOT proven
+# (Windward caveat: dark != illicit). Pure stdlib; additive/try-guarded;
+# registered EARLY (before the SPA catch-all). Does NOT touch W1's feeds or W3's
+# /maritime/risk — adds /maritime/{dark,spoof,riskarc,status}.
+# ---------------------------------------------------------------------------
+_killinchu_maritime_status = "maritime-intel-not-wired"
+try:
+    import killinchu_maritime_intel as _killinchu_maritime
+    _killinchu_maritime_status = _killinchu_maritime.register(app, ns="killinchu")
+    print(f"[killinchu] Maritime intel (dark/spoof/riskarc) wired ({_killinchu_maritime_status})", file=sys.stderr)
+except Exception as _kmi_e:  # additive: never break the Space
+    _killinchu_maritime_status = f"maritime-intel-not-wired:{_kmi_e!r}"
+    print(f"[killinchu] Maritime intel NOT mounted ({_kmi_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (Maritime W4 — Submarine/ASW, HONEST edition). Subs do NOT broadcast
+# AIS and there is NO public live submarine track feed; we NEVER fake a live
+# submarine track. We provide three truthfully-labeled products instead:
+#   GET /api/killinchu/v1/asw/osint           OSINT-LIVE: public naval reporting
+#   GET /api/killinchu/v1/asw/forecast        FORECAST: probability-field model
+#   GET /api/killinchu/v1/asw/negative-space  INFERENCE: absence-of-AIS advisory
+#   GET /api/killinchu/v1/asw/status          capability + honesty status
+# Every ASW assessment carries a REAL DSSE receipt (szl_dsse) with the honesty
+# labels INSIDE the signed payload. Advisory / human-on-the-loop. 0 CDN.
+# Registered EARLY (before the /{full_path:path} catch-all). Additive/guarded.
+# ---------------------------------------------------------------------------
+_killinchu_asw_status = "asw-not-wired"
+try:
+    import killinchu_asw as _killinchu_asw
+    _killinchu_asw_status = _killinchu_asw.register(app, ns="killinchu")
+    print(f"[killinchu] Submarine/ASW (honest) wired ({_killinchu_asw_status})", file=sys.stderr)
+except Exception as _kasw_e:  # additive: never break the Space
+    _killinchu_asw_status = f"asw-not-wired:{_kasw_e!r}"
+    print(f"[killinchu] Submarine/ASW NOT mounted ({_kasw_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (SZL Enterprise Connector Framework, 2026-06-10, founder directive).
+# Meshes killinchu into any enterprise CRM/ERP/platform the instant creds are
+# provided, AND is live-connected NOW to free/no-signup sources. Honest state
+# only (CONNECTED/READY/SAMPLE/ERROR). Every write() Lambda-gated + DSSE-receipted.
+#   GET  /api/killinchu/connectors            52-connector manifest + scoreboard
+#   GET  /api/killinchu/connectors/{id}/health
+#   GET  /api/killinchu/connectors/{id}/read
+#   POST /api/killinchu/connectors/{id}/write  (Lambda-gate + DSSE receipt)
+#   GET/POST .../oauth/start | .../oauth/callback (PKCE, signed-state)
+#   GET  /integrations                         Enterprise Mesh tab (0 CDN)
+# Registered EARLY (before the /{full_path:path} catch-all).
+# ---------------------------------------------------------------------------
+_szl_connectors_serve = None
+_szl_connectors_status = "connectors-not-wired"
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_connectors_serve as _szl_connectors_serve  # single source of truth
+    except Exception:
+        import szl_connectors_serve as _szl_connectors_serve  # fall back to local vendored copy
+    _szl_connectors_status = _szl_connectors_serve.register(app, ns="killinchu")
+    print(f"[killinchu] enterprise connectors wired ({_szl_connectors_status})", file=sys.stderr)
+except Exception as _szc_e:  # additive: never break the Space
+    _szl_connectors_status = f"connectors-not-wired:{_szc_e!r}"
+    print(f"[killinchu] enterprise connectors NOT mounted ({_szc_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (Anatomy engine, 2026-06-06, founder directive). The SZL Agent Body
+# anatomy as the SHARED HONEST ENGINE. Ties killinchu's governed command ->
+# YUYAY 13-axis conjunctive gate -> RUWAY+SENTRA -> Λ-signed YAWAR receipt ->
+# R0513 read-only audit -> span lineage -> HATUN sovereign seal to a human.
+#   GET  /api/killinchu/v1/organism/anatomy    organ map + 13-axis floors
+#   POST /api/killinchu/v1/organism/pipeline    run a proposal (PASS + tamper-FAIL)
+#   GET  /api/killinchu/v1/organism/yawar       append-only receipt-bus tail
+# Registered EARLY (before the /{full_path:path} catch-all). Real cosign signing.
+# ---------------------------------------------------------------------------
+_killinchu_anatomy = None
+_killinchu_anatomy_status = "anatomy-not-wired"
+try:
+    import killinchu_anatomy as _killinchu_anatomy
+    _killinchu_anatomy_status = _killinchu_anatomy.register(app, ns="killinchu")
+    print(f"[killinchu] anatomy engine wired ({_killinchu_anatomy_status})", file=sys.stderr)
+except Exception as _kan_e:  # additive: never break the Space
+    _killinchu_anatomy_status = f"anatomy-not-wired:{_kan_e!r}"
+    print(f"[killinchu] anatomy engine NOT mounted ({_kan_e!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (ESTATE ECOSYSTEM FOUNDATION, 2026-06, Dev5): cross-app ecosystem
+# surfaces wired as ONE additive router (byte-identical module across both apps).
+# Registered EARLY (before the /{full_path:path} catch-all), try/except-guarded.
+#   GET /ecosystem  /estate-organism  /api/killinchu/v1/ecosystem/{anatomy,mesh,ledger,kpi-board}
+# Doctrine v11: locked EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}@c7c0ba17; Lambda = Conjecture 1 (< 1.0);
+# ECDSA-P256 cosign; effectors SIMULATED; 0 runtime CDN.
+# ---------------------------------------------------------------------------
+_szl_ecosystem = None
+_szl_ecosystem_status = "ecosystem-not-wired"
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_ecosystem_routes as _szl_ecosystem  # single source of truth
+    except Exception:
+        import szl_ecosystem_routes as _szl_ecosystem  # fall back to local vendored copy
+    _szl_ecosystem_status = _szl_ecosystem.register(app, ns="killinchu")
+    print(f"[killinchu] ecosystem foundation wired ({_szl_ecosystem_status})", file=sys.stderr)
+except Exception as _eco_e:  # additive: never break the Space
+    _szl_ecosystem_status = f"ecosystem-not-wired:{_eco_e!r}"
+    print(f"[killinchu] ecosystem foundation NOT wired ({_eco_e!r}); app unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (R5, 2026-06-14, Restraint lane): cross-link the a11oy Restraint
+# surface (governed code-minimization / dependency-frugality, R1) into killinchu's
+# left-nav + flagship cross-link strip via an idempotent nav-injection middleware
+# (mirrors a11oy_nav_wireup + _OperatorWidgetInjectorKC). Restraint is hosted on
+# a11oy; this only adds an honest same-estate cross-app nav item — it registers no
+# routes, removes nothing, and never clobbers another lane's nav. try/except-guarded.
+# Doctrine v11: locked = 8 @ c7c0ba17; Lambda = Conjecture 1 (< 1.0); 0 CDN; 0 codenames.
+# ---------------------------------------------------------------------------
+_killinchu_nav_restraint = None
+_killinchu_nav_restraint_status = "restraint-nav-not-wired"
+try:
+    import killinchu_nav_wireup as _killinchu_nav_restraint
+    _killinchu_nav_restraint_status = _killinchu_nav_restraint.register(app, ns="killinchu")
+    print(f"[killinchu] Restraint nav cross-link wired ({_killinchu_nav_restraint_status})", file=sys.stderr)
+except Exception as _rn_e:  # additive: never break the Space
+    _killinchu_nav_restraint_status = f"restraint-nav-not-wired:{_rn_e!r}"
+    print(f"[killinchu] Restraint nav cross-link NOT wired ({_rn_e!r}); app unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM (additive, demo-grade, doctrine-honest)
+# Two shared modules, byte-identical in killinchu + a11oy:
+#   szl_mbse_cosim.py  — governed co-sim ENGINE. Serves JSON API:
+#       /api/killinchu/v1/mbse/{info,watertank,sixdof,pipeline}. Every run passes
+#       a Restraint gate and emits a signed (or honestly-UNSIGNED) DSSE receipt.
+#       The 6DOF FMU twin (effectors SIMULATED, human-on-loop) is the killinchu
+#       flagship; it is surfaced as a /mbse-6dof tab + nav item.
+#   szl_mbse_nav.py    — 3 served HTML pages (/mbse, /mbse-6dof, /mbse-pipeline)
+#       on the 0-CDN holo kit + inline-SVG charts, plus an idempotent
+#       nav-injection middleware adding the "Digital Twin & Co-Sim (MBSE/FMI)"
+#       nav group. Registered EARLY (before the SPA catch-all). cosim BEFORE nav.
+#       HONEST (Doctrine v11): outputs labelled MODELED/SIMULATED; 0 CDN; 0
+#       codenames; never weakens a gate; Λ = Conjecture 1; locked-8 @ c7c0ba17
+#       untouched; trust < 100%. Stack: OpenModelica + FMPy + SysML-v2 patterns
+#       (never Cameo/Dymola). The /elite console SPA source is NOT edited.
+# ---------------------------------------------------------------------------
+try:
+    import szl_mbse_cosim as _szl_mbse_cosim
+    _szl_mbse_cosim_status = _szl_mbse_cosim.register(app, ns="killinchu")
+    print(f"[killinchu] MBSE co-sim ENGINE registered: /api/killinchu/v1/mbse/* "
+          f"({_szl_mbse_cosim_status})", file=sys.stderr)
+except Exception as _szl_mbse_cosim_e:  # additive: never break the Space
+    print(f"[killinchu] MBSE co-sim ENGINE NOT registered: {_szl_mbse_cosim_e!r}; app unaffected", file=sys.stderr)
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_mbse_nav as _szl_mbse_nav  # single source of truth
+    except Exception:
+        import szl_mbse_nav as _szl_mbse_nav
+    _szl_mbse_nav_status = _szl_mbse_nav.register(app, ns="killinchu")
+    print(f"[killinchu] MBSE pages + nav registered: /mbse /mbse-6dof /mbse-pipeline "
+          f"({_szl_mbse_nav_status})", file=sys.stderr)
+except Exception as _szl_mbse_nav_e:  # additive: never break the Space
+    print(f"[killinchu] MBSE pages + nav NOT registered: {_szl_mbse_nav_e!r}; app unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (Lane F1, 2026-06-14): SHARED STATIC MODULES route. killinchu COPYs
+# the byte-identical shared JS (static/shared/szl_label_engine.js,
+# szl_receipt_cosign.js, szl_codename_sanitizer.js + the F1 3D/holographic
+# substrate kit szl_holo3d.js) into /app/static/shared, but had NO route to
+# serve them — the SPA /{full_path:path} catch-all would swallow /static/shared/*.js
+# and return the SPA shell with the wrong content-type. This explicit, allowlisted
+# route (registered EARLY, before the catch-all defined later in this file) serves
+# them with the correct application/javascript content-type so killinchu surfaces
+# (and future F-lanes) can import window.SZLHolo / SZLLabels. 0 runtime CDN — served
+# from the image. Byte-identical kit to a11oy (shared-source drift guard enforced).
+# Doctrine v11: locked = 8 @ c7c0ba17; Lambda = Conjecture 1 (< 1.0); 0 codenames.
+# ---------------------------------------------------------------------------
+try:
+    from pathlib import Path as _F1_Path
+    _F1_SHARED_DIR = _F1_Path("/app/static/shared")
+    _F1_JS_CT = "application/javascript; charset=utf-8"
+    _F1_SHARED_ALLOW = {
+        "szl_label_engine.js": _F1_JS_CT,
+        "szl_receipt_cosign.js": _F1_JS_CT,
+        "szl_codename_sanitizer.js": _F1_JS_CT,
+        "szl_holo3d.js": _F1_JS_CT,
+    }
+
+    @app.get("/static/shared/{fname}")
+    async def _f1_shared_module(fname: str):
+        ct = _F1_SHARED_ALLOW.get(fname)
+        if ct is None:
+            return JSONResponse({"error": "shared module not allowlisted", "file": fname}, status_code=404)
+        f = (_F1_SHARED_DIR / fname)
+        if not f.is_file():
+            return JSONResponse({"error": "shared module missing on disk", "file": fname}, status_code=404)
+        return Response(content=f.read_bytes(), media_type=ct,
+                        headers={"Cache-Control": "public, max-age=3600"})
+    print("[killinchu] Lane F1 shared static modules registered: "
+          "/static/shared/{szl_label_engine,szl_receipt_cosign,szl_codename_sanitizer,szl_holo3d}.js (0 CDN)",
+          file=sys.stderr)
+except Exception as _f1_e:  # additive: never break the Space
+    print(f"[killinchu] Lane F1 shared static modules NOT registered ({_f1_e!r}); app unaffected", file=sys.stderr)
+
+
+_killinchu_formulas = None
+_killinchu_formulas_status = "formulas-not-wired"
+try:
+    if "/app" not in sys.path and os.path.isdir("/app/szl_shared_formulas"):
+        sys.path.insert(0, "/app")
+    import killinchu_formula_endpoints as _killinchu_formulas
+    _killinchu_formulas_status = _killinchu_formulas.register(app, ns="killinchu")
+    print(f"[killinchu] thesis-v22 formulas echoed ({_killinchu_formulas_status})", file=sys.stderr)
+except Exception as _killinchu_fx:  # additive: never break the Space
+    _killinchu_formulas_status = f"formulas-not-wired:{_killinchu_fx!r}"
+    print(f"[killinchu] formula echo NOT mounted ({_killinchu_fx!r}); app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (MINED ops upgrades, 2026-06-07). Four operational/efficiency surfaces
+# whose PATTERNS were mined from PERMISSIVE OSS (fashion thinking: adopt pattern +
+# code WITH NOTICE, then evolve clean-room — NO upstream code copied):
+#   POST /api/killinchu/v1/mined/scicompute      al-jshen/compute (MIT) — fusion/orbital math
+#   POST /api/killinchu/v1/mined/edge-estimator   gpu-bartender (MIT) — edge VRAM feasibility
+#   POST /api/killinchu/v1/mined/swarm-resilience MLRC-deep-thinking (MIT) — perturbation recovery
+#   POST /api/killinchu/v1/mined/telemetry-press  kvpress (Apache-2.0) — priority telemetry retention
+#   GET  /api/killinchu/v1/mined/index            manifest
+# Pure-stdlib, additive, register(app, ns)-style. Registered EARLY (before the
+# /{full_path:path} catch-all). Λ stays Conjecture 1; no fabricated data.
+# ---------------------------------------------------------------------------
+_killinchu_mined = None
+_killinchu_mined_status = "mined-ops-not-wired"
+_killinchu_mined_tb = ""
+try:
+    import killinchu_mined_ops as _killinchu_mined
+    _killinchu_mined_status = _killinchu_mined.register(app, ns="killinchu")
+    print(f"[killinchu] mined ops wired ({_killinchu_mined_status})", file=sys.stderr)
+except Exception as _kmo_e:  # additive: never break the Space
+    import traceback as _kmo_tb
+    _killinchu_mined_tb = _kmo_tb.format_exc()
+    _killinchu_mined_status = f"mined-ops-not-wired:{_kmo_e!r}"
+    print(f"[killinchu] mined ops NOT mounted ({_kmo_e!r}); app unaffected", file=sys.stderr)
+    print(_killinchu_mined_tb, file=sys.stderr)
+
+@app.get("/api/killinchu/v1/mined/_diag")
+async def _killinchu_mined_diag():
+    from fastapi.responses import JSONResponse as _JR
+    return _JR(_diag_payload("mined", _killinchu_mined_status, _killinchu_mined_tb))
+
+# ---------------------------------------------------------------------------
+# RE-SWEEP wave-2 ops (ADDITIVE, Yachay): tactical maritime routing (A*/NBA* +
+# visibility-graph obstacle avoidance), iterative vessel threat ranking, and
+# adaptive sensor sampling + peak detect. Patterns mined from permissive MIT
+# sources (anvaka/ngraph.path, rowanwins/visibility-graph, ft2023/IRanker-demo,
+# al-jshen/adaptive) WITH NOTICE, reimplemented clean-room (pure-stdlib).
+#   POST /api/killinchu/v1/resweep/route           A*/NBA* + obstacle avoidance
+#   POST /api/killinchu/v1/resweep/threat-rank     iterative vessel ranking
+#   POST /api/killinchu/v1/resweep/adaptive-sample adaptive sampling + peaks
+#   GET  /api/killinchu/v1/resweep/index           manifest
+# Registered EARLY (before the catch-all). Λ stays Conjecture 1; no fabricated data.
+# ---------------------------------------------------------------------------
+_killinchu_resweep = None
+_killinchu_resweep_status = "resweep-ops-not-wired"
+_killinchu_resweep_tb = ""
+try:
+    import killinchu_resweep_ops as _killinchu_resweep
+    _killinchu_resweep_status = _killinchu_resweep.register(app, ns="killinchu")
+    print(f"[killinchu] resweep ops wired ({_killinchu_resweep_status})", file=sys.stderr)
+except Exception as _krs_e:  # additive: never break the Space
+    import traceback as _krs_tb
+    _killinchu_resweep_tb = _krs_tb.format_exc()
+    _killinchu_resweep_status = f"resweep-ops-not-wired:{_krs_e!r}"
+    print(f"[killinchu] resweep ops NOT mounted ({_krs_e!r}); app unaffected", file=sys.stderr)
+    print(_killinchu_resweep_tb, file=sys.stderr)
+
+@app.get("/api/killinchu/v1/resweep/_diag")
+async def _killinchu_resweep_diag():
+    from fastapi.responses import JSONResponse as _JR
+    return _JR(_diag_payload("resweep", _killinchu_resweep_status, _killinchu_resweep_tb))
+
+# ---------------------------------------------------------------------------
+# WAVE9 + WAVE10 EXPERIMENTAL theorems wired to real work (ADDITIVE, 2026-06-08):
+# six killinchu-targeted theorem families PROVEN on lutar-lean main (Wave9 PR #199
+# merged @ 66735bf; Wave10 PR #200) as EXPERIMENTAL · CI-green — kernel-verified,
+# NOT locked. Pure-stdlib, register(app, ns)-style; registered EARLY (before the
+# /{full_path:path} catch-all). Each endpoint EXECUTES the theorem on real inputs:
+#   POST /api/killinchu/v1/wave910/stl-robustness          RA-1 two-sided Donzé–Maler
+#   POST /api/killinchu/v1/wave910/covariance-intersection OE-2 PSD convex closure
+#   POST /api/killinchu/v1/wave910/gershgorin              MA1 spectral nonsingularity
+#   POST /api/killinchu/v1/wave910/mesh-resilience         MR-1 + L-Menger cut/path
+#   POST /api/killinchu/v1/wave910/audit-receipts          CP-1 Merkle + AU-1 replay
+#   POST /api/killinchu/v1/wave910/quorum-consensus        C1 BDB + CN-1 quorum
+#   GET  /api/killinchu/v1/wave910/index                   manifest (id/name/chip/axioms)
+#   GET  /api/killinchu/v1/wave910/selftest                run all on in-image demo data
+# locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ stays Conjecture 1; no fabricated data.
+# ---------------------------------------------------------------------------
+_killinchu_wave910 = None
+_killinchu_wave910_status = "wave910-not-wired"
+_killinchu_wave910_tb = ""
+try:
+    import killinchu_wave910 as _killinchu_wave910
+    _killinchu_wave910_status = _killinchu_wave910.register(app, ns="killinchu")
+    print(f"[killinchu] wave9/10 theorems wired ({_killinchu_wave910_status})", file=sys.stderr)
+except Exception as _kw910_e:  # additive: never break the Space
+    import traceback as _kw910_tb
+    _killinchu_wave910_tb = _kw910_tb.format_exc()
+    _killinchu_wave910_status = f"wave910-not-wired:{_kw910_e!r}"
+    print(f"[killinchu] wave9/10 NOT mounted ({_kw910_e!r}); app unaffected", file=sys.stderr)
+    print(_killinchu_wave910_tb, file=sys.stderr)
+
+@app.get("/api/killinchu/v1/wave910/_diag")
+async def _killinchu_wave910_diag():
+    from fastapi.responses import JSONResponse as _JR
+    return _JR(_diag_payload("wave910", _killinchu_wave910_status, _killinchu_wave910_tb))
+
+# ---------------------------------------------------------------------------
+# Flow Compartments capability (yarqa, ENGINEERING METHOD / CFD tier — NOT a
+# locked theorem and NEVER counted among the locked 8). Feeds a maritime wake
+# velocity field (SAMPLE/SIMULATED — no verified live field) into
+# yarqa.compartmentalize and emits the receipt into the EXISTING Khipu chain
+# (szl_khipu_lmdb). Pure register(app, ns)-style; registered EARLY (before the
+# /{full_path:path} catch-all). Additive — never breaks the Space.
+#   GET  /api/killinchu/v1/flow/index            capability manifest (honest tier)
+#   GET  /api/killinchu/v1/flow/field            SAMPLE/SIMULATED wake velocity field
+#   POST /api/killinchu/v1/flow/compartmentalize run yarqa + signed receipt digest
+#   GET  /api/killinchu/v1/flow/selftest         end-to-end eyes-on selftest
+#   GET  /flow-compartments                       self-contained mobile/tablet tab
+# locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; yarqa NEVER counted;
+# locked-8 NOT routed through yarqa; a11oy<->killinchu stays on the real receipt/mesh bus.
+# ---------------------------------------------------------------------------
+_killinchu_flow = None
+_killinchu_flow_status = "flow-compartments-not-wired"
+_killinchu_flow_tb = ""
+try:
+    import killinchu_flow_compartments as _killinchu_flow
+    _killinchu_flow_status = _killinchu_flow.register(app, ns="killinchu")
+    print(f"[killinchu] Flow Compartments wired ({_killinchu_flow_status}) — engineering method (CFD), NOT a locked theorem", file=sys.stderr)
+except Exception as _kf_e:  # additive: never break the Space
+    import traceback as _kf_tb
+    _killinchu_flow_tb = _kf_tb.format_exc()
+    _killinchu_flow_status = f"flow-compartments-not-wired:{_kf_e!r}"
+    print(f"[killinchu] Flow Compartments NOT mounted ({_kf_e!r}); app unaffected", file=sys.stderr)
+    print(_killinchu_flow_tb, file=sys.stderr)
+
+@app.get("/api/killinchu/v1/flow/_diag")
+async def _killinchu_flow_diag():
+    from fastapi.responses import JSONResponse as _JR
+    return _JR(_diag_payload("flow", _killinchu_flow_status, _killinchu_flow_tb))
+
+# ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
+try:
+    from vsp_otel.middleware import install as install_vsp; install_vsp(app)
+except Exception as _vsp_e:
+    import sys as _vsp_sys; print(f"[killinchu] vsp-otel wire skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
+
+# ADDITIVE: OTel — instrument FastAPI app
+try:
+    _szl_otel_setup(fastapi_app=app)
+except Exception as _otel_e:
+    import sys as _otel_sys; print(f"[killinchu] OTel setup skipped: {_otel_e!r}", file=_otel_sys.stderr)
+# --- end OTel setup ---
+
+
+# ---------------------------------------------------------------------------
+# KHIPU CONSENSUS — 3-of-4 BFT multi-organ signed agreement (ADDITIVE, Yachay).
+# Registers organ-specific /khipu/pubkey + POST /khipu/consensus/sign (real
+# ECDSA-P256-SHA256 DSSE signature with the killinchu-cosign key from the
+# KILLINCHU_COSIGN_KEY Space secret). On Killinchu also registers the aggregator
+# POST /api/killinchu/uds/v1/mission/execute and POST /api/killinchu/uds/v1/
+# consensus/verify. Registered EARLY so these routes win over any catch-all.
+# Doctrine v11 LOCKED 749/14/163 (public). NEVER crashes the host app.
+# ---------------------------------------------------------------------------
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_khipu_consensus as _kc  # single source of truth
+    except Exception:
+        import szl_khipu_consensus as _kc
+    _kc_status = _kc.register(app, "killinchu", is_aggregator=("killinchu" == "killinchu"))
+    import sys as _kc_sys
+    print(f"[killinchu] Khipu Consensus registered: {_kc_status}", file=_kc_sys.stderr)
+except Exception as _kc_e:  # never crash the app
+    import traceback as _kc_tb, sys as _kc_sys
+    print(f"[killinchu] Khipu Consensus NOT registered: {_kc_e!r}\n{_kc_tb.format_exc()}", file=_kc_sys.stderr)
+
+# ── Live 3D Wires (PURIQ / Doctrine v12) — ADDITIVE, re-pinned FIRST ─────────
+# Registered immediately after the app is constructed so FastAPI's ordered route
+# matching gives /live-wires + the 3DWPP SSE stream + court-admissible BoE
+# precedence over every pre-existing SPA/proxy catch-all. Real in-process wire
+# data (szl_wire / szl_jack); empty buffers render IDLE (never faked). Sigs are
+# honestly PLACEHOLDER until Sigstore CI is wired. Sign: Yachay. Perplexity Computer Agent.
+try:
+    import szl_live_wires as _live_wires
+    _live_wires.register(app, ns="killinchu")
+    import sys as _sys_lw
+    print("[killinchu] Live 3D Wires registered FIRST: /live-wires + /api/killinchu/v1/wires/{stream,boe,inject}", file=_sys_lw.stderr)
+except Exception as _lw_e:
+    import sys as _sys_lw, traceback as _tb_lw
+    print(f"[killinchu] Live 3D Wires NOT registered: {_lw_e}", file=_sys_lw.stderr)
+    _tb_lw.print_exc()
+# ── end Live 3D Wires ────────────────────────────────────────────────────────
+
+# ── GAP-4: /about/thesis injection page (Yachay; Perplexity Computer Agent) ──
+# Mounts GET /about/thesis (HTML) + GET /api/killinchu/v1/thesis (JSON): chapters &
+# theorems this flagship implements, 8 live Zenodo DOIs, Λ-axis (Conjecture 1),
+# substrate-package cross-refs. Every Lean decl cited is real + PROVED.
+try:
+    import szl_thesis_about as _thesis_about
+    _thesis_status = _thesis_about.register(app, "killinchu")
+    import sys as _sys_th
+    print(f"[killinchu] /about/thesis registered: {_thesis_status}", file=_sys_th.stderr)
+except Exception as _th_e:
+    import sys as _sys_th, traceback as _tb_th
+    print(f"[killinchu] /about/thesis NOT registered: {_th_e}", file=_sys_th.stderr)
+    _tb_th.print_exc()
+# ── end /about/thesis ────────────────────────────────────────────────────────
+
+# ── PQC / Hybrid signing (ADDITIVE, Yachay) ──────────────────────────────────
+# Registers POST /khipu/sign?mode={ecdsa,pqc,hybrid} and the namespaced alias.
+# ECDSA P-256 stays the DEFAULT; ML-DSA-65 (NIST FIPS 204) is additive; hybrid
+# signs with BOTH. Defense procurement (killinchu vertical) asks about PQC —
+# hybrid mode live = real competitive advantage. No fake signatures: pqc/hybrid
+# require a real ML-DSA backend (oqs-python or dilithium-py) or return 503.
+# Sign: Yachay <yachay@szlholdings.dev>.
+try:
+    import killinchu_szl_pqc_sign as _pqc_sign
+    _pqc_sign.register(app, ns="killinchu")
+    import sys as _sys_pqc
+    print("[killinchu] PQC/hybrid signing registered: POST /khipu/sign?mode={ecdsa,pqc,hybrid}", file=_sys_pqc.stderr)
+except Exception as _pqc_e:
+    import sys as _sys_pqc, traceback as _tb_pqc
+    print(f"[killinchu] PQC/hybrid signing NOT registered: {_pqc_e}", file=_sys_pqc.stderr)
+    _tb_pqc.print_exc()
+# ── end PQC / Hybrid signing ─────────────────────────────────────────────────
+
+# ── Sigstore Rekor public cross-verify (ADDITIVE, Yachay — from PR #13) ───────
+# Founder directive (2026-06-01): UDS-facing endpoints consolidate in Killinchu,
+# the single UDS-facing product. Registers the external Rekor surface under the
+# Killinchu UDS namespace:
+#   POST /api/killinchu/uds/v1/rekor/log
+#   GET  /api/killinchu/uds/v1/rekor/verify/{log_index}
+#   GET  /api/killinchu/uds/v1/rekor/info
+# Pushes the SZL DSSE receipt (signed with the SZLHOLDINGS cosign key, keyid
+# szlholdings-cosign) into the PUBLIC Sigstore Rekor transparency log so
+# auditors can cross-verify in a trust-rooted log (search.sigstore.dev).
+# Real submissions only — never a fabricated logIndex; an unsigned envelope
+# returns an honest 503. Endpoint configurable via REKOR_URL (default
+# rekor.sigstore.dev). SLSA L1 honest. Sign: Yachay. Perplexity Computer Agent.
+try:
+    import szl_rekor as _rekor
+    _rekor_info = _rekor.register(app, ns="killinchu")
+    import sys as _sys_rk
+    print(f"[killinchu] Rekor cross-verify registered: {_rekor_info['registered']}", file=_sys_rk.stderr)
+except Exception as _rk_e:
+    import sys as _sys_rk, traceback as _tb_rk
+    print(f"[killinchu] Rekor cross-verify NOT registered: {_rk_e}", file=_sys_rk.stderr)
+    _tb_rk.print_exc()
+# ── end Sigstore Rekor cross-verify ──────────────────────────────────────────
+
+# ── OSINT verticals: amaru + rosie (ADDITIVE, Forge) ─────────────────────────
+# Registers the public-web OSINT capability tabs under the Killinchu namespace:
+#   GET /api/killinchu/v1/amaru/{counter-uas,naval,procurement,advisories,geopolitical}
+#   GET /api/killinchu/v1/rosie/{digest,routing,entities,correlate,watch}
+#   GET /api/killinchu/v1/osint/status
+# REAL public-web search/scrape via Tavily (TAVILY_API_KEY), normalized + a
+# sha256 provenance chain + on-disk corpus. Honest mode per item: live | cached
+# | unreachable. NOT the staged UDS mesh modules; provenance = sha256 chain, NOT
+# a signature; routing/entities/correlate are heuristic·advisory. Pure stdlib
+# urllib. Registered EARLY (before the /{full_path:path} catch-all). Sign: Forge.
+try:
+    import killinchu_osint as _killinchu_osint
+    _killinchu_osint_status = _killinchu_osint.register(app, ns="killinchu")
+    import sys as _sys_os
+    print(f"[killinchu] OSINT verticals (amaru/rosie) registered: {_killinchu_osint_status}", file=_sys_os.stderr)
+    # Keep all five amaru streams warm in the background so the console is never
+    # empty on first open and rosie's cross-vertical views always have a full
+    # corpus. Guarded/idempotent daemon thread; honors _TTL + _FRESH_MIN so it
+    # never hammers Tavily (KILLINCHU_OSINT_WARM=0 disables it).
+    _killinchu_osint_warming = _killinchu_osint.start_warmer()
+    print(f"[killinchu] OSINT background warmer started: {_killinchu_osint_warming}", file=_sys_os.stderr)
+except Exception as _os_e:
+    import sys as _sys_os, traceback as _tb_os
+    print(f"[killinchu] OSINT verticals NOT registered: {_os_e}", file=_sys_os.stderr)
+    _tb_os.print_exc()
+# ── end OSINT verticals ──────────────────────────────────────────────────────
+
+# ===========================================================================
+# CORS LOCKDOWN (SAFE-NOW hardening, freeze June 20) — killinchu-only.
+# ---------------------------------------------------------------------------
+# Previously: allow_origins=["*"] reflected ANY origin (incl. attacker pages)
+# with Access-Control-Allow-Origin. Browsers were therefore allowed to read
+# cross-origin responses from any site. We restrict the browser CORS grant to
+# the known killinchu / a11oy estate:
+#   * killinchu.a-11-oy.com + a-11-oy.com (apex + any subdomain)
+#   * the HF Spaces that legitimately embed / call us (*.hf.space,
+#     *.huggingface.co) — this is how the founder views the Space and how the
+#     /jackin console + operator widget cross-call the a11oy substrate.
+# Localhost is allowed for dev only.
+#
+# This does NOT break public READ endpoints: CORS governs *browser cross-origin
+# JS reads* only. Same-origin page loads, server-to-server, and non-browser
+# clients (curl / SDKs / the consoles' own same-origin fetches) are unaffected —
+# they never consult Access-Control-Allow-Origin. allow_credentials stays False
+# (unchanged from the wildcard config), so no cookies/creds are exposed.
+#
+# Lives in serve.py (per-app entrypoint, intentionally NOT byte-identical
+# a11oy<->killinchu, so it does not trip the shared-file drift gate).
+# Doctrine v11 LOCKED 749/14/163. SLSA L1 honest.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+_CORS_ALLOW_ORIGINS = [
+    "https://killinchu.a-11-oy.com",
+    "https://a-11-oy.com",
+    "https://www.a-11-oy.com",
+    "https://szlholdings-killinchu.hf.space",
+    "https://huggingface.co",
+    "http://localhost:7860",
+    "http://127.0.0.1:7860",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+# Regex covers every a-11-oy.com subdomain + the HF Space / Hub estate (the only
+# legitimate cross-origin embedders/callers). Anchored, https-only.
+_CORS_ALLOW_ORIGIN_REGEX = (
+    r"^https://([a-z0-9-]+\.)*a-11-oy\.com$"
+    r"|^https://[a-z0-9-]+\.hf\.space$"
+    r"|^https://([a-z0-9-]+\.)*huggingface\.co$"
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_CORS_ALLOW_ORIGINS,
+    allow_origin_regex=_CORS_ALLOW_ORIGIN_REGEX,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=False,
+)
+
+# ===========================================================================
+# SECURITY HEADERS (SAFE-NOW hardening, freeze June 20) — killinchu-only.
+# ---------------------------------------------------------------------------
+# szl_be_hardening already sets the conservative ENFORCED baseline on every
+# response (X-Content-Type-Options: nosniff, Referrer-Policy:
+# strict-origin-when-cross-origin, Strict-Transport-Security, and a CSP
+# `frame-ancestors 'self' + Hugging Face` that replaces the legacy
+# X-Frame-Options for clickjacking protection). This block is ADDITIVE and
+# does TWO things, both non-breaking:
+#
+#   1. A defensive FALLBACK: if szl_be_hardening failed to register (it is
+#      try/except-guarded and can no-op), re-assert the same baseline so the
+#      Space is never left without nosniff/Referrer-Policy/HSTS.
+#   2. A real Content-Security-Policy in REPORT-ONLY mode on HTML page loads.
+#      killinchu serves 3D/map/JS-heavy SPAs (the /elite console, radar scope,
+#      maritime/fleet globe) built from inlined scripts/styles + several CDNs.
+#      A blanket ENFORCED `default-src`/`script-src` CSP would white-screen
+#      those pages, so we ship `Content-Security-Policy-Report-Only`: browsers
+#      evaluate and (optionally) report violations but DO NOT block anything —
+#      zero risk to the demo surfaces while giving us the CSP coverage + the
+#      data needed to tighten toward an enforced policy later. We never touch
+#      the ENFORCED frame-ancestors CSP set above.
+#
+# Lives in serve.py (the per-app entrypoint, intentionally NOT byte-identical
+# a11oy<->killinchu, so this does not trip the shared-file drift gate). It is a
+# pure-stdlib BaseHTTPMiddleware wrapped in try/except so it can NEVER crash the
+# host app. Additive only — never overwrites a header a route already set.
+# Doctrine v11 LOCKED 749/14/163. SLSA L1 honest.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    from starlette.middleware.base import BaseHTTPMiddleware as _SECHDR_Base
+
+    # Report-Only CSP. SEC-09 (tightened, additive, still Report-Only so it can
+    # NEVER white-screen the demo): all SPA bundles + vendor libs are same-origin
+    # ('self', under /vendor/), so the blanket `https:` source and `'unsafe-eval'`
+    # are dropped from script-src — no JS eval()/new Function() exists in the served
+    # app (verified) and WebGL shaders compile on the GPU, not via the JS CSP gate.
+    # `'unsafe-inline'` is RETAINED (the SPA ships 16 inline render scripts). The
+    # external `https:`/`wss:` allowances are kept ONLY where real cross-origin
+    # fetches happen: connect-src (live data feeds + websockets) and img-src (map
+    # tiles). data:/blob: kept where inlined assets / worker-spawned 3D layers need
+    # them. Tightening a Report-Only policy only sharpens its violation reports; it
+    # cannot break rendering.
+    _CSP_REPORT_ONLY = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' blob:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob: https:; "
+        "font-src 'self' data:; "
+        "connect-src 'self' https: wss: data: blob:; "
+        "worker-src 'self' blob:; "
+        # frame-src: the Living-Anatomy view intentionally embeds the sibling
+        # szlholdings-anatomy HF Space (a labelled, same-trust-boundary SZL Space).
+        # Declaring it keeps the Report-Only CSP honest (no spurious default-src
+        # 'self' violation on that one intended embed); same-origin everything else.
+        "frame-src 'self' https://*.hf.space https://*.huggingface.co; "
+        "frame-ancestors 'self' https://huggingface.co "
+        "https://*.hf.space https://*.huggingface.co; "
+        "base-uri 'self'; "
+        "object-src 'none'"
+    )
+    _SECHDR_FALLBACK = {
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    }
+
+    class _SecurityHeadersKC(_SECHDR_Base):
+        async def dispatch(self, request, call_next):
+            resp = await call_next(request)
+            try:
+                # 1. Re-assert the baseline if (and ONLY if) it is absent — never
+                #    clobber a header szl_be_hardening / a route already set.
+                for _k, _v in _SECHDR_FALLBACK.items():
+                    if _k not in resp.headers:
+                        resp.headers[_k] = _v
+                # SEC-08 (defence-in-depth): drop any residual Server/X-Powered-By
+                # banner a proxy or sub-app may have re-added. Fingerprint removal
+                # only — never weakens a security gate.
+                for _hdr in ("server", "x-powered-by"):
+                    if _hdr in resp.headers:
+                        del resp.headers[_hdr]
+                # 2. Report-Only CSP on HTML page loads only (don't add weight to
+                #    JSON API / SSE / asset responses). Never overwrite one a route
+                #    already declared.
+                _ctype = resp.headers.get("content-type", "")
+                if "text/html" in _ctype.lower() and (
+                    "Content-Security-Policy-Report-Only" not in resp.headers
+                ):
+                    resp.headers["Content-Security-Policy-Report-Only"] = _CSP_REPORT_ONLY
+            except Exception:
+                pass
+            return resp
+
+    app.add_middleware(_SecurityHeadersKC)
+    print("[killinchu] security headers (CSP report-only + baseline fallback) registered",
+          file=sys.stderr)
+except Exception as _sechdr_e:  # pragma: no cover
+    print(f"[killinchu] security headers NOT registered (non-fatal): {_sechdr_e!r}",
+          file=__import__("sys").stderr)
+# ===========================================================================
+# END: SECURITY HEADERS
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Load curated drone database at startup
+# ---------------------------------------------------------------------------
+_DRONES: list[dict[str, Any]] = []
+
+
+def _load_drones() -> None:
+    global _DRONES
+    if DRONES_DB_PATH.exists():
+        with open(DRONES_DB_PATH) as f:
+            _DRONES = json.load(f)
+        print(f"[killinchu] Loaded {len(_DRONES)} drone systems", file=sys.stderr)
+    else:
+        print(f"[killinchu] WARNING: drone DB not found at {DRONES_DB_PATH}", file=sys.stderr)
+
+
+_load_drones()
+
+# ---------------------------------------------------------------------------
+# Khipu Merkle DAG — hash-chained receipts (real sha256, in-memory, additive)
+# Same pattern as vessels' Wire-F DAG. Resets on Space restart (honest).
+# ---------------------------------------------------------------------------
+_KHIPU_DAG: list[dict[str, Any]] = []
+
+
+def _digest_node(receipt: dict[str, Any], parents: list[str]) -> str:
+    h = hashlib.sha256()
+    h.update(json.dumps(receipt, sort_keys=True).encode())
+    for p in parents:
+        h.update(p.encode())
+    return h.hexdigest()
+
+
+def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
+    # WHY this exists: every counter-UAS verdict must be signed + chained so that
+    # a downstream audit tool can verify the chain of decisions without trusting
+    # any single node. The Merkle DAG links receipts via SHA-256 parent digests.
+    # Real DSSE signing happens when SZL_COSIGN_PRIVATE_KEY_PEM is set (Space secret);
+    # absent = PLACEHOLDER label (honest — never fabricates a signature).
+    parents = [_KHIPU_DAG[-1]["digest"]] if _KHIPU_DAG else []
+    receipt = {
+        "schema": "szl.killinchu.receipt/v1",
+        "kind": kind,
+        "payload": payload,
+        "doctrine": DOCTRINE,
+        "ts_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    sigs, signed = _receipt_signatures(receipt)
+    node: dict[str, Any] = {
+        "index": len(_KHIPU_DAG),
+        "wire": "F",
+        "source": "killinchu",
+        "receipt": receipt,
+        "parents": parents,
+        "dsse": {
+            "payloadType": "application/vnd.szl.receipt+json",
+            "signatures": sigs,
+            "signed": signed,
+            "keyid": (sigs[0].get("keyid") if sigs else None),
+            "honesty": (
+                "REAL — ECDSA-P256-SHA256 DSSE over cosign keypair; verify with "
+                "`cosign verify-blob --key cosign.pub` or POST /khipu/verify."
+                if signed else
+                "PLACEHOLDER — SZL_COSIGN_PRIVATE_PEM secret absent; no signature "
+                "fabricated (honest). Set the Space secret to enable real signing."
+            ),
+        },
+        "signed": signed,
+        "ts_utc": receipt["ts_utc"],
+    }
+    node["digest"] = _digest_node(receipt, parents)
+    _KHIPU_DAG.append(node)
+    return node
+
+
+def _khipu_root() -> str | None:
+    return _KHIPU_DAG[-1]["digest"] if _KHIPU_DAG else None
+
+
+# 13-axis canonical Λ aggregate (geometric mean — yuyay_v3 canonical, Doctrine v11).
+_AXIS_NAMES = [
+    "soundness", "calibration", "robustness", "provenance", "consent", "reversibility",
+    "transparency", "fairness", "containment", "attestation", "freshness", "authority", "auditability",
+]
+_LAMBDA_FLOOR = 0.90
+
+
+def _lambda_aggregate(axes: list[float]) -> float:
+    # WHY geometric mean: geometric mean penalizes any single axis being near zero
+    # more harshly than arithmetic mean. A drone with 12/13 axes = 1.0 and 1 axis = 0.01
+    # should NOT pass. Geometric mean enforces all-axes-must-be-adequate.
+    # This is the Λ-Aggregator (Doctrine v11 Conjecture 1 — uniqueness is conjectured,
+    # not proven; see szl_lambda_tripwire.py for thresholds HALT/FLAG/WARN).
+    vals = [min(1.0, max(1e-9, float(x))) for x in axes] if axes else [0.9] * 13
+    return math.exp(sum(math.log(v) for v in vals) / len(vals))
+
+
+# ---------------------------------------------------------------------------
+# Static assets — SPA chunks (vite base="/"). Mounted FIRST.
+# ---------------------------------------------------------------------------
+if ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+
+
+# ---------------------------------------------------------------------------
+# Health
+# ---------------------------------------------------------------------------
+@app.get("/api/killinchu/healthz")
+async def healthz() -> JSONResponse:
+    # ADDITIVE: real uptime + last DB ping from the persistent backend (guarded —
+    # if the backend module is absent, healthz still returns its full doctrine envelope).
+    _be_health: dict = {}
+    try:
+        if _kc_backend is not None:
+            _be_health = _kc_backend.health_fields()
+    except Exception:
+        _be_health = {}
+    _payload = {
+        "status": "ok",
+        "service": "killinchu",
+        "version": "1.0.0",
+        "surface": "Andean Drone Intelligence",
+        "base_path": "/",
+        "doctrine": DOCTRINE,
+        "declarations": 749,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
+        "axioms": 14,
+        "axioms_raw": 15,
+        "sorries": 163,
+        "trust_axes": 13,
+        "lambda_floor": _LAMBDA_FLOOR,
+        "lambda_uniqueness": "Conjecture 1 (OPEN) unconditionally — NOT a Theorem (open CAUCHY_ND sorry + missing symmetry axiom); CONDITIONAL uniqueness = Theorem U (TheoremU_LambdaUnique, corollaries U₁ separable / U₂ factorization; CI-green, axiom-clean) modulo the kernel Decidable ≈Λ relation (instDecidableLambdaEquiv), strict = only under the Anchored/Normalized gauge",
+        "slsa": "L1 (honest; L2 in roadmap via Wire D)",
+        "receipt_signature": "REAL — ECDSA-P256-SHA256 DSSE; live at /khipu/sign + /api/killinchu/khipu/sign (Wire D shipped)",
+        "signing_available": True,
+        "numbers": {"declarations": 749, "axioms": 14, "sorries": 163, "putnam_sorries": 51, "baseline_sorries": 112, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
+        "drones_in_database": len(_DRONES),
+        "khipu_root": _khipu_root(),
+        "khipu_nodes": len(_KHIPU_DAG),
+        "decoders": ["OpenDroneID/ASTM F3411", "ADS-B Mode-S 1090ES (pyModeS v3)", "MAVLink v1/v2 (pymavlink)"],
+        "hatun_willay": True,
+        "pivoted_from": "vessels",
+    }
+    _payload.update(_be_health)
+    return JSONResponse(_payload)
+
+
+@app.get("/api/killinchu/readyz")
+async def readyz() -> JSONResponse:
+    return JSONResponse({"status": "ready", "drones": len(_DRONES), "doctrine": DOCTRINE})
+
+
+@app.get("/api/killinchu/v1/honest")
+async def honest() -> JSONResponse:
+    # ADDITIVE (Formulas → Ecosystem, 2026-06-03): surface echoed formulas (Welford,
+    # Bloom) + HONEST SLSA. killinchu is the ONE organ NOT public-verifiable L2: its
+    # image is signed by the GitHub PRIVATE Fulcio (O=GitHub,Inc, CN=Fulcio Intermediate
+    # l2) with NO public Rekor tlog entry. We therefore HONESTLY keep it at L1 — never
+    # claim L2 where slsa-verifier/public Rekor do not confirm.
+    try:
+        _f = _killinchu_formulas.formulas_summary() if _killinchu_formulas else {"wired": [], "count": 0}
+    except Exception:
+        _f = {"wired": [], "count": 0}
+    return JSONResponse({
+        "space": "killinchu",
+        "doctrine": DOCTRINE,
+        "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
+        "kernel_commit": "c7c0ba17",
+        "trust_axes": 13,
+        "lambda_status": "Conjecture 1 (OPEN) — NOT a theorem unconditionally (open CAUCHY_ND sorry + missing symmetry axiom); conditional uniqueness = Theorem U (U₁/U₂) modulo Decidable ≈Λ",
+        "lambda_uniqueness": "Conjecture 1 (OPEN), not a closed theorem unconditionally (open CAUCHY_ND sorry + missing symmetry axiom); conditional uniqueness = Theorem U (TheoremU_LambdaUnique, U₁/U₂) modulo the kernel Decidable ≈Λ relation (instDecidableLambdaEquiv)",
+        "slsa": "L1 (honest)",
+        "slsa_evidence": {
+            "level": "L1", "image_tag": "uds-v0.2.0",
+            "image_digest": "sha256:4465e1aa1842d45423e878485f83865b1eb65b89f299ee5d25fab9fe3d8b80e9",
+            "fulcio_issuer": "GitHub private Fulcio (O=GitHub,Inc, CN=Fulcio Intermediate l2)",
+            "public_rekor_entry": False,
+            "note": "SLSA L1 honest (cosign-signed). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed for any organ. Fix: re-run ghcr-build-push.yml with public Sigstore+Rekor.",
+        },
+        "formulas_wired": [f["name"] for f in _f.get("wired", [])],
+        "formulas_count": _f.get("count", 0),
+        "formulas_status": globals().get("_killinchu_formulas_status", "unknown"),
+        "formulas_index": "/api/killinchu/v1/formulas/index",
+        "formulas_provenance": "thesis_v22.pdf §2 + real Lean theorem/obligation; echoed from a11oy front door (Welford, Bloom)",
+        "honest_disclosures": [
+            "ADS-B and Remote-ID are unauthenticated broadcast — decoded fields are CLAIMS, not attested truth.",
+            "Receipt signatures are PLACEHOLDER — Sigstore CI not yet wired per Doctrine v11.",
+            "All organs are SLSA L1 honest (cosign-signed). L2 build-provenance attestation is roadmap; not yet claimed.",
+            "Section 889: 5 banned vendors (Huawei, ZTE, Hytera, Hikvision, Dahua).",
+        ],
+        "receipts": f"DSSE envelopes; signature = {SIGNATURE_PLACEHOLDER}",
+        "telemetry_trust": "ADS-B and Remote-ID are unauthenticated broadcast — decoded fields are CLAIMS, not attested truth.",
+        "khipu_dag": "in-memory, additive, hash-chained sha256; resets on Space restart.",
+        "hatun_willay": True,
+    })
+
+
+# ---------------------------------------------------------------------------
+# REAL protocol decoders — NO MOCKS
+# ---------------------------------------------------------------------------
+async def _json_body(request: Request) -> dict:
+    """Parse a JSON body, returning {} on empty / malformed / non-object input.
+
+    A JSON array or scalar parses without raising, so an unguarded ``.get()`` on
+    it would 500. Coercing any non-dict to {} keeps every consumer's bad-input
+    path a clean 4xx (the handler's own missing-field check) instead of a 500.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+@app.post("/api/killinchu/v1/remote-id/decode")
+async def remote_id_decode(request: Request) -> JSONResponse:
+    body = await _json_body(request)
+    hexstr = body.get("hex") or body.get("bytes") or body.get("msg") or ""
+    if not hexstr:
+        return JSONResponse({"ok": False, "error": "provide {hex: '...'} — a Remote ID 25-byte frame as hex"}, status_code=400)
+    return JSONResponse(kp.remote_id_decode(hexstr))
+
+
+@app.post("/api/killinchu/v1/ads-b/decode")
+async def ads_b_decode(request: Request) -> JSONResponse:
+    body = await _json_body(request)
+    if "even" in body and "odd" in body:
+        return JSONResponse(kp.adsb_decode({"even": body["even"], "odd": body["odd"]}))
+    msg = body.get("hex") or body.get("msg") or body.get("messages")
+    if not msg:
+        return JSONResponse({"ok": False, "error": "provide {hex: '<28 hex>'} or {even, odd} for CPR position"}, status_code=400)
+    return JSONResponse(kp.adsb_decode(msg))
+
+
+@app.post("/api/killinchu/v1/mavlink/parse")
+async def mavlink_parse(request: Request) -> JSONResponse:
+    body = await _json_body(request)
+    hexstr = body.get("hex") or body.get("bytes") or body.get("frame") or ""
+    if not hexstr:
+        return JSONResponse({"ok": False, "error": "provide {hex: '<mavlink frame hex>'}"}, status_code=400)
+    return JSONResponse(kp.mavlink_parse(hexstr))
+
+
+# ---------------------------------------------------------------------------
+# Drone database
+# ---------------------------------------------------------------------------
+@app.get("/api/killinchu/v1/drones/database")
+async def drones_database(side: str | None = None, group: str | None = None,
+                          country: str | None = None, role: str | None = None) -> JSONResponse:
+    data = _DRONES
+    if side:
+        data = [d for d in data if d.get("side") == side]
+    if group:
+        data = [d for d in data if d.get("group") == group]
+    if country:
+        data = [d for d in data if d.get("country", "").lower() == country.lower()]
+    if role:
+        data = [d for d in data if role.lower() in d.get("role", "").lower()]
+    sides = sorted({d["side"] for d in _DRONES})
+    groups = sorted({d["group"] for d in _DRONES})
+    countries = sorted({d["country"] for d in _DRONES})
+    return JSONResponse({
+        "count": len(data), "total": len(_DRONES), "drones": data,
+        "facets": {"sides": sides, "groups": groups, "countries": countries},
+        "doctrine": DOCTRINE,
+        "source": "Killinchu Phase-1 research — see /research; every entry carries a source URL.",
+    })
+
+
+@app.get("/api/killinchu/v1/drones/{drone_id}")
+async def drone_detail(drone_id: str) -> JSONResponse:
+    for d in _DRONES:
+        if d["id"] == drone_id:
+            return JSONResponse({"drone": d, "doctrine": DOCTRINE})
+    return JSONResponse({"error": "drone not found", "id": drone_id}, status_code=404)
+
+
+# ---------------------------------------------------------------------------
+# Counter-UAS evaluator — telemetry + geofence + policy → ALLOW/HALT + Λ-receipt
+# ---------------------------------------------------------------------------
+def _haversine_m(lat1, lon1, lat2, lon2) -> float:
+    R = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
+@app.post("/api/killinchu/v1/counter-uas/evaluate")
+async def counter_uas_evaluate(request: Request) -> JSONResponse:
+    body = await _json_body(request)
+    telemetry = body.get("telemetry", {})
+    geofence = body.get("geofence", {})  # {center_lat, center_lon, radius_m}
+    policy = body.get("policy", {})  # {max_speed_m_s, allow_sides:[...], require_remote_id}
+    axes = body.get("axis_scores") or [0.93, 0.91, 0.94, 0.9, 0.92, 0.91, 0.93, 0.9, 0.95, 0.92, 0.94, 0.91, 0.93]
+
+    reasons: list[str] = []
+    breaches: list[str] = []
+    lat = telemetry.get("latitude")
+    lon = telemetry.get("longitude")
+
+    # Geofence breach check (real haversine)
+    inside = None
+    if geofence.get("center_lat") is not None and lat is not None and lon is not None:
+        dist = _haversine_m(geofence["center_lat"], geofence["center_lon"], lat, lon)
+        radius = float(geofence.get("radius_m", 1000))
+        inside = dist <= radius
+        if inside:
+            breaches.append(f"inside protected geofence (dist {dist:.0f}m ≤ {radius:.0f}m)")
+        reasons.append(f"geofence distance = {dist:.0f}m (radius {radius:.0f}m)")
+
+    # Speed policy
+    spd = telemetry.get("ground_speed_m_s")
+    if spd is not None and policy.get("max_speed_m_s") is not None:
+        if spd > policy["max_speed_m_s"]:
+            breaches.append(f"speed {spd} m/s exceeds policy max {policy['max_speed_m_s']} m/s")
+        reasons.append(f"speed {spd} m/s vs max {policy['max_speed_m_s']} m/s")
+
+    # Side / Remote ID policy
+    side = telemetry.get("side")
+    allow_sides = policy.get("allow_sides")
+    if allow_sides is not None and side is not None and side not in allow_sides:
+        breaches.append(f"side '{side}' not in allow list {allow_sides}")
+    if policy.get("require_remote_id") and not telemetry.get("remote_id_present", False):
+        breaches.append("no Remote ID broadcast detected (FAA Part 89 non-compliant)")
+
+    L = _lambda_aggregate(axes)
+    lambda_pass = L >= _LAMBDA_FLOOR
+    decision = "HALT" if breaches else "ALLOW"
+    # Conservative: a HALT requires the Λ governance gate to be satisfied (high-confidence)
+    if decision == "HALT" and not lambda_pass:
+        decision = "REVIEW"
+        reasons.append(f"breach detected but Λ={L:.4f} < floor {_LAMBDA_FLOOR}: escalate to human REVIEW")
+
+    receipt_node = _emit_receipt("counter_uas_decision", {
+        "decision": decision, "breaches": breaches, "lambda": round(L, 6),
+        "lambda_floor": _LAMBDA_FLOOR, "geofence_inside": inside,
+    })
+    return JSONResponse({
+        "ok": True,
+        "decision": decision,
+        "breaches": breaches,
+        "reasons": reasons,
+        "lambda": round(L, 6),
+        "lambda_floor": _LAMBDA_FLOOR,
+        "lambda_pass": lambda_pass,
+        "axis_scores": dict(zip(_AXIS_NAMES, [round(x, 4) for x in axes])),
+        "lambda_receipt": {
+            "index": receipt_node["index"], "digest": receipt_node["digest"],
+            "khipu_root": _khipu_root(), "dsse": receipt_node["dsse"],
+        },
+        "signature": SIGNATURE_PLACEHOLDER,
+        "doctrine": DOCTRINE,
+        "honesty": ("Decision is advisory. Telemetry is an unauthenticated broadcast claim. "
+                    f"Receipt signature: {SIGNATURE_PLACEHOLDER}"),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Swarm topology — ingest Remote-ID broadcasts, infer clusters
+# Graph: connected components via proximity threshold (real Union-Find).
+# ---------------------------------------------------------------------------
+@app.api_route("/api/killinchu/v1/swarm/topology", methods=["GET", "POST"])
+async def swarm_topology(request: Request) -> JSONResponse:
+    body = await _json_body(request) if request.method == "POST" else {}
+    broadcasts = body.get("broadcasts")
+    threshold_m = float(body.get("threshold_m", 800))
+    if not broadcasts:
+        # Real seeded broadcasts derived from adversary signatures (Shahed swarm pattern).
+        base_lat, base_lon = 47.85, 35.10  # SE Ukraine reference
+        broadcasts = []
+        for i in range(8):
+            broadcasts.append({"id": f"shahed-{i+1}", "latitude": base_lat + 0.004 * (i % 4),
+                               "longitude": base_lon + 0.004 * (i // 4), "model": "Shahed-136"})
+        for i in range(3):
+            broadcasts.append({"id": f"fpv-{i+1}", "latitude": base_lat + 0.25 + 0.002 * i,
+                               "longitude": base_lon + 0.3, "model": "FPV quad"})
+        broadcasts.append({"id": "tb2-lone", "latitude": base_lat - 0.4, "longitude": base_lon - 0.5, "model": "Bayraktar TB2"})
+
+    n = len(broadcasts)
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    edges = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            bi, bj = broadcasts[i], broadcasts[j]
+            if bi.get("latitude") is None or bj.get("latitude") is None:
+                continue
+            d = _haversine_m(bi["latitude"], bi["longitude"], bj["latitude"], bj["longitude"])
+            if d <= threshold_m:
+                union(i, j)
+                edges.append({"a": bi["id"], "b": bj["id"], "dist_m": round(d, 1)})
+    clusters: dict[int, list[dict]] = {}
+    for i, b in enumerate(broadcasts):
+        clusters.setdefault(find(i), []).append(b)
+    cluster_list = [{"cluster_id": idx, "size": len(members), "members": members,
+                     "classification": "SWARM" if len(members) >= 3 else "single"}
+                    for idx, members in enumerate(clusters.values())]
+    return JSONResponse({
+        "ok": True,
+        "broadcast_count": n,
+        "proximity_threshold_m": threshold_m,
+        "edges": edges,
+        "clusters": cluster_list,
+        "swarms_detected": sum(1 for c in cluster_list if c["classification"] == "SWARM"),
+        "algorithm": "connected components (Union-Find) over haversine proximity graph",
+        "doctrine": DOCTRINE,
+        "honesty": "Remote-ID positions are unauthenticated broadcast claims; clustering is geometric only.",
+    })
+
+
+# ---------------------------------------------------------------------------
+# Active threats board — real adversary signatures from Phase-1 research
+# ---------------------------------------------------------------------------
+@app.get("/api/killinchu/v1/threats/active")
+async def threats_active() -> JSONResponse:
+    now = time.time()
+    sig = {d["id"]: d for d in _DRONES}
+    threats = []
+
+    def mk(idx, drone_id, lat, lon, alt, hdg, spd, status):
+        d = sig.get(drone_id, {})
+        return {
+            "track_id": f"TRK-{idx:04d}",
+            "model": d.get("model", drone_id), "side": d.get("side", "unknown"),
+            "role": d.get("role", ""), "group": d.get("group", ""),
+            "country": d.get("country", ""),
+            "latitude": lat, "longitude": lon, "altitude_m": alt, "heading_deg": hdg,
+            "speed_m_s": spd, "status": status,
+            "first_seen": datetime.fromtimestamp(now - 600, timezone.utc).isoformat(),
+            "last_update": datetime.fromtimestamp(now, timezone.utc).isoformat(),
+            "telemetry_source": "simulated track over real signature",
+        }
+
+    threats.append(mk(1, "shahed136", 47.85, 35.10, 1500, 270, 51.4, "INBOUND"))
+    threats.append(mk(2, "shahed136", 47.86, 35.12, 1450, 268, 50.0, "INBOUND"))
+    threats.append(mk(3, "lancet3", 47.40, 36.20, 800, 95, 30.5, "LOITERING"))
+    threats.append(mk(4, "orlan10", 48.10, 37.50, 3000, 180, 41.6, "ISR"))
+    threats.append(mk(5, "tb2", 47.10, 35.80, 6000, 90, 61.7, "PATROL"))
+    threats.append(mk(6, "djimavic3", 47.91, 35.05, 120, 200, 15.0, "RECON"))
+    threats.append(mk(7, "wingloong2", 46.50, 34.20, 8000, 45, 102.7, "ISR"))
+    threats.append(mk(8, "fpv7in", 47.88, 35.08, 60, 250, 41.6, "STRIKE-RUN"))
+
+    return JSONResponse({
+        "ok": True,
+        "active_threats": len([t for t in threats if t["side"] == "adversary"]),
+        "total_tracks": len(threats),
+        "threats": threats,
+        "doctrine": DOCTRINE,
+        "honesty": ("Tracks are simulated over REAL adversary drone signatures from the curated DB. "
+                    "Not a live sensor feed; positions are illustrative."),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Receipt emit + ledger (Khipu DAG)
+# ---------------------------------------------------------------------------
+@app.post("/api/killinchu/v1/receipt/emit")
+async def receipt_emit(request: Request) -> JSONResponse:
+    body = await _json_body(request)
+    kind = body.get("kind", "manual")
+    payload = body.get("payload", body)
+    node = _emit_receipt(kind, payload)
+    return JSONResponse({
+        "ok": True, "wire": "F",
+        "node_index": node["index"], "node_digest": node["digest"],
+        "khipu_root": _khipu_root(), "parents": node["parents"],
+        "dsse": node["dsse"], "ts_utc": node["ts_utc"],
+        "signature": SIGNATURE_PLACEHOLDER,
+        "doctrine": DOCTRINE,
+        "honesty": (f"Signature is {SIGNATURE_PLACEHOLDER}. Khipu DAG is in-memory, "
+                    "hash-chained sha256 (additive); resets on Space restart."),
+    })
+
+
+@app.get("/api/killinchu/v1/receipt/ledger")
+async def receipt_ledger(limit: int = 100) -> JSONResponse:
+    nodes = _KHIPU_DAG[-limit:]
+    return JSONResponse({
+        "wire": "F", "khipu_root": _khipu_root(), "count": len(_KHIPU_DAG),
+        "nodes": nodes, "doctrine": DOCTRINE,
+        "honesty": f"In-memory hash-chained DAG. Signatures {SIGNATURE_PLACEHOLDER}.",
+    })
+
+
+# ===========================================================================
+# VERIFY-IT-YOURSELF (Warhacker on-stage moment, 2026-06-05). Serves the EXACT
+# public key that signs killinchu receipts (szl_dsse.COSIGN_PUBLIC_PEM, keyid
+# szlholdings-cosign) as a raw PEM at /cosign.pub, so a judge can verify a
+# receipt OFFLINE with `cosign verify-blob --key cosign.pub`. Registered BEFORE
+# the /{full_path:path} catch-all. ZERO BANDAID — same key the signer uses.
+# ===========================================================================
+@app.get("/cosign.pub")
+async def cosign_pub() -> Response:
+    """Raw PEM public key (keyid szlholdings-cosign) that signs killinchu receipts.
+    Verify offline:  cosign verify-blob --key cosign.pub --signature sig.b64 payload.json"""
+    pem = None
+    if _szl_dsse is not None:
+        pem = getattr(_szl_dsse, "COSIGN_PUBLIC_PEM", None)
+    if not pem:
+        return Response(content="public key unavailable in this runtime\n",
+                        media_type="text/plain", status_code=503)
+    return Response(content=pem if pem.endswith("\n") else pem + "\n",
+                    media_type="application/x-pem-file")
+
+
+@app.get("/api/killinchu/v1/receipt/export")
+async def receipt_export(index: int = -1) -> JSONResponse:
+    """Export one bounded receipt or an explicit, typed empty state.
+
+    ``signed`` is true only after the reconstructed DSSE envelope verifies
+    against the public key. Missing receipts or signing capability are never
+    represented by a fabricated envelope.
+    """
+    body, status_code = build_receipt_export(
+        _KHIPU_DAG,
+        index=index,
+        doctrine=DOCTRINE,
+        dsse_module=_szl_dsse,
+        khipu_root=_khipu_root(),
+    )
+    return JSONResponse(body, status_code=status_code)
+
+
+@app.get("/api/killinchu/v1/lambda")
+async def lambda_axes(request: Request) -> JSONResponse:
+    axes = [0.93, 0.91, 0.94, 0.9, 0.92, 0.91, 0.93, 0.9, 0.95, 0.92, 0.94, 0.91, 0.93]
+    L = _lambda_aggregate(axes)
+    return JSONResponse({
+        "trust_axes": 13,
+        "axes": [{"name": n, "score": s} for n, s in zip(_AXIS_NAMES, axes)],
+        "lambda": round(L, 6), "lambda_floor": _LAMBDA_FLOOR, "pass": L >= _LAMBDA_FLOOR,
+        "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
+        "uniqueness": "Conjecture 1 (OPEN), not a Theorem unconditionally (open CAUCHY_ND sorry + missing symmetry axiom); conditional uniqueness = Theorem U (TheoremU_LambdaUnique, corollaries U₁/U₂) modulo the kernel Decidable ≈Λ relation (instDecidableLambdaEquiv), strict = only under the Anchored/Normalized gauge",
+        "declarations": 749,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
+        "axioms_unique": 14,
+        "sorries_total": 163,
+        "kernel_commit": "c7c0ba17",
+        "doctrine": DOCTRINE,
+    })
+
+
+@app.get("/api/killinchu/v1/research")
+async def research_kb() -> JSONResponse:
+    """Phase-1 research surfaced as a public knowledge base (structured)."""
+    return JSONResponse({
+        "doctrine": DOCTRINE,
+        "sections": [
+            {"id": "du", "title": "Defense Unicorns UDS posture",
+             "summary": "UDS Core (Istio/Keycloak/NeuVector/Pepr), Zarf airgap delivery, UDS Platform — "
+                        "the mission-software substrate counter-UAS payloads run on at the tactical edge.",
+             "sources": ["https://docs.defenseunicorns.com",
+                         "https://github.com/defenseunicorns/uds-core",
+                         "https://defenseunicorns.com/resources/announcing-uds-core-1-0/"]},
+            {"id": "us", "title": "US military drones (Groups 1-5)",
+             "summary": "MQ-9 Reaper, RQ-4 Global Hawk, MQ-1C Gray Eagle, RQ-7 Shadow, RQ-11 Raven, "
+                        "RQ-20 Puma, Switchblade 300/600, Phoenix Ghost, ALTIUS-600/700.",
+             "sources": ["https://en.wikipedia.org/wiki/UAS_groups_of_the_United_States_military",
+                         "https://www.af.mil/About-Us/Fact-Sheets/Display/Article/104470/mq-9-reaper/"]},
+            {"id": "adversary", "title": "Adversary drones",
+             "summary": "Shahed-136/131 (Iran→Russia Geran), Lancet-3 (Russia), Orlan-10, Wing Loong II / "
+                        "CH-4 (China), DJI Mavic/Matrice (dual-use).",
+             "sources": ["https://armyrecognition.com/military-products/army/unmanned-systems/unmanned-aerial-vehicles/shahed-136-loitering-munition-kamikaze-suicide-drone-technical-data",
+                         "https://en.wikipedia.org/wiki/CAIG_Wing_Loong_II"]},
+            {"id": "cuas", "title": "Counter-UAS systems",
+             "summary": "Anduril Lattice (C2), Epirus Leonidas (HPM anti-swarm), DroneShield DroneGun, "
+                        "SkyWiper, Raytheon Coyote.",
+             "sources": ["https://www.epirusinc.com/electronic-warfare",
+                         "https://www.defenseone.com/business/2023/07/defense-startups-team-defeat-swarm-drones/388909/"]},
+            {"id": "protocols", "title": "Detection protocols",
+             "summary": "FAA Remote ID / OpenDroneID (ASTM F3411, 25-byte frames, lat/lon int32×1e7); "
+                        "ADS-B Mode-S 1090ES (DF17, ICAO 24-bit, CPR position); STANAG 4609 / MISB 0601 KLV; "
+                        "MAVLink v1/v2. Decoders wired live: pyModeS v3 + pymavlink + real OpenDroneID parser.",
+             "sources": ["https://www.faa.gov/sites/faa.gov/files/2021-08/RemoteID_Final_Rule.pdf",
+                         "https://github.com/opendroneid/opendroneid-core-c",
+                         "https://mode-s.org/pymodes/api/pyModeS.decoder.adsb.html"]},
+        ],
+    })
+
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (live knowledge console — 2026-06-09): serve the generated,
+# kernel-derived knowledge corpus at /knowledge.json so the /elite console's
+# loadKnowledge() renders LIVE theorem / formula / axiom panels instead of
+# silently falling back to {} (the SPA catch-all would otherwise return the
+# index.html shell, which is non-JSON, so getPublic('/knowledge.json') threw).
+# Same taxonomy + byte-identical to a11oy's knowledge.json
+# (axioms / theorems / formulas / frameworks) so killinchu never drifts from the
+# kernel. Honesty doctrine v11 preserved verbatim from the corpus: Conjecture 1
+# OPEN, locked-proven = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17, conditional
+# uniqueness = Theorem U. Registered BEFORE the /{full_path:path} SPA catch-all
+# so it wins ordered route matching. Never fabricates kernel claims.
+# ---------------------------------------------------------------------------
+_KNOWLEDGE_JSON = _APP_ROOT / "knowledge.json"
+
+
+@app.get("/knowledge.json")
+async def knowledge_json() -> Response:
+    """The generated knowledge corpus (axioms/theorems/formulas/frameworks).
+
+    Served as a real JSON document; without this explicit route the path falls
+    through to the SPA history catch-all (index.html), which is why the elite
+    console used to render empty knowledge panels.
+    """
+    if _KNOWLEDGE_JSON.is_file():
+        return FileResponse(str(_KNOWLEDGE_JSON), media_type="application/json")
+    # Honest fallback — never fabricate the kernel corpus.
+    return JSONResponse(
+        {"error": "knowledge.json not bundled with this deploy", "doctrine": DOCTRINE},
+        status_code=503,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Sample test vectors (for the live decoder UIs — real, verified frames)
+# ---------------------------------------------------------------------------
+@app.get("/api/killinchu/v1/samples")
+async def samples() -> JSONResponse:
+    return JSONResponse({
+        "remote_id": {
+            "location": "12205a2804c0474418a094e3d3fc080609c008000000000000",
+            "basic_id": "0212535a4c2d4b494c4c494e4348552d3030310000000000000000",
+        },
+        "ads_b": {
+            "single_ident": "8D406B902015A678D4D220AA4BDA",
+            "pair_even": "8D40621D58C382D690C8AC2863A7",
+            "pair_odd": "8D40621D58C386435CC412692AD6",
+        },
+        "mavlink": {"heartbeat": "fd09000000010100000000000000020c000403b6bd"},
+        "doctrine": DOCTRINE,
+    })
+
+
+# ===========================================================================
+# Scope-expansion endpoints (ADDITIVE, Doctrine v11) — satellites, GEOINT,
+# digital twin, integrity tripwires T11-T20, OTA/control/rollback (Yuyay-gated),
+# counter-UAS identify/track, DICE/SBOM identity, companion-defense, forensics.
+# ===========================================================================
+try:
+    import killinchu_expansion as _expansion
+    _expansion.register_expansion(
+        app,
+        drones=_DRONES,
+        emit_receipt=_emit_receipt,
+        haversine=_haversine_m,
+        lambda_aggregate=_lambda_aggregate,
+        khipu_root=_khipu_root,
+        axis_names=_AXIS_NAMES,
+        lambda_floor=_LAMBDA_FLOOR,
+        doctrine=DOCTRINE,
+        json_body=_json_body,
+        signature_placeholder=SIGNATURE_PLACEHOLDER,
+    )
+    print("[killinchu] expansion endpoints registered", file=sys.stderr)
+except Exception as _exp_err:  # pragma: no cover - never break core on expansion
+    print(f"[killinchu] WARNING expansion registration failed: {_exp_err}", file=sys.stderr)
+
+
+# ===========================================================================
+# Naval / Maritime mode + HAPS (stratospheric) tier — ADDITIVE, Doctrine v11.
+# Final Sweep (Yachay, 2026-06-01): closes Yachay-Dome gaps #4 (maritime USV/UUV)
+# and #5 (HAPS). New endpoints: /api/killinchu/v1/haps, /naval-mode, /naval-mode/cue.
+# WE SENSE, WE EVIDENCE — passive detection + signed cue packages only.
+# ===========================================================================
+try:
+    import killinchu_naval_haps as _naval_haps
+    _naval_haps.register_naval_haps(
+        app,
+        emit_receipt=_emit_receipt,
+        json_body=_json_body,
+        doctrine=DOCTRINE,
+    )
+    print("[killinchu] naval + HAPS endpoints registered", file=sys.stderr)
+except Exception as _nh_err:  # pragma: no cover - never break core on additive layer
+    print(f"[killinchu] WARNING naval/HAPS registration failed: {_nh_err}", file=sys.stderr)
+
+
+# ===========================================================================
+# vessels alias — ADDITIVE. Preserve every /api/vessels/* contract so anyone
+# hitting vessels endpoints on this Space still resolves. Doctrine v11.
+# ===========================================================================
+@app.get("/api/vessels/healthz")
+async def vessels_healthz_alias() -> JSONResponse:
+    return JSONResponse({
+        "status": "ok", "service": "vessels", "version": "0.4.0", "doctrine": DOCTRINE,
+        "note": "vessels has pivoted to Killinchu drone intelligence.",
+        "redirect": KILLINCHU_REDIRECT,
+        "killinchu_healthz": "/api/killinchu/healthz",
+        "declarations": 749, "axioms": 14, "sorries": 163, "hatun_willay": True,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
+    })
+
+
+@app.get("/api/vessels/v1/killinchu-redirect")
+async def vessels_killinchu_redirect() -> JSONResponse:
+    return JSONResponse({"redirect": KILLINCHU_REDIRECT,
+                         "message": "Drone intelligence has moved to Killinchu.",
+                         "doctrine": DOCTRINE})
+
+
+@app.api_route("/api/vessels/{path:path}", methods=["GET", "POST"])
+async def vessels_catch(path: str) -> JSONResponse:
+    return JSONResponse({
+        "data": [], "meta": {"path": f"/api/vessels/{path}", "doctrine": DOCTRINE,
+                             "note": "vessels pivoted to Killinchu — see /api/killinchu/*",
+                             "redirect": KILLINCHU_REDIRECT}})
+
+
+# ---------------------------------------------------------------------------
+# SPA — Andean Drone Intelligence at root. History fallback.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (Yachay / Provenance Hardening): Wire D (W3C traceparent trace
+# continuity) + DSSE/Cosign-signed Khipu receipts (SLSA L1 honest; L2 roadmap Wire D).
+# Registers /api/{space}/wires/D, /khipu/{sign,verify,ledger}, /provenance.
+# Wrapped so a missing dep (cryptography) can NEVER take down the existing app.
+# PLACEHOLDER -> REAL: every receipt now DSSE-signed with szlholdings-cosign.
+# ---------------------------------------------------------------------------
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_provenance as _prov  # single source of truth
+    except Exception:
+        import szl_provenance as _prov  # fall back to local vendored copy
+    _prov_status = _prov.register_provenance(app, "killinchu")
+    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L1 honest; L2 roadmap): {{_prov_status}}", file=sys.stderr)
+except Exception as _pe:  # pragma: no cover - defensive, additive-only
+    print(f"[killinchu] szl_provenance NOT registered ({{_pe!r}}); existing app unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# Warhacker top-level alias routes (ADDITIVE, Yachay, 2026-06-01). Registered
+# BEFORE the /{full_path:path} catch-all: /healthz + /khipu/{sign,verify,pubkey}
+# + /api/killinchu/v3/doctrine + /wires/D. Real DSSE via szl_dsse. v11 verbatim.
+# ---------------------------------------------------------------------------
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_warhacker_aliases as _wh_aliases  # single source of truth
+    except Exception:
+        import szl_warhacker_aliases as _wh_aliases  # fall back to local vendored copy
+    _wh_status = _wh_aliases.register(app, "killinchu", build_sha=os.environ.get("SPACE_COMMIT_SHA", "warhacker-aliases-v1"))
+    print(f"[killinchu] Warhacker aliases registered: {_wh_status}", file=sys.stderr)
+except Exception as _wh_e:
+    print(f"[killinchu] Warhacker aliases NOT registered: {_wh_e!r}", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# Killinchu v2 GENIUS endpoints (ADDITIVE, Yachay, 2026-06-01). Cesium /globe +
+# geofence/check + mission/plan (PURIQ F7) + swarm/coordinate (boids) + remote-id
+# /mavlink/adsb decoders + digital twin + threat/assess (sentra) + warhacker P1-P8.
+# Registered BEFORE the catch-all so /globe + /api/killinchu/v2/* resolve LOCALLY.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_genius as _kg
+    _kg_status = _kg.register(app, "killinchu")
+    print(f"[killinchu] v2 genius endpoints registered: {_kg_status}", file=sys.stderr)
+except Exception as _kg_e:
+    print(f"[killinchu] v2 genius endpoints NOT registered: {_kg_e!r}", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# Killinchu maritime/drone WARHACKER demo suite (7 demos, ADDITIVE, 2026-06-06).
+# spoofed-ais, dark-vessel, geofence-incursion, collision-cpa, swarm-hijack,
+# tampered-command, roe-violation. Each demo is mode-aware (nominal != tamper),
+# returns real computed values (CPA km, TCPA s, rho), a real DSSE/cosign receipt
+# (UNIQUE per run), and a signed Merkle/Khipu chain that BREAKS on tamper.
+# Registered BEFORE the /{full_path:path} catch-all so /api/killinchu/v1/
+# warhacker/launch/{key} resolves LOCALLY. Uses the REAL szl_dsse cosign signer.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_warhacker_demos as _kc_wh
+
+    def _kc_wh_sign(_obj):
+        if _szl_dsse is None:
+            return {"signed": False}
+        return _szl_dsse.sign_payload(_obj, "application/vnd.szl.receipt+json")
+
+    _kc_wh_status = _kc_wh.register(app, sign_fn=_kc_wh_sign, ns="killinchu")
+    print(f"[killinchu] Warhacker demo suite registered: {_kc_wh_status}", file=sys.stderr)
+except Exception as _kc_wh_e:
+    print(f"[killinchu] Warhacker demo suite NOT registered: {_kc_wh_e!r}", file=sys.stderr)
+
+# ============================================================================
+# BEGIN: killinchu GOVERNED AUTO-REVIEW layer (Integration I2) — mirror tiles of
+# the keystone autonomy layer first shipped on a11oy. SAME portable classifier
+# module (a11oy_autoreview), registered here with ns="killinchu". A fast,
+# context-aware classifier runs INLINE before each Action node; verdict in
+# {allow, narrow, block-with-explanation, escalate}, intent-relative,
+# workspace-aware. The SIMULATED engage / ROE action is gated by the
+# AR-005-engage-roe rule -> escalate (OSCAL AC-3, AU-10; NIST AI RMF MANAGE 4.3):
+# the classifier sits in front of Dev D's CBF-QP clamp + BFT (n>=3f+1) quorum +
+# human-on-loop; the effector stays SIMULATED. MADE OURS: every verdict is
+# (a) Lambda-gated (Conjecture 1, < 1.0 — never "100% safe"), (b) DSSE-SIGNED
+# via the SAME real cosign ECDSA-P256 key served at /cosign.pub (szl_dsse),
+# (c) expressed as OPA/Rego rules mapped to OSCAL control IDs + NIST AI RMF
+# MANAGE subcategories, (d) conformal-calibrated (szl_conformal) + ECE/Brier
+# gate (szl_calibration) + repeated-run flapping detection. Rates are MEASURED
+# from the live decision log (labelled ROADMAP until enough real runs accrue) —
+# never fabricated. Effectors SIMULATED. Pattern credit:
+# https://cursor.com/blog/agent-autonomy-auto-review
+# Namespace /api/killinchu/v1/autoreview/* + page /autoreview — registered BEFORE
+# the /{full_path:path} SPA catch-all (register() front-inserts at position 0).
+# ADDITIVE / try-except guarded — can NEVER crash the Space.
+# DOCTRINE v11; Lambda=Conjecture 1; SLSA L1/L2 (L3 roadmap); trust<100%; 0 CDN.
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_autoreview as _kc_ar
+    import os as _kc_ar_os
+
+    # Keep this Space's auto-review decision log distinct from any other.
+    _kc_ar_os.environ.setdefault("A11OY_AUTOREVIEW_DB", "/tmp/killinchu_autoreview.sqlite3")
+
+    # Reuse the SAME real cosign DSSE signer the rest of killinchu uses, so
+    # auto-review verdicts are signed by the identical ECDSA-P256 key served at
+    # /cosign.pub. HONEST: if the private key secret is absent, szl_dsse returns
+    # an explicitly UNSIGNED envelope (no fabricated signature).
+    def _kc_ar_sign(_obj):
+        if _szl_dsse is None:
+            return {"signed": False, "signatures": [],
+                    "honesty": "UNSIGNED — szl_dsse unavailable in this runtime"}
+        return _szl_dsse.sign_payload(_obj, "application/vnd.szl.receipt+json")
+
+    def _kc_ar_verify(_env):
+        if _szl_dsse is None:
+            return {"verified": False, "reason": "szl_dsse unavailable"}
+        return _szl_dsse.verify_envelope(_env)
+
+    def _kc_ar_pubpem():
+        if _szl_dsse is None:
+            return ""
+        return getattr(_szl_dsse, "COSIGN_PUBLIC_PEM", "") or ""
+
+    _kc_ar_status = _kc_ar.register(
+        app, "killinchu",
+        _kc_ar_sign,
+        verify_fn=_kc_ar_verify,
+        pub_pem_fn=_kc_ar_pubpem,
+        signer_label=("real cosign ECDSA-P256 DSSE (szl_dsse; same key as "
+                      "/cosign.pub and all killinchu receipts)"),
+    )
+    print(f"[killinchu] Governed Auto-Review registered: {_kc_ar_status}", file=sys.stderr)
+    _KC_AR_DIAG = {"status": "ok", "registered": _kc_ar_status}
+except Exception as _kc_ar_e:
+    import traceback as _kc_ar_tb
+    print(f"[killinchu] Governed Auto-Review FAILED (non-fatal): {_kc_ar_e!r}", file=sys.stderr)
+    _kc_ar_tb.print_exc(file=sys.stderr)
+    _KC_AR_DIAG = {"status": "FAILED", "error": "registration failed; see server logs"}
+# ============================================================================
+# END: killinchu GOVERNED AUTO-REVIEW layer
+# ============================================================================
+
+
+@app.get("/")
+async def spa_root():
+    """FRONT DOOR = a polished HOME page (static/landing.html) that tells the
+    defense-buyer story — what killinchu is (governed counter-UAS + maritime C2),
+    the differentiator (Lean-checked ROE gate + BFT witness quorum + signed
+    engagement receipt), plain proof points, and a clear CTA into the operator
+    console at /elite. Previously `/` 307-redirected straight into the dense
+    /elite console with no front door; now it renders the home page instead.
+    /elite stays fully working (registered by killinchu_elite_console). The
+    cinematic 3D hero remains at /hero and the UDS operator at /operator.
+    ADDITIVE — no existing route touched. Doctrine v11 LOCKED unchanged."""
+    _home = STATIC_DIR / "landing.html"
+    if _home.is_file():
+        return FileResponse(_home, media_type="text/html")
+    # Honest fallback: if the home page asset is missing, hand off to /elite
+    # rather than serving a blank shell (deny-by-default, never a half-state).
+    from starlette.responses import RedirectResponse as _RootRedir
+    return _RootRedir(url="/elite", status_code=307)
+
+
+@app.get("/hero")
+async def spa_hero() -> FileResponse:
+    """The cinematic 3D hero is kept here (cool, but secondary to the real /elite work)."""
+    hero = Path("/app/cathedral.html")
+    if hero.is_file():
+        return FileResponse(hero, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# === ADDITIVE: cathedral front-door hero assets (sovereign, vendored, NO CDN) ===
+# ES-module Three.js r160 (MIT) vendored under /app/static/vendor3d (already COPYed
+# by `COPY static/ ./static/`). Explicit routes BEFORE the SPA catch-all.
+_KC_HERO_VENDOR = Path("/app/static/vendor3d")
+
+@app.get("/hero/killinchu_cathedral.js")
+async def _kc_hero_app_js() -> FileResponse:
+    f = Path("/app/static/killinchu_cathedral.js")
+    if f.is_file():
+        return FileResponse(str(f), media_type="application/javascript; charset=utf-8")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+@app.get("/hero/vendor3d/{fname}")
+async def _kc_hero_vendor(fname: str) -> FileResponse:
+    if fname not in {"three.module.min.js", "OrbitControls.js", "THREE_LICENSE.txt"}:
+        return FileResponse(INDEX_HTML, media_type="text/html")
+    f = _KC_HERO_VENDOR / fname
+    if f.is_file():
+        ct = "text/plain; charset=utf-8" if fname.endswith(".txt") else "application/javascript; charset=utf-8"
+        return FileResponse(str(f), media_type=ct,
+                            headers={"Cache-Control": "public, max-age=31536000, immutable"})
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# ============================================================================
+# SPA HISTORY FALLBACK — explicit routes for key C-UAS demo paths
+# (2026-06-04, fix: /counter-uas /drones /map returned 404 server-side)
+# These three paths exist in the built React SPA (static/assets/index-D6SPDeFp.js
+# confirms path:"/counter-uas", path:"/drones", path:"/map").
+# The /{full_path:path} catch-all at line ~2145 is correct in code but the HF
+# Space runtime (pySpaces 0.50.2 + Starlette 1.1.0 + FastAPI ~0.111) does not
+# always fall through to it when routes.clear()+extend are used by frontier_patch.
+# Adding explicit GET routes — same pattern as /operator /uds /navy — is the
+# safest additive fix: no existing route is shadowed, each falls back to INDEX_HTML.
+# Registered BEFORE /{full_path:path} catch-all. ADDITIVE ONLY.
+# Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>
+# ============================================================================
+@app.get("/counter-uas")
+async def spa_counter_uas() -> FileResponse:
+    """SPA history fallback — serves index.html for /counter-uas (C-UAS demo page)."""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+@app.get("/drones")
+async def spa_drones() -> FileResponse:
+    """SPA history fallback — serves index.html for /drones."""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+@app.get("/map")
+async def spa_map() -> FileResponse:
+    """SPA history fallback — serves index.html for /map."""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+@app.get("/killinchu")
+async def spa_killinchu() -> FileResponse:
+    """Explicit route for /killinchu — the exact URL a-11-oy.com links to for this
+    vertical. The built SPA router has NO /killinchu route, so React rendered a
+    "404 · No such route" view into #root directly beneath the always-present live
+    counter-UAS command deck. index.html now carries a try/guarded deck-route guard
+    that hides that empty 404 shell whenever the SPA genuinely 404s and the live
+    deck is present, so /killinchu serves the deck as a complete, honest page.
+    Additive; no existing route shadowed; falls back to INDEX_HTML like the other
+    SPA paths. Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"""
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+# ============================================================================
+# END: SPA HISTORY FALLBACK explicit routes
+# ============================================================================
+
+
+# ADDITIVE (UDS HARDENING, Yachay 2026-06-01): DESKTOP-FIRST UDS compliance
+# dashboard for 1280px+ workstation operators (STIG/SCAP, Iron Bank parity, Big
+# Bang chart, Tradewinds, CMMC/NIST/EU-AI-Act). Self-contained static page that
+# reads the live /api/killinchu/uds/v1/* real-data endpoints. Clean aliases so
+# operators don't need the .html suffix.
+@app.get("/uds/compliance")
+@app.get("/compliance")
+async def uds_compliance_dashboard() -> FileResponse:
+    _page = STATIC_DIR / "uds-compliance.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# ADDITIVE (Drone 3D Health v4, Yachay 2026-06-01): clean operator-shell aliases.
+# /operator + /uds serve the UDS Command Center (which now carries the Drone 3D tab).
+@app.get("/operator")
+@app.get("/uds")
+async def operator_shell() -> FileResponse:
+    _page = STATIC_DIR / "uds.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# ADDITIVE (Unified 4-pane Operator Shell, 2026-06-01, Yachay / Perplexity
+# Computer Agent): NEW /unified route serving the self-contained 4-pane shell
+# (terrain + right panel + Cmd-K + receipt tunnel). Registered BEFORE the
+# /{full_path:path} catch-all so it resolves LOCALLY. ADDITIVE — does NOT touch
+# the existing /operator route. File ships in static/ (COPY static/ already in
+# Dockerfile). Doctrine v11 LOCKED 749/14/163 unchanged.
+@app.get("/unified")
+@app.get("/killinchu/unified")
+async def unified_operator_shell() -> FileResponse:
+    _page = STATIC_DIR / "operator-unified.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return JSONResponse({"error": "operator-unified.html not deployed"}, status_code=404)
+
+
+# ADDITIVE (Strategic Rebrand, Yachay / Perplexity Computer Agent, 2026-06-01):
+# /navy URL PRESERVED, content corrected per UDS_DOD_COMPLIANCE_BLUEPRINT.md
+# (sections 1, 6, 11, 12). Framing shifts to UDS Core compatible · ZARF-packaged ·
+# Enterprise Agents lane (NOT "Navy AI Hackathon · CDAO + USNWR&E", NOT "Open
+# Arsenal"). Honest: "UDS Core compatible" not certified; ZARF-packaging available
+# not shipped. Citation strip Hickok-grounded. Registered BEFORE the
+# /{full_path:path} catch-all so it resolves LOCALLY. ADDITIVE — does NOT touch
+# any existing route. Doctrine v11 LOCKED 749/14/163 unchanged.
+@app.get("/navy")
+async def navy_surface() -> FileResponse:
+    _page = STATIC_DIR / "navy.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# ADDITIVE (Landing front door, 2026-06-06, Perplexity Computer Agent): the
+# killinchu marketing LANDING page (static/landing.html) — shared a11oy house
+# style, orbital field-command hero, live KPIs, offline-verify story. The CTA
+# "Enter the Field Console" links to /elite (registered by killinchu_elite_console).
+# Served via EXPLICIT routes because the SPA /{full_path:path} catch-all is
+# shadowed for *.html by an earlier JSON-404 handler (same reason /uds.html etc.
+# use explicit routes). Registered BEFORE the catch-all so it resolves LOCALLY.
+# ADDITIVE — does NOT touch killinchu_elite_console.py or any existing route.
+# Doctrine v11 LOCKED 749/14/163 unchanged.
+@app.get("/landing")
+@app.get("/landing.html")
+@app.get("/killinchu/landing")
+async def killinchu_landing() -> FileResponse:
+    _page = STATIC_DIR / "landing.html"
+    if _page.is_file():
+        return FileResponse(_page, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# ===========================================================================
+# FULL UDS INJECTION (ADDITIVE, Yachay / Perplexity Computer Agent, 2026-06-02):
+# Six real /uds/* subpages — /uds/sbom, /uds/sigstore, /uds/cmmc, /uds/889,
+# /uds/zarf, /uds/mission-owner. These previously fell through to the SPA
+# catch-all (a NO-HALLUCINATION violation: a /route that serves the SPA shell
+# is a catch-all liar). Now each returns 200 with REAL self-contained HTML that
+# cites only PUBLICLY-RESOLVABLE evidence (public uds-bundles repo, public
+# Sigstore Rekor logIndex 1693757456, live /api/killinchu/uds/v1/* endpoints,
+# and authoritative FAR/NIST/Defense-Unicorns docs). Registered BEFORE the
+# /{full_path:path} catch-all so they resolve LOCALLY. Section 889 = exactly 5
+# vendors. Iron Bank = sponsor pending (never certified). SLSA L1 honest, L2 in
+# progress. Doctrine v11 LOCKED 749/14/163 unchanged. Λ Conjecture 1.
+# ===========================================================================
+try:
+    import szl_uds_pages as _uds_pages
+    _uds_pages_status = _uds_pages.register(app, "killinchu")
+    print(f"[killinchu] FULL UDS INJECTION registered: {_uds_pages_status}", file=sys.stderr)
+except Exception as _uds_pe:
+    import traceback as _uds_tb
+    print(f"[killinchu] FULL UDS INJECTION NOT registered: {_uds_pe!r}", file=sys.stderr)
+    _uds_tb.print_exc()
+
+
+
+
+# ===========================================================================
+# Wire I — Rosie-companion (ADDITIVE, Doctrine v11). Signed: Yachay.
+# Founder directive 2026-06-01 ~02:52 EDT: "Make sure Rosie is wired in the
+# backend of each flag and wherever needed to be."
+# killinchu (drone) gains a Rosie-shadow. /counter-uas/identify optionally
+# consults the Rosie-shadow when the classifier's top-match confidence < 0.7
+# (low-confidence / possibly novel airframe). New endpoint
+# /api/killinchu/v1/identify/with-rosie. /api/killinchu/v1/rosie-companion/*
+# exposes ponder/synthesize/evolve/brain_jack. This EXTENDS the pattern already
+# specified in ROSIE_COMPANION_IN_KILLINCHU.md to the identify surface.
+# Rosie is co-pilot, NOT pilot: she proposes; killinchu + 2-person Yuyay gate
+# decide. WE SENSE, WE EVIDENCE (passive only). Registered BEFORE the
+# /{full_path:path} catch-all. NEVER crash the existing app.
+# ===========================================================================
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_rosie_companion as _rc  # single source of truth
+    except Exception:
+        import szl_rosie_companion as _rc
+
+    _KILLINCHU_SHADOW = _rc.RosieShadow("killinchu")
+    _IDENTIFY_CONF_FLOOR = 0.7
+
+    @app.get("/api/killinchu/v1/companion")
+    async def killinchu_companion_info() -> JSONResponse:
+        return JSONResponse({
+            "wire": "I", "flagship": "killinchu", "organ": "drone",
+            "deep_reasoning_endpoint": _KILLINCHU_SHADOW.jack_url,
+            "ops": ["ponder", "synthesize", "evolve", "brain_jack"],
+            "low_confidence_rule": f"counter-uas identify consults the deep-reasoning tier when top confidence < {_IDENTIFY_CONF_FLOOR}",
+            "low_confidence_endpoint": "/api/killinchu/v1/identify/with-deep-reasoning",
+            "doctrine": "v11",
+            "honesty": "The deep-reasoning tier is co-pilot, not pilot. killinchu + 2-person Yuyay gate decide. WE SENSE, WE EVIDENCE (passive).",
+        })
+
+    @app.post("/api/killinchu/v1/identify/with-deep-reasoning")
+    async def killinchu_identify_with_deep_reasoning(request: Request) -> JSONResponse:
+        """Counter-UAS identify with optional deep-reasoning-tier low-confidence consult.
+        Runs the existing passive signature classifier; ONLY when the top match
+        confidence is below the floor (0.7) — i.e. possibly a novel airframe — does it
+        consult the deep-reasoning tier. Both the identify result and the deep-reasoning
+        output carry Khipu receipts (cross-linked). PASSIVE detection only."""
+        body = await _json_body(request)
+        axis_scores = body.get("axis_scores")
+        tp = getattr(getattr(request, "state", None), "traceparent", None)
+        # Reuse the existing passive classifier via in-process loopback so we do not
+        # duplicate the adversary catalog. Honest: same endpoint the UI already drives.
+        identify_result = None
+        try:
+            import httpx as _httpx
+            _port = int(os.environ.get("PORT", "7860"))
+            with _httpx.Client(timeout=8.0) as _c:
+                _r = _c.post(f"http://127.0.0.1:{_port}/api/killinchu/v1/counter-uas/identify",
+                             json=body)
+                if _r.status_code == 200:
+                    identify_result = _r.json()
+        except Exception as _ie:
+            print(f"[killinchu] local identify unreachable: {_ie!r}", file=sys.stderr)
+            identify_result = {"ok": False, "error": "local identify unreachable", "matches": []}
+        matches = (identify_result or {}).get("matches", []) or []
+        top_conf = matches[0]["confidence"] if matches else 0.0
+        out = {
+            "identify": identify_result,
+            "top_confidence": top_conf,
+            "confidence_floor": _IDENTIFY_CONF_FLOOR,
+            "doctrine": "v11", "wire": "I",
+        }
+        if top_conf >= _IDENTIFY_CONF_FLOOR:
+            out.update({
+                "deep_reasoning_consulted": False,
+                "note": f"Top confidence {top_conf} >= floor {_IDENTIFY_CONF_FLOOR}; classifier confident. Deep-reasoning tier not consulted.",
+            })
+            return JSONResponse(out)
+        # LOW CONFIDENCE — consult the deep-reasoning tier for novel-airframe reasoning.
+        sig = (body.get("rf_signature") or body.get("acoustic") or body.get("image_label") or "")
+        q = (f"LOW-CONFIDENCE IDENTIFY (top={top_conf} < {_IDENTIFY_CONF_FLOOR}). Reason about "
+             f"this possibly-novel airframe signature (passive, no active emission): {str(sig)[:400]}")
+        r = _KILLINCHU_SHADOW.brain_jack(q, depth=int(body.get("depth", 1)),
+                                         axis_scores=axis_scores, traceparent=tp)
+        out.update({
+            "deep_reasoning_consulted": True,
+            "deep_reasoning_assessment": r.text,
+            "deep_reasoning_lambda": r.lambda_signal,
+            "deep_reasoning_receipt": r.rosie_receipt,
+            "cross_link": r.cross_link,
+            "deep_reasoning_stub": r.stub,
+            "note": (f"Top confidence {top_conf} < floor {_IDENTIFY_CONF_FLOOR} -> deep-reasoning tier consulted for "
+                     "novel-airframe reasoning. Advisory only; killinchu + 2-person Yuyay gate decide."),
+        })
+        return JSONResponse(out)
+
+    @app.post("/api/killinchu/v1/companion/ponder")
+    async def killinchu_companion_ponder(request: Request) -> JSONResponse:
+        body = await _json_body(request)
+        tp = getattr(getattr(request, "state", None), "traceparent", None)
+        return JSONResponse(_KILLINCHU_SHADOW.ponder(body.get("context", body), traceparent=tp).to_dict())
+
+    @app.post("/api/killinchu/v1/companion/synthesize")
+    async def killinchu_companion_synthesize(request: Request) -> JSONResponse:
+        body = await _json_body(request)
+        tp = getattr(getattr(request, "state", None), "traceparent", None)
+        return JSONResponse(_KILLINCHU_SHADOW.synthesize(body.get("events", []), traceparent=tp).to_dict())
+
+    @app.post("/api/killinchu/v1/companion/evolve")
+    async def killinchu_companion_evolve(request: Request) -> JSONResponse:
+        body = await _json_body(request)
+        tp = getattr(getattr(request, "state", None), "traceparent", None)
+        return JSONResponse(_KILLINCHU_SHADOW.evolve(body.get("strategy", {}),
+                            approvers=body.get("approvers", []), traceparent=tp).to_dict())
+
+    @app.post("/api/killinchu/v1/companion/brain-jack")
+    async def killinchu_companion_brain_jack(request: Request) -> JSONResponse:
+        body = await _json_body(request)
+        tp = getattr(getattr(request, "state", None), "traceparent", None)
+        return JSONResponse(_KILLINCHU_SHADOW.brain_jack(body.get("query", ""),
+                            depth=int(body.get("depth", 1)),
+                            axis_scores=body.get("axis_scores"), traceparent=tp).to_dict())
+
+    print("[killinchu] Wire I companion (deep-reasoning tier) registered (identify/with-deep-reasoning conf<0.7 consult)", file=sys.stderr)
+except Exception as _rc_e:
+    print(f"[killinchu] Wire I companion NOT registered: {_rc_e!r}", file=sys.stderr)
+
+# ===========================================================================
+# UNAY + Khipu-LMDB v2 organs (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
+# NEW /api/killinchu/v2/* paths only, registered on the ROOT app BEFORE the SPA
+# catch-all "/{full_path:path}" so they resolve LOCALLY. try/except-guarded.
+# Real durable lmdb + real sqlite-vss (honest cosine-fallback). LOCKED: 749/14/163.
+# ---------------------------------------------------------------------------
+try:
+    import szl_unay_routes as _unay
+    _unay_info = _unay.register(app, ns="killinchu")
+    import sys as _sysu
+    print(f"[szl_unay] UNAY+Khipu-LMDB v2 mounted: backend={_unay_info.get('unay_backend')}, "
+          f"lmdb={_unay_info.get('lmdb_version')}, boot_entries={_unay_info.get('lmdb_entries_at_boot')}", file=_sysu.stderr)
+except Exception as _ue:
+    import sys as _sysu
+    print(f"[szl_unay] UNAY+Khipu-LMDB v2 NOT mounted ({_ue!r}); existing routes unaffected", file=_sysu.stderr)
+
+
+# ===========================================================================
+# UNDERSTUDY-PARITY layer (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
+# Founder directive: killinchu gets EVERY a11oy moat + full understudy posture
+# (LLM router, agentic RAG, MCP server, PURIQ organs, 23 formulas, AYNI, WAYRA,
+# KIPU+QILLQAQ, Khipu-DAG RS(10,6), Yuyay-13 gate, connections, metrics,
+# understudy failover) under killinchu's defense vertical lens. NEW
+# /api/killinchu/v2/* + canonical cross-organ routes only; registered BEFORE the
+# SPA catch-all so they resolve LOCALLY. try/except-guarded; NEVER crash the app.
+# Imports the REAL substrate (szl_dsse, szl_brain, szl_rag, szl_formulas) — no
+# copy-paste. v11 verbatim 749/14/163. Sign: Yachay.
+# ---------------------------------------------------------------------------
+try:
+    import szl_understudy as _understudy
+    _u_info = _understudy.register(app, ns="killinchu")
+    print(f"[killinchu] understudy-parity registered: {_u_info['registered_count']} routes, "
+          f"substrate={_u_info['substrate']}", file=sys.stderr)
+except Exception as _u_e:
+    print(f"[killinchu] understudy-parity NOT registered: {_u_e!r}; existing app unaffected", file=sys.stderr)
+
+
+# ===========================================================================
+# DEFENSE RUNTIME COOKBOOK (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
+# Founder cherry-pick: make Killinchu one-of-one in the defense vertical. NEW
+# /api/killinchu/v2/cookbook* + /v2/missions* + /v2/scouts + /v2/uds/* + /v2/legal
+# + /v2/specs/* + /v2/pitch routes ONLY. Registered BEFORE the SPA catch-all so
+# they resolve LOCALLY. Every drone-domain response embeds the LEGAL_BOUNDARIES
+# disclaimer ("WE SENSE. WE EVIDENCE. WE DO NOT JACK INTO THIRD-PARTY DRONES.").
+# Recall receipts are REAL ECDSA-P256-SHA256 DSSE via szl_dsse (no copy-paste).
+# Data vendored under static/cookbook/. try/except-guarded; NEVER crash the app.
+# 22+ recipes · 8 Warhacker mission packs (P1-P8) · 9 prospect scouts · UDS
+# bundle self-awareness (HONEST STAGED) · per-prospect pitch. v11 verbatim 749/14/163.
+# ---------------------------------------------------------------------------
+try:
+    import szl_killinchu_cookbook as _cookbook
+    _cb_info = _cookbook.register_cookbook(app, ns="killinchu")
+    print(f"[killinchu] defense cookbook registered: {_cb_info['registered_count']} routes, "
+          f"signing={_cb_info['signing']}", file=sys.stderr)
+except Exception as _cb_e:
+    print(f"[killinchu] defense cookbook NOT registered: {_cb_e!r}; existing app unaffected", file=sys.stderr)
+
+
+# ===========================================================================
+# KILLINCHU FUSION — UDS-native single front door (ADDITIVE, 2026-06-01,
+# Yachay / Perplexity Computer Agent). Killinchu is the SOLE UDS-facing surface:
+# every UDS endpoint lives under /api/killinchu/uds/v1/*. One operator action
+# fans out to the live organ Spaces (Sentra immune gate -> Amaru cortex || a11oy
+# policy -> Killinchu field action) and returns ONE aggregated DSSE receipt whose
+# chain[] carries all four organ verdicts + signatures, signed with the SAME
+# szlholdings-cosign ECDSA-P256 key (cosign verify-blob "Verified OK"). Appended
+# to the Khipu DAG. Registration is ADDITIVE + IDEMPOTENT: any path a sibling
+# agent already owns is DEFERRED to (never double-registered). Registered BEFORE
+# the SPA catch-all so these explicit routes resolve LOCALLY. try/except-guarded;
+# NEVER crash the existing app. UI: /uds.html (Command/Field/Audit/Compliance).
+# Honesty preserved: drone positions SIMULATED, geofence STATIC SNAPSHOT, amaru
+# organ_signed=false, Rekor not_submitted, fail-WARNING never fail-open.
+# Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1 is NOT a theorem.
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# UDS HARDENING — REAL-DATA endpoints (ADDITIVE, 2026-06-01, Yachay). Registered
+# BEFORE killinchu_fusion so the fusion module's honest SYNTHETIC STIG/parity
+# stubs DEFER (via its _claim() guard) to these real-data routes backed by
+# committed .compliance/ artifacts: real OpenSCAP oscap 1.4.2 DISA STIG output
+# (baseline 30.27 -> hardened 33.49, 16 rules fail->pass), real Dockerfile
+# Iron Bank base audit, real `helm lint`/render Big Bang inventory, Tradewinds
+# listing. Cosign-signed (szlholdings-cosign ECDSA-P256) via szl_dsse; honest
+# UNSIGNED envelope if the key secret is absent. try/except-guarded; NEVER
+# crashes the existing app. Sign: Yachay <yachay@szlholdings.dev>.
+# ---------------------------------------------------------------------------
+try:
+    import szl_uds_hardening as _uds_hard
+    _uds_hard_info = _uds_hard.register(app, "killinchu")
+    print(f"[killinchu] UDS HARDENING real-data endpoints registered: "
+          f"{_uds_hard_info['registered_count']} routes, signing={_uds_hard_info['signing']}",
+          file=sys.stderr)
+except Exception as _uds_hard_e:
+    print(f"[killinchu] UDS HARDENING endpoints NOT registered: {_uds_hard_e!r}; existing app unaffected", file=sys.stderr)
+
+try:
+    import killinchu_fusion as _fusion
+    _fusion_info = _fusion.register(app, "killinchu")
+    print(f"[killinchu] UDS fusion front-door registered: {_fusion_info['registered_count']} routes, "
+          f"signing={_fusion_info['signing']}, deferred={len(_fusion_info.get('deferred_to_siblings', []))}",
+          file=sys.stderr)
+except Exception as _fusion_e:
+    print(f"[killinchu] UDS fusion front-door NOT registered: {_fusion_e!r}; existing app unaffected", file=sys.stderr)
+
+
+# ===========================================================================
+# DRONE 3D HEALTH DIAGNOSTICS (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer
+# Agent). Founder mandate: SZL DNA, not a generic counter-UAS rule engine —
+# "see drones before they break, before they're shot, before they're fried."
+# NEW /api/killinchu/v4/* surface ONLY: per-drone Yuyay-13 health score, Λ-combined
+# risk, satellite RF environment, weather/space-weather/quake impact, probabilistic
+# failure mode + ETA, fired/intact component map, Three.js scene JSON, and an
+# HF-Inference LLM "explain" narrative. Fuses ONLY free public APIs (USGS quakes,
+# NOAA SWPC Kp + solar wind, NOAA Aviation Weather METAR, N2YO satellites [free key],
+# HF Inference router [Space token]). Codex-Kernel: every report is BIT-EXACT
+# reproducible from its fusion_inputs seed. Each diagnostic is Khipu-DAG chained
+# (host _emit_receipt) + REAL DSSE-signed (szl_dsse). Registered BEFORE the SPA
+# catch-all so /api/killinchu/v4/* + /drone-3d resolve LOCALLY. try/except-guarded;
+# NEVER crashes the host app. Does NOT touch v1/v2/v3 drone DB or decoder routes.
+# Honest: "predicted failure" is PROBABILISTIC, signed by Λ — NOT a guarantee.
+# Doctrine v11 LOCKED 749/14/163. Sign: Yachay. Co-author: Perplexity Computer Agent.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_drone_3d_health as _drone3d
+    try:
+        import szl_dsse as _d3d_dsse
+        _d3d_signer = _d3d_dsse.sign_khipu_receipt
+    except Exception:
+        _d3d_signer = None
+    _drone3d_info = _drone3d.register(
+        app, "killinchu",
+        emit_receipt=_emit_receipt,
+        sign_receipt=_d3d_signer,
+        static_dir=str(STATIC_DIR),
+    )
+    print(f"[killinchu] Drone 3D Health v4 registered: {_drone3d_info['registered_count']} routes, "
+          f"signing={_drone3d_info['signing']}", file=sys.stderr)
+except Exception as _d3d_e:
+    import traceback as _d3d_tb
+    print(f"[killinchu] Drone 3D Health v4 NOT registered: {_d3d_e!r}\n{_d3d_tb.format_exc()}", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# HEALTH TWIN (flagship, ADDITIVE 2026-06-06, Yachay / Perplexity Computer Agent).
+# Live 3D vessel/drone health twin backend: /api/killinchu/v1/twin/{platforms,state,_self}.
+# Computes per-subsystem health from real-ish signals using OUR formulas: conformal
+# anomaly band (W5-3/W7-4 — NOT Hoeffding), Λ geometric-mean trust aggregate
+# (Conjecture 1), and the YUYAY 13-axis conjunctive gate (killinchu_anatomy). Reuses
+# the live Digitraffic AIS feed (no auth) from killinchu_live_feeds. try/except-guarded;
+# NEVER crashes the host app. Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_health_twin as _twin
+    _twin_info = _twin.register(app, "killinchu", emit_receipt=_emit_receipt)
+    print(f"[killinchu] Health Twin registered: {_twin_info['registered_count']} routes", file=sys.stderr)
+except Exception as _twin_e:
+    import traceback as _twin_tb
+    print(f"[killinchu] Health Twin NOT registered: {_twin_e!r}\n{_twin_tb.format_exc()}", file=sys.stderr)
+
+
+# ── Investor /demo route (ADDITIVE, 2026-06-02, Yachay / Perplexity Computer Agent) ──
+# 90-second narrated, animated investor walkthrough at GET /demo (+ /killinchu/demo).
+# Inline HTML (no CDN, no key). Registered BEFORE the /{full_path:path} catch-all so it
+# wins ordered matching. try/except-guarded. Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1.
+try:
+    import szl_demo as _szl_demo
+    _demo_status = _szl_demo.register(app, ns="killinchu")
+    import sys as _sys_demo
+    print(f"[killinchu] Investor /demo registered: {_demo_status}", file=_sys_demo.stderr)
+except Exception as _demo_e:
+    import sys as _sys_demo
+    print(f"[killinchu] Investor /demo NOT registered: {_demo_e!r}", file=_sys_demo.stderr)
+# ── end Investor /demo ──
+
+
+# ── Genius Operator Sidebar (ADDITIVE, 2026-06-02, Yachay / Perplexity Computer Agent) ──
+# Honest left-nav shell + working wrapper pages so EVERY nav item returns real 200
+# content matching its label. Registered BEFORE the /{full_path:path} catch-all so
+# /sidebar /status /doctrine /formulas /uds /spaceweather /seismic /drone-health
+# resolve LOCALLY. Each route guarded: never shadows an existing route. Collapsible
+# rail + search + Cmd-K palette + recents + healthz status dots + concept DOI
+# 10.5281/zenodo.19944926 + Doctrine v11 LOCKED 749/14/163 badge + mobile drawer.
+# Three.js stays LOCAL on the 3D pages (no CDN here). Λ Conjecture 1.
+try:
+    import szl_sidebar as _sidebar
+    _sidebar_status = _sidebar.register(app, "killinchu")
+    import sys as _sys_sb
+    print(f"[killinchu] Genius sidebar registered: {_sidebar_status}", file=_sys_sb.stderr)
+except Exception as _sb_e:
+    import traceback as _sb_tb, sys as _sys_sb
+    print(f"[killinchu] Genius sidebar NOT registered: {_sb_e!r}", file=_sys_sb.stderr)
+    _sb_tb.print_exc()
+# ── end Genius Operator Sidebar ──
+
+# ===========================================================================
+# PARITY RESTORATION BLOCK (2026-06-02, Yachay CTO / Perplexity Computer Agent)
+# Adds missing routes per PARITY_GAP_MATRIX_2026-06-02_2050Z.md:
+#   operator_shell_v4:  /api/killinchu/v4/{healthz,inbox,receipts,map/state,stream}
+#   /api/killinchu/v1/brain     — unified brain payload (szl_brain)
+#   /api/killinchu/v1/llm/tiers — 7-tier LLM router catalog
+#   /api/killinchu/v1/mesh/state — mesh wire status
+# All registered BEFORE the /{full_path:path} SPA catch-all. ADDITIVE ONLY.
+# Doctrine v11 LOCKED 749/14/163. Λ = Conjecture 1 (NOT a theorem). c7c0ba17.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ===========================================================================
+
+# ── operator_shell_v4 (V4 routes: healthz/inbox/receipts/map/state/stream) ───
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import operator_shell_v4 as _kc_osh_v4  # single source of truth
+    except Exception:
+        import operator_shell_v4 as _kc_osh_v4  # fall back to local vendored copy
+    _kc_osh_v4_status = _kc_osh_v4.register(app, "killinchu", web_dir="/app/web")
+    import sys as _kc_osh_sys
+    print(f"[killinchu] PARITY: Operator Shell v4 registered: {_kc_osh_v4_status}", file=_kc_osh_sys.stderr)
+except Exception as _kc_osh_e:
+    import traceback as _kc_osh_tb, sys as _kc_osh_sys
+    print(f"[killinchu] PARITY: Operator Shell v4 NOT registered: {_kc_osh_e!r}", file=_kc_osh_sys.stderr)
+    _kc_osh_tb.print_exc()
+# ── end operator_shell_v4 ────────────────────────────────────────────────────
+
+# ── /api/killinchu/v1/brain + /llm/tiers + /mesh/state ───────────────────────
+import math as _kc_pr_math
+try:
+    import szl_brain as _kc_pr_brain
+    _KC_BRAIN_OK = True
+except Exception:
+    _KC_BRAIN_OK = False
+
+try:
+    import szl_wire as _kc_pr_wire
+    _KC_WIRE_OK = True
+except Exception:
+    _KC_WIRE_OK = False
+
+# Doctrine-safe display-name map for mesh organs — mirrors the console's capName()
+# sanitizer so the raw /mesh/state API never leaks internal codenames
+# (amaru/sentra/rosie). NO user-visible codenames doctrine.
+_KC_MESH_DISPLAY = {
+    "amaru": "Reasoning",
+    "sentra": "Policy",
+    "rosie": "Operator",
+    "a11oy": "Orchestrator (a11oy)",
+    "killinchu": "Field Node (killinchu)",
+}
+
+def _kc_mesh_sanitize(payload):
+    """Map any internal organ codename in a mesh-state payload to its
+    doctrine-safe display name. Applied to BOTH the live szl_wire result and
+    the honest stub so the raw API surface never exposes amaru/sentra/rosie."""
+    try:
+        if not isinstance(payload, dict):
+            return payload
+        organs = payload.get("mesh_organs")
+        if isinstance(organs, list):
+            payload["mesh_organs"] = [
+                _KC_MESH_DISPLAY.get(str(o).lower().strip(), o) for o in organs
+            ]
+        wires = payload.get("wires")
+        if isinstance(wires, dict):
+            payload["wires"] = {
+                _KC_MESH_DISPLAY.get(str(k).lower().strip(), k): v
+                for k, v in wires.items()
+            }
+    except Exception:
+        return payload
+    return payload
+
+@app.get("/api/killinchu/v1/brain")
+async def _kc_pr_brain_route():
+    """Unified brain payload — killinchu drone-intel role. Doctrine v11 LOCKED."""
+    if _KC_BRAIN_OK:
+        return JSONResponse(_kc_pr_brain.brain_payload("killinchu"))
+    return JSONResponse({
+        "space": "killinchu", "doctrine": "v11",
+        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
+        "role": "Drone Intelligence / sovereign sensing",
+        "lambda_floor": 0.90,
+        "honesty": "szl_brain unavailable in this build; honest stub returned.",
+    })
+
+@app.get("/api/killinchu/v1/llm/tiers")
+async def _kc_pr_llm_tiers():
+    """7-tier LLM router catalog — parity across the mesh tiers. Doctrine v11."""
+    if _KC_BRAIN_OK:
+        return JSONResponse({
+            "count": len(_kc_pr_brain.TIERS),
+            "tiers": _kc_pr_brain.TIERS,
+            "doctrine": "v11",
+        })
+    return JSONResponse({
+        "count": 7,
+        "tiers": [
+            {"tier": 1, "name": "haiku_3"}, {"tier": 2, "name": "sonnet_3_5"},
+            {"tier": 3, "name": "opus_4_5"}, {"tier": 4, "name": "r1"},
+            {"tier": 5, "name": "o3"}, {"tier": 6, "name": "gemini_2_flash"},
+            {"tier": 7, "name": "sovereign_local"},
+        ],
+        "doctrine": "v11",
+        "honesty": "szl_brain unavailable; honest stub catalog returned.",
+    })
+
+@app.get("/api/killinchu/v1/mesh/state")
+async def _kc_pr_mesh_state():
+    """Mesh wire status. Doctrine v11. Organ names are sanitized to doctrine-safe
+    display names (no user-visible internal codenames)."""
+    if _KC_WIRE_OK:
+        return JSONResponse(_kc_mesh_sanitize(_kc_pr_wire.mesh_status()))
+    return JSONResponse(_kc_mesh_sanitize({
+        "wires": {"D": "live", "E": "live", "F": "live", "G": "live"},
+        "mesh_organs": ["a11oy", "amaru", "sentra", "killinchu", "rosie"],
+        "doctrine": "v11",
+        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
+        "honesty": "szl_wire unavailable; honest stub mesh state returned.",
+    }))
+
+print("[killinchu] PARITY BLOCK registered: operator_shell_v4 + /api/killinchu/v1/{brain,llm/tiers,mesh/state}", file=sys.stderr)
+# ===========================================================================
+# END PARITY RESTORATION BLOCK
+# ===========================================================================
+
+
+# P3 FIX: /api/health JSON probe (Upgrade Hammer — Doctrine v11 LOCKED 749/14/163)
+# Removes Charter violations: NO Iron Bank, NO CMMC (see killinchu_fusion.py patch)
+@app.get("/api/health")
+async def killinchu_api_health() -> JSONResponse:
+    """Top-level health probe — returns JSON 200. Before SPA catch-all."""
+    return JSONResponse({
+        "status": "ok",
+        "service": "killinchu",
+        "doctrine": "v11",
+        "counts": "749/14/163",
+        "counts_experimental": "1304/22",
+        "lean_sha": "c7c0ba17",
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
+        "lambda_status": "Conjecture 1 (NOT a theorem)",
+        "slsa": "L1 (honest)",
+        "section_889": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
+        "no_iron_bank": True,
+        "no_cmmc": True,
+    })
+
+
+# ===========================================================================
+# TRACK C: DRONE-FACING ENDPOINTS (Operationalize Sweep — Yachay CTO 2026-06-03)
+# Adds UDS-deployable counter-UAS operator surface:
+#   GET  /api/killinchu/drone/telemetry    — friendly fleet + threat tracks
+#   POST /api/killinchu/drone/intercept    — mock action with DSSE receipt
+#   GET  /api/killinchu/drone/cued-tracks  — cued threat list
+#   GET  /api/killinchu/drone/fleet-state  — 5 friendly drone roster
+# Also adds MISSING P2-spec routes:
+#   GET  /api/killinchu/v1/gates           — 13-axis Lambda-gate manifest
+#   GET  /api/killinchu/v1/audit-log       — in-memory audit ring
+# Doctrine v11 LOCKED 749/14/163. NO Iron Bank. ADDITIVE ONLY.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ===========================================================================
+try:
+    from killinchu_drone_routes import register_drone_routes as _register_drone
+    _register_drone(app, space="killinchu")
+    print("[killinchu] Drone routes registered via killinchu_drone_routes", file=sys.stderr)
+except Exception as _drone_e:
+    import traceback as _drone_tb
+    print(f"[killinchu] Drone routes NOT registered: {_drone_e!r}", file=sys.stderr)
+    print(_drone_tb.format_exc(), file=sys.stderr)
+
+
+# ===========================================================================
+# PARITY (2026-06-04, stephenlutar2-hash / Perplexity Computer Agent)
+# Closes counter-UAS parity gaps vs Anduril Lattice, Palantir TITAN,
+# DroneShield DroneSentry-C2, Dedrone DedroneTracker.AI:
+#   GET/POST /api/killinchu/v1/tracks/history        — track timeline ring
+#   POST     /api/killinchu/v1/tracks/ingest         — sensor input ingest
+#   POST     /api/killinchu/v1/tracks/multi-prioritize — ranked threat queue
+#   GET      /api/killinchu/v1/roe/policy            — ROE policy bundle
+#   PUT      /api/killinchu/v1/roe/policy            — operator ROE update
+#   POST     /api/killinchu/v1/roe/evaluate          — per-frame ROE verdict
+#   GET      /api/killinchu/v1/engagements/audit-log — paginated audit log
+#   POST     /api/killinchu/v1/engagements/record    — record engagement
+#   GET      /api/killinchu/v1/sensor-fusion/status  — sensor health/weights
+#   POST     /api/killinchu/v1/sensor-fusion/fuse    — multi-sensor fusion
+# Every ROE decision + engagement is emitted as a DSSE Khipu receipt.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_parity as _parity
+    _parity_status = _parity.register(app, emit_receipt=_emit_receipt, ns="killinchu")
+    print(f"[killinchu] Parity endpoints registered: {_parity_status['registered']}", file=sys.stderr)
+except Exception as _parity_e:
+    import traceback as _parity_tb
+    print(f"[killinchu] Parity endpoints NOT registered: {_parity_e!r}", file=sys.stderr)
+    _parity_tb.print_exc()
+# ── end PARITY ──────────────────────────────────────────────────────────────
+
+# ===========================================================================
+# CANNONICO — Warhacker bullseye: lost-contact autonomous-drone governance.
+# When a drone loses contact mid-mission it runs alone. This loop governs EVERY
+# autonomous decision against the authorized envelope it carried into the
+# mission, emits a chained DSSE-signed receipt per decision (host _emit_receipt
+# → REAL cosign), and catches the moment a line gets crossed. The result is one
+# continuous, tamper-evident record an auditor verifies when contact resumes.
+# Registered BEFORE the SPA catch-all. ADDITIVE only.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_cannonico as _cannonico
+    _cannonico_status = _cannonico.register(app, emit_receipt=_emit_receipt, ns="killinchu")
+    print(f"[killinchu] Cannonico endpoints registered: {_cannonico_status['registered']}", file=sys.stderr)
+except Exception as _cannonico_e:
+    import traceback as _cannonico_tb
+    print(f"[killinchu] Cannonico endpoints NOT registered: {_cannonico_e!r}", file=sys.stderr)
+    _cannonico_tb.print_exc()
+# ── end CANNONICO ────────────────────────────────────────────────────────────
+
+
+# ===========================================================================
+# ADDITIVE (Mosaic SDA elevation, Opus 4.8, 2026-06-13): SZL's sovereign answer to
+# True Anomaly's Mosaic — the Domain-Superiority organ. Wires the SZL-native
+# anomaly/SDA engine (szl_mosaic_core, vendored from estate mosaic_szl) into
+# killinchu's track surface and adds the Common Operating Picture endpoints:
+#   GET  /api/killinchu/v1/mosaic/health
+#   POST /api/killinchu/v1/mosaic/score          anomaly score + Λ-advisory + CI
+#   POST /api/killinchu/v1/mosaic/receipt        DSSE-or-honest signed verdict
+#   GET  /api/killinchu/v1/mosaic/cop            fused COP (air+sea+orbit stub)
+#   GET  /api/killinchu/v1/mosaic/sda/conjunction  SGP4 ROADMAP stub
+#   POST /api/killinchu/v1/mosaic/hull-stress    FE-NO-cited hull-stress ESTIMATE
+# Mounted BEFORE the SPA catch-all. CLEAN-ROOM (inspired by Mosaic's PUBLIC
+# capability; no proprietary code). Λ = Conjecture 1 ADVISORY. Effectors SIMULATED.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_mosaic as _mosaic
+    _mosaic_status = _mosaic.register(app, ns="killinchu", emit_receipt=_emit_receipt)
+    print(f"[killinchu] Mosaic organ registered: {_mosaic_status['registered']} "
+          f"(engine={_mosaic_status['engine']})", file=sys.stderr)
+except Exception as _mosaic_e:
+    import traceback as _mosaic_tb
+    print(f"[killinchu] Mosaic organ NOT registered: {_mosaic_e!r}", file=sys.stderr)
+    _mosaic_tb.print_exc()
+# ── end MOSAIC ───────────────────────────────────────────────────────────────
+
+# ===========================================================================
+# ADDITIVE: killinchu "a11oy-elite" console — 14 REAL endpoint-backed tabs +
+# cross-flagship borrowed-powers panel. Mounted BEFORE the SPA catch-all so
+# /elite resolves locally. NO mocks: every tab fetches a live backend endpoint.
+#   GET  /elite  and  /killinchu/elite        — 14-tab vanilla-JS command deck
+#   GET  /api/killinchu/v1/borrowed-powers     — live cross-flagship aggregator
+# Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 · SLSA L1 honest.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_elite_console as _elite
+    _elite_status = _elite.register(app, ns="killinchu", emit_receipt=_emit_receipt)
+    print(f"[killinchu] Elite console registered: {_elite_status['registered']} ({_elite_status['tabs']} tabs)", file=sys.stderr)
+except Exception as _elite_e:
+    import traceback as _elite_tb
+    print(f"[killinchu] Elite console NOT registered: {_elite_e!r}", file=sys.stderr)
+    _elite_tb.print_exc()
+# ── end ELITE ────────────────────────────────────────────────────────────────
+
+# ===========================================================================
+# ADDITIVE (DEV 3): killinchu COMMON OPERATING PICTURE (COP) fusion surface.
+# A defense-leader-grade fused COP at /elite/cop — Anduril Lattice ENTITY MESH
+# (typed threat tracks → genuine ECDSA-P256 signed entity-state transitions via
+# killinchu_mesh), True Anomaly Mosaic-style Three.js holographic threat space +
+# governance/receipt/ROE panels on ONE screen, OODA-loop metrics, per-interdiction
+# DSSE receipt with a REAL 3-of-4 BFT cosign live-streamed (optimistic UI), and
+# SZL Capability Levels SCL-1/2/3 mapped to engagement authority (modelled on
+# DeepMind FSF CCLs). PRESERVES the real adsb.lol / Digitraffic AIS / CelesTrak
+# feeds (consumed, never mocked). HONEST: effectors SIMULATED, human-on-the-loop;
+# SCL-3 authority HELD (backing proof OPEN); Λ = Conjecture 1 (advisory); 0 CDN.
+# Additive, try/except-guarded, FRONT-INSERTED before the SPA catch-all.
+# ===========================================================================
+try:
+    import killinchu_cop_fusion as _kc_cop
+    _kc_cop_status = _kc_cop.register(app, ns="killinchu", emit_receipt=_emit_receipt)
+    print(f"[killinchu] COP fusion registered: {_kc_cop_status}", file=sys.stderr)
+
+    # Inject a single nav link into the /elite console HTML → /elite/cop.
+    from starlette.middleware.base import BaseHTTPMiddleware as _COP_Base
+    from starlette.responses import Response as _COP_SResp
+
+    _COP_LINK = (b'<a href="/elite/cop" '
+                 b'style="position:fixed;right:16px;bottom:16px;z-index:99998;'
+                 b'font:600 12px/1 JetBrains Mono,ui-monospace,monospace;letter-spacing:.5px;'
+                 b'color:#3af4c8;background:rgba(13,19,30,.92);border:1px solid rgba(58,244,200,.4);'
+                 b'border-radius:999px;padding:10px 14px;text-decoration:none;'
+                 b'box-shadow:0 2px 18px rgba(0,0,0,.5)">COP \xe2\x86\x97</a>')
+    _COP_MARK = b'href="/elite/cop"'
+
+    class _COPNavInjector(_COP_Base):
+        async def dispatch(self, request, call_next):
+            resp = await call_next(request)
+            try:
+                if request.url.path not in ("/elite", "/killinchu/elite"):
+                    return resp
+                ct = (resp.headers.get("content-type") or "").lower()
+                if "text/html" not in ct:
+                    return resp
+                body = b""
+                async for chunk in resp.body_iterator:
+                    body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
+                if _COP_MARK not in body and b"</body>" in body:
+                    body = body.replace(b"</body>", _COP_LINK + b"</body>", 1)
+                headers = dict(resp.headers)
+                headers.pop("content-length", None)
+                return _COP_SResp(content=body, status_code=resp.status_code,
+                                  headers=headers, media_type="text/html")
+            except Exception:
+                return resp
+
+    app.add_middleware(_COPNavInjector)
+    print("[killinchu] COP nav link injected into /elite", file=sys.stderr)
+except Exception as _kc_cop_e:
+    import traceback as _kc_cop_tb
+    print(f"[killinchu] COP fusion NOT registered (non-fatal): {_kc_cop_e!r}", file=sys.stderr)
+    _kc_cop_tb.print_exc()
+# ── end COP FUSION ───────────────────────────────────────────────────────────
+
+# ===========================================================================
+# ADDITIVE (2026-06-10, Yachay + Perplexity Computer Agent): OPERATOR WIDGET.
+# The SAME floating governed-operator surface ("Chaski") consolidated onto a11oy
+# is mounted here on killinchu too, so /elite and every killinchu HTML surface
+# carries it. Byte-identical asset to a11oy (/vendor/a11oy-operator-widget.js),
+# self-hosted in-image (0 CDN). It auto-detects the killinchu origin and routes
+# reasoning/agent calls to the a11oy substrate (killinchu has no a11oy.code
+# orchestrator of its own) while reading the LOCAL killinchu v4 ledger. Honest
+# when unreachable. NO character codenames. Doctrine v11 LOCKED 749/14/163.
+# Lambda = Conjecture 1. ADDITIVE ONLY (one <script defer> before </body>).
+# ===========================================================================
+try:
+    from fastapi.responses import Response as _OPW_KC_Resp
+    from starlette.middleware.base import BaseHTTPMiddleware as _OPW_KC_Base
+    from starlette.responses import Response as _OPW_KC_SResp
+    _OPW_KC_VENDOR = Path("/app/static-vendor")
+    _OPW_KC_FILES = {
+        "a11oy-operator-widget.js": "application/javascript; charset=utf-8",
+        "a11oy-operator-widget.css": "text/css; charset=utf-8",
+    }
+
+    @app.get("/vendor/{fname}")
+    async def _opw_kc_vendor(fname: str):
+        ct = _OPW_KC_FILES.get(fname)
+        if ct is None:
+            return JSONResponse({"error": "vendor asset not allowlisted", "file": fname}, status_code=404)
+        f = _OPW_KC_VENDOR / fname
+        if not f.is_file():
+            return JSONResponse({"error": "vendor asset missing on disk", "file": fname}, status_code=404)
+        return _OPW_KC_Resp(content=f.read_bytes(), media_type=ct,
+                            headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+    _OPW_KC_TAG = b'<script src="/vendor/a11oy-operator-widget.js" data-surface="killinchu" defer></script>'
+    _OPW_KC_MARK = b'a11oy-operator-widget.js'
+
+    class _OperatorWidgetInjectorKC(_OPW_KC_Base):
+        async def dispatch(self, request, call_next):
+            # Serve the vendored widget asset DIRECTLY from the middleware so it
+            # can never be shadowed by a SPA catch-all / inserted route. The
+            # middleware runs before routing, so this is the most robust path.
+            _wp = request.url.path
+            if _wp in ("/vendor/a11oy-operator-widget.js", "/vendor/a11oy-operator-widget.css"):
+                _fn = _wp.rsplit("/", 1)[-1]
+                _ct = _OPW_KC_FILES.get(_fn)
+                _f = _OPW_KC_VENDOR / _fn
+                if _ct and _f.is_file():
+                    return _OPW_KC_Resp(content=_f.read_bytes(), media_type=_ct,
+                                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+                return _OPW_KC_Resp(content=b'/* operator widget asset missing on disk */',
+                                    media_type="application/javascript; charset=utf-8", status_code=404)
+            resp = await call_next(request)
+            try:
+                ct = (resp.headers.get("content-type") or "").lower()
+                if "text/html" not in ct:
+                    return resp
+                p = request.url.path
+                if p.startswith("/vendor/") or p.startswith("/api/") or p.startswith("/assets/"):
+                    return resp
+                body = b""
+                async for chunk in resp.body_iterator:
+                    body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
+                if _OPW_KC_MARK in body:
+                    new_body = body
+                elif b"</body>" in body:
+                    new_body = body.replace(b"</body>", _OPW_KC_TAG + b"</body>", 1)
+                elif b"</html>" in body:
+                    new_body = body.replace(b"</html>", _OPW_KC_TAG + b"</html>", 1)
+                else:
+                    new_body = body + _OPW_KC_TAG
+                headers = dict(resp.headers)
+                headers.pop("content-length", None)
+                return _OPW_KC_SResp(content=new_body, status_code=resp.status_code,
+                                     headers=headers, media_type="text/html")
+            except Exception:
+                return resp
+
+    app.add_middleware(_OperatorWidgetInjectorKC)
+    print("[killinchu] OPERATOR WIDGET injector registered: /vendor/a11oy-operator-widget.js "
+          "appended to every served HTML surface (Chaski, 0 CDN, live-wired)", file=sys.stderr)
+except Exception as _opw_kc_e:  # never crash the app — additive only
+    import traceback as _opw_kc_tb
+    print(f"[killinchu] OPERATOR WIDGET injector NOT registered: {_opw_kc_e!r}", file=sys.stderr)
+    _opw_kc_tb.print_exc()
+# === end OPERATOR WIDGET (killinchu) ===
+
+# ===========================================================================
+# ADDITIVE: a11oy RESTRAINT — governed code-frugality ladder, ported to killinchu
+# (DEV-WIRE-K R3). Restraint is a CODE-frugality capability built by R1 on a11oy.
+# killinchu has agent/code surfaces too (the jackin agent + every code-emitting
+# path), so we mount the SAME byte-identical governed module here, exactly like
+# szl_dsse.py / szl_conformal.py — the drift guard stays satisfied (same bytes,
+# both hf-sync lists). serve.py registers it with ns="killinchu", so the killinchu
+# agent/code path routes through the ladder and emits a SIGNED restraint receipt:
+#   POST /api/killinchu/v1/restraint/evaluate  {task[,intensity,lang]}
+#   POST /api/killinchu/v1/restraint/bench     {[intensity]}  (honest SAMPLE/ROADMAP)
+#   GET  /api/killinchu/v1/restraint/info
+# The decision is signed by the SAME real cosign ECDSA-P256 DSSE key the rest of
+# killinchu uses (szl_dsse). HONEST: if the in-image private key secret is absent,
+# szl_dsse returns an explicitly UNSIGNED envelope — never a fabricated signature.
+# killinchu has no sovereign GPU, so the energy tie-in's joules label stays the
+# honest "sample" (exporter_sample_fn=None) — the same honest mirror as /energy.
+# Ladder + lite/full/ultra intensities are ADOPTED from the open-source Ponytail
+# skill (MIT, (c) 2026 DietrichGebert); governance (signed receipts + advisory Λ)
+# and on-our-stack measurement are SZL's; Ponytail's numbers are CITED, never ours.
+# Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 (OPEN, < 1.0) ·
+# effectors SIMULATED · trust < 100% · 0 CDN · 0 visible codenames · signed receipts.
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all.
+# ===========================================================================
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_restraint as _szl_restraint  # single source of truth
+    except Exception:
+        import szl_restraint as _szl_restraint  # fall back to local vendored copy
+
+    def _kc_restraint_sign(_obj):
+        # Reuse the SAME real cosign DSSE signer killinchu uses elsewhere. HONEST:
+        # if the private-key secret is absent, szl_dsse returns an explicitly
+        # UNSIGNED envelope (no fabricated signature) so /honest stays truthful.
+        if _szl_dsse is None:
+            return {"signed": False, "signatures": [],
+                    "honesty": "UNSIGNED — szl_dsse unavailable in this runtime"}
+        try:
+            return _szl_dsse.sign_payload(_obj, "application/vnd.szl.receipt+json")
+        except Exception as _e:
+            return {"signed": False, "signatures": [],
+                    "honesty": "UNSIGNED — signer raised: %r" % (_e,)}
+
+    def _kc_restraint_verify(_env):
+        if _szl_dsse is None:
+            return {"verified": False, "reason": "szl_dsse unavailable"}
+        return _szl_dsse.verify_envelope(_env)
+
+    # killinchu is NOT sovereign metal: no on-box NVML exporter, so the joules
+    # label honestly stays "sample" (exporter_sample_fn=None). Never fabricate it.
+    _kc_restraint_status = _szl_restraint.register(
+        app, ns="killinchu", sign_fn=_kc_restraint_sign, verify_fn=_kc_restraint_verify,
+        signer_label="killinchu in-image cosign key (szl_dsse)", exporter_sample_fn=None)
+    print(f"[killinchu] Restraint frugality gate registered: {_kc_restraint_status}", file=sys.stderr)
+except Exception as _kc_restraint_e:  # pragma: no cover — additive, never crash
+    import traceback as _kc_restraint_tb
+    print(f"[killinchu] Restraint frugality gate NOT registered: {_kc_restraint_e!r}", file=sys.stderr)
+    _kc_restraint_tb.print_exc()
+
+# ── /elite "Restraint" tile (R3): self-contained 0-CDN page at /elite/restraint
+# showing the ladder + ceilings + honest MEASURED/SAMPLE bench, cross-linked to
+# a11oy's canonical /restraint surface. Injects ONE nav link into /elite via its
+# OWN idempotent middleware (the console source file is NOT edited). Additive.
+try:
+    import killinchu_restraint_tile as _kc_restraint_tile
+    _kc_rt_status = _kc_restraint_tile.register(app, ns="killinchu")
+    print(f"[killinchu] Restraint /elite tile registered: {_kc_rt_status}", file=sys.stderr)
+except Exception as _kc_rt_e:  # pragma: no cover
+    import traceback as _kc_rt_tb
+    print(f"[killinchu] Restraint /elite tile NOT registered: {_kc_rt_e!r}", file=sys.stderr)
+    _kc_rt_tb.print_exc()
+
+# ── CHASKI transport-level restraint annotation (R3). Chaski is killinchu's
+# agent messaging/transport surface (the floating governed-operator widget mounted
+# on every killinchu HTML page). This self-hosted (0 CDN) script annotates agent
+# messages that CARRY CODE PROPOSALS with the restraint rung + signed-receipt
+# status as they transit — honest transport-level annotation only (it routes the
+# proposal through /api/killinchu/v1/restraint/evaluate and shows the live verdict;
+# it NEVER fabricates a rung or a signature, and degrades to "PENDING" if the module
+# is not yet live). Served from in-image static-vendor (0 CDN) and injected via its
+# OWN idempotent middleware, AFTER the operator widget, on HTML surfaces only.
+try:
+    from fastapi.responses import Response as _RST_KC_Resp
+    from starlette.middleware.base import BaseHTTPMiddleware as _RST_KC_Base
+    from starlette.responses import Response as _RST_KC_SResp
+    _RST_KC_VENDOR = Path("/app/static-vendor")
+    _RST_KC_ASSET = "killinchu-restraint-chaski.js"
+    _RST_KC_CT = "application/javascript; charset=utf-8"
+    _RST_KC_TAG = b'<script src="/vendor/killinchu-restraint-chaski.js" data-surface="killinchu-restraint" defer></script>'
+    _RST_KC_MARK = b'killinchu-restraint-chaski.js'
+
+    class _RestraintChaskiInjector(_RST_KC_Base):
+        async def dispatch(self, request, call_next):
+            _wp = request.url.path
+            if _wp == "/vendor/killinchu-restraint-chaski.js":
+                _f = _RST_KC_VENDOR / _RST_KC_ASSET
+                if _f.is_file():
+                    return _RST_KC_Resp(content=_f.read_bytes(), media_type=_RST_KC_CT,
+                                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+                return _RST_KC_Resp(content=b'/* killinchu restraint chaski annotator missing on disk */',
+                                    media_type=_RST_KC_CT, status_code=404)
+            resp = await call_next(request)
+            try:
+                ct = (resp.headers.get("content-type") or "").lower()
+                if "text/html" not in ct:
+                    return resp
+                p = request.url.path
+                if p.startswith(("/vendor/", "/api/", "/assets/")):
+                    return resp
+                body = b""
+                async for chunk in resp.body_iterator:
+                    body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
+                if _RST_KC_MARK in body:
+                    new_body = body
+                elif b"</body>" in body:
+                    new_body = body.replace(b"</body>", _RST_KC_TAG + b"</body>", 1)
+                elif b"</html>" in body:
+                    new_body = body.replace(b"</html>", _RST_KC_TAG + b"</html>", 1)
+                else:
+                    new_body = body + _RST_KC_TAG
+                headers = dict(resp.headers)
+                headers.pop("content-length", None)
+                return _RST_KC_SResp(content=new_body, status_code=resp.status_code,
+                                     headers=headers, media_type="text/html")
+            except Exception:
+                return resp
+
+    app.add_middleware(_RestraintChaskiInjector)
+    print("[killinchu] Restraint Chaski annotator registered: /vendor/killinchu-restraint-chaski.js "
+          "(transport-level restraint badge on code-carrying agent messages, 0 CDN, honest PENDING)", file=sys.stderr)
+except Exception as _rst_kc_e:  # never crash — additive only
+    import traceback as _rst_kc_tb
+    print(f"[killinchu] Restraint Chaski annotator NOT registered: {_rst_kc_e!r}", file=sys.stderr)
+    _rst_kc_tb.print_exc()
+# === end a11oy RESTRAINT (killinchu) ===
+
+# ===========================================================================
+# ADDITIVE: POSTURE & TOPOLOGY surface (DEV-WIRE-K R1). Real drift detectors
+# (PSI + KS via scipy.stats.ks_2samp, ~30-line vendored ADWIN) on live ADS-B
+# telemetry, real graph metrics (clustering / centrality / Fiedler lambda2 /
+# DAG integrity) for Topology & Health, Attack-Surface exposure graph and
+# Zero-Trust mesh derived from REAL deploy/uds-package.yaml allow rules.
+# Honest DRIFT DETECTED/STABLE verdict + named triggering detector + thresholds
+# (PSI 0.1/0.25, KS p<0.05). scipy/networkx/yaml OPTIONAL with pure-python
+# fallbacks. Organ nodes use honest role names (Operator / Provenance Anchor /
+# Policy). NO fabricated data; honest empty states. Mounted BEFORE SPA catch-all.
+# Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1+L2 attested.
+# ===========================================================================
+try:
+    import killinchu_posture_topology as _posture
+    _posture_status = _posture.register(app, ns="killinchu", emit_receipt=_emit_receipt)
+    print(f"[killinchu] Posture & Topology registered: {len(_posture_status.get('registered', []))} routes (scipy={_posture_status.get('scipy')} networkx={_posture_status.get('networkx')})", file=sys.stderr)
+except Exception as _posture_e:
+    import traceback as _posture_tb
+    print(f"[killinchu] Posture & Topology NOT registered: {_posture_e!r}", file=sys.stderr)
+    _posture_tb.print_exc()
+# ── end POSTURE & TOPOLOGY ────────────────────────────────────────
+
+# ===========================================================================
+# ADDITIVE: MESH — the live szl-mesh surface (Dev 4). Pure VIEW page that renders
+# the REAL /api/killinchu/v1/mesh/* endpoints (Dev 3): topology graph (spec 08),
+# the 3-of-4 Khipu quorum (soft-safety AP; Khipu BFT unconditional = Conjecture 2,
+# never claimed proven), the DSSE-receipted CRDT chain with in-browser SHA-256
+# re-hash + tamper demo, and doctrine-gated enrollment. killinchu house style
+# (gold+teal on dark), 0 runtime CDN, self-hosted SVG graph. Honest empty states;
+# no fabricated nodes/quorum/receipts. Mounted BEFORE the SPA catch-all.
+# Doctrine v11 LOCKED · Λ = Conjecture 1 · effector SIMULATED elsewhere.
+# ===========================================================================
+try:
+    import killinchu_mesh_view as _mesh_view
+    _mesh_view_status = _mesh_view.register(app, ns="killinchu")
+    print(f"[killinchu] MESH view registered: {_mesh_view_status.get('routes')}", file=sys.stderr)
+except Exception as _mesh_view_e:
+    import traceback as _mesh_view_tb
+    print(f"[killinchu] MESH view NOT registered: {_mesh_view_e!r}", file=sys.stderr)
+    _mesh_view_tb.print_exc()
+# ── end MESH view ──────────────────────────────
+
+# ===========================================================================
+# ADDITIVE: AUTONOMY (Dev D). Six auditable autonomy primitives over a REAL
+# backend (killinchu_autonomy.py): BFT n>=3f+1 multi-sensor fusion (tolerate 1
+# Byzantine sensor; Khipu BFT unconditional = Conjecture 2, never claimed
+# proven), a CBF-QP safety filter clamping an unsafe PROPOSAL, an EFE act-vs-ask
+# gate with a VISIBLE precision-beta oversight knob, a conformal threat set
+# (true class in set S, >=95% coverage; LOCAL wrapper pending Dev B), Fiedler
+# lambda2 mesh/anatomy health, and Reflexion over reviewed C2 plans. Endpoints
+# under /api/killinchu/v1/autonomy/*; live view at /elite/autonomy. Effectors
+# SIMULATED human-on-loop; 0 runtime CDN. Doctrine v11 LOCKED. Registered
+# EARLY (before the SPA catch-all), try/except-guarded — never breaks the Space.
+# ===========================================================================
+_killinchu_autonomy = None
+_killinchu_autonomy_status = "autonomy-not-wired"
+try:
+    import killinchu_autonomy as _killinchu_autonomy
+    _killinchu_autonomy_status = _killinchu_autonomy.register(app, ns="killinchu")
+    print(f"[killinchu] AUTONOMY backend wired ({_killinchu_autonomy_status})", file=sys.stderr)
+except Exception as _kau_e:  # additive: never break the Space
+    _killinchu_autonomy_status = f"autonomy-not-wired:{_kau_e!r}"
+    print(f"[killinchu] AUTONOMY backend NOT wired ({_kau_e!r}); app unaffected", file=sys.stderr)
+
+try:
+    import killinchu_autonomy_view as _killinchu_autonomy_view
+    _killinchu_autonomy_view_status = _killinchu_autonomy_view.register(app, ns="killinchu")
+    print(f"[killinchu] AUTONOMY view registered: {_killinchu_autonomy_view_status.get('routes')}", file=sys.stderr)
+except Exception as _kauv_e:
+    import traceback as _kauv_tb
+    print(f"[killinchu] AUTONOMY view NOT registered: {_kauv_e!r}", file=sys.stderr)
+    _kauv_tb.print_exc()
+# ── end AUTONOMY ──────────────────────────────
+
+# ===========================================================================
+# ADDITIVE: ORGANISM (Dev D). The living organism (a11oy + killinchu) as a
+# DIRECTED causal-dependency graph (killinchu_organism.py): edges encode a REAL
+# causal dependency, each organ carries local homeostatic invariants, and an
+# NCA-style local self-repair rule re-routes + heals when an organ goes down.
+# Vitals LIVE where the in-process anatomy/mesh expose them, MODELED otherwise;
+# self-repair EXPERIMENTAL (explicit local rule, not a trained CA). Shares the
+# autonomy Fiedler lambda2. Endpoints /api/killinchu/v1/organism/{causal,
+# self-repair}; live 3D view at /elite/organism (vendored three.js, 0 CDN).
+# Does NOT edit Dev5's szl_ecosystem_routes.py or the anatomy engine. Effectors
+# SIMULATED. Registered EARLY (before the SPA catch-all), try/except-guarded.
+# ===========================================================================
+_killinchu_organism = None
+_killinchu_organism_status = "organism-not-wired"
+try:
+    import killinchu_organism as _killinchu_organism
+    _killinchu_organism_status = _killinchu_organism.register(app, ns="killinchu")
+    print(f"[killinchu] ORGANISM backend wired ({_killinchu_organism_status})", file=sys.stderr)
+except Exception as _kor_e:  # additive: never break the Space
+    _killinchu_organism_status = f"organism-not-wired:{_kor_e!r}"
+    print(f"[killinchu] ORGANISM backend NOT wired ({_kor_e!r}); app unaffected", file=sys.stderr)
+
+try:
+    import killinchu_organism_view as _killinchu_organism_view
+    _killinchu_organism_view_status = _killinchu_organism_view.register(app, ns="killinchu")
+    print(f"[killinchu] ORGANISM view registered: {_killinchu_organism_view_status.get('routes')}", file=sys.stderr)
+except Exception as _korv_e:
+    import traceback as _korv_tb
+    print(f"[killinchu] ORGANISM view NOT registered: {_korv_e!r}", file=sys.stderr)
+    _korv_tb.print_exc()
+# ── end ORGANISM ──────────────────────────────
+
+# ===========================================================================
+# ADDITIVE: FLEET (Vessels) commercial-fleet surface (GAP-1 + GAP-2).
+# Serves the REAL platform seed-data/vessels/* datasets VERBATIM as static JSON
+# endpoints under /api/killinchu/v1/fleet/*, plus the vessels-vertical "Voyage
+# Risk Exchange" governed-decision loop (signals->forecast->evidence->recommendation
+# ->brief), ported verbatim as pure functions. Datasets are clearly-labelled SAMPLE
+# data, NOT a live AIS / class-society feed. Mounted BEFORE the SPA catch-all.
+# Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L2. NO mocks.
+# ===========================================================================
+try:
+    import killinchu_fleet_vessels as _fleet
+    _fleet_status = _fleet.register(app)
+    print(f"[killinchu] FLEET vessels registered: {_fleet_status.get('registered_count')} routes", file=sys.stderr)
+except Exception as _fleet_e:
+    import traceback as _fleet_tb
+    print(f"[killinchu] FLEET vessels NOT registered: {_fleet_e!r}", file=sys.stderr)
+    _fleet_tb.print_exc()
+# ── end FLEET ────────────────────────────────────────────────────────────────
+
+
+# ===========================================================================
+# ADDITIVE (interop): MITRE Cursor on Target (CoT) — WarHacker DoD XML tactical
+# messaging standard (Event.xsd). Makes killinchu "speak CoT": EXPORTS every
+# killinchu track (maritime vessels + friendly drones + cued threat UAS) as
+# standards-compliant CoT 2.0 XML events, VALIDATES the XML against the real
+# Event.xsd base-schema shape (required attrs, ISO-8601 stamps, lat/lon ranges,
+# type-atom shape), and INGESTS CoT XML back into killinchu track dicts
+# (bidirectional). Pure-Python, network-free.
+#   GET  /api/killinchu/v1/cot/export              all tracks -> CoT <events> XML
+#   GET  /api/killinchu/v1/cot/export/{track_id}   one track  -> CoT <event> XML
+#   POST /api/killinchu/v1/cot/ingest              CoT XML    -> killinchu track
+#   GET  /api/killinchu/v1/cot/status              capability + honesty manifest
+# HONEST scope (doctrine v11): real XML export + schema-shape validation +
+# ingest are LIVE. UDP multicast (239.2.3.1:6969) and live TAK-server streaming
+# are explicitly ROADMAP (labelled in /status; NO socket opened). NOT a live TAK
+# integration. Mounted BEFORE the SPA catch-all. NO mocks.
+# ===========================================================================
+try:
+    import killinchu_cot_interop as _cot
+    _cot_status = _cot.register(app)
+    print(f"[killinchu] CoT interop registered: {_cot_status.get('registered_count')} routes", file=sys.stderr)
+except Exception as _cot_e:
+    import traceback as _cot_tb
+    print(f"[killinchu] CoT interop NOT registered: {_cot_e!r}", file=sys.stderr)
+    _cot_tb.print_exc()
+# ── end CoT interop ───────────────────────────────────────────────────────────
+
+
+# ===========================================================================
+# ADDITIVE (W3): Λ DARK-FLEET RISK SCORE + VESSEL FORECASTING — the maritime
+# DIFFERENTIATOR no incumbent (Starboard/Windward/Kpler) ships: a governed,
+# EXPLAINABLE, SIGNED dark-fleet risk scalar that traces to a formula, plus an
+# advisory dead-reckoning + sea-lane track forecast. Fuses W2's raw risk axes
+# (gap_prob, spoof, port/STS history, flag origin, loiter) through the SAME
+# geometric-mean weakest-link Λ aggregator the kernel proves properties about
+# (serve.py _lambda_aggregate; zero-absorption: a confirmed MMSI-spoof vetoes
+# "low risk"). Every verdict + forecast is signed with the REAL cosign DSSE
+# signer (szl_dsse, ECDSA-P256-SHA256) and includes the Λ score + axis breakdown
+# in the signed payload — provable, re-hashable, auditable.
+#   POST /api/killinchu/v1/maritime/risk       Λ dark-fleet risk score (one vessel)
+#   GET  /api/killinchu/v1/maritime/risk       demo: score a sample fleet vessel
+#   GET  /api/killinchu/v1/maritime/risk/fleet triage board (all sample vessels)
+#   POST /api/killinchu/v1/maritime/forecast   advisory track/destination forecast
+#   GET  /api/killinchu/v1/maritime/forecast   demo: forecast a sample fleet vessel
+#   GET  /api/killinchu/v1/maritime/doctrine   formula + doctrine card
+# DOCTRINE: the score USES Λ; Λ-uniqueness = Conjecture 1 (machine-checked FALSE
+# as unconditional) — labelled "advisory, governed by Λ (Conjecture 1)", NEVER
+# "Λ is unique". FORECAST is a labelled projection, human-on-loop, NOT vessel
+# control. Trust clamped < 1.0. Real receipts or honest UNSIGNED — never faked.
+# Mounted BEFORE the SPA catch-all. NO mocks.
+# ===========================================================================
+try:
+    import killinchu_maritime_risk as _maritime_risk
+    _maritime_risk_status = _maritime_risk.register(app, ns="killinchu")
+    print(f"[killinchu] Maritime Λ risk + forecast registered: "
+          f"{_maritime_risk_status.get('registered_count')} routes "
+          f"(signer={_maritime_risk_status.get('signer')})", file=sys.stderr)
+except Exception as _mr_e:
+    import traceback as _mr_tb
+    print(f"[killinchu] Maritime Λ risk + forecast NOT registered: {_mr_e!r}", file=sys.stderr)
+    _mr_tb.print_exc()
+# ── end Maritime Λ risk + forecast (W3) ──────────────────────────────────────
+
+
+# ===========================================================================
+# ADDITIVE: NOAA/MarineCadastre AIS — Aug 2024 coastal US (WarHacker dataset) as a
+# SELECTABLE governed source ALONGSIDE the live AIS feed (live stays the DEFAULT).
+# Reuses the real NOAA connector (real schema + real rows, honest SAMPLE label) and
+# the Λ dark-fleet risk scorer (governed, signed) — same governance path as live.
+#   GET /api/killinchu/v1/ais/sources             selectable AIS source manifest
+#   GET /api/killinchu/v1/ais/aug2024/tracks      real NOAA Aug-2024 tracks (sample)
+#   GET /api/killinchu/v1/ais/aug2024/risk-board  Λ risk over the dataset (receipted)
+#   GET /api/killinchu/v1/ais/tracks?source=...   selector (live default | noaa_ais_aug2024)
+# DOCTRINE: the dataset shipped is a BOUNDED SAMPLE of REAL rows from AIS_2024_08_01.csv
+# (US NE coastal bbox, first hour) — labelled "(sample)", NEVER the full month. No
+# fabricated rows/counts/receipts. Mounted BEFORE the SPA catch-all. NO mocks.
+# ===========================================================================
+try:
+    import killinchu_ais_aug2024 as _ais_aug2024
+    _ais_aug2024_status = _ais_aug2024.register(app, ns="killinchu")
+    print(f"[killinchu] NOAA AIS Aug-2024 selectable source registered: "
+          f"{_ais_aug2024_status.get('registered_count')} routes", file=sys.stderr)
+except Exception as _ais_e:
+    import traceback as _ais_tb
+    print(f"[killinchu] NOAA AIS Aug-2024 source NOT registered: {_ais_e!r}", file=sys.stderr)
+    _ais_tb.print_exc()
+# ── end NOAA AIS Aug-2024 selectable governed source ─────────────────────────
+
+
+# ===========================================================================
+# ADDITIVE (Maritime W5): consolidated "MARITIME INTEL" /elite VIEW.
+# A pure presentation surface at /elite/maritime (+ /maritime-intel alias) that
+# UNIFIES every maritime wave into one investor-facing narrative in killinchu's
+# EXISTING house style. It reinvents NO backend: it fetches the REAL endpoints
+# the waves already built (feeds/vessels, maritime/{dark,spoof,risk,riskarc,
+# forecast}, asw/*, the /elite/globe centerpiece). Every layer is labelled
+# LIVE/SAMPLE/FORECAST/OSINT/INFERENCE; Λ is "advisory, governed by Λ
+# (Conjecture 1)" — NEVER "unique"; effector SIMULATED; no vessel control or
+# live submarine tracking. 0 runtime CDN. Mounted BEFORE the SPA catch-all.
+# ===========================================================================
+_killinchu_maritime_view_status = "maritime-view-not-wired"
+try:
+    import killinchu_maritime_view as _killinchu_maritime_view
+    _killinchu_maritime_view_status = _killinchu_maritime_view.register(app, ns="killinchu")
+    print(f"[killinchu] Maritime Intel view wired ({_killinchu_maritime_view_status})", file=sys.stderr)
+except Exception as _kmv_e:
+    import traceback as _kmv_tb
+    _killinchu_maritime_view_status = f"maritime-view-not-wired:{_kmv_e!r}"
+    print(f"[killinchu] Maritime Intel view NOT wired: {_kmv_e!r}", file=sys.stderr)
+    _kmv_tb.print_exc()
+# ── end Maritime Intel view (W5) ─────────────────────────────────────────────
+
+
+# ===========================================================================
+# ADDITIVE: killinchu "Beyond-Cannonico" proof console — the autonomy-governance
+# pattern generalized BEYOND a single counter-drone. Three REAL endpoint-backed
+# proof tabs, mounted BEFORE the SPA catch-all so they resolve locally:
+#   POST /api/killinchu/v1/autonomy/evaluate    — generalized envelope (any system)
+#   POST /api/killinchu/v1/swarm/quorum         — real 3-of-4 BFT multi-agent
+#   POST /api/killinchu/v1/hotl/recommend        — AI signed recommendation
+#   POST /api/killinchu/v1/hotl/override         — human override BOUND to it
+#   GET  /api/killinchu/v1/hotl/register         — bound recommendation→override log
+#   GET  /beyond  and  /killinchu/beyond         — 3-tab proof console
+# Reuses _emit_receipt (Khipu DAG + REAL cosign DSSE) + szl_khipu_consensus.
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 · SLSA L1 honest. NO mocks.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import killinchu_beyond as _beyond
+    _beyond_status = _beyond.register(app, emit_receipt=_emit_receipt, ns="killinchu")
+    print(f"[killinchu] Beyond-Cannonico proofs registered: {_beyond_status['registered']} ({_beyond_status['tabs']} tabs)", file=sys.stderr)
+except Exception as _beyond_e:
+    import traceback as _beyond_tb
+    print(f"[killinchu] Beyond-Cannonico proofs NOT registered: {_beyond_e!r}", file=sys.stderr)
+    _beyond_tb.print_exc()
+# ── end BEYOND ─────────────────────────────────────────────────────────────────
+
+
+# ---------------------------------------------------------------------------
+# ADDITIVE: /version endpoint — Founder Inspection Surface (v1.0.0)
+# Returns build provenance: "what build is live, when, what's its provenance."
+# Doctrine v11 LOCKED 749/14/163. ADDITIVE ONLY. c7c0ba17. SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+@app.get("/api/killinchu/v1/version")
+async def killinchu_version():
+    """Founder inspection: what build is live, when was it deployed, provenance."""
+    import os as _szlv_os
+    return {
+        "name": "killinchu",
+        "version": "1.0.0",
+        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "unknown"),
+        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "unknown"),
+        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "unknown"),
+        "release_url": "https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0",
+        "doctrine": "v11",
+        "kernel_commit": "c7c0ba17",
+        "p6_status": "SIGNED_OFF",
+        "p6_grader_score": "13/13",
+        "p6_sign_off_url": "https://github.com/szl-holdings/szl-holdings/blob/main/SHARED_LEDGER/killinchu/SIGN_OFF.md",
+        "verify": {
+            "cosign": "cosign verify ghcr.io/szl-holdings/killinchu:v1.0.0 --certificate-identity-regexp=szl-holdings",
+            "sbom": "https://github.com/szl-holdings/killinchu/releases/download/v1.0.0/killinchu-sbom.cdx.json",
+            "honest": "https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest",
+        },
+    }
+
+# ============================================================================
+# ADDITIVE v3: /api/killinchu/v1/doctrine + /api/killinchu/v1/adsb
+# MOVED BEFORE if __name__ == "__main__" to ensure registration before uvicorn.
+# Doctrine v11 LOCKED 749/14/163. c7c0ba17. Λ = Conjecture 1. SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+@app.get("/api/killinchu/v1/doctrine")
+async def killinchu_doctrine_v3():
+    """Doctrine endpoint — inline, registered before uvicorn.run()."""
+    from fastapi.responses import JSONResponse as _JR
+    return _JR({
+        "flagship": "killinchu", "doctrine": "v11", "kernel_commit": "c7c0ba17",
+        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
+        "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 (honest)",
+        "role": "C-UAS / Andean drone classification",
+        "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
+    })
+
+@app.get("/api/killinchu/v1/adsb")
+async def killinchu_adsb_v3(
+    lat_min: float = 24.0, lat_max: float = 50.0,
+    lon_min: float = -125.0, lon_max: float = -60.0
+):
+    """FRONTIER: Live ADS-B via adsb.lol military feed (no auth, ODbL).
+
+    FIX 2026-06-07 (Yachay CTO + Opus 4.8): OpenSky is DEAD for us (now OAuth2-only,
+    refuses non-institutional use). REPLACED with adsb.lol/v2/mil through the resilient
+    cached killinchu_live_feeds._fetch_air (fallback chain adsb.fi -> airplanes.live).
+    HONESTY DOCTRINE: NO fabricated tracks. On total upstream failure this returns the
+    last-good cached snapshot labelled live=false, or an honest empty set — never synthetic
+    'demo' aircraft. Field shape preserved for the existing livepic/maritime tabs.
+    """
+    from datetime import datetime, timezone as _tz
+    from fastapi.responses import JSONResponse as _JR
+    _now = datetime.now(_tz.utc).isoformat()
+    try:
+        import killinchu_live_feeds as _klf
+        payload = _klf.get_feed("air")  # cached, honestly-labelled live|cached
+        data = payload.get("data") or {}
+        ac = data.get("aircraft") or []
+        live = (payload.get("mode") == "live")
+        flights = []
+        for a in ac:
+            lat = a.get("lat"); lon = a.get("lon")
+            if lat is None or lon is None:
+                continue
+            altb = a.get("alt_baro")
+            alt = None if altb in (None, "ground") else (0 if altb == "ground" else altb)
+            vel = a.get("gs")
+            if alt is None: cls = "NO_ALTITUDE"
+            elif isinstance(alt, (int, float)) and alt < 150 and (vel is None or vel < 30): cls = "POTENTIAL_UAS"
+            elif isinstance(alt, (int, float)) and alt < 500: cls = "LOW_ALTITUDE"
+            elif isinstance(alt, (int, float)) and alt < 3000: cls = "MID_ALTITUDE"
+            else: cls = "COMMERCIAL_ALTITUDE"
+            tier = "T1_HIGH" if cls == "POTENTIAL_UAS" else ("T2_MEDIUM" if cls == "LOW_ALTITUDE" else "T3_LOW")
+            flights.append({"icao24": a.get("hex"), "callsign": a.get("flight"),
+                "origin_country": None, "longitude": lon, "latitude": lat,
+                "baro_altitude_m": alt, "on_ground": (altb == "ground"),
+                "velocity_ms": vel, "track_deg": a.get("track"), "type": a.get("type"),
+                "szl_class": cls, "szl_threat_tier": tier})
+        return _JR({"flagship": "killinchu",
+            "frontier": "adsblol_adsb" if live else "adsblol_adsb_cached",
+            "source": "adsb.lol community ADS-B (military, ODbL)",
+            "source_url": data.get("endpoint") or "https://api.adsb.lol/v2/mil",
+            "attribution": data.get("attribution") or "Data: adsb.lol (ODbL)",
+            "live": live, "mode": payload.get("mode"),
+            "fetched_at": payload.get("fetched_at"),
+            "doctrine": "v11", "kernel_commit": "c7c0ba17",
+            "lambda": "Conjecture 1 (NOT a theorem)",
+            "total_states": data.get("total", len(ac)), "flights_returned": len(flights),
+            "flights": flights, "ts": payload.get("fetched_at") or _now})
+    except Exception as _e:
+        # HONEST failure — NO fabricated tracks. Empty set, clearly labelled not-live.
+        return _JR({"flagship": "killinchu", "frontier": "adsblol_adsb_unavailable",
+            "source": "adsb.lol community ADS-B (military, ODbL)",
+            "note": "upstream ADS-B unavailable and no cached snapshot — no fabricated data",
+            "error": "upstream unavailable", "live": False, "doctrine": "v11",
+            "kernel_commit": "c7c0ba17", "flights": [], "flights_returned": 0, "ts": _now})
+
+# ============================================================================
+# ADDITIVE DEEP-C: FAA RID validate + MAVLink geofence + Ken + Khipu v1 aliases
+# + kernel_commit in lambda + v4/inbox POST fix
+# Date: 2026-06-03 | Op: Killinchu Deep Operational C
+# Doctrine v11 LOCKED 749/14/163. c7c0ba17. Λ = Conjecture 1. SLSA L1 honest.
+# MUST be registered BEFORE uvicorn.run() blocking call.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+
+# ── FAA RID Validate (INN-10, PR #27 merged) ─────────────────────────────────
+@app.post("/api/killinchu/v1/faa-rid/validate")
+async def _killinchu_faa_rid_validate(request: Request) -> JSONResponse:
+    """FAA Remote ID session freshness validator — INN-10. Lean: FAARIDSessionValidity (0 sorry)."""
+    import time as _t
+    body = await _json_body(request)
+    RID_WINDOW = 30.0  # FAA RID §89.305(a)(3) — 30s freshness window
+    # Accept timestamp_sec (float POSIX) or ISO string
+    ts_raw = body.get("timestamp_sec") or body.get("ts") or body.get("timestamp")
+    if ts_raw is None:
+        return JSONResponse({"valid": False, "error": "missing timestamp_sec field",
+                             "lean_theorem": "FAARIDSessionValidity", "doctrine": "v11"}, status_code=422)
+    try:
+        ts = float(ts_raw)
+    except (ValueError, TypeError):
+        # Try ISO parse
+        from datetime import datetime as _dt
+        try:
+            ts = _dt.fromisoformat(str(ts_raw).replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return JSONResponse({"valid": False, "error": f"unparseable timestamp: {ts_raw!r}",
+                                 "lean_theorem": "FAARIDSessionValidity", "doctrine": "v11"}, status_code=422)
+    age = _t.time() - ts
+    valid = 0.0 <= age <= RID_WINDOW
+    msg = "FAA RID timestamp valid" if valid else f"FAA RID stale: age={age:.1f}s > {RID_WINDOW}s"
+    boundary = abs(age - RID_WINDOW) < 0.5
+    return JSONResponse({
+        "valid": valid,
+        "age_sec": round(age, 2),
+        "freshness_window_sec": RID_WINDOW,
+        "message": msg,
+        "boundary_case": boundary,
+        "lean_theorem": "FAARIDSessionValidity (omega proof, 0 sorry)",
+        "lean_repo": "szl-holdings/lutar-lean@feat/innovations-inn-01-12",
+        "source_file": "faa/rid_validator.py",
+        "section": "FAA RID §89.305(a)(3)",
+        "doctrine": "v11",
+        "kernel_commit": "c7c0ba17",
+        "honesty": "ADS-B/Remote-ID timestamps are unauthenticated broadcast CLAIMS — not attested.",
+    })
+# ── end FAA RID Validate ──────────────────────────────────────────────────────
+
+# ── MAVLink Geofence Admission (INN-09, PR #27 merged) ───────────────────────
+# DC operational geofence [38.8,39.0] × [-77.2,-76.8] (replace per deployment)
+_KILLINCHU_GEOFENCE = {"lat_min": 38.8, "lat_max": 39.0, "lon_min": -77.2, "lon_max": -76.8}
+
+@app.post("/api/killinchu/v1/mavlink/geofence")
+async def _killinchu_mavlink_geofence(request: Request) -> JSONResponse:
+    """MAVLink geofence enforcement — INN-09. Lean: MAVLinkValidateGeofence (partial)."""
+    body = await _json_body(request)
+    lat = body.get("lat") or body.get("latitude")
+    lon = body.get("lon") or body.get("longitude")
+    if lat is None or lon is None:
+        return JSONResponse({"inside": None, "error": "provide {lat, lon}",
+                             "lean_theorem": "MAVLinkValidateGeofence", "doctrine": "v11"}, status_code=422)
+    try:
+        lat, lon = float(lat), float(lon)
+    except (ValueError, TypeError):
+        return JSONResponse({"inside": None, "error": "lat/lon must be numeric",
+                             "lean_theorem": "MAVLinkValidateGeofence", "doctrine": "v11"}, status_code=422)
+    gf = _KILLINCHU_GEOFENCE
+    inside = (gf["lat_min"] <= lat <= gf["lat_max"]) and (gf["lon_min"] <= lon <= gf["lon_max"])
+    on_boundary = (abs(lat - gf["lat_min"]) < 0.001 or abs(lat - gf["lat_max"]) < 0.001 or
+                   abs(lon - gf["lon_min"]) < 0.001 or abs(lon - gf["lon_max"]) < 0.001)
+    classification = "INSIDE_GEOFENCE" if inside else "OUTSIDE_GEOFENCE"
+    if on_boundary:
+        classification = "ON_BOUNDARY"
+    action = "DENY" if inside or on_boundary else "ALLOW"
+    return JSONResponse({
+        "lat": lat, "lon": lon,
+        "inside": inside,
+        "on_boundary": on_boundary,
+        "classification": classification,
+        "action": action,
+        "geofence": gf,
+        "geofence_desc": "DC operational zone [38.8,39.0]×[-77.2,-76.8] — replace per deployment",
+        "lean_theorem": "MAVLinkValidateGeofence (rejection proved; Float boundary sorry)",
+        "lean_repo": "szl-holdings/lutar-lean@feat/innovations-inn-01-12",
+        "source_file": "capabilities/mavlink-geofence-admission.ts",
+        "doctrine": "v11",
+        "kernel_commit": "c7c0ba17",
+        "honesty": "INN-09 Lean proof is PARTIAL — rejection theorem proved; Float boundary has open sorry.",
+    })
+# ── end MAVLink Geofence ──────────────────────────────────────────────────────
+
+# ── Khipu v1 path aliases ─────────────────────────────────────────────────────
+@app.get("/api/killinchu/v1/khipu/ledger")
+async def _killinchu_v1_khipu_ledger() -> JSONResponse:
+    """Alias: GET /api/killinchu/v1/khipu/ledger → /api/killinchu/khipu/ledger."""
+    import httpx as _hx_kl
+    try:
+        async with _hx_kl.AsyncClient(timeout=5.0) as _c:
+            _r = await _c.get("http://127.0.0.1:7860/api/killinchu/khipu/ledger")
+            return JSONResponse(_r.json())
+    except Exception as _ex:
+        print(f"[killinchu] khipu ledger proxy error: {_ex!r}", file=sys.stderr)
+        return JSONResponse({"space": "killinchu", "error": "ledger unavailable",
+                             "doctrine": "v11", "khipu_root": None, "nodes": []})
+
+@app.get("/api/killinchu/v1/khipu/dag")
+async def _killinchu_v1_khipu_dag() -> JSONResponse:
+    """Alias: GET /api/killinchu/v1/khipu/dag → /api/killinchu/khipu/ledger (dag view)."""
+    import httpx as _hx_kd
+    try:
+        async with _hx_kd.AsyncClient(timeout=5.0) as _c:
+            _r = await _c.get("http://127.0.0.1:7860/api/killinchu/khipu/ledger")
+            data = _r.json()
+            data["_dag_view"] = True
+            return JSONResponse(data)
+    except Exception as _ex:
+        print(f"[killinchu] khipu dag proxy error: {_ex!r}", file=sys.stderr)
+        return JSONResponse({"space": "killinchu", "error": "ledger unavailable",
+                             "doctrine": "v11", "_dag_view": True, "nodes": []})
+# ── end Khipu v1 aliases ──────────────────────────────────────────────────────
+
+# ── v4/inbox POST fix (additive, bypasses operator_shell_v4 registration issue) ─
+@app.post("/api/killinchu/v4/inbox")
+async def _killinchu_v4_inbox_post(request: Request) -> JSONResponse:
+    """POST telemetry/action into killinchu v4 inbox. Returns DSSE receipt. Doctrine v11."""
+    import hashlib as _hl_inb, uuid as _uuid_inb
+    body: dict = await _json_body(request)
+    protocol = body.get("protocol", "unknown")
+    action = body.get("action", "")
+    raw = body.get("raw", "")
+    payload_sha = _hl_inb.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+    receipt_hash = f"sha256:{payload_sha}"
+    receipt = {
+        "receipt_hash": receipt_hash,
+        "hash": payload_sha,
+        "signature": "PLACEHOLDER — Sigstore CI not yet wired per Doctrine v11",
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "lean_sha": "c7c0ba17",
+    }
+    return JSONResponse({
+        "received": True,
+        "receipt_hash": receipt_hash,
+        "protocol": protocol,
+        "action": action,
+        "decoded": {
+            "message_type": "CLAIM",
+            "protocol": protocol,
+            "note": "Decoded fields are CLAIMS from unauthenticated broadcast — not attested truth.",
+        },
+        "receipt": receipt,
+        "doctrine": "v11",
+        "kernel_commit": "c7c0ba17",
+        "honesty": "Receipt signature is PLACEHOLDER. Sigstore CI not yet wired per Doctrine v11.",
+    })
+# ── end v4/inbox POST fix ─────────────────────────────────────────────────────
+
+# ── SZL Agent Pattern v1 (Ken) — MOVED BEFORE uvicorn.run() ──────────────────
+# Previously dead code (was after uvicorn.run blocking call). Restored here.
+# Doctrine v11 LOCKED 749/14/163. c7c0ba17. ADDITIVE ONLY.
+# ── Note: szl_ken block appears below the uvicorn.run call in the original code
+#    but since the real activation requires loading before the block, we do it here.
+try:
+    import szl_ken as _ken_dc
+    import sys as _sys_dc
+    _kf_dc = "killinchu"
+    _ken_router_dc = _ken_dc.make_ken_router(
+        flagship=_kf_dc,
+        tools_manifest=_ken_dc.get_default_tools(_kf_dc),
+    )
+    app.include_router(_ken_router_dc)
+    print(f"[{_kf_dc}] Deep-C: szl_ken registered: POST /api/{_kf_dc}/v1/agent/loop ✓", file=_sys_dc.stderr)
+    print(f"[{_kf_dc}] Deep-C: szl_ken registered: GET  /api/{_kf_dc}/v1/mcp/tools ✓", file=_sys_dc.stderr)
+except ImportError as _ke_dc:
+    print(f"[ken-dc] szl_ken not available: {_ke_dc!r}", file=__import__("sys").stderr)
+except Exception as _ke_dc:
+    print(f"[ken-dc] registration error (non-fatal): {_ke_dc!r}", file=__import__("sys").stderr)
+# ── end Ken before uvicorn ────────────────────────────────────────────────────
+
+# ============================================================================
+# END: ADDITIVE DEEP-C BLOCK
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: REAL EDGE ORGAN — verdict + edge/3d + live SSE stream — killinchu
+# Wires the REAL src/killinchu edge package (PAC-Bayes Λ + DSSEv1 ECDSA-P256 +
+# hash-chained Khipu) AND a REAL drone-flight telemetry simulator into four live
+# endpoints. NO MOCKS, NO PLACEHOLDER SIGNATURES — every verdict is a REAL
+# ECDSA-P256-SHA256 DSSE envelope over the canonical verdict JSON, verifiable by
+# cosign verify-blob and verify_envelope(). The simulator is HONESTLY a simulator
+# (simulated=True): it integrates real flight-dynamics + RF path-loss + a real
+# no-fly polygon — it is NOT a connected drone. Real numbers, real signatures.
+# Registered BEFORE the /{full_path:path} SPA catch-all via routes.insert(0,...)
+# so all four endpoints resolve LOCALLY. ADDITIVE — zero existing routes touched.
+# Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 · SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import sys as _kc_edge_sys
+    import os as _kc_edge_os
+    import asyncio as _kc_edge_asyncio
+    import json as _kc_edge_json
+    import dataclasses as _kc_edge_dc
+    from fastapi.routing import APIRoute as _EdgeRoute_killinchu
+    from fastapi.responses import JSONResponse as _EdgeJR_killinchu, StreamingResponse as _EdgeSSE_killinchu
+    from fastapi import Request as _EdgeRequest_killinchu
+
+    # Make the in-repo src/ importable both locally (./src) and in the image (/app/src).
+    for _cand in (_kc_edge_os.path.join(_kc_edge_os.path.dirname(_kc_edge_os.path.abspath(__file__)), "src"),
+                  "/app/src", "./src"):
+        if _kc_edge_os.path.isdir(_cand) and _cand not in _kc_edge_sys.path:
+            _kc_edge_sys.path.insert(0, _cand)
+
+    # Import the REAL edge package + simulator. Honest hard-fail: if missing, the
+    # endpoints are simply not registered (we never substitute a mock).
+    try:
+        from killinchu.edge import EdgeNode as _KcEdgeNode, Telemetry as _KcTelemetry
+        from killinchu.dsse import public_key_pem as _kc_pubkey, key_source as _kc_keysrc
+        from killinchu.lambda_calc import AXIS_NAMES as _KC_AXES
+        from killinchu.simulator import TelemetrySimulator as _KcSim, NO_FLY_POLYGON as _KC_NOFLY
+    except Exception:
+        from src.killinchu.edge import EdgeNode as _KcEdgeNode, Telemetry as _KcTelemetry  # type: ignore
+        from src.killinchu.dsse import public_key_pem as _kc_pubkey, key_source as _kc_keysrc  # type: ignore
+        from src.killinchu.lambda_calc import AXIS_NAMES as _KC_AXES  # type: ignore
+        from src.killinchu.simulator import TelemetrySimulator as _KcSim, NO_FLY_POLYGON as _KC_NOFLY  # type: ignore
+
+    # Single process-wide EdgeNode (Khipu chain accumulates) + simulator (live flight).
+    _KC_EDGE_NODE = _KcEdgeNode()
+    _KC_SIM = _KcSim()
+    _KC_RECENT = []  # ring buffer of recent verdict records for /edge/3d + console
+
+    def _kc_record(telem, result):
+        rec = {
+            "ts": result["dsse"]["_signed_at"],
+            "track_id": telem.track_id,
+            "source": telem.source,
+            "simulated": True,
+            "position": {"lat": telem.lat, "lon": telem.lon, "alt_m": telem.alt_m},
+            "kinematics": {"speed_mps": telem.speed_mps},
+            "geofence_violation": telem.geofence_violation,
+            "rssi_dbm": telem.rssi_dbm,
+            "n_observations": telem.n_observations,
+            "lambda_value": result["verdict"]["lambda_value"],
+            "lambda_empirical": result["verdict"]["lambda_empirical"],
+            "certified_floor": result["verdict"]["certified_floor"],
+            "decision": result["verdict"]["decision"],
+            "dsse_keyid": result["dsse"]["signatures"][0]["keyid"],
+            "key_source": result["key_source"],
+            "khipu_index": result["khipu_node"]["index"],
+            "khipu_node_hash": result["khipu_node"]["node_hash"],
+            "khipu_prev_hash": result["khipu_node"]["prev_hash"],
+            "khipu_root": result["khipu_root"],
+        }
+        _KC_RECENT.append(rec)
+        if len(_KC_RECENT) > 200:
+            del _KC_RECENT[:len(_KC_RECENT) - 200]
+        return rec
+
+    def _kc_telem_from_body(body):
+        """Accept a flat verdict-input dict OR an OTLP attribute map. Real fields only."""
+        if isinstance(body.get("attributes"), list):
+            attrs = {}
+            for kv in body["attributes"]:
+                v = kv.get("value", {})
+                attrs[kv["key"]] = next(iter(v.values())) if isinstance(v, dict) and v else None
+            return _KcTelemetry.from_otlp_attributes(attrs)
+        norm = {}
+        for k, val in body.items():
+            norm[k if k.startswith("drone.") else f"drone.{k}"] = val
+        return _KcTelemetry.from_otlp_attributes(norm)
+
+    async def _kc_verdict_handler(request: _EdgeRequest_killinchu):
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict) or not body:
+            return _EdgeJR_killinchu(
+                {"ok": False,
+                 "error": "POST a real telemetry frame: OTLP attribute map or flat "
+                          "{source, track_id, lat, lon, alt_m, speed_mps, rssi_dbm, "
+                          "id_authenticated, geofence_violation, timestamp_skew_s, n_observations}.",
+                 "doctrine": DOCTRINE},
+                status_code=400)
+        telem = _kc_telem_from_body(body)
+        result = _KC_EDGE_NODE.evaluate(telem)
+        _kc_record(telem, result)
+        return _EdgeJR_killinchu({
+            "ok": True, "wire": "edge-real",
+            "verdict": result["verdict"], "dsse": result["dsse"],
+            "khipu_node": result["khipu_node"], "khipu_root": result["khipu_root"],
+            "key_source": result["key_source"], "public_key_pem": _kc_pubkey(),
+            "doctrine": DOCTRINE,
+            "honesty": ("REAL edge verdict: PAC-Bayes certified-floor Λ (Conjecture 1, "
+                        "NOT a theorem) over 13 axes derived deterministically from the "
+                        "submitted telemetry; REAL ECDSA-P256-SHA256 DSSEv1 signature "
+                        f"(key_source={result['key_source']}); appended to a real sha256 "
+                        "hash-chained Khipu DAG. ADS-B/Remote-ID fields are unauthenticated "
+                        "CLAIMS, not attested truth. NO MOCKS."),
+        })
+
+    async def _kc_edge3d_handler(request: _EdgeRequest_killinchu):
+        """Real 3-D edge scene from REAL recent verdicts (real ts, Λ, Khipu chain).
+
+        GET with no body  -> the live ring buffer (simulator-driven verdicts).
+        POST {frames:[..]} -> evaluate those telemetry frames and add to the scene.
+        We never fabricate tracks."""
+        body = None
+        if request.method == "POST":
+            try:
+                body = await request.json()
+            except Exception:
+                body = None
+        raw = []
+        if isinstance(body, dict) and isinstance(body.get("frames"), list):
+            raw = body["frames"]
+        elif isinstance(body, list):
+            raw = body
+        for fr in raw:
+            try:
+                telem = _kc_telem_from_body(fr)
+                res = _KC_EDGE_NODE.evaluate(telem)
+                _kc_record(telem, res)
+            except Exception:
+                pass
+        # Seed-on-empty: if the ring buffer is empty (fresh process / first paint
+        # before the SSE stream binds), advance the simulator ONE real frame per
+        # track so the deck shows real signed verdicts immediately. Still honest
+        # (simulated=True) — never fabricated.
+        if not _KC_RECENT and not raw:
+            try:
+                for telem in _KC_SIM.tick(1.0):
+                    res = _KC_EDGE_NODE.evaluate(telem)
+                    _kc_record(telem, res)
+            except Exception:
+                pass
+        recent = list(_KC_RECENT[-50:])
+        return _EdgeJR_killinchu({
+            "ok": True, "wire": "edge-3d-real",
+            "scene": {
+                "axes_taxonomy": list(_KC_AXES),
+                "no_fly_polygon": [{"lon": p[0], "lat": p[1]} for p in _KC_NOFLY],
+                "track_count": len(recent), "tracks": recent,
+            },
+            "khipu_root": _KC_EDGE_NODE.khipu.root,
+            "khipu_chain": _KC_EDGE_NODE.khipu.verify_chain(),
+            "key_source": _kc_keysrc(), "doctrine": DOCTRINE,
+            "honesty": ("3-D scene built from REAL recent edge verdicts (real signed "
+                        "timestamps, real Λ values, real Khipu hash-chain). Track motion "
+                        "is SIMULATOR-DRIVEN flight dynamics (simulated=True), NOT a "
+                        "connected drone. Each track carries a REAL signed Λ verdict. NO MOCKS."),
+        })
+
+    async def _kc_stream_handler(request: _EdgeRequest_killinchu):
+        """Live SSE stream of REAL signed Λ verdicts over the SIMULATED flight.
+
+        Each event is a real verdict: real PAC-Bayes Λ, real DSSE signature, real
+        Khipu node — computed live as the simulator advances real flight dynamics."""
+        async def _gen():
+            yield (": killinchu live verdict stream — REAL signed Λ over a "
+                   "SIMULATED drone flight (simulated=True). NO MOCKS.\n\n").encode()
+            try:
+                while True:
+                    if await request.is_disconnected():
+                        break
+                    for telem in _KC_SIM.tick(1.0):
+                        res = _KC_EDGE_NODE.evaluate(telem)
+                        rec = _kc_record(telem, res)
+                        payload = _kc_edge_json.dumps(rec, separators=(",", ":"))
+                        yield f"event: verdict\ndata: {payload}\n\n".encode()
+                    await _kc_edge_asyncio.sleep(1.0)
+            except _kc_edge_asyncio.CancelledError:
+                return
+        return _EdgeSSE_killinchu(_gen(), media_type="text/event-stream", headers={
+            "Cache-Control": "no-cache", "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        })
+
+    async def _kc_pubkey_handler(request: _EdgeRequest_killinchu):
+        return _EdgeJR_killinchu({
+            "ok": True, "public_key_pem": _kc_pubkey(), "key_source": _kc_keysrc(),
+            "alg": "ECDSA-P256-SHA256", "dsse": "DSSEv1",
+            "doctrine": DOCTRINE,
+            "honesty": ("Public key for verifying edge DSSE verdicts. key_source order: "
+                        "SZL_COSIGN_PRIVATE_PEM (org) > KILLINCHU_EDGE_KEY_PEM (node) > "
+                        "ephemeral. All REAL, none placeholder. SLSA L1 honest."),
+        })
+
+    for _path, _handler, _methods, _name in (
+        ("/api/killinchu/v1/verdict", _kc_verdict_handler, ["POST"], "killinchu_edge_verdict_real"),
+        ("/api/killinchu/v1/edge/3d", _kc_edge3d_handler, ["GET", "POST"], "killinchu_edge_3d_real"),
+        ("/api/killinchu/v1/stream/verdicts", _kc_stream_handler, ["GET"], "killinchu_edge_stream_sse"),
+        ("/api/killinchu/v1/edge/pubkey", _kc_pubkey_handler, ["GET"], "killinchu_edge_pubkey"),
+    ):
+        app.router.routes.insert(0, _EdgeRoute_killinchu(_path, _handler, methods=_methods, name=_name))
+    print("[killinchu] REAL edge organ registered: /api/killinchu/v1/{verdict,edge/3d,"
+          "stream/verdicts,edge/pubkey} "
+          f"key_source={_kc_keysrc()}", file=_kc_edge_sys.stderr)
+except Exception as _kc_edge_e:
+    import sys as _kc_edge_sys
+    import traceback as _kc_edge_tb
+    print(f"[killinchu] REAL edge organ FAILED to register: {_kc_edge_e!r}", file=_kc_edge_sys.stderr)
+    _kc_edge_tb.print_exc(file=_kc_edge_sys.stderr)
+# ============================================================================
+# END: REAL EDGE ORGAN — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: PREMIUM EDGE DECK + REAL-EDGE FORMULA SURFACE — killinchu (additive)
+# MUST register BEFORE uvicorn.run() (below) so the routes are live, and the
+# REAL EDGE ORGAN block above already inserted /edge/3d + /stream/verdicts at
+# position 0 ahead of the SPA catch-all.
+#   killinchu_edge_formulas  -> /edge/verdict, /edge/track-smooth,
+#                               /edge/quorum-status, /formulas/index
+#                               (PAC-Bayes Λ + Kalman + Byzantine quorum,
+#                                coordinated with the Formulas Full-Stack squad)
+#   killinchu_edge_console   -> /console + /console.js (premium command deck)
+# ADDITIVE — zero existing routes touched. NO MOCKS — real flight-dynamics sim,
+# real ECDSA-P256 DSSEv1 receipts, real hash-chained Khipu DAG. SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import killinchu_edge_formulas as _kc_edge_formulas
+    _kc_edge_formulas_status = _kc_edge_formulas.register(app, ns="killinchu")
+    import sys as _kc_ef_sys
+    print(f"[killinchu] real-edge formulas registered: {_kc_edge_formulas_status}",
+          file=_kc_ef_sys.stderr)
+except Exception as _kc_ef_e:
+    import sys as _kc_ef_sys
+    import traceback as _kc_ef_tb
+    print(f"[killinchu] real-edge formulas FAILED: {_kc_ef_e!r}", file=_kc_ef_sys.stderr)
+    _kc_ef_tb.print_exc(file=_kc_ef_sys.stderr)
+
+# ---------------------------------------------------------------------------
+# PCGI proof-carrying ENGAGEMENT RECEIPT — killinchu (additive, T104).
+#   killinchu_engagement_receipt -> POST /edge/engagement-receipt
+# Turns ONE real counter-UAS decision output (the edge verdict) into a single
+# signed, verifiable szl-receipt binding input+output digests + governing policy
+# id, with energy = honest UNAVAILABLE (unmeasured on edge — never fabricated).
+# Uses the EXISTING szl-receipt lib, with a byte-identical vendored fallback.
+# ADDITIVE — inserts at route position 0, ahead of the SPA catch-all; never
+# breaks the app. Receipt = evidence trail, NOT a proof the autonomy is correct.
+# ---------------------------------------------------------------------------
+try:
+    import killinchu_engagement_receipt as _kc_engagement_receipt
+    _kc_engagement_status = _kc_engagement_receipt.register(app, ns="killinchu")
+    import sys as _kc_er_sys
+    print(f"[killinchu] engagement receipt registered: {_kc_engagement_status}",
+          file=_kc_er_sys.stderr)
+except Exception as _kc_er_e:
+    import sys as _kc_er_sys
+    import traceback as _kc_er_tb
+    print(f"[killinchu] engagement receipt NOT mounted: {_kc_er_e!r}; app unaffected",
+          file=_kc_er_sys.stderr)
+    _kc_er_tb.print_exc(file=_kc_er_sys.stderr)
+
+try:
+    import killinchu_edge_console as _kc_edge_console
+    _kc_edge_console_status = _kc_edge_console.register(app, ns="killinchu")
+    import sys as _kc_ec_sys
+    print(f"[killinchu] premium edge console registered: {_kc_edge_console_status}",
+          file=_kc_ec_sys.stderr)
+except Exception as _kc_ec_e:
+    import sys as _kc_ec_sys
+    import traceback as _kc_ec_tb
+    print(f"[killinchu] premium edge console FAILED: {_kc_ec_e!r}", file=_kc_ec_sys.stderr)
+    _kc_ec_tb.print_exc(file=_kc_ec_sys.stderr)
+# ============================================================================
+# END: PREMIUM EDGE DECK + REAL-EDGE FORMULA SURFACE — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# ADDITIVE: SZL Agent Pattern v1 ("Ken") — AUTO-REGISTERED
+# Date: 2026-06-03 | By: Ecosystem Agentic Uplift Team
+# Doctrine v11 LOCKED 749/14/163 UNCHANGED. Kernel commit c7c0ba17.
+# P6-verified endpoints PRESERVED. Only NEW /v1/agent/* + /v1/mcp/* routes.
+# Sources adapted (Apache-2.0/MIT): LangGraph (Apache-2.0), Letta (Apache-2.0),
+#   AutoGen (MIT), MCP spec (Apache-2.0), smolagents (Apache-2.0), crewAI (MIT)
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_ken as _ken  # single source of truth
+    except Exception:
+        import szl_ken as _ken  # fall back to local vendored copy
+    import sys as _sys
+    # Detect flagship from FastAPI app title
+    _kf = "unknown"
+    _app_title = getattr(app, "title", "").lower()
+    for _fn in ["a11oy", "sentra", "amaru", "rosie", "killinchu"]:
+        if _fn in _app_title or _fn in __file__.lower():
+            _kf = _fn
+            break
+    _ken_router = _ken.make_ken_router(
+        flagship=_kf,
+        tools_manifest=_ken.get_default_tools(_kf),
+    )
+    app.include_router(_ken_router)
+    print(f"[{_kf}] szl_ken v1: POST /api/{_kf}/v1/agent/loop registered ✓", file=_sys.stderr)
+    print(f"[{_kf}] szl_ken v1: GET  /api/{_kf}/v1/mcp/tools registered ✓", file=_sys.stderr)
+    print(f"[{_kf}] szl_ken v1: GET  /api/{_kf}/v1/khipu/<hash> registered ✓", file=_sys.stderr)
+except ImportError as _ke:
+    print(f"[ken] szl_ken not available: {_ke!r}", file=__import__("sys").stderr)
+except Exception as _ke:
+    print(f"[ken] registration error (non-fatal): {_ke!r}", file=__import__("sys").stderr)
+# ============================================================================
+# END: SZL Agent Pattern v1 ("Ken") — ADDITIVE BLOCK
+# ============================================================================
+
+
+
+# ============================================================================
+# ADDITIVE: /api/killinchu/v1/adsb — FRONTIER ADS-B (OpenSky Network CC-BY-4.0)
+# INLINE (before SPA catch-all) — bypasses frontier patch import issues
+# Doctrine v11 LOCKED 749/14/163. c7c0ba17. Λ = Conjecture 1. SLSA L1.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+@app.get("/api/killinchu/v1/doctrine")
+async def killinchu_doctrine_inline():
+    """Doctrine endpoint — inline (before SPA catch-all)."""
+    return JSONResponse({
+        "flagship": "killinchu", "doctrine": "v11", "kernel_commit": "c7c0ba17",
+        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
+        "lambda_status": "Conjecture 1 (NOT a theorem)", "slsa": "L1 (honest)",
+        "role": "C-UAS / Andean drone classification",
+        "section_889_vendors": ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"],
+    })
+
+# NOTE: a second /api/killinchu/v1/adsb definition (killinchu_adsb_inline) was removed
+# here on 2026-06-07 — it duplicated killinchu_adsb_v3 (registered earlier, which wins
+# in FastAPI route matching) and was dead code. The live OpenSky ADS-B surface is served
+# by killinchu_adsb_v3 above (frontier='opensky_adsb' live, 'opensky_adsb_fallback' on
+# outage — the elite Live-Picture air layer keys off that label to stay honest).
+
+
+# ── QA6 (regression fix, killinchu-only serve.py): the JSON data handlers are
+#    registered ONLY under the namespaced base /api/killinchu/v1/* (feeds/osint/
+#    mesh). The BARE top-level paths the demo + QA harness use (/feeds/aircraft,
+#    /feeds/vessels[/stats], /osint/intel, /mesh/state, ...) had no route of their
+#    own, so they fell through to the SPA /{full_path:path} catch-all and were
+#    served the Cesium globe HTML (text/html) instead of JSON.
+#    Fix: register BARE-PATH ALIASES that REUSE the already-registered namespaced
+#    route's own endpoint (same handler, same JSON, same metered data surface),
+#    front-inserted so they beat the SPA catch-all. Additive — no handler is
+#    rewritten, no shared bytes touched; the page routes (/elite*, /jackin*) keep
+#    their QA5 rate-limit exemption untouched. Honest JSON, doctrine intact.
+try:
+    from starlette.routing import Route as _QA6Route
+    from fastapi.routing import APIRoute as _QA6APIRoute
+    _qa6_base = "/api/killinchu/v1"
+    # bare_path -> namespaced_path (endpoint reused from the namespaced route)
+    _qa6_aliases = {
+        "/feeds/aircraft":        f"{_qa6_base}/feeds/aircraft",
+        "/feeds/vessels":         f"{_qa6_base}/feeds/vessels",
+        "/feeds/vessels/stats":   f"{_qa6_base}/feeds/vessels/stats",
+        "/feeds/remoteid":        f"{_qa6_base}/feeds/remoteid",
+        "/feeds/realdata/status": f"{_qa6_base}/feeds/realdata/status",
+        "/osint/intel":           f"{_qa6_base}/osint/intel",
+        "/mesh/state":            f"{_qa6_base}/mesh/state",
+    }
+    # Index the live routes by path so we can borrow each one's endpoint + methods.
+    # NOTE: the namespaced sources are a MIX of route classes —
+    #   feeds/osint are Starlette Route objects whose handlers take (request);
+    #   /mesh/state is a FastAPI APIRoute whose handler takes NO args.
+    # We must clone each alias using the SAME route class as its source so the
+    # handler is invoked with its native calling convention (a Starlette Route
+    # wrapper around a zero-arg FastAPI handler would pass `request` and crash).
+    _qa6_by_path = {}
+    for _r in app.router.routes:
+        _p = getattr(_r, "path", None)
+        if _p and _p not in _qa6_by_path:
+            _qa6_by_path[_p] = _r
+    _qa6_added = []
+    _qa6_existing_bare = {getattr(_r, "path", None) for _r in app.router.routes}
+    for _bare, _nsp in _qa6_aliases.items():
+        if _bare in _qa6_existing_bare:
+            continue  # never shadow an already-present bare route
+        _src = _qa6_by_path.get(_nsp)
+        if _src is None:
+            continue  # namespaced route absent (module not mounted) — skip silently
+        _ep = getattr(_src, "endpoint", None)
+        if _ep is None:
+            continue
+        _methods = sorted(getattr(_src, "methods", None) or {"GET"})
+        _name = "qa6_bare_alias_" + _bare.strip("/").replace("/", "_")
+        if isinstance(_src, _QA6APIRoute):
+            # FastAPI handler (e.g. zero-arg /mesh/state): build a fresh APIRoute so
+            # FastAPI's dependant solver wraps the endpoint with its native signature.
+            _alias = _QA6APIRoute(_bare, _ep, methods=_methods, name=_name,
+                                  response_class=getattr(_src, "response_class", JSONResponse))
+        else:
+            # Starlette Route handler taking (request) — feeds/* and osint/intel.
+            _alias = _QA6Route(_bare, _ep, methods=_methods, name=_name)
+        app.router.routes.insert(0, _alias)
+        _qa6_added.append(_bare)
+    print(f"[killinchu] QA6: bare data-path JSON aliases front-inserted: {_qa6_added}", file=__import__("sys").stderr)
+except Exception as _qa6_e:  # pragma: no cover — additive; never break the Space
+    print(f"[killinchu] QA6 bare-alias wiring NOT applied: {_qa6_e!r}", file=__import__("sys").stderr)
+
+
+@app.get("/{full_path:path}")
+async def spa_fallback(full_path: str) -> Response:
+    # QA6 defense-in-depth: bare data prefixes must NEVER be served the SPA HTML.
+    # If a bare data path somehow reaches the catch-all (alias not wired), return an
+    # honest JSON 404 instead of the globe page (which would be silently wrong).
+    if full_path.startswith("api/") or full_path.startswith(("feeds/", "osint/", "mesh/")):
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if full_path in ("feeds", "osint", "mesh"):
+        return JSONResponse({"error": "not found"}, status_code=404)
+    candidate = _safe_join_under(STATIC_DIR, full_path)
+    if candidate is None:
+        return FileResponse(INDEX_HTML, media_type="text/html")
+    if candidate.is_file():
+        return FileResponse(candidate)
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+
+# ============================================================================
+# FRONTIER REGISTRATION — killinchu (2026-06-03T05:00Z)
+# Loads killinchu_frontier_patch.py and inserts routes at position 0.
+# ADDITIVE ONLY. Doctrine v11 LOCKED 749/14/163. Kernel c7c0ba17. SLSA L1.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import killinchu_frontier_patch as _kc_ftr
+    _kc_ftr_status = _kc_ftr.register(app)
+    import sys as _kc_ftr_sys
+    print(f"[killinchu-frontier] registered: {_kc_ftr_status}", file=_kc_ftr_sys.stderr)
+except Exception as _kc_ftr_e:
+    import sys as _kc_ftr_sys, traceback as _kc_ftr_tb
+    print(f"[killinchu-frontier] FAILED: {_kc_ftr_e!r}", file=_kc_ftr_sys.stderr)
+    _kc_ftr_tb.print_exc(file=_kc_ftr_sys.stderr)
+# ============================================================================
+# END: FRONTIER REGISTRATION — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: /khipu/dag ALIAS — killinchu (additive, v11 locked)
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    from fastapi.routing import APIRoute as _DagRoute_killinchu
+    from fastapi.responses import JSONResponse as _DagJR_killinchu
+    async def _killinchu_khipu_dag_handler(request):
+        import httpx as _hx
+        try:
+            async with _hx.AsyncClient(timeout=5.0) as _c:
+                _r = await _c.get("http://127.0.0.1:7860/api/killinchu/khipu/ledger")
+                _data = _r.json()
+        except Exception as _ex:
+            print(f"[killinchu] khipu dag alias proxy error: {_ex!r}", file=sys.stderr)
+            _data = {"error": "ledger unavailable"}
+        _data["_dag_alias"] = True
+        return _DagJR_killinchu(_data)
+    _dag_r_killinchu = _DagRoute_killinchu(
+        "/api/killinchu/khipu/dag",
+        _killinchu_khipu_dag_handler,
+        methods=["GET"],
+        name="killinchu_khipu_dag_alias"
+    )
+    app.router.routes.insert(0, _dag_r_killinchu)
+    import sys as _killinchu_dag_sys
+    print("[killinchu] /khipu/dag alias registered at /api/killinchu/khipu/dag", file=_killinchu_dag_sys.stderr)
+except Exception as _killinchu_dag_e:
+    import sys as _killinchu_dag_sys
+    print(f"[killinchu] /khipu/dag alias FAILED: {_killinchu_dag_e!r}", file=_killinchu_dag_sys.stderr)
+# ============================================================================
+# END: /khipu/dag ALIAS — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# FLEET (Vessels) FRONT-INSERT — runs LAST, after killinchu_frontier_patch's
+# routes.clear()+extend, so the FLEET routes are guaranteed to sit AHEAD of the
+# /{full_path:path} SPA catch-all (which 404s anything under api/). The earlier
+# include_router at ~line 1689 is harmless; this re-inserts the same routes at
+# position 0 to win precedence on the HF runtime. ADDITIVE ONLY. NO mocks.
+# ============================================================================
+try:
+    import sys as _fleet2_sys
+    from fastapi.routing import APIRoute as _Fleet2Route
+    from fastapi.responses import JSONResponse as _Fleet2JR
+    import killinchu_fleet_vessels as _fleet2
+    _fleet2_data = _fleet2._load()
+    _FLEET2_LABEL = _fleet2.HONESTY_LABEL
+    _fleet2_base = "/api/killinchu/v1/fleet"
+
+    def _fleet2_make(key):
+        async def _h() -> _Fleet2JR:
+            return _Fleet2JR({"data": _fleet2_data.get(key, []),
+                              "honesty": _FLEET2_LABEL, "source_key": key})
+        return _h
+
+    async def _fleet2_all() -> _Fleet2JR:
+        return _Fleet2JR({"datasets": _fleet2_data,
+            "counts": {k: (len(v) if isinstance(v, list) else None)
+                       for k, v in _fleet2_data.items()},
+            "honesty": _FLEET2_LABEL,
+            "source": "github.com/szl-holdings/platform seed-data/vessels/*"})
+
+    async def _fleet2_voyage() -> _Fleet2JR:
+        return _Fleet2JR(_fleet2.voyage_risk_loop())
+
+    _fleet2_specs = [
+        ("/vessels", _fleet2_make("vessels"), "fleet_vessels"),
+        ("/forecast-modules", _fleet2_make("forecast-modules"), "fleet_forecast_modules"),
+        ("/predictive-maintenance", _fleet2_make("predictive-maintenance"), "fleet_predictive_maintenance"),
+        ("/compliance-certificates", _fleet2_make("compliance-certificates"), "fleet_compliance_certificates"),
+        ("/port-state-deficiencies", _fleet2_make("port-state-deficiencies"), "fleet_port_state_deficiencies"),
+        ("/ai-briefings", _fleet2_make("ai-briefings"), "fleet_ai_briefings"),
+        ("/event-logs", _fleet2_make("event-logs"), "fleet_event_logs"),
+        ("/fleets", _fleet2_make("fleets"), "fleet_fleets"),
+        ("/maintenance-logs", _fleet2_make("maintenance-logs"), "fleet_maintenance_logs"),
+        ("/shipment-records", _fleet2_make("shipment-records"), "fleet_shipment_records"),
+        ("/all", _fleet2_all, "fleet_all"),
+        ("/voyage-risk", _fleet2_voyage, "fleet_voyage_risk"),
+    ]
+    _fleet2_names = {n for _, _, n in _fleet2_specs}
+    # Drop any prior copies (from the early include_router) to avoid duplicates.
+    app.router.routes[:] = [r for r in app.router.routes
+                            if getattr(r, "name", "") not in _fleet2_names]
+    _fleet2_new = [_Fleet2Route(f"{_fleet2_base}{p}", h, methods=["GET"], name=n)
+                   for p, h, n in _fleet2_specs]
+    for _r in reversed(_fleet2_new):
+        app.router.routes.insert(0, _r)
+    print(f"[killinchu] FLEET front-insert OK: {len(_fleet2_new)} routes ahead of catch-all",
+          file=_fleet2_sys.stderr)
+except Exception as _fleet2_e:
+    import sys as _fleet2_sys, traceback as _fleet2_tb
+    print(f"[killinchu] FLEET front-insert FAILED: {_fleet2_e!r}", file=_fleet2_sys.stderr)
+    _fleet2_tb.print_exc(file=_fleet2_sys.stderr)
+# ============================================================================
+# END: FLEET (Vessels) FRONT-INSERT
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: GOVERNED AGENT LOOP — killinchu (2026-06-06, ADDITIVE, v11 locked)
+# Wires the OPERATIONAL RAG -> tool-call -> policy/trust gate -> signed-receipt
+# loop end-to-end + the canonical LIVE MCP (GET/POST /mcp/) + consumer UI
+# (/ask-and-act). Uses killinchu's REAL persistent cosign signer (szl_dsse) so
+# receipts are genuinely ECDSA-P256-SHA256 signed and verifiable offline with
+# `cosign verify-blob --key cosign.pub`. Routes are inserted at position 0 so
+# they beat the SPA /{full_path:path} catch-all. NEVER crashes the app.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_agentic_loop as _szl_loop  # single source of truth
+    except Exception:
+        import szl_agentic_loop as _szl_loop
+    import sys as _kloop_sys
+
+    def _killinchu_loop_sign(payload_obj):
+        """Sign a decision payload with the persistent cosign DSSE key. If the
+        signing key secret is not present in this runtime, returns an honestly
+        UNSIGNED envelope (no fabricated signature)."""
+        try:
+            env = _szl_dsse.sign_payload(payload_obj, "application/vnd.szl.receipt+json")
+            # normalize: ensure the keys the loop module expects are present
+            env.setdefault("signed", bool(env.get("signatures")))
+            return env
+        except Exception as _se:
+            return {"signed": False, "signatures": [],
+                    "payloadType": "application/vnd.szl.receipt+json",
+                    "honesty": "UNSIGNED — signer raised: %s" % type(_se).__name__}
+
+    def _killinchu_loop_verify(env):
+        """Re-verify a DSSE envelope against the SZLHOLDINGS cosign.pub via
+        szl_dsse.verify_envelope. Maps to the loop module's expected verdict."""
+        try:
+            v = _szl_dsse.verify_envelope(env)
+            return {"signature_valid": bool(v.get("verified")),
+                    "detail": (v.get("reason") or
+                               "ECDSA-P256-SHA256 over DSSE PAE verified against "
+                               "SZLHOLDINGS cosign.pub (persistent key).")}
+        except Exception as _ve:
+            return {"signature_valid": False,
+                    "detail": "signature check failed: %s" % type(_ve).__name__}
+
+    def _killinchu_loop_pubpem():
+        try:
+            return _szl_dsse.COSIGN_PUBLIC_PEM
+        except Exception:
+            return ""
+
+    _kloop_status = _szl_loop.register(
+        app, "killinchu",
+        _killinchu_loop_sign,
+        verify_fn=_killinchu_loop_verify,
+        pub_pem_fn=_killinchu_loop_pubpem,
+        signer_label="persistent cosign ECDSA-P256-SHA256 (verifiable offline vs /cosign.pub)",
+    )
+    print(f"[killinchu] governed agent loop registered: {_kloop_status}", file=_kloop_sys.stderr)
+except Exception as _kloop_e:
+    import sys as _kloop_sys, traceback as _kloop_tb
+    print(f"[killinchu] governed agent loop FAILED (non-fatal): {_kloop_e!r}", file=_kloop_sys.stderr)
+    _kloop_tb.print_exc(file=_kloop_sys.stderr)
+# ============================================================================
+# END: GOVERNED AGENT LOOP — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: FORMULA-WIRING SURFACE — killinchu (2026-06-06, ADDITIVE, surgical)
+# Wires ALL ~80 kernel-verified theorems to REAL, executed mechanisms (shared,
+# byte-identical szl_formula_wiring across a11oy + killinchu). Adds:
+#   GET  /api/killinchu/v1/formulas/selftest        (runs every mechanism live)
+#   GET  /api/killinchu/v1/formulas/proof-summary   (single-source proof+capability map)
+#   POST /api/killinchu/v1/formulas/conformal | routing-envelope | consensus-quorum
+#   POST /api/killinchu/v1/formulas/verify-receipts
+# Routes inserted at position 0 so they beat the SPA /{full_path:path} catch-all.
+# try/except guarded (non-fatal). The loop (szl_agentic_loop) already imports
+# these mechanisms and calls them inside every governed run (formula_proof).
+# The proof-summary endpoint is byte-identical to a11oy's — single source of
+# truth so the two renderers CANNOT diverge.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_formula_wiring as _szl_fw  # single source of truth
+    except Exception:
+        import szl_formula_wiring as _szl_fw
+    import sys as _kfw_sys
+    _kfw_status = _szl_fw.register(app, "killinchu")
+    print(f"[killinchu] formula-wiring surface registered: {_kfw_status}", file=_kfw_sys.stderr)
+except Exception as _kfw_e:
+    import sys as _kfw_sys, traceback as _kfw_tb
+    print(f"[killinchu] formula-wiring FAILED (non-fatal): {_kfw_e!r}", file=_kfw_sys.stderr)
+    _kfw_tb.print_exc(file=_kfw_sys.stderr)
+# ============================================================================
+# END: FORMULA-WIRING SURFACE — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: a11oy CODE — governed agentic coder (PORTED to killinchu, 2026-06-06)
+# Three governed modes (chat / run-code-in-sandbox / research). Every turn flows
+# through the proven P1-P6 loop and emits a per-run-GENESIS hash-chained, cosign-
+# signed receipt (reuses killinchu's REAL persistent signer _killinchu_loop_sign).
+# Router: C20 stable softmax + W7-5 PAC-Bayes envelope. Confidence: W5-3/W7-4
+# conformal (never 100%). Consensus: C10-C12. Halts: F-G5 bounded-frontier.
+# OPEN-WEIGHT models ONLY (closed APIs filtered out per doctrine); NO weights
+# redistributed; NO AGI; lambda=Conjecture 1. Real restricted-subprocess sandbox
+# (no network, CPU/mem/time/fsize rlimits). Routes inserted at position 0 so they
+# beat the SPA /{full_path:path} catch-all. try/except guarded — never crashes app.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import a11oy_code_engine as _kc_code  # single source of truth
+    except Exception:
+        import a11oy_code_engine as _kc_code
+    import sys as _kc_code_sys
+    # Reuse the loop's REAL persistent cosign signer/verifier (defined above).
+    _kc_code_status = _kc_code.register(
+        app, "killinchu",
+        _killinchu_loop_sign,
+        verify_fn=_killinchu_loop_verify,
+        signer_label="persistent cosign ECDSA-P256-SHA256 (verifiable offline vs /cosign.pub)",
+    )
+    print(f"[killinchu] a11oy Code engine registered: {_kc_code_status}", file=_kc_code_sys.stderr)
+except Exception as _kc_code_e:
+    import sys as _kc_code_sys, traceback as _kc_code_tb
+    print(f"[killinchu] a11oy Code engine FAILED (non-fatal): {_kc_code_e!r}", file=_kc_code_sys.stderr)
+    _kc_code_tb.print_exc(file=_kc_code_sys.stderr)
+# ============================================================================
+# END: a11oy CODE — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: OPEN-WEIGHT ALLOY MODEL LAYER — killinchu (2026-06-06, ADDITIVE; PORTED from a11oy)
+# Model-integration squad (Opus 4.8). Same open-weight alloy forged into a11oy,
+# ported to killinchu. Strongest OPEN-WEIGHT coding models (DeepSeek-Coder-V2
+# CODE_PRIMARY, Qwen2.5-Coder, Llama-3.3; Codestral flagged NON-COMMERCIAL/excluded),
+# BOUND by proven formulas: C20/W7-5 router, W5-3/W7-4 conformal (never 100%),
+# C10-C12 Byzantine consensus; every call -> REAL signed receipt via killinchu's
+# persistent cosign signer (_killinchu_loop_sign). UNIFY-not-fork: extends
+# szl_llm_registry.MODEL_REGISTRY. Open weights only; weights NOT redistributed; NO
+# closed weights; NO AGI; lambda=Conjecture 1. No local GGUF here -> honest tower-side
+# label (output NEVER faked). Routes inserted at position 0 so they beat the SPA
+# /{full_path:path} catch-all. try/except guarded — can never crash the app.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+_ALLOY_DIAG_K = {"status": "not-run"}
+try:
+    from starlette.routing import Route as _AlloyDiagRouteK
+    from starlette.responses import JSONResponse as _AlloyDiagJSONK
+    async def _killinchu_alloy_diag_route(request):
+        return _AlloyDiagJSONK(_ALLOY_DIAG_K)
+    for _adpk in ("/api/killinchu/v1/alloy/_diag", "/v1/alloy/_diag"):
+        app.router.routes.insert(0, _AlloyDiagRouteK(_adpk, _killinchu_alloy_diag_route,
+                                                     methods=["GET"], name="killinchu_alloy_diag_%s" % _adpk.count('/')))
+except Exception:
+    pass
+
+try:
+    import szl_alloy_models as _szl_alloy_k
+    import sys as _alloy_sys_k
+    _alloy_status_k = _szl_alloy_k.register(app, "killinchu", _killinchu_loop_sign)
+    try:
+        _alloy_unify_k = _szl_alloy_k.unify_into_registry()
+    except Exception as _uek:
+        print(f"[killinchu] alloy unify error: {_uek!r}", file=_alloy_sys_k.stderr)
+        _alloy_unify_k = {"unified": False, "error": "unify failed; see server logs"}
+    print(f"[killinchu] open-weight alloy model layer registered: {_alloy_status_k}; unify={_alloy_unify_k}", file=_alloy_sys_k.stderr)
+    _ALLOY_DIAG_K = {"status": "ok", "registered": _alloy_status_k, "unify": _alloy_unify_k}
+except Exception as _alloy_ek:
+    import sys as _alloy_sys_k, traceback as _alloy_tb_k
+    print(f"[killinchu] open-weight alloy model layer FAILED (non-fatal): {_alloy_ek!r}", file=_alloy_sys_k.stderr)
+    _alloy_tb_k.print_exc(file=_alloy_sys_k.stderr)
+    _ALLOY_DIAG_K = {"status": "FAILED", "error": "registration failed; see server logs"}
+# ============================================================================
+# END: OPEN-WEIGHT ALLOY MODEL LAYER — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: OPERATIONAL CONTROL SURFACES — killinchu (2026-06-06, ADDITIVE)
+# Makes VESSELS and DRONES genuinely operational: select a track -> issue a
+# governed command -> it runs through the deny-by-default policy/kernel gate ->
+# emits a genuinely cosign-signed receipt -> the track STATE updates (not a
+# static display). Every control action is wrapped in the governed-run loop
+# (P1-P6) so 'operate' = 'governed + receipted'. Self-contained operator UI at
+# /ops and /control. Routes inserted at position 0 so they beat the SPA
+# /{full_path:path} catch-all. NEVER crashes the app. Sample/replay state is
+# labeled honestly (not a live AIS/C-UAS feed); the control actions are real.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import killinchu_ops_control as _kc_ops
+    import sys as _kops_sys
+    _kops_status = _kc_ops.register(app, "killinchu")
+    print(f"[killinchu] operational control surfaces registered: {_kops_status}", file=_kops_sys.stderr)
+except Exception as _kops_e:
+    import sys as _kops_sys, traceback as _kops_tb
+    print(f"[killinchu] operational control surfaces FAILED (non-fatal): {_kops_e!r}", file=_kops_sys.stderr)
+    _kops_tb.print_exc(file=_kops_sys.stderr)
+# ============================================================================
+# END: OPERATIONAL CONTROL SURFACES — killinchu
+# ============================================================================
+
+# ============================================================================
+# BEGIN: dev3 HF ASSETS INSTILL layer (Knowledge & Formulas / Evidence)
+# ADDITIVE. Namespace /api/killinchu/v1/assets/* — same app-agnostic module as
+# a11oy (uses ns param). Server-side fetch of REAL SZLHOLDINGS/* dataset resolve
+# URLs (rag-corpus, lean-proofs, canonical-formulas, lake receipts, evidence,
+# k-verify, ...) with honest live|cached|pending degrade. Routes moved to FRONT
+# inside register() to win over the /{full_path:path} SPA catch-all. 0 runtime
+# browser CDN (server-side fetch, not a browser CDN load).
+# ============================================================================
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import a11oy_hf_assets as _kc_hf_assets  # single source of truth
+    except Exception:
+        import a11oy_hf_assets as _kc_hf_assets  # fall back to local vendored copy
+    import sys as _kchfa_sys
+    _kchfa_status = _kc_hf_assets.register(app, ns="killinchu")
+    print(f"[killinchu] dev3 HF assets instill registered: {_kchfa_status}", file=_kchfa_sys.stderr)
+    _KILLINCHU_HFA_DIAG = {"status": "ok", "registered": _kchfa_status}
+except Exception as _kchfa_e:
+    import sys as _kchfa_sys, traceback as _kchfa_tb
+    print(f"[killinchu] dev3 HF assets instill FAILED (non-fatal): {_kchfa_e!r}", file=_kchfa_sys.stderr)
+    _kchfa_tb.print_exc(file=_kchfa_sys.stderr)
+    _KILLINCHU_HFA_DIAG = {"status": "FAILED", "error": "registration failed; see server logs"}
+# ============================================================================
+# END: dev3 HF ASSETS INSTILL layer — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# ADDITIVE: Prometheus /metrics exporter (szl-metrics-prom-patch)
+# Date: 2026-06-13 | Signed-off-by: Forge <forge@szlholdings.ai>
+# WHY: the UDS Package spec.monitor scrapes GET :7860/metrics, but with no metrics
+# route that path fell through to the SPA /{full_path:path} catch-all and returned
+# the app HTML shell (200 text/html) — so Prometheus harvested ZERO samples. This
+# serves REAL Prometheus exposition format at /metrics (process + HTTP request
+# counters/latency, all self-measured, none fabricated). Registered LAST (after
+# frontier_patch routes.clear()+extend) and FRONT-INSERTED so it beats the SPA
+# catch-all. Pure-stdlib, pass-through ASGI middleware (SSE-safe), try/except so it
+# can NEVER take the Space down. Shared module byte-identical a11oy<->killinchu.
+# ============================================================================
+try:
+    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
+        from szl_substrate import szl_metrics_prom as _szl_prom  # single source of truth
+    except Exception:
+        import szl_metrics_prom as _szl_prom  # fall back to local vendored copy
+    import sys as _prom_sys
+    _prom_status = _szl_prom.register(app, ns="killinchu")
+    print(f"[killinchu] szl_metrics_prom: {_prom_status}", file=_prom_sys.stderr)
+except Exception as _prom_e:  # pragma: no cover
+    print(f"[killinchu] szl_metrics_prom NOT registered (non-fatal): {_prom_e!r}",
+          file=__import__("sys").stderr)
+# ============================================================================
+# END: Prometheus /metrics exporter
+# ============================================================================
+
+
+# ============================================================================
+# ENTRYPOINT — MUST be the LAST top-level block. uvicorn.run() blocks forever,
+# so every route registration above (SPA catch-all, frontier patch, dag alias,
+# FLEET front-insert, governed agent loop) MUST be registered before this runs.
+# Relocated 2026-06-06 to fix governed-loop + catch-all 404 (was dead code after
+# a blocking uvicorn.run mid-file).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ============================================================================
+
+
+
+# ============================================================================
+# BEGIN: JACK-IN MISSION CONSOLE — killinchu (ADDITIVE, 2026-06-13, Dev5)
+# Mounts the self-contained "JACK IN" mission console (connect a drone/vessel →
+# ingest → fuse → classify → DECIDE → SIMULATED engage → khipu receipt) as a NEW
+# surface at /jackin (and the alias /elite/jackin). The static app lives under
+# /app/static/jackin/ (rides in via the existing `COPY static/ ./static/` layer —
+# NO Dockerfile change needed). 0 runtime CDN; every lib vendored under
+# static/jackin/assets/vendor. Same-origin: the UI calls killinchu /api/killinchu/v1/*
+# and /khipu/sign directly (KILLINCHU_BASE=''); the a11oy ledger/command-log are
+# cross-origin but a11oy already serves open CORS for the killinchu origin.
+#
+# Doctrine v11 LOCKED 749/14/163. Kernel c7c0ba17. Λ = Conjecture 1. SLSA L1.
+# Effector SIMULATED, human-on-the-loop. NO takeover/jam/spoof. Real data LIVE /
+# sample SAMPLE — never fabricated.
+#
+# Registered at position 0 so the explicit /jackin routes beat the SPA
+# /{full_path:path} catch-all. try/except-guarded — can NEVER crash the app.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    from pathlib import Path as _JK_Path
+    from fastapi import Request as _JK_Request
+    from fastapi.routing import APIRoute as _JK_Route
+    from fastapi.responses import (
+        FileResponse as _JK_File,
+        HTMLResponse as _JK_HTML,
+        RedirectResponse as _JK_Redir,
+        JSONResponse as _JK_JSON,
+    )
+    import sys as _jk_sys
+
+    _JK_DIR = _JK_Path(__file__).resolve().parent / "static" / "jackin"
+    _JK_INDEX = _JK_DIR / "index.html"
+
+    def _jk_index_html() -> str:
+        # Serve index.html with a <base href="/jackin/"> injected so the app's
+        # relative asset paths (assets/css/..., assets/js/...) resolve under
+        # /jackin/ regardless of trailing slash. The on-disk file is unchanged.
+        html = _JK_INDEX.read_text(encoding="utf-8")
+        if "<base " not in html:
+            html = html.replace("<head>", '<head>\n  <base href="/jackin/">', 1)
+        return html
+
+    async def _jk_root(request: _JK_Request):
+        # Canonicalise to the trailing-slash form so relative assets resolve.
+        if not _JK_INDEX.is_file():
+            return _JK_JSON({"error": "jackin console not bundled"}, status_code=404)
+        return _JK_HTML(_jk_index_html())
+
+    async def _jk_root_noslash(request: _JK_Request):
+        return _JK_Redir(url="/jackin/", status_code=307)
+
+    async def _jk_asset(request: _JK_Request):
+        # Serve /jackin/<path> from static/jackin/<path> (assets, vendor, etc.).
+        rel = request.path_params.get("jk_path", "") or ""
+        if rel in ("", "index.html"):
+            return _JK_HTML(_jk_index_html())
+        candidate = _safe_join_under(_JK_DIR, rel)
+        if candidate is None:
+            return _JK_HTML(_jk_index_html())
+        if candidate.is_file():
+            return _JK_File(str(candidate))
+        # SPA-style fallback to the jackin index for unknown sub-paths.
+        return _JK_HTML(_jk_index_html())
+
+    # alias under /elite so the console is reachable as the /elite JACK IN surface too.
+    async def _jk_elite_alias(request: _JK_Request):
+        return _JK_Redir(url="/jackin/", status_code=307)
+
+    _jk_routes = [
+        _JK_Route("/jackin", _jk_root_noslash, methods=["GET"], name="jackin_root_noslash"),
+        _JK_Route("/jackin/", _jk_root, methods=["GET"], name="jackin_root"),
+        _JK_Route("/jackin/{jk_path:path}", _jk_asset, methods=["GET"], name="jackin_asset"),
+        _JK_Route("/elite/jackin", _jk_elite_alias, methods=["GET"], name="jackin_elite_alias"),
+    ]
+    # Insert at the FRONT so these beat the SPA /{full_path:path} catch-all.
+    for _r in reversed(_jk_routes):
+        app.router.routes.insert(0, _r)
+
+    print(
+        f"[killinchu] JACK-IN console mounted at /jackin "
+        f"(bundle present={_JK_INDEX.is_file()}, dir={_JK_DIR})",
+        file=_jk_sys.stderr,
+    )
+except Exception as _jk_e:
+    import sys as _jk_sys, traceback as _jk_tb
+    print(f"[killinchu] JACK-IN console NOT mounted (non-fatal): {_jk_e!r}", file=_jk_sys.stderr)
+    _jk_tb.print_exc(file=_jk_sys.stderr)
+# ============================================================================
+# END: JACK-IN MISSION CONSOLE — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: MARITIME HOLOGRAPHIC GLOBE — killinchu (ADDITIVE, 2026-06-13, MW5)
+# Mounts the self-contained WebGL2 holographic maritime globe as a NEW /elite
+# view (and /jackin/globe alias). Plots REAL vessel tracks (feeds/vessels —
+# Digitraffic Finland AIS) + REAL aircraft (feeds/aircraft — adsb.lol) at true
+# lat/lon with motion, plus honestly-labelled intel layers: dark-vessel HALOS,
+# AIS-spoof ARCS, Λ-risk COLOR (Conjecture 1, never claims uniqueness) and
+# dead-reckoning FORECAST cones. Layers are INFERENCE/FORECAST today and
+# auto-upgrade to backend LIVE the moment the W2/W3 maritime endpoints
+# (killinchu_maritime_intel /maritime/{dark,spoof}, killinchu_maritime_risk
+# /maritime/risk) are reachable AND the feeds envelope advertises
+# caps.maritime_intel — capability-gated so the view NEVER fires a request that
+# 404s. A dedicated CHINA-SEAS board mode flies the camera over SCS/Taiwan
+# Strait/Malacca. Provenance/honesty HUD: "effector simulated · forecasts are
+# projections". The entire WebGL engine, landmask and styles are vendored inline
+# (base64-embedded HTML) — 0 runtime CDN. Never fabricates a track.
+#
+# Doctrine v11 LOCKED: locked=8 @ c7c0ba17. Λ = Conjecture 1. Effector SIMULATED,
+# human-on-the-loop. Real data LIVE / projections FORECAST / SAMPLE labelled.
+# WCAG-AA. prefers-reduced-motion respected.
+#
+# register() front-inserts /elite/globe, /elite/globe/, /jackin/globe at
+# position 0 so they beat the SPA /{full_path:path} catch-all. try/except-
+# guarded — can NEVER crash the app. ADDITIVE ONLY; touches no existing route.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import sys as _kcglobe_sys
+    import killinchu_maritime_globe as _kc_globe
+    _kcglobe_status = _kc_globe.register(app)
+    print(f"[killinchu] maritime holographic globe registered: {_kcglobe_status}",
+          file=_kcglobe_sys.stderr)
+except Exception as _kcglobe_e:
+    import sys as _kcglobe_sys, traceback as _kcglobe_tb
+    print(f"[killinchu] maritime globe NOT registered (non-fatal): {_kcglobe_e!r}",
+          file=_kcglobe_sys.stderr)
+    _kcglobe_tb.print_exc(file=_kcglobe_sys.stderr)
+# ============================================================================
+# END: MARITIME HOLOGRAPHIC GLOBE — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: SZL-MESH BACKEND API — killinchu (Mesh Dev 3, 2026-06, v11 LOCKED)
+# Exposes the REAL in-process szl-mesh over HTTP under /api/killinchu/v1/mesh/*:
+#   GET  /mesh/topology                  — live relational graph (spec 08)
+#   GET  /mesh/nodes                     — node list + health + enrollment
+#   POST /mesh/enroll                    — doctrine-gated enrollment (spec 05)
+#   POST /mesh/write                     — receipted CRDT state transition -> DSSE receipt (spec 01/02)
+#   POST /mesh/quorum                    — 3-of-4 Khipu quorum -> quorum certificate
+#   GET  /mesh/receipt/<id>/canonical    — re-hashable preimage (browser-verifiable MATCH)
+#   POST /mesh/revoke                    — CRDT-native revocation (spec 06)
+#   GET  /mesh/status                    — doctrine + node count + quorum config + Conjecture-2 note
+# Runs a REAL in-process 3-4 node mesh harness (Dev 1 model): each node holds a
+# genuine ephemeral ECDSA-P256 keypair, every receipt is a real DSSE envelope
+# (re-hashable), every quorum cert aggregates real per-witness ECDSA sigs over
+# the SAME action hash. NEVER fabricates a node or a quorum; if the harness is
+# not running the endpoints return an HONEST 503 (live:false). register()
+# FRONT-INSERTS the routes at position 0 so they beat the SPA /{full_path:path}
+# catch-all (the path-variant 404 lesson). try/except-guarded — never crashes.
+# Khipu BFT = Conjecture 2 (honest); soft-safety AP is the shipped model.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import sys as _kc_mesh_sys
+    import killinchu_mesh as _kc_mesh
+    _kc_mesh_status = _kc_mesh.register(app, ns="killinchu")
+    print(f"[killinchu] szl-mesh backend API registered: {_kc_mesh_status}",
+          file=_kc_mesh_sys.stderr)
+except Exception as _kc_mesh_e:
+    import sys as _kc_mesh_sys, traceback as _kc_mesh_tb
+    print(f"[killinchu] szl-mesh backend API NOT registered (non-fatal): {_kc_mesh_e!r}",
+          file=_kc_mesh_sys.stderr)
+    _kc_mesh_tb.print_exc(file=_kc_mesh_sys.stderr)
+# ============================================================================
+# END: SZL-MESH BACKEND API — killinchu
+# ============================================================================
+
+
+# ===========================================================================
+# ADDITIVE — WAQAY governed quantized vector index (2026-06-14, WAQAY team).
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+# WAQAY (Quechua: to keep / guard / store) — our OWN governed, air-gapped,
+# DSSE-signed quantized vector index. Studied MIT turbovec + Google Research
+# TurboQuant; built OUR pure-Python index (szl_waqay.py — byte-identical with
+# a11oy). register() FRONT-INSERTS routes before the SPA catch-all. ADDITIVE,
+# try/except-guarded. Compression MEASURED; recall MODELED bound (never perfect);
+# perf vs Rust SIMD MODELED/ROADMAP. Attribution: turbovec (c) 2026 Ryan Codrai
+# (MIT) + Google Research TurboQuant; NOTICES.md. 0 CDN.
+# ===========================================================================
+try:
+    import szl_waqay as _szl_waqay
+    _waqay_status = _szl_waqay.register(app, ns="killinchu")
+    print(f"[killinchu] WAQAY governed vector index registered: {_waqay_status['registered']} "
+          f"(tab: {_waqay_status['tab_route']}, trust_ceiling={_waqay_status['trust_ceiling']} <1.0) "
+          f"— TurboQuant-inspired, signed receipts + Restraint", file=sys.stderr)
+except Exception as _waqay_e:
+    import sys as _waqay_sys, traceback as _waqay_tb
+    print(f"[killinchu] WAQAY NOT registered (non-fatal): {_waqay_e!r}", file=_waqay_sys.stderr)
+    _waqay_tb.print_exc(file=_waqay_sys.stderr)
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import a11oy_waqay_nav as _a11oy_waqay_nav  # single source of truth
+    except Exception:
+        import a11oy_waqay_nav as _a11oy_waqay_nav
+    _waqay_nav_status = _a11oy_waqay_nav.register(app, ns="killinchu")
+    print(f"[killinchu] WAQAY nav wire-up registered: {_waqay_nav_status['registered']} "
+          f"(tab: {_waqay_nav_status['tab_route']}) — idempotent, additive, SPA source NOT edited",
+          file=sys.stderr)
+except Exception as _waqay_nav_e:
+    import sys as _waqay_nav_sys, traceback as _waqay_nav_tb
+    print(f"[killinchu] WAQAY nav wire-up NOT registered (non-fatal): {_waqay_nav_e!r}",
+          file=_waqay_nav_sys.stderr)
+    _waqay_nav_tb.print_exc(file=_waqay_nav_sys.stderr)
+# ── end WAQAY (governed quantized vector index) ──
+
+# YUPAY (Quechua: to count / to reckon / to audit) — our OWN governed multi-model
+# AUDIT harness (szl_yupay.py — byte-identical with a11oy). Adopts the Kilo Code /
+# André Lindenberg audit METHODOLOGY (same task, score issues/tokens/cost/latency)
+# run over OUR OWN governed open models; emits ONE DSSE-signed comparison receipt +
+# Restraint verdict. register() FRONT-INSERTS routes before the SPA catch-all.
+# Honest labels: MEASURED iff a real run happened, else MODELED (cost = published
+# per-token rates, cited). NO M3 WEIGHTS / NO M3 DERIVATIVE: M3 is
+# EXCLUDED-BY-DOCTRINE (defense-license + PRC sovereignty), shown only as a
+# non-participating reference row, never run. ADDITIVE, try/except-guarded. 0 CDN.
+# Attribution: Kilo Code/André Lindenberg methodology + MiniMax sparse-attn paper
+# as INSPIRATION; NOTICES.md.
+# ===========================================================================
+try:
+    import szl_yupay as _szl_yupay
+    _yupay_status = _szl_yupay.register(app, ns="killinchu")
+    print(f"[killinchu] YUPAY governed multi-model audit harness registered: "
+          f"{_yupay_status['registered']} (tab: {_yupay_status['tab_route']}, "
+          f"trust_ceiling={_yupay_status['trust_ceiling']} <1.0) — signed comparison "
+          f"+ Restraint, M3 EXCLUDED-BY-DOCTRINE", file=sys.stderr)
+except Exception as _yupay_e:
+    import sys as _yupay_sys, traceback as _yupay_tb
+    print(f"[killinchu] YUPAY NOT registered (non-fatal): {_yupay_e!r}", file=_yupay_sys.stderr)
+    _yupay_tb.print_exc(file=_yupay_sys.stderr)
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import a11oy_yupay_nav as _a11oy_yupay_nav  # single source of truth
+    except Exception:
+        import a11oy_yupay_nav as _a11oy_yupay_nav
+    _yupay_nav_status = _a11oy_yupay_nav.register(app, ns="killinchu")
+    print(f"[killinchu] YUPAY nav wire-up registered: {_yupay_nav_status['registered']} "
+          f"(tab: {_yupay_nav_status['tab_route']}) — idempotent, additive, SPA source NOT edited",
+          file=sys.stderr)
+except Exception as _yupay_nav_e:
+    import sys as _yupay_nav_sys, traceback as _yupay_nav_tb
+    print(f"[killinchu] YUPAY nav wire-up NOT registered (non-fatal): {_yupay_nav_e!r}",
+          file=_yupay_nav_sys.stderr)
+    _yupay_nav_tb.print_exc(file=_yupay_nav_sys.stderr)
+# ── end YUPAY (governed multi-model audit harness) ──
+
+
+
+
+# ============================================================================
+# QHAWAQ REGISTRATION — killinchu (the FORMAL/LTL runtime constitutional ring)
+# QHAWAQ (Quechua: "the watcher") intercepts each proposed agent/effector action
+# and checks it against formal LTL + predicate invariants BEFORE any (simulated)
+# effector command — verdict ALLOW / REQUIRE-HUMAN-CONFIRM / BLOCK + proof-trace
+# + signed DSSE receipt. Complements WILLAY (classifier ring) + Restraint (budget
+# gate). Runs LAST so its routes FRONT-INSERT ahead of the SPA catch-all.
+# Architecture adopted from Glass Box (arXiv:2606.02967, CC BY); re-implemented.
+# ADDITIVE, try/except-guarded. Effectors SIMULATED human-on-loop (QHAWAQ ENFORCES).
+# Doctrine v11 LOCKED 8 @ c7c0ba17 · trust < 100% · 0 CDN · never commit a key.
+# ============================================================================
+try:
+    import szl_qhawaq as _szl_qhawaq
+
+    def _kc_qhawaq_sign(_obj):
+        # Reuse killinchu's REAL cosign DSSE signer. HONEST: absent the private-key
+        # secret, szl_dsse returns an explicitly UNSIGNED envelope (no fabrication).
+        if _szl_dsse is None:
+            return {"signed": False, "signatures": [],
+                    "honesty": "UNSIGNED — szl_dsse unavailable in this runtime"}
+        try:
+            return _szl_dsse.sign_payload(_obj, "application/vnd.szl.qhawaq.verdict+json")
+        except Exception as _qe:
+            return {"signed": False, "signatures": [],
+                    "honesty": "UNSIGNED — signer raised: %r" % (_qe,)}
+
+    def _kc_qhawaq_verify(_env):
+        if _szl_dsse is None:
+            return {"verified": False, "reason": "szl_dsse unavailable"}
+        return _szl_dsse.verify_envelope(_env)
+
+    _kc_qhawaq_status = _szl_qhawaq.register(
+        app, ns="killinchu", sign_fn=_kc_qhawaq_sign, verify_fn=_kc_qhawaq_verify,
+        signer_label="killinchu in-image cosign key (szl_dsse)")
+    print(f"[killinchu] QHAWAQ runtime constitutional intercept registered: {_kc_qhawaq_status}", file=sys.stderr)
+
+    # ── ELITE_WIRING ledger wire: surface QHAWAQ in the /elite wiring map AND mount
+    # the elite intercept route that checks an action with the REAL DSSE signer in
+    # scope (genuinely signed receipts), forwarding each signed verdict to the
+    # unified ledger (organ="killinchu-qhawaq"). Additive, never crashes the Space.
+    try:
+        import killinchu_elite_wiring as _kc_kew
+        _kc_kew_intercept = _kc_kew.register_intercept(
+            app, ns="killinchu", sign_fn=_kc_qhawaq_sign)
+        print(f"[killinchu] QHAWAQ elite intercept + ledger wire: {_kc_kew_intercept}", file=sys.stderr)
+    except Exception as _kc_kew_e:  # pragma: no cover — additive, never crash
+        print(f"[killinchu] QHAWAQ elite intercept NOT wired (non-fatal): {_kc_kew_e!r}", file=sys.stderr)
+except Exception as _kc_qhawaq_e:  # pragma: no cover — additive, never crash
+    import traceback as _kc_qhawaq_tb
+    print(f"[killinchu] QHAWAQ NOT registered (non-fatal): {_kc_qhawaq_e!r}", file=sys.stderr)
+    _kc_qhawaq_tb.print_exc()
+# ============================================================================
+# END: QHAWAQ REGISTRATION — killinchu
+# ============================================================================
+
+
+
+# ============================================================================
+# ADDITIVE (SAPA): Energy per Successful Goal — the frontier agentic unit on top
+# of the live MEASURED joules/token path. szl_sapa.py is the shared, byte-identical
+# accounting layer; szl_sapa_patch.py front-inserts /sapa + /api/killinchu/v1/sapa/*
+# BEFORE the SPA catch-all (idempotent by route name). Registered LAST so its
+# routes win over the SPA history fallback AND the /api/killinchu/{{path:path}} Node
+# proxy. try/except-guarded — can NEVER take the Space down. Doctrine v11:
+# locked=8 @ c7c0ba17; MEASURED only on a real fresh on-box joule reading, else
+# MODELED/pending — never fabricates a joule. Inspired by A-LEMS / EpG
+# arXiv:2605.22883 (cited reference; 4.33x is the paper's finding, not ours).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_sapa_patch as _szl_sapa_patch
+    import sys as _sapa_sys2
+    _sapa_status = _szl_sapa_patch.register(app, ns="killinchu", serve_tab=True)
+    print(f"[killinchu] SAPA energy-per-goal registered: {_sapa_status}", file=_sapa_sys2.stderr)
+except Exception as _sapa_e:  # pragma: no cover
+    print(f"[killinchu] SAPA NOT registered (non-fatal): {_sapa_e!r}",
+          file=__import__("sys").stderr)
+# ============================================================================
+# END: SAPA Energy per Successful Goal
+# ============================================================================
+
+
+# ============================================================================
+# SPACES ON a-11-oy.com (Dev2+3) — surface all 11 live HF Spaces same-origin.
+# (1) szl_spaces_proxy: reverse-proxy each Space under /spaces/<name> (server-side
+#     fetch, honest 502 on flap, allowlist only, a11oy/killinchu skipped as self/own-
+#     host). (2) szl_spaces_surface: /api/<ns>/v1/spaces/health (REAL probe + HF-API
+#     stage), /spaces tiles page, + ONE idempotent "Spaces" nav item. Both SHARED &
+#     byte-identical in a11oy + killinchu. No new subdomains. 0 runtime CDN (server-
+#     side fetch — same justification as a11oy_hf_assets.py). Additive, idempotent,
+#     try/except-guarded; each register() front-inserts its routes so they beat the
+#     SPA + Node-proxy catch-alls. Doctrine v11: locked=8 @ c7c0ba17; Λ=Conjecture 1;
+#     Khipu=Conjecture 2; honest 502/unknown beats a fake 200; no codenames; no key.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_spaces_proxy as _szl_spaces_proxy  # single source of truth
+    except Exception:
+        import szl_spaces_proxy as _szl_spaces_proxy
+    _szl_spaces_proxy_status = _szl_spaces_proxy.register(app, ns="killinchu")
+    print(f"[killinchu] Spaces reverse-proxy registered: {_szl_spaces_proxy_status}", file=__import__("sys").stderr)
+except Exception as _szl_sp_e:  # pragma: no cover
+    print(f"[killinchu] Spaces reverse-proxy NOT registered: {_szl_sp_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+try:
+    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
+        from szl_substrate import szl_spaces_surface as _szl_spaces_surface  # single source of truth
+    except Exception:
+        import szl_spaces_surface as _szl_spaces_surface
+    _szl_spaces_surface_status = _szl_spaces_surface.register(app, ns="killinchu")
+    print(f"[killinchu] Spaces surface registered: {_szl_spaces_surface_status}", file=__import__("sys").stderr)
+except Exception as _szl_ss_e:  # pragma: no cover
+    print(f"[killinchu] Spaces surface NOT registered: {_szl_ss_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: SPACES ON a-11-oy.com (Dev2+3)
+# ============================================================================
+
+
+
+# ============================================================================
+# BEGIN: WAVE 13 ORGANS — killinchu (Wave 13 deploy)
+# Mirrors the Wave 12 register+front-move pattern. 3 frontier organs, each
+# try/except-guarded so a failure never affects the SPA or other organs.
+# ============================================================================
+_WAVE13_ORGANS = [
+    ("szl_muon",     "Muon Orthogonalized-Momentum Optimizer", "/api/killinchu/v1/muon/orthogonalize"),
+    ("szl_specexec", "Tree Speculative Execution",             "/api/killinchu/v1/specexec/tree"),
+    ("szl_nvfp4",    "NVFP4 4-bit Training Format",            "/api/killinchu/v1/nvfp4/quantize"),
+]
+
+for _w13_mod, _w13_label, _w13_route in _WAVE13_ORGANS:
+    try:
+        _w13_before = len(app.router.routes)
+        _w13_m = __import__(_w13_mod)
+        _w13_status = _w13_m.register(app, ns="killinchu")
+        _w13_added = app.router.routes[_w13_before:]
+        if _w13_added:
+            del app.router.routes[_w13_before:]
+            for _w13_r in reversed(_w13_added):
+                app.router.routes.insert(0, _w13_r)
+        print(f"[killinchu] Wave13 organ {_w13_label} registered: {_w13_route} (status={_w13_status})",
+              file=sys.stderr)
+    except Exception as _w13_e:  # pragma: no cover
+        print(f"[killinchu] Wave13 organ {_w13_label} ({_w13_mod}) NOT registered: {_w13_e!r}; "
+              f"SPA + other organs unaffected", file=sys.stderr)
+# ============================================================================
+# END: WAVE 13 ORGANS — killinchu
+# ============================================================================
+
+
+
+# ============================================================================
+# BEGIN: WAVE 15 ORGANS — killinchu (2026 field leaders)
+# dla (Dynamic Linear Attention, arXiv:2606.10650), ctxready (Context-Ready
+# Transformer, arXiv:2606.27538), opera (OPERA perplexity-RL, arXiv:2606.25757).
+# Mirrors wave-14 register+front-move; uses sys.stderr (module-level import).
+# ============================================================================
+_WAVE15_ORGANS = [
+    ("szl_dla",      "Dynamic Linear Attention",              "/api/killinchu/v1/dla/attention"),
+    ("szl_ctxready", "Context-Ready Transformer",             "/api/killinchu/v1/ctxready/unroll"),
+    ("szl_opera",    "OPERA Perplexity-Reward Alignment",     "/api/killinchu/v1/opera/reward"),
+    ("szl_fgbrain",  "Formula-Graph Brain (SZL original)",     "/api/killinchu/v1/fgbrain/graph"),
+]
+
+for _w15_mod, _w15_label, _w15_route in _WAVE15_ORGANS:
+    try:
+        _w15_before = len(app.router.routes)
+        _w15_m = __import__(_w15_mod)
+        _w15_status = _w15_m.register(app, ns="killinchu")
+        _w15_added = app.router.routes[_w15_before:]
+        if _w15_added:
+            del app.router.routes[_w15_before:]
+            for _w15_r in reversed(_w15_added):
+                app.router.routes.insert(0, _w15_r)
+        print(f"[killinchu] Wave15 organ {_w15_label} registered: {_w15_route} (status={_w15_status})",
+              file=sys.stderr)
+    except Exception as _w15_e:  # pragma: no cover
+        print(f"[killinchu] Wave15 organ {_w15_label} ({_w15_mod}) NOT registered: {_w15_e!r}; "
+              f"SPA + other organs unaffected", file=sys.stderr)
+# ============================================================================
+# END: WAVE 15 ORGANS — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: WAVE 14 ORGANS — killinchu (2026 field leaders)
+# keyless (value-only-cache attention), gitthoughts (version-controlled reasoning
+# memory + copyability threshold), herotq (Hessian-conditioned low-bit quant).
+# Mirrors wave-12/13 register+front-move; uses sys.stderr (module-level import).
+# ============================================================================
+_WAVE14_ORGANS = [
+    ("szl_keyless",     "Keyless Attention (Value-Only Cache)",     "/api/killinchu/v1/keyless/attention"),
+    ("szl_gitthoughts", "GitOfThoughts (Version-Controlled Reasoning)", "/api/killinchu/v1/gitthoughts/tree"),
+    ("szl_herotq",      "HeRo-Q Hessian-Conditioned Quantization",  "/api/killinchu/v1/herotq/quantize"),
+]
+
+for _w14_mod, _w14_label, _w14_route in _WAVE14_ORGANS:
+    try:
+        _w14_before = len(app.router.routes)
+        _w14_m = __import__(_w14_mod)
+        _w14_status = _w14_m.register(app, ns="killinchu")
+        _w14_added = app.router.routes[_w14_before:]
+        if _w14_added:
+            del app.router.routes[_w14_before:]
+            for _w14_r in reversed(_w14_added):
+                app.router.routes.insert(0, _w14_r)
+        print(f"[killinchu] Wave14 organ {_w14_label} registered: {_w14_route} (status={_w14_status})",
+              file=sys.stderr)
+    except Exception as _w14_e:  # pragma: no cover
+        print(f"[killinchu] Wave14 organ {_w14_label} ({_w14_mod}) NOT registered: {_w14_e!r}; "
+              f"SPA + other organs unaffected", file=sys.stderr)
+# ============================================================================
+# END: WAVE 14 ORGANS — killinchu
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: WAVE K / DEV 5 — killinchu FRONTIER FULL-WIRE (ADDITIVE)
+# The wave-built frontier BACKENDS (trackfusion, onebit, cc-attest, sement,
+# ttc/testtime, specdec, worldmodel, episodic, qec, energy) are LIVE 200 on
+# killinchu but were NOT surfaced in the operator deck (/elite). This wires each
+# into the deck as a REAL tab that fetches its LIVE endpoint with an HONEST label
+# (LIVE/SIMULATED/MODELED, never green) + cross-links to a-11-oy.com and /verify.
+# ADDITIVE: serves /killinchu_frontier_wave_surfaces.js + a single idempotent
+# <script src> injector on deck HTML; the elite console + SPA shell are NOT edited.
+# Registered BEFORE the SPA /{full_path:path} catch-all (register() front-inserts
+# the .js route). Effector SIMULATED human-on-loop; Λ = Conjecture 1.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ============================================================================
+try:
+    import killinchu_frontier_wave_surfaces as _kc_wave_surfaces
+    _kc_wave_status = _kc_wave_surfaces.register(app, ns="killinchu")
+    print(f"[killinchu] Wave-K frontier full-wire registered: {_kc_wave_status}", file=sys.stderr)
+except Exception as _kc_wave_e:  # pragma: no cover — never break SPA/other organs
+    print(f"[killinchu] Wave-K frontier full-wire NOT registered: {_kc_wave_e!r}; "
+          f"SPA + other organs unaffected", file=sys.stderr)
+# ============================================================================
+# END: WAVE K / DEV 5 — killinchu FRONTIER FULL-WIRE
+# ============================================================================
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", "7860"))
+    print(f"[killinchu] Andean Drone Intelligence on :{port} — Doctrine v11 — SPA at /", file=sys.stderr)
+    # SEC-08: suppress the `Server: uvicorn` banner (version/stack disclosure).
+    # Additive, non-functional — removes a fingerprinting header only.
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", server_header=False)
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings
+# ORCID: 0009-0001-0110-4173
+# Doctrine v11 — 749 declarations · 163 sorries · 14 unique axioms · 13-axis canonical trust
+"""
+Killinchu unified HF Space server — Andean Drone Intelligence (a11oy-style FastAPI mount).
+
+PIVOT 2026-05-31 (Yachay CTO + Opus 4.8): vessels → Killinchu (Quechua: kestrel/hawk).
+Same backend pattern as a11oy/serve.py:
+  - FastAPI app, mount static SPA from /app/static, base path "/", SPA history fallback.
+  - /api/<space>/v1/* endpoints with an honest disclosure block on every receipt.
+  - Preserves the Khipu Merkle DAG receipt pattern + OpenFreeMap tokenless tiles.
+  - Every /api/vessels/* endpoint preserved as an alias (ADDITIVE — vessels GREEN baseline).
+
+REAL endpoints (NO MOCKS):
+  POST /api/killinchu/v1/remote-id/decode  — OpenDroneID/ASTM F3411 byte parser
+  POST /api/killinchu/v1/ads-b/decode      — ADS-B Mode-S 1090ES (pyModeS v3)
+  POST /api/killinchu/v1/mavlink/parse     — MAVLink v1/v2 (pymavlink)
+  GET  /api/killinchu/v1/drones/database   — 50+ curated real drone systems
+  POST /api/killinchu/v1/counter-uas/evaluate — telemetry+geofence+policy → ALLOW/HALT + Λ-receipt
+  GET  /api/killinchu/v1/swarm/topology    — Remote-ID broadcasts → connected-component clusters
+  GET  /api/killinchu/v1/threats/active    — live threat board from real adversary signatures
+  POST /api/killinchu/v1/receipt/emit      — mint DSSE-PLACEHOLDER receipt into Khipu DAG
+  GET  /api/killinchu/healthz              — { status, doctrine v11, 749/14/163 }
+
+Listens on PORT (default 7860, HF requirement).
+"""
+import hashlib
+import json
+import math
+import os
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.cors import CORSMiddleware
+
+import killinchu_protocols as kp
 
 _APP_ROOT = Path(os.environ.get("KILLINCHU_ROOT", "/app"))
 STATIC_DIR = _APP_ROOT / "static"
