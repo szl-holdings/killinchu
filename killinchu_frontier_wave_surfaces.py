@@ -286,7 +286,7 @@ def register(app, ns: str = "killinchu") -> Dict[str, Any]:
         _payload = _js()
 
         @app.get(_MOUNT_PATH, include_in_schema=False)
-        async def _serve_wave_surfaces_js() -> Response:  # noqa: ANN202
+        async def _serve_wave_surfaces_js():  # noqa: ANN202
             return Response(content=_payload, media_type="application/javascript")
 
         try:

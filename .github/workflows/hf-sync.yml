@@ -30,6 +30,36 @@ permissions:
   contents: read
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet "fastapi==0.139.0" "httpx==0.28.1" "pytest==9.1.1"
+      - run: python3 scripts/check_killinchu_public_contract_wiring.py --repo-root .
+      - run: python3 scripts/check_openapi_response_annotations.py --repo-root .
+      - run: >-
+          pytest -q
+          tests/test_public_contracts.py
+          tests/test_check_killinchu_public_contracts.py
+          tests/test_check_openapi_response_annotations.py
+          tests/test_killinchu_public_contract_wiring.py
+
   deploy:
+    needs: preflight
     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5b0d38fadadc073812bfc6175a1e823cd529939f # main
     secrets: inherit
+
+  post-deploy-contracts:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - run: >-
+          python3 scripts/check_killinchu_public_contracts.py
+          --base-url https://szlholdings-killinchu.hf.space
+          --attempts 20 --sleep 15 --timeout 20

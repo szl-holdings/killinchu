@@ -786,19 +786,19 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         except Exception:
             return {}
 
-    async def topology(request: Request) -> JSONResponse:
+    async def topology(request: Request):
         h = get_harness()
         if h is None:
             return JSONResponse(_harness_down_payload(), status_code=503)
         return JSONResponse({"live": True, **h.topology()})
 
-    async def nodes(request: Request) -> JSONResponse:
+    async def nodes(request: Request):
         h = get_harness()
         if h is None:
             return JSONResponse(_harness_down_payload(), status_code=503)
         return JSONResponse({"live": True, **h.nodes_view()})
 
-    async def enroll(request: Request) -> JSONResponse:
+    async def enroll(request: Request):
         h = get_harness()
         if h is None:
             return JSONResponse(_harness_down_payload(), status_code=503)
@@ -807,7 +807,7 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         return JSONResponse({"live": True, "spec": "05-doctrine-gated-enrollment",
                              **verdict}, status_code=status)
 
-    async def write(request: Request) -> JSONResponse:
+    async def write(request: Request):
         h = get_harness()
         if h is None:
             return JSONResponse(_harness_down_payload(), status_code=503)
@@ -839,7 +839,7 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         return JSONResponse({"live": True, "spec": "01-dsse-receipts/02-two-track",
                              "receipt": receipt})
 
-    async def quorum(request: Request) -> JSONResponse:
+    async def quorum(request: Request):
         h = get_harness()
         if h is None:
             return JSONResponse(_harness_down_payload(), status_code=503)
@@ -862,7 +862,7 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
             return JSONResponse({"live": True, **err}, status_code=status)
         return JSONResponse({"live": True, **h.run_quorum(body)})
 
-    async def receipt_canonical(request: Request) -> JSONResponse:
+    async def receipt_canonical(request: Request):
         h = get_harness()
         if h is None:
             return JSONResponse(_harness_down_payload(), status_code=503)
@@ -873,7 +873,7 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
                                  "receipt_id": rid}, status_code=404)
         return JSONResponse({"live": True, **out})
 
-    async def revoke(request: Request) -> JSONResponse:
+    async def revoke(request: Request):
         h = get_harness()
         if h is None:
             return JSONResponse(_harness_down_payload(), status_code=503)
@@ -882,7 +882,7 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
         return JSONResponse({"live": True, "spec": "06-crdt-revocation", **verdict},
                             status_code=status)
 
-    async def status_ep(request: Request) -> JSONResponse:
+    async def status_ep(request: Request):
         h = get_harness()
         if h is None:
             return JSONResponse(_harness_down_payload(), status_code=503)

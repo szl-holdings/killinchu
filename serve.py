@@ -5537,6 +5537,16 @@ except Exception as _kc_wave_e:  # pragma: no cover — never break SPA/other or
 # ============================================================================
 
 
+# Critical typed contracts fail closed: missing code or registration errors
+# stop deployment instead of silently turning JSON routes into the SPA shell.
+import killinchu_public_contracts as _killinchu_public_contracts
+_killinchu_public_contracts_status = _killinchu_public_contracts.register(app, ns="killinchu")
+print(
+    f"[killinchu] public contracts registered: {_killinchu_public_contracts_status}",
+    file=sys.stderr,
+)
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
