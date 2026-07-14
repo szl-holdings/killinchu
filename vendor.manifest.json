@@ -1,0 +1,67 @@
+{
+  "_doctrine": "The monorepo szl-holdings/platform is the explicit source of truth for every file listed here. Edit there, never here. scripts/sync_from_monorepo.sh check verifies byte-fidelity against the pin; sync refreshes and applies attribution headers. STATUS.md open action.",
+  "monorepo": "szl-holdings/platform",
+  "pin": "e87ad75ec8e280e2fe3a3e8f49c5c0b6c2eec4ea",
+  "files": {
+    ".editorconfig": {
+      "source": ".editorconfig",
+      "header": true
+    },
+    ".gitattributes": {
+      "source": ".gitattributes",
+      "header": true
+    },
+    ".github/CODEOWNERS": {
+      "source": ".github/CODEOWNERS",
+      "header": false
+    },
+    ".github/workflows/commit-lint.yml": {
+      "source": ".github/workflows/commit-lint.yml",
+      "header": true
+    },
+    ".github/workflows/pin-check.yml": {
+      "source": ".github/workflows/pin-check.yml",
+      "header": true
+    },
+    "SUPPORT.md": {
+      "source": "SUPPORT.md",
+      "header": true
+    },
+    "static/vendor/3d-force-graph.min.js": {
+      "source": "replit-sync/hf_spaces/hf_khipu_space/vendor/3d-force-graph.min.js",
+      "header": false
+    },
+    "static/vendor/three.min.js": {
+      "source": "replit-sync/hf_spaces/anatomy/lib/three.min.js",
+      "header": false
+    },
+    "static/vendor3d/OrbitControls.js": {
+      "source": "replit-sync/hf_spaces/cathedral_live_src/vendor/OrbitControls.js",
+      "header": true
+    },
+    "static/vendor3d/THREE_LICENSE.txt": {
+      "source": "replit-sync/hf_energy_space/assets/THREE_LICENSE.txt",
+      "header": true
+    },
+    "static/vendor3d/three.module.min.js": {
+      "source": "replit-sync/hf_energy_space/assets/three.module.min.js",
+      "header": false
+    },
+    "szl_chain_of_title.py": {
+      "source": "replit-sync/szl_chain_of_title.py",
+      "header": true
+    },
+    "szl_khipu_lmdb.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
+      "header": true
+    },
+    "szl_mosaic_core.py": {
+      "source": "replit-sync/mosaic_sda/szl_mosaic_core.py",
+      "header": true
+    },
+    "szl_unified_formulas.py": {
+      "source": "replit-sync/szl_unified_formulas.py",
+      "header": true
+    }
+  }
+}
