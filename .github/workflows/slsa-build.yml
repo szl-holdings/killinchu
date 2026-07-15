@@ -1,34 +1,48 @@
-name: SLSA L1 Build Provenance (signed)
-
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
-# Doctrine v11 LOCKED 749/14/163 · sovereign-default
 #
-# SLSA L1 honest: generate signed build provenance on a hosted GitHub
-# Actions builder for every release tag, using the official
-# slsa-framework/slsa-github-generator reusable workflow. The provenance
-# attestation is signed via Sigstore (Fulcio keyless + Rekor) and attached to
-# the release. SZL claims SLSA L1 (honest); L2 requires isolated builder not yet configured.
-# Concepts only — no third-party logos or trademarks.
+# SLSA source-release provenance — consolidated path (2026-07-15).
+#
+# History (honest): this workflow previously called the reusable
+# slsa-framework/slsa-github-generator generator_generic_slsa3.yml (SHA-pinned
+# at the caller). The generator internally invokes its own composite actions by
+# TAG (e.g. .../detect-workflow-js@v2.1.0), which the org actions policy
+# ("all actions must be pinned to a full-length commit SHA") rejects at job
+# setup — see run 29387794215. Rather than relax the pin policy for an external
+# publisher, source provenance is consolidated onto
+# actions/attest-build-provenance — the same signed in-toto slsa.dev/provenance
+# mechanism (Sigstore keyless: Fulcio certificate + Rekor transparency log,
+# GitHub Attestations API) that already backs the container claim in
+# ghcr-build-push.yml. No level claimed here beyond what
+# .compliance/SLSA_LEVEL.md states.
+#
+# Verify a released tarball downstream:
+#   gh attestation verify killinchu-<ref>.tar.gz --owner szl-holdings
+
+name: SLSA Build Provenance (signed, source release)
 
 on:
   push:
-    tags: ["v*", "*.*.*"]
+    tags: ["v*.*.*"]
   release:
     types: [published]
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions: read-all
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  # 1. Build the release artifact and record its digest (hosted runner).
-  build:
+  build-attest:
+    name: pack + attest source provenance
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
-      contents: read
-    outputs:
-      digest: ${{ steps.hash.outputs.digest }}
-      artifact: ${{ steps.pack.outputs.artifact }}
+      contents: write      # attach artifact to a published release
+      id-token: write      # Sigstore keyless (Fulcio OIDC)
+      attestations: write  # GitHub Attestations API
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -41,39 +55,28 @@ jobs:
       - name: Pack source release artifact
         id: pack
         run: |
-          NAME="${GITHUB_REPOSITORY##*/}-${GITHUB_REF_NAME}.tar.gz"
-          git archive --format=tar.gz -o "$NAME" HEAD
-          echo "artifact=$NAME" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          NAME="${GITHUB_REPOSITORY##*/}-${GITHUB_REF_NAME//\//-}.tar.gz"
+          git archive --format=tar.gz -o "${NAME}" HEAD
+          echo "artifact=${NAME}" >> "${GITHUB_OUTPUT}"
+          echo "sha256=$(sha256sum "${NAME}" | cut -d' ' -f1)" >> "${GITHUB_OUTPUT}"
 
-      - name: Compute artifact digest (base64 sha256 set)
-        id: hash
-        run: |
-          echo "digest=$(sha256sum '${{ steps.pack.outputs.artifact }}' | base64 -w0)" >> "$GITHUB_OUTPUT"
+      - name: Attest build provenance (signed in-toto, Fulcio + Rekor)
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: ${{ steps.pack.outputs.artifact }}
 
-      - name: Upload artifact for release
+      - name: Upload run artifact (evidence)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-artifact
+          name: source-release-artifact
           path: ${{ steps.pack.outputs.artifact }}
           if-no-files-found: error
 
-  # 2. Generate signed SLSA provenance (reusable hosted-builder workflow).
-  provenance:
-    needs: [build]
-    permissions:
-      actions: read       # read the workflow run for provenance
-      id-token: write     # Sigstore keyless signing (Fulcio/OIDC)
-      contents: write     # attach provenance to the release
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
-    with:
-      base64-subjects: "${{ needs.build.outputs.digest }}"
-      provenance-name: "${{ needs.build.outputs.artifact }}.intoto.jsonl"
-      # Only attach the signed provenance to a GitHub Release when this run IS a
-      # published-release event. On a bare tag push (no Release object) the
-      # generator's upload-to-release step has no target and fails the run's
-      # "Final outcome" — even though provenance was still generated AND
-      # Sigstore-signed (Fulcio keyless + Rekor). Gating the OPTIONAL upload on
-      # the release event makes a tag-only run honest-green without weakening
-      # any signing: provenance is signed + Rekor-logged regardless; only the
-      # release-asset attachment is conditional. (Fixes #113.)
-      upload-assets: ${{ github.event_name == 'release' }}
+      - name: Attach artifact to published release (release events only)
+        if: ${{ github.event_name == 'release' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload "${GITHUB_REF_NAME}" "${{ steps.pack.outputs.artifact }}" --clobber
