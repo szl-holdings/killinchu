@@ -171,7 +171,7 @@
     <span class="chip"><span class="dot"></span>4 ORGANS LIVE</span>
     <span class="chip">SOLE FRONT DOOR · /api/killinchu/uds/v1/*</span>
     <span class="sp"></span>
-    <span class="doc">DOCTRINE <b>v11</b> LOCKED · 749 · 14 · 163 · SLSA L1 (honest) · Λ Conjecture (not a theorem)</span>
+    <span class="doc">DOCTRINE <b>v11</b> LOCKED · 749 · 14 · 163 · SLSA L1 honest · L2 attested · L3 roadmap · Λ Conjecture (not a theorem)</span>
   </header>
 
   <div class="body">
@@ -212,7 +212,7 @@
     <div class="col center">
       <div style="position:relative">
         <div id="cesiumContainer"></div>
-        <div class="globe-tag" id="globetag">🦅 <b>Killinchu</b> in the field · airspace <b id="gt-class">—</b> · tracks <b id="gt-tracks">simulated snapshot</b></div>
+        <div class="globe-tag" id="globetag">🦅 <b>Killinchu</b> in the field · airspace <b id="gt-class">awaiting init</b> · tracks <b id="gt-tracks">simulated snapshot</b></div>
       </div>
       <div class="killstrip">
         <div class="hd">
@@ -302,14 +302,14 @@
       .then(function(j){
         var links=(j.aggregated_receipt&&j.aggregated_receipt.chain)||[];
         renderChain(links); links.forEach(function(l){setHero(l.organ,l.verdict,l.latency_ms);});
-        ORGANS.forEach(function(o){ if(!links.filter(function(l){return l.organ===o.k;})[0]) setHero(o.k,"—"); });
+        ORGANS.forEach(function(o){ if(!links.filter(function(l){return l.organ===o.k;})[0]) setHero(o.k,"not-run"); });
         var v=j.verdict||"warn"; el("killverdict").className="v "+v; el("killverdict").textContent=v.toUpperCase();
         lastSha=j.receipt_sha256;
         var agg=j.aggregated_receipt||{}, sig=(agg.aggregate_signature||"").slice(0,42);
         var R=el("receipt"); R.style.display="block";
-        R.innerHTML=kv("mission",j.uds_mission_id||"—")+kv("verdict",(j.verdict||"—").toUpperCase())+
-          kv("sha256",j.receipt_sha256||"—","sha")+kv("signed",String(agg.aggregate_signed))+
-          kv("keyid",agg.keyid||"szlholdings-cosign")+kv("sig",sig?sig+"…":"—","sig");
+        R.innerHTML=kv("mission",j.uds_mission_id||"unavailable")+kv("verdict",(j.verdict||"warn").toUpperCase())+
+          kv("sha256",j.receipt_sha256||"unavailable","sha")+kv("signed",String(agg.aggregate_signed))+
+          kv("keyid",agg.keyid||"szlholdings-cosign")+kv("sig",sig?sig+"…":"unsigned (no key in runtime)","sig");
         el("verifyBtn").disabled=false;
         if(action==="geofence_check"){ el("gt-class").textContent="checked"; }
       })

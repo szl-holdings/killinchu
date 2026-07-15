@@ -52,12 +52,12 @@
 <header>
   <svg class="logo" viewBox="0 0 32 32"><path d="M16 3 L27 27 L16 21 L5 27 Z" fill="#d7b96b"/></svg>
   <div class="ttl">Killinchu <b>/ Warhacker</b> — Defense Unicorns hackathon, packages on UDS Core</div>
-  <span class="chip"><span class="dot"></span>4 ORGANS LIVE</span>
+  <span class="chip" title="Live status is on the /operator console; this booth is a static overview">4 ORGANS · status on /operator</span>
   <span class="chip" style="color:#5cc4bf;border-color:rgba(92,196,191,.45)" title="Compatible with Defense Unicorns UDS Core (not certified)">✓ UDS Core compatible</span>
   <span class="chip" style="color:#5cc4bf;border-color:rgba(92,196,191,.45)" title="Section 889: five banned vendors, none used">✓ Section 889 · 5 banned vendors clean</span>
   <span class="chip">ZARF-packaged</span>
   <span class="sp"></span>
-  <span class="doc">DOCTRINE v11 LOCKED · 749 · 14 · 163 · SLSA L1 honest (L2 in progress) · Λ Conjecture (not a theorem)</span>
+  <span class="doc">DOCTRINE v11 LOCKED · 749 · 14 · 163 · SLSA L1 honest · L2 attested · L3 roadmap · Λ Conjecture (not a theorem)</span>
 </header>
 <main>
   <h1>Defense Unicorns Warhacker — <span class="accent">packages on UDS Core</span>.</h1>
@@ -67,7 +67,7 @@
     <div class="cell good"><div class="v">Enterprise Agents</div><div class="k">CDAO lane (our lane)</div></div>
     <div class="cell good"><div class="v">✓ UDS Core compatible</div><div class="k">interoperability badge (not certified)</div></div>
     <div class="cell good"><div class="v">ZARF-packaged</div><div class="k">airgap bundle (available)</div></div>
-    <div class="cell"><div class="v">SLSA L1 honest</div><div class="k">L2 in progress</div></div>
+    <div class="cell"><div class="v">SLSA L1 honest</div><div class="k">L2 attested · L3 roadmap</div></div>
     <div class="cell good"><div class="v">✓ Section 889 · 5 clean</div><div class="k">no banned vendors</div></div>
   </div>
 
@@ -78,7 +78,7 @@
       <a href="/uds">UDS Core</a> ·
       <a href="/uds/sbom">SBOM (SPDX+CycloneDX)</a> ·
       <a href="/uds/sigstore">Sigstore (cosign + public Rekor)</a> ·
-      <a href="/uds/cmmc">CMMC L1 (17 practices)</a> ·
+      <a href="/uds/cmmc">CMMC L1 self-attest (roadmap, 17 practices)</a> ·
       <a href="/uds/889">Section 889 (five vendors)</a> ·
       <a href="/uds/zarf">ZARF air-gap deploy</a> ·
       <a href="/uds/mission-owner">Mission Owner (Iron Bank sponsor ask)</a>
@@ -99,11 +99,11 @@
     <h2>Honest compliance posture</h2>
     <table>
       <tr><th>Item</th><th>State</th><th>Note</th></tr>
-      <tr><td>SLSA Build</td><td class="warn">L1 honest (L2 in progress)</td><td>Real cosign-signed provenance, Rekor-anchored. L2 via hosted CI + cosign, in progress.</td></tr>
+      <tr><td>SLSA Build</td><td class="warn">L1 honest · L2 attested · L3 roadmap</td><td>Real cosign-signed provenance, Rekor-anchored. L2 attested via hosted CI + cosign; L3 is a roadmap item.</td></tr>
       <tr><td>ZARF + UDS Core packaging</td><td class="ok">Available</td><td>UDS Core compatible; ZARF bundle for airgap. Not certified.</td></tr>
       <tr><td>NDAA §889</td><td class="ok">Defensible / signable</td><td>5 banned vendors: Huawei, ZTE, Hytera, Hikvision, Dahua. No banned hardware on bench.</td></tr>
       <tr><td>Iron Bank</td><td class="no">Not accredited</td><td>Iron Bank requires a government Mission Owner sponsor — invitation-only; you cannot self-register. Target via Warhacker.</td></tr>
-      <tr><td>CMMC</td><td class="warn">L1 self-attest (planned)</td><td>L2/L3 deferred until a contract imposes CUI.</td></tr>
+      <tr><td>CMMC</td><td class="warn">L1 self-attest — roadmap</td><td>Roadmap item, not a held certification. L2/L3 deferred until a contract imposes CUI.</td></tr>
     </table>
   </section>
 
