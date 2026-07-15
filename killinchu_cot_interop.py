@@ -711,17 +711,23 @@ def register(app) -> dict[str, Any]:
             raw = await _read_limited_request_body(request)
             track = cot_xml_to_track(raw.decode("utf-8"))
         except CotPayloadTooLarge:
-            _LOGGER.info("Rejected oversized CoT ingest", exc_info=True)
+            _LOGGER.info(
+                "Rejected CoT ingest", extra={"cot_rejection": "payload_too_large"}
+            )
             return JSONResponse(
                 {"ok": False, "error": _INGEST_ERROR_TOO_LARGE}, status_code=413
             )
         except UnicodeDecodeError:
-            _LOGGER.info("Rejected non-UTF-8 CoT ingest", exc_info=True)
+            _LOGGER.info(
+                "Rejected CoT ingest", extra={"cot_rejection": "invalid_encoding"}
+            )
             return JSONResponse(
                 {"ok": False, "error": _INGEST_ERROR_ENCODING}, status_code=400
             )
         except ValueError:
-            _LOGGER.info("Rejected invalid CoT ingest", exc_info=True)
+            _LOGGER.info(
+                "Rejected CoT ingest", extra={"cot_rejection": "invalid_xml"}
+            )
             return JSONResponse(
                 {"ok": False, "error": _INGEST_ERROR_INVALID}, status_code=400
             )

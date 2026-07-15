@@ -174,9 +174,17 @@ def test_cot_ingest_errors_are_generic_and_do_not_expose_exceptions(caplog):
     assert malformed.json() == {"ok": False, "error": "invalid CoT XML"}
     assert "secret-stack-marker" not in malformed.text
 
-    assert "Rejected oversized CoT ingest" in caplog.text
-    assert "Rejected non-UTF-8 CoT ingest" in caplog.text
-    assert "Rejected invalid CoT ingest" in caplog.text
+    rejection_records = [
+        record for record in caplog.records if hasattr(record, "cot_rejection")
+    ]
+    assert {record.cot_rejection for record in rejection_records} == {
+        "payload_too_large",
+        "invalid_encoding",
+        "invalid_xml",
+    }
+    assert all(record.getMessage() == "Rejected CoT ingest" for record in rejection_records)
+    assert all(record.exc_info is None for record in rejection_records)
+    assert "secret-stack-marker" not in caplog.text
 
 
 def test_governance_recursively_scrubs_secrets_and_validates_fingerprints(monkeypatch):
