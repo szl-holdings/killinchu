@@ -54,13 +54,24 @@ cosign verify-attestation --type slsaprovenance \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 ```
 
-Source-release (tarball) provenance is **pending, not claimed**: the
-`.github/workflows/slsa-build.yml` path currently fails under the org actions
-policy (the upstream reusable generator's internal actions are tag-pinned, which
-"pin to full-length SHA" rejects — see run 29387794215). A consolidation onto the
-same `actions/attest-build-provenance` mechanism used for the container image is
-staged for owner application; no source-tarball provenance claim is made until it
-lands and verifies.
+Source-release (tarball) provenance: **attested and verified** (2026-07-15). The
+`.github/workflows/slsa-build.yml` path was repaired by consolidating onto the
+same SHA-pinned `actions/attest-build-provenance` mechanism used for the
+container image (PR #228; the upstream reusable generator's internal tag-pinned
+actions could not satisfy the org full-SHA pin policy — prior failure mode: run
+29387794215). First green dispatched run:
+[29402838170](https://github.com/szl-holdings/killinchu/actions/runs/29402838170),
+producing `killinchu-main.tar.gz`
+(`sha256:0de284d755bd8fee21f7c34e7d9a21ec36767407e93f09090353ac15b25bf2ac`), whose Sigstore attestation
+verified the same day with
+`gh attestation verify killinchu-main.tar.gz --owner szl-holdings` (exit 0;
+bundle also served by the GitHub attestations API; predicate `https://slsa.dev/provenance/v1`).
+certificate identity: `https://github.com/szl-holdings/killinchu`.
+
+```bash
+# Source tarball: download the artifact from a green slsa-build.yml run, then:
+gh attestation verify killinchu-main.tar.gz --owner szl-holdings
+```
 
 ---
 
