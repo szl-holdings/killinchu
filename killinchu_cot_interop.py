@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import logging
 import os
 import re
 from typing import Any, Iterable
@@ -72,6 +73,7 @@ except Exception:  # pragma: no cover
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _VESSELS_PATH = os.path.join(_HERE, "fleet_vessels_data.json")
+_LOGGER = logging.getLogger(__name__)
 
 COT_VERSION = "2.0"
 # CoT default multicast SA group (ROADMAP target only — never opened here).
@@ -84,6 +86,12 @@ MAX_COT_XML_ELEMENTS = 2048
 MAX_COT_XML_DEPTH = 24
 MAX_COT_XML_TEXT_CHARS = 128 * 1024
 MAX_COT_ATTRIBUTES_PER_ELEMENT = 64
+
+# Client responses deliberately expose only stable categories. Detailed
+# exception context remains in server logs and never crosses the HTTP boundary.
+_INGEST_ERROR_TOO_LARGE = "CoT XML payload too large"
+_INGEST_ERROR_ENCODING = "CoT XML must be UTF-8"
+_INGEST_ERROR_INVALID = "invalid CoT XML"
 
 HONESTY_LABEL = (
     "Real CoT 2.0 XML export + schema-shape validation + ingest, computed from "
@@ -702,12 +710,21 @@ def register(app) -> dict[str, Any]:
         try:
             raw = await _read_limited_request_body(request)
             track = cot_xml_to_track(raw.decode("utf-8"))
-        except CotPayloadTooLarge as exc:
-            return JSONResponse({"ok": False, "error": str(exc)}, status_code=413)
-        except UnicodeDecodeError as exc:
-            return JSONResponse({"ok": False, "error": f"invalid UTF-8: {exc}"}, status_code=400)
-        except ValueError as exc:
-            return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+        except CotPayloadTooLarge:
+            _LOGGER.info("Rejected oversized CoT ingest", exc_info=True)
+            return JSONResponse(
+                {"ok": False, "error": _INGEST_ERROR_TOO_LARGE}, status_code=413
+            )
+        except UnicodeDecodeError:
+            _LOGGER.info("Rejected non-UTF-8 CoT ingest", exc_info=True)
+            return JSONResponse(
+                {"ok": False, "error": _INGEST_ERROR_ENCODING}, status_code=400
+            )
+        except ValueError:
+            _LOGGER.info("Rejected invalid CoT ingest", exc_info=True)
+            return JSONResponse(
+                {"ok": False, "error": _INGEST_ERROR_INVALID}, status_code=400
+            )
         return JSONResponse({"ok": True, "track": track, "honesty": HONESTY_LABEL})
     registered.append(f"{base}/ingest")
 

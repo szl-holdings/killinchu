@@ -142,17 +142,41 @@ def test_cot_rejects_excess_elements_depth_and_bytes():
     assert "byte limit" in errors[0]
 
 
-def test_cot_ingest_stream_stops_at_byte_limit():
+def test_cot_ingest_errors_are_generic_and_do_not_expose_exceptions(caplog):
     app = FastAPI()
     cot.register(app)
     client = TestClient(app)
-    response = client.post(
+
+    caplog.set_level("INFO", logger=cot.__name__)
+    oversized = client.post(
         "/api/killinchu/v1/cot/ingest",
         content=b"x" * (cot.MAX_COT_XML_BYTES + 1),
         headers={"content-type": "application/xml"},
     )
-    assert response.status_code == 413
-    assert "byte limit" in response.json()["error"]
+    assert oversized.status_code == 413
+    assert oversized.json() == {"ok": False, "error": "CoT XML payload too large"}
+
+    invalid_encoding = client.post(
+        "/api/killinchu/v1/cot/ingest",
+        content=b"\xffsecret-stack-marker",
+        headers={"content-type": "application/xml"},
+    )
+    assert invalid_encoding.status_code == 400
+    assert invalid_encoding.json() == {"ok": False, "error": "CoT XML must be UTF-8"}
+    assert "secret-stack-marker" not in invalid_encoding.text
+
+    malformed = client.post(
+        "/api/killinchu/v1/cot/ingest",
+        content=b"<event><secret-stack-marker></event>",
+        headers={"content-type": "application/xml"},
+    )
+    assert malformed.status_code == 400
+    assert malformed.json() == {"ok": False, "error": "invalid CoT XML"}
+    assert "secret-stack-marker" not in malformed.text
+
+    assert "Rejected oversized CoT ingest" in caplog.text
+    assert "Rejected non-UTF-8 CoT ingest" in caplog.text
+    assert "Rejected invalid CoT ingest" in caplog.text
 
 
 def test_governance_recursively_scrubs_secrets_and_validates_fingerprints(monkeypatch):
