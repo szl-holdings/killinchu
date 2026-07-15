@@ -25,6 +25,7 @@ import os
 import sys
 import hashlib
 import datetime
+import re
 from pathlib import Path
 
 from fastapi import Request
@@ -34,6 +35,11 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 # Resolve relative to THIS module so it works regardless of CWD.
 _HERE = Path(__file__).resolve().parent
 _DATA = _HERE / "static" / "cookbook"
+_SAFE_RECIPE_ID = re.compile(r"\Arecipe-[a-z0-9-]+\Z")
+_MISSION_FILES = {
+    "P1": "P1.json", "P2": "P2.json", "P3": "P3.json", "P4": "P4.json",
+    "P5": "P5.json", "P6": "P6.json", "P7": "P7.json", "P8": "P8.json",
+}
 
 DOCTRINE = "v11"
 NUMBERS = {"declarations": 749, "axioms": 14, "sorries": 163}
@@ -196,9 +202,14 @@ def register_cookbook(app, ns: str = "killinchu", sign_fn=None):
     async def cookbook_get(recipe_id: str) -> JSONResponse:
         idx = _read_json(_DATA / "recipes" / "_index.json") or []
         meta = next((r for r in idx if r.get("id") == recipe_id), None)
-        # sanitize id -> filename
-        safe = recipe_id.replace("/", "").replace("..", "")
-        md = _read_text(_DATA / "recipes" / f"{safe}.md")
+        # The path component comes from the trusted, committed index entry, not
+        # from the route parameter. Validate the index too so a malformed bundle
+        # fails closed instead of becoming a filesystem path.
+        indexed_id = meta.get("id") if isinstance(meta, dict) else None
+        if not isinstance(indexed_id, str) or _SAFE_RECIPE_ID.fullmatch(indexed_id) is None:
+            md = ""
+        else:
+            md = _read_text(_DATA / "recipes" / f"{indexed_id}.md")
         if not md or meta is None:
             return JSONResponse(_base({
                 "error": "recipe not found", "ref": recipe_id,
@@ -233,15 +244,16 @@ def register_cookbook(app, ns: str = "killinchu", sign_fn=None):
 
     @app.get(p + "/missions/{mission_id}")
     async def mission_get(mission_id: str) -> JSONResponse:
-        safe = mission_id.upper().replace("/", "").replace("..", "")
-        m = _read_json(_DATA / "missions" / f"{safe}.json")
+        mission_key = mission_id.upper()
+        filename = _MISSION_FILES.get(mission_key)
+        m = _read_json(_DATA / "missions" / filename) if filename is not None else None
         if m is None:
             return JSONResponse(_base({
                 "error": "mission not found", "ref": mission_id,
                 "available": ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"],
             }), status_code=404)
         drone = bool(m.get("drone_domain"))
-        m["recall_receipt"] = _recall_receipt("mission", safe, _digest(m))
+        m["recall_receipt"] = _recall_receipt("mission", mission_key, _digest(m))
         # m already carries doctrine/numbers/disclaimer from generation; ensure disclaimer on drone
         if drone and "disclaimer" not in m:
             m["disclaimer"] = LEGAL_DISCLAIMER

@@ -106,7 +106,7 @@ COPY static/ ./static/
 # Subpath/dir/rename COPYs (static/, web/*, src/*, szl_connectors/*, etc.)
 # are left untouched. Signed-off-by: Yachay <yachay@szlholdings.ai>
 # ---------------------------------------------------------------------------
-COPY cathedral.html knowledge.json operator_shell_v4.py serve.py killinchu_receipt_export.py szl_evidence_research.py szl_readiness.py szl_quantum_bio.py szl_unified_formulas.py szl_cuas_formulas.py killinchu_research_sources.py szl_contracting.py szl_conjecture_factory.py killinchu_backend.py a11oy_hf_assets.py drones_db.json killinchu_protocols.py killinchu_expansion.py killinchu_naval_haps.py szl_dsse.py szl_provenance.py LEGAL_BOUNDARIES.md ./
+COPY cathedral.html knowledge.json operator_shell_v4.py serve.py killinchu_receipt_export.py szl_evidence_research.py szl_readiness.py szl_quantum_bio.py szl_unified_formulas.py szl_cuas_formulas.py killinchu_research_sources.py szl_contracting.py szl_conjecture_factory.py killinchu_backend.py a11oy_hf_assets.py drones_db.json killinchu_protocols.py killinchu_expansion.py killinchu_naval_haps.py szl_dsse.py szl_content_address.py szl_safe_static.py szl_provenance.py LEGAL_BOUNDARIES.md ./
 # Spaces-on-a-11-oy.com shared modules (Dev2+3) — reverse-proxy + console surface.
 # Per-file COPY (this Dockerfile uses no `COPY . .`) or serve.py's guarded import
 # falls back and /spaces + /api/<ns>/v1/spaces/health 404. Byte-identical a11oy+killinchu.
@@ -712,5 +712,4 @@ CMD ["python", "serve.py"]
 
 # Build cache-bust 2026-06-07T05:00Z (MINED ops squad): COPY killinchu_mined_ops.py
 # into /app so serve.py can import+register the 4 mined operational/efficiency surfaces.
-
 

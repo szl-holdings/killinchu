@@ -41,12 +41,14 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 import killinchu_protocols as kp
+from szl_safe_static import RootedStaticFiles
 
 _APP_ROOT = Path(os.environ.get("KILLINCHU_ROOT", "/app"))
 STATIC_DIR = _APP_ROOT / "static"
 ASSETS_DIR = STATIC_DIR / "assets"
 INDEX_HTML = STATIC_DIR / "index.html"
 DRONES_DB_PATH = _APP_ROOT / "drones_db.json"
+_SPA_FILES = RootedStaticFiles(STATIC_DIR)
 
 DOCTRINE = "v11"
 SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired into CI per Doctrine v11"
@@ -2251,16 +2253,12 @@ except Exception as _beyond_e:
 
 
 @app.get("/{full_path:path}")
-async def spa_fallback(full_path: str) -> Response:
+async def spa_fallback(full_path: str, request: Request) -> Response:
     if full_path.startswith("api/"):
         return JSONResponse({"error": "not found"}, status_code=404)
-    candidate = (STATIC_DIR / full_path).resolve()
-    try:
-        candidate.relative_to(STATIC_DIR.resolve())
-    except ValueError:
-        return FileResponse(INDEX_HTML, media_type="text/html")
-    if candidate.is_file():
-        return FileResponse(candidate)
+    static_response = await _SPA_FILES.get(full_path, request.scope)
+    if static_response is not None:
+        return static_response
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 

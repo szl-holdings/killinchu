@@ -5,6 +5,9 @@
 # vsp-otel is also vendored per-file COPY under ./vsp_otel/ so the import
 # resolves offline (no PyPI dependency at build time) — honest, no-mock.
 vsp-otel>=0.1
+# Safe parsing for untrusted Cursor-on-Target XML. DTDs and entity expansion
+# are disabled before the CoT schema-shape validator sees a document.
+defusedxml==0.7.1
 # PCGI proof-carrying engagement receipts (killinchu_engagement_receipt.py). The
 # module PREFERS this installed lib and falls back to a byte-identical vendored
 # implementation of the same shapes when the install is blocked (offline edge).
