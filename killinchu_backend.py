@@ -518,7 +518,7 @@ def _store() -> _Store:
 # ---------------------------------------------------------------------------
 def _envelope(status: str, data: Dict[str, Any], citations: List[Dict[str, str]]) -> Dict[str, Any]:
     body = {
-        "status": status,           # ok | live | cached | degraded | error
+        "status": status,           # ok | live | cached | degraded | error | failed
         "doctrine": DOCTRINE,
         "service": "killinchu",
         "citations": citations,
@@ -768,6 +768,20 @@ def _evaluate_watchlists(st: _Store, snap_id: int, event_id: int, count: int,
 # ---------------------------------------------------------------------------
 _SCHED_STARTED = False
 _sched_lock = threading.Lock()  # non-reentrant: guards against overlapping runs
+_STORAGE_FAILURE_CLASS = "storage_unavailable"
+_STORAGE_FAILURE_PATTERNS = (
+    "database or disk is full",
+    "disk i/o error",
+    "no space left on device",
+    "disk quota exceeded",
+    "attempt to write a readonly database",
+    "read-only file system",
+    "enospc",
+)
+_STORAGE_REMEDIATION = (
+    "Free writable storage for the Killinchu durable store, then restart the "
+    "service. Scheduled and manual crawls remain fail-closed until restart."
+)
 _sched_state: Dict[str, Any] = {
     "enabled": None,
     "interval_seconds": None,
@@ -775,11 +789,58 @@ _sched_state: Dict[str, Any] = {
     "running": False,
     "runs": 0,
     "last_run_at": None,
+    "last_success_at": None,
     "last_status": None,
     "last_error": None,
     "consecutive_failures": 0,
     "next_run_at": None,
+    "circuit_open": False,
+    "failure_class": None,
+    "paused_at": None,
+    "operator_action": None,
 }
+
+
+def _scheduler_failure_class(error: Any) -> Optional[str]:
+    """Classify only known non-retriable local-storage failures.
+
+    Upstream timeouts, rate limits, and malformed responses remain ordinary
+    degraded runs with exponential backoff. Storage failures are different:
+    retrying the same write forever cannot recover the disk and can flood logs.
+    """
+    if isinstance(error, OSError) and getattr(error, "errno", None) in (28, 30, 122):
+        return _STORAGE_FAILURE_CLASS
+    normalized = str(error or "").casefold()
+    if any(pattern in normalized for pattern in _STORAGE_FAILURE_PATTERNS):
+        return _STORAGE_FAILURE_CLASS
+    return None
+
+
+def _open_scheduler_circuit(error: Any, paused_at: Optional[str] = None) -> None:
+    """Halt crawl writes after a non-retriable storage failure."""
+    _sched_state.update({
+        "last_status": "error",
+        "last_error": str(error),
+        "next_run_at": None,
+        "circuit_open": True,
+        "failure_class": _STORAGE_FAILURE_CLASS,
+        "paused_at": paused_at or _now_iso(),
+        "operator_action": _STORAGE_REMEDIATION,
+    })
+
+
+def _scheduler_health(cfg: Dict[str, Any]) -> str:
+    """Return the public scheduler health without equating wiring with health."""
+    if _sched_state["circuit_open"]:
+        return "failed"
+    if not cfg["enabled"] or not _SCHED_STARTED:
+        return "disabled"
+    last_status = str(_sched_state.get("last_status") or "").lower()
+    if last_status == "live":
+        return "ok"
+    if last_status in ("cached", "degraded", "error", "skipped"):
+        return "degraded"
+    return "starting"
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -815,9 +876,11 @@ def run_crawl_guarded(mode: str = "auto") -> Optional[Dict[str, Any]]:
     """Run one crawl unless one is already in flight (no pile-up).
 
     Returns the run_crawl() envelope, or None if a run was already in progress
-    and this call was skipped. The lock is non-blocking so a slow run never
-    causes scheduled cycles to queue up.
+    and this call was skipped, or if the storage circuit is open. The lock is
+    non-blocking so a slow run never causes scheduled cycles to queue up.
     """
+    if _sched_state["circuit_open"]:
+        return None
     if not _sched_lock.acquire(blocking=False):
         return None
     try:
@@ -860,15 +923,37 @@ async def _scheduler_loop() -> None:
                 if status == "live":
                     _sched_state["consecutive_failures"] = 0
                     _sched_state["last_error"] = None
+                    _sched_state["last_success_at"] = started
+                    _sched_state["failure_class"] = None
+                    _sched_state["paused_at"] = None
+                    _sched_state["operator_action"] = None
                 else:
                     # 'cached'/'degraded' = the scrape did not get fresh data.
                     _sched_state["consecutive_failures"] += 1
-                    _sched_state["last_error"] = (res.get("data") or {}).get("error")
+                    error = res.get("error")
+                    _sched_state["last_error"] = error
+                    if _scheduler_failure_class(error) == _STORAGE_FAILURE_CLASS:
+                        _open_scheduler_circuit(error, paused_at=started)
+                        print(
+                            "[killinchu-backend] auto-crawl halted: "
+                            f"{_STORAGE_FAILURE_CLASS} ({error})",
+                            file=sys.stderr,
+                        )
+                        return
         except Exception as e:  # never let the loop die
             _sched_state["consecutive_failures"] += 1
+            _sched_state["last_run_at"] = started
             _sched_state["last_status"] = "error"
             _sched_state["last_error"] = repr(e)
             print(f"[killinchu-backend] auto-crawl cycle error: {e!r}", file=sys.stderr)
+            if _scheduler_failure_class(e) == _STORAGE_FAILURE_CLASS:
+                _open_scheduler_circuit(e, paused_at=started)
+                print(
+                    "[killinchu-backend] auto-crawl halted fail-closed; "
+                    f"operator action: {_STORAGE_REMEDIATION}",
+                    file=sys.stderr,
+                )
+                return
         finally:
             _sched_state["running"] = False
 
@@ -944,6 +1029,14 @@ def register(app, ns: str = "killinchu") -> str:
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, _adsb_citation()), status_code=200)
+        if _sched_state["circuit_open"]:
+            return JSONResponse(_envelope("failed", {
+                "health": "failed",
+                "error": _sched_state["last_error"],
+                "failure_class": _sched_state["failure_class"],
+                "circuit_open": True,
+                "operator_action": _sched_state["operator_action"],
+            }, _adsb_citation()), status_code=503)
         rows = s.query("SELECT id, fetched_at, record_count FROM snapshots ORDER BY id DESC LIMIT 1")
         if rows:
             try:
@@ -967,13 +1060,28 @@ def register(app, ns: str = "killinchu") -> str:
     # -- crawl/run (manual) ------------------------------------------------
     async def crawl_run(request: Request) -> JSONResponse:
         """POST /crawl/run — trigger a manual crawl and return its result envelope."""
+        if _sched_state["circuit_open"]:
+            return JSONResponse(_envelope("failed", {
+                "health": "failed",
+                "error": _sched_state["last_error"],
+                "failure_class": _sched_state["failure_class"],
+                "circuit_open": True,
+                "operator_action": _sched_state["operator_action"],
+            }, _adsb_citation()), status_code=503)
         return JSONResponse(run_crawl(mode="crawl"))
 
     # -- crawl/status (auto-crawl scheduler health) ------------------------
     async def crawl_status(request: Request) -> JSONResponse:
         """GET /crawl/status — report the auto-crawl scheduler configuration + health."""
         cfg = scheduler_config()
+        health = _scheduler_health(cfg)
+        last_status = str(_sched_state.get("last_status") or "").lower()
+        freshness = "fresh" if last_status == "live" else (
+            "stale" if _sched_state.get("last_success_at") else "unverified"
+        )
         data = {
+            "health": health,
+            "freshness": freshness,
             "config": {
                 "enabled": cfg["enabled"],
                 "interval_seconds": cfg["interval"],
@@ -983,9 +1091,12 @@ def register(app, ns: str = "killinchu") -> str:
             },
             "scheduler": dict(_sched_state),
             "wired": _SCHED_STARTED,
+            "circuit_open": _sched_state["circuit_open"],
+            "failure_class": _sched_state["failure_class"],
+            "paused_at": _sched_state["paused_at"],
+            "operator_action": _sched_state["operator_action"],
         }
-        status = "ok" if (cfg["enabled"] and _SCHED_STARTED) else "disabled"
-        return JSONResponse(_envelope(status, data, []))
+        return JSONResponse(_envelope(health, data, []))
 
     # -- timeline ----------------------------------------------------------
     async def timeline(request: Request) -> JSONResponse:

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sqlite3
 import threading
 import time
 
@@ -53,10 +54,15 @@ def _reset_scheduler_state() -> None:
         "running": False,
         "runs": 0,
         "last_run_at": None,
+        "last_success_at": None,
         "last_status": None,
         "last_error": None,
         "consecutive_failures": 0,
         "next_run_at": None,
+        "circuit_open": False,
+        "failure_class": None,
+        "paused_at": None,
+        "operator_action": None,
     })
     # The overlap lock is non-reentrant; make sure no prior test left it held.
     if kb._sched_lock.acquire(blocking=False):
@@ -281,3 +287,62 @@ async def test_live_cache_miss_does_not_block_event_loop(backend_env, monkeypatc
     release.set()
     resp = await live_task
     assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# 5) Non-retriable storage failures halt fail-closed instead of spinning.
+# ---------------------------------------------------------------------------
+def test_storage_failure_opens_circuit_and_stops_scheduler(backend_env, monkeypatch):
+    calls = []
+
+    def _disk_full(mode="auto"):
+        calls.append(mode)
+        raise sqlite3.OperationalError("database or disk is full")
+
+    monkeypatch.setattr(kb, "run_crawl_guarded", _disk_full)
+    monkeypatch.setattr(
+        kb,
+        "scheduler_config",
+        lambda: {
+            "enabled": True,
+            "interval": 30,
+            "jitter": 0,
+            "initial": 0,
+            "max_backoff": 180,
+        },
+    )
+
+    asyncio.run(kb._scheduler_loop())
+
+    assert calls == ["auto"], "a full disk must not trigger an unbounded retry loop"
+    assert kb._sched_state["circuit_open"] is True
+    assert kb._sched_state["failure_class"] == "storage_unavailable"
+    assert kb._sched_state["next_run_at"] is None
+    assert kb._sched_state["running"] is False
+
+
+def test_open_circuit_is_failed_publicly_and_blocks_manual_crawl(backend_env, monkeypatch):
+    calls = []
+    kb._SCHED_STARTED = True
+    kb._sched_state["last_success_at"] = "2026-07-15T12:40:00+00:00"
+    kb._open_scheduler_circuit(
+        sqlite3.OperationalError("database or disk is full"),
+        paused_at="2026-07-15T13:10:00+00:00",
+    )
+    monkeypatch.setattr(kb, "run_crawl", lambda mode="crawl": calls.append(mode))
+
+    app = FastAPI(title="kc-circuit-test", version="0.0.0")
+    kb.register(app, ns=NS)
+    with TestClient(app) as client:
+        status = client.get(f"/api/{NS}/crawl/status")
+        manual = client.post(f"/api/{NS}/crawl/run")
+
+    assert status.status_code == 200
+    body = status.json()
+    assert body["status"] == "failed"
+    assert body["health"] == "failed"
+    assert body["freshness"] == "stale"
+    assert body["failure_class"] == "storage_unavailable"
+    assert body["scheduler"]["next_run_at"] is None
+    assert manual.status_code == 503
+    assert calls == []
