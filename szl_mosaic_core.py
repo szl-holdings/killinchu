@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@653b4ba95e6ae03630a922631139481875809d0b — replit-sync/mosaic_sda/szl_mosaic_core.py
+# VENDORED FROM szl-holdings/platform@d487e5f1e702c13c59509448a80b5da2e5751ea2 — replit-sync/mosaic_sda/szl_mosaic_core.py
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 """
 szl_mosaic_core.py — SZL-native multivariate + graph anomaly-detection CORE.
