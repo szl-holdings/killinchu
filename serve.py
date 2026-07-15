@@ -676,6 +676,24 @@ try:
 except Exception as _szl_qb_e:  # pragma: no cover
     print(f"[killinchu] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
 
+# Honest status rollup for the quant, qbio, and holographic surfaces. The
+# shared module preserves computational-reproducibility boundaries and never
+# upgrades modeled output into experimental validation.
+try:
+    import szl_quant_qbio_holo as _szl_qqh
+    _szl_qqh.register(app, ns="killinchu")
+    print(
+        "[killinchu] quant/qbio/holographic status registered: "
+        "/api/killinchu/v1/{quant,qbio,holographic}/status",
+        file=__import__("sys").stderr,
+    )
+except Exception as _szl_qqh_e:  # pragma: no cover
+    print(
+        f"[killinchu] quant/qbio/holographic status NOT registered: "
+        f"{_szl_qqh_e!r}; SPA + API unaffected",
+        file=__import__("sys").stderr,
+    )
+
 # ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
 # Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. REAL deterministic Python,
 # ORIGINAL author cited; SZL borrows structure only. coherence_crossing PROPOSED (mirrors
