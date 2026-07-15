@@ -13134,9 +13134,9 @@ go(VIEWS[start]?start:'tracks');
           '<div class="d" style="font-size:10px;color:#8ca599">'+sub+'</div></div>';
       }
       // Pull live counts from globals the page already maintains (best-effort).
-      var dk = (window.__KC_DARKFLEET!=null)?window.__KC_DARKFLEET:'—';
-      var sp = (window.__KC_SPOOF!=null)?window.__KC_SPOOF:'—';
-      var sx = (window.__KC_SANCTIONS!=null)?window.__KC_SANCTIONS:'—';
+      var dk = (window.__KC_DARKFLEET!=null)?window.__KC_DARKFLEET:'standby';
+      var sp = (window.__KC_SPOOF!=null)?window.__KC_SPOOF:'standby';
+      var sx = (window.__KC_SANCTIONS!=null)?window.__KC_SANCTIONS:'standby';
       var vr = (window.__KC_VESSELRISK!=null)?window.__KC_VESSELRISK:'Λ-scaled';
       var fr = (window.__KC_FRESH!=null)?window.__KC_FRESH:'live';
       hud.innerHTML =

@@ -155,7 +155,7 @@ img, svg { display: block; }
 /* ---- ORBITAL ANIMATION -------------------------------------------------- */
 .ds-orbital { position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 520px; margin: 0 auto; border-radius: 18px; overflow: hidden; background: radial-gradient(circle at 50% 50%, rgba(201,183,135,0.06) 0%, rgba(201,183,135,0.02) 35%, rgba(0,0,0,0) 65%), #0d0d0d; border: 1px solid var(--hairline); box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.02); }
 .ds-orbital__corner { position: absolute; width: 14px; height: 14px; border-top: 1px solid var(--gold); border-left: 1px solid var(--gold); opacity: 0.55; pointer-events: none; }
-.ds-orbital__hud { position: absolute; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); line-height: 1.7; z-index: 3; }
+.ds-orbital__hud {text-shadow:0 0 6px rgba(8,8,8,.95),0 0 2px #080808; position: absolute; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); line-height: 1.7; z-index: 3; }
 .ds-orbital__hud .gold { color: var(--gold-dim); }
 .ds-orbital__hud .teal { color: var(--teal); }
 .ds-orbital__scan { position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold) 50%, transparent); opacity: 0.35; mix-blend-mode: screen; animation: ds-scan 5.5s linear infinite; z-index: 2; }
@@ -678,13 +678,13 @@ cosign verify-blob --key cosign.pub \
     var guides = $("kc-guides");
     if(guides){ [0,45,90,135].forEach(function(deg){
       var a=deg*Math.PI/180;
-      guides.appendChild(mk("line",{ x1:250-230*Math.cos(a), y1:250-230*Math.sin(a),
-        x2:250+230*Math.cos(a), y2:250+230*Math.sin(a) }));
+      guides.appendChild(mk("line",{ x1:250-205*Math.cos(a), y1:250-205*Math.sin(a),
+        x2:250+205*Math.cos(a), y2:250+205*Math.sin(a) }));
     }); }
     var stations = $("kc-stations");
     var STN = [
       { angle:14,  r:158, label:"DRONES" },
-      { angle:90,  r:210, label:"VESSELS" },
+      { angle:90,  r:150, label:"VESSELS" },
       { angle:162, r:110, label:"SENSOR-FUSION" },
       { angle:232, r:158, label:"ENGAGEMENT" },
       { angle:308, r:110, label:"GEOFENCE" }

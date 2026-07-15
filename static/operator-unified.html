@@ -159,7 +159,7 @@
     <div id="terrain">
       <div class="tlabel label">TERRAIN · KHIPU DAG PARTICLE FIELD</div>
       <canvas id="pfield"></canvas>
-      <div class="thint">Click an organ well to open its panel · 5 organs, one substrate</div>
+      <div class="thint">Click an organ well to open its panel · 2 organs, one substrate</div>
     </div>
 
     <!-- PANE 2: RIGHT PANEL -->
@@ -170,8 +170,8 @@
       </div>
       <!-- Golden signals -->
       <div id="signals">
-        <div class="sig"><div class="k">Decisions / min</div><div class="v" id="sig-dec">—</div><svg id="spark-dec" viewBox="0 0 100 18" preserveAspectRatio="none"></svg></div>
-        <div class="sig"><div class="k">Yuyay-13 P95</div><div class="v" id="sig-y13">—</div><svg id="spark-y13" viewBox="0 0 100 18" preserveAspectRatio="none"></svg></div>
+        <div class="sig"><div class="k">Decisions / min · proxy</div><div class="v" id="sig-dec">—</div><svg id="spark-dec" viewBox="0 0 100 18" preserveAspectRatio="none"></svg></div>
+        <div class="sig"><div class="k">Yuyay-13 P95 · proxy</div><div class="v" id="sig-y13">—</div><svg id="spark-y13" viewBox="0 0 100 18" preserveAspectRatio="none"></svg></div>
         <div class="sig"><div class="k">Error %</div><div class="v" id="sig-err">—</div><svg id="spark-err" viewBox="0 0 100 18" preserveAspectRatio="none"></svg></div>
         <div class="sig"><div class="k">Λ-convergence</div><div class="v" id="sig-lam">—</div><svg id="spark-lam" viewBox="0 0 100 18" preserveAspectRatio="none"></svg></div>
       </div>
@@ -226,7 +226,7 @@
   "use strict";
 
   // ---- Organ detection -------------------------------------------------
-  var ORGANS = ["a11oy","sentra","amaru","rosie","killinchu"];
+  var ORGANS = ["a11oy","killinchu"]; // honest consolidation 2026-07: sentra/amaru/rosie retired
   function detectOrgan(){
     var h = (location.hostname || "").toLowerCase();
     for (var i=0;i<ORGANS.length;i++){ if (h.indexOf(ORGANS[i]) !== -1) return ORGANS[i]; }
@@ -521,7 +521,7 @@
   function updateSignals(){
     var liveCount = organs.filter(function(g){return g.status==="healthy";}).length;
     var errCount  = organs.filter(function(g){return g.status==="critical"||g.status==="offline";}).length;
-    var dec = liveCount*7 + Math.round(Math.random()*5);     // decisions/min proxy from liveness
+    var dec = liveCount*7;                                   // deterministic liveness proxy (no fabricated jitter)
     var y13 = 0.90 + liveCount*0.018;                         // P95 score proxy (>=Λ floor 0.90)
     var err = (errCount/organs.length)*100;
     var lam = Math.max(0, 1 - errCount*0.12);                // Λ-convergence ratio
