@@ -371,11 +371,15 @@ __all__ = ["register"]
 # ===========================================================================
 _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (additive, 0-CDN) -->
 <style>
-#szl-ceo-fab{position:fixed;right:16px;bottom:16px;z-index:2147483000;display:inline-flex;align-items:center;gap:8px;
+/* Investor pill stacks ABOVE the floating reliability/Chaski orb badge so the two
+   never overlap or clip the circular FAB at 1280-1920px. Both share the bottom-right
+   corner; the pill sits one row up (safe-area aware), max-width capped to viewport. */
+#szl-ceo-fab{position:fixed;right:calc(env(safe-area-inset-right,0px) + 16px);
+  bottom:calc(env(safe-area-inset-bottom,0px) + 74px);z-index:2147483000;display:inline-flex;align-items:center;gap:8px;
   font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
-  padding:11px 16px;min-height:44px;border-radius:10px;border:1px solid rgba(201,183,135,.45);
+  padding:11px 16px;min-height:44px;max-width:calc(100vw - 32px);border-radius:10px;border:1px solid rgba(201,183,135,.45);
   background:rgba(201,183,135,.12);color:#d6c69a;cursor:pointer;backdrop-filter:blur(8px);
-  box-shadow:0 8px 26px -10px rgba(0,0,0,.7);}
+  box-shadow:0 8px 26px -10px rgba(0,0,0,.7);white-space:nowrap;}
 #szl-ceo-fab:hover{background:rgba(201,183,135,.2);border-color:rgba(201,183,135,.7);}
 #szl-ceo-fab .dot{width:8px;height:8px;border-radius:50%;background:#5fb3a3;box-shadow:0 0 0 3px rgba(95,179,163,.18);}
 #szl-ceo{position:fixed;inset:0;z-index:2147483001;display:none;overflow-y:auto;
@@ -881,7 +885,8 @@ a{color:inherit;text-decoration:none;}
 .nav-group[data-demo-sec]:focus-visible{outline:1px solid var(--teal-line,#2c5d52);outline-offset:2px;}
 .nav-item.demo-hidden,.nav-group.demo-hidden,.exp-fence-note.demo-hidden{display:none!important;}
 .exp-fence-note{margin:.15rem .5rem .35rem;padding:.45rem .55rem;font-family:var(--mono);font-size:9px;line-height:1.55;color:#caa84b;background:rgba(202,168,75,.06);border:1px dashed rgba(202,168,75,.35);border-radius:6px;letter-spacing:.04em;}
-.side-foot{margin-top:1.2rem;padding:.7rem .6rem;border-top:1px solid var(--gold-line);font-family:var(--mono);font-size:9.5px;color:var(--dim);line-height:1.7;}
+.side-foot{margin-top:1.2rem;padding:.85rem .6rem 1.1rem;border-top:1px solid var(--gold-line);font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.95;letter-spacing:.02em;}
+.side-foot br{line-height:2.1;}
 
 /* ===== CONTENT ===== */
 .content{padding:1.1rem 1.6rem 2rem;overflow-y:auto;overflow-x:hidden;height:100%;min-height:0;-webkit-overflow-scrolling:touch;}
@@ -1201,7 +1206,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
      9-11.5px on desktop by design; bumped to a readable 12px floor on mobile. */
   .nav-group{font-size:12px!important;letter-spacing:.12em;}
   .brand .role{font-size:12px!important;}                 /* small but >=11; brand sub */
-  .side-foot{font-size:12px!important;line-height:1.65;}
+  .side-foot{font-size:12px!important;line-height:1.9;}
   .kpi .k{font-size:12px!important;letter-spacing:.1em;}
   .kpi .d{font-size:12px!important;}
   .view-badge{font-size:12px!important;}
@@ -4930,8 +4935,8 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="kpi"><div class="k">Declarations</div><div class="v teal" id="me-dag">\u2014</div><div class="d">v11 kernel</div></div></div>
       <div class="grid2">
         <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Golden metric \u2014 telemetry latency by service</span><span class="card-ep">live \u00b7 auto-refresh 8s</span></div><div class="echart" id="me-lat"></div></div>
-        <div class="card"><div class="card-h"><span class="card-t">${liveDot()}Event stream \u2014 track / span receipts</span><span class="card-ep"><select id="me-filter" style="background:var(--panel);color:var(--paragraph);border:1px solid var(--gold-line);border-radius:6px;padding:.25rem .5rem;font-family:var(--mono);font-size:11px"><option value="">all services</option></select></span></div>
-          <div id="me-stream" style="max-height:300px;overflow:auto"><div class="row mono dim">loading\u2026</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Event stream \u2014 track / span receipts <span class="badge b-warn" style="margin-left:.4rem">MODELED cadence</span></span><span class="card-ep"><select id="me-filter" style="background:var(--panel);color:var(--paragraph);border:1px solid var(--gold-line);border-radius:6px;padding:.25rem .5rem;font-family:var(--mono);font-size:11px"><option value="">all services</option></select></span></div>
+          <div id="me-stream" style="max-height:300px;overflow:auto"><div class="row mono dim">awaiting spans</div></div></div>
       </div>
       <div class="card" id="me-drill"><div class="row mono dim">Click any span in the stream to drill into it \u2014 its service, traceparent and its span receipt (DSSE-signed when a cosign key is armed, else UNSIGNED-honest) land here.</div></div>${HONEST}`;window.melt_load();}},
 
@@ -7143,7 +7148,7 @@ async function melt_load(){
         var sid=(++window._meSeq);
         var span={id:sid,ts:nowts(),svc:svc.id,svcName:svc.name,model:(trk.model||'track'),status:(trk.status||'telemetry'),lat:svc._lat||0,tp:'00-'+Math.random().toString(16).slice(2,18)+'-'+Math.random().toString(16).slice(2,10)+'-01'};
         window._meSpans[sid]=span;
-        var line='<div class="row me-span" data-svc="'+esc(span.svc)+'" style="cursor:pointer;animation:pulse 1.2s 1" onclick="window.melt_drill('+sid+')"><span class="badge b-live">span</span><span>'+esc(span.svcName)+' \u00b7 '+esc(span.model)+' \u00b7 '+esc(span.status)+'</span><span class="spacer mono dim">'+esc(span.ts)+'</span></div>';
+        var line='<div class="row me-span" data-svc="'+esc(span.svc)+'" style="cursor:pointer;animation:pulse 1.2s 1" onclick="window.melt_drill('+sid+')"><span class="badge b-warn" title="MODELED: span composed from real /mesh/state services + /threats/active tracks; the emission cadence is synthesized, not a captured trace event">MODELED</span><span>'+esc(span.svcName)+' \u00b7 '+esc(span.model)+' \u00b7 '+esc(span.status)+'</span><span class="spacer mono dim">'+esc(span.ts)+'</span></div>';
         ev.insertAdjacentHTML('afterbegin',line);
         while(ev.children.length>40) ev.removeChild(ev.lastChild);
         melt_apply_filter();

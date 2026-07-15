@@ -120,12 +120,12 @@
     <!-- FRAMEWORKS -->
     <section class="sec" id="s-frameworks">
       <h1>Framework <b>Mappings</b></h1>
-      <p class="sub">STIG-hardened</p>
+      <p class="sub">Engineering-level control mappings — STIG-Hardened delta, NIST AI RMF, EU AI Act Art.12, and FedRAMP posture. Mappings, not conformity assertions; no certification claimed.</p>
       <div class="grid g2">
-        <div class="card" id="fw-"><h3>STIG-hardened</h3><div class="load">Loading…</div></div>
+        <div class="card" id="fw-stig-hardened"><h3>STIG-Hardened delta</h3><div class="load">Loading…</div></div>
         <div class="card" id="fw-nist"><h3>NIST AI RMF 1.0</h3><div class="load">Loading…</div></div>
         <div class="card" id="fw-eu"><h3>EU AI Act Article 12</h3><div class="load">Loading…</div></div>
-        <div class="card" id="fw-fedramp"><h3>FedRAMP Moderate posture</h3><div class="load">Loading…</div></div>
+        <div class="card" id="fw-fedramp"><h3>FedRAMP Moderate — roadmap posture</h3><div class="load">Loading…</div></div>
       </div>
     </section>
     <!-- RAW -->
@@ -155,7 +155,7 @@ const API="/api/killinchu/uds/v1";
 const FLAGSHIPS=[{k:"a11oy",label:"Orchestrator (a11oy)"},{k:"killinchu",label:"Field Node (killinchu)"},{k:"vessels",label:"vessels"},{k:"hatun-mcp",label:"hatun-mcp"}];
 const $=s=>document.querySelector(s);
 async function get(p){const r=await fetch(API+"/"+p);return r.json();}
-function sigLine(j){const ok=j.signed;return `<span class="dot ${ok?'ok':'no'}"></span>${ok?'DSSE SIGNED':'UNSIGNED (no key in runtime — honest, not fabricated)'} · keyid ${(j.dsse&&j.dsse.signatures&&j.dsse.signatures[0]?j.dsse.signatures[0].keyid:'szlholdings-cosign')} · receipt ${(j.receipt_sha256||'').slice(0,16)||'—'}`;}
+function sigLine(j){const ok=j.signed;return `<span class="dot ${ok?'ok':'no'}"></span>${ok?'DSSE SIGNED':'UNSIGNED (no key in runtime — honest, not fabricated)'} · keyid ${(j.dsse&&j.dsse.signatures&&j.dsse.signatures[0]?j.dsse.signatures[0].keyid:'szlholdings-cosign')} · receipt ${(j.receipt_sha256||'').slice(0,16)||'awaiting sweep'}`;}
 function badge(v){if(v===true)return '<span class="badge b-green">yes</span>';if(v===false)return '<span class="badge b-red">no</span>';return `<span class="badge b-warn">${v}</span>`;}
 
 // nav
@@ -166,44 +166,44 @@ document.querySelectorAll('#nav a').forEach(a=>a.onclick=()=>{
 async function loadStig(){
   const j=await get("stig/scan-report/killinchu");
   const b=j.baseline||{},h=j.hardened||{};
+  const bScore=(b.score_pct!=null?b.score_pct:null), hScore=(h.score_pct!=null?h.score_pct:null);
+  const delta=(bScore!=null&&hScore!=null)?('+'+(hScore-bScore).toFixed(2)+' from hardening layer'):'awaiting sweep';
   $('#stig-kpis').innerHTML=`
-   <div class="card"><h3>Baseline score</h3><div class="kpi">${b.score_pct}<small>/100</small></div><div class="bar"><span style="width:${b.score_pct}%"></span></div></div>
-   <div class="card"><h3>Hardened score</h3><div class="kpi" style="color:var(--teal)">${h.score_pct}<small>/100</small></div><div class="delta up">+${(h.score_pct-b.score_pct).toFixed(2)} from hardening layer</div></div>
-   <div class="card"><h3>Rules passed</h3><div class="kpi">${b.rules_passed}→${h.rules_passed}</div><div class="delta up">${j.rules_fixed_by_image_hardening} fixed</div></div>
-   <div class="card"><h3>High-sev fails</h3><div class="kpi" style="color:var(--gold)">${(b.fail_by_severity||{}).high||0}</div><div class="honest" style="margin-top:6px">FIPS/SELinux — kernel-boot, not image-layer</div></div>`;
+   <div class="card"><h3>Baseline score <span class="badge b-mute">measured</span></h3><div class="kpi">${bScore!=null?bScore:'<small>awaiting sweep</small>'}${bScore!=null?'<small>/100</small>':''}</div><div class="bar"><span style="width:${bScore!=null?bScore:0}%"></span></div></div>
+   <div class="card"><h3>Hardened score <span class="badge b-mute">measured</span></h3><div class="kpi" style="color:var(--teal)">${hScore!=null?hScore:'<small>awaiting sweep</small>'}${hScore!=null?'<small>/100</small>':''}</div><div class="delta up">${delta}</div></div>
+   <div class="card"><h3>Rules passed <span class="badge b-mute">measured</span></h3><div class="kpi">${(b.rules_passed!=null&&h.rules_passed!=null)?b.rules_passed+'→'+h.rules_passed:'<small>awaiting sweep</small>'}</div><div class="delta up">${j.rules_fixed_by_image_hardening!=null?j.rules_fixed_by_image_hardening+' fixed':'awaiting sweep'}</div></div>
+   <div class="card"><h3>High-sev fails <span class="badge b-mute">measured</span></h3><div class="kpi" style="color:var(--gold)">${(b.fail_by_severity||{}).high||0}</div><div class="honest" style="margin-top:6px">FIPS/SELinux gaps are kernel-boot, not image-layer</div></div>`;
   const tb=$('#stig-table tbody');tb.innerHTML="";
   for(const fo of FLAGSHIPS){const f=fo.k;const jr=await get("stig/scan-report/"+f);const node=(f==="vessels");
     const jb=jr.baseline||{},jh=jr.hardened||{};
     tb.innerHTML+=`<tr><td><b>${fo.label}</b></td><td class="mono" style="font-size:11px">${node?'nodejs20 (IB)':'ubi9-minimal (IB)'}</td>
-      <td class="num">${jb.score_pct??'—'}</td><td class="num" style="color:var(--teal)">${jh.score_pct??'—'}</td>
-      <td class="num">${jr.rules_fixed_by_image_hardening??'—'}</td>
+      <td class="num">${jb.score_pct!=null?jb.score_pct:'<span class="badge b-mute">awaiting sweep</span>'}</td><td class="num" style="color:var(--teal)">${jh.score_pct!=null?jh.score_pct:'<span class="badge b-mute">awaiting sweep</span>'}</td>
+      <td class="num">${jr.rules_fixed_by_image_hardening!=null?jr.rules_fixed_by_image_hardening:'<span class="badge b-mute">awaiting sweep</span>'}</td>
       <td>${node?'<span class="badge b-warn">node base pending</span>':'<span class="badge b-green">scanned</span>'}</td></tr>`;}
   $('#stig-sig').innerHTML=sigLine(j);
   $('#stig-fails').innerHTML=(j.top_high_severity_fails||[]).map(r=>`<span class="badge b-red" style="margin:3px">${r}</span>`).join('')+
     `<div class="honest">${j.honesty||''}</div>`;
 }
-/* loadIB() REMOVED — STIG Baseline per CTO P1 REJECT */</b></td><td>${f.language}</td>
-    <td class="mono" style="font-size:11px">${f.current_base}</td><td class="mono" style="font-size:11px">${f.ironbank_target_base.replace('registry1.dso.mil/ironbank/','…/')}</td>
-    <td>${badge(f.ironbank_image_pushed==='Y')}</td><td><span class="badge b-warn">${f.pull_status}</span></td></tr>`);
-  $('#ib-honest').textContent=j.honesty||'';$('#ib-sig').innerHTML=sigLine(j);}
+/* loadIB() REMOVED — STIG Baseline per CTO P1 REJECT (Charter §24). No orphaned render. */
 async function loadBB(){const j=await get("big-bang/parity");const o=j.rendered_objects||{};
-  $('#bb-kpis').innerHTML=`<div class="card"><h3>helm lint</h3><div class="kpi" style="font-size:22px;color:var(--green)">PASS</div><div class="honest">${j.lint_status||''}</div></div>
-   <div class="card"><h3>Rendered objects</h3><div class="kpi">${o.total||'—'}</div><div class="delta up">7 flagships × full set</div></div>
-   <div class="card"><h3>Chart artifact</h3><div class="kpi" style="font-size:18px">${j.packaged_artifact||'szl-0.1.0.tgz'}</div><div class="honest">helm ${j.helm_version||''}</div></div>`;
+  const lintPass=(j.lint_status||'').toLowerCase().includes('pass')||j.lint_passed===true;
+  $('#bb-kpis').innerHTML=`<div class="card"><h3>helm lint <span class="badge b-mute">measured</span></h3><div class="kpi" style="font-size:22px;color:${lintPass?'var(--green)':'var(--gold)'}">${j.lint_status?(lintPass?'PASS':'REVIEW'):'awaiting sweep'}</div><div class="honest">${j.lint_status||'no helm lint output in this runtime'}</div></div>
+   <div class="card"><h3>Rendered objects <span class="badge b-mute">measured</span></h3><div class="kpi">${o.total!=null?o.total:'<small>awaiting sweep</small>'}</div><div class="delta up">${o.total!=null?'across '+FLAGSHIPS.length+' components':'no render'}</div></div>
+   <div class="card"><h3>Chart artifact</h3><div class="kpi" style="font-size:18px">${j.packaged_artifact||'szl-0.1.0.tgz'}</div><div class="honest">helm ${j.helm_version||'version awaiting sweep'}</div></div>`;
   const tb=$('#bb-table tbody');tb.innerHTML="";(j.big_bang_compat_matrix||[]).forEach(m=>
     tb.innerHTML+=`<tr><td>${m.feature}</td><td>${badge(m.big_bang)}</td><td>${badge(m.szl)}</td></tr>`);
   $('#bb-honest').textContent=(j.install_command?'$ '+j.install_command+'  —  ':'')+(j.honesty||'');$('#bb-sig').innerHTML=sigLine(j);}
 async function loadTW(){const j=await get("tradewinds/listing");const c=j.company||{},p=j.compliance_posture||{},s=j.solution||{};
   $('#tw-company').innerHTML=`<h3>Company</h3><table>
     <tr><td>Name</td><td><b>${c.name||''}</b></td></tr>
-    <tr><td>CAGE</td><td>${c.cage_code&&c.cage_code.value?c.cage_code.value:'<span class="badge b-warn">stub — SAM.gov</span>'}</td></tr>
-    <tr><td>UEI</td><td>${c.uei&&c.uei.value?c.uei.value:'<span class="badge b-warn">stub — SAM.gov</span>'}</td></tr>
+    <tr><td>CAGE</td><td>${c.cage_code&&c.cage_code.value?c.cage_code.value:'<span class="badge b-warn">awaiting SAM.gov</span>'}</td></tr>
+    <tr><td>UEI</td><td>${c.uei&&c.uei.value?c.uei.value:'<span class="badge b-warn">awaiting SAM.gov</span>'}</td></tr>
     <tr><td>Tradewinds acct</td><td><span class="badge b-warn">founder action</span></td></tr></table>`;
   $('#tw-posture').innerHTML=`<h3>Compliance posture</h3><table>
-    <tr><td>IL5</td><td>${badge((p.il5_readiness||{}).status||'ROADMAP')}</td></tr>
-    <tr><td>STIG-Hardened</td><td>${badge((p.stig-hardened||{}).status||'ROADMAP')}</td></tr>
-    <tr><td>FedRAMP</td><td>${badge((p.fedramp||{}).status||'ROADMAP')}</td></tr>
-    <tr><td>SLSA</td><td>${badge((p.slsa||{}).status||'L1')}</td></tr>
+    <tr><td>IL5</td><td>${badge((p.il5_readiness||{}).status||'roadmap')}</td></tr>
+    <tr><td>STIG-Hardened</td><td>${badge((p['stig-hardened']||{}).status||'roadmap')}</td></tr>
+    <tr><td>FedRAMP</td><td>${badge((p.fedramp||{}).status||'roadmap')}</td></tr>
+    <tr><td>SLSA</td><td>${badge((p.slsa||{}).status||'L1 honest · L2 attested · L3 roadmap')}</td></tr>
     <tr><td>Signing</td><td class="mono" style="font-size:11px">${(p.signing||{}).keyid||'szlholdings-cosign'}</td></tr></table>`;
   $('#tw-caps').innerHTML=`<div style="font-weight:600;margin-bottom:8px">${s.name||''}</div><div class="honest" style="border-color:var(--gold)">${s.tagline||''}</div><ul>`+
     (s.capabilities||[]).map(x=>`<li style="margin:4px 0">${x}</li>`).join('')+'</ul><div class="honest">'+(j.honesty||'')+'</div>';
@@ -220,13 +220,13 @@ async function loadFW(){
   const eu=await get("eu-ai-act/article-12");$('#fw-eu').innerHTML=`<h3>EU AI Act Article 12</h3>`+
     `<div style="font-size:12px;color:var(--muted)">${eu.article||''}</div><pre style="max-height:200px;margin-top:8px">${JSON.stringify(eu.logging_mechanism||eu,null,1)}</pre>`+
     `<div class="honest">${eu.honesty||''}</div><div class="sig">${sigLine(eu)}</div>`;
-  const fr=await get("fedramp/posture");$('#fw-fedramp').innerHTML=`<h3>FedRAMP Moderate posture</h3>`+
-    `<div style="font-size:12px;color:var(--muted);margin-bottom:6px">${fr.baseline||''}</div>`+
+  const fr=await get("fedramp/posture");$('#fw-fedramp').innerHTML=`<h3>FedRAMP Moderate — roadmap posture</h3>`+
+    `<div style="font-size:12px;color:var(--muted);margin-bottom:6px">${fr.baseline||'awaiting sweep'} · roadmap item, not an authorization</div>`+
     (fr.families||[]).map(f=>`<div style="margin:4px 0">${badge(f.status==='supported'?true:f.status)} <b>${f.family}</b></div>`).join('')+
-    `<div class="honest">${fr.authorization_status||''} ${fr.honesty||''}</div><div class="sig">${sigLine(fr)}</div>`;
+    `<div class="honest">${fr.authorization_status||'not authorized — FedRAMP is a roadmap item, no ATO held'} ${fr.honesty||''}</div><div class="sig">${sigLine(fr)}</div>`;
 }
 $('#raw-pick').onchange=async e=>{$('#raw-out').textContent='…';const j=await get(e.target.value);$('#raw-out').textContent=JSON.stringify(j,null,2);};
-(async()=>{try{await loadStig();awaitawait loadBB();await loadTW();await loadFW();
+(async()=>{try{await loadStig();await loadBB();await loadTW();await loadFW();
   $('#raw-out').textContent=JSON.stringify(await get("stig/scan-report/killinchu"),null,2);}catch(e){console.error(e);}})();
 </script>
 </body>
