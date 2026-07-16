@@ -177,8 +177,10 @@ def test_elite_console_renders_halted_truth_without_static_live_claim():
 
     assert "Live intel feed \\u2014 auto-refresh" not in source
     assert "var halted=!!(j&&j.circuit_open)||health==='failed';" in source
-    assert "outcome='HALTED'" in source
+    assert "var stopped=halted||!enabled||health==='disabled';" in source
+    assert "outcome='STOPPED'" in source
     assert "fail-closed \\u00b7 no retries" in source
-    assert "(halted?'HALTED':freshness)" in source
+    assert "(stopped?'STOPPED':freshness)" in source
+    assert "else { outcome='DEGRADED'" in source
     assert "j.operator_action" in source
-    assert "cell('Next run',(enabled&&!halted)" in source
+    assert "cell('Next run',(enabled&&!stopped)" in source

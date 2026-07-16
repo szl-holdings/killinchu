@@ -2435,8 +2435,8 @@ window.autoPill=function(gateId){ return '<span class="badge b-live" style="font
 
 /* ── Auto-crawl scheduler status (Task #742) — surfaces the live intel feed's
    self-refresh health from GET /api/killinchu/crawl/status. Honest by design:
-   a run that did not get fresh data (cached/degraded) is labelled DEGRADED, an
-   exception run ERROR, an overlap-guarded cycle SKIPPED — never shown healthy. ── */
+   a run that did not get fresh data is labelled DEGRADED; a disabled/not-wired
+   scheduler or an open storage circuit is STOPPED — never shown healthy. ── */
 function _csRel(iso, future){
   if(!iso) return '\u2014';
   try{
@@ -2457,35 +2457,34 @@ async function crawlStatusLoad(id){
     var enabled=(cfg.enabled!==false)&&wired;
     var health=String((j&&j.health)||(j&&j.status)||'unverified').toLowerCase();
     var halted=!!(j&&j.circuit_open)||health==='failed';
+    var stopped=halted||!enabled||health==='disabled';
     var last=String(sch.last_status||'').toLowerCase();
     var outcome, oc;
-    if(halted){ outcome='HALTED'; oc='#ff7b7b'; }
+    if(stopped){ outcome='STOPPED'; oc='#ff7b7b'; }
     else if(!sch.last_run_at){ outcome='NO RUN YET'; oc='#c9a05f'; }
     else if(last==='live'){ outcome='OK'; oc='#5fb3a3'; }
-    else if(last==='error'){ outcome='ERROR'; oc='#ff7b7b'; }
-    else if(last==='skipped'){ outcome='SKIPPED'; oc='#c9a05f'; }
-    else { outcome='DEGRADED'; oc='#f5b301'; }   // cached / degraded — not fresh data
-    var schTxt=halted?'CIRCUIT OPEN':(enabled?'ENABLED':(wired?'DISABLED':'NOT WIRED'));
-    var schC=(halted||!enabled)?'#ff7b7b':'#5fb3a3';
+    else { outcome='DEGRADED'; oc='#f5b301'; }   // cached / degraded / error / skipped — not fresh
+    var schTxt=halted?'CIRCUIT OPEN':(enabled?'ENABLED':'STOPPED');
+    var schC=stopped?'#ff7b7b':'#5fb3a3';
     var cf=sch.consecutive_failures||0;
-    var boTxt=halted?'fail-closed \u00b7 no retries':(cf>0?('backing off \u00b7 '+cf+' consecutive miss'+(cf===1?'':'es')):'nominal');
-    var boC=halted?'#ff7b7b':(cf>0?'#f5b301':'var(--dim)');
+    var boTxt=halted?'fail-closed \u00b7 no retries':(!enabled?'scheduler stopped':(cf>0?('backing off \u00b7 '+cf+' consecutive miss'+(cf===1?'':'es')):'nominal'));
+    var boC=stopped?'#ff7b7b':(cf>0?'#f5b301':'var(--dim)');
     var ivl=cfg.interval_seconds!=null?(cfg.interval_seconds+'s'):'\u2014';
     var freshness=String((j&&j.freshness)||'unverified').toUpperCase();
-    var title='Intel feed \u00b7 '+(halted?'HALTED':freshness);
+    var title='Intel feed \u00b7 '+(stopped?'STOPPED':freshness);
     var cell=function(label,val,color){ return '<div class="kpi" style="padding:.5rem .7rem"><div class="k">'+esc(label)+'</div><div class="v" style="font-size:1rem;color:'+(color||'var(--cream)')+'">'+val+'</div></div>'; };
     var remediation=halted&&j.operator_action
       ? '<div class="row mono" style="font-size:11px;color:#ff7b7b;margin-top:.5rem;word-break:break-word">operator action: '+esc(String(j.operator_action))+'</div>' : '';
-    var note=((outcome==='DEGRADED'||outcome==='ERROR'||outcome==='HALTED')&&sch.last_error)
+    var note=((outcome==='DEGRADED'||outcome==='STOPPED')&&sch.last_error)
       ? '<div class="row mono" style="font-size:11px;color:#f5b301;margin-top:.5rem;word-break:break-word">last issue: '+esc(String(sch.last_error))+'</div>'
-      : (outcome==='SKIPPED' ? '<div class="row mono dim" style="font-size:11px;margin-top:.5rem">a run was still in progress \u2014 this cycle was skipped to avoid pile-up</div>' : '');
+      : (last==='skipped' ? '<div class="row mono dim" style="font-size:11px;margin-top:.5rem">a run was still in progress \u2014 this cycle was skipped to avoid pile-up</div>' : '');
     box.innerHTML=
       '<div class="card-h"><span class="card-t">&#8635; '+esc(title)+'</span><span class="card-ep">GET /api/killinchu/crawl/status \u00b7 adsb.lol military ADS-B</span></div>'+
       '<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:.5rem;margin:0">'+
         cell('Scheduler',schTxt,schC)+
         cell('Last run',_csRel(sch.last_run_at,false),'var(--cream)')+
         cell('Outcome',outcome,oc)+
-        cell('Next run',(enabled&&!halted)?_csRel(sch.next_run_at,true):'\u2014','var(--cream)')+
+        cell('Next run',(enabled&&!stopped)?_csRel(sch.next_run_at,true):'\u2014','var(--cream)')+
         cell('Backoff',boTxt,boC)+
         cell('Interval',ivl,'var(--dim)')+
       '</div>'+note+remediation;

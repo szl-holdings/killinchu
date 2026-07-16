@@ -62,7 +62,10 @@ ecosystem-stage: "operational"
 - Space URL: https://szlholdings-killinchu.hf.space
 - Health: `curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
 - Source/deployment attestation: https://szlholdings-killinchu.hf.space/.well-known/szl-source.json
+  (unsigned structural snapshot; its `PENDING_GITHUB_SYNC` / `NOT_CLAIMED` fields are authoritative)
 - OpenAPI: https://szlholdings-killinchu.hf.space/openapi.json
+- Spaces registry: https://szlholdings-killinchu.hf.space/spaces
+  (apps open on canonical isolated HF origins; legacy `/spaces/<slug>` links are no-store 307 handoffs)
 - Docs: https://szl-holdings.github.io/docs-site/flagships/killinchu
 - Release: [v1.0.0](https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0)
 

@@ -1,0 +1,61 @@
+{
+  "schema": "szl.deployment-source/v2",
+  "source": {
+    "repository": "szl-holdings/killinchu",
+    "commit": "9958c34a2066ba05e9679ce96ae4841fd67b1db6",
+    "path": "",
+    "relation": "current-github-main-reference",
+    "commit_state": "MEASURED_GITHUB_MAIN_REFERENCE_AT_AUDIT",
+    "sync_state": "PENDING_GITHUB_SYNC",
+    "build_source_state": "NOT_PROVEN"
+  },
+  "deployment": {
+    "hf_space": "SZLHOLDINGS/killinchu",
+    "audited_live_hf_revision": "bba71e38fc3955fb1809a76965911675a94041b2",
+    "audited_live_hf_revision_state": "MEASURED_LIVE_REFERENCE_AT_OBSERVATION",
+    "audited_live_stage": "RUNNING",
+    "audited_live_hardware": "cpu-basic",
+    "audited_live_last_modified": "2026-07-16T18:09:53.000Z",
+    "current_hf_revision": null,
+    "current_hf_revision_state": "NOT_CLAIMED",
+    "running_process_revision": "NOT_CLAIMED",
+    "deployed_equivalence_state": "NOT_CLAIMED"
+  },
+  "artifact_basis": {
+    "github_reference_commit": "9958c34a2066ba05e9679ce96ae4841fd67b1db6",
+    "hf_observed_revision": "bba71e38fc3955fb1809a76965911675a94041b2",
+    "semantics": "Two independently recorded references at audit time; their content parity and build relationship are not claimed."
+  },
+  "observed_at": "2026-07-16T18:09:53.000Z",
+  "transport_state": "REFERENCE_RECORDED",
+  "evidence_state": "SNAPSHOT",
+  "verification_state": "STRUCTURAL_ONLY",
+  "authority_state": "READ_ONLY",
+  "alignment_state": "PENDING_GITHUB_SYNC",
+  "attestation_state": "UNSIGNED_STRUCTURAL",
+  "claims": {
+    "github_parity": "NOT_CLAIMED",
+    "hugging_face_parity": "NOT_CLAIMED",
+    "deployed_equivalence": "NOT_CLAIMED",
+    "reproducible_build": "NOT_CLAIMED",
+    "build_provenance": "NOT_CLAIMED",
+    "current_hf_head": "NOT_CLAIMED"
+  },
+  "extensions": {
+    "schema": "szl.static-deployment-source-evidence/v1",
+    "overlay": {
+      "source_reference_commit": "9958c34a2066ba05e9679ce96ae4841fd67b1db6",
+      "artifact_path": ".well-known/szl-source.json",
+      "worktree_scope_state": "NOT_ATTESTED",
+      "sync_state": "PENDING_GITHUB_SYNC"
+    }
+  },
+  "limits": [
+    "This file is an unsigned structural snapshot and grants no mutation authority.",
+    "The GitHub commit is the current origin/main reference observed during this audit, not a commit containing this pending worktree overlay.",
+    "This snapshot does not prove that the pending overlay has been applied atop the referenced GitHub commit.",
+    "The Hugging Face revision is an observed live reference at 2026-07-16T18:09:53.000Z, not a claim about the current head.",
+    "No byte parity, build provenance, reproducible build, or deployed equivalence is claimed.",
+    "PENDING_GITHUB_SYNC must remain until an independently observable published commit contains this artifact."
+  ]
+}
