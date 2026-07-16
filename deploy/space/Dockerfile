@@ -65,6 +65,8 @@ COPY killinchu_protocols.py ./killinchu_protocols.py
 COPY killinchu_expansion.py ./killinchu_expansion.py
 COPY killinchu_naval_haps.py ./killinchu_naval_haps.py
 COPY szl_dsse.py ./szl_dsse.py
+COPY szl_content_address.py ./szl_content_address.py
+COPY szl_safe_static.py ./szl_safe_static.py
 COPY szl_provenance.py ./szl_provenance.py
 COPY LEGAL_BOUNDARIES.md ./LEGAL_BOUNDARIES.md
 
@@ -231,4 +233,3 @@ COPY killinchu_elite_console.py ./killinchu_elite_console.py
 COPY killinchu_beyond.py ./killinchu_beyond.py
 
 CMD ["python", "serve.py"]
-

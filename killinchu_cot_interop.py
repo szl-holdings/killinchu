@@ -53,10 +53,14 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import logging
 import os
 import re
 from typing import Any, Iterable
 from xml.etree import ElementTree as ET
+
+from defusedxml import ElementTree as DefusedET
+from defusedxml.common import DefusedXmlException
 
 try:
     from fastapi import APIRouter, Request
@@ -69,10 +73,25 @@ except Exception:  # pragma: no cover
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _VESSELS_PATH = os.path.join(_HERE, "fleet_vessels_data.json")
+_LOGGER = logging.getLogger(__name__)
 
 COT_VERSION = "2.0"
 # CoT default multicast SA group (ROADMAP target only — never opened here).
 COT_DEFAULT_MULTICAST = "239.2.3.1:6969"
+
+# CoT events are compact tactical messages. Hard limits bound parser memory and
+# post-parse traversal even after DTD/entity expansion has been disabled.
+MAX_COT_XML_BYTES = 256 * 1024
+MAX_COT_XML_ELEMENTS = 2048
+MAX_COT_XML_DEPTH = 24
+MAX_COT_XML_TEXT_CHARS = 128 * 1024
+MAX_COT_ATTRIBUTES_PER_ELEMENT = 64
+
+# Client responses deliberately expose only stable categories. Detailed
+# exception context remains in server logs and never crosses the HTTP boundary.
+_INGEST_ERROR_TOO_LARGE = "CoT XML payload too large"
+_INGEST_ERROR_ENCODING = "CoT XML must be UTF-8"
+_INGEST_ERROR_INVALID = "invalid CoT XML"
 
 HONESTY_LABEL = (
     "Real CoT 2.0 XML export + schema-shape validation + ingest, computed from "
@@ -91,6 +110,71 @@ COT_SOURCES = [
     {"leader": "TAK (Team Awareness Kit)", "kind": "reference CoT consumer / SA ecosystem (roadmap target)",
      "url": "https://tak.gov/", "data_kind": "standard"},
 ]
+
+
+class CotPayloadTooLarge(ValueError):
+    """Raised before parsing when an inbound CoT body exceeds the byte limit."""
+
+
+def _parse_untrusted_xml(xml: str) -> ET.Element:
+    """Parse untrusted CoT XML with entity expansion and DTDs disabled.
+
+    The byte limit is checked before parsing; structural limits are then
+    enforced iteratively to avoid recursive traversal of adversarial trees.
+    """
+    if not isinstance(xml, str):
+        raise ValueError("CoT XML must be text")
+    try:
+        encoded = xml.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError(f"invalid CoT XML encoding: {exc}") from exc
+    if len(encoded) > MAX_COT_XML_BYTES:
+        raise CotPayloadTooLarge(f"CoT XML exceeds {MAX_COT_XML_BYTES} byte limit")
+
+    try:
+        root = DefusedET.fromstring(
+            xml,
+            forbid_dtd=True,
+            forbid_entities=True,
+            forbid_external=True,
+        )
+    except (DefusedXmlException, ET.ParseError, ValueError) as exc:
+        raise ValueError(f"XML parse error: {exc}") from exc
+
+    element_count = 0
+    text_chars = 0
+    stack: list[tuple[ET.Element, int]] = [(root, 1)]
+    while stack:
+        element, depth = stack.pop()
+        element_count += 1
+        if element_count > MAX_COT_XML_ELEMENTS:
+            raise ValueError(f"CoT XML exceeds {MAX_COT_XML_ELEMENTS} element limit")
+        if depth > MAX_COT_XML_DEPTH:
+            raise ValueError(f"CoT XML exceeds {MAX_COT_XML_DEPTH} level depth limit")
+        if len(element.attrib) > MAX_COT_ATTRIBUTES_PER_ELEMENT:
+            raise ValueError(
+                "CoT XML element exceeds "
+                f"{MAX_COT_ATTRIBUTES_PER_ELEMENT} attribute limit"
+            )
+        text_chars += len(element.text or "") + len(element.tail or "")
+        if text_chars > MAX_COT_XML_TEXT_CHARS:
+            raise ValueError(
+                f"CoT XML exceeds {MAX_COT_XML_TEXT_CHARS} text-character limit"
+            )
+        stack.extend((child, depth + 1) for child in list(element))
+    return root
+
+
+async def _read_limited_request_body(request: Request) -> bytes:
+    """Read a streaming request body without buffering past the CoT limit."""
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > MAX_COT_XML_BYTES:
+            raise CotPayloadTooLarge(f"CoT XML exceeds {MAX_COT_XML_BYTES} byte limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 # ---------------------------------------------------------------------------
@@ -433,9 +517,9 @@ def validate_xml_string(xml: str) -> tuple[bool, list[str]]:
     """Validate a CoT XML string. Handles both a single <event> and an
     <events> batch wrapper. Returns (ok, errors)."""
     try:
-        root = ET.fromstring(xml)
-    except ET.ParseError as exc:
-        return (False, [f"XML parse error: {exc}"])
+        root = _parse_untrusted_xml(xml)
+    except ValueError as exc:
+        return (False, [str(exc)])
     if root.tag == "events":
         all_errs: list[str] = []
         children = root.findall("event")
@@ -457,8 +541,8 @@ def cot_xml_to_track(xml: str) -> dict[str, Any]:
 
     Raises ValueError if the XML is not a valid CoT event."""
     try:
-        root = ET.fromstring(xml)
-    except ET.ParseError as exc:
+        root = _parse_untrusted_xml(xml)
+    except ValueError as exc:
         raise ValueError(f"invalid CoT XML: {exc}") from exc
     if root.tag != "event":
         raise ValueError(f"expected root <event>, got <{root.tag}>")
@@ -623,11 +707,30 @@ def register(app) -> dict[str, Any]:
 
     @router.post(f"{base}/ingest")
     async def _ingest(request: Request) -> JSONResponse:
-        raw = await request.body()
         try:
+            raw = await _read_limited_request_body(request)
             track = cot_xml_to_track(raw.decode("utf-8"))
-        except ValueError as exc:
-            return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+        except CotPayloadTooLarge:
+            _LOGGER.info(
+                "Rejected CoT ingest", extra={"cot_rejection": "payload_too_large"}
+            )
+            return JSONResponse(
+                {"ok": False, "error": _INGEST_ERROR_TOO_LARGE}, status_code=413
+            )
+        except UnicodeDecodeError:
+            _LOGGER.info(
+                "Rejected CoT ingest", extra={"cot_rejection": "invalid_encoding"}
+            )
+            return JSONResponse(
+                {"ok": False, "error": _INGEST_ERROR_ENCODING}, status_code=400
+            )
+        except ValueError:
+            _LOGGER.info(
+                "Rejected CoT ingest", extra={"cot_rejection": "invalid_xml"}
+            )
+            return JSONResponse(
+                {"ok": False, "error": _INGEST_ERROR_INVALID}, status_code=400
+            )
         return JSONResponse({"ok": True, "track": track, "honesty": HONESTY_LABEL})
     registered.append(f"{base}/ingest")
 

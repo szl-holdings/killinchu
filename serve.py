@@ -42,32 +42,14 @@ from starlette.middleware.cors import CORSMiddleware
 
 import killinchu_protocols as kp
 from killinchu_receipt_export import build_receipt_export
+from szl_safe_static import RootedStaticFiles
 
 _APP_ROOT = Path(os.environ.get("KILLINCHU_ROOT", "/app"))
 STATIC_DIR = _APP_ROOT / "static"
 ASSETS_DIR = STATIC_DIR / "assets"
 INDEX_HTML = STATIC_DIR / "index.html"
 DRONES_DB_PATH = _APP_ROOT / "drones_db.json"
-
-
-def _safe_join_under(base: Path, user_rel: str) -> Path | None:
-    """Resolve `user_rel` under `base` and return it only if it stays inside.
-
-    Root-cause path-injection guard for user-controlled relative paths reaching
-    a filesystem read. We fully resolve with os.path.realpath (following
-    symlinks) and require the result to be contained within the canonical base
-    directory. Anything that escapes (../, absolute, symlink) returns None and
-    the caller serves the SPA/404 fallback. Allowlist-on-resolved-location,
-    not a substring denylist.
-    """
-    try:
-        base_real = os.path.realpath(base)
-        cand_real = os.path.realpath(os.path.join(base_real, user_rel))
-        if cand_real == base_real or cand_real.startswith(base_real + os.sep):
-            return Path(cand_real)
-        return None
-    except Exception:
-        return None
+_SPA_FILES = RootedStaticFiles(STATIC_DIR)
 
 
 def _wired_ok(status) -> bool:
@@ -1239,18 +1221,18 @@ try:
     _F1_SHARED_DIR = _F1_Path("/app/static/shared")
     _F1_JS_CT = "application/javascript; charset=utf-8"
     _F1_SHARED_ALLOW = {
-        "szl_label_engine.js": _F1_JS_CT,
-        "szl_receipt_cosign.js": _F1_JS_CT,
-        "szl_codename_sanitizer.js": _F1_JS_CT,
-        "szl_holo3d.js": _F1_JS_CT,
+        "szl_label_engine.js": (_F1_SHARED_DIR / "szl_label_engine.js", _F1_JS_CT),
+        "szl_receipt_cosign.js": (_F1_SHARED_DIR / "szl_receipt_cosign.js", _F1_JS_CT),
+        "szl_codename_sanitizer.js": (_F1_SHARED_DIR / "szl_codename_sanitizer.js", _F1_JS_CT),
+        "szl_holo3d.js": (_F1_SHARED_DIR / "szl_holo3d.js", _F1_JS_CT),
     }
 
     @app.get("/static/shared/{fname}")
     async def _f1_shared_module(fname: str):
-        ct = _F1_SHARED_ALLOW.get(fname)
-        if ct is None:
+        asset = _F1_SHARED_ALLOW.get(fname)
+        if asset is None:
             return JSONResponse({"error": "shared module not allowlisted", "file": fname}, status_code=404)
-        f = (_F1_SHARED_DIR / fname)
+        f, ct = asset
         if not f.is_file():
             return JSONResponse({"error": "shared module missing on disk", "file": fname}, status_code=404)
         return Response(content=f.read_bytes(), media_type=ct,
@@ -3430,16 +3412,22 @@ try:
     from starlette.responses import Response as _OPW_KC_SResp
     _OPW_KC_VENDOR = Path("/app/static-vendor")
     _OPW_KC_FILES = {
-        "a11oy-operator-widget.js": "application/javascript; charset=utf-8",
-        "a11oy-operator-widget.css": "text/css; charset=utf-8",
+        "a11oy-operator-widget.js": (
+            _OPW_KC_VENDOR / "a11oy-operator-widget.js",
+            "application/javascript; charset=utf-8",
+        ),
+        "a11oy-operator-widget.css": (
+            _OPW_KC_VENDOR / "a11oy-operator-widget.css",
+            "text/css; charset=utf-8",
+        ),
     }
 
     @app.get("/vendor/{fname}")
     async def _opw_kc_vendor(fname: str):
-        ct = _OPW_KC_FILES.get(fname)
-        if ct is None:
+        asset = _OPW_KC_FILES.get(fname)
+        if asset is None:
             return JSONResponse({"error": "vendor asset not allowlisted", "file": fname}, status_code=404)
-        f = _OPW_KC_VENDOR / fname
+        f, ct = asset
         if not f.is_file():
             return JSONResponse({"error": "vendor asset missing on disk", "file": fname}, status_code=404)
         return _OPW_KC_Resp(content=f.read_bytes(), media_type=ct,
@@ -3456,9 +3444,12 @@ try:
             _wp = request.url.path
             if _wp in ("/vendor/a11oy-operator-widget.js", "/vendor/a11oy-operator-widget.css"):
                 _fn = _wp.rsplit("/", 1)[-1]
-                _ct = _OPW_KC_FILES.get(_fn)
-                _f = _OPW_KC_VENDOR / _fn
-                if _ct and _f.is_file():
+                _asset = _OPW_KC_FILES.get(_fn)
+                if _asset is not None:
+                    _f, _ct = _asset
+                else:  # defensive: membership above is a fixed allowlist
+                    _f, _ct = None, None
+                if _f is not None and _ct is not None and _f.is_file():
                     return _OPW_KC_Resp(content=_f.read_bytes(), media_type=_ct,
                                         headers={"Cache-Control": "public, max-age=31536000, immutable"})
                 return _OPW_KC_Resp(content=b'/* operator widget asset missing on disk */',
@@ -4620,7 +4611,7 @@ except Exception as _qa6_e:  # pragma: no cover — additive; never break the Sp
 
 
 @app.get("/{full_path:path}")
-async def spa_fallback(full_path: str) -> Response:
+async def spa_fallback(full_path: str, request: Request) -> Response:
     # QA6 defense-in-depth: bare data prefixes must NEVER be served the SPA HTML.
     # If a bare data path somehow reaches the catch-all (alias not wired), return an
     # honest JSON 404 instead of the globe page (which would be silently wrong).
@@ -4628,11 +4619,9 @@ async def spa_fallback(full_path: str) -> Response:
         return JSONResponse({"error": "not found"}, status_code=404)
     if full_path in ("feeds", "osint", "mesh"):
         return JSONResponse({"error": "not found"}, status_code=404)
-    candidate = _safe_join_under(STATIC_DIR, full_path)
-    if candidate is None:
-        return FileResponse(INDEX_HTML, media_type="text/html")
-    if candidate.is_file():
-        return FileResponse(candidate)
+    static_response = await _SPA_FILES.get(full_path, request.scope)
+    if static_response is not None:
+        return static_response
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
@@ -5063,7 +5052,6 @@ try:
     from fastapi import Request as _JK_Request
     from fastapi.routing import APIRoute as _JK_Route
     from fastapi.responses import (
-        FileResponse as _JK_File,
         HTMLResponse as _JK_HTML,
         RedirectResponse as _JK_Redir,
         JSONResponse as _JK_JSON,
@@ -5072,6 +5060,7 @@ try:
 
     _JK_DIR = _JK_Path(__file__).resolve().parent / "static" / "jackin"
     _JK_INDEX = _JK_DIR / "index.html"
+    _JK_FILES = RootedStaticFiles(_JK_DIR)
 
     def _jk_index_html() -> str:
         # Serve index.html with a <base href="/jackin/"> injected so the app's
@@ -5096,11 +5085,9 @@ try:
         rel = request.path_params.get("jk_path", "") or ""
         if rel in ("", "index.html"):
             return _JK_HTML(_jk_index_html())
-        candidate = _safe_join_under(_JK_DIR, rel)
-        if candidate is None:
-            return _JK_HTML(_jk_index_html())
-        if candidate.is_file():
-            return _JK_File(str(candidate))
+        static_response = await _JK_FILES.get(rel, request.scope)
+        if static_response is not None:
+            return static_response
         # SPA-style fallback to the jackin index for unknown sub-paths.
         return _JK_HTML(_jk_index_html())
 
