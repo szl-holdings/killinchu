@@ -79,5 +79,5 @@ jobs:
 
       - name: Run transitive-closure regression tests (pytest)
         run: |
-          pip install --quiet pytest
+          pip install --quiet --require-hashes -r .github/requirements/ci-core.txt
           python3 -m pytest tests/test_copy_completeness_transitive.py -q
