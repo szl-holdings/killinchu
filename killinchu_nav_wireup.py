@@ -24,8 +24,8 @@
 # markup; it removes nothing and never clobbers another lane's nav.
 #
 # DOCTRINE (v11): locked = 8 @ c7c0ba17; Λ = Conjecture 1 (NOT a theorem);
-# 0 visible codenames (label is the surface's own honest title); 0 CDN (the only
-# URL is the same-estate a11oy Restraint page, not a third-party CDN asset);
+# 0 visible codenames (labels are the surfaces' own honest titles); 0 CDN (the
+# absolute URLs are same-estate a11oy surfaces, not third-party CDN assets);
 # honest labels only; never weakens a gate; never commits a key; additive-only.
 #
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
@@ -72,6 +72,7 @@ _LEGACY_FOLD_REDIRECTS = {
 
 # The a11oy-hosted Restraint surfaces (same estate, NOT a third-party CDN).
 _A11OY_BASE = "https://szlholdings-a11oy.hf.space"
+_A11OY_PUBLIC_BASE = "https://a-11-oy.com"
 _RESTRAINT_URL = _A11OY_BASE + "/restraint"
 _RESTRAINT_BENCH_URL = _A11OY_BASE + "/restraint-bench"
 
@@ -105,12 +106,12 @@ _FLAGSHIP_PATHS = {"/ecosystem", "/estate-organism", "/counter-uas"}
 def _build_nav_item() -> bytes:
     """ONE Restraint nav-item, mirroring killinchu's own nav-item markup
     (class="nav-item" + <span class="ico"> + label). Navigates cross-app to the
-    a11oy Restraint surface via location.href. 0 CDN, 0 inline <style>, no codename."""
+    a11oy Restraint surface via a real anchor. 0 CDN, 0 inline <style>, no codename."""
     item = (
-        '<div class="nav-item" data-nav-restraint="r5" '
-        'onclick="location.href=\'%s\'" style="cursor:pointer" '
+        '<a class="nav-item" data-nav-restraint="r5" href="%s" '
+        'style="cursor:pointer;text-decoration:none" '
         'title="a11oy Restraint — governed code-minimization / dependency-frugality (aligns with, not certified)">'
-        '<span class="ico">\u27c2</span>Restraint (Governed Frugality)</div>'
+        '<span class="ico">\u27c2</span>Restraint (Governed Frugality)</a>'
     ) % _RESTRAINT_URL
     return item.encode("utf-8")
 
@@ -120,6 +121,8 @@ def _build_related_strip(current_path: str) -> bytes:
     cluster from killinchu. Inline-styled (0 CDN). Honest labels."""
     rel = [
         ("/ecosystem", "Estate Hub"),
+        (_A11OY_PUBLIC_BASE + "/ecosystem", "a11oy Ecosystem"),
+        (_A11OY_PUBLIC_BASE + "/anatomy-v5", "Anatomy v5"),
         (_A11OY_BASE + "/nemo", "SZL-Nemo"),
         (_A11OY_BASE + "/autoreview", "Auto-Review"),
         (_A11OY_BASE + "/factory", "Factory"),
@@ -134,15 +137,17 @@ def _build_related_strip(current_path: str) -> bytes:
         if path == current_path:
             continue
         links.append(
-            '<a href="%s" style="color:#d4a444;text-decoration:none;'
-            'margin:0 .55em;white-space:nowrap">%s</a>' % (path, label)
+            '<a href="%s" style="color:#d4a444;text-decoration:none;display:inline-flex;'
+            'align-items:center;min-height:44px;padding:.35rem .2rem;white-space:nowrap">%s</a>'
+            % (path, label)
         )
     strip = (
         '<nav data-related-restraint="r5" aria-label="Related surfaces" '
-        'style="margin:1.25rem auto;max-width:1100px;padding:.6rem .9rem;'
+        'style="margin:1.25rem auto;max-width:1100px;padding:.6rem .9rem;display:flex;'
+        'flex-wrap:wrap;align-items:center;justify-content:center;gap:.15rem .35rem;'
         'border-top:1px solid #1d2632;font:13px/1.6 system-ui,sans-serif;'
         'color:#7c8794;text-align:center">'
-        '<span style="color:#7c8794;margin-right:.4em">Related surfaces:</span>'
+        '<span style="color:#7c8794;margin-right:.2em">Related surfaces:</span>'
         + "".join(links)
         + "</nav>"
     )
@@ -410,7 +415,7 @@ if __name__ == "__main__":
     assert "Operate</div>" in h1, "must NOT remove existing nav group"
     assert "footer</div>" in h1, "must NOT remove footer"
     # placed immediately before the footer
-    assert 'Restraint (Governed Frugality)</div><div class="side-foot">' in h1, "must place before footer"
+    assert 'Restraint (Governed Frugality)</a><div class="side-foot">' in h1, "must place before footer"
     assert h1 == h2, "second render must be byte-identical (idempotent)"
 
     e1 = c.get("/ecosystem").text
@@ -418,19 +423,22 @@ if __name__ == "__main__":
     assert e1.count('data-related-restraint="r5"') == 1, "cross-link strip must inject once"
     assert e2.count('data-related-restraint="r5"') == 1, "cross-link strip must be idempotent"
     assert _RESTRAINT_URL in e1 and "/autoreview" in e1, "strip must cross-link Restraint + flagships"
+    assert _A11OY_PUBLIC_BASE + "/ecosystem" in e1, "strip must link the public a11oy ecosystem"
+    assert _A11OY_PUBLIC_BASE + "/anatomy-v5" in e1, "strip must link public Anatomy v5"
     # /ecosystem is the current page -> omitted from its own strip
     inner = e1.split('data-related-restraint="r5"')[1].split("</nav>")[0]
-    assert "/ecosystem" not in inner, "strip must omit the current page (/ecosystem)"
+    assert 'href="/ecosystem"' not in inner, "strip must omit the current local page (/ecosystem)"
     assert e1 == e2, "second ecosystem render must be byte-identical"
 
     # Doctrine guard: 0 CDN (only the same-estate a11oy URL), 0 script, 0 codename.
     injected = (_build_nav_item().decode() + _build_related_strip("/ecosystem").decode())
     low = injected.lower()
     assert "<script" not in low, "nav markup must inject no script"
-    # the ONLY absolute URLs allowed are same-estate a11oy hf.space links
+    # the ONLY absolute URLs allowed are same-estate a11oy app/public-domain links
     import re
     urls = re.findall(r'https?://[^\'"\s]+', injected)
-    assert all(u.startswith(_A11OY_BASE) for u in urls), "only same-estate a11oy URLs allowed: %s" % urls
+    assert all(u.startswith((_A11OY_BASE, _A11OY_PUBLIC_BASE)) for u in urls), \
+        "only same-estate a11oy URLs allowed: %s" % urls
 
     print("killinchu_nav_wireup: ALL OK (Restraint nav item + cross-link strip; "
           "idempotent; additive; 0 codenames; 0 CDN; same-estate cross-link only)")

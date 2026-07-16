@@ -5382,32 +5382,34 @@ except Exception as _sapa_e:  # pragma: no cover
 
 
 # ============================================================================
-# SPACES ON a-11-oy.com (Dev2+3) — surface all 11 live HF Spaces same-origin.
-# (1) szl_spaces_proxy: reverse-proxy each Space under /spaces/<name> (server-side
-#     fetch, honest 502 on flap, allowlist only, a11oy/killinchu skipped as self/own-
-#     host). (2) szl_spaces_surface: /api/<ns>/v1/spaces/health (REAL probe + HF-API
-#     stage), /spaces tiles page, + ONE idempotent "Spaces" nav item. Both SHARED &
-#     byte-identical in a11oy + killinchu. No new subdomains. 0 runtime CDN (server-
-#     side fetch — same justification as a11oy_hf_assets.py). Additive, idempotent,
-#     try/except-guarded; each register() front-inserts its routes so they beat the
-#     SPA + Node-proxy catch-alls. Doctrine v11: locked=8 @ c7c0ba17; Λ=Conjecture 1;
-#     Khipu=Conjecture 2; honest 502/unknown beats a fake 200; no codenames; no key.
+# HUGGING FACE SPACES REGISTRY (Dev2+3) — all 26 audited Spaces.
+# (1) szl_spaces_proxy: legacy /spaces/<name>/<path> links are no-store 307
+#     handoffs to canonical isolated HF app origins. It never proxies upstream bytes,
+#     JavaScript, cookies, or authentication into the Killinchu origin.
+# (2) szl_spaces_surface: /api/<ns>/v1/spaces/health (REAL probe + HF-API stage),
+#     /spaces canonical-origin tiles, + ONE idempotent nav item. Both front-insert
+#     exact routes before the SPA catch-all. Runtime health remains honestly measured;
+#     no missing probe becomes a fabricated green state.
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
 try:
     try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
         from szl_substrate import szl_spaces_proxy as _szl_spaces_proxy  # single source of truth
+        if getattr(_szl_spaces_proxy, "SPACE_HANDOFF_MODE", None) != "canonical-redirect-only/v1":
+            raise ImportError("shared Spaces module lacks redirect-only security contract")
     except Exception:
         import szl_spaces_proxy as _szl_spaces_proxy
     _szl_spaces_proxy_status = _szl_spaces_proxy.register(app, ns="killinchu")
-    print(f"[killinchu] Spaces reverse-proxy registered: {_szl_spaces_proxy_status}", file=__import__("sys").stderr)
+    print(f"[killinchu] Spaces canonical handoffs registered: {_szl_spaces_proxy_status}", file=__import__("sys").stderr)
 except Exception as _szl_sp_e:  # pragma: no cover
-    print(f"[killinchu] Spaces reverse-proxy NOT registered: {_szl_sp_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+    print(f"[killinchu] Spaces canonical handoffs NOT registered: {_szl_sp_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 try:
     try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
         from szl_substrate import szl_spaces_surface as _szl_spaces_surface  # single source of truth
+        if getattr(_szl_spaces_surface, "SPACE_TILE_ORIGIN_MODE", None) != "canonical-isolated-hf/v1":
+            raise ImportError("shared Spaces surface lacks canonical-origin contract")
     except Exception:
         import szl_spaces_surface as _szl_spaces_surface
     _szl_spaces_surface_status = _szl_spaces_surface.register(app, ns="killinchu")
@@ -5539,6 +5541,31 @@ except Exception as _kc_wave_e:  # pragma: no cover — never break SPA/other or
           f"SPA + other organs unaffected", file=sys.stderr)
 # ============================================================================
 # END: WAVE K / DEV 5 — killinchu FRONTIER FULL-WIRE
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: P0 PUBLIC DISCOVERY ROUTE REPAIR (ADDITIVE)
+# Exact JSON contracts must resolve before FastAPI's default /openapi.json and
+# the SPA /{full_path:path} fallback. The helper delegates to the existing
+# hardened namespaced OpenAPI generator and serves the existing source artifact
+# from disk; missing evidence fails closed as JSON 503 (never synthetic HTML).
+# ============================================================================
+try:
+    import killinchu_public_route_repair as _kc_public_route_repair
+    _kc_public_route_status = _kc_public_route_repair.register(app, ns="killinchu")
+    print(
+        f"[killinchu] P0 public discovery routes registered: {_kc_public_route_status}",
+        file=sys.stderr,
+    )
+except Exception as _kc_public_route_e:  # pragma: no cover - preserve startup
+    print(
+        f"[killinchu] P0 public discovery routes NOT registered: {_kc_public_route_e!r}; "
+        "other organs unaffected",
+        file=sys.stderr,
+    )
+# ============================================================================
+# END: P0 PUBLIC DISCOVERY ROUTE REPAIR
 # ============================================================================
 
 

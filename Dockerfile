@@ -107,9 +107,9 @@ COPY static/ ./static/
 # are left untouched. Signed-off-by: Yachay <yachay@szlholdings.ai>
 # ---------------------------------------------------------------------------
 COPY cathedral.html knowledge.json operator_shell_v4.py serve.py killinchu_receipt_export.py szl_evidence_research.py szl_readiness.py szl_quantum_bio.py szl_quant_qbio_holo.py szl_unified_formulas.py szl_cuas_formulas.py killinchu_research_sources.py szl_contracting.py szl_conjecture_factory.py killinchu_backend.py a11oy_hf_assets.py drones_db.json killinchu_protocols.py killinchu_expansion.py killinchu_naval_haps.py szl_dsse.py szl_content_address.py szl_safe_static.py szl_provenance.py LEGAL_BOUNDARIES.md ./
-# Spaces-on-a-11-oy.com shared modules (Dev2+3) — reverse-proxy + console surface.
+# Shared Spaces modules (Dev2+3) — canonical handoffs + isolated-origin tiles.
 # Per-file COPY (this Dockerfile uses no `COPY . .`) or serve.py's guarded import
-# falls back and /spaces + /api/<ns>/v1/spaces/health 404. Byte-identical a11oy+killinchu.
+# falls back and /spaces + /api/<ns>/v1/spaces/health 404.
 COPY szl_spaces_proxy.py szl_spaces_surface.py ./
 COPY szl_live_wires.py live_wires.html live_wires_3d.js szl_rosie_companion.py killinchu_szl_pqc_sign.py szl_rekor.py killinchu_osint.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py killinchu_genius.py killinchu_warhacker_demos.py killinchu_v3.py szl_brain.py szl_rag.py szl_formulas.py szl_understudy.py ./
 COPY szl_killinchu_cookbook.py szl_uds_hardening.py killinchu_fusion.py szl_v4_fleet.py szl_ken.py killinchu_frontier_patch.py killinchu_drone_routes.py killinchu_parity.py killinchu_cannonico.py killinchu_elite_console.py _vendor_blobs.py killinchu_fleet_vessels.py killinchu_maritime_risk.py killinchu_maritime_intel.py killinchu_maritime_view.py killinchu_live_feeds.py killinchu_feeds_realdata.py killinchu_asw.py killinchu_anatomy.py killinchu_health_twin.py fleet_vessels_data.json killinchu_beyond.py szl_khipu_consensus.py killinchu_mesh.py killinchu_mesh_view.py killinchu_formula_endpoints.py killinchu_edge_formulas.py killinchu_active_flux.py killinchu_platform_dynamics.py ./
@@ -242,6 +242,10 @@ COPY szl_kc_ttc.py szl_kc_specdec.py szl_kc_worldmodel.py ./
 COPY szl_kc_episodic.py szl_kc_qec.py szl_kc_energy.py ./
 # WAVE K / DEV 5: killinchu frontier full-wire surface bootstrap (additive)
 COPY killinchu_frontier_wave_surfaces.py ./
+# P0 public discovery contracts: exact OpenAPI + source-attestation routes.
+COPY killinchu_public_route_repair.py ./
+# Unsigned structural source/deployment snapshot; claims remain fail-closed.
+COPY .well-known/szl-source.json ./.well-known/szl-source.json
 
 # ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
 # knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to
@@ -712,4 +716,3 @@ CMD ["python", "serve.py"]
 
 # Build cache-bust 2026-06-07T05:00Z (MINED ops squad): COPY killinchu_mined_ops.py
 # into /app so serve.py can import+register the 4 mined operational/efficiency surfaces.
-
