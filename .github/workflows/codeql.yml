@@ -66,12 +66,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install focused test dependencies
-        run: >-
-          python -m pip install
-          "pytest>=8,<9"
-          "defusedxml==0.7.1"
-          "fastapi>=0.111,<1"
-          "httpx>=0.27,<1"
+        run: python -m pip install --require-hashes -r .github/requirements/ci-codeql.txt
       - name: Compile changed security modules
         run: >-
           python -m py_compile
