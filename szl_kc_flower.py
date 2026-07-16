@@ -631,7 +631,7 @@ def register(app, ns: str = "killinchu") -> List[str]:
                 return JSONResponse(flower_graph(seed=seed))
             except Exception as exc:  # pragma: no cover — never 500 the surface
                 return JSONResponse({"service": "flower-brain", "label": MODELED_LABEL,
-                                     "error": "compute fail-open: %s" % (str(exc)[:160])},
+                                     "error": "compute fail-open: %s" % (type(exc).__name__)},
                                     status_code=200)
 
         def _bloom_h(seed: int = 42, K: int = 10):  # noqa: ANN202
@@ -639,7 +639,7 @@ def register(app, ns: str = "killinchu") -> List[str]:
                 return JSONResponse(flower_bloom(seed=seed, K=K))
             except Exception as exc:  # pragma: no cover
                 return JSONResponse({"service": "flower-brain", "label": MODELED_LABEL,
-                                     "error": "compute fail-open: %s" % (str(exc)[:160])},
+                                     "error": "compute fail-open: %s" % (type(exc).__name__)},
                                     status_code=200)
 
         def _manifest_h(seed: int = 42):  # noqa: ANN202
@@ -647,7 +647,7 @@ def register(app, ns: str = "killinchu") -> List[str]:
                 return JSONResponse(flower_manifest(seed=seed))
             except Exception as exc:  # pragma: no cover
                 return JSONResponse({"service": "flower-brain", "label": MODELED_LABEL,
-                                     "error": "compute fail-open: %s" % (str(exc)[:160])},
+                                     "error": "compute fail-open: %s" % (type(exc).__name__)},
                                     status_code=200)
 
         add_api_route = getattr(app, "add_api_route", None)

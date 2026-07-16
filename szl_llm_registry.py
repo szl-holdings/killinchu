@@ -391,7 +391,7 @@ def _http_json(url: str, *, method: str = "GET", body: bytes | None = None,
         doc = json.loads(raw)
         return doc, None
     except Exception as exc:  # noqa: BLE001 — unreachable/timeout => honest OFFLINE
-        return None, "node unreachable: %s" % (str(exc)[:160])
+        return None, "node unreachable: %s" % (type(exc).__name__)
 
 
 def sovereign_probe(base: str = "", timeout: float | None = None) -> dict[str, Any]:

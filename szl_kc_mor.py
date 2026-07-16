@@ -179,7 +179,7 @@ def register(app, ns: str = "killinchu") -> dict:
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "mixture-of-recursions-router",
                                  "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "mean_depth": None, "compute_saved_pct": None},
                                 status_code=200)
 

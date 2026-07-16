@@ -923,7 +923,7 @@ def register(app, ns: str = "killinchu") -> List[str]:
 
         def _err(exc):  # noqa: ANN001
             return JSONResponse({"service": SERVICE, "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160])},
+                                 "error": "compute fail-open: %s" % type(exc).__name__},
                                 status_code=200)
 
         def _manifest_h():  # noqa: ANN202

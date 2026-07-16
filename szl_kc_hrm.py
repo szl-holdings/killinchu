@@ -276,7 +276,7 @@ def register(app, ns: str = "killinchu") -> dict:
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "hierarchical-reasoning-recurrence",
                                  "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "hl_cycles_used": None, "converged": None},
                                 status_code=200)
 
@@ -299,7 +299,7 @@ def register(app, ns: str = "killinchu") -> dict:
             except Exception as exc:
                 return _SJSON({"service": "hierarchical-reasoning-recurrence",
                                "label": MODELED_LABEL,
-                               "error": "compute fail-open: %s" % (str(exc)[:160])},
+                               "error": "compute fail-open: %s" % (type(exc).__name__)},
                               status_code=200)
 
         if not any(getattr(r, "path", None) == "%s/solve" % base

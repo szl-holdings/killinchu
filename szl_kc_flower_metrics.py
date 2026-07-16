@@ -246,7 +246,7 @@ def register(app, ns: str = "killinchu") -> List[str]:
                 return JSONResponse(flower_metrics(seed=seed))
             except Exception as exc:  # pragma: no cover — never 500 the surface
                 return JSONResponse({"service": "flower-brain-metrics", "label": MODELED_LABEL,
-                                     "error": "compute fail-open: %s" % (str(exc)[:160])},
+                                     "error": "compute fail-open: %s" % (type(exc).__name__)},
                                     status_code=200)
 
         add_api_route = getattr(app, "add_api_route", None)

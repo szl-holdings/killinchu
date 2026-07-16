@@ -338,7 +338,7 @@ def register(app, ns: str = "killinchu") -> dict:
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "s3-stratified-verifier-guided-search",
                                  "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "quality_gain": None, "q_s3": None},
                                 status_code=200)
 

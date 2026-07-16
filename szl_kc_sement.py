@@ -351,7 +351,7 @@ def register(app, ns: str = "killinchu") -> Dict[str, Any]:
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "sement-estimate", "label": MODELED_LABEL,
                                  "honest_note": HONEST_NOTE,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "ordering_holds": None}, status_code=200)
 
     @app.get("%s/info" % base)
@@ -360,7 +360,7 @@ def register(app, ns: str = "killinchu") -> Dict[str, Any]:
             return JSONResponse(info(ns))
         except Exception as exc:  # pragma: no cover
             return JSONResponse({"service": "sement-info", "label": MODELED_LABEL,
-                                 "error": str(exc)[:160]}, status_code=200)
+                                 "error": type(exc).__name__}, status_code=200)
 
     return {"ok": True, "ns": ns,
             "routes": ["%s/estimate" % base, "%s/info" % base],

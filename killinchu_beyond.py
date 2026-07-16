@@ -365,7 +365,7 @@ def _verify_organ_eph(entry: Dict[str, Any], pubkey_pem: str, action_hash: str) 
         res["reason"] = "signature mismatch (tamper detected)"
         return res
     except Exception as e:
-        res["reason"] = f"{type(e).__name__}: {e}"
+        res["reason"] = f"{type(e).__name__}: {type(e).__name__}"
         return res
     res["counts"] = bool(res["valid"] and res["action_hash_match"] and res["verdict"] == "allow")
     res["reason"] = ("valid+allow over matching action_hash" if res["counts"]

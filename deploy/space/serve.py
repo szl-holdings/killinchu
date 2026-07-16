@@ -118,7 +118,7 @@ try:
           f"khipu={_be_report.get('khipu_backend')}", file=_be_sys.stderr)
 except Exception as _be_e:
     import sys as _be_sys, traceback as _be_tb
-    print(f"[killinchu] BE hardening NOT registered: {_be_e!r}", file=_be_sys.stderr)
+    print(f"[killinchu] BE hardening NOT registered: {type(_be_e).__name__}", file=_be_sys.stderr)
     _be_tb.print_exc()
 # ── BE hardening (Greene) — szl_be_hardening ── end
 
@@ -159,8 +159,8 @@ try:
     _killinchu_edge_status = _killinchu_edge_formulas.register(app, ns="killinchu")
     print(f"[killinchu] real-edge formulas wired ({_killinchu_edge_status})", file=sys.stderr)
 except Exception as _killinchu_edge_fx:  # additive: never break the Space
-    _killinchu_edge_status = f"edge-formulas-not-wired:{_killinchu_edge_fx!r}"
-    print(f"[killinchu] real-edge formulas NOT mounted ({_killinchu_edge_fx!r}); app unaffected", file=sys.stderr)
+    _killinchu_edge_status = f"edge-formulas-not-wired:{type(_killinchu_edge_fx).__name__}"
+    print(f"[killinchu] real-edge formulas NOT mounted ({type(_killinchu_edge_fx).__name__}); app unaffected", file=sys.stderr)
 
 _killinchu_formulas = None
 _killinchu_formulas_status = "formulas-not-wired"
@@ -171,20 +171,20 @@ try:
     _killinchu_formulas_status = _killinchu_formulas.register(app, ns="killinchu")
     print(f"[killinchu] thesis-v22 formulas echoed ({_killinchu_formulas_status})", file=sys.stderr)
 except Exception as _killinchu_fx:  # additive: never break the Space
-    _killinchu_formulas_status = f"formulas-not-wired:{_killinchu_fx!r}"
-    print(f"[killinchu] formula echo NOT mounted ({_killinchu_fx!r}); app unaffected", file=sys.stderr)
+    _killinchu_formulas_status = f"formulas-not-wired:{type(_killinchu_fx).__name__}"
+    print(f"[killinchu] formula echo NOT mounted ({type(_killinchu_fx).__name__}); app unaffected", file=sys.stderr)
 
 # ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
 try:
     from vsp_otel.middleware import install as install_vsp; install_vsp(app)
 except Exception as _vsp_e:
-    import sys as _vsp_sys; print(f"[killinchu] vsp-otel wire skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
+    import sys as _vsp_sys; print(f"[killinchu] vsp-otel wire skipped: {type(_vsp_e).__name__}", file=_vsp_sys.stderr)
 
 # ADDITIVE: OTel — instrument FastAPI app
 try:
     _szl_otel_setup(fastapi_app=app)
 except Exception as _otel_e:
-    import sys as _otel_sys; print(f"[killinchu] OTel setup skipped: {_otel_e!r}", file=_otel_sys.stderr)
+    import sys as _otel_sys; print(f"[killinchu] OTel setup skipped: {type(_otel_e).__name__}", file=_otel_sys.stderr)
 # --- end OTel setup ---
 
 
@@ -204,7 +204,7 @@ try:
     print(f"[killinchu] Khipu Consensus registered: {_kc_status}", file=_kc_sys.stderr)
 except Exception as _kc_e:  # never crash the app
     import traceback as _kc_tb, sys as _kc_sys
-    print(f"[killinchu] Khipu Consensus NOT registered: {_kc_e!r}\n{_kc_tb.format_exc()}", file=_kc_sys.stderr)
+    print(f"[killinchu] Khipu Consensus NOT registered: {type(_kc_e).__name__}\n{_kc_tb.format_exc()}", file=_kc_sys.stderr)
 
 # ── Live 3D Wires (PURIQ / Doctrine v12) — ADDITIVE, re-pinned FIRST ─────────
 # Registered immediately after the app is constructed so FastAPI's ordered route
@@ -219,7 +219,7 @@ try:
     print("[killinchu] Live 3D Wires registered FIRST: /live-wires + /api/killinchu/v1/wires/{stream,boe,inject}", file=_sys_lw.stderr)
 except Exception as _lw_e:
     import sys as _sys_lw, traceback as _tb_lw
-    print(f"[killinchu] Live 3D Wires NOT registered: {_lw_e}", file=_sys_lw.stderr)
+    print(f"[killinchu] Live 3D Wires NOT registered: {type(_lw_e).__name__}", file=_sys_lw.stderr)
     _tb_lw.print_exc()
 # ── end Live 3D Wires ────────────────────────────────────────────────────────
 
@@ -234,7 +234,7 @@ try:
     print(f"[killinchu] /about/thesis registered: {_thesis_status}", file=_sys_th.stderr)
 except Exception as _th_e:
     import sys as _sys_th, traceback as _tb_th
-    print(f"[killinchu] /about/thesis NOT registered: {_th_e}", file=_sys_th.stderr)
+    print(f"[killinchu] /about/thesis NOT registered: {type(_th_e).__name__}", file=_sys_th.stderr)
     _tb_th.print_exc()
 # ── end /about/thesis ────────────────────────────────────────────────────────
 
@@ -252,7 +252,7 @@ try:
     print("[killinchu] PQC/hybrid signing registered: POST /khipu/sign?mode={ecdsa,pqc,hybrid}", file=_sys_pqc.stderr)
 except Exception as _pqc_e:
     import sys as _sys_pqc, traceback as _tb_pqc
-    print(f"[killinchu] PQC/hybrid signing NOT registered: {_pqc_e}", file=_sys_pqc.stderr)
+    print(f"[killinchu] PQC/hybrid signing NOT registered: {type(_pqc_e).__name__}", file=_sys_pqc.stderr)
     _tb_pqc.print_exc()
 # ── end PQC / Hybrid signing ─────────────────────────────────────────────────
 
@@ -276,7 +276,7 @@ try:
     print(f"[killinchu] Rekor cross-verify registered: {_rekor_info['registered']}", file=_sys_rk.stderr)
 except Exception as _rk_e:
     import sys as _sys_rk, traceback as _tb_rk
-    print(f"[killinchu] Rekor cross-verify NOT registered: {_rk_e}", file=_sys_rk.stderr)
+    print(f"[killinchu] Rekor cross-verify NOT registered: {type(_rk_e).__name__}", file=_sys_rk.stderr)
     _tb_rk.print_exc()
 # ── end Sigstore Rekor cross-verify ──────────────────────────────────────────
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -848,7 +848,7 @@ try:
     )
     print("[killinchu] expansion endpoints registered", file=sys.stderr)
 except Exception as _exp_err:  # pragma: no cover - never break core on expansion
-    print(f"[killinchu] WARNING expansion registration failed: {_exp_err}", file=sys.stderr)
+    print(f"[killinchu] WARNING expansion registration failed: {type(_exp_err).__name__}", file=sys.stderr)
 
 
 # ===========================================================================
@@ -867,7 +867,7 @@ try:
     )
     print("[killinchu] naval + HAPS endpoints registered", file=sys.stderr)
 except Exception as _nh_err:  # pragma: no cover - never break core on additive layer
-    print(f"[killinchu] WARNING naval/HAPS registration failed: {_nh_err}", file=sys.stderr)
+    print(f"[killinchu] WARNING naval/HAPS registration failed: {type(_nh_err).__name__}", file=sys.stderr)
 
 
 # ===========================================================================
@@ -916,7 +916,7 @@ try:
     _prov_status = _prov.register_provenance(app, "killinchu")
     print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L1 honest; L2 roadmap): {{_prov_status}}", file=sys.stderr)
 except Exception as _pe:  # pragma: no cover - defensive, additive-only
-    print(f"[killinchu] szl_provenance NOT registered ({{_pe!r}}); existing app unaffected", file=sys.stderr)
+    print(f"[killinchu] szl_provenance NOT registered ({{type(_pe).__name__}}); existing app unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
 # Warhacker top-level alias routes (ADDITIVE, Yachay, 2026-06-01). Registered
@@ -928,7 +928,7 @@ try:
     _wh_status = _wh_aliases.register(app, "killinchu", build_sha=os.environ.get("SPACE_COMMIT_SHA", "warhacker-aliases-v1"))
     print(f"[killinchu] Warhacker aliases registered: {_wh_status}", file=sys.stderr)
 except Exception as _wh_e:
-    print(f"[killinchu] Warhacker aliases NOT registered: {_wh_e!r}", file=sys.stderr)
+    print(f"[killinchu] Warhacker aliases NOT registered: {type(_wh_e).__name__}", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
 # Killinchu v2 GENIUS endpoints (ADDITIVE, Yachay, 2026-06-01). Cesium /globe +
@@ -941,7 +941,7 @@ try:
     _kg_status = _kg.register(app, "killinchu")
     print(f"[killinchu] v2 genius endpoints registered: {_kg_status}", file=sys.stderr)
 except Exception as _kg_e:
-    print(f"[killinchu] v2 genius endpoints NOT registered: {_kg_e!r}", file=sys.stderr)
+    print(f"[killinchu] v2 genius endpoints NOT registered: {type(_kg_e).__name__}", file=sys.stderr)
 
 @app.get("/")
 async def spa_root() -> FileResponse:
@@ -1058,7 +1058,7 @@ try:
     print(f"[killinchu] FULL UDS INJECTION registered: {_uds_pages_status}", file=sys.stderr)
 except Exception as _uds_pe:
     import traceback as _uds_tb
-    print(f"[killinchu] FULL UDS INJECTION NOT registered: {_uds_pe!r}", file=sys.stderr)
+    print(f"[killinchu] FULL UDS INJECTION NOT registered: {type(_uds_pe).__name__}", file=sys.stderr)
     _uds_tb.print_exc()
 
 
@@ -1121,7 +1121,7 @@ try:
                 if _r.status_code == 200:
                     identify_result = _r.json()
         except Exception as _ie:
-            identify_result = {"ok": False, "error": f"local identify unreachable: {_ie}", "matches": []}
+            identify_result = {"ok": False, "error": f"local identify unreachable: {type(_ie).__name__}", "matches": []}
         matches = (identify_result or {}).get("matches", []) or []
         top_conf = matches[0]["confidence"] if matches else 0.0
         out = {
@@ -1183,7 +1183,7 @@ try:
 
     print("[killinchu] Wire I rosie-companion registered (identify/with-rosie conf<0.7 consult)", file=sys.stderr)
 except Exception as _rc_e:
-    print(f"[killinchu] Wire I rosie-companion NOT registered: {_rc_e!r}", file=sys.stderr)
+    print(f"[killinchu] Wire I rosie-companion NOT registered: {type(_rc_e).__name__}", file=sys.stderr)
 
 # ===========================================================================
 # UNAY + Khipu-LMDB v2 organs (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
@@ -1199,7 +1199,7 @@ try:
           f"lmdb={_unay_info.get('lmdb_version')}, boot_entries={_unay_info.get('lmdb_entries_at_boot')}", file=_sysu.stderr)
 except Exception as _ue:
     import sys as _sysu
-    print(f"[szl_unay] UNAY+Khipu-LMDB v2 NOT mounted ({_ue!r}); existing routes unaffected", file=_sysu.stderr)
+    print(f"[szl_unay] UNAY+Khipu-LMDB v2 NOT mounted ({type(_ue).__name__}); existing routes unaffected", file=_sysu.stderr)
 
 
 # ===========================================================================
@@ -1219,7 +1219,7 @@ try:
     print(f"[killinchu] understudy-parity registered: {_u_info['registered_count']} routes, "
           f"substrate={_u_info['substrate']}", file=sys.stderr)
 except Exception as _u_e:
-    print(f"[killinchu] understudy-parity NOT registered: {_u_e!r}; existing app unaffected", file=sys.stderr)
+    print(f"[killinchu] understudy-parity NOT registered: {type(_u_e).__name__}; existing app unaffected", file=sys.stderr)
 
 
 # ===========================================================================
@@ -1240,7 +1240,7 @@ try:
     print(f"[killinchu] defense cookbook registered: {_cb_info['registered_count']} routes, "
           f"signing={_cb_info['signing']}", file=sys.stderr)
 except Exception as _cb_e:
-    print(f"[killinchu] defense cookbook NOT registered: {_cb_e!r}; existing app unaffected", file=sys.stderr)
+    print(f"[killinchu] defense cookbook NOT registered: {type(_cb_e).__name__}; existing app unaffected", file=sys.stderr)
 
 
 # ===========================================================================
@@ -1277,7 +1277,7 @@ try:
           f"{_uds_hard_info['registered_count']} routes, signing={_uds_hard_info['signing']}",
           file=sys.stderr)
 except Exception as _uds_hard_e:
-    print(f"[killinchu] UDS HARDENING endpoints NOT registered: {_uds_hard_e!r}; existing app unaffected", file=sys.stderr)
+    print(f"[killinchu] UDS HARDENING endpoints NOT registered: {type(_uds_hard_e).__name__}; existing app unaffected", file=sys.stderr)
 
 try:
     import killinchu_fusion as _fusion
@@ -1286,7 +1286,7 @@ try:
           f"signing={_fusion_info['signing']}, deferred={len(_fusion_info.get('deferred_to_siblings', []))}",
           file=sys.stderr)
 except Exception as _fusion_e:
-    print(f"[killinchu] UDS fusion front-door NOT registered: {_fusion_e!r}; existing app unaffected", file=sys.stderr)
+    print(f"[killinchu] UDS fusion front-door NOT registered: {type(_fusion_e).__name__}; existing app unaffected", file=sys.stderr)
 
 
 # ===========================================================================
@@ -1323,7 +1323,7 @@ try:
           f"signing={_drone3d_info['signing']}", file=sys.stderr)
 except Exception as _d3d_e:
     import traceback as _d3d_tb
-    print(f"[killinchu] Drone 3D Health v4 NOT registered: {_d3d_e!r}\n{_d3d_tb.format_exc()}", file=sys.stderr)
+    print(f"[killinchu] Drone 3D Health v4 NOT registered: {type(_d3d_e).__name__}\n{_d3d_tb.format_exc()}", file=sys.stderr)
 
 
 # ── Investor /demo route (ADDITIVE, 2026-06-02, Yachay / Perplexity Computer Agent) ──
@@ -1337,7 +1337,7 @@ try:
     print(f"[killinchu] Investor /demo registered: {_demo_status}", file=_sys_demo.stderr)
 except Exception as _demo_e:
     import sys as _sys_demo
-    print(f"[killinchu] Investor /demo NOT registered: {_demo_e!r}", file=_sys_demo.stderr)
+    print(f"[killinchu] Investor /demo NOT registered: {type(_demo_e).__name__}", file=_sys_demo.stderr)
 # ── end Investor /demo ──
 
 
@@ -1356,7 +1356,7 @@ try:
     print(f"[killinchu] Genius sidebar registered: {_sidebar_status}", file=_sys_sb.stderr)
 except Exception as _sb_e:
     import traceback as _sb_tb, sys as _sys_sb
-    print(f"[killinchu] Genius sidebar NOT registered: {_sb_e!r}", file=_sys_sb.stderr)
+    print(f"[killinchu] Genius sidebar NOT registered: {type(_sb_e).__name__}", file=_sys_sb.stderr)
     _sb_tb.print_exc()
 # ── end Genius Operator Sidebar ──
 
@@ -1381,7 +1381,7 @@ try:
     print(f"[killinchu] PARITY: Operator Shell v4 registered: {_kc_osh_v4_status}", file=_kc_osh_sys.stderr)
 except Exception as _kc_osh_e:
     import traceback as _kc_osh_tb, sys as _kc_osh_sys
-    print(f"[killinchu] PARITY: Operator Shell v4 NOT registered: {_kc_osh_e!r}", file=_kc_osh_sys.stderr)
+    print(f"[killinchu] PARITY: Operator Shell v4 NOT registered: {type(_kc_osh_e).__name__}", file=_kc_osh_sys.stderr)
     _kc_osh_tb.print_exc()
 # ── end operator_shell_v4 ────────────────────────────────────────────────────
 
@@ -1491,7 +1491,7 @@ try:
     print("[killinchu] Drone routes registered via killinchu_drone_routes", file=sys.stderr)
 except Exception as _drone_e:
     import traceback as _drone_tb
-    print(f"[killinchu] Drone routes NOT registered: {_drone_e!r}", file=sys.stderr)
+    print(f"[killinchu] Drone routes NOT registered: {type(_drone_e).__name__}", file=sys.stderr)
     print(_drone_tb.format_exc(), file=sys.stderr)
 
 
@@ -1518,7 +1518,7 @@ try:
     print(f"[killinchu] Parity endpoints registered: {_parity_status['registered']}", file=sys.stderr)
 except Exception as _parity_e:
     import traceback as _parity_tb
-    print(f"[killinchu] Parity endpoints NOT registered: {_parity_e!r}", file=sys.stderr)
+    print(f"[killinchu] Parity endpoints NOT registered: {type(_parity_e).__name__}", file=sys.stderr)
     _parity_tb.print_exc()
 # ── end PARITY ──────────────────────────────────────────────────────────────
 
@@ -1621,7 +1621,7 @@ async def killinchu_adsb_v3(
              "szl_class": "POTENTIAL_UAS", "szl_threat_tier": "T1_HIGH"},
         ]
         return _JR({"flagship": "killinchu", "frontier": "opensky_adsb_fallback",
-            "note": "OpenSky unavailable — synthetic demo data", "error": str(_e)[:80],
+            "note": "OpenSky unavailable — synthetic demo data", "error": type(_e).__name__,
             "doctrine": "v11", "kernel_commit": "c7c0ba17",
             "flights": demo_flights, "ts": _now})
 
@@ -1738,7 +1738,7 @@ async def _killinchu_v1_khipu_ledger() -> JSONResponse:
             _r = await _c.get("http://127.0.0.1:7860/api/killinchu/khipu/ledger")
             return JSONResponse(_r.json())
     except Exception as _ex:
-        return JSONResponse({"space": "killinchu", "error": str(_ex),
+        return JSONResponse({"space": "killinchu", "error": type(_ex).__name__,
                              "doctrine": "v11", "khipu_root": None, "nodes": []})
 
 @app.get("/api/killinchu/v1/khipu/dag")
@@ -1752,7 +1752,7 @@ async def _killinchu_v1_khipu_dag() -> JSONResponse:
             data["_dag_view"] = True
             return JSONResponse(data)
     except Exception as _ex:
-        return JSONResponse({"space": "killinchu", "error": str(_ex),
+        return JSONResponse({"space": "killinchu", "error": type(_ex).__name__,
                              "doctrine": "v11", "_dag_view": True, "nodes": []})
 # ── end Khipu v1 aliases ──────────────────────────────────────────────────────
 
@@ -1814,7 +1814,7 @@ try:
 except ImportError as _ke_dc:
     print(f"[ken-dc] szl_ken not available: {_ke_dc!r}", file=__import__("sys").stderr)
 except Exception as _ke_dc:
-    print(f"[ken-dc] registration error (non-fatal): {_ke_dc!r}", file=__import__("sys").stderr)
+    print(f"[ken-dc] registration error (non-fatal): {type(_ke_dc).__name__}", file=__import__("sys").stderr)
 # ── end Ken before uvicorn ────────────────────────────────────────────────────
 
 # ============================================================================
@@ -2041,7 +2041,7 @@ try:
 except Exception as _kc_edge_e:
     import sys as _kc_edge_sys
     import traceback as _kc_edge_tb
-    print(f"[killinchu] REAL edge organ FAILED to register: {_kc_edge_e!r}", file=_kc_edge_sys.stderr)
+    print(f"[killinchu] REAL edge organ FAILED to register: {type(_kc_edge_e).__name__}", file=_kc_edge_sys.stderr)
     _kc_edge_tb.print_exc(file=_kc_edge_sys.stderr)
 # ============================================================================
 # END: REAL EDGE ORGAN — killinchu
@@ -2072,7 +2072,7 @@ try:
 except Exception as _kc_ef_e:
     import sys as _kc_ef_sys
     import traceback as _kc_ef_tb
-    print(f"[killinchu] real-edge formulas FAILED: {_kc_ef_e!r}", file=_kc_ef_sys.stderr)
+    print(f"[killinchu] real-edge formulas FAILED: {type(_kc_ef_e).__name__}", file=_kc_ef_sys.stderr)
     _kc_ef_tb.print_exc(file=_kc_ef_sys.stderr)
 
 try:
@@ -2084,7 +2084,7 @@ try:
 except Exception as _kc_ec_e:
     import sys as _kc_ec_sys
     import traceback as _kc_ec_tb
-    print(f"[killinchu] premium edge console FAILED: {_kc_ec_e!r}", file=_kc_ec_sys.stderr)
+    print(f"[killinchu] premium edge console FAILED: {type(_kc_ec_e).__name__}", file=_kc_ec_sys.stderr)
     _kc_ec_tb.print_exc(file=_kc_ec_sys.stderr)
 # ============================================================================
 # END: PREMIUM EDGE DECK + REAL-EDGE FORMULA SURFACE — killinchu
@@ -2129,7 +2129,7 @@ try:
 except ImportError as _ke:
     print(f"[ken] szl_ken not available: {_ke!r}", file=__import__("sys").stderr)
 except Exception as _ke:
-    print(f"[ken] registration error (non-fatal): {_ke!r}", file=__import__("sys").stderr)
+    print(f"[ken] registration error (non-fatal): {type(_ke).__name__}", file=__import__("sys").stderr)
 # ============================================================================
 # END: SZL Agent Pattern v1 ("Ken") — ADDITIVE BLOCK
 # ============================================================================
@@ -2202,7 +2202,7 @@ async def killinchu_adsb_inline(
              "szl_class": "POTENTIAL_UAS", "szl_threat_tier": "T1_HIGH"},
         ]
         return JSONResponse({"flagship": "killinchu", "frontier": "opensky_adsb_fallback",
-            "note": "OpenSky unavailable — synthetic demo data", "error": str(_e)[:80],
+            "note": "OpenSky unavailable — synthetic demo data", "error": type(_e).__name__,
             "doctrine": "v11", "kernel_commit": "c7c0ba17",
             "flights": demo_flights, "ts": _now})
 
@@ -2222,7 +2222,7 @@ try:
     print(f"[killinchu] Elite console registered: {_elite_status['registered']} ({_elite_status['tabs']} tabs)", file=sys.stderr)
 except Exception as _elite_e:
     import traceback as _elite_tb
-    print(f"[killinchu] Elite console NOT registered: {_elite_e!r}", file=sys.stderr)
+    print(f"[killinchu] Elite console NOT registered: {type(_elite_e).__name__}", file=sys.stderr)
     _elite_tb.print_exc()
 # ── end ELITE ────────────────────────────────────────────────────────────────
 
@@ -2247,7 +2247,7 @@ try:
     print(f"[killinchu] Beyond-Cannonico proofs registered: {_beyond_status['registered']} ({_beyond_status['tabs']} tabs)", file=sys.stderr)
 except Exception as _beyond_e:
     import traceback as _beyond_tb
-    print(f"[killinchu] Beyond-Cannonico proofs NOT registered: {_beyond_e!r}", file=sys.stderr)
+    print(f"[killinchu] Beyond-Cannonico proofs NOT registered: {type(_beyond_e).__name__}", file=sys.stderr)
     _beyond_tb.print_exc()
 # ── end BEYOND ─────────────────────────────────────────────────────────────────
 
@@ -2277,7 +2277,7 @@ try:
     print(f"[killinchu-frontier] registered: {_kc_ftr_status}", file=_kc_ftr_sys.stderr)
 except Exception as _kc_ftr_e:
     import sys as _kc_ftr_sys, traceback as _kc_ftr_tb
-    print(f"[killinchu-frontier] FAILED: {_kc_ftr_e!r}", file=_kc_ftr_sys.stderr)
+    print(f"[killinchu-frontier] FAILED: {type(_kc_ftr_e).__name__}", file=_kc_ftr_sys.stderr)
     _kc_ftr_tb.print_exc(file=_kc_ftr_sys.stderr)
 # ============================================================================
 # END: FRONTIER REGISTRATION — killinchu
@@ -2299,7 +2299,7 @@ try:
                 _r = await _c.get("http://127.0.0.1:7860/api/killinchu/khipu/ledger")
                 _data = _r.json()
         except Exception as _ex:
-            _data = {"error": str(_ex)}
+            _data = {"error": type(_ex).__name__}
         _data["_dag_alias"] = True
         return _DagJR_killinchu(_data)
     _dag_r_killinchu = _DagRoute_killinchu(
@@ -2313,7 +2313,7 @@ try:
     print("[killinchu] /khipu/dag alias registered at /api/killinchu/khipu/dag", file=_killinchu_dag_sys.stderr)
 except Exception as _killinchu_dag_e:
     import sys as _killinchu_dag_sys
-    print(f"[killinchu] /khipu/dag alias FAILED: {_killinchu_dag_e!r}", file=_killinchu_dag_sys.stderr)
+    print(f"[killinchu] /khipu/dag alias FAILED: {type(_killinchu_dag_e).__name__}", file=_killinchu_dag_sys.stderr)
 # ============================================================================
 # END: /khipu/dag ALIAS — killinchu
 # ============================================================================

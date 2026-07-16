@@ -203,7 +203,7 @@ def register(app, ns: str = "killinchu") -> dict:
             return JSONResponse(moe_route(seed=seed, tokens=tokens, experts=experts, topk=topk))
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "moe-topk-router", "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "load_balance_cv": None}, status_code=200)
 
     return {"ok": True, "ns": ns, "routes": ["%s/route" % base]}

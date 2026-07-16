@@ -286,7 +286,7 @@ def register(app, ns: str = "killinchu") -> dict:
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "byte-latent-entropy-patching",
                                  "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "patches": None, "compression_ratio": None},
                                 status_code=200)
 
@@ -306,7 +306,7 @@ def register(app, ns: str = "killinchu") -> dict:
             except Exception as exc:
                 return _SJSON({"service": "byte-latent-entropy-patching",
                                "label": MODELED_LABEL,
-                               "error": "compute fail-open: %s" % (str(exc)[:160])},
+                               "error": "compute fail-open: %s" % (type(exc).__name__)},
                               status_code=200)
 
         if not any(getattr(r, "path", None) == "%s/entropy-patch" % base

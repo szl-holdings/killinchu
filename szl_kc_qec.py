@@ -292,7 +292,7 @@ def register(app, ns: str = "killinchu") -> dict:
             return JSONResponse(surface_code(distance=distance, p=p, seed=seed))
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "topological-qec", "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "code_distance": None, "logical_error_rate": None,
                                  "suppression_factor": None, "below_threshold": None},
                                 status_code=200)

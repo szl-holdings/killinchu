@@ -234,7 +234,7 @@ def register(app, ns: str = "killinchu") -> dict:
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "analog-in-memory-attention",
                                  "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "attn_cosine_fidelity": None, "attn_abs_error": None},
                                 status_code=200)
 

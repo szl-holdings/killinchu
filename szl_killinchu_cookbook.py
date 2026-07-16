@@ -148,7 +148,7 @@ def register_cookbook(app, ns: str = "killinchu", sign_fn=None):
             except Exception:
                 _pubkey_fpr = None
         except Exception as _se:
-            print(f"[cookbook] szl_dsse unavailable ({_se!r}); receipts will be UNSIGNED", file=sys.stderr)
+            print(f"[cookbook] szl_dsse unavailable ({type(_se).__name__}); receipts will be UNSIGNED", file=sys.stderr)
             _sign = None
 
     def _recall_receipt(kind: str, ref: str, payload_digest: str) -> dict:
@@ -172,7 +172,7 @@ def register_cookbook(app, ns: str = "killinchu", sign_fn=None):
                 return signed
             except Exception as _e:
                 return {"receipt": receipt, "signed": False,
-                        "signing_error": f"{_e!r}",
+                        "signing_error": f"{type(_e).__name__}",
                         "note": "Signer present but failed at runtime; receipt unsigned."}
         return {"receipt": receipt, "signed": False,
                 "signing": "UNSIGNED — szl_dsse not importable in this context."}

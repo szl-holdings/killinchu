@@ -306,7 +306,7 @@ def register(app, ns: str = "killinchu") -> dict:
             return JSONResponse(tda_fracture(anomaly=anomaly))
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "maritime-tda-fracture", "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "anomaly": None}, status_code=200)
 
     return {"ok": True, "ns": ns, "routes": ["%s/tda-fracture" % base]}

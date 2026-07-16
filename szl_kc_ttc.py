@@ -289,7 +289,7 @@ def register(app, ns: str = "killinchu") -> dict:
             return JSONResponse(ttc_scaling(seed=seed, p=p, N=N, steps=steps))
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "test-time-compute-allocator", "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "base_accuracy": None, "pass_at_N": None}, status_code=200)
 
     return {"ok": True, "ns": ns, "routes": ["%s/scaling" % base]}
