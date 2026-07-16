@@ -88,7 +88,7 @@ def remote_id_decode(hexstr: str) -> dict[str, Any]:
     try:
         raw = _hex_to_bytes(hexstr)
     except ValueError as e:
-        return {"ok": False, "error": f"invalid hex: {e}", "protocol": "OpenDroneID/ASTM F3411"}
+        return {"ok": False, "error": f"invalid hex: {type(e).__name__}", "protocol": "OpenDroneID/ASTM F3411"}
     if len(raw) < 1:
         return {"ok": False, "error": "empty message", "protocol": "OpenDroneID/ASTM F3411"}
     # Many capture tools prepend a 1-byte "ADD counter / message size" or app header.

@@ -257,7 +257,7 @@ def register(app, ns: str = "killinchu") -> dict:
                                                prev_hash=prev_hash, seed=seed))
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "signed-energy-receipt", "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "joules_per_token": None, "tokens_per_joule": None,
                                  "gco2_per_token": None}, status_code=200)
 

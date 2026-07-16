@@ -273,7 +273,7 @@ def register(app, ns: str = "killinchu") -> dict:
             return JSONResponse(goat_transport(seed=seed, n_q=n_q, n_k=n_k, iters=iters, reg=reg))
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "goat-ot-attention", "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "sink_reduction": None}, status_code=200)
 
     return {"ok": True, "ns": ns, "routes": ["%s/transport" % base]}

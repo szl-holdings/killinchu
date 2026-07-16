@@ -232,7 +232,7 @@ def register(app, ns: str = "killinchu") -> Dict[str, Any]:
             # fail-open with the honest label so the frontend degrades gracefully
             return JSONResponse({"service": "cc-attest-verify", "label": MODELED_LABEL,
                                  "honest_note": HONEST_NOTE,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "golden_match": None}, status_code=200)
 
     @app.get("%s/info" % base)
@@ -241,7 +241,7 @@ def register(app, ns: str = "killinchu") -> Dict[str, Any]:
             return JSONResponse(info(ns))
         except Exception as exc:  # pragma: no cover
             return JSONResponse({"service": "cc-attest-info", "label": MODELED_LABEL,
-                                 "error": str(exc)[:160]}, status_code=200)
+                                 "error": type(exc).__name__}, status_code=200)
 
     return {"ok": True, "ns": ns,
             "routes": ["%s/verify" % base, "%s/info" % base],

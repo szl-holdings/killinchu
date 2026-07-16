@@ -306,7 +306,7 @@ class MeshHarness:
             drift = abs((datetime.now(timezone.utc) - t).total_seconds())
             ok2 = step("timestamp_window", drift <= 300, f"drift={int(drift)}s (<=300)")
         except Exception as e:
-            ok2 = step("timestamp_window", False, f"unparseable timestamp: {e}")
+            ok2 = step("timestamp_window", False, f"unparseable timestamp: {type(e).__name__}")
         # 3-5. doctrine / kernel / slsa pin
         ok3 = step("doctrine_version", doctrine == DOCTRINE_VERSION,
                    f"claim={doctrine!r} expect={DOCTRINE_VERSION!r}")
@@ -368,7 +368,7 @@ class MeshHarness:
                     load_pem_public_key(pub_pem.encode("utf-8"))  # validate format
                 except Exception as e:
                     return ({"success": False, "failure_reason": "INVALID_PUBLIC_KEY",
-                             "detail": str(e)}, 400)
+                             "detail": type(e).__name__}, 400)
                 ext = MeshNode.__new__(MeshNode)  # external node shell (no priv key)
                 ext.label = body.get("label", "node-external")
                 ext.role = "witness"
@@ -755,7 +755,7 @@ def get_harness() -> Optional[MeshHarness]:
             _HARNESS = MeshHarness(n_nodes=n)
             return _HARNESS
         except Exception as e:  # honest: harness down
-            _HARNESS_ERROR = f"{type(e).__name__}: {e}"
+            _HARNESS_ERROR = type(e).__name__
             return None
 
 

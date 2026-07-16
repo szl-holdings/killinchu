@@ -294,7 +294,7 @@ def overlay_geojson(overlay_key: str, limit: int = 50) -> dict[str, Any]:
         import szl_connectors as _sc
         c = _sc.get(meta["connector"])
     except Exception as e:  # honest degrade — never fabricate
-        fc["error"] = f"{type(e).__name__}: {e}"
+        fc["error"] = f"{type(e).__name__}: {type(e).__name__}"
     if c is None:
         fc["data_label"] = "UNAVAILABLE"
         fc["live"] = False

@@ -295,7 +295,7 @@ def register(app, ns: str = "killinchu") -> dict:
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "formal-math-premise-retrieval",
                                  "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "recall_at_k": None, "mrr": None},
                                 status_code=200)
 
@@ -317,7 +317,7 @@ def register(app, ns: str = "killinchu") -> dict:
             except Exception as exc:
                 return _SJSON({"service": "formal-math-premise-retrieval",
                                "label": MODELED_LABEL,
-                               "error": "compute fail-open: %s" % (str(exc)[:160])},
+                               "error": "compute fail-open: %s" % (type(exc).__name__)},
                               status_code=200)
 
         if not any(getattr(r, "path", None) == "%s/retrieve" % base

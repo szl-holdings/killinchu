@@ -781,7 +781,7 @@ def register(app, ns: str = NS_DEFAULT) -> dict[str, Any]:
                 return {"error": f"overlay '{cid}' unavailable", "records": [], "state": "error"}
             return c.read({"limit": max(1, min(int(limit), 200))}).to_dict()
         except Exception as e:  # honest error, never fabricate
-            return {"error": f"{type(e).__name__}: {e}", "records": [], "state": "error"}
+            return {"error": f"{type(e).__name__}: {type(e).__name__}", "records": [], "state": "error"}
 
     @app.get(base + "/overlays", include_in_schema=False)
     async def _overlays() -> JSONResponse:

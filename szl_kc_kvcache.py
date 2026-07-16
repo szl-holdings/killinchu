@@ -266,7 +266,7 @@ def register(app, ns: str = "killinchu") -> dict:
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "h2o-heavy-hitter-eviction",
                                  "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "hh_retention": None, "memory_reduction": None},
                                 status_code=200)
 
@@ -287,7 +287,7 @@ def register(app, ns: str = "killinchu") -> dict:
             except Exception as exc:
                 return _SJSON({"service": "h2o-heavy-hitter-eviction",
                                "label": MODELED_LABEL,
-                               "error": "compute fail-open: %s" % (str(exc)[:160])},
+                               "error": "compute fail-open: %s" % (type(exc).__name__)},
                               status_code=200)
 
         if not any(getattr(r, "path", None) == "%s/h2o-evict" % base

@@ -423,7 +423,7 @@ def _durable_save(stream: str) -> None:
             _HF_STATE["last_error"] = None
         except Exception as exc:  # noqa: BLE001 — best-effort durability
             _HF_STATE["available"] = False
-            _HF_STATE["last_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:160])
+            _HF_STATE["last_error"] = "%s: %s" % (type(exc).__name__, type(exc).__name__)
             _HF_PUSH_TS[stream] = last  # let the next persist retry promptly
 
     threading.Thread(target=_work, name="osint-hf-save-%s" % stream, daemon=True).start()
@@ -449,11 +449,11 @@ def _durable_load(stream: str) -> Optional[dict]:
         # A missing repo/file just means "nothing persisted yet" — the store is
         # still reachable; only mark unavailable on a real transport error.
         if name in ("EntryNotFoundError", "RepositoryNotFoundError", "HfHubHTTPError") \
-                and any(t in str(exc) for t in ("404", "Not Found", "Entry Not Found")):
+                and any(t in type(exc).__name__ for t in ("404", "Not Found", "Entry Not Found")):
             _HF_STATE["available"] = True
         else:
             _HF_STATE["available"] = False
-        _HF_STATE["last_error"] = "%s: %s" % (name, str(exc)[:160])
+        _HF_STATE["last_error"] = "%s: %s" % (name, type(exc).__name__)
         return None
 
 
@@ -658,10 +658,10 @@ def _archive_ensure_public() -> bool:
                                     commit_message="intel archive: honest dataset card")
                 _ARCHIVE_STATE["card_written"] = True
             except Exception as exc:  # noqa: BLE001
-                _ARCHIVE_STATE["last_error"] = "card: %s: %s" % (type(exc).__name__, str(exc)[:120])
+                _ARCHIVE_STATE["last_error"] = "card: %s: %s" % (type(exc).__name__, type(exc).__name__)
         return True
     except Exception as exc:  # noqa: BLE001
-        _ARCHIVE_STATE["last_error"] = "ensure_public: %s: %s" % (type(exc).__name__, str(exc)[:140])
+        _ARCHIVE_STATE["last_error"] = "ensure_public: %s: %s" % (type(exc).__name__, type(exc).__name__)
         return False
 
 
@@ -689,7 +689,7 @@ def _archive_ensure_started() -> bool:
                 b.start()
                 _ARCHIVE_STATE["started"] = True
         except Exception as exc:  # noqa: BLE001
-            _ARCHIVE_STATE["last_error"] = "start: %s: %s" % (type(exc).__name__, str(exc)[:120])
+            _ARCHIVE_STATE["last_error"] = "start: %s: %s" % (type(exc).__name__, type(exc).__name__)
 
     threading.Thread(target=_boot, name="killinchu-intel-archive-boot", daemon=True).start()
     return True
@@ -813,7 +813,7 @@ def _archive_osint_items(stream: str, items: list) -> None:
             st = bucket.append_many(recs)
             _archive_bump("osint-item", int(st.get("queued", 0)))
     except Exception as exc:  # noqa: BLE001 — archiving must never break ingest
-        _ARCHIVE_STATE["last_error"] = "osint-archive: %s: %s" % (type(exc).__name__, str(exc)[:120])
+        _ARCHIVE_STATE["last_error"] = "osint-archive: %s: %s" % (type(exc).__name__, type(exc).__name__)
 
 
 def _archive_loop() -> None:
@@ -834,7 +834,7 @@ def _archive_loop() -> None:
                         _ARCHIVE_STATE["cycles"] = int(_ARCHIVE_STATE["cycles"]) + 1
                         _ARCHIVE_STATE["last_cycle"] = _now_iso()
         except Exception as exc:  # noqa: BLE001
-            _ARCHIVE_STATE["last_error"] = "cycle: %s: %s" % (type(exc).__name__, str(exc)[:120])
+            _ARCHIVE_STATE["last_error"] = "cycle: %s: %s" % (type(exc).__name__, type(exc).__name__)
         time.sleep(interval)
 
 
@@ -854,7 +854,7 @@ def start_archiver() -> bool:
                          daemon=True).start()
         return True
     except Exception as exc:  # noqa: BLE001
-        _ARCHIVE_STATE["last_error"] = "start_archiver: %s: %s" % (type(exc).__name__, str(exc)[:120])
+        _ARCHIVE_STATE["last_error"] = "start_archiver: %s: %s" % (type(exc).__name__, type(exc).__name__)
         return False
 
 
@@ -886,7 +886,7 @@ def _committed_head_probe() -> dict:
             out["head"] = head if isinstance(head, dict) else None
             out["error"] = "head unreachable this tick"
     except Exception as exc:  # noqa: BLE001 — NEVER raises off the status path
-        out["error"] = "%s: %s" % (type(exc).__name__, str(exc)[:120])
+        out["error"] = "%s: %s" % (type(exc).__name__, type(exc).__name__)
     return out
 
 
@@ -1209,7 +1209,7 @@ def _ingest(stream: str, query: Optional[str] = None, fresh: bool = False) -> di
                 _verify_chain(stream, disk.get("chain_head"))
                 _META[stream] = {"ts": 0, "mode": "cached", "iso": disk.get("saved_at"), "query": q}
             return _bundle(stream, "cached", note="search unreachable (%s) — on-disk snapshot" % type(exc).__name__)
-        return _bundle(stream, "unreachable", note="no search key and no cached corpus: %s" % exc)
+        return _bundle(stream, "unreachable", note="no search key and no cached corpus: %s" % type(exc).__name__)
 
 
 def _honesty(extra: Optional[dict] = None) -> dict:

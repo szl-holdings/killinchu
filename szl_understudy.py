@@ -144,7 +144,7 @@ def _sign_receipt(ns: str, kind: str, payload: dict[str, Any]) -> dict[str, Any]
                     "keyid": getattr(_dsse, "KEYID", "szlholdings-cosign"),
                     "fingerprint_sha256": _dsse.public_key_fingerprint()}
         except Exception as e:  # pragma: no cover
-            print(f"[understudy] sign failed: {e!r}", file=sys.stderr)
+            print(f"[understudy] sign failed: {type(e).__name__}", file=sys.stderr)
             return {"signed": False, "receipt": receipt,
                     "honest_error": "sign failed"}
     # honest sha256 hash-chain fallback (still cryptographic, just not DSSE)
@@ -351,7 +351,7 @@ def register(app, ns: str = "rosie") -> dict[str, Any]:
                 else:
                     result = round(L, 6)
             except Exception as e:
-                print(f"[understudy] formula eval error: {e!r}", file=sys.stderr)
+                print(f"[understudy] formula eval error: {type(e).__name__}", file=sys.stderr)
                 result = {"honest_error": "evaluation failed"}
         rec = _sign_receipt(ns, f"formula.{fid}", {
             "formula": meta, "lambda": round(L, 6), "result": result,
@@ -736,7 +736,7 @@ def register(app, ns: str = "rosie") -> dict[str, Any]:
                                 "latency_ms": round((time.time() - t0) * 1000, 1),
                                 "wire_d_live": bool(body.get("signing_available"))}
             except Exception as e:
-                print(f"[understudy] sibling probe error: {e!r}", file=sys.stderr)
+                print(f"[understudy] sibling probe error: {type(e).__name__}", file=sys.stderr)
                 out[sib] = {"up": False, "error": "unreachable"}
         return JSONResponse({
             "ns": ns, "siblings": out, "advertises_as_gate": _state["active_gate"],

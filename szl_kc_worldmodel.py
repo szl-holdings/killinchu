@@ -241,7 +241,7 @@ def register(app, ns: str = "killinchu") -> dict:
             return JSONResponse(worldmodel_predict(seed=seed, horizon=horizon, latent_dim=latent_dim))
         except Exception as exc:  # pragma: no cover — never 500 the surface
             return JSONResponse({"service": "governed-world-model-rollout", "label": MODELED_LABEL,
-                                 "error": "compute fail-open: %s" % (str(exc)[:160]),
+                                 "error": "compute fail-open: %s" % (type(exc).__name__),
                                  "prediction_error": None, "free_energy_consistency": None},
                                 status_code=200)
 
