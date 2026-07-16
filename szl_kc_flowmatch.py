@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import json as _json
 import math as _math
+from urllib.parse import urlparse as _urlparse
 from datetime import datetime, timezone
 
 DOCTRINE_VERSION = "v11"
@@ -259,9 +260,13 @@ def _selftest() -> dict:
                       "few_step_error": r["few_step_error"],
                       "many_step_error": r["many_step_error"]}
 
-    # (c) citations resolve to real arxiv ids.
-    assert "2210.02747" in r["citations"]["flow_matching"], r["citations"]
-    assert "arxiv.org" in r["citations"]["flow_matching"], r["citations"]
+    # (c) citations resolve to real arxiv ids, and the cited link's host is
+    # exactly arxiv.org (parse-anchored; a bare substring test would also
+    # accept attacker-shaped hosts such as arxiv.org.evil.example).
+    cite = r["citations"]["flow_matching"]
+    assert "2210.02747" in cite, r["citations"]
+    cite_url = next((tok for tok in cite.split() if tok.startswith("https://")), "")
+    assert _urlparse(cite_url).hostname == "arxiv.org", r["citations"]
 
     # (d) determinism: same inputs -> identical output.
     r2 = flowmatch_sample(seed=42, dims=8, steps=16)
