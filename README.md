@@ -1,7 +1,7 @@
 ---
 title: "killinchu — Andean Drone Intelligence"
 emoji: "🦅"
-thumbnail: "https://killinchu.a-11-oy.com/og-card.png"
+thumbnail: "https://huggingface.co/spaces/SZLHOLDINGS/killinchu/resolve/main/static/og-card.png"
 colorFrom: gray
 colorTo: indigo
 sdk: docker
@@ -32,7 +32,7 @@ ecosystem-stage: "operational"
 [![SLSA L1 honest · L2 build-attested · L3 roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20build--attested%20%C2%B7%20L3%20roadmap-c9b787?style=flat-square)](https://github.com/szl-holdings/killinchu)
 [![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
 [![CI](https://github.com/szl-holdings/killinchu/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/killinchu/actions)
-[![License](https://img.shields.io/badge/license-Apache--2.0-5fb3a3?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-5fb3a3?style=flat-square)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Λ Conjecture 1](https://img.shields.io/badge/%CE%9B-Conjecture%201%20(conditional%20Theorem%20U)-B79BD6?style=flat-square)](https://github.com/szl-holdings/lutar-lean/blob/main/BOUNTY.md)
 [![Khipu Conjecture 2](https://img.shields.io/badge/Khipu%20BFT-Conjecture%202%20(Wave23%20conditional)-B79BD6?style=flat-square)](https://github.com/szl-holdings/khipu-consensus)
 
@@ -50,6 +50,8 @@ ecosystem-stage: "operational"
 - **Primary face — the full application:** https://szlholdings-killinchu.hf.space/elite
 - Space URL: https://szlholdings-killinchu.hf.space
 - Health: `curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
+- Source/deployment attestation: https://szlholdings-killinchu.hf.space/.well-known/szl-source.json
+- OpenAPI: https://szlholdings-killinchu.hf.space/openapi.json
 - Docs: https://szl-holdings.github.io/docs-site/flagships/killinchu
 - Release: [v1.0.0](https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0)
 
@@ -201,7 +203,7 @@ graph TD
 ```
 
 Full layout, the `register()` pattern, and the doctrine CI hard-gates →
-[`docs/architecture.md`](docs/architecture.md).
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
@@ -212,7 +214,7 @@ route assembly). The table below is a **logical** "where things live" guide; the
 listed already exist and run live. A user-visible surface is a self-contained module that
 exposes `register(app, ns="killinchu")` and is registered **before** the SPA catch-all
 (FastAPI matches routes in declaration order). Full table in
-[`docs/architecture.md`](docs/architecture.md).
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 | Layer | Role | Representative modules |
 |---|---|---|
