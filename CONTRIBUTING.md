@@ -33,7 +33,7 @@ per Doctrine v11.
 
 ## Repository architecture (read before your first PR)
 
-The full layout is in [`docs/architecture.md`](./docs/architecture.md) and
+The full layout is in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) and
 [`DEVELOPER_ONBOARDING.md`](./DEVELOPER_ONBOARDING.md). The essentials:
 
 ### Run it locally
