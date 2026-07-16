@@ -378,9 +378,9 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   bottom:calc(env(safe-area-inset-bottom,0px) + 74px);z-index:2147483000;display:inline-flex;align-items:center;gap:8px;
   font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
   padding:11px 16px;min-height:44px;max-width:calc(100vw - 32px);border-radius:10px;border:1px solid rgba(201,183,135,.45);
-  background:rgba(201,183,135,.12);color:#d6c69a;cursor:pointer;backdrop-filter:blur(8px);
+  background:rgba(201,183,135,.12);color:#d6c69a;cursor:pointer;backdrop-filter:blur(8px);text-decoration:none;
   box-shadow:0 8px 26px -10px rgba(0,0,0,.7);white-space:nowrap;}
-#szl-ceo-fab:hover{background:rgba(201,183,135,.2);border-color:rgba(201,183,135,.7);}
+#szl-ceo-fab:hover{background:rgba(201,183,135,.2);border-color:rgba(201,183,135,.7);text-decoration:none;}
 #szl-ceo-fab .dot{width:8px;height:8px;border-radius:50%;background:#5fb3a3;box-shadow:0 0 0 3px rgba(95,179,163,.18);}
 #szl-ceo{position:fixed;inset:0;z-index:2147483001;display:none;overflow-y:auto;
   background:rgba(6,6,6,.94);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
@@ -428,9 +428,9 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   font-family:'JetBrains Mono',monospace;font-size:11px;color:#949494;line-height:1.7;letter-spacing:.02em;}
 </style>
 
-<button id="szl-ceo-fab" type="button" aria-controls="szl-ceo" aria-expanded="false">
+<a id="szl-ceo-fab" href="#szl-ceo" role="button" aria-controls="szl-ceo" aria-expanded="false">
   <span class="dot"></span> Investor view
-</button>
+</a>
 
 <div id="szl-ceo" role="dialog" aria-modal="true" aria-label="killinchu — investor view">
   <div class="szl-ceo-wrap">
@@ -571,7 +571,10 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   function close(){ panel.classList.remove("on"); fab.setAttribute("aria-expanded","false");
     document.documentElement.style.overflow=""; }
 
-  fab.addEventListener("click", open);
+  fab.addEventListener("click", function(e){ if(e&&e.preventDefault) e.preventDefault(); open(); });
+  // Honor deep-links: /elite#szl-ceo opens the investor section directly.
+  if(location.hash==="#szl-ceo") open();
+  window.addEventListener("hashchange", function(){ if(location.hash==="#szl-ceo") open(); });
   panel.addEventListener("click", function(e){
     var t=e.target;
     if(t&&t.closest&&t.closest("[data-szl-ceo-close]")){ e.preventDefault(); close(); }
@@ -4936,7 +4939,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
   melt:{title:'MELT Observability',badge:'METRICS · EVENTS · LOGS · TRACES \u2014 SIGNED SPANS',sub:'Field telemetry observability, cryptographically true. The full MELT model \u2014 metrics, events, logs and distributed traces \u2014 where every span is a DSSE-signed receipt on the hash-chained ledger. Live golden metrics per field service (track ingest, ROE eval, fusion), a per-service latency bar, and an animated event/span stream you can <b>filter by service</b> and <b>drill into a span</b> for its receipt. Reimplements the New Relic / Datadog MELT pattern on killinchu\u2019s real /mesh/state + /threats/active data. The audit walk over the receipt DAG provably terminates (F-G5); auditing early or late can\u2019t change the result (Doob envelope, W7-6). Underpins every Warhacker answer.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Field services</div><div class="v" id="me-n">\u2014</div><div class="d">reachable / total</div></div>
-      <div class="kpi"><div class="k">Live tracks</div><div class="v teal" id="me-sp">\u2014</div><div class="d">telemetry spans</div></div>
+      <div class="kpi"><div class="k">Tracks <span class="badge b-warn" style="margin-left:.35rem;color:#d7b96b;border-color:rgba(215,185,107,.4)">MODELED</span></div><div class="v" id="me-sp" style="color:#d7b96b">\u2014</div><div class="d">telemetry spans</div></div>
       <div class="kpi"><div class="k">Mesh wires</div><div class="v" id="me-cv">\u2014</div><div class="d">D/E/F/G live</div></div>
       <div class="kpi"><div class="k">Declarations</div><div class="v teal" id="me-dag">\u2014</div><div class="d">v11 kernel</div></div></div>
       <div class="grid2">
@@ -7134,7 +7137,16 @@ async function melt_load(){
       }
       setTxt('me-n',up+' / '+SERVICES.length);
       var thr=await getJSON(API+'/threats/active');
-      setTxt('me-sp',(thr.total_tracks!=null?thr.total_tracks:(thr.threats||[]).length));
+      // Honest empty state: when the MELT feed reports no tracks at all, render
+      // an UNAVAILABLE state text (canon honesty label) rather than a bare 0/fake count.
+      var _mtc=(thr.total_tracks!=null?thr.total_tracks:(thr.threats||[]).length);
+      var _meSpEl=el('me-sp');
+      if(_mtc==null || _mtc==='' || (typeof _mtc==='number' && !(_mtc>0) && !((thr.threats||[]).length))){
+        if(_meSpEl){ _meSpEl.textContent='UNAVAILABLE'; _meSpEl.style.color='#d7b96b'; _meSpEl.style.fontSize='14px'; _meSpEl.style.letterSpacing='.06em'; }
+      } else {
+        if(_meSpEl){ _meSpEl.style.fontSize=''; _meSpEl.style.letterSpacing=''; }
+        setTxt('me-sp',_mtc);
+      }
       var wires=ms.wires||{}; setTxt('me-cv',Object.keys(wires).filter(function(k){return wires[k]==='live';}).length+' / '+Object.keys(wires).length);
       setTxt('me-dag',ms.declarations!=null?ms.declarations:'\u2014');
       var labels=SERVICES.map(function(s){return s.name;});

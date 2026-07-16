@@ -154,7 +154,10 @@ const API="/api/killinchu/uds/v1";
 // honest governance-role label — no codenames, no fabricated/offline targets.
 const FLAGSHIPS=[{k:"a11oy",label:"Orchestrator (a11oy)"},{k:"killinchu",label:"Field Node (killinchu)"},{k:"vessels",label:"vessels"},{k:"hatun-mcp",label:"hatun-mcp"}];
 const $=s=>document.querySelector(s);
-async function get(p){const r=await fetch(API+"/"+p);return r.json();}
+// Honest fetch: retired/offline targets (404 Spaces) or non-JSON bodies must not
+// crash the dashboard. Return a safe empty object so callers fall back to their
+// labelled "awaiting sweep" states — never a fabricated value.
+async function get(p){try{const r=await fetch(API+"/"+p);if(!r.ok)return{_unavailable:true,_status:r.status};const t=await r.text();try{return JSON.parse(t);}catch(_){return{_unavailable:true};}}catch(e){return{_unavailable:true};}}
 function sigLine(j){const ok=j.signed;return `<span class="dot ${ok?'ok':'no'}"></span>${ok?'DSSE SIGNED':'UNSIGNED (no key in runtime — honest, not fabricated)'} · keyid ${(j.dsse&&j.dsse.signatures&&j.dsse.signatures[0]?j.dsse.signatures[0].keyid:'szlholdings-cosign')} · receipt ${(j.receipt_sha256||'').slice(0,16)||'awaiting sweep'}`;}
 function badge(v){if(v===true)return '<span class="badge b-green">yes</span>';if(v===false)return '<span class="badge b-red">no</span>';return `<span class="badge b-warn">${v}</span>`;}
 
@@ -174,12 +177,12 @@ async function loadStig(){
    <div class="card"><h3>Rules passed <span class="badge b-mute">measured</span></h3><div class="kpi">${(b.rules_passed!=null&&h.rules_passed!=null)?b.rules_passed+'→'+h.rules_passed:'<small>awaiting sweep</small>'}</div><div class="delta up">${j.rules_fixed_by_image_hardening!=null?j.rules_fixed_by_image_hardening+' fixed':'awaiting sweep'}</div></div>
    <div class="card"><h3>High-sev fails <span class="badge b-mute">measured</span></h3><div class="kpi" style="color:var(--gold)">${(b.fail_by_severity||{}).high||0}</div><div class="honest" style="margin-top:6px">FIPS/SELinux gaps are kernel-boot, not image-layer</div></div>`;
   const tb=$('#stig-table tbody');tb.innerHTML="";
-  for(const fo of FLAGSHIPS){const f=fo.k;const jr=await get("stig/scan-report/"+f);const node=(f==="vessels");
-    const jb=jr.baseline||{},jh=jr.hardened||{};
+  for(const fo of FLAGSHIPS){const f=fo.k;const jr=(await get("stig/scan-report/"+f))||{};const node=(f==="vessels");
+    const jb=jr.baseline||{},jh=jr.hardened||{};const off=jr._unavailable===true;
     tb.innerHTML+=`<tr><td><b>${fo.label}</b></td><td class="mono" style="font-size:11px">${node?'nodejs20 (IB)':'ubi9-minimal (IB)'}</td>
       <td class="num">${jb.score_pct!=null?jb.score_pct:'<span class="badge b-mute">awaiting sweep</span>'}</td><td class="num" style="color:var(--teal)">${jh.score_pct!=null?jh.score_pct:'<span class="badge b-mute">awaiting sweep</span>'}</td>
       <td class="num">${jr.rules_fixed_by_image_hardening!=null?jr.rules_fixed_by_image_hardening:'<span class="badge b-mute">awaiting sweep</span>'}</td>
-      <td>${node?'<span class="badge b-warn">node base pending</span>':'<span class="badge b-green">scanned</span>'}</td></tr>`;}
+      <td>${off?'<span class="badge b-mute">unavailable</span>':(node?'<span class="badge b-warn">node base pending</span>':'<span class="badge b-green">scanned</span>')}</td></tr>`;}
   $('#stig-sig').innerHTML=sigLine(j);
   $('#stig-fails').innerHTML=(j.top_high_severity_fails||[]).map(r=>`<span class="badge b-red" style="margin:3px">${r}</span>`).join('')+
     `<div class="honest">${j.honesty||''}</div>`;
@@ -189,7 +192,7 @@ async function loadBB(){const j=await get("big-bang/parity");const o=j.rendered_
   const lintPass=(j.lint_status||'').toLowerCase().includes('pass')||j.lint_passed===true;
   $('#bb-kpis').innerHTML=`<div class="card"><h3>helm lint <span class="badge b-mute">measured</span></h3><div class="kpi" style="font-size:22px;color:${lintPass?'var(--green)':'var(--gold)'}">${j.lint_status?(lintPass?'PASS':'REVIEW'):'awaiting sweep'}</div><div class="honest">${j.lint_status||'no helm lint output in this runtime'}</div></div>
    <div class="card"><h3>Rendered objects <span class="badge b-mute">measured</span></h3><div class="kpi">${o.total!=null?o.total:'<small>awaiting sweep</small>'}</div><div class="delta up">${o.total!=null?'across '+FLAGSHIPS.length+' components':'no render'}</div></div>
-   <div class="card"><h3>Chart artifact</h3><div class="kpi" style="font-size:18px">${j.packaged_artifact||'szl-0.1.0.tgz'}</div><div class="honest">helm ${j.helm_version||'version awaiting sweep'}</div></div>`;
+   <div class="card"><h3>Chart artifact <span class="badge b-mute">measured</span></h3><div class="kpi" style="font-size:18px">${j.packaged_artifact||'szl-0.1.0.tgz'}</div><div class="honest">helm ${j.helm_version||'version awaiting sweep'}</div></div>`;
   const tb=$('#bb-table tbody');tb.innerHTML="";(j.big_bang_compat_matrix||[]).forEach(m=>
     tb.innerHTML+=`<tr><td>${m.feature}</td><td>${badge(m.big_bang)}</td><td>${badge(m.szl)}</td></tr>`);
   $('#bb-honest').textContent=(j.install_command?'$ '+j.install_command+'  —  ':'')+(j.honesty||'');$('#bb-sig').innerHTML=sigLine(j);}
