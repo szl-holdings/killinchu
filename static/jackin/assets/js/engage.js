@@ -43,7 +43,7 @@
     (kids || []).forEach(function (c) { if (c != null) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
     return n;
   }
-  function fmtTs(ts) { try { return new Date(ts).toISOString().replace('T', ' ').replace('Z', 'Z'); } catch (e) { return String(ts); } }
+  function fmtTs(ts) { try { return new Date(ts).toISOString().replace('T', ' '); } catch (e) { return String(ts); } }
   function shortId() { return 'ENG-' + Math.random().toString(16).slice(2, 8).toUpperCase(); }
 
   // ---- styles (scoped to #tab-engage; uses Dev1 vars w/ honest fallbacks) ----
