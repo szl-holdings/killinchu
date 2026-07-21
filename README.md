@@ -462,7 +462,7 @@ One sovereign substrate, many organs — every decision carries a signed, checka
 
 **[a-11-oy.com — the estate front-door](https://a-11-oy.com)** — the live estate hub (a11oy flagship). killinchu's own live face is its HF Space `/elite` below.
 
-**[◇ Holographic Estate — the showcase](https://szlholdings-holographic.static.hf.space)** ·
+**[◇ Holographic Estate — the showcase](https://szlholdings-holographic.hf.space)** ·
 [🛡️ a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ·
 [🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
 [🦅 killinchu](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) ·
