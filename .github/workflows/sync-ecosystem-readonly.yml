@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 15
     env:
       SOURCE_REPOSITORY: szl-holdings/a11oy
-      SOURCE_BLOB: abe1e0900ddb221bc64590040996e352477458d1
+      SOURCE_BLOB: 9564c47daf79c86815b2544ec51b06debc30d354
       TARGET_BRANCH: frontier/ecosystem-readonly-20260722
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -93,6 +93,6 @@ jobs:
           git commit \
             -m "fix(frontier): keep ecosystem GET routes read-only" \
             -m "Mirror the exact A11oy shared module so Killinchu ecosystem GET endpoints expose existing evidence only and never submit hidden policy, signing, or verification POSTs." \
-            -m "Shared-source-peer: szl-holdings/a11oy#1038@a4071e8d9cb14da0eb494f130c0f707ed52faedd" \
+            -m "Shared-source-peer: szl-holdings/a11oy#1038@b60379d95a8e0e413d4336a6c0b5ce3fbf20fd78" \
             -m "Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
           git push origin "HEAD:${TARGET_BRANCH}"
