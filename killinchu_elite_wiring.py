@@ -22,7 +22,8 @@ FastAPI app (no external network, no second port) and reports, per view:
 
 Doctrine v11: effectors are SIMULATED (never a real effect); labels are honest;
 no data is fabricated (feeds degrade honestly to cached/empty); leader feeds are
-cited (NIST / MITRE / CISA / ECB / FIRST). Λ = Conjecture 1; locked-8 formulas;
+cited (NIST / MITRE / CISA / ECB / FIRST). Λ = Conjecture 1; locked-five
+formulas {F1,F11,F12,F18,F19}; {F4,F7,F22} EXPERIMENTAL / NOT LOCKED;
 no key is ever committed or placed in a URL.
 
 This module asserts NOTHING about reachability statically — every health badge
@@ -431,7 +432,9 @@ def audit_map(ns: str = "killinchu") -> Dict[str, Any]:
         "honest": _HONEST,
         "doctrine": "v11",
         "lambda": "Conjecture 1",
-        "locked_formulas": 8,
+        "locked_formulas": 5,
+        "locked_formula_ids": ["F1", "F11", "F12", "F18", "F19"],
+        "experimental_not_locked_ids": ["F4", "F7", "F22"],
         "view_count": len(views),
         "simulated_views": SIMULATED_VIEWS,
         "views": views,
@@ -527,7 +530,9 @@ def health(app, ns: str = "killinchu", probe: bool = False) -> Dict[str, Any]:
         "honest": _HONEST,
         "doctrine": "v11",
         "lambda": "Conjecture 1",
-        "locked_formulas": 8,
+        "locked_formulas": 5,
+        "locked_formula_ids": ["F1", "F11", "F12", "F18", "F19"],
+        "experimental_not_locked_ids": ["F4", "F7", "F22"],
         "probed": bool(probe and client is not None),
         "view_count": len(rows),
         "summary": {"wired": n_wired, "degraded": n_degraded,

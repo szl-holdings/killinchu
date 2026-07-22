@@ -6,7 +6,8 @@
 #
 #   * every /elite view in ELITE_WIRING declares at least one real data endpoint
 #   * the static wiring map carries the doctrine invariants (v11, Λ=Conjecture 1,
-#     locked-8) and never asserts reachability
+#     locked-five plus the exact experimental/not-locked set) and never asserts
+#     reachability
 #   * effector / weapon-target / intercept views are labelled SIMULATED (doctrine
 #     v11: killinchu NEVER claims a real kinetic effect)
 #   * no committed leader/source string smuggles in an API key
@@ -38,7 +39,9 @@ def test_doctrine_invariants_in_map():
     m = kew.audit_map("killinchu")
     assert m["doctrine"] == "v11"
     assert m["lambda"] == "Conjecture 1"
-    assert m["locked_formulas"] == 8
+    assert m["locked_formulas"] == 5
+    assert m["locked_formula_ids"] == ["F1", "F11", "F12", "F18", "F19"]
+    assert m["experimental_not_locked_ids"] == ["F4", "F7", "F22"]
     assert m["view_count"] == len(kew.ELITE_WIRING)
 
 
@@ -105,6 +108,9 @@ def test_health_reports_honestly_without_probe():
     assert by_view["u_posture"]["verdict"] == "wired"
     assert by_view["scaling"]["verdict"] == "needs-deploy"
     s = h["summary"]
+    assert h["locked_formulas"] == 5
+    assert h["locked_formula_ids"] == ["F1", "F11", "F12", "F18", "F19"]
+    assert h["experimental_not_locked_ids"] == ["F4", "F7", "F22"]
     assert s["simulated"] == len(kew.SIMULATED_VIEWS)
     assert s["wired"] + s["degraded"] + s["needs_deploy"] + s["simulated"] == h["view_count"]
 

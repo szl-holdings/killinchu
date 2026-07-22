@@ -118,7 +118,8 @@ _BORROWED: list[dict[str, Any]] = [
         "how_applied": (
             "Every counter-UAS interdiction emits an a11oy-style DSSE ECDSA-P256 receipt "
             "chained into the Khipu DAG (receipts.in ≡ receipts.out). The PROVED formula set "
-            "{F1,F4,F7,F11,F12,F18,F19,F22} backs the edge verdict; F23 stays Conjecture 1."
+            "The locked set {F1,F11,F12,F18,F19} backs the edge verdict; "
+            "{F4,F7,F22} stays EXPERIMENTAL / NOT LOCKED and F23 stays Conjecture 1."
         ),
         "live_endpoints": [
             "POST /api/killinchu/v1/receipt/emit",
@@ -367,7 +368,7 @@ __all__ = ["register"]
 # /borrowed-powers + /honest endpoints) and the long disclaimer text live
 # behind <details> collapsibles — nothing is hidden, just tidied. The dense
 # operator console is untouched and remains the default view. Honest labels
-# only. Λ = Conjecture 1, stated plainly. Nothing here touches locked-8.
+# only. Λ = Conjecture 1, stated plainly. Nothing here touches locked-five.
 # ===========================================================================
 _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (additive, 0-CDN) -->
 <style>
@@ -465,7 +466,7 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
       </div>
       <div class="szl-pp">
         <span class="n">04</span>
-        <h3>The trust math is a machine-checked estate — 8 locked formulas, 0 gaps.</h3>
+        <h3>The trust math is a machine-checked estate — 5 locked formulas, 0 gaps.</h3>
         <p>Eight formulas are locked-proven in Lean (kernel c7c0ba17). The single trust score (Λ) is <b style="color:#c9b787">Conjecture&nbsp;1, not a theorem</b> — and we say so on every surface.</p>
         <div class="badges"><span class="szl-pp-tag proven">PROVEN × 8</span> <span class="szl-pp-tag conj">Λ = CONJECTURE 1</span></div>
       </div>
@@ -514,7 +515,7 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
     </details>
 
     <div class="szl-ceo-foot">
-      Doctrine v11 LOCKED · locked-proven = 8 · Trust score (Λ) = Conjecture&nbsp;1, never a theorem ·
+      Doctrine v11 LOCKED · locked-proven = 5 · Trust score (Λ) = Conjecture&nbsp;1, never a theorem ·
       receipts genuinely signed · effector SIMULATED · AIS = sample/replay · canonical: a-11-oy.com
     </div>
   </div>
@@ -1430,7 +1431,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="u_consensus" onclick="go('u_consensus')" title="Mesh &amp; Resilience (unified) — SKELETON organ: 3-of-4 consensus (BFT safety = Conjecture 2 OPEN unconditionally; CONDITIONAL agreement proven axiom-free, Wave23), quorum, the live Fiedler λ2 mesh-resilience monitor (real algebraic connectivity + node-removal sweep), field net, oversight. Folds the former Mesh-Resilience tab in as a sub-view."><span class="ico">&#8859;</span>Mesh &amp; Resilience</div>
     <div class="nav-item" data-view="u_posture" onclick="go('u_posture')" title="Runtime assurance: real model/data-drift (PSI + KS + ADWIN) on live telemetry, real graph-theoretic topology &amp; health metrics (clustering / centrality / Fiedler lambda2), the attack-surface exposure graph and the zero-trust mesh — all from real telemetry + the real UDS Package CR. Honest verdicts and empty states."><span class="ico">&#9202;</span>Posture, Topology &amp; Zero-Trust</div>
     <div class="nav-item" data-view="u_receipts" onclick="go('u_receipts')" title="Receipts &amp; Provenance (unified) — CIRCULATORY organ: live signed-receipt chain (3D), the real-data provenance ledger (DSSE/khipu hash-chain), audit, quantum-safe signing, evidence. Folds the former Real-Data Provenance tab in as a sub-view."><span class="ico">&#9939;</span>Receipts &amp; Provenance</div>
-    <div class="nav-item" data-view="u_proofs" onclick="go('u_proofs')" title="BRAIN organ: knowledge &amp; formulas (exactly 8 locked), runtime theorem cards, safety gates."><span class="ico">&#8721;</span>Knowledge &amp; Runtime Proofs</div>
+    <div class="nav-item" data-view="u_proofs" onclick="go('u_proofs')" title="BRAIN organ: knowledge &amp; formulas (exactly 5 locked), runtime theorem cards, safety gates."><span class="ico">&#8721;</span>Knowledge &amp; Runtime Proofs</div>
     <div class="nav-item" data-view="u_melt" onclick="go('u_melt')" title="NERVOUS organ: MELT observability, living-organism service graph (3D), model atlas."><span class="ico">&#8779;</span>Observability (MELT)</div>
     <div class="nav-item" data-view="u_about" onclick="go('u_about')" title="What we claim (honest), research corpus, legal boundaries, deploy posture, UDS package."><span class="ico">&#8856;</span>About &amp; Claims</div>
 
@@ -1438,7 +1439,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
     <div class="nav-item" data-view="u_intel" onclick="go('u_intel')" title="OSINT / Threat Intel (unified): live CISA KEV + NVD CVE + ATT&amp;CK, plus every live public-web OSINT feed — Naval, Procurement, Cyber Advisories, Geopolitical, Counter-UAS — and the aggregated cross-vertical intel surface, all normalized + sha256 provenance-stamped. Folds the former five OSINT feed tabs in as sub-views. Third-party claims; heuristic/advisory."><span class="ico">&#9888;</span>OSINT / Threat Intel</div>
     <div class="nav-item" data-view="u_operator" onclick="go('u_operator')" title="Operator OSINT (unified): the Operator orchestrates the OSINT corpus — ranked cross-vertical digest (reproducible replay hash), vertical routing, entity graph, watch-picture correlation (Section-889) and a standing watchlist. Folds the former five Operator tabs in as sub-views. Heuristic/advisory."><span class="ico">&#9776;</span>Operator OSINT</div>
 
-    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 8 {F1,F4,F7,F11,F12,F18,F19,F22}; SLSA L2 build-attestation present; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
+    <!-- Real terms (internal): Trust score = Λ (F23) = Conjecture 1, NOT a theorem; proved formulas = 5 {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; SLSA L2 build-attestation present; a11oy is the orchestrator brain, killinchu is the field surface sharing that brain. -->
     <div class="side-foot">a11oy is the orchestrator brain<br>Trust score = conjecture (not proven)<br>8 formulas formally proven<br>Build provenance: SLSA L2 build-attestation present<br>Drones + Maritime · signed receipts</div>
 
     <!-- ============================================================
@@ -2055,7 +2056,7 @@ async function verifyReceipt(env, pubPem, tamper){
 }
 
 // Internal doctrine (NOT shown to operator): Trust score = Λ (F23) = Conjecture 1, never a theorem;
-// proved formulas = 8 {F1,F4,F7,F11,F12,F18,F19,F22}; SLSA L2 build-attestation present; receipts = real DSSE ECDSA-P256-SHA256, keyid szlholdings-cosign.
+// proved formulas = 5 {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; SLSA L2 build-attestation present; receipts = real DSSE ECDSA-P256-SHA256, keyid szlholdings-cosign.
 const HONEST = `<div class="honesty"><b>Honest by design.</b> Every panel reads a live killinchu service — no mock data. The <b>trust score</b> is a documented <b>conjecture</b>, not a proven guarantee; <b>8</b> of our formulas are formally proven. Build provenance is <b>SLSA L2 build-attestation present</b> (no FedRAMP / Iron Bank / CMMC claims). Decision receipts are <b>hash-chained &amp; tamper-evident (Khipu DAG)</b>; receipts are <b>genuinely DSSE-signed</b> (ECDSA&#8209;P256&#8209;SHA256 over the provisioned cosign keypair, keyid <code>szlholdings-cosign</code>) — verify with <code>cosign verify-blob --key cosign.pub</code> or <code>POST /khipu/verify</code>; no signature is fabricated (CI/Rekor transparency-log signing is roadmap). Drone track positions are <b>simulated tracks over real adversary signatures</b> — not a live sensor feed.</div>`;
 
 
@@ -2228,7 +2229,7 @@ async function voyage_risk_run(){
 // PROVEN on lutar-lean main (Wave9 PR #199 merged @ 66735bf; Wave10 PR #200) as
 // EXPERIMENTAL · CI-green — kernel-verified, NOT locked. Each view EXECUTES the
 // theorem on real inputs via /api/killinchu/v1/wave910/*. Honesty: locked-proven =
-// EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1; sources + verbatim #print axioms shown.
+// EXACTLY 5 {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; Λ = Conjecture 1; sources + verbatim #print axioms shown.
 const W910_CHIP = '<span class="view-badge" style="color:var(--gold);border-color:var(--gold-line);background:var(--gold-soft)">EXPERIMENTAL · CI-green on main</span>';
 function w910theorem(o){
   // renders the honest theorem provenance card: id+name, plain-English, chip, source, verbatim #print axioms
@@ -3148,7 +3149,7 @@ const VIEWS = {
   u_swarm:{title:'Swarm Integrity',badge:'3D TOPOLOGY · RESILIENCE',sub:'Coordinated-swarm integrity — the live formation topology (3D) and the perturbation-recovery resilience monitor. Sub-views below.',render:(c)=>renderSurface('u_swarm',c)},
   u_engage:{title:'Engage & ROE',badge:'GOVERNED LOOP · ROE · GEOFENCE · COMPANION',sub:'The governed engagement surface — rules of engagement, safe-engagement staging, geofence zones, autonomy governance, and companion-defense. Governance loop real; kinetic always human-in-the-loop. Sub-views below.',render:(c)=>renderSurface('u_engage',c)},
   u_consensus:{title:'Mesh & Consensus',badge:'3-OF-4 · QUORUM · MESH (SKELETON ORGAN)',sub:'The SKELETON organ — 3-of-4 multi-witness consensus (Byzantine BFT safety = <b>Conjecture 2, OPEN</b>), the non-Byzantine quorum bound, k-1 mesh resilience, the field-node mesh and autonomy oversight (3D). Sub-views below. <b>Governed Post-Determinism (GPD):</b> this is SZL\u2019s Semantic Quorum Assurance pillar — our Khipu BFT quorum certifies semantic admissibility across heterogeneous agents; Wave23 proved a <b>conditional</b> safety theorem (agreement under non-equivocation), unconditional = Conjecture 2.',render:(c)=>renderSurface('u_consensus',c)},
-  u_proofs:{title:'Knowledge & Runtime Proofs',badge:'BRAIN ORGAN · FORMULAS · THEOREM CARDS',sub:'The BRAIN organ — the knowledge & formula registry (exactly <b>8</b> locked-proven {F1,F4,F7,F11,F12,F18,F19,F22} @ <code>c7c0ba17</code>; Λ = Conjecture 1), runtime theorem cards (STL margin, command-matrix health, Merkle+replay audit) and the safety gates. Sub-views below.',render:(c)=>renderSurface('u_proofs',c)},
+  u_proofs:{title:'Knowledge & Runtime Proofs',badge:'BRAIN ORGAN · FORMULAS · THEOREM CARDS',sub:'The BRAIN organ — the knowledge & formula registry (exactly <b>5</b> locked-proven {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22} @ <code>c7c0ba17</code>; Λ = Conjecture 1), runtime theorem cards (STL margin, command-matrix health, Merkle+replay audit) and the safety gates. Sub-views below.',render:(c)=>renderSurface('u_proofs',c)},
   u_receipts:{title:'Receipt Ledger & Verify',badge:'CIRCULATORY ORGAN · DSSE · 3D CHAIN',sub:'The CIRCULATORY organ — the live signed-receipt chain (3D), engagement audit, quantum-safe signing posture and the evidence locker. Tamper-evidence is <b>axiom-gated</b> on collision-resistance. Sub-views below.',render:(c)=>renderSurface('u_receipts',c)},
   u_melt:{title:'Observability (MELT)',badge:'NERVOUS ORGAN · METRICS/EVENTS/LOGS/TRACES',sub:'The NERVOUS organ — Λ-signed MELT observability, the living-organism service graph (3D) and the model atlas. Sub-views below.',render:(c)=>renderSurface('u_melt',c)},
   u_intel:{title:'World & Threat Intel',badge:'LIVE CISA KEV · NVD CVE · ATT&CK',sub:'Cyber threat intelligence relevant to the mission — live CISA Known-Exploited Vulnerabilities, live NVD CVE feed, and adversary technique mapping. Sub-views below.',render:(c)=>renderSurface('u_intel',c)},
@@ -3166,7 +3167,7 @@ const VIEWS = {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // FRONTIER WAVE (2026-06-08) — 5 wow moments + 2 founder tabs. Real data, 3D,
-  // honest. locked-8 = {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17; Λ = Conjecture 1; BFT =
+  // honest. locked-five = {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22} @ c7c0ba17; Λ = Conjecture 1; BFT =
   // Conjecture 2 OPEN. 0 runtime CDN (vendored three/3d-force-graph/globe.gl).
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -3269,7 +3270,7 @@ const VIEWS = {
         plain:'For canonical JSON + pinned PRNG + frozen registry, 5× replay yields byte-identical roots. This is a measured runtime property — repeatable and observable here — not a machine-checked theorem.',
         lean:'(no Lean theorem — measured axiom; cf. F1 Replay-Hash Determinism which IS proven: Lutar f1_replay_fold_deterministic)',
         source:'thesis §4.6 (A5 deterministicReplay) DOI:10.5281/zenodo.20119582',
-        honesty:'maturity = MEASURED. A5 is an axiom (assumption) verified empirically, NOT a proven theorem. The related F1 (Replay-Hash Determinism) IS one of the locked-8 proven formulas.',
+        honesty:'maturity = MEASURED. A5 is an axiom (assumption) verified empirically, NOT a proven theorem. The related F1 (Replay-Hash Determinism) IS one of the locked-five proven formulas.',
         axioms:["A5 deterministicReplay — maturity: measured (empirical, not a Lean theorem)"]})}
       ${HONEST}`;
       determinism_init();}},
@@ -3332,7 +3333,7 @@ const VIEWS = {
       <div class="card"><div class="card-h"><span class="card-t">Living anatomy (live 3D)</span><span class="card-ep">szlholdings-anatomy.hf.space</span></div>
         <iframe id="la-frame" src="https://szlholdings-anatomy.hf.space/" title="Living anatomy — one governed organism" style="width:100%;height:460px;border:1px solid var(--gold-line);border-radius:10px;background:#050505" loading="lazy" onerror="(function(f){try{var d=document.getElementById('la-fallback');if(d){d.style.display='block';f.style.display='none';}}catch(e){}})(this)"></iframe>
         <div id="la-fallback" style="display:none;padding:1rem;border:1px solid var(--gold-line);border-radius:10px;background:#050505"><div class="row mono" style="font-size:12px;color:var(--cream)">Live 3D anatomy embed temporarily unreachable. Open the verified-live scene directly: <a href="https://szlholdings-anatomy.hf.space/" target="_blank" rel="noopener" style="color:var(--teal)">szlholdings-anatomy.hf.space &#8599;</a> (HTTP 200). The organ-by-organ proven formulas below render regardless. Honest fallback — no fabricated scene.</div></div>
-        <div class="row mono dim" style="font-size:11px;margin-top:.3rem">Live embed of the shared anatomy scene (<a href="https://szlholdings-anatomy.hf.space/" target="_blank" rel="noopener" style="color:var(--teal)">open directly &#8599;</a>). Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 8 locked-proven formulas (never inflated); CUT-2 conditional; SLSA L1 honest.</div></div>
+        <div class="row mono dim" style="font-size:11px;margin-top:.3rem">Live embed of the shared anatomy scene (<a href="https://szlholdings-anatomy.hf.space/" target="_blank" rel="noopener" style="color:var(--teal)">open directly &#8599;</a>). Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 5 locked-proven formulas (never inflated); CUT-2 conditional; SLSA L1 honest.</div></div>
       <div class="card"><div class="card-h"><span class="card-t">Proven formulas living in the organs</span><span class="card-ep">theorem_ref + honest maturity</span></div>
         <div id="la-organs"></div></div>
       <details class="raw"><summary>raw consensus mesh state (/uds/v1/healthz) + theorem registry</summary><pre class="out" id="la-raw">—</pre></details>
@@ -4537,7 +4538,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       <div class="card" id="q2-gershgorin"><div class="card-h"><span class="card-t">Governance Aggregation — Non-Degeneracy (Q2 · Gershgorin)</span><span class="badge b-teal" style="margin-left:auto">EXPERIMENTAL · CI-green</span></div>
         <div class="row mono dim" style="font-size:12px;line-height:1.6;display:block">The YACHAY (read-only reasoning cortex) / HATUN governance layer fuses trust weights into a single aggregated verdict. <b>Q2 guarantees that fusion never collapses:</b> a strictly diagonally-dominant <b>real trust-weight matrix is invertible</b> (∑<sub>j≠k</sub> ‖W<sub>kj</sub>‖ &lt; ‖W<sub>kk</sub>‖ ⇒ det&nbsp;W&nbsp;≠&nbsp;0), so the weighted aggregation <code>W x = b</code> has a <b>unique solution — no zero-eigenvalue collapse</b> of the governance operator. No dominant operator can silently zero out a participant's weight.</div>
         <div class="row mono dim" style="font-size:11px;display:block"><b>#print axioms:</b> <code>Lutar.Wave8.Gershgorin.governance_nonsingular_real — [propext, Classical.choice, Quot.sound]</code> (corollary <code>governance_unit_solvable</code>, same axioms)</div>
-        <div class="row mono dim" style="font-size:10.5px;display:block">PR #197 @ 7885fd9 · <code>Lutar/Wave8/Gershgorin.lean</code> · EXPERIMENTAL, additive, never folded into the locked 8. ℂ variant left honestly as ROADMAP (shipped real-valued only, sorryAx-free).</div></div>
+        <div class="row mono dim" style="font-size:10.5px;display:block">PR #197 @ 7885fd9 · <code>Lutar/Wave8/Gershgorin.lean</code> · EXPERIMENTAL, additive, never folded into the locked five. ℂ variant left honestly as ROADMAP (shipped real-valued only, sorryAx-free).</div></div>
       ${HONEST}`;
       // Load system types
       try{
@@ -4841,7 +4842,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
         <div class="row"><span class="badge b-err">NOT</span><span>The trust score is NOT a proven-unique function — it is a research conjecture.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L2-verified, NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Posture: SLSA L1 honest + L2 build-attestation present; L2-verified / L3 = roadmap.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>NOT a third-party audit. Compliance coverage is self-evidenced with hashes.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>Only 8 formulas are formally proven (locked) {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17; the rest are open or experimental.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are formally proven (locked) {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22} @ c7c0ba17; the rest are open or experimental.</span></div>
         <div class="row"><span class="badge b-live">YES</span><span>killinchu signs decision receipts with a REAL key — verify them yourself under Verify Signed Receipt.</span></div>
       </div>
       <details class="raw"><summary>raw honesty record</summary><pre class="out" id="o-honest">loading…</pre></details>${HONEST}`;window.honest_load();}},
@@ -4877,7 +4878,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
      REAL killinchu endpoints (drones, vessels, tracks, receipts), governed by the
      proven formulas. Viz vendored (3d-force-graph / globe.gl MIT vasturiano;
      echarts-gl Apache-2.0) — no CDN, sovereign. Honesty: Λ=Conjecture 1 (advisory);
-     locked-proven=8; trust interval = CONFORMAL not Hoeffding; SLSA L2 build-attestation present; AIS=sample/
+     locked-proven=5; trust interval = CONFORMAL not Hoeffding; SLSA L2 build-attestation present; AIS=sample/
      replay; no fabricated data; no external fetch (live USGS allowed, labelled).
      ========================================================================== */
   fieldnet:{title:'Field Net',badge:'3D ENTITY-LINK · EDGE-PARTICLE LIVE FLOW',sub:'The whole maritime/air field as one live, animated 3D entity-link graph — drones, vessels, comms-relays, payloads, mission-tasks and anomaly events fused into a single explorable map, with edge particles tracing live event flow. Click any node for its provenance panel: kinematics, the gate verdict, the trust score (advisory conjecture), and its signed-receipt chip. Reimplements the vasturiano 3d-force-graph interaction model (MIT) on killinchu\u2019s real /threats/active, /fleet/vessels and /swarm/topology data. The field-net health score is label-invariant (graph theorem). Answers Warhacker P1 (autonomous-system oversight): every governed object is on one auditable surface. Drone tracks are <b>simulated over real adversary signatures</b>; vessels are <b>sample/replay</b>.',
@@ -5670,7 +5671,7 @@ async function gate_try(action){try{setOut('g-try','inspecting…');
 async function honest_load(){
   if(!el('ho-host')) return;                 // panel navigated away — no-op (K3/K5 null-guard)
   setHTML('ho-host','');
-  addHTML('ho-host',`<div class="row"><span>Formally proven formulas (locked)</span><span class="spacer b-live badge">exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Formally proven formulas (locked)</span><span class="spacer b-live badge">exactly 5 {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust score Λ</span><span class="spacer b-err badge">Conjecture 1 · advisory, never a theorem</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Khipu BFT safety</span><span class="spacer b-err badge">Conjecture 2 · open unconditionally</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust scores</span><span class="spacer badge" style="color:#c9b787;border:1px solid #c9b787">advisory · never 100%</span></div>`);
@@ -5706,7 +5707,7 @@ async function kbformulas_load(){
     const cf=ps.coder_formulas||null; const cfTotal=(cf&&cf.theorems)||0; const cfAx=(cf&&cf.axiom_gated)||0; const cfProven=Math.max(0,cfTotal-cfAx); // 27 - 1 = 26
     const lset=ps.lambda_setalpha_setdelta||null; const lsetProven=(lset&&lset.impostor_deaths_axiom_free)||0; // 10 axiom-free impostor-deaths (conditional headline excluded from the axiom-free tally)
     const expCountMin=ps.experimental_count_min||0; // 80 (floor, CI-verified honest set)
-    const expProven=Math.max(w2+w3+w5+w6+w7+alProven+cfProven+lsetProven, expCountMin); // experimental kernel-verified (sorry-free, NOT axiom-gated), separate from the locked 8
+    const expProven=Math.max(w2+w3+w5+w6+w7+alProven+cfProven+lsetProven, expCountMin); // experimental kernel-verified (sorry-free, NOT axiom-gated), separate from the locked five
     const axTotal=baseAx+w3ax+alAx+cfAx;
     const conj=(ps.conjecture||['F23']).length;
     // donut: proven-locked vs experimental-proven vs axiom-gated vs conjecture
@@ -5716,14 +5717,14 @@ async function kbformulas_load(){
     setHTML('kf-proven',
       `<div class="row mono dim" style="font-size:11px">Honest maturity ledger — kernel-verified means a Lean 4 proof with <b>0 errors, no sorry</b>. The trust score Λ stays a <b>conjecture</b>, never a theorem.</div>`+
       ml('PROVEN (locked)',locked,TEAL,'Locked kernel — Lean sorry-free: '+((ps.locked_ids||['F1','F11','F12','F18','F19']).join(' '))) +
-      ml('PROVEN (exp.)',expProven,LIVE,'Experimental kernel-verified (Lean sorry-free, NOT counted in the locked 8): wave-2 '+w2+' + wave-3 '+w3+' + wave-5 '+w5+' + wave-6 '+w6+' + wave-7 '+w7+' + governed-run loop '+alProven+' (of '+alTotal+' P1–P6 theorems; 4 are axiom-gated below)') +
+      ml('PROVEN (exp.)',expProven,LIVE,'Experimental kernel-verified (Lean sorry-free, NOT counted in the locked five): wave-2 '+w2+' + wave-3 '+w3+' + wave-5 '+w5+' + wave-6 '+w6+' + wave-7 '+w7+' + governed-run loop '+alProven+' (of '+alTotal+' P1–P6 theorems; 4 are axiom-gated below)') +
       ml('AXIOM-GATED',axTotal,GOLD,'True under a stated crypto assumption (collision-resistant hash / ECDSA-unforgeable) — honestly disclosed; includes the loop tamper-evidence proof P5') +
       ml('CONJECTURE (Λ)',conj,RED,'Trust score F23 = Conjecture 1 — advisory gate, explicitly NOT proven') +
       `<div class="row mono dim" style="font-size:11px;margin-top:.3rem">Governed-run loop (RAG→tool→policy/kernel→signed receipt): <b>P1</b> every run is fully receipted · <b>P2</b> nothing emits unless both safety checks pass · <b>P3</b> a poisoned input can’t flip the verdict · <b>P4</b> a run replays byte-identical · <b>P5</b> any tampering is detected on re-check · <b>P6</b> auditing more never un-verifies. Conformal (wave-5/7) gives the trust/risk <b>confidence interval</b> — we never report 100%.</div>`+
       `<div class="row" style="margin-top:.4rem"><span class="mono dim" style="font-size:10px">Lean repo ${esc(ps.lean_repo||'szl-holdings/lutar-lean')} · wave-5 @ ${esc((ps.wave5&&ps.wave5.commit_ci_green||'').slice(0,12))} · wave-6 @ ${esc((ps.wave6&&ps.wave6.commit_ci_green||'').slice(0,12))} · wave-7 @ ${esc((ps.wave7&&ps.wave7.commit_ci_green||'').slice(0,12))} · loop @ ${esc((ps.agentic_loop&&ps.agentic_loop.commit_ci_green||'').slice(0,12))} · verified with bare <code>lean</code> 4.13.0</span></div>`+
       // ---- HONEST campaign ledger: every CI-green campaign linked to its lutar-lean PR (each CI-green) ----
-      `<div class="row mono dim" style="font-size:11px;margin-top:.5rem">Full CI-verified campaign set — each links to its lutar-lean PR (CI-green). Never folded into the locked 8.</div>`+
-      [['locked','8 locked-kernel proven {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17',null,TEAL],
+      `<div class="row mono dim" style="font-size:11px;margin-top:.5rem">Full CI-verified campaign set — each links to its lutar-lean PR (CI-green). Never folded into the locked five.</div>`+
+      [['locked','5 locked-kernel proven {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22} @ c7c0ba17',null,TEAL],
        ['experimental-ci-green','Wave 5 (AM–GM, Cauchy–Schwarz, conformal, pigeonhole) — 11',(ps.wave5&&ps.wave5.pull_request)||'https://github.com/szl-holdings/lutar-lean/pull/186',LIVE],
        ['experimental-ci-green','Wave 6 (graph substrate F-G1..F-G6) — 11',(ps.wave6&&ps.wave6.pull_request)||'https://github.com/szl-holdings/lutar-lean/pull/189',LIVE],
        ['experimental-ci-green','Wave 7 (conformal p-value, Doob envelope, PAC-Bayes) — 10',(ps.wave7&&ps.wave7.pull_request)||'https://github.com/szl-holdings/lutar-lean/pull/190',LIVE],
@@ -5740,7 +5741,7 @@ async function kbformulas_load(){
        ['experimental-ci-green','Wave 16 — CF-23 binary-KL convexity crux (1/p+1/(1−p)≥4) + CF-24 geoBin full Aczél mean axioms + CF-25 Λ scale-invariance + CF-26 abacus place-value — 13 theorems','https://github.com/szl-holdings/lutar-lean/pull/206',LIVE],
        ['experimental-ci-green','Wave 17 — CF-23 FULL binary Pinsker 2(p−q)²≤KL_bin (the headline) + CF-27 monDEQ unique equilibrium + CF-28 recurrent-depth Kʳ-Lipschitz — 24 theorems','https://github.com/szl-holdings/lutar-lean/pull/207',LIVE]
       ].map(r=>`<div class="row"><span class="badge" style="color:${r[3]};border:1px solid ${r[3]};min-width:128px;text-align:center;font-size:9px">${esc(r[0])}</span><span class="spacer">${esc(r[1])}</span>${r[2]?`<a href="${esc(r[2])}" target="_blank" rel="noopener" class="badge b-gold" style="text-decoration:none">PR ↗</a>`:'<span class="badge" style="opacity:.4">locked</span>'}</div>`).join('')+
-      `<div class="row mono dim" style="font-size:11px;margin-top:.3rem">Λ-uniqueness stays <b>Conjecture 1 (OPEN)</b> unconditionally (a counterexample is machine-checked) and holds only CONDITIONALLY as <b>Theorem U</b> (TheoremU_LambdaUnique; corollaries U₁ separable / U₂ factorization; CI-green, axiom-clean) — IA-solutions are ≈Λ-equivalent via the kernel Decidable ≈Λ relation (instDecidableLambdaEquiv), strict equality only under the Anchored/Normalized gauge (PR#192). Honest floor: <b>80+</b> experimental kernel-verified theorems beyond the locked 8 (Waves 11–17 @ main 99d07509 now surfaced in full: graph/Ouro/immune, Mādhava, Reed–Solomon, VCG, Gibbs, DPO-KL-on-simplex, geoBin Aczél axioms, Λ scale-invariance, FULL binary Pinsker, monotone-DEQ equilibrium, recurrent-depth Lipschitz). <b>The unconditional Λ uniqueness stays Conjecture 1; the unconditional DPO klDivergence_nonneg and pinsker axioms stay FALSE-as-stated; Byzantine BFT stays Conjecture 2.</b> Every Wave 11–17 theorem is EXPERIMENTAL · CI-green · #print-axioms-clean and NEVER folded into the locked 8.</div>`+
+      `<div class="row mono dim" style="font-size:11px;margin-top:.3rem">Λ-uniqueness stays <b>Conjecture 1 (OPEN)</b> unconditionally (a counterexample is machine-checked) and holds only CONDITIONALLY as <b>Theorem U</b> (TheoremU_LambdaUnique; corollaries U₁ separable / U₂ factorization; CI-green, axiom-clean) — IA-solutions are ≈Λ-equivalent via the kernel Decidable ≈Λ relation (instDecidableLambdaEquiv), strict equality only under the Anchored/Normalized gauge (PR#192). Honest floor: <b>80+</b> experimental kernel-verified theorems beyond the locked five (Waves 11–17 @ main 99d07509 now surfaced in full: graph/Ouro/immune, Mādhava, Reed–Solomon, VCG, Gibbs, DPO-KL-on-simplex, geoBin Aczél axioms, Λ scale-invariance, FULL binary Pinsker, monotone-DEQ equilibrium, recurrent-depth Lipschitz). <b>The unconditional Λ uniqueness stays Conjecture 1; the unconditional DPO klDivergence_nonneg and pinsker axioms stay FALSE-as-stated; Byzantine BFT stays Conjecture 2.</b> Every Wave 11–17 theorem is EXPERIMENTAL · CI-green · #print-axioms-clean and NEVER folded into the locked five.</div>`+
       // honest theorem list straight from KB (TH_L1 Λ = conjectured, etc.)
       (kb.theorems||[]).map(t=>`<div class="row"><span class="badge" style="color:${matColor(t.maturity)};border:1px solid ${matColor(t.maturity)};min-width:118px;text-align:center">${esc((t.maturity||'').toUpperCase())}</span><span class="spacer">${esc(t.id)} · ${esc(t.name)}</span></div>`).join(''));
     // make the puriq experimental set browsable alongside the F-formulas
@@ -6859,7 +6860,7 @@ function dvh_anomaly(scored){
    KILLINCHU FRONTIER TAB LOADERS (3D · LIVE) — maritime/air field surface.
    Leader interaction models reimplemented as OUR OWN code on REAL killinchu
    endpoints, governed by the proven formulas. Honesty: Λ=Conjecture 1 (advisory);
-   locked-proven=8; trust interval = CONFORMAL (W7-4) not Hoeffding; SLSA L2 build-attestation present;
+   locked-proven=5; trust interval = CONFORMAL (W7-4) not Hoeffding; SLSA L2 build-attestation present;
    no fabricated data (drone tracks simulated over real signatures; vessels =
    sample/replay; live USGS labelled); NO external fetch beyond allowed USGS.
    Reuses console base helpers: getJSON/postJSON/getPublic/el/esc/setTxt/setHTML/
@@ -8842,7 +8843,7 @@ function _kbTheoremFor(decisionClass){
     return reg[decisionClass]||reg.lambda_gate||reg.consensus||null;
   }).catch(function(){return null;});
 }
-var LOCKED5={F1:1,F4:1,F7:1,F11:1,F12:1,F18:1,F19:1,F22:1};
+var LOCKED5={F1:1,F11:1,F12:1,F18:1,F19:1};
 // MOMENT 4 — economic thesis one-liner (Series-A "so what"; no fabricated $)
 window.ECON='<div class="row mono" style="font-size:11.5px;line-height:1.6;border:1px solid var(--gold-line);border-radius:8px;padding:.5rem .7rem;margin-bottom:.7rem;background:rgba(232,201,122,0.05)"><b style="color:#e8c97a">Why it matters:</b> every autonomous engagement carries <b>court-admissible cryptographic provenance</b> \u2014 governed-provable AI de-risks ROE / liability exposure and turns \u201ctrust us\u201d into \u201cverify the receipt.\u201d</div>';
 function _maturityColor(m){m=(m||'').toLowerCase();
@@ -8904,7 +8905,7 @@ function hero_render_graph(receipt){
       digest:receipt?((receipt.node_digest||'').slice(0,16)+'…'):'(run a decision)'},
     {id:'F12',name:'F12 — Kuramoto (LOCKED)',group:'theorem',color:'#39d98a',val:6,
       theorem:'F12 Kuramoto Phase-Coupling Boundedness',lean:'f12_kuramoto_superposition (szl-holdings/lutar-lean)',
-      maturity:'locked',kernel_sha:'c7c0ba17',axioms:'#print axioms over the locked-8 reports NO sorryAx / NO extra axioms (axiom-clean).',doi:'10.5281/zenodo.20119582'},
+      maturity:'locked',kernel_sha:'c7c0ba17',axioms:'#print axioms over the locked-five reports NO sorryAx / NO extra axioms (axiom-clean).',doi:'10.5281/zenodo.20119582'},
     {id:'cut2',name:lg.theorem,group:'theorem',color:_maturityColor(lg.maturity),val:6,
       theorem:lg.theorem,lean:lg.lean,maturity:lg.maturity,kernel_sha:lg.kernel_sha||'044eb098',
       axioms:lg.honest_note||'Λ = Conjecture 1, machine-checked FALSE; CUT-2 is the CONDITIONAL repair.',doi:'10.5281/zenodo.20053148'},
@@ -8959,11 +8960,11 @@ function hero_trace(n){
   elS('hi-trace-mat').innerHTML='<span style="color:'+mc+'">'+esc((n.maturity||'').toUpperCase())+'</span>';
   elS('hi-trace-body').innerHTML='<div class="row mono" style="font-size:12px;line-height:1.9">'+
     '<b>Lean theorem:</b> '+esc(n.lean)+'<br>'+
-    '<b>Kernel sha:</b> <code>'+esc(n.kernel_sha)+'</code> '+(locked?'(locked-8 @ c7c0ba17)':'(experimental @ 044eb098 — NOT folded into the locked-8)')+'<br>'+
-    '<b>Maturity:</b> <span style="color:'+mc+'">'+esc(n.maturity)+'</span> '+(locked?'— one of EXACTLY 8 locked-proven formulas':'')+'<br>'+
+    '<b>Kernel sha:</b> <code>'+esc(n.kernel_sha)+'</code> '+(locked?'(locked-five @ c7c0ba17)':'(experimental @ 044eb098 — NOT folded into the locked-five)')+'<br>'+
+    '<b>Maturity:</b> <span style="color:'+mc+'">'+esc(n.maturity)+'</span> '+(locked?'— one of EXACTLY 5 locked-proven formulas':'')+'<br>'+
     '<b>#print axioms:</b> '+esc(n.axioms)+'<br>'+
     '<b>Zenodo DOI:</b> <a href="https://doi.org/'+esc(n.doi)+'" target="_blank" rel="noopener" style="color:#c792ea">'+esc(n.doi)+'</a></div>'+
-    (locked?'':'<div class="honesty" style="margin-top:.5rem"><b>Honest:</b> Λ = <b>Conjecture 1</b> (machine-checked FALSE as an unconditional axiom). CUT-2 is conditional; Byzantine BFT = Conjecture 2 OPEN. Only F1,F4,F7,F11,F12,F18,F19,F22 are locked-proven.</div>');
+    (locked?'':'<div class="honesty" style="margin-top:.5rem"><b>Honest:</b> Λ = <b>Conjecture 1</b> (machine-checked FALSE as an unconditional axiom). CUT-2 is conditional; Byzantine BFT = Conjecture 2 OPEN. Only F1,F11,F12,F18,F19 are locked-proven; F4,F7,F22 are EXPERIMENTAL / NOT LOCKED.</div>');
 }
 
 /* ── TAMPER ────────────────────────────────────────────────────────────────*/
@@ -9049,7 +9050,7 @@ async function uds_init(){
     {id:'AU-10',name:'Non-repudiation',claim:'Decisions carry a cryptographically-signed receipt (real cosign key)',status:'implemented',ev:'live: /receipt/emit + /consensus/verify (DSSE PASS / tamper FAIL)'},
     {id:'SI-7',name:'SW/Info Integrity',claim:'Receipt tamper is detected',status:'implemented',ev:'live: /wave910/audit-receipts tamper-localization'},
     {id:'AC-4',name:'Info Flow Enforcement',claim:'Λ-gate (ADVISORY) gates outputs',status:'partial',ev:'live: /uds/v1/healthz theorem_ref.maturity present; Λ = Conjecture 1 (advisory)'},
-    {id:'CM-3',name:'Config Change Control',claim:'Locked-8 formulas pinned by kernel sha',status:'implemented',ev:'lake_receipt locked_proven_count == 8 @ c7c0ba17'},
+    {id:'CM-3',name:'Config Change Control',claim:'Locked-five formulas pinned by kernel sha',status:'implemented',ev:'lake_receipt locked_proven_count == 5 @ c7c0ba17'},
     {id:'AU-3',name:'Audit Record Content',claim:'Receipts include decision class + theorem_ref provenance',status:'partial',ev:'live: consensus payload theorem_ref fields'}
   ];
   var sc={implemented:'#39d98a',partial:'#f5c451',planned:'#ff8a5c'};
@@ -9280,8 +9281,8 @@ async function living_anatomy_init(){
   elS('la-organs').innerHTML=organs.map(function(o){var c=_maturityColor(o.mat);
     return '<div class="row mono" style="font-size:11.5px;padding:.4rem 0;border-bottom:1px solid var(--gold-line);line-height:1.6">'+
       '<b style="color:#e8c97a">'+esc(o.organ)+'</b><br>'+esc(o.formula)+' · <span style="color:'+c+'">'+o.mat.toUpperCase()+'</span> · sha <code>'+esc(o.sha)+'</code><br>'+
-      '<span class="dim">Lean: '+esc(o.lean)+(o.mat==='locked'?' — one of EXACTLY 8 locked-proven @ c7c0ba17':'')+'</span></div>';}).join('')+
-    '<div class="honesty" style="margin-top:.5rem"><b>Honest:</b> exactly 8 locked-proven formulas {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 (never inflated). Λ = Conjecture 1 (machine-checked FALSE). Byzantine BFT = Conjecture 2 (OPEN).</div>';
+      '<span class="dim">Lean: '+esc(o.lean)+(o.mat==='locked'?' — one of EXACTLY 5 locked-proven @ c7c0ba17':'')+'</span></div>';}).join('')+
+    '<div class="honesty" style="margin-top:.5rem"><b>Honest:</b> exactly 5 locked-proven formulas {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22} @ c7c0ba17 (never inflated). Λ = Conjecture 1 (machine-checked FALSE). Byzantine BFT = Conjecture 2 (OPEN).</div>';
 }
 
 // WOW — ungoverned-vs-governed: an adversarial input (poisoned class / spoofed track) tries to flip the decision.
@@ -9840,7 +9841,7 @@ go(VIEWS[start]?start:'tracks');
    ADDITIVE-ONLY: overrides 4 intel render functions with unique 3D/advanced viz
    + honest forecasting, all bound to the SAME real backend endpoints they
    already read. Zero shared-module edits. killinchu effector stays SIMULATED.
-   Doctrine: locked=8; Λ=Conjecture 1; trust never 100%; 0 runtime CDN.
+   Doctrine: locked=5; Λ=Conjecture 1; trust never 100%; 0 runtime CDN.
    ========================================================================== */
 (function(){
   function go(){
@@ -10057,7 +10058,7 @@ go(VIEWS[start]?start:'tracks');
 /* anatomy-map-tab-patch :: SZL Anatomy — single honest map (formulas + agentic capabilities) ::
    Additive, self-contained, NS-aware. Snapshot mirror of the standalone deck
    (a-11-oy.com/anatomy-map · HF static Space SZLHOLDINGS/anatomy). Honest by construction:
-   8 LOCKED formulas {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1. No fabricated live pills. */
+   5 LOCKED formulas {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; Λ = Conjecture 1. No fabricated live pills. */
 (function(){
   var NS=(window.__rd_ns||(location.pathname.indexOf('killinchu')>=0?'killinchu':'a11oy'));
   var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98', WARN='#e0a82e', RED='#b06a5a';
@@ -10075,8 +10076,8 @@ go(VIEWS[start]?start:'tracks');
      p:'The governed loop: propose \u2192 13-axis gate \u2192 act \u2192 chained receipt. One chained receipt per hop, no drop/reorder (P1); replay is byte-identical (P4); any single mutation makes re-verify reject (P5, axiom-gated); untrusted retrieval cannot flip DENY\u2192ALLOW (P3).',
      e:'ouroboros runtime/* (category, glr, bekenstein, closure, lambda-gate) \u00b7 HATUN orchestrator', f:'P1, P3, P4, P5'},
     {k:'khipu', n:'Khipu DAG + BFT consensus', s:'LIVE',
-     p:'Append-only SIGNED receipt DAG (Khipu) + quorum consensus: acyclic (F4 locked), FIFO-ordered (F7 locked), emit-monotone (F22 locked), CONDITIONAL Byzantine safety under 3-of-4 quorum. Unconditional safety stays Conjecture 2.',
-     e:'szl_khipu_lmdb.py \u00b7 MCP khipu_sign / khipu_verify (live)', f:'F4, F7, F22 (locked) \u00b7 B2 quorum'},
+     p:'Append-only SIGNED receipt DAG (Khipu) + quorum consensus: acyclic (F4), FIFO-ordered (F7), emit-monotone (F22). These source-present theorems are EXPERIMENTAL / NOT LOCKED. Byzantine safety is CONDITIONAL under 3-of-4 quorum; unconditional safety stays Conjecture 2.',
+     e:'szl_khipu_lmdb.py \u00b7 MCP khipu_sign / khipu_verify (live)', f:'F4, F7, F22 (EXPERIMENTAL / NOT LOCKED) \u00b7 B2 quorum'},
     {k:'receipts', n:'Receipt store (YAWAR / szl-receipts)', s:'LIVE',
      p:'Append-only SHA-256 receipt bus: h=sha256(canonical(packet)), never mutated/deleted. Ed25519/DSSE signing, Merkle inclusion (F18 locked), receipt-completeness (P1), replay-determinism, hash-chain tamper-evidence (P5). Live chain at a-11-oy.com/receipts.',
      e:'YAWAR bus \u00b7 szl-receipts server + Pepr webhook (repo PRIVATE) \u00b7 a-11-oy.com/receipts/', f:'F1, F18 (locked) \u00b7 P1, P5'},
@@ -10084,8 +10085,8 @@ go(VIEWS[start]?start:'tracks');
      p:'UDS Core ambient mesh (Istio, restricted PSA) carrying W3C TraceContext span lineage across brain\u2192effectors (efferent / afferent / proprioceptive). Replay verifier checks child.parent_span_id == parent.span_id over a cycle (P4); Menger cut/path + reachability monotonicity back the resilience claims.',
      e:'szl-uds-deployment (k3d uds-szl-demo) \u00b7 vsp-otel \u00b7 HUKLLA deadman reflex', f:'P4, F1 \u00b7 W9_MENGER, W10_REACH'},
     {k:'math', n:'Math \u00b7 AP-12 generator + Putnam benchmark', s:'LIVE-GATED',
-     p:'AP-12 deterministic seedable generator + Lean-kernel benchmark scorecards with HONEST REAL/DEMO/OPEN verdicts. Putnam 2025: 0 REAL / 10 DEMO / 2 OPEN (doctrine v11). The locked-8 ladder and \u039b=Conjecture 1 are unchanged by this surface.',
-     e:'/api/math + /api/v1/math (box pm2 alloy-api; auth-gated \u2192 401, surface exists) \u00b7 lutar-lean kernel', f:'F1, F4, F7, F11, F12, F18, F19, F22 (locked-8)'}
+     p:'AP-12 deterministic seedable generator + Lean-kernel benchmark scorecards with HONEST REAL/DEMO/OPEN verdicts. Putnam 2025: 0 REAL / 10 DEMO / 2 OPEN (doctrine v11). The locked-five ladder, the EXPERIMENTAL / NOT LOCKED set, and \u039b=Conjecture 1 remain explicit.',
+     e:'/api/math + /api/v1/math (box pm2 alloy-api; auth-gated \u2192 401, surface exists) \u00b7 lutar-lean kernel', f:'F1, F11, F12, F18, F19 (locked-five) \u00b7 F4, F7, F22 (EXPERIMENTAL / NOT LOCKED)'}
   ];
   function render(host){
     var h='';
@@ -10094,7 +10095,7 @@ go(VIEWS[start]?start:'tracks');
       +'<div style="font-size:13px;color:#cfd4da;margin-top:6px;line-height:1.5">Every agentic capability mapped to the <b>real</b> app(s)/repo(s) that implement it, alongside the formula/theorem ladder. Snapshot mirror of the full interactive deck \u2014 '
       +'<a href="https://a-11-oy.com/anatomy-map/" target="_blank" rel="noopener" style="color:'+TEAL+'">a-11-oy.com/anatomy-map</a> \u00b7 '
       +'<a href="https://szlholdings-anatomy.hf.space/" target="_blank" rel="noopener" style="color:'+TEAL+'">HF Space</a>. '
-      +'Honesty: <b>8 LOCKED</b> kernel-verified formulas {F1, F4, F7, F11, F12, F18, F19, F22}; \u039b uniqueness = <b>Conjecture 1</b> (advisory, never a pass/fail oracle).</div></div>';
+      +'Honesty: <b>5 LOCKED</b> kernel-verified formulas {F1, F11, F12, F18, F19}; <b>EXPERIMENTAL / NOT LOCKED</b> source-present formulas {F4, F7, F22}; \u039b uniqueness = <b>Conjecture 1</b> (advisory, never a pass/fail oracle).</div></div>';
     CAPS.forEach(function(c){
       h+='<div style="border:1px solid #232830;border-radius:9px;padding:12px 14px;margin-bottom:10px;background:#0e1217">'
         +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
@@ -10110,8 +10111,8 @@ go(VIEWS[start]?start:'tracks');
   }
   function reg(){
     var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
-    V.anatomymap={ title:'Anatomy Map', badge:(CAPS.length+' capabilities \u00b7 8 LOCKED'),
-      sub:'The single honest map: every agentic capability (RAG, MCP, ouroboros loop, khipu/consensus, receipt store, mesh/OTel, math/AP-12) mapped to the real app(s)/repo(s) that implement it \u2014 mirrored from the a-11-oy.com/anatomy-map deck. 8 LOCKED formulas; \u039b = Conjecture 1.',
+    V.anatomymap={ title:'Anatomy Map', badge:(CAPS.length+' capabilities \u00b7 5 LOCKED'),
+      sub:'The single honest map: every agentic capability (RAG, MCP, ouroboros loop, khipu/consensus, receipt store, mesh/OTel, math/AP-12) mapped to the real app(s)/repo(s) that implement it \u2014 mirrored from the a-11-oy.com/anatomy-map deck. 5 LOCKED formulas; F4/F7/F22 are EXPERIMENTAL / NOT LOCKED; \u039b = Conjecture 1.',
       render:render };
   }
   reg();
@@ -10229,8 +10230,8 @@ go(VIEWS[start]?start:'tracks');
  * to its REAL /api/killinchu/v1/cuas/* endpoint (szl_cuas_formulas.py). Registered
  * post-hoc on the VIEWS object (same proven mechanism as the innovation-wave +
  * putnam patches). Every number is computed by the live endpoint; nothing is
- * fabricated. EXPERIMENTAL-tier SZL constructs — they add NOTHING to the locked 8
- * {F1,F4,F7,F11,F12,F18,F19,F22}; Λ stays Conjecture 1; the killinchu effector
+ * fabricated. EXPERIMENTAL-tier SZL constructs — they add NOTHING to the locked five
+ * {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; Λ stays Conjecture 1; the killinchu effector
  * stays SIMULATED (prominent labels); trust is never 100%. Classical inspirations
  * (Zarchan/Palumbo, Joerger, Julier-Uhlmann, Bar-Shalom, Olfati-Saber/Zelazo,
  * Manne, NIST PQC) are cited, claimed as none of SZL's own discovery.
@@ -10264,7 +10265,7 @@ go(VIEWS[start]?start:'tracks');
     }
     function autoPill(g){ return '<span class="badge b-live" style="font-size:9.5px">'+dot()+'AUTO-RECORDING <span id="cu-ts-'+esc(g)+'" class="mono dim" style="margin-left:5px">live</span></span>'; }
     function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">—</div><div class="d">'+esc(d||'')+'</div></div>'; }
-    function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL construct — adds <b>nothing</b> to the 8 locked formulas; Λ = <b>Conjecture 1</b> (advisory, not a theorem); trust is never 100%. 0 runtime CDN; vendored libs only. killinchu effector stays <b>SIMULATED</b>.</div>'; }
+    function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL construct — adds <b>nothing</b> to the 5 locked formulas; Λ = <b>Conjecture 1</b> (advisory, not a theorem); trust is never 100%. 0 runtime CDN; vendored libs only. killinchu effector stays <b>SIMULATED</b>.</div>'; }
     function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' ↗</a>'; }
 
     // ═════════════════════ TAB 1 — INTERCEPT SOLVER (PN) ═════════════════════
@@ -10618,7 +10619,7 @@ go(VIEWS[start]?start:'tracks');
  * wired to the REAL /api/killinchu/v1/scaling/* endpoints (szl_scaling.py,
  * byte-identical a11oy<->killinchu). Registered post-hoc on the VIEWS object
  * (same proven mechanism as the cuas-c2-lab patch). EXPERIMENTAL-tier: adds
- * NOTHING to the locked 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Lambda stays
+ * NOTHING to the locked five {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; Lambda stays
  * Conjecture 1; SZL-Phi is PROPOSED, NOT the formal Lambda; trust never 100%.
  * 0 runtime CDN — vendored echarts/three only. Null-safe every async path
  * (E()/ex()/setHTML); prefers-reduced-motion respected. Every borrowed law is
@@ -10642,7 +10643,7 @@ go(VIEWS[start]?start:'tracks');
     function autoPill(g){ return '<span class="badge b-live" style="font-size:9.5px">'+dot()+'AUTO-RECORDING <span id="sca-ts-'+esc(g)+'" class="mono dim" style="margin-left:5px">live</span></span>'; }
     function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">\u2014</div><div class="d">'+esc(d||'')+'</div></div>'; }
     function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' \u2197</a>'; }
-    function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL construct \u2014 adds <b>nothing</b> to the 8 locked formulas; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); SZL-\u03a6 is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed law is cited to its real author; SZL claims none as its own discovery.</div>'; }
+    function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL construct \u2014 adds <b>nothing</b> to the 5 locked formulas; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); SZL-\u03a6 is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed law is cited to its real author; SZL claims none as its own discovery.</div>'; }
 
     var MASSES=[0.02,0.05,0.2,1,5,20,70,300,1000,3000,6000];
     function massLabel(M){ if(M<=0.03) return 'mouse'; if(M>=60&&M<=80) return 'human'; if(M>=3000) return 'elephant'; return null; }
@@ -10804,7 +10805,7 @@ go(VIEWS[start]?start:'tracks');
     V.scaling = {
       title:'Metabolic Scaling',
       badge:'EXPERIMENTAL \u00b7 KLEIBER/WBE/MTE \u00b7 SZL-\u03a6 PROPOSED',
-      sub:'Living view of <b>allometric scaling</b>: Kleiber\u2019s 3/4-power metabolic law, the lifetime-heartbeats invariant, the PROPOSED <b>SZL-\u03a6</b> unification (network \u00d7 PMF activation \u00d7 coherence), the universal-exponent comparator, and the Kaplan-2020 compute-allometry analogue. All five visuals are recomputed live from <code>/api/killinchu/v1/scaling/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked 8; \u039b stays <b>Conjecture 1</b>; SZL-\u03a6 is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>. Every borrowed law cited to its real author.',
+      sub:'Living view of <b>allometric scaling</b>: Kleiber\u2019s 3/4-power metabolic law, the lifetime-heartbeats invariant, the PROPOSED <b>SZL-\u03a6</b> unification (network \u00d7 PMF activation \u00d7 coherence), the universal-exponent comparator, and the Kaplan-2020 compute-allometry analogue. All five visuals are recomputed live from <code>/api/killinchu/v1/scaling/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked five; \u039b stays <b>Conjecture 1</b>; SZL-\u03a6 is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>. Every borrowed law cited to its real author.',
       render:function(c){
         c.innerHTML='<div class="row" id="sca-tabs" style="gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem"></div><div id="sca-body"></div>';
         var tabs=[['kleiber','Kleiber curve',renderKleiber],['heart','Lifetime heartbeats \u2605',renderHeart],['unified','SZL-\u03a6 unified',renderUnified],['exponents','Exponent comparator',renderExponents],['compute','Compute allometry',renderCompute]];
@@ -10832,8 +10833,8 @@ go(VIEWS[start]?start:'tracks');
 <!-- (top = allodial, feudal chains strictly lower). Score gauge = EU CSF 2025 -->
 <!-- + HHI (PROPOSED). 3-layer feudal/allodial comparator. Goguen-Meseguer     -->
 <!-- 1982 non-interference witness. Mandatory honest-limit panel (allodial !=  -->
-<!-- above the law). EXPERIMENTAL-tier: adds NOTHING to the locked 8           -->
-<!-- {{F1,F4,F7,F11,F12,F18,F19,F22}}; Lambda stays Conjecture 1; Allodial is   -->
+<!-- above the law). EXPERIMENTAL-tier: adds NOTHING to the locked five           -->
+<!-- {{F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}}; Lambda stays Conjecture 1; Allodial is   -->
 <!-- PROPOSED, NOT the formal Lambda; trust never 100%. 0 runtime CDN -         -->
 <!-- vendored 3d-force-graph/echarts/three only. Rejects sovereign-citizen     -->
 <!-- 'land-patent' framing. Every borrowed formula cited to its real author.   -->
@@ -10842,8 +10843,8 @@ go(VIEWS[start]?start:'tracks');
 (function(){
   /* ==== SOVEREIGNTY / ALLODIAL LATTICE tab body (shared template). killinchu replaced per app. ====
      All five visuals draw from the LIVE /api/killinchu/v1/allodial/* endpoints (szl_allodial.py,
-     byte-identical a11oy<->killinchu). EXPERIMENTAL-tier: adds NOTHING to the locked 8
-     {F1,F4,F7,F11,F12,F18,F19,F22}; Lambda stays Conjecture 1; the Allodial gate is PROPOSED,
+     byte-identical a11oy<->killinchu). EXPERIMENTAL-tier: adds NOTHING to the locked five
+     {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; Lambda stays Conjecture 1; the Allodial gate is PROPOSED,
      NOT the formal Lambda; trust never 100%. 0 runtime CDN — vendored 3d-force-graph/echarts only.
      Null-safe every async path (E()/ex()/setHTML). Rejects sovereign-citizen "land-patent" framing:
      the claim is architectural + governance, anchored to real statutes & standards. */
@@ -10862,7 +10863,7 @@ go(VIEWS[start]?start:'tracks');
   function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">\u2014</div><div class="d">'+esc(d||'')+'</div></div>'; }
   function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' \u2197</a>'; }
   function proposedBox(txt){ return '<div style="margin:.2rem 0 .7rem;padding:.5rem .7rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:7px;background:'+WARN+'14;font-family:var(--mono,monospace);font-size:11px;letter-spacing:.03em;color:'+WARN+'">'+txt+'</div>'; }
-  function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL positioning \u2014 adds <b>nothing</b> to the 8 locked formulas; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); the Allodial sovereignty gate is <b>PROPOSED, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed formula is cited to its real author; SZL claims none as its own discovery. We <b>reject</b> the sovereign-citizen / "land-patent" pseudolegal fringe \u2014 this is an architectural + governance claim, anchored to real statutes & standards.</div>'; }
+  function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL positioning \u2014 adds <b>nothing</b> to the 5 locked formulas; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); the Allodial sovereignty gate is <b>PROPOSED, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed formula is cited to its real author; SZL claims none as its own discovery. We <b>reject</b> the sovereign-citizen / "land-patent" pseudolegal fringe \u2014 this is an architectural + governance claim, anchored to real statutes & standards.</div>'; }
 
   // ───────────── VISUAL 1 (HERO) — DENNING CONTROL LATTICE (3D) ─────────────
   function renderLattice(c){
@@ -11055,7 +11056,7 @@ go(VIEWS[start]?start:'tracks');
   }
   var SOV_TITLE='Sovereignty (Allodial)';
   var SOV_BADGE='EXPERIMENTAL \u00b7 ALLODIAL AI \u00b7 PROPOSED gate';
-  var SOV_SUB='Living view of the <b>Allodial AI</b> doctrine \u2014 most AI is <b>feudal</b> (rented from an overlord who holds real title); SZL is <b>allodial</b> (operator holds the substrate outright). Hero: <b>Denning 1976</b> control lattice in 3D (\u22a4 = allodial, feudal chains strictly lower). Interactive <b>Allodial Score</b> (EU CSF 2025 + HHI, PROPOSED). The three-layer <b>feudal-vs-allodial</b> comparator (land/deed/allodium). A <b>Goguen-Meseguer 1982</b> non-interference witness. A mandatory <b>honest-limit</b> panel (allodial \u2260 above the law). All visuals recomputed live from <code>/api/killinchu/v1/allodial/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked 8; \u039b stays <b>Conjecture 1</b>; the Allodial gate is <b>PROPOSED, NOT the formal \u039b</b>. Every borrowed formula cited to its real author.';
+  var SOV_SUB='Living view of the <b>Allodial AI</b> doctrine \u2014 most AI is <b>feudal</b> (rented from an overlord who holds real title); SZL is <b>allodial</b> (operator holds the substrate outright). Hero: <b>Denning 1976</b> control lattice in 3D (\u22a4 = allodial, feudal chains strictly lower). Interactive <b>Allodial Score</b> (EU CSF 2025 + HHI, PROPOSED). The three-layer <b>feudal-vs-allodial</b> comparator (land/deed/allodium). A <b>Goguen-Meseguer 1982</b> non-interference witness. A mandatory <b>honest-limit</b> panel (allodial \u2260 above the law). All visuals recomputed live from <code>/api/killinchu/v1/allodial/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked five; \u039b stays <b>Conjecture 1</b>; the Allodial gate is <b>PROPOSED, NOT the formal \u039b</b>. Every borrowed formula cited to its real author.';
 
   function reg(key,title,badge,sub,fn){ var V=(typeof VIEWS!=='undefined')?VIEWS:window.VIEWS; if(!V){ return setTimeout(function(){reg(key,title,badge,sub,fn);},90); }
     V[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
@@ -11092,7 +11093,7 @@ go(VIEWS[start]?start:'tracks');
 <!-- Dohare-Sutton Nature 2024; Sokar ReDo 2023; Kirkpatrick EWC 2017. The  -->
 <!-- predictive-coding<->Hebbian unifier (Millidge 2022) = PROPOSED lens,    -->
 <!-- NOT a theorem (Lambda = Conjecture 1). EXPERIMENTAL: adds NOTHING to 8 -->
-<!-- {F1,F4,F7,F11,F12,F18,F19,F22}; Lambda stays Conjecture 1; trust never -->
+<!-- {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; Lambda stays Conjecture 1; trust never -->
 <!-- 100%. 0 runtime CDN - vendored echarts only. Every borrowed rule cited -->
 <!-- to its real author; SZL claims none as its own. DISTINCT view key 'neuro'.-->
 <!-- ===================================================================== -->
@@ -11118,7 +11119,7 @@ go(VIEWS[start]?start:'tracks');
   function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">\u2014</div><div class="d">'+esc(d||'')+'</div></div>'; }
   function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' \u2197</a>'; }
   function proposedBox(txt){ return '<div style="margin:.2rem 0 .7rem;padding:.5rem .7rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:7px;background:'+WARN+'14;font-family:var(--mono,monospace);font-size:11px;letter-spacing:.03em;color:'+WARN+'">'+txt+'</div>'; }
-  function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL positioning \u2014 adds <b>nothing</b> to the 8 locked formulas {F1,F4,F7,F11,F12,F18,F19,F22}; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); this learning/brain pillar is <b>EXPERIMENTAL/PROPOSED, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed rule is cited to its real author (Hebb, Oja, BCM, Bi&Poo, Hubel&Wiesel, Dohare-Sutton, Sokar, Kirkpatrick); SZL claims none as its own discovery.</div>'; }
+  function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL positioning \u2014 adds <b>nothing</b> to the 5 locked formulas {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); this learning/brain pillar is <b>EXPERIMENTAL/PROPOSED, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed rule is cited to its real author (Hebb, Oja, BCM, Bi&Poo, Hubel&Wiesel, Dohare-Sutton, Sokar, Kirkpatrick); SZL claims none as its own discovery.</div>'; }
 
   // ===================== VISUAL 1 - CRITICAL-PERIOD ENVELOPE (Hubel-Wiesel) =====================
   function renderCritical(c){
@@ -11367,7 +11368,7 @@ go(VIEWS[start]?start:'tracks');
       +'<div class="mono dim" style="font-size:12px;margin:.3rem 0 .5rem">The point of this module: it grades each claim honestly. Hebb / Oja / BCM / STDP / synaptic scaling and the loss-of-plasticity frontier (Dohare-Sutton, Sokar, Kirkpatrick EWC) are <b>RIGOROUS</b> (classical or recent, all cited). The predictive-coding\u2194Hebbian unifier (Millidge 2022) is a <b>PROPOSED lens \u2014 NOT a \u039b theorem</b>. SZL surfaces these tiers verbatim and does <b>not</b> claim the brain analogy \u201cties everything together\u201d.</div>'
       +'<div id="ntier-verdict" class="mono dim" style="font-size:12px;line-height:1.55;margin-bottom:.6rem">loading honest frame\u2026</div>'
       +'<div id="ntier-rows"></div>'
-      +'<div class="kpis" id="ntier-gate" style="margin-top:.6rem">'+kpi('Tier','ntier-tier','module maturity',WARN)+kpi('\u039b','ntier-lambda','governance',INFO)+kpi('Locked-8 unchanged','ntier-locked','{F1,F4,F7,F11,F12,F18,F19,F22}',TEAL)+kpi('Trust','ntier-trust','never 100%',GOLD)+'</div>'
+      +'<div class="kpis" id="ntier-gate" style="margin-top:.6rem">'+kpi('Tier','ntier-tier','module maturity',WARN)+kpi('\u039b','ntier-lambda','governance',INFO)+kpi('Locked-five unchanged','ntier-locked','{F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}',TEAL)+kpi('Trust','ntier-trust','never 100%',GOLD)+'</div>'
       +'</div>'
       +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Cited prior art (SZL claims none as its own): </span><br/>'
       +cite('https://archive.org/details/organizationofbe00hebb','Hebb 1949')+' &nbsp; '+cite('https://doi.org/10.1007/BF00275687','Oja 1982')+' &nbsp; '+cite('https://doi.org/10.1523/JNEUROSCI.02-01-00032.1982','BCM 1982')+' &nbsp; '+cite('https://doi.org/10.1523/JNEUROSCI.18-24-10464.1998','Bi \u0026 Poo 1998')+' &nbsp; '+cite('https://www.nobelprize.org/prizes/medicine/1981/summary/','Hubel \u0026 Wiesel 1981')+' &nbsp; '+cite('https://doi.org/10.1038/s41586-024-07711-7','Dohare-Sutton 2024')+' &nbsp; '+cite('https://arxiv.org/abs/2302.12902','Sokar ReDo 2023')+' &nbsp; '+cite('https://doi.org/10.1073/pnas.1611835114','Kirkpatrick EWC 2017')+' &nbsp; '+cite('https://arxiv.org/abs/2206.02629','Millidge 2022 (PC\u2194Hebbian, PROPOSED lens)')+'</div>'
@@ -11407,7 +11408,7 @@ go(VIEWS[start]?start:'tracks');
     paint(0); // open on the HERO (loss-of-plasticity diagnostic) first
   }
   var NEURO_BADGE='EXPERIMENTAL \u00b7 RIGOROUS (cited) \u00b7 PROPOSED lens \u00b7 \u039b=CONJECTURE 1';
-  var NEURO_SUB='Living view of SZL\u2019s learning/brain layer, grounding the agent loop in real, cited neuroplasticity math. Hero: the <b>loss-of-plasticity diagnostic</b> (Dohare-Sutton Nature 2024 / Sokar ReDo 2023) \u2014 long-running agents lose plasticity; continual backprop / ReDo restores it. A <b>critical-period</b> envelope (Hubel \u0026 Wiesel Nobel 1981). <b>Hebb vs Oja</b> (Hebb 1949 unbounded vs Oja 1982 converging to the principal direction). A <b>BCM sliding-threshold</b> potentiate/depress check (BCM 1982). An <b>STDP window</b> (Bi \u0026 Poo 1998) \u2014 set \u0394t, see LTP vs LTD. A mandatory <b>honest-tiering</b> panel: Hebb/Oja/BCM/STDP/loss-of-plasticity = <b>RIGOROUS</b>; predictive-coding\u2194Hebbian unifier = <b>PROPOSED lens, NOT a \u039b theorem</b>. All visuals recomputed live from <code>/api/'+NS+'/v1/neuro/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked 8; \u039b stays <b>Conjecture 1</b>; trust never 100%. Every borrowed rule cited to its real author.';
+  var NEURO_SUB='Living view of SZL\u2019s learning/brain layer, grounding the agent loop in real, cited neuroplasticity math. Hero: the <b>loss-of-plasticity diagnostic</b> (Dohare-Sutton Nature 2024 / Sokar ReDo 2023) \u2014 long-running agents lose plasticity; continual backprop / ReDo restores it. A <b>critical-period</b> envelope (Hubel \u0026 Wiesel Nobel 1981). <b>Hebb vs Oja</b> (Hebb 1949 unbounded vs Oja 1982 converging to the principal direction). A <b>BCM sliding-threshold</b> potentiate/depress check (BCM 1982). An <b>STDP window</b> (Bi \u0026 Poo 1998) \u2014 set \u0394t, see LTP vs LTD. A mandatory <b>honest-tiering</b> panel: Hebb/Oja/BCM/STDP/loss-of-plasticity = <b>RIGOROUS</b>; predictive-coding\u2194Hebbian unifier = <b>PROPOSED lens, NOT a \u039b theorem</b>. All visuals recomputed live from <code>/api/'+NS+'/v1/neuro/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked five; \u039b stays <b>Conjecture 1</b>; trust never 100%. Every borrowed rule cited to its real author.';
 
   function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},80); }
     window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
@@ -11446,7 +11447,7 @@ go(VIEWS[start]?start:'tracks');
 <!-- (Lutar.Allodial #229 / Entanglement #230 / Neuroplasticity #231) are    -->
 <!-- merged EXPERIMENTAL-tier theorems, lake-verified (no sorry, no new      -->
 <!-- axioms); they are NOT about Lambda (Lambda stays Conjecture 1, never a  -->
-<!-- theorem) and do NOT join the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}.   -->
+<!-- theorem) and do NOT join the locked-five {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}.   -->
 <!-- EXPERIMENTAL/PROPOSED; trust never 100%. 0 runtime CDN. DISTINCT view   -->
 <!-- key 'chain'. Byte-identical a11oy<->killinchu (NS auto-detected).       -->
 <!-- ===================================================================== -->
@@ -11486,7 +11487,7 @@ go(VIEWS[start]?start:'tracks');
               +'<span style="min-width:130px;text-align:right">'+pill(tag,col)+'</span></div>';
         });
         setHTML('l6c-lvl-body',panel(rows)
-          +'<div class="mono" style="color:'+DIM+';font-size:11.5px;line-height:1.6">Industry sovereign-AI players stop at L5 (governed operations). SZL\u2019s <b style="color:'+TEAL+'">L6</b> binds, in <b>one</b> offline-verifiable receipt, the software attestation \u2227 the citable science \u2227 the machine-checked math \u2014 the digital allodial chain of title. This is a <b>PROPOSED</b> differentiator, EXPERIMENTAL-tier; it adds nothing to the locked-8 and Lambda stays Conjecture 1 (never a theorem). '+cite('https://slsa.dev','SLSA v1.1')+' &nbsp; '+cite('https://in-toto.io','in-toto (CNCF)')+' &nbsp; '+cite('https://www.sigstore.dev','Sigstore/cosign/Rekor')+'</div>');
+          +'<div class="mono" style="color:'+DIM+';font-size:11.5px;line-height:1.6">Industry sovereign-AI players stop at L5 (governed operations). SZL\u2019s <b style="color:'+TEAL+'">L6</b> binds, in <b>one</b> offline-verifiable receipt, the software attestation \u2227 the citable science \u2227 the machine-checked math \u2014 the digital allodial chain of title. This is a <b>PROPOSED</b> differentiator, EXPERIMENTAL-tier; it adds nothing to the locked-five and Lambda stays Conjecture 1 (never a theorem). '+cite('https://slsa.dev','SLSA v1.1')+' &nbsp; '+cite('https://in-toto.io','in-toto (CNCF)')+' &nbsp; '+cite('https://www.sigstore.dev','Sigstore/cosign/Rekor')+'</div>');
       }catch(e){ setHTML('l6c-lvl-body','<span style="color:'+RISK+'">levels unavailable: '+esc(e.message)+'</span>'); }
     })();
   }
@@ -11525,7 +11526,7 @@ go(VIEWS[start]?start:'tracks');
             +panel('<div style="font-weight:700;color:'+TEAL+';margin-bottom:.4rem">\u2782 MATH '+pill('REAL \u00b7 lake-verified \u00b7 EXPERIMENTAL',TEAL)+'</div>'
                 +leanRows
                 +kv('verification', esc(ma.verification||'\u2014'), TEAL)
-                +kv('locked-8 unchanged', (ma.locked_unchanged?'true':'\u2014'), GOLD)
+                +kv('locked-five unchanged', (ma.locked_unchanged?'true':'\u2014'), GOLD)
                 +'<div class="mono" style="color:'+DIM+';font-size:11px;margin-top:.4rem">'+cite('https://github.com/szl-holdings/lutar-lean','lutar-lean (Lean 4/Mathlib)')+' \u2014 merged PRs #229 / #230 / #231</div>')
             +panel('<div style="font-weight:700;color:'+GOLD+';margin-bottom:.4rem">RECEIPT</div>'
                 +kv('receipt_digest', esc(d.receipt_digest||'\u2014'), GOLD)
@@ -11580,8 +11581,8 @@ go(VIEWS[start]?start:'tracks');
         +'<div style="color:#bcc0c7;font-size:12.5px;line-height:1.5">'+esc(t[2])+'</div>'
         +'<div class="mono" style="color:'+DIM+';font-size:11px;margin-top:.35rem">lake-verified \u00b7 no sorry \u00b7 no new axioms \u00b7 '+cite('https://github.com/szl-holdings/lutar-lean/pull/'+t[1].replace('#',''),'PR '+t[1])+'</div>');
     }).join('');
-    c.innerHTML='<div style="margin-bottom:.6rem">'+pill('EXPERIMENTAL machine-checked',WARN)+' &nbsp; '+pill('NOT locked-8',RISK)+' &nbsp; '+pill('NOT about Lambda',GOLD)+'</div>'
-      +'<div class="mono" style="color:'+DIM+';font-size:11.5px;margin-bottom:.7rem;line-height:1.6">Three theorems merged to <code>lutar-lean</code> main, lake-green. They are <b style="color:'+WARN+'">EXPERIMENTAL-tier</b>, machine-checked (no sorry, no new axioms). They do <b style="color:'+RISK+'">NOT</b> join the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} and prove <b style="color:'+GOLD+'">nothing</b> about Lambda \u2014 Lambda-aggregator uniqueness stays Conjecture 1 (never a theorem). They are the MATH strand the L6 receipt binds.</div>'
+    c.innerHTML='<div style="margin-bottom:.6rem">'+pill('EXPERIMENTAL machine-checked',WARN)+' &nbsp; '+pill('NOT locked-five',RISK)+' &nbsp; '+pill('NOT about Lambda',GOLD)+'</div>'
+      +'<div class="mono" style="color:'+DIM+';font-size:11.5px;margin-bottom:.7rem;line-height:1.6">Three theorems merged to <code>lutar-lean</code> main, lake-green. They are <b style="color:'+WARN+'">EXPERIMENTAL-tier</b>, machine-checked (no sorry, no new axioms). They do <b style="color:'+RISK+'">NOT</b> join the locked-five {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22} and prove <b style="color:'+GOLD+'">nothing</b> about Lambda \u2014 Lambda-aggregator uniqueness stays Conjecture 1 (never a theorem). They are the MATH strand the L6 receipt binds.</div>'
       +rows;
   }
 
@@ -11597,8 +11598,8 @@ go(VIEWS[start]?start:'tracks');
             kv('differentiator','industry = L1-L5; SZL L6 binds software \u2227 science \u2227 math in one verifiable receipt',TEAL)
           +kv('signing','cosign/Rekor SIGNING is founder-gated (receipt is UNSIGNED until signed)',WARN)
           +kv('science','Zenodo DOI shown pending (founder-gated) when unminted \u2014 never faked',WARN)
-          +kv('math','3 merged Lean theorems = EXPERIMENTAL machine-checked, NOT locked-8',WARN)
-          +kv('locked-8 unchanged',(doc.locked_unchanged?'true {F1,F4,F7,F11,F12,F18,F19,F22}':'\u2014'),GOLD)
+          +kv('math','3 merged Lean theorems = EXPERIMENTAL machine-checked, NOT locked-five',WARN)
+          +kv('locked-five unchanged',(doc.locked_unchanged?'true {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}':'\u2014'),GOLD)
           +kv('lambda',esc(doc.lambda||'Conjecture 1 (never theorem)'),GOLD)
           +kv('tier',esc(doc.tier||'EXPERIMENTAL/PROPOSED'),WARN)
           +kv('trust',(doc.trust_never_100?'never 100%':'\u2014'),GOLD))
@@ -11618,7 +11619,7 @@ go(VIEWS[start]?start:'tracks');
     paint(0); // open on the HERO (live L6 receipt assemble) first
   }
   var CHAIN_BADGE='EXPERIMENTAL \u00b7 L6 (PROPOSED) \u00b7 SIGNING FOUNDER-GATED \u00b7 \u039b=CONJECTURE 1';
-  var CHAIN_SUB='SZL\u2019s <b>L6 chain-of-title</b>: where industry sovereign-AI stops at L1-L5, L6 binds the SOFTWARE attestation (cosign+Rekor+in-toto/SLSA), the SCIENCE (Zenodo DOI) and the MATH (3 lake-verified Lean theorems) into <b>one</b> offline-verifiable receipt \u2014 the digital allodial deed. Hero: a <b>live /assemble</b> binding all three strands, honest by construction (software shown <b>PROXY/UNSIGNED</b>, DOI <b>pending (founder-gated)</b>, math <b>REAL</b>). An <b>L6 ladder</b> (L1-L5 industry vs L6 SZL), a <b>/verify</b> offline STRUCTURE check (cryptographic cosign/Rekor verify is the gated step), the <b>3 merged EXPERIMENTAL theorems</b> (#229/#230/#231, NOT locked-8, NOT about \u039b which stays Conjecture 1 \u2014 never a theorem) and an <b>honest-framing</b> panel. All LIVE from <code>/api/'+NS+'/v1/chain/*</code>. EXPERIMENTAL/PROPOSED; adds nothing to the locked 8; trust never 100%. Every standard cited to its real spec.';
+  var CHAIN_SUB='SZL\u2019s <b>L6 chain-of-title</b>: where industry sovereign-AI stops at L1-L5, L6 binds the SOFTWARE attestation (cosign+Rekor+in-toto/SLSA), the SCIENCE (Zenodo DOI) and the MATH (3 lake-verified Lean theorems) into <b>one</b> offline-verifiable receipt \u2014 the digital allodial deed. Hero: a <b>live /assemble</b> binding all three strands, honest by construction (software shown <b>PROXY/UNSIGNED</b>, DOI <b>pending (founder-gated)</b>, math <b>REAL</b>). An <b>L6 ladder</b> (L1-L5 industry vs L6 SZL), a <b>/verify</b> offline STRUCTURE check (cryptographic cosign/Rekor verify is the gated step), the <b>3 merged EXPERIMENTAL theorems</b> (#229/#230/#231, NOT locked-five, NOT about \u039b which stays Conjecture 1 \u2014 never a theorem) and an <b>honest-framing</b> panel. All LIVE from <code>/api/'+NS+'/v1/chain/*</code>. EXPERIMENTAL/PROPOSED; adds nothing to the locked five; trust never 100%. Every standard cited to its real spec.';
 
   function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},80); }
     window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
@@ -11633,7 +11634,7 @@ go(VIEWS[start]?start:'tracks');
     if(document.getElementById('l6c-nav-item')){ return; }
     var grp=document.createElement('div'); grp.className='nav-group'; grp.id='l6c-nav-group'; grp.textContent='Chain of Title (L6 \u00b7 EXPERIMENTAL)';
     var n=document.createElement('div'); n.className='nav-item'; n.id='l6c-nav-item'; n.setAttribute('data-view','l6chain'); n.setAttribute('onclick',"go('l6chain')");
-    n.setAttribute('title','SZL L6 chain-of-title: binds software (cosign+Rekor+in-toto/SLSA), science (Zenodo DOI) and math (3 lake-verified Lean theorems) into one offline-verifiable receipt. Live /assemble + /verify + L6 ladder. Honest: signing founder-gated (UNSIGNED), DOI pending; 3 theorems EXPERIMENTAL NOT locked-8, NOT about Lambda (Lambda stays Conjecture 1, never a theorem). Live from /api/'+NS+'/v1/chain/*. EXPERIMENTAL/PROPOSED; trust never 100%.');
+    n.setAttribute('title','SZL L6 chain-of-title: binds software (cosign+Rekor+in-toto/SLSA), science (Zenodo DOI) and math (3 lake-verified Lean theorems) into one offline-verifiable receipt. Live /assemble + /verify + L6 ladder. Honest: signing founder-gated (UNSIGNED), DOI pending; 3 theorems EXPERIMENTAL NOT locked-five, NOT about Lambda (Lambda stays Conjecture 1, never a theorem). Live from /api/'+NS+'/v1/chain/*. EXPERIMENTAL/PROPOSED; trust never 100%.');
     n.innerHTML='<span class="ico">\ud83d\udcdc</span>Chain of Title';
     var parent=anchor.parentNode; parent.appendChild(grp); parent.appendChild(n);
     try{ console.log('['+NS+'] Chain-of-Title nav injected'); }catch(e){}
@@ -11656,8 +11657,8 @@ go(VIEWS[start]?start:'tracks');
 <!-- (CHSH 1969 / Tsirelson 1980). Monogamy -> Khipu no-leak (CKW 2000).      -->
 <!-- Honest-tiering panel rendered verbatim from summary (RIGOROUS/STRUCTURAL/ -->
 <!-- NARRATIVE/ACTIVE/CONTESTED/SPECULATIVE) - the honesty is the point.      -->
-<!-- EXPERIMENTAL-tier: adds NOTHING to the locked 8                         -->
-<!-- {{F1,F4,F7,F11,F12,F18,F19,F22}}; Lambda stays Conjecture 1; the         -->
+<!-- EXPERIMENTAL-tier: adds NOTHING to the locked five                         -->
+<!-- {{F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}}; Lambda stays Conjecture 1; the         -->
 <!-- capacity bound is a PROPOSED engineering gate, NOT the formal Lambda;    -->
 <!-- trust never 100%. 0 runtime CDN - vendored 3d-force-graph/echarts only.  -->
 <!-- Every borrowed formula cited to its real author; SZL claims none as its  -->
@@ -11668,7 +11669,7 @@ go(VIEWS[start]?start:'tracks');
   /* ==== ENTANGLEMENT tab body (shared template; killinchu replaced per app). ====
      All visuals draw from the LIVE /api/killinchu/v1/entangle/* endpoints
      (szl_entanglement.py, byte-identical a11oy<->killinchu, PURE STDLIB no numpy).
-     EXPERIMENTAL-tier: adds NOTHING to the locked 8 {F1,F4,F7,F11,F12,F18,F19,F22};
+     EXPERIMENTAL-tier: adds NOTHING to the locked five {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22};
      Lambda stays Conjecture 1; the coherence->capacity bound is a PROPOSED engineering
      gate, NOT the formal Lambda; trust never 100%. 0 runtime CDN - vendored
      3d-force-graph/echarts only. Null-safe every async path (E()/ex()/setHTML()/elS()).
@@ -11689,7 +11690,7 @@ go(VIEWS[start]?start:'tracks');
   function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">\u2014</div><div class="d">'+esc(d||'')+'</div></div>'; }
   function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' \u2197</a>'; }
   function proposedBox(txt){ return '<div style="margin:.2rem 0 .7rem;padding:.5rem .7rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:7px;background:'+WARN+'14;font-family:var(--mono,monospace);font-size:11px;letter-spacing:.03em;color:'+WARN+'">'+txt+'</div>'; }
-  function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL positioning \u2014 adds <b>nothing</b> to the 8 locked formulas {F1,F4,F7,F11,F12,F18,F19,F22}; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); the coherence\u2192capacity bound is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed formula is cited to its real author (Wootters, Vidal-Werner, CKW, CHSH, Tsirelson, Streltsov, von Neumann); SZL claims none as its own discovery. Entanglement does <b>not</b> \u201ctie everything\u201d \u2014 it adds one rigorous bound plus a monogamy primitive.</div>'; }
+  function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL positioning \u2014 adds <b>nothing</b> to the 5 locked formulas {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); the coherence\u2192capacity bound is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed formula is cited to its real author (Wootters, Vidal-Werner, CKW, CHSH, Tsirelson, Streltsov, von Neumann); SZL claims none as its own discovery. Entanglement does <b>not</b> \u201ctie everything\u201d \u2014 it adds one rigorous bound plus a monogamy primitive.</div>'; }
 
   // ===================== VISUAL 1 (HERO) - THE CAPACITY-BOUND BRIDGE =====================
   function renderBridge(c){
@@ -11899,7 +11900,7 @@ go(VIEWS[start]?start:'tracks');
       +'<div class="mono dim" style="font-size:12px;margin:.3rem 0 .5rem">This is the point of the module: it grades each claim honestly. The bridge is <b>RIGOROUS</b>; monogamy is a <b>STRUCTURAL</b> primitive; the rest is <b>NARRATIVE / ACTIVE-RESEARCH / CONTESTED / SPECULATIVE</b>. SZL surfaces these tiers verbatim and does <b>not</b> overclaim that entanglement \u201cties everything together\u201d.</div>'
       +'<div id="tier-verdict" class="mono dim" style="font-size:12px;line-height:1.55;margin-bottom:.6rem">loading honest verdict\u2026</div>'
       +'<div id="tier-rows"></div>'
-      +'<div class="kpis" id="tier-gate" style="margin-top:.6rem">'+kpi('Tier','tier-tier','module maturity',WARN)+kpi('\u039b','tier-lambda','governance',INFO)+kpi('Locked-8 unchanged','tier-locked','{F1,F4,F7,F11,F12,F18,F19,F22}',TEAL)+kpi('Trust','tier-trust','never 100%',GOLD)+'</div>'
+      +'<div class="kpis" id="tier-gate" style="margin-top:.6rem">'+kpi('Tier','tier-tier','module maturity',WARN)+kpi('\u039b','tier-lambda','governance',INFO)+kpi('Locked-five unchanged','tier-locked','{F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}',TEAL)+kpi('Trust','tier-trust','never 100%',GOLD)+'</div>'
       +'</div>'
       +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Cited prior art (SZL claims none as its own): </span><br/>'
       +cite('https://doi.org/10.1103/PhysRevLett.80.2245','Wootters 1998 (concurrence)')+' &nbsp; '+cite('https://doi.org/10.1103/PhysRevA.65.032314','Vidal-Werner 2002 (negativity)')+' &nbsp; '+cite('https://doi.org/10.1103/PhysRevA.61.052306','CKW 2000 (monogamy)')+' &nbsp; '+cite('https://doi.org/10.1103/PhysRevLett.23.880','CHSH 1969')+' &nbsp; '+cite('https://doi.org/10.1007/BF00417500','Tsirelson 1980')+' &nbsp; '+cite('https://doi.org/10.1103/PhysRevLett.115.020403','Streltsov 2015')+'</div>'
@@ -11942,7 +11943,7 @@ go(VIEWS[start]?start:'tracks');
     paint(0); // open on the HERO (capacity-bound bridge) first
   }
   var ENT_BADGE='EXPERIMENTAL \u00b7 RIGOROUS BRIDGE \u00b7 PROPOSED gate \u00b7 \u039b=CONJECTURE 1';
-  var ENT_SUB='Living view of SZL\u2019s entanglement layer. Hero: the <b>rigorous bridge</b> <code>E_max(t) \u2264 C\u2080\u00b7exp(\u2212\u03b3t)</code> \u2014 Streltsov 2015 (coherence upper-bounds entanglement capacity) composed with SZL\u2019s machine-checked <b>\u039b-v5</b> coherence decay (merged Lean). A <b>Bell-vs-product</b> comparator (Wootters 1998 / Vidal-Werner 2002 / von Neumann). A <b>CHSH meter</b> (CHSH 1969 / Tsirelson 1980) \u2014 set correlators, see local-realism violation. A <b>monogamy\u2192Khipu</b> no-leak primitive (CKW 2000). A mandatory <b>honest-tiering</b> panel rendering the module\u2019s own RIGOROUS/STRUCTURAL/NARRATIVE/ACTIVE/CONTESTED/SPECULATIVE grades verbatim. All visuals recomputed live from <code>/api/killinchu/v1/entangle/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked 8; \u039b stays <b>Conjecture 1</b>; the capacity bound is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>. Every borrowed formula cited to its real author. Does not overclaim.';
+  var ENT_SUB='Living view of SZL\u2019s entanglement layer. Hero: the <b>rigorous bridge</b> <code>E_max(t) \u2264 C\u2080\u00b7exp(\u2212\u03b3t)</code> \u2014 Streltsov 2015 (coherence upper-bounds entanglement capacity) composed with SZL\u2019s machine-checked <b>\u039b-v5</b> coherence decay (merged Lean). A <b>Bell-vs-product</b> comparator (Wootters 1998 / Vidal-Werner 2002 / von Neumann). A <b>CHSH meter</b> (CHSH 1969 / Tsirelson 1980) \u2014 set correlators, see local-realism violation. A <b>monogamy\u2192Khipu</b> no-leak primitive (CKW 2000). A mandatory <b>honest-tiering</b> panel rendering the module\u2019s own RIGOROUS/STRUCTURAL/NARRATIVE/ACTIVE/CONTESTED/SPECULATIVE grades verbatim. All visuals recomputed live from <code>/api/killinchu/v1/entangle/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked five; \u039b stays <b>Conjecture 1</b>; the capacity bound is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>. Every borrowed formula cited to its real author. Does not overclaim.';
 
   function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},80); }
     window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
@@ -11975,7 +11976,7 @@ go(VIEWS[start]?start:'tracks');
    Namespace auto-detected (a11oy vs killinchu) so the SAME block is byte-identical
    across both apps. Reads every module's /summary LIVE; tiers/citations are read
    from the live payload, never invented, never upgraded.
-   DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ=Conjecture 1 (never theorem);
+   DOCTRINE: locked=5 {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}; Λ=Conjecture 1 (never theorem);
    Λ-v5 / allodial / entanglement-capacity = PROPOSED, NOT the formal Λ; trust never
    100%; DOI = thesis v8 mint pending (Zenodo, founder-gated) — never fabricated;
    killinchu effector SIMULATED.
@@ -12098,7 +12099,7 @@ go(VIEWS[start]?start:'tracks');
       '</div>'+
       '<div class="atlas-honest-doc">\u039b uniqueness = <b>Conjecture\u00a01</b> (never a theorem). '+
       '\u039b-v5 / allodial / entanglement-capacity are <b>PROPOSED, NOT the formal \u039b</b>. '+
-      'Locked-proven formulas stay exactly <b>8</b> {F1,F4,F7,F11,F12,F18,F19,F22}. '+
+      'Locked-proven formulas stay exactly <b>5</b> {F1,F11,F12,F18,F19}; EXPERIMENTAL / NOT LOCKED {F4,F7,F22}. '+
       'Thesis v8 DOI mint is <b>pending (Zenodo, founder-gated)</b> \u2014 no DOI is fabricated. '+
       'Trust is <b>never 100%</b>. Tiers below are read <b>live</b> from each module\u2019s <code>/summary</code> and never upgraded.</div>'+
     '</div>';
@@ -12142,7 +12143,7 @@ go(VIEWS[start]?start:'tracks');
 
   // ---- register the view ----------------------------------------------------
   var ATLAS_BADGE='HONEST INDEX \u00b7 5 LIVE MODULES \u00b7 \u039b=CONJECTURE 1 \u00b7 TRUST NEVER 100%';
-  var ATLAS_SUB='One investor-readable index of every live SZL engineering formula module \u2014 metabolic scaling, allodial sovereignty, entanglement, unified (thesis v6) and Counter-UAS C2. For each: purpose, live clickable routes (GET \u2192 real JSON), the honest tier read <b>live</b> from <code>/summary</code> (never upgraded), real author citations, Lean merge status where real, and honest DOI status. Every formula is cited to its origin; SZL claims none as its own discovery. \u039b uniqueness stays <b>Conjecture\u00a01</b>; \u039b-v5 / allodial / entanglement-capacity are <b>PROPOSED, NOT the formal \u039b</b>; locked-proven stays exactly 8; trust is never 100%; the Counter-UAS effector is <b>SIMULATED</b>.';
+  var ATLAS_SUB='One investor-readable index of every live SZL engineering formula module \u2014 metabolic scaling, allodial sovereignty, entanglement, unified (thesis v6) and Counter-UAS C2. For each: purpose, live clickable routes (GET \u2192 real JSON), the honest tier read <b>live</b> from <code>/summary</code> (never upgraded), real author citations, Lean merge status where real, and honest DOI status. Every formula is cited to its origin; SZL claims none as its own discovery. \u039b uniqueness stays <b>Conjecture\u00a01</b>; \u039b-v5 / allodial / entanglement-capacity are <b>PROPOSED, NOT the formal \u039b</b>; locked-proven stays exactly 5; trust is never 100%; the Counter-UAS effector is <b>SIMULATED</b>.';
   function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},80); }
     if(window.VIEWS[key]){ return; }
     window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
@@ -12584,7 +12585,7 @@ go(VIEWS[start]?start:'tracks');
   // ===================================================================== *
   //  NEW VIEWS: provenance (REAL-DATA PROVENANCE panel) + osint_intel
   // ===================================================================== *
-  var DOCTRINE_NOTE = 'Positions are <b>real public ADS-B / AIS</b> (open data). The <b>effector is SIMULATED, human-on-the-loop</b> — we never command, jam or spoof a drone we do not own (legal: 18 USC §32, FCC, Title 10/50). Trust is a <b>conjecture, never 100%</b>. Tracks are <b>never fabricated</b>: an unreachable feed shows an honest empty/SAMPLE state. Doctrine v11 · locked-8 @ c7c0ba17.';
+  var DOCTRINE_NOTE = 'Positions are <b>real public ADS-B / AIS</b> (open data). The <b>effector is SIMULATED, human-on-the-loop</b> — we never command, jam or spoof a drone we do not own (legal: 18 USC §32, FCC, Title 10/50). Trust is a <b>conjecture, never 100%</b>. Tracks are <b>never fabricated</b>: an unreachable feed shows an honest empty/SAMPLE state. Doctrine v11 · locked-five @ c7c0ba17.';
 
   function provenance_render(c){
     c.innerHTML='<div class="card" id="kc-prov-hero" style="border-color:#21405f;background:linear-gradient(180deg,#0a1626,#0a1322)">'+
