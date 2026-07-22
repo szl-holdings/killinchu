@@ -390,10 +390,54 @@ def _route_exists(app, path: str) -> bool:
 
     Matches both literal routes and FastAPI parametrized routes (e.g. the gov
     surface is registered as ``/api/{ns}/v1/gov/{name}`` and serves
-    ``/gov/chapaq-verdict`` at runtime), by translating ``{param}`` segments to a
-    regex. Never claims a route exists that does not.
+    ``/gov/chapaq-verdict`` at runtime). Current FastAPI releases can retain an
+    ``include_router()`` mount as a lazy ``_IncludedRouter`` whose public
+    ``path`` is ``None``. Ask each ASGI route whether it fully matches a real GET
+    scope first so those mounted routes are not falsely labelled
+    ``needs-deploy``. The literal/parameterized string check remains as a
+    compatibility fallback for older FastAPI and lightweight test doubles.
+    Never claims a route exists that the application router would not serve.
     """
     want = path.split("?", 1)[0]
+
+    try:
+        from starlette.routing import Match
+    except Exception:  # pragma: no cover - string fallback remains available
+        Match = None  # type: ignore[assignment]
+
+    if Match is not None:
+        scope = {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": want,
+            "raw_path": want.encode("utf-8"),
+            "query_string": b"",
+            "headers": [],
+            "client": ("elite-wiring-audit", 0),
+            "server": ("elite-wiring-audit", 80),
+            "root_path": "",
+        }
+        for r in getattr(app, "routes", []):
+            # Restrict ASGI matching to FastAPI's pathless lazy include wrapper.
+            # Asking a normal catch-all route (for example the SPA
+            # ``/{full_path:path}``) would match every missing API path and paint
+            # the entire audit green. Ordinary routes stay on the strict path
+            # checks below.
+            if (getattr(r, "path", None) is not None
+                    or getattr(r, "original_router", None) is None):
+                continue
+            try:
+                matched, _ = r.matches(scope)
+                if matched == Match.FULL:
+                    return True
+            except Exception:
+                # A third-party route without Starlette's matching contract
+                # must not break the audit; the strict string fallback below
+                # can still recognize ordinary FastAPI/Starlette routes.
+                continue
+
     for r in getattr(app, "routes", []):
         rp = getattr(r, "path", None)
         if rp is None:

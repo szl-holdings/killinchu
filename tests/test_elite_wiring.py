@@ -109,6 +109,47 @@ def test_health_reports_honestly_without_probe():
     assert s["wired"] + s["degraded"] + s["needs_deploy"] + s["simulated"] == h["view_count"]
 
 
+def test_health_recognizes_late_included_router_routes():
+    """FastAPI's lazy include_router mounts must count as real wiring.
+
+    Recent FastAPI releases can expose an included router as a private wrapper
+    with no literal ``path`` attribute. The ASGI router still serves its
+    children. This is the exact production shape used by the AIS and CoT
+    modules, and the wiring audit must ask the router rather than report a
+    false NEEDS_DEPLOY.
+    """
+    from fastapi import APIRouter, FastAPI
+
+    app = FastAPI()
+    kew.register(app, ns="killinchu")
+
+    late = APIRouter()
+
+    @late.get("/api/killinchu/v1/ais/sources")
+    async def _ais_sources():
+        return {"sources_wired": 2}
+
+    @late.get("/api/killinchu/v1/cot/status")
+    async def _cot_status():
+        return {"live": {"cot_xml_export": True}}
+
+    app.include_router(late)
+
+    @app.get("/{full_path:path}")
+    async def _spa_catch_all(full_path: str):
+        return {"page": full_path}
+
+    h = kew.health(app, ns="killinchu", probe=False)
+    by_view = {r["view"]: r for r in h["views"]}
+    assert by_view["ais_aug2024"]["verdict"] == "wired"
+    assert by_view["cot_interop"]["verdict"] == "wired"
+    assert by_view["operate"]["verdict"] == "SIMULATED"
+    assert by_view["cuas_intercept"]["verdict"] == "SIMULATED"
+    assert by_view["cuas_triage"]["verdict"] == "SIMULATED"
+    # The SPA catch-all must not turn an actually absent data route green.
+    assert by_view["scaling"]["verdict"] == "needs-deploy"
+
+
 if __name__ == "__main__":
     test_every_view_has_a_real_endpoint()
     test_doctrine_invariants_in_map()
