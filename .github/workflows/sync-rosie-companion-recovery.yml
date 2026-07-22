@@ -49,6 +49,7 @@ jobs:
           python - <<'PY'
           import hashlib
           import importlib.util
+          import sys
           from pathlib import Path
 
           authority = Path('authority/szl_rosie_companion.py').read_bytes()
@@ -59,6 +60,7 @@ jobs:
           spec = importlib.util.spec_from_file_location('rosie_companion_recovery', 'self/szl_rosie_companion.py')
           module = importlib.util.module_from_spec(spec)
           assert spec and spec.loader
+          sys.modules[spec.name] = module
           spec.loader.exec_module(module)
 
           shadow = module.RosieShadow('killinchu')
