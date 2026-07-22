@@ -111,27 +111,35 @@ def test_risk_board_signed_carries_receipt():
 
 def test_register_is_additive():
     from fastapi import FastAPI
+    from fastapi.testclient import TestClient
     app = FastAPI()
 
     @app.get("/api/killinchu/v1/live/ais")
     async def _pre_existing():  # the live feed must NOT be clobbered
         return {"ok": True, "live": True}
 
-    before = {(r.path, frozenset(getattr(r, "methods", set()) or set()))
-              for r in app.routes}
     info = m.register(app, ns="killinchu")
-    assert info["registered_count"] == 4
-    after = {(r.path, frozenset(getattr(r, "methods", set()) or set()))
-             for r in app.routes}
-    added = {p for p, _ in (after - before)}
-    assert added == {
+    assert info["registered_count"] == 6
+    expected = {
         "/api/killinchu/v1/ais/sources",
         "/api/killinchu/v1/ais/aug2024/tracks",
         "/api/killinchu/v1/ais/aug2024/risk-board",
         "/api/killinchu/v1/ais/tracks",
-    }, f"register added unexpected routes: {added}"
-    # pre-existing live feed route untouched
-    assert ("/api/killinchu/v1/live/ais", frozenset({"GET"})) in after
+        "/api/killinchu/v1/overlays/pirate",
+        "/api/killinchu/v1/overlays/wpi",
+    }
+    assert {r.removeprefix("GET ") for r in info["routes"]} == expected
+
+    # Exercise the actual ASGI router. Recent FastAPI releases may represent an
+    # included router as a lazy wrapper with no public path, so app.routes
+    # inspection is not sufficient proof that the endpoints are reachable.
+    client = TestClient(app)
+    for path in sorted(expected):
+        response = client.get(path)
+        assert response.status_code == 200, (path, response.status_code, response.text)
+
+    # The pre-existing live feed still answers and is not clobbered.
+    assert client.get("/api/killinchu/v1/live/ais").json() == {"ok": True, "live": True}
 
 
 if __name__ == "__main__":
