@@ -1,0 +1,68 @@
+name: Sync exact A11oy SDA Spaces contract
+
+on:
+  push:
+    branches: [agent/sda-space-contract-sync-20260722]
+    paths:
+      - .github/workflows/sync-a11oy-sda-space-contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/sda-space-contract-sync-20260722
+          fetch-depth: 0
+      - name: Wait for the exact repaired A11oy shared source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api='https://api.github.com/repos/szl-holdings/a11oy/contents/szl_spaces_surface.py?ref=agent%2Fhf-space-api-route-repair-20260722'
+          ready=false
+          for attempt in $(seq 1 30); do
+            curl -fsSL \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "$api" | jq -r .content | tr -d '\n' | base64 -d > /tmp/a11oy-szl_spaces_surface.py
+            if grep -Fq 'SPACE_API_CONTRACTS' /tmp/a11oy-szl_spaces_surface.py \
+              && grep -Fq '"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static"' /tmp/a11oy-szl_spaces_surface.py \
+              && grep -Fq '"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "static"' /tmp/a11oy-szl_spaces_surface.py \
+              && grep -Fq '"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static"' /tmp/a11oy-szl_spaces_surface.py; then
+              ready=true
+              break
+            fi
+            echo "A11oy branch repair not complete yet (attempt ${attempt}/30)."
+            sleep 20
+          done
+          test "$ready" = true || {
+            echo '::error::A11oy repaired shared source did not become ready within the bounded wait.'
+            exit 1
+          }
+          cp /tmp/a11oy-szl_spaces_surface.py szl_spaces_surface.py
+          cmp -s /tmp/a11oy-szl_spaces_surface.py szl_spaces_surface.py
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Verify exact shared source and focused contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile szl_spaces_surface.py
+          python -m pytest -q tests/test_ecosystem_alignment.py
+      - name: Commit exact sync and self-remove
+        run: |
+          set -euo pipefail
+          rm .github/workflows/sync-a11oy-sda-space-contract.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add szl_spaces_surface.py .github/workflows/sync-a11oy-sda-space-contract.yml
+          git commit -m 'fix(spaces): sync exact SDA contract health surface' \
+            -m 'Mirror the repaired A11oy shared Spaces source byte-for-byte so both runtimes enforce the same exact Anatomy and SDA API contracts without stale SDK metadata.' \
+            -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          git push origin HEAD:agent/sda-space-contract-sync-20260722
