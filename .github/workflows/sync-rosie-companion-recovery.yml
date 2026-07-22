@@ -6,6 +6,9 @@ on:
       - fix/sync-rosie-companion-typed-approver-20260722
     paths:
       - .github/workflows/sync-rosie-companion-recovery.yml
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
   workflow_dispatch: {}
 
 permissions:
@@ -79,7 +82,7 @@ jobs:
           git -C self rm .github/workflows/sync-rosie-companion-recovery.yml
           git -C self add szl_rosie_companion.py
           git -C self config user.name 'github-actions[bot]'
-          git -C self config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C self config user.email '41898242+github-actions[bot]@users.noreply.github.com'
           git -C self diff --cached --check
           git -C self commit \
             -m 'fix(frontier): sync typed-approver-safe Rosie companion' \
