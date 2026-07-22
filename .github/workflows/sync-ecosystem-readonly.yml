@@ -48,7 +48,34 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile szl_ecosystem_routes.py
-          python -m pytest -q tests/test_ecosystem_alignment.py
+          python - <<'PY'
+          import szl_ecosystem_routes as module
+
+          def observed(url: str, timeout: float = 12.0):
+              if url.endswith('/api/a11oy/v1/honest'):
+                  return {'doctrine_lock': {'locked_formula_ids': module.LOCKED8, 'locked_formula_count': 8}}
+              if url.endswith('/api/a11oy/v1/lambda'):
+                  return {'lambda': 0.7, 'axes': [{'score': 0.95}]}
+              if url.endswith('/api/a11oy/v1/restraint/kpi'):
+                  return {'tile': 'restraint', 'label': 'CACHED'}
+              if url.endswith('/api/killinchu/v1/gov/chapaq-verdict'):
+                  return None
+              if url.endswith('/api/a11oy/v1/provenance/ledger'):
+                  return {'count': 4}
+              if url.endswith('/api/killinchu/v1/receipt/ledger'):
+                  return {'count': 3}
+              return None
+
+          module._get_json = observed
+          board = module.build_kpi_board('killinchu')
+          assert board['chapaq_verdict'] is None
+          assert board['chapaq_source'].startswith('NOT_EVALUATED')
+          ledger = module.build_ledger('killinchu')
+          assert ledger['read_only'] is True
+          assert ledger['cross_app_verify']['same_cosign_chain'] is None
+          assert ledger['cross_app_verify']['killinchu_env_on_a11oy'] == 'NOT_EVALUATED'
+          assert 'no mint, sign, POST, or persist' in ledger['cross_app_verify']['note']
+          PY
           ! grep -Fq 'def _post_json' szl_ecosystem_routes.py
           ! grep -Fq 'method="POST"' szl_ecosystem_routes.py
           grep -Fq 'NOT_EVALUATED' szl_ecosystem_routes.py
