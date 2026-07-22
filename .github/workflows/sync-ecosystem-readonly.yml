@@ -74,7 +74,7 @@ jobs:
           assert ledger['read_only'] is True
           assert ledger['cross_app_verify']['same_cosign_chain'] is None
           assert ledger['cross_app_verify']['killinchu_env_on_a11oy'] == 'NOT_EVALUATED'
-          assert 'no mint, sign, POST, or persist' in ledger['cross_app_verify']['note']
+          assert 'does not mint, sign, POST, or persist' in ledger['cross_app_verify']['note']
           PY
           ! grep -Fq 'def _post_json' szl_ecosystem_routes.py
           ! grep -Fq 'method="POST"' szl_ecosystem_routes.py
