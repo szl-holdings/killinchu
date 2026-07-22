@@ -1,0 +1,97 @@
+name: Sync null-safe ecosystem read-only module
+
+on:
+  push:
+    branches:
+      - frontier/ecosystem-readonly-20260722
+    paths:
+      - .github/workflows/repair-ecosystem-readonly-null-sync.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-null-safe-ecosystem-readonly
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_REPOSITORY: szl-holdings/a11oy
+      SOURCE_BLOB: 9564c47daf79c86815b2544ec51b06debc30d354
+      TARGET_BRANCH: frontier/ecosystem-readonly-20260722
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact Killinchu branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: frontier/ecosystem-readonly-20260722
+          fetch-depth: 0
+
+      - name: Fetch and verify exact A11oy blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${SOURCE_REPOSITORY}/git/blobs/${SOURCE_BLOB}" \
+            --jq .content | tr -d '\n' | base64 --decode > /tmp/szl_ecosystem_routes.py
+          observed="$(git hash-object /tmp/szl_ecosystem_routes.py)"
+          test "$observed" = "$SOURCE_BLOB" || {
+            echo "::error::Source blob mismatch: expected ${SOURCE_BLOB}, observed ${observed}"
+            exit 1
+          }
+          mv /tmp/szl_ecosystem_routes.py szl_ecosystem_routes.py
+
+      - name: Verify null-safe read-only contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile szl_ecosystem_routes.py
+          python - <<'PY'
+          import szl_ecosystem_routes as module
+
+          def observed(url: str, timeout: float = 12.0):
+              if url.endswith('/api/a11oy/v1/honest'):
+                  return {'doctrine_lock': {'locked_formula_ids': module.LOCKED8, 'locked_formula_count': 8}}
+              if url.endswith('/api/a11oy/v1/lambda'):
+                  return {'lambda': 0.7, 'axes': [{'score': 0.95}]}
+              if url.endswith('/api/a11oy/v1/restraint/kpi'):
+                  return {'tile': 'restraint', 'label': 'CACHED'}
+              if url.endswith('/api/killinchu/v1/gov/chapaq-verdict'):
+                  return None
+              if url.endswith('/api/a11oy/v1/provenance/ledger'):
+                  return {'count': 4}
+              if url.endswith('/api/killinchu/v1/receipt/ledger'):
+                  return {'count': 3}
+              return None
+
+          module._get_json = observed
+          board = module.build_kpi_board('killinchu')
+          assert board['chapaq_verdict'] is None
+          assert board['chapaq_source'].startswith('NOT_EVALUATED')
+          assert board['lambda']['raw_chapaq'] is None
+          ledger = module.build_ledger('killinchu')
+          assert ledger['read_only'] is True
+          assert ledger['cross_app_verify']['same_cosign_chain'] is None
+          assert ledger['cross_app_verify']['killinchu_env_on_a11oy'] == 'NOT_EVALUATED'
+          assert 'does not mint, sign, POST, or persist' in ledger['cross_app_verify']['note']
+          PY
+          ! grep -Fq 'def _post_json' szl_ecosystem_routes.py
+          ! grep -Fq 'method="POST"' szl_ecosystem_routes.py
+          git diff --check
+
+      - name: Commit exact companion and remove bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/repair-ecosystem-readonly-null-sync.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add szl_ecosystem_routes.py .github/workflows/repair-ecosystem-readonly-null-sync.yml
+          git commit \
+            -m 'fix(frontier): sync null-safe read-only ecosystem module' \
+            -m 'Mirror the exact corrected A11oy module so a missing authorized CHAPAQ decision remains NOT_EVALUATED without crashing a GET route.' \
+            -m 'Shared-source-peer: szl-holdings/a11oy#1038@914587d516e7d1e785fc347530742b6443e93021' \
+            -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          git push origin HEAD:${TARGET_BRANCH}
