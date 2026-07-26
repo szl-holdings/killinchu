@@ -55,7 +55,7 @@ def _head_from(response: Any, response_cls: Any) -> Any:
 def _source_build_identity() -> dict[str, str | None]:
     """Capture only the deployer's allowlisted source revision."""
 
-    candidate = str(os.environ.get("SZL_GIT_SHA", "")).strip()
+    candidate = str(os.environ.get("SZL_GIT_SHA", ""))
     if _SHA40_RE.fullmatch(candidate):
         return {
             "state": "OBSERVED",

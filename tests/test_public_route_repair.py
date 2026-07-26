@@ -164,6 +164,8 @@ class PublicRouteRepairTests(unittest.TestCase):
                 "a" * 64,
                 "g" * 40,
                 "not-a-sha SECRET_VALUE",
+                " " + ("a" * 40),
+                ("a" * 40) + "\t",
             ):
                 with self.subTest(invalid=invalid), patch.dict(
                     os.environ, {"SZL_GIT_SHA": invalid}
