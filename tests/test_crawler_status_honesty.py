@@ -159,7 +159,13 @@ def test_open_circuit_blocks_manual_and_cache_miss_crawls(monkeypatch):
                 "Idempotency-Key": "crawler-status-circuit-0001",
             },
         )
-        live = client.post(f"/api/{NS}/live")
+        live = client.post(
+            f"/api/{NS}/live",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Idempotency-Key": "crawler-status-live-0001",
+            },
+        )
 
     assert manual.status_code == 503
     assert live.status_code == 503

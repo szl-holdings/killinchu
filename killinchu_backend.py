@@ -24,8 +24,11 @@
 #   POST   /api/killinchu/watchlists           — create (+ triggers)
 #   PUT    /api/killinchu/watchlists/{wid}      — update (+ triggers)
 #   DELETE /api/killinchu/watchlists/{wid}      — delete
+#   GET    /api/killinchu/operator-mutations/{key_digest} — inspect receipt state
+#   POST   /api/killinchu/operator-mutations/{key_digest}/reconcile — resolve state
 #
-# Tables: snapshots, facts, events, watchlists, triggers, notifications.
+# Tables: snapshots, facts, events, watchlists, triggers, notifications,
+# operator_mutations.
 """Persistent, honest-by-default backend for the killinchu Space.
 
 Exposes the ``/api/killinchu/*`` REST surface backed by a durable store that is
@@ -57,8 +60,9 @@ import time
 import sqlite3
 import urllib.request
 import urllib.error
+from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 # NOTE: `from __future__ import annotations` (above) stringifies every annotation,
 # so FastAPI resolves route-handler param types via THIS module's globals at
@@ -291,6 +295,7 @@ class _Store:
         self._pg = None  # psycopg connection
         self._sqlite: Optional[sqlite3.Connection] = None
         self._sqlite_path: Optional[str] = None
+        self._transaction_active = False
         self.last_ping_ok: Optional[bool] = None
         self.last_ping_at: Optional[str] = None
         self.last_ping_ms: Optional[float] = None
@@ -449,9 +454,51 @@ class _Store:
         return self._sqlite.cursor()
 
     def _commit(self) -> None:
-        if self.backend == "sqlite" and self._sqlite is not None:
+        if (
+            self.backend == "sqlite"
+            and self._sqlite is not None
+            and not self._transaction_active
+        ):
             self._sqlite.commit()
         # postgres connection is autocommit
+
+    @contextmanager
+    def transaction(self) -> Iterator["_Store"]:
+        """Hold one real database transaction across existing store helpers.
+
+        The store lock remains held for the whole block. SQLite uses
+        ``BEGIN IMMEDIATE`` so a competing writer cannot interleave. Psycopg's
+        transaction context is used even though the connection normally runs in
+        autocommit mode. Existing helper methods see ``_transaction_active`` and
+        therefore do not commit individual SQLite statements.
+        """
+        with self._lock:
+            if self._transaction_active:
+                raise RuntimeError("nested killinchu backend transaction")
+            if self.backend == "postgres":
+                self._cursor().close()  # reconnect first when needed
+                self._transaction_active = True
+                try:
+                    with self._pg.transaction():
+                        yield self
+                finally:
+                    self._transaction_active = False
+                return
+            if self.backend != "sqlite" or self._sqlite is None:
+                raise RuntimeError("no durable backend transaction")
+            cur = self._sqlite.cursor()
+            cur.execute("BEGIN IMMEDIATE")
+            cur.close()
+            self._transaction_active = True
+            try:
+                yield self
+            except BaseException:
+                self._sqlite.rollback()
+                raise
+            else:
+                self._sqlite.commit()
+            finally:
+                self._transaction_active = False
 
     def ok(self) -> bool:
         """Return True when a durable backend (postgres or sqlite) is available."""
@@ -529,8 +576,9 @@ class _Store:
     ) -> Tuple[str, Optional[Dict[str, Any]]]:
         """Reserve one mutation key before side effects.
 
-        Returns ``("claimed", None)``, ``("replay", row)``, ``("in_progress",
-        row)``, or ``("conflict", row)``. The durable reservation makes retries
+        Returns ``("claimed", None)``, ``("replay", row)``,
+        ``("receipt_pending", row)``, ``("in_progress", row)``, or
+        ``("conflict", row)``. The durable reservation makes retries
         at-most-once even if the process fails after the mutation begins.
         """
         now = _now_iso()
@@ -538,40 +586,89 @@ class _Store:
             cur = self._cursor()
             cur.execute(
                 self._q(
+                    "INSERT INTO operator_mutations("
+                    "idempotency_key_hash, operation, actor_id, request_digest, state, created_at"
+                    ") VALUES(?,?,?,?,?,?) "
+                    "ON CONFLICT(idempotency_key_hash) DO NOTHING"
+                ),
+                (key_hash, operation, actor_id, request_digest, "in_progress", now),
+            )
+            inserted = cur.rowcount == 1
+            self._commit()
+            if inserted:
+                cur.close()
+                return "claimed", None
+            cur.execute(
+                self._q(
                     "SELECT operation, actor_id, request_digest, state, status_code, "
-                    "response_json, receipt_json FROM operator_mutations "
-                    "WHERE idempotency_key_hash=?"
+                    "response_json, receipt_json, created_at, completed_at "
+                    "FROM operator_mutations WHERE idempotency_key_hash=?"
                 ),
                 (key_hash,),
             )
             row = cur.fetchone()
-            if row is not None:
-                cols = [d[0] for d in cur.description] if cur.description else []
-                if isinstance(row, sqlite3.Row):
-                    existing = {k: row[k] for k in row.keys()}
-                else:
-                    existing = {cols[i]: row[i] for i in range(len(cols))}
+            cols = [d[0] for d in cur.description] if cur.description else []
+            if row is None:  # defensive: a concurrent delete is never expected
                 cur.close()
-                if (
-                    existing["operation"] != operation
-                    or existing["actor_id"] != actor_id
-                    or existing["request_digest"] != request_digest
-                ):
-                    return "conflict", existing
-                if existing["state"] == "completed":
-                    return "replay", existing
-                return "in_progress", existing
+                raise RuntimeError("idempotency claim disappeared")
+            if isinstance(row, sqlite3.Row):
+                existing = {k: row[k] for k in row.keys()}
+            else:
+                existing = {cols[i]: row[i] for i in range(len(cols))}
+            cur.close()
+        if (
+            existing["operation"] != operation
+            or existing["actor_id"] != actor_id
+            or existing["request_digest"] != request_digest
+        ):
+            return "conflict", existing
+        if existing["state"] == "completed":
+            return "replay", existing
+        if existing["state"] == "receipt_pending":
+            return "receipt_pending", existing
+        return "in_progress", existing
+
+    def get_operator_mutation(self, *, key_hash: str) -> Optional[Dict[str, Any]]:
+        """Return one durable mutation state for inspection/reconciliation."""
+        rows = self.query(
+            "SELECT idempotency_key_hash, operation, actor_id, request_digest, "
+            "state, status_code, response_json, receipt_json, created_at, completed_at "
+            "FROM operator_mutations WHERE idempotency_key_hash=?",
+            (key_hash,),
+        )
+        return rows[0] if rows else None
+
+    def stage_operator_mutation(
+        self,
+        *,
+        key_hash: str,
+        status_code: int,
+        response: Dict[str, Any],
+        receipt_request: Dict[str, Any],
+    ) -> None:
+        """Durably stage response + receipt material in the mutation transaction."""
+        with self._lock:
+            cur = self._cursor()
             cur.execute(
                 self._q(
-                    "INSERT INTO operator_mutations("
-                    "idempotency_key_hash, operation, actor_id, request_digest, state, created_at"
-                    ") VALUES(?,?,?,?,?,?)"
+                    "UPDATE operator_mutations SET state=?, status_code=?, "
+                    "response_json=?, receipt_json=? "
+                    "WHERE idempotency_key_hash=? AND state=?"
                 ),
-                (key_hash, operation, actor_id, request_digest, "in_progress", now),
+                (
+                    "receipt_pending",
+                    status_code,
+                    _canonical_json(response),
+                    _canonical_json(receipt_request),
+                    key_hash,
+                    "in_progress",
+                ),
             )
+            if cur.rowcount != 1:
+                cur.close()
+                raise RuntimeError("idempotency claim is not stageable")
             self._commit()
             cur.close()
-        return "claimed", None
 
     def complete_operator_mutation(
         self,
@@ -581,25 +678,75 @@ class _Store:
         response: Dict[str, Any],
         receipt: Dict[str, Any],
     ) -> None:
-        """Persist the exact successful response and deterministic receipt."""
-        self.execute(
-            "UPDATE operator_mutations SET state=?, status_code=?, response_json=?, "
-            "receipt_json=?, completed_at=? WHERE idempotency_key_hash=?",
-            (
-                "completed",
-                status_code,
-                _canonical_json(response),
-                _canonical_json(receipt),
-                _now_iso(),
-                key_hash,
-            ),
-        )
+        """Persist the canonical receipt and replay response."""
+        with self._lock:
+            cur = self._cursor()
+            cur.execute(
+                self._q(
+                    "UPDATE operator_mutations SET state=?, status_code=?, "
+                    "response_json=?, receipt_json=?, completed_at=? "
+                    "WHERE idempotency_key_hash=? AND state=?"
+                ),
+                (
+                    "completed",
+                    status_code,
+                    _canonical_json(response),
+                    _canonical_json(receipt),
+                    _now_iso(),
+                    key_hash,
+                    "receipt_emitting",
+                ),
+            )
+            if cur.rowcount != 1:
+                cur.close()
+                raise RuntimeError("pending receipt is not completable")
+            self._commit()
+            cur.close()
+
+    def begin_receipt_emission(self, *, key_hash: str) -> bool:
+        """Acquire the durable cross-process receipt-emission state."""
+        with self._lock:
+            cur = self._cursor()
+            cur.execute(
+                self._q(
+                    "UPDATE operator_mutations SET state=? "
+                    "WHERE idempotency_key_hash=? AND state=?"
+                ),
+                ("receipt_emitting", key_hash, "receipt_pending"),
+            )
+            acquired = cur.rowcount == 1
+            self._commit()
+            cur.close()
+            return acquired
+
+    def transition_operator_mutation(
+        self,
+        *,
+        key_hash: str,
+        from_state: str,
+        to_state: str,
+    ) -> bool:
+        """Compare-and-set one reconciliation state."""
+        with self._lock:
+            cur = self._cursor()
+            cur.execute(
+                self._q(
+                    "UPDATE operator_mutations SET state=? "
+                    "WHERE idempotency_key_hash=? AND state=?"
+                ),
+                (to_state, key_hash, from_state),
+            )
+            changed = cur.rowcount == 1
+            self._commit()
+            cur.close()
+            return changed
 
     def fail_operator_mutation(self, *, key_hash: str) -> None:
-        """Keep an incomplete claim fail-closed so a retry cannot duplicate it."""
+        """Keep an incomplete claim closed pending explicit operator review."""
         self.execute(
-            "UPDATE operator_mutations SET state=? WHERE idempotency_key_hash=?",
-            ("failed", key_hash),
+            "UPDATE operator_mutations SET state=? "
+            "WHERE idempotency_key_hash=? AND state=?",
+            ("needs_operator_review", key_hash, "in_progress"),
         )
 
     def health(self) -> Dict[str, Any]:
@@ -657,7 +804,7 @@ def _sha256_json(value: Any) -> str:
     return "sha256:" + hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
 
 
-def _mutation_receipt(
+def _mutation_receipt_request(
     *,
     operation: str,
     actor_id: str,
@@ -665,25 +812,27 @@ def _mutation_receipt(
     request_digest: str,
     result: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Build a deterministic, non-secret receipt for one completed mutation.
-
-    This receipt is tamper-evident but intentionally unsigned. The host's DSSE
-    emitter is defined after this backend is registered, so claiming a signature
-    here would be false.
-    """
-    material = {
+    """Build deterministic, non-secret material for the canonical emitter."""
+    return {
         "schema": _MUTATION_RECEIPT_SCHEMA,
         "operation": operation,
         "actor_id": actor_id,
         "idempotency_key_hash": key_hash,
         "request_digest": request_digest,
         "result_digest": _sha256_json(result),
+    }
+
+
+def _unsigned_mutation_receipt(material: Dict[str, Any]) -> Dict[str, Any]:
+    """Honest fallback for isolated apps that do not inject a Khipu emitter."""
+    unsigned = {
+        **material,
         "signed": False,
-        "signature_state": "UNSIGNED",
+        "signature_state": "UNSIGNED_NO_EMITTER",
     }
     return {
-        **material,
-        "receipt_digest": _sha256_json(material),
+        **unsigned,
+        "receipt_digest": _sha256_json(unsigned),
     }
 
 
@@ -1155,7 +1304,12 @@ def start_scheduler(app) -> str:
 # ---------------------------------------------------------------------------
 # FastAPI registration
 # ---------------------------------------------------------------------------
-def register(app, ns: str = "killinchu") -> str:
+def register(
+    app,
+    ns: str = "killinchu",
+    *,
+    emit_receipt: Optional[Callable[[str, Dict[str, Any]], Dict[str, Any]]] = None,
+) -> str:
     """Mount the killinchu backend routes on *app* and return the base path.
 
     Registers every ``/api/{ns}/*`` handler BEFORE the SPA catch-all so the API
@@ -1169,6 +1323,7 @@ def register(app, ns: str = "killinchu") -> str:
 
     base = f"/api/{ns}"
     st = _store()
+    reconcile_lock = threading.RLock()
 
     async def _json_body(request: "Request") -> dict:
         try:
@@ -1177,10 +1332,10 @@ def register(app, ns: str = "killinchu") -> str:
             return {}
         return b if isinstance(b, dict) else {}
 
-    def _operator_gate(
+    def _operator_authority(
         request: "Request",
-    ) -> Tuple[Optional[str], Optional[str], Optional["JSONResponse"]]:
-        """Require the canonical fail-closed bearer and a bounded replay key."""
+    ) -> Tuple[Optional[str], Optional["JSONResponse"]]:
+        """Require only the canonical fail-closed bearer authority."""
         try:
             from szl_provenance import _wire_d_authorize_request
 
@@ -1202,7 +1357,16 @@ def register(app, ns: str = "killinchu") -> str:
                 status_code=status_code,
                 headers={"WWW-Authenticate": "Bearer"},
             )
-            return None, None, response
+            return None, response
+        return actor_id, None
+
+    def _operator_gate(
+        request: "Request",
+    ) -> Tuple[Optional[str], Optional[str], Optional["JSONResponse"]]:
+        """Require the canonical bearer and a bounded replay key."""
+        actor_id, authority_error = _operator_authority(request)
+        if authority_error is not None:
+            return None, None, authority_error
 
         key = (request.headers.get("idempotency-key") or "").strip()
         if not _IDEMPOTENCY_KEY_RE.fullmatch(key):
@@ -1255,15 +1419,21 @@ def register(app, ns: str = "killinchu") -> str:
                 ),
                 status_code=409,
             )
+        if claim_state == "receipt_pending":
+            return None, _reconcile_mutation(key_hash, replayed=True)
         if claim_state == "in_progress":
+            state = existing.get("state") if existing else "in_progress"
             return None, JSONResponse(
                 _envelope(
                     "conflict",
                     {
                         "error": (
                             "A mutation with this Idempotency-Key is already in progress "
-                            "or failed before completion; operator reconciliation is required"
-                        )
+                            "or has an ambiguous receipt outcome; operator reconciliation "
+                            "is required"
+                        ),
+                        "mutation_state": state,
+                        "idempotency_key_hash": key_hash,
                     },
                     [],
                 ),
@@ -1276,34 +1446,152 @@ def register(app, ns: str = "killinchu") -> str:
             "request_digest": request_digest,
         }, None
 
-    def _complete_mutation(
+    def _stage_mutation(
         context: Dict[str, str],
         result: Dict[str, Any],
         *,
         status_code: int = 200,
-    ) -> "JSONResponse":
-        receipt = _mutation_receipt(
+    ) -> None:
+        """Stage replay data inside the same transaction as the mutation."""
+        receipt_request = _mutation_receipt_request(
             operation=context["operation"],
             actor_id=context["actor_id"],
             key_hash=context["key_hash"],
             request_digest=context["request_digest"],
             result=result,
         )
-        response = {
+        pending_response = {
             **result,
-            "mutation_receipt": receipt,
             "idempotency_replayed": False,
         }
-        _store().complete_operator_mutation(
+        st.stage_operator_mutation(
             key_hash=context["key_hash"],
             status_code=status_code,
-            response=response,
-            receipt=receipt,
+            response=pending_response,
+            receipt_request=receipt_request,
         )
+
+    def _emit_mutation_receipt(receipt_request: Dict[str, Any]) -> Dict[str, Any]:
+        if emit_receipt is None:
+            return _unsigned_mutation_receipt(receipt_request)
+        receipt = emit_receipt("operator_mutation", receipt_request)
+        if not isinstance(receipt, dict):
+            raise RuntimeError("canonical receipt emitter returned a non-object")
+        if not (receipt.get("digest") or receipt.get("receipt_digest")):
+            raise RuntimeError("canonical receipt emitter returned no digest")
+        if not isinstance(receipt.get("signed"), bool):
+            raise RuntimeError("canonical receipt emitter omitted honest signed state")
+        return receipt
+
+    def _reconcile_mutation(
+        key_hash: str,
+        *,
+        replayed: bool,
+    ) -> "JSONResponse":
+        """Resolve one durable pending receipt without replaying its mutation."""
+        with reconcile_lock:
+            row = st.get_operator_mutation(key_hash=key_hash)
+            if row is None:
+                return JSONResponse(
+                    _envelope("error", {"error": "mutation state not found"}, []),
+                    status_code=404,
+                )
+            if row["state"] == "completed":
+                response = json.loads(row["response_json"])
+                response["idempotency_replayed"] = replayed
+                return JSONResponse(
+                    response,
+                    status_code=int(row["status_code"]),
+                    headers={
+                        "Idempotency-Replayed": "true" if replayed else "false"
+                    },
+                )
+            if row["state"] != "receipt_pending":
+                return JSONResponse(
+                    _envelope(
+                        "conflict",
+                        {
+                            "error": "mutation is not safely auto-reconcilable",
+                            "mutation_state": row["state"],
+                            "idempotency_key_hash": key_hash,
+                        },
+                        [],
+                    ),
+                    status_code=409,
+                )
+            if not st.begin_receipt_emission(key_hash=key_hash):
+                return JSONResponse(
+                    _envelope(
+                        "conflict",
+                        {
+                            "error": "receipt reconciliation is already claimed",
+                            "mutation_state": "receipt_emitting",
+                            "idempotency_key_hash": key_hash,
+                        },
+                        [],
+                    ),
+                    status_code=409,
+                )
+            pending_response = json.loads(row["response_json"])
+            receipt_request = json.loads(row["receipt_json"])
+            try:
+                receipt = _emit_mutation_receipt(receipt_request)
+            except Exception as exc:
+                print(
+                    "[killinchu-backend] canonical mutation receipt emission "
+                    f"needs reconciliation: {exc!r}",
+                    file=sys.stderr,
+                )
+                return JSONResponse(
+                    _envelope(
+                        "degraded",
+                        {
+                            "error": "canonical receipt emission requires reconciliation",
+                            "mutation_state": "receipt_emitting",
+                            "idempotency_key_hash": key_hash,
+                        },
+                        [],
+                    ),
+                    status_code=503,
+                )
+
+            stored_response = {
+                **pending_response,
+                "mutation_receipt": receipt,
+                "idempotency_replayed": False,
+            }
+            try:
+                with st.transaction():
+                    st.complete_operator_mutation(
+                        key_hash=key_hash,
+                        status_code=int(row["status_code"]),
+                        response=stored_response,
+                        receipt=receipt,
+                    )
+            except Exception as exc:
+                print(
+                    "[killinchu-backend] canonical receipt was emitted but durable "
+                    f"completion needs reconciliation: {exc!r}",
+                    file=sys.stderr,
+                )
+                return JSONResponse(
+                    _envelope(
+                        "degraded",
+                        {
+                            "error": "receipt emitted; durable completion is ambiguous",
+                            "mutation_state": "receipt_emitting",
+                            "idempotency_key_hash": key_hash,
+                        },
+                        [],
+                    ),
+                    status_code=503,
+                )
+            response = dict(stored_response)
+            response["idempotency_replayed"] = replayed
         return JSONResponse(
             response,
-            status_code=status_code,
-            headers={"Idempotency-Replayed": "false"},
+            status_code=int(row["status_code"]),
+            headers={"Idempotency-Replayed": "true" if replayed else "false"},
         )
 
     # -- db health (used by /healthz) --------------------------------------
@@ -1314,17 +1602,31 @@ def register(app, ns: str = "killinchu") -> str:
     # -- live (cached scrape) ---------------------------------------------
     async def live(request: Request) -> JSONResponse:
         """POST /live — on-demand cached read with citations; degrades honestly."""
+        actor_id, key_hash, gate_error = _operator_gate(request)
+        if gate_error is not None:
+            return gate_error
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, _adsb_citation()), status_code=200)
+        context, replay = _claim_mutation(
+            operation="live.refresh",
+            actor_id=actor_id,
+            key_hash=key_hash,
+            request_payload={},
+        )
+        if replay is not None:
+            return replay
         if _sched_state["circuit_open"]:
-            return JSONResponse(_envelope("failed", {
+            result = _envelope("failed", {
                 "health": "failed",
                 "error": _sched_state["last_error"],
                 "failure_class": _sched_state["failure_class"],
                 "circuit_open": True,
                 "operator_action": _sched_state["operator_action"],
-            }, _adsb_citation()), status_code=503)
+            }, _adsb_citation())
+            with s.transaction():
+                _stage_mutation(context, result, status_code=503)
+            return _reconcile_mutation(key_hash, replayed=False)
         rows = s.query("SELECT id, fetched_at, record_count FROM snapshots ORDER BY id DESC LIMIT 1")
         if rows:
             try:
@@ -1332,18 +1634,32 @@ def register(app, ns: str = "killinchu") -> str:
             except Exception:
                 age = 1e9
             if age < _LIVE_CACHE_TTL:
-                return JSONResponse(_envelope("cached", {
+                result = _envelope("cached", {
                     "snapshot_id": rows[0]["id"],
                     "record_count": rows[0]["record_count"],
                     "age_seconds": round(age, 1),
                     "cache_ttl": _LIVE_CACHE_TTL,
-                }, _adsb_citation()))
+                }, _adsb_citation())
+                with s.transaction():
+                    _stage_mutation(context, result)
+                return _reconcile_mutation(key_hash, replayed=False)
         # Cache-miss: run_crawl is blocking (urllib ADS-B fetch up to 12s +
         # sqlite). Run it off the event loop so a cold/slow scrape can't stall
-        # the whole app — same asyncio.to_thread pattern the scheduler loop uses
-        # for run_crawl_guarded. Behavior/output unchanged.
+        # the whole app. Its database writes and receipt-pending state commit in
+        # one database transaction before the separate Khipu reconciliation.
         import asyncio
-        return JSONResponse(await asyncio.to_thread(run_crawl, "live"))
+
+        def _refresh_and_stage() -> "JSONResponse":
+            try:
+                with s.transaction():
+                    result = run_crawl(mode="live")
+                    _stage_mutation(context, result)
+            except Exception:
+                s.fail_operator_mutation(key_hash=key_hash)
+                raise
+            return _reconcile_mutation(key_hash, replayed=False)
+
+        return await asyncio.to_thread(_refresh_and_stage)
 
     # -- crawl/run (manual) ------------------------------------------------
     async def crawl_run(request: Request) -> JSONResponse:
@@ -1360,7 +1676,7 @@ def register(app, ns: str = "killinchu") -> str:
         if replay is not None:
             return replay
         if _sched_state["circuit_open"]:
-            _store().fail_operator_mutation(key_hash=key_hash)
+            st.fail_operator_mutation(key_hash=key_hash)
             return JSONResponse(_envelope("failed", {
                 "health": "failed",
                 "error": _sched_state["last_error"],
@@ -1369,11 +1685,13 @@ def register(app, ns: str = "killinchu") -> str:
                 "operator_action": _sched_state["operator_action"],
             }, _adsb_citation()), status_code=503)
         try:
-            result = run_crawl(mode="crawl")
-            return _complete_mutation(context, result)
+            with st.transaction():
+                result = run_crawl(mode="crawl")
+                _stage_mutation(context, result)
         except Exception:
-            _store().fail_operator_mutation(key_hash=key_hash)
+            st.fail_operator_mutation(key_hash=key_hash)
             raise
+        return _reconcile_mutation(key_hash, replayed=False)
 
     # -- crawl/status (auto-crawl scheduler health) ------------------------
     async def crawl_status(request: Request) -> JSONResponse:
@@ -1481,25 +1799,27 @@ def register(app, ns: str = "killinchu") -> str:
             return replay
         now = _now_iso()
         try:
-            wid = s.insert_returning_id(
-                "INSERT INTO watchlists(name, description, enabled, created_at, updated_at) VALUES(?,?,?,?,?)",
-                (name, body.get("description") or "", 1 if body.get("enabled", True) else 0, now, now),
-            )
-            for tg in (body.get("triggers") or []):
-                field = (tg.get("field") or "").strip()
-                op = (tg.get("op") or "gt").strip().lower()
-                thr = tg.get("threshold")
-                if not field or thr is None:
-                    continue
-                s.execute(
-                    "INSERT INTO triggers(watchlist_id, field, op, threshold, created_at) VALUES(?,?,?,?,?)",
-                    (wid, field, op, str(thr), now),
+            with s.transaction():
+                wid = s.insert_returning_id(
+                    "INSERT INTO watchlists(name, description, enabled, created_at, updated_at) VALUES(?,?,?,?,?)",
+                    (name, body.get("description") or "", 1 if body.get("enabled", True) else 0, now, now),
                 )
-            result = _envelope("ok", {"watchlist": _watchlist_dto(s, wid)}, [])
-            return _complete_mutation(context, result, status_code=201)
+                for tg in (body.get("triggers") or []):
+                    field = (tg.get("field") or "").strip()
+                    op = (tg.get("op") or "gt").strip().lower()
+                    thr = tg.get("threshold")
+                    if not field or thr is None:
+                        continue
+                    s.execute(
+                        "INSERT INTO triggers(watchlist_id, field, op, threshold, created_at) VALUES(?,?,?,?,?)",
+                        (wid, field, op, str(thr), now),
+                    )
+                result = _envelope("ok", {"watchlist": _watchlist_dto(s, wid)}, [])
+                _stage_mutation(context, result, status_code=201)
         except Exception:
             s.fail_operator_mutation(key_hash=key_hash)
             raise
+        return _reconcile_mutation(key_hash, replayed=False)
 
     async def watchlists_update(request: Request) -> JSONResponse:
         """PUT /watchlists/{wid} — update a watchlist and its triggers."""
@@ -1524,34 +1844,36 @@ def register(app, ns: str = "killinchu") -> str:
             return JSONResponse(_envelope("error", {"error": "not found"}, []), status_code=404)
         now = _now_iso()
         try:
-            sets, params = [], []
-            if "name" in body:
-                sets.append("name=?"); params.append((body.get("name") or "").strip())
-            if "description" in body:
-                sets.append("description=?"); params.append(body.get("description") or "")
-            if "enabled" in body:
-                sets.append("enabled=?"); params.append(1 if body.get("enabled") else 0)
-            sets.append("updated_at=?"); params.append(now)
-            params.append(wid)
-            s.execute(f"UPDATE watchlists SET {', '.join(sets)} WHERE id=?", tuple(params))
-            # Replace triggers when provided.
-            if "triggers" in body:
-                s.execute("DELETE FROM triggers WHERE watchlist_id=?", (wid,))
-                for tg in (body.get("triggers") or []):
-                    field = (tg.get("field") or "").strip()
-                    op = (tg.get("op") or "gt").strip().lower()
-                    thr = tg.get("threshold")
-                    if not field or thr is None:
-                        continue
-                    s.execute(
-                        "INSERT INTO triggers(watchlist_id, field, op, threshold, created_at) VALUES(?,?,?,?,?)",
-                        (wid, field, op, str(thr), now),
-                    )
-            result = _envelope("ok", {"watchlist": _watchlist_dto(s, wid)}, [])
-            return _complete_mutation(context, result)
+            with s.transaction():
+                sets, params = [], []
+                if "name" in body:
+                    sets.append("name=?"); params.append((body.get("name") or "").strip())
+                if "description" in body:
+                    sets.append("description=?"); params.append(body.get("description") or "")
+                if "enabled" in body:
+                    sets.append("enabled=?"); params.append(1 if body.get("enabled") else 0)
+                sets.append("updated_at=?"); params.append(now)
+                params.append(wid)
+                s.execute(f"UPDATE watchlists SET {', '.join(sets)} WHERE id=?", tuple(params))
+                # Replace triggers when provided.
+                if "triggers" in body:
+                    s.execute("DELETE FROM triggers WHERE watchlist_id=?", (wid,))
+                    for tg in (body.get("triggers") or []):
+                        field = (tg.get("field") or "").strip()
+                        op = (tg.get("op") or "gt").strip().lower()
+                        thr = tg.get("threshold")
+                        if not field or thr is None:
+                            continue
+                        s.execute(
+                            "INSERT INTO triggers(watchlist_id, field, op, threshold, created_at) VALUES(?,?,?,?,?)",
+                            (wid, field, op, str(thr), now),
+                        )
+                result = _envelope("ok", {"watchlist": _watchlist_dto(s, wid)}, [])
+                _stage_mutation(context, result)
         except Exception:
             s.fail_operator_mutation(key_hash=key_hash)
             raise
+        return _reconcile_mutation(key_hash, replayed=False)
 
     async def watchlists_delete(request: Request) -> JSONResponse:
         """DELETE /watchlists/{wid} — delete a watchlist and its triggers."""
@@ -1574,18 +1896,170 @@ def register(app, ns: str = "killinchu") -> str:
             s.fail_operator_mutation(key_hash=key_hash)
             return JSONResponse(_envelope("error", {"error": "not found"}, []), status_code=404)
         try:
-            s.execute("DELETE FROM triggers WHERE watchlist_id=?", (wid,))
-            s.execute("DELETE FROM watchlists WHERE id=?", (wid,))
-            result = _envelope("ok", {"deleted": wid}, [])
-            return _complete_mutation(context, result)
+            with s.transaction():
+                s.execute("DELETE FROM triggers WHERE watchlist_id=?", (wid,))
+                s.execute("DELETE FROM watchlists WHERE id=?", (wid,))
+                result = _envelope("ok", {"deleted": wid}, [])
+                _stage_mutation(context, result)
         except Exception:
             s.fail_operator_mutation(key_hash=key_hash)
             raise
+        return _reconcile_mutation(key_hash, replayed=False)
+
+    def _key_hash_from_path(request: "Request") -> Optional[str]:
+        digest = str(request.path_params.get("key_digest") or "").strip().lower()
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            return None
+        return f"sha256:{digest}"
+
+    def _mutation_inspection(row: Dict[str, Any]) -> Dict[str, Any]:
+        receipt_record = (
+            json.loads(row["receipt_json"]) if row.get("receipt_json") else None
+        )
+        return {
+            "idempotency_key_hash": row["idempotency_key_hash"],
+            "operation": row["operation"],
+            "actor_id": row["actor_id"],
+            "request_digest": row["request_digest"],
+            "state": row["state"],
+            "status_code": row["status_code"],
+            "response_digest": (
+                _sha256_json(json.loads(row["response_json"]))
+                if row.get("response_json")
+                else None
+            ),
+            "receipt_record_digest": (
+                _sha256_json(receipt_record) if receipt_record is not None else None
+            ),
+            "created_at": row["created_at"],
+            "completed_at": row["completed_at"],
+            "safe_auto_reconcile": row["state"] == "receipt_pending",
+            "requires_receipt_absence_confirmation": row["state"] == "receipt_emitting",
+        }
+
+    async def mutation_inspect(request: Request) -> JSONResponse:
+        """Inspect a non-secret durable reconciliation state."""
+        _, authority_error = _operator_authority(request)
+        if authority_error is not None:
+            return authority_error
+        key_hash = _key_hash_from_path(request)
+        if key_hash is None:
+            return JSONResponse(
+                _envelope("error", {"error": "invalid SHA-256 key digest"}, []),
+                status_code=400,
+            )
+        row = st.get_operator_mutation(key_hash=key_hash)
+        if row is None:
+            return JSONResponse(
+                _envelope("error", {"error": "mutation state not found"}, []),
+                status_code=404,
+            )
+        return JSONResponse(
+            _envelope("ok", {"mutation": _mutation_inspection(row)}, [])
+        )
+
+    async def mutation_reconcile(request: Request) -> JSONResponse:
+        """Resolve a pending/ambiguous receipt without replaying the mutation."""
+        _, authority_error = _operator_authority(request)
+        if authority_error is not None:
+            return authority_error
+        key_hash = _key_hash_from_path(request)
+        if key_hash is None:
+            return JSONResponse(
+                _envelope("error", {"error": "invalid SHA-256 key digest"}, []),
+                status_code=400,
+            )
+        row = st.get_operator_mutation(key_hash=key_hash)
+        if row is None:
+            return JSONResponse(
+                _envelope("error", {"error": "mutation state not found"}, []),
+                status_code=404,
+            )
+        body = await _json_body(request)
+        if row["state"] == "receipt_pending":
+            return _reconcile_mutation(key_hash, replayed=True)
+        if row["state"] == "receipt_emitting":
+            if not (
+                body.get("resolution") == "retry_receipt_emission"
+                and body.get("receipt_absence_confirmed") is True
+            ):
+                return JSONResponse(
+                    _envelope(
+                        "conflict",
+                        {
+                            "error": (
+                                "receipt outcome is ambiguous; confirm canonical "
+                                "receipt absence before retrying emission"
+                            ),
+                            "mutation": _mutation_inspection(row),
+                        },
+                        [],
+                    ),
+                    status_code=409,
+                )
+            if not st.transition_operator_mutation(
+                key_hash=key_hash,
+                from_state="receipt_emitting",
+                to_state="receipt_pending",
+            ):
+                return JSONResponse(
+                    _envelope("conflict", {"error": "mutation state changed"}, []),
+                    status_code=409,
+                )
+            return _reconcile_mutation(key_hash, replayed=True)
+        if row["state"] in {"in_progress", "needs_operator_review"}:
+            if not (
+                body.get("resolution") == "close_without_replay"
+                and body.get("side_effect_inspected") is True
+            ):
+                return JSONResponse(
+                    _envelope(
+                        "conflict",
+                        {
+                            "error": (
+                                "side-effect state must be inspected before this "
+                                "reservation can be closed without replay"
+                            ),
+                            "mutation": _mutation_inspection(row),
+                        },
+                        [],
+                    ),
+                    status_code=409,
+                )
+            if not st.transition_operator_mutation(
+                key_hash=key_hash,
+                from_state=row["state"],
+                to_state="abandoned_after_review",
+            ):
+                return JSONResponse(
+                    _envelope("conflict", {"error": "mutation state changed"}, []),
+                    status_code=409,
+                )
+            closed = st.get_operator_mutation(key_hash=key_hash)
+            return JSONResponse(
+                _envelope(
+                    "ok",
+                    {
+                        "mutation": _mutation_inspection(closed),
+                        "replayed": False,
+                        "side_effect_changed": False,
+                    },
+                    [],
+                )
+            )
+        return JSONResponse(
+            _envelope("ok", {"mutation": _mutation_inspection(row)}, [])
+        )
 
     # Register all routes (early import => added before the SPA catch-all).
     operator_dependencies = [Depends(_declare_operator_bearer)]
     app.add_api_route(f"{base}/db/health", db_health, methods=["GET"])
-    app.add_api_route(f"{base}/live", live, methods=["POST"])
+    app.add_api_route(
+        f"{base}/live",
+        live,
+        methods=["POST"],
+        dependencies=operator_dependencies,
+    )
     app.add_api_route(
         f"{base}/crawl/run",
         crawl_run,
@@ -1612,6 +2086,18 @@ def register(app, ns: str = "killinchu") -> str:
         f"{base}/watchlists/{{wid}}",
         watchlists_delete,
         methods=["DELETE"],
+        dependencies=operator_dependencies,
+    )
+    app.add_api_route(
+        f"{base}/operator-mutations/{{key_digest}}",
+        mutation_inspect,
+        methods=["GET"],
+        dependencies=operator_dependencies,
+    )
+    app.add_api_route(
+        f"{base}/operator-mutations/{{key_digest}}/reconcile",
+        mutation_reconcile,
+        methods=["POST"],
         dependencies=operator_dependencies,
     )
 

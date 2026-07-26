@@ -279,8 +279,11 @@ async def test_live_cache_miss_does_not_block_event_loop(backend_env, monkeypatc
     live_route = next(r for r in app.router.routes
                       if getattr(r, "path", "") == f"/api/{NS}/live")
 
-    class _Req:  # minimal Request stand-in; /live only reads the store.
-        pass
+    class _Req:
+        headers = {
+            "authorization": f"Bearer {OPERATOR_TOKEN}",
+            "idempotency-key": "backend-scheduler-live-0001",
+        }
 
     live_task = asyncio.create_task(live_route.endpoint(_Req()))
 
