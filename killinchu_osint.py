@@ -1141,22 +1141,45 @@ def _archive_read(n: int = 24, kind: Optional[str] = None) -> dict:
         head = b.head()
     except Exception as exc:  # noqa: BLE001
         out["head_error"] = type(exc).__name__
-    try:
-        recs = b.read_recent(n) if n else []
-    except Exception as exc:  # noqa: BLE001
-        out.update({"mode": "unreachable", "records": [], "count": 0,
-                    "head": head, "error": type(exc).__name__})
-        return out
-    if kind:
-        recs = [r for r in recs if r.get("kind") == kind]
-    public_recs = []
+    recs: list[dict] = []
+    public_recs: list[dict] = []
     withheld: dict[str, int] = {}
-    for record in recs:
-        public_record, reason = _archive_public_record(record)
-        if public_record is not None:
-            public_recs.append(public_record)
-        else:
-            withheld[reason or "policy"] = int(withheld.get(reason or "policy", 0)) + 1
+    if n:
+        # Filtering after read_recent(n) lets an unsafe/legacy-heavy newest tail
+        # hide older public records. Expand the bounded read window until we
+        # collect n safe records or the archive is exhausted. HFBucket preserves
+        # oldest->newest ordering, so the final slice remains the n newest safe
+        # records even when the examined window grows.
+        read_window = n
+        prior_examined = -1
+        while True:
+            try:
+                recs = b.read_recent(read_window)
+            except Exception as exc:  # noqa: BLE001
+                out.update({"mode": "unreachable", "records": [], "count": 0,
+                            "head": head, "error": type(exc).__name__})
+                return out
+            candidates = (
+                [r for r in recs if r.get("kind") == kind]
+                if kind
+                else recs
+            )
+            public_recs = []
+            withheld = {}
+            for record in candidates:
+                public_record, reason = _archive_public_record(record)
+                if public_record is not None:
+                    public_recs.append(public_record)
+                else:
+                    policy = reason or "policy"
+                    withheld[policy] = int(withheld.get(policy, 0)) + 1
+            if len(public_recs) >= n:
+                public_recs = public_recs[-n:]
+                break
+            if len(recs) < read_window or len(recs) == prior_examined:
+                break
+            prior_examined = len(recs)
+            read_window *= 2
     # Honest live/cached/unreachable: a committed head.json (count is not None)
     # means we genuinely reached HF on this request.
     hf_ok = bool(head) and head.get("count") is not None

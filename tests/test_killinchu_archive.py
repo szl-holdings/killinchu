@@ -407,6 +407,48 @@ def test_archive_read_withholds_legacy_platform_identifiers(archive):
     assert "230123456" not in str(out)
 
 
+def test_archive_read_backfills_safe_records_before_unsafe_tail(archive):
+    ko, bucket, _tmp, _mp = archive
+    safe_records = [
+        bucket.make_record(
+            {"kind": "osint-item", "source": "test", "title": f"safe-{idx}"},
+            kind="osint-item",
+            source="test",
+            dedup_key=f"safe-{idx}",
+            ts=f"2026-07-26T00:00:0{idx}Z",
+        )
+        for idx in range(2)
+    ]
+    legacy_records = [
+        bucket.make_record(
+            {
+                "kind": "adsb-aircraft",
+                "source": "adsb",
+                "hex": f"ae01c{idx}",
+                "lat": 50.123456,
+                "lon": 8.654321,
+            },
+            kind="adsb-aircraft",
+            source="adsb",
+            dedup_key=f"legacy-tail-{idx}",
+            ts=f"2026-07-26T00:01:0{idx}Z",
+        )
+        for idx in range(2)
+    ]
+    bucket.append_many(safe_records + legacy_records, auto_flush=False)
+
+    out = ko._archive_read(2)
+
+    assert [r["payload"]["title"] for r in out["records"]] == [
+        "safe-0",
+        "safe-1",
+    ]
+    assert out["count"] == 2
+    assert out["records_examined"] == 4
+    assert out["records_withheld"] == 2
+    assert out["withheld_by_policy"] == {"legacy_platform_projection": 2}
+
+
 def test_archive_read_serves_only_current_safe_projection(archive):
     ko, bucket, _tmp, _mp = archive
     assert ko._archive_feed_air(_FakeLF(air=_live_air()), bucket) == 2
