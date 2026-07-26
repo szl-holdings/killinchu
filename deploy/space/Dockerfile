@@ -26,123 +26,369 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies — real protocol stacks, no mocks.
+# REPRODUCIBILITY (founder-flag #5, SWEEP-3 + FINAL DEP-PIN): EXACT pins (==) on
+# ALL installs. Each == is the version pip ACTUALLY resolved in the RUNNING build
+# (HF Space build log, commit 6db0d2f, 2026-06-18, "Successfully installed" lines)
+# — a lockfile that preserves current behavior, NOT an upgrade. Every pin satisfies
+# its prior range. The previously-DEFERRED `|| true` / fallback-chain installs
+# below (psycopg 3.3.4, websocket-client 1.9.0, scipy 1.17.1 / networkx 3.6.1 /
+# PyYAML 6.0.3, sgp4 2.25, huggingface_hub 1.20.0) are now pinned to those exact
+# resolved versions under FULL founder authorization. Their `|| true` /
+# fallback-chain safety is INTENTIONALLY KEPT: if a wheel for the pinned version is
+# ever yanked, the build still stays green and the relevant organ degrades to its
+# honest pure-python / SQLite / ROADMAP-skeleton fallback (no fabricated data).
 RUN pip install --no-cache-dir \
-    "fastapi>=0.111.0,<1.0.0" \
-    "uvicorn[standard]>=0.29.0,<1.0.0" \
-    "httpx>=0.27.0,<1.0.0" \
-    "starlette>=0.37.0" \
-    "pyModeS>=3.3.0,<4.0" \
-    "pymavlink>=2.4.40"
+    "fastapi==0.137.2" \
+    "uvicorn[standard]==0.49.0" \
+    "httpx==0.28.1" \
+    "starlette==1.3.1" \
+    "pyModeS==3.3.0" \
+    "pymavlink==2.4.49"
 # BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
-RUN pip install --no-cache-dir "slowapi>=0.1.9"
+RUN pip install --no-cache-dir "slowapi==0.1.10"
+
+# Real persistent backend: psycopg (v3) so killinchu_backend is genuinely Postgres-first
+# when a DATABASE_URL is configured. Pure-python wheel; if absent the backend still runs
+# on durable SQLite (HF Spaces has no Postgres). `|| true` so a wheel hiccup can never
+# break the image build — the backend degrades to SQLite, never crashes.
+RUN pip install --no-cache-dir "psycopg[binary]==3.3.4" || pip install --no-cache-dir "psycopg==3.3.4" || true
 
 # ADDITIVE (Yachay / Provenance Hardening): cryptography for DSSE+Cosign Khipu signing.
-RUN pip install --no-cache-dir "cryptography>=42.0"
+RUN pip install --no-cache-dir "cryptography==49.0.0"
 # ADDITIVE (Formulas real-edge-v2, Opus 4.8, 2026-06-03): numpy is REQUIRED for the real
 # Kalman trajectory smoother in szl_shared_formulas/kalman.py (no pure-Python mock path).
-RUN pip install --no-cache-dir "numpy>=1.26"
+RUN pip install --no-cache-dir "numpy==2.4.6"
 # ADDITIVE (Yachay / PQC): pure-Python ML-DSA-65 (NIST FIPS 204) backend for
 # /khipu/sign?mode={pqc,hybrid}. liboqs (oqs-python) is preferred in prod but is
 # a C lib not always installable; dilithium-py is the pure-Python fallback so
 # hybrid signing works in the Space. ECDSA stays the default regardless.
-RUN pip install --no-cache-dir "dilithium-py>=1.0.0"
+RUN pip install --no-cache-dir "dilithium-py==1.4.0"
+# ADDITIVE (Wave A real-data feeds): websocket-client for the AISStream.io live
+# wss vessel collector (PRIMARY keyed AIS source). Optional — the vessels feed
+# degrades gracefully to the no-key Digitraffic REST fallback if this is absent
+# or no AISStream key is in the Space secret store. Real data either way.
+RUN pip install --no-cache-dir "websocket-client==1.9.0" || true
 # ADDITIVE (real-edge): numpy for the constant-velocity Kalman trajectory smoother
 # in szl_shared_formulas/kalman.py (real linear-algebra filter, no mocks).
-RUN pip install --no-cache-dir "numpy>=1.26,<3.0"
+RUN pip install --no-cache-dir "numpy==2.4.6"
+
+# ADDITIVE (DEV-WIRE-K R1, Opus 4.8, 2026-06-09): scipy for exact KS two-sample
+# (scipy.stats.ks_2samp) in the Posture & Drift detectors; networkx for real graph
+# metrics (clustering / centrality / Fiedler lambda2 / DAG integrity) in Topology &
+# Health; PyYAML to parse the REAL deploy/uds-package.yaml allow rules for the
+# Attack-Surface and Zero-Trust mesh graphs. ALL THREE ARE OPTIONAL — killinchu_posture
+# _topology.py ships pure-python/numpy fallbacks (identical Kolmogorov asymptotic KS,
+# numpy-based graph metrics, hand-rolled YAML reader) so a rebuild lag never breaks the
+# surface. `|| true` keeps the build green if a wheel is unavailable.
+RUN pip install --no-cache-dir "scipy==1.17.1" "networkx==3.6.1" "PyYAML==6.0.3" || true
+
+# Hardens the Odoo ERP connector's XML-RPC parser against XML entity-expansion /
+# decompression-bomb attacks (bandit B411). szl_connectors/erp/odoo.py applies
+# defusedxml.xmlrpc.monkey_patch() before parsing untrusted server responses;
+# this pin makes that path active in the running image (pure-python wheel).
+RUN pip install --no-cache-dir "defusedxml==0.7.1"
 
 # Copy the pre-built SPA to the static root.
 # index.html + assets/* served directly at / and /assets/*; unknown GET -> index.html.
 COPY static/ ./static/
 
+# ADDITIVE (cathedral front-door hero): sovereign 3D landing matching the org card.
+# Served at / by serve.py (operator one click in at /operator). The hero JS +
+# vendored ES-module Three.js r160 (MIT) live under static/ (already copied above).
+# NO CDN. Doctrine v11 LOCKED 749/14/163. Trust Gate = Conjecture.
+# ---------------------------------------------------------------------------
+# CONSOLIDATED ROOT-FILE COPY LAYERS (Docker max-depth fix, Opus 4.8).
+# Docker creates one image layer per COPY. The 81 individual root-file ->
+# same-name COPYs (incl. 5x redundant serve.py) were collapsed into the
+# grouped multi-source COPYs below (dest is the /app WORKDIR root '.').
+# IDENTICAL file set ships to IDENTICAL paths — proven by set-equality check.
+# This Dockerfile STILL never uses `COPY . .`; every file is explicit.
+# Subpath/dir/rename COPYs (static/, web/*, src/*, szl_connectors/*, etc.)
+# are left untouched. Signed-off-by: Yachay <yachay@szlholdings.ai>
+# ---------------------------------------------------------------------------
+COPY cathedral.html knowledge.json operator_shell_v4.py serve.py killinchu_receipt_export.py szl_evidence_research.py szl_readiness.py szl_quantum_bio.py szl_quant_qbio_holo.py szl_unified_formulas.py szl_cuas_formulas.py killinchu_research_sources.py szl_contracting.py szl_conjecture_factory.py killinchu_backend.py a11oy_hf_assets.py drones_db.json killinchu_protocols.py killinchu_expansion.py killinchu_naval_haps.py szl_dsse.py szl_content_address.py szl_safe_static.py szl_provenance.py LEGAL_BOUNDARIES.md ./
+# Shared Spaces modules (Dev2+3) — canonical handoffs + isolated-origin tiles.
+# Per-file COPY (this Dockerfile uses no `COPY . .`) or serve.py's guarded import
+# falls back and /spaces + /api/<ns>/v1/spaces/health 404.
+COPY szl_spaces_proxy.py szl_spaces_surface.py ./
+COPY szl_live_wires.py live_wires.html live_wires_3d.js szl_rosie_companion.py killinchu_szl_pqc_sign.py szl_rekor.py killinchu_osint.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py killinchu_genius.py killinchu_warhacker_demos.py killinchu_v3.py szl_brain.py szl_rag.py szl_formulas.py szl_understudy.py ./
+COPY szl_killinchu_cookbook.py szl_uds_hardening.py killinchu_fusion.py szl_v4_fleet.py szl_ken.py killinchu_frontier_patch.py killinchu_drone_routes.py killinchu_parity.py killinchu_cannonico.py killinchu_elite_console.py _vendor_blobs.py killinchu_fleet_vessels.py killinchu_maritime_risk.py killinchu_maritime_intel.py killinchu_maritime_view.py killinchu_live_feeds.py killinchu_feeds_realdata.py killinchu_asw.py killinchu_anatomy.py killinchu_health_twin.py fleet_vessels_data.json killinchu_beyond.py szl_khipu_consensus.py killinchu_mesh.py killinchu_mesh_view.py killinchu_formula_endpoints.py killinchu_edge_formulas.py killinchu_active_flux.py killinchu_platform_dynamics.py ./
+COPY killinchu_edge_console.py szl_agentic_loop.py szl_anatomy_routes.py szl_formula_wiring.py a11oy_code_engine.py killinchu_ops_control.py szl_llm_registry.py szl_alloy_models.py szl_governed_infer.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py killinchu_mined_ops.py killinchu_resweep_ops.py killinchu_wave910.py killinchu_posture_topology.py szl_connectors_serve.py szl_connector_mcp.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_chain_of_title.py ./
+# waveL Dev2 (release-eng COPY-completeness): these three modules are REACHABLE
+# from serve.py but were missing from the per-file COPY set, so they were never
+# baked into the image / pushed to the Space -> silent 404 / advisory no-op on
+# deploy. killinchu_cop_fusion + killinchu_engagement_receipt are REGISTERED
+# organs (serve.py .register(app,...)); szl_agent_loop_banach is the advisory
+# Banach contraction guard imported (transitively) by a11oy_agent_loop /
+# szl_agentic_loop. Root-cause fix (add the COPY, never weaken the guard). The
+# new transitive COPY-completeness guard now catches this class in CI.
+COPY killinchu_cop_fusion.py killinchu_engagement_receipt.py szl_agent_loop_banach.py ./
+# Wave 15 frontier organs (Dynamic Linear Attention, Context-Ready Transformer, OPERA perplexity-reward).
+COPY szl_dla.py szl_ctxready.py szl_opera.py ./
+# Wave 16: Formula-Graph Brain organ on its OWN dedicated COPY layer (self-repair /repair
+# endpoint). Dedicated line keeps clean builds unambiguous; on HF a sticky image cache once
+# served a stale copy of this file, so isolating its layer avoids that failure mode.
+COPY szl_fgbrain.py ./szl_fgbrain.py
+# WAVE-23 surface organs (36-dead-tab wiring): one COPY layer for all 34 new szl_kc_* organs.
+COPY szl_kc_agentcoh.py szl_kc_elf.py szl_kc_graphmem.py szl_kc_kan.py szl_kc_moe.py szl_kc_qhall.py szl_kc_titans.py szl_kc_aimc.py szl_kc_flowmatch.py szl_kc_grpo.py szl_kc_kla.py szl_kc_mor.py szl_kc_rauq.py szl_kc_ssm.py szl_kc_blt.py szl_kc_formalmath.py szl_kc_hrm.py szl_kc_kvcache.py szl_kc_nested.py szl_kc_ringattn.py szl_kc_steering.py szl_kc_catq.py szl_kc_genie.py szl_kc_inplacettt.py szl_kc_matgran.py szl_kc_nsa.py szl_kc_s3search.py szl_kc_ternary.py szl_kc_dllm.py szl_kc_goat.py szl_kc_interpretability.py szl_kc_mla.py szl_kc_pfield.py szl_kc_slidesparse.py ./
+# WAVE-24 Flower Brain organ + metrics
+COPY szl_kc_flower.py szl_kc_flower_metrics.py ./
+# WAVE-25 Loop Forge organ (loopforge, 66th surface): kernel-gated bounded-recursion
+# agentic loop + MODELED J-lens workspace readout over the REAL flower/brain node set.
+# Pure-stdlib; serve.py imports both try/except-guarded. NEVER `COPY . .`.
+COPY szl_kc_loop_forge.py szl_kc_loop_forge_metrics.py ./
+# WAVE-26 One-Bit organ (MODELED 1-bit/ternary sovereign-inference energy estimator).
+COPY szl_kc_onebit.py ./
+# WAVE-28 JPT organ + HEART/BLOOD spine (measured joules-per-token, Brain-wired).
+COPY szl_kc_jpt.py szl_heart_blood.py ./
+# Wave 14 frontier organs (keyless value-only-cache attention, GitOfThoughts reasoning memory, HeRo-Q quant).
+COPY szl_keyless.py szl_gitthoughts.py szl_herotq.py ./
+# Wave 13 frontier organs (muon optimizer, tree speculative execution, NVFP4 4-bit format).
+# Per-file COPY (this Dockerfile never uses `COPY . .`); serve.py imports them try/except-guarded.
+COPY szl_muon.py szl_specexec.py szl_nvfp4.py ./
+# WAQAY governed quantized vector index (szl_waqay.py byte-identical with a11oy) +
+# a11oy_waqay_nav.py idempotent nav injector. szl_dsse/szl_provenance/a11oy_org_rag
+# already COPYed. MUST be COPY'd or serve.py's guarded import falls back and /waqay 404s.
+# Per-file COPY (this Dockerfile NEVER uses `COPY . .`).
+COPY szl_waqay.py a11oy_waqay_nav.py ./
+# YUPAY governed multi-model audit harness (szl_yupay.py byte-identical with a11oy) +
+# a11oy_yupay_nav.py idempotent nav injector. szl_dsse/szl_provenance already COPYed.
+# MUST be COPY'd or serve.py's guarded import falls back and /yupay 404s. Audit
+# methodology inspired by Kilo audit + MiniMax sparse-attention paper (published ideas
+# only); SZL-Nemo is governed Qwen3-32B Apache, never an M3 derivative.
+# Per-file COPY (this Dockerfile NEVER uses `COPY . .`).
+COPY szl_yupay.py a11oy_yupay_nav.py ./
+
+# ADDITIVE (Mosaic SDA elevation, 2026-06-13): SZL's sovereign Mosaic / Domain-
+# Superiority organ. killinchu_mosaic.py imports szl_mosaic_core.py (the vendored
+# clean-room anomaly/SDA engine). serve.py imports killinchu_mosaic via try/except;
+# without these per-file COPYs (this Dockerfile never uses `COPY . .`) the import
+# fails and the /api/killinchu/v1/mosaic/* endpoints + the Mosaic COP tab 404.
+COPY killinchu_mosaic.py szl_mosaic_core.py ./
+
+# ADDITIVE (AUTONOMY + ORGANISM elevation, 2026-06-14, Dev D): four additive
+# modules. killinchu_autonomy.py (BFT n>=3f+1, CBF-QP, EFE gate, conformal,
+# Fiedler, Reflexion; /api/killinchu/v1/autonomy/*) + killinchu_autonomy_view.py
+# (/elite/autonomy). killinchu_organism.py (causal-dependency graph + local
+# invariants + NCA-style self-repair; /api/killinchu/v1/organism/{causal,
+# self-repair}) + killinchu_organism_view.py (/elite/organism, vendored 3D).
+# serve.py imports all four via try/except; without these per-file COPYs the
+# imports fail and the autonomy/organism surfaces 404.
+COPY killinchu_autonomy.py killinchu_autonomy_view.py killinchu_organism.py killinchu_organism_view.py ./
+# Lane C: Energy/Sovereign-Compute mirror module + the joules honesty single-source-of-truth.
+# Byte-identical to a11oy. Without these COPYs the guarded import in serve.py degrades to a
+# not-registered stub. NEVER uses `COPY . .`.
+COPY szl_energy_sovereign.py szl_joules_truth.py ./
+# ADDITIVE (I4 kc-quant): TDA-Fracture regime/anomaly detector on AIS/maritime — killinchu
+# twin of a11oy GPU-Quant Layer 2. Backs /api/killinchu/v1/quant/tda-fracture (MODELED |
+# SAMPLE_AIS | NOT_LIVE; effector SIMULATED · human-on-loop). PURE STDLIB (union-find Betti);
+# imports szl_dsse (already COPYed) for REAL ECDSA receipts in-Space. MUST be COPY'd or
+# serve.py's guarded import degrades to a not-registered stub. Per-file COPY (NEVER `COPY . .`).
+COPY szl_kc_tda_fracture.py ./
+
+# ADDITIVE (Wave-H Team-4 counter-UAS/sensor-fusion): GOVERNED multi-sensor TRACK FUSION organ.
+# szl_kc_trackfusion.py -> GET /api/killinchu/v1/trackfusion/associate. Full multi-sensor <->
+# multi-target JPDA-style data association (Fortmann-Bar-Shalom-Scheffe 1983 validation gate +
+# feasible joint-event enumeration + marginal beta_{jt}; Reid-1979 MHT top-K), CI variance fusion
+# (Julier-Uhlmann), swarm-intent classification (Fiedler lambda2 formation coherence + closing-
+# vector behavioural intent; DroneShield-AI arXiv:2606.11687), and a Lambda-gated ROE advisory
+# (Conjecture 1, never 'green') emitting ONE signed engagement receipt. HONEST: MODELED |
+# SIMULATED_SENSORS | NOT_LIVE; effector SIMULATED, human-on-loop, NEVER an autonomous engage.
+# PURE STDLIB; imports szl_dsse (already COPYed) for REAL ECDSA-P256 receipts in-Space, honest
+# UNSIGNED-LOCAL marker otherwise. MUST be COPY'd or serve.py's guarded import degrades to a
+# not-registered stub and the counter-UAS fusion tab 404s. Per-file COPY (NEVER `COPY . .`).
+COPY szl_kc_trackfusion.py ./
+
+# FRONTIER backends (2026-07): back the a11oy frontier surfaces ccattest.js + sement.js.
+# szl_kc_cc_attest.py  -> GET /api/killinchu/v1/cc-attest/verify (NVIDIA H100 CC measured-boot
+#   attestation-chain SIMULATION; MODELED, no real GPU/TEE/NRAS/network).
+# szl_kc_sement.py     -> GET /api/killinchu/v1/sement/estimate (semantic-entropy / effective-rank
+#   epistemic-uncertainty estimator; MODELED/EXPERIMENTAL synthetic demo, NOT live model sampling;
+#   advisory input to Λ = Conjecture 1). Both PURE STDLIB; import szl_dsse (already COPYed) for
+#   REAL ECDSA receipts in-Space, honest UNSIGNED marker otherwise. MUST be COPY'd or serve.py's
+#   guarded imports degrade to not-registered stubs and the two flagship tabs 404 again.
+# Per-file COPY (NEVER `COPY . .`).
+COPY szl_kc_cc_attest.py szl_kc_sement.py ./
+
+# FRONTIER backends WAVE B (2026-07): back the a11oy frontier surfaces testtime.js + specdecode.js
+# + worldmodel.js (same proven pattern as the ccattest/sement backends above).
+# szl_kc_ttc.py        -> GET /api/killinchu/v1/testtime/scaling (governed test-time-compute budget
+#   allocator; closed-form pass@N + sequential-revision scaling; joule-metered; MODELED, NO LLM/GPU).
+# szl_kc_specdec.py    -> GET /api/killinchu/v1/specdecode/simulate (speculative-decoding accept/reject
+#   simulation + J/token-saved energy receipt; MODELED, NOT a live model/KV cache).
+# szl_kc_worldmodel.py -> GET /api/killinchu/v1/worldmodel/predict (governed world-model latent rollout;
+#   MODELED, NOT Genie/Dreamer running, synthetic latents). All three PURE STDLIB; import szl_dsse
+#   (already COPYed) for REAL ECDSA receipts in-Space, honest UNSIGNED marker otherwise. MUST be COPY'd
+#   or serve.py's guarded imports degrade to not-registered stubs and the three tabs 404 again.
+# Per-file COPY (NEVER `COPY . .`).
+COPY szl_kc_ttc.py szl_kc_specdec.py szl_kc_worldmodel.py ./
+
+# FRONTIER backends WAVE C (2026-07): back the a11oy frontier surfaces episodic.js + qec.js
+# + the signed-energy-receipt organ (same proven pattern as the Wave A/B backends above).
+# szl_kc_episodic.py -> GET /api/killinchu/v1/episodic/recall (governed episodic-memory / temporal
+#   knowledge-graph; receipt-keyed writes; closed-form recency×salience×relatedness recall; MODELED,
+#   synthetic episodes, hash-seeded MODELED embeddings — NOT a trained model). Cites Zep/Graphiti
+#   arXiv:2501.13956.
+# szl_kc_qec.py      -> GET /api/killinchu/v1/qec/surface-code (topological QEC below-threshold scaling
+#   + Reed-Solomon RS(10,6) Khipu-DAG erasure survival — "receipts survive corruption like logical
+#   qubits survive noise"; MODELED scaling law, RS math EXACT, NO QPU). Cites Google Willow (Nature
+#   2024, arXiv:2408.13687).
+# szl_kc_energy.py   -> GET /api/killinchu/v1/energy/receipt (signed, hash-chained energy receipt:
+#   joules/token + tokens/joule + gCO2/token + carbon-aware ADVISORY; MODELED, NO on-box NVML, never
+#   upgraded to MEASURED). Cites NVML + carbon-aware compute. All three PURE STDLIB; import szl_dsse
+#   (already COPYed) for REAL ECDSA receipts in-Space, honest UNSIGNED marker otherwise. MUST be COPY'd
+#   or serve.py's guarded imports degrade to not-registered stubs and the three tabs 404 again.
+# Per-file COPY (NEVER `COPY . .`).
+COPY szl_kc_episodic.py szl_kc_qec.py szl_kc_energy.py ./
+# WAVE K / DEV 5: killinchu frontier full-wire surface bootstrap (additive)
+COPY killinchu_frontier_wave_surfaces.py ./
+# P0 public discovery contracts: exact OpenAPI + source-attestation routes.
+COPY killinchu_public_route_repair.py ./
+# Unsigned structural source/deployment snapshot; claims remain fail-closed.
+COPY .well-known/szl-source.json ./.well-known/szl-source.json
+
+# ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
+# knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to
+# a11oy's knowledge.json. serve.py serves it at /knowledge.json so the /elite
+# console's loadKnowledge() renders LIVE panels instead of falling back to {}.
+# COPYed to BOTH the static root (the SPA catch-all serves /app/static/*) AND
+# /app root (the explicit serve.py route reads /app/knowledge.json) — mirrors
+# a11oy so the surfaces never drift from the kernel. Honesty v11 preserved.
+COPY knowledge.json ./static/knowledge.json
+
 # Copy serve orchestrator + real drone DB + real protocol decoders.
 # ADDITIVE (Unified Operator Shell v4, 2026-06-01, Yachay / Perplexity Computer Agent):
 # v4 endpoint module + self-contained desktop shell. Per-file COPY (no `COPY . .`).
-COPY operator_shell_v4.py ./operator_shell_v4.py
 COPY web/operator.html ./web/operator.html
-COPY serve.py ./serve.py
-COPY drones_db.json ./drones_db.json
-COPY killinchu_protocols.py ./killinchu_protocols.py
-COPY killinchu_expansion.py ./killinchu_expansion.py
-COPY killinchu_naval_haps.py ./killinchu_naval_haps.py
-COPY szl_dsse.py ./szl_dsse.py
-COPY szl_content_address.py ./szl_content_address.py
-COPY szl_safe_static.py ./szl_safe_static.py
-COPY szl_provenance.py ./szl_provenance.py
-COPY LEGAL_BOUNDARIES.md ./LEGAL_BOUNDARIES.md
+# GOVERNED AUTO-REVIEW (Integration I2) — mirror of the keystone autonomy layer
+# first shipped on a11oy. killinchu reuses the SAME portable classifier module
+# (a11oy_autoreview) registered with ns="killinchu"; verdicts are Lambda-gated,
+# DSSE-signed (szl_dsse / cosign.pub), mapped to OPA/Rego + OSCAL + NIST AI RMF
+# MANAGE, conformal-calibrated, with flapping detection. The SIMULATED engage/ROE
+# action is gated -> escalate (AR-005). szl_conformal.py + szl_calibration.py are
+# COPY'd here because killinchu did not previously vendor them. autoreview.html is
+# served at /autoreview (0 runtime CDN; uses the already-vendored Chart.js + the
+# in-image shared label/receipt engines). Per-file COPY (this Dockerfile never
+# uses `COPY . .`); parsed by the HF-sync workflow so the files reach the Space.
+COPY a11oy_autoreview.py szl_conformal.py szl_calibration.py ./
+COPY web/autoreview.html ./web/autoreview.html
+# OPERATOR WIDGET (2026-06-10): byte-identical to a11oy. Self-hosted in-image
+# (0 CDN), served at /vendor/a11oy-operator-widget.js by serve.py. NO codenames.
+COPY static-vendor/a11oy-operator-widget.js ./static-vendor/a11oy-operator-widget.js
+COPY static-vendor/a11oy-operator-widget.css ./static-vendor/a11oy-operator-widget.css
+# RESTRAINT (DEV-WIRE-K R3): the SHARED governed code-frugality ladder, BYTE-IDENTICAL
+# to a11oy's szl_restraint.py (same bytes, both hf-sync lists — drift guard enforced),
+# its /elite tile, the restraint nav wire-up (imported by serve.py for /elite/restraint
+# navigation), and the Chaski transport-level annotator (self-hosted, 0 CDN).
+COPY szl_restraint.py killinchu_restraint_tile.py killinchu_nav_wireup.py ./
+# QHAWAQ (FORMAL/LTL runtime constitutional intercept): the SHARED runtime monitor,
+# BYTE-IDENTICAL to a11oy. Imported by serve.py (try/except guarded); serves
+# /qhawaq + /api/killinchu/v1/qhawaq/*. Without this COPY the guarded import falls back
+# and /qhawaq 404s. The .py auto-mirrors to the HF Space via hf-sync-backend.yml.
+COPY szl_qhawaq.py ./szl_qhawaq.py
+# ADDITIVE (SAPA): Energy per Successful Goal — frontier agentic unit on top of
+# the live MEASURED joules/token path. szl_sapa.py is the shared accounting layer
+# (byte-identical a11oy<->killinchu); szl_sapa_patch.py front-inserts /sapa +
+# /api/<ns>/v1/sapa/* before the SPA catch-all + Node proxy. Per-file COPY (this
+# Dockerfile never uses `COPY . .`) or serve.py's guarded import falls back
+# (merged-but-not-live) and /sapa 404s to the SPA shell. Mirrored byte-identical
+# to the HF Space (hf-sync lockstep).
+COPY szl_sapa.py szl_sapa_patch.py ./
+# MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM — two shared modules, BYTE-IDENTICAL to
+# a11oy (same bytes, both hf-sync lists — shared-file drift guard enforced).
+# szl_mbse_cosim.py serves /api/killinchu/v1/mbse/* (governed water-tank + the
+# killinchu flagship 6DOF FMU twin — effectors SIMULATED, human-on-loop — Restraint
+# gate + signed DSSE receipts via the already-COPY'd szl_dsse). szl_mbse_nav.py
+# serves /mbse /mbse-6dof /mbse-pipeline (0-CDN holo + inline-SVG charts) + the
+# idempotent nav injector. MUST be COPY'd or serve.py's guarded imports fall back
+# and hf-sync-backend would not mirror them. Per-file COPY (no COPY . .).
+COPY szl_mbse_cosim.py szl_mbse_nav.py ./
+COPY static-vendor/killinchu-restraint-chaski.js ./static-vendor/killinchu-restraint-chaski.js
+# Evidence & Research backend (curated + live arXiv/GitHub). serve.py imports this;
+# without this per-file COPY the import fails and /api/killinchu/v1/evidence/research 404s.
+ARG EVIDENCE_FIX_BUST=1780922329
+# Operational Readiness backend (deployed-vs-repo reality, live/cached/unreachable).
+# serve.py imports this try/except-guarded; without this per-file COPY the import
+# fails and /api/killinchu/v1/readiness 404s (falls through to the SPA shell).
+ARG READINESS_FIX_BUST=1
+# Research & Sources backend (Task #662, research-sources-patch) — per-tab vetted
+# REAL upstream sources (UDS/Zarf/Pepr, supply-chain standards, threat/domain feeds,
+# Lean/proof refs, per-subject arXiv) with an honest live reachability probe. serve.py
+# imports this try/except-guarded; without this per-file COPY the import fails and
+# /api/killinchu/v1/research 404s (falls through to the SPA shell).
+ARG RESEARCH_SOURCES_BUST=1
+# Contracting Readiness backend (SAM/CAGE + SBIR/STTR eligibility, web-sourced,
+# honest verified/confirmed/needs_founder_input/needs_founder_action labels, source
+# liveness probes, 0 fabricated org values). serve.py imports this try/except-guarded;
+# without this per-file COPY the import fails and /api/killinchu/v1/contracting 404s.
+# Real persistent backend (Postgres-first, durable-SQLite fallback). serve.py imports
+# this try/except-guarded; without this per-file COPY the import fails and
+# /api/killinchu/{live,crawl/run,timeline,alerts/recent,watchlists} 404 to the SPA.
+ARG KILLINCHU_BACKEND_BUST=1
+# dev3 HF assets instill (Knowledge & Formulas / Evidence) — app-agnostic, server-side fetch, 0 CDN.
 
 
 # ADDITIVE (Yachay / Live 3D Wires, PURIQ Doctrine v12): COPY the live-wires
 # module + host page + scene core so `import szl_live_wires` resolves in-container.
 # Without these the register() call in the server silently fails and /live-wires
 # falls through to the SPA shell. ADDITIVE ONLY. Sign: Yachay.
-COPY szl_live_wires.py ./szl_live_wires.py
-COPY live_wires.html ./live_wires.html
-COPY live_wires_3d.js ./live_wires_3d.js
 
 # ADDITIVE (Wire I): Rosie-companion module baked into the image. Yachay.
-COPY szl_rosie_companion.py ./szl_rosie_companion.py
 # ADDITIVE (PQC/hybrid signing): bake the signing module so `import
 # killinchu_szl_pqc_sign` resolves in-container and register() wires the
 # /khipu/sign endpoints. ADDITIVE ONLY. Sign: Yachay.
-COPY killinchu_szl_pqc_sign.py ./killinchu_szl_pqc_sign.py
 # ADDITIVE (Sigstore Rekor public cross-verify, Yachay — from PR #13): bake the
 # Rekor client so `import szl_rekor` resolves in-container and serve.py wires
 # the UDS-facing /api/killinchu/uds/v1/rekor/* endpoints. stdlib-only (reuses the
 # existing cryptography install). ADDITIVE ONLY.
-COPY szl_rekor.py ./szl_rekor.py
-COPY serve.py ./serve.py
+# OSINT verticals (amaru/rosie): public-web search/scrape via Tavily, normalize
+# + sha256 provenance chain + corpus. serve.py imports this; without this
+# per-file COPY the import fails and the amaru/rosie endpoints 404.
 ENV PORT=7860
 # BE hardening (Greene) — per-file COPY (this Dockerfile uses per-file COPY).
-COPY szl_be_hardening.py ./szl_be_hardening.py
 
 EXPOSE 7860
 
 # ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay): real durable lmdb persistence
 # + optional sqlite-vss vector recall (szl_unay degrades to honest cosine-fallback if
 # the extension cannot load in the slim image). Never affects existing routes.
-RUN pip install --no-cache-dir "lmdb>=1.4.0" "sqlite-vss>=0.1.2"
+RUN pip install --no-cache-dir "lmdb==2.2.1" "sqlite-vss==0.1.2"
+# ADDITIVE (Mosaic SDA elevation, 2026-06-13): python-sgp4 (MIT) is the sovereign
+# orbital propagator for the space-domain ROADMAP conjunction stub. Guarded with
+# `|| true` so a wheel/build hiccup never breaks the image — killinchu_mosaic falls
+# back to an honest ROADMAP SKELETON when sgp4 is absent (no conjunction fabricated).
+RUN pip install --no-cache-dir "sgp4==2.25" || true
 # ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay / Perplexity Computer Agent):
 # explicit per-file COPY (this Dockerfile does not use `COPY . .`). serve.py imports
 # szl_unay_routes and calls .register(app, ns="killinchu") -> /api/killinchu/v2/unay/* +
 # /api/killinchu/v2/khipu/lmdb/*. Real durable lmdb + real sqlite-vss honest fallback.
-COPY szl_unay.py ./szl_unay.py
-COPY szl_khipu_lmdb.py ./szl_khipu_lmdb.py
-COPY szl_khipu_replicate.py ./szl_khipu_replicate.py
-COPY szl_unay_routes.py ./szl_unay_routes.py
 # ADDITIVE (Warhacker v2 genius pass, Yachay 2026-06-01): aliases + killinchu_genius.
 # Per-file COPY (no `COPY . .`) — without these the imports fail and routes 404.
-COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
-COPY killinchu_genius.py ./killinchu_genius.py
+# ADDITIVE (Killinchu maritime/drone Warhacker demo suite, 2026-06-06): 7 mode-aware
+# demos at /api/killinchu/v1/warhacker/launch/{key}. Per-file COPY (no `COPY . .`).
 # ADDITIVE (Killinchu v3 deep C-UAS, Yachay 2026-06-01): killinchu_v3 registers
 # /api/killinchu/v3/* (ingest pipelines + Kalman fusion + provenanced threat
 # scoring + honest effector catalogue + airspace + boids/ORCA swarm + replay +
 # daily brief) and the deep operational console at /globe/v3. Per-file COPY
 # (no `COPY . .`) — without it `import killinchu_v3` fails and v3 routes 404.
-COPY killinchu_v3.py ./killinchu_v3.py
 # ADDITIVE (Understudy-parity, Yachay 2026-06-01): the understudy moat-fabric layer
 # + its portable substrate (LLM router / agentic RAG / 23-formula registry). Explicit
 # per-file COPY (this Dockerfile never uses `COPY . .`); without these `import
 # szl_understudy` (and its substrate imports) fail and every /api/killinchu/v2/*
 # understudy route 404s. szl_brain/szl_rag/szl_formulas are VENDORED from the
 # platform monorepo (header in each file) until `pip install ./packages/*` lands.
-RUN pip install --no-cache-dir "huggingface_hub>=0.23" || true
-COPY szl_brain.py ./szl_brain.py
-COPY szl_rag.py ./szl_rag.py
-COPY szl_formulas.py ./szl_formulas.py
-COPY szl_understudy.py ./szl_understudy.py
+RUN pip install --no-cache-dir "huggingface_hub==1.20.0" || true
 # ADDITIVE (Defense Runtime Cookbook, 2026-06-01, Yachay / Perplexity Computer Agent):
 # the self-contained cookbook module. Explicit per-file COPY (this Dockerfile never uses
 # `COPY . .`); without it `import szl_killinchu_cookbook` fails and every /api/killinchu/
 # v2/cookbook* + /v2/missions* + /v2/scouts + /v2/uds/* + /v2/legal + /v2/specs/* +
 # /v2/pitch route 404s. The vendored data lives under static/cookbook/ (already COPY'd by
 # the `COPY static/ ./static/` line above). Recall receipts sign live via szl_dsse.
-COPY szl_killinchu_cookbook.py ./szl_killinchu_cookbook.py
 # ADDITIVE (UDS HARDENING, 2026-06-01, Yachay): real-data STIG/SCAP + Iron Bank +
 # Big Bang + Tradewinds endpoints under /api/killinchu/uds/v1/*, backed by the
 # committed .compliance/ artifacts (real OpenSCAP oscap output, Dockerfile audit,
 # helm lint inventory). Registered BEFORE killinchu_fusion so its synthetic stubs
 # defer to this real data. Per-file COPY (no `COPY . .`). Sign: Yachay.
-COPY szl_uds_hardening.py ./szl_uds_hardening.py
 # COPY .compliance/ ./.compliance/ — REPLACED with per-file copies that exclude
 # iron_bank_parity.json (CTO P1 REJECT B1 — Charter §24 NO Iron Bank in runtime).
 # iron_bank_parity.json stays in repo for reference; not baked into the served layer.
@@ -151,14 +397,11 @@ COPY .compliance/tradewinds_listing.json ./.compliance/tradewinds_listing.json
 COPY .compliance/sysctl-stig.conf ./.compliance/sysctl-stig.conf
 COPY .compliance/SECTION_889_REP.md ./.compliance/SECTION_889_REP.md
 COPY .compliance/SLSA_LEVEL.md ./.compliance/SLSA_LEVEL.md
-COPY killinchu_fusion.py ./killinchu_fusion.py
-COPY serve.py ./serve.py
 # ADDITIVE (V4 Fleet Panel, 2026-06-02, Dev2 Inti):
 # explicit per-file COPY (this Dockerfile does not use COPY . .).
 # serve.py registers /api/health + /api/killinchu/v4/fleet + /fleet (szl_v4_fleet).
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-COPY szl_v4_fleet.py ./szl_v4_fleet.py
 COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
 
 
@@ -169,7 +412,6 @@ COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
 # ADDITIVE ONLY — zero existing routes touched. Doctrine v11 LOCKED 749/14/163.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-COPY szl_ken.py ./szl_ken.py
 
 # ADDITIVE (Missing modules fix, 2026-06-04, Perplexity Computer Agent):
 # killinchu_frontier_patch.py: registers /api/killinchu/v1/{doctrine,health,adsb} at route 0.
@@ -178,11 +420,46 @@ COPY szl_ken.py ./szl_ken.py
 # All three are imported via try/except in serve.py — missing files cause silent warn, not crash.
 # Per-file COPY (this Dockerfile never uses `COPY . .`).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-COPY killinchu_frontier_patch.py ./killinchu_frontier_patch.py
-COPY killinchu_drone_routes.py ./killinchu_drone_routes.py
-COPY killinchu_parity.py ./killinchu_parity.py
-COPY serve.py ./serve.py
-COPY szl_khipu_consensus.py ./szl_khipu_consensus.py
+# killinchu_cannonico.py: lost-contact autonomous-drone governance loop (Warhacker
+# Cannonico bullseye). serve.py imports it via try/except after killinchu_parity;
+# without this COPY the /api/killinchu/v1/cannonico/* routes fall through to the SPA.
+# killinchu_elite_console.py: a11oy-elite 14-tab operator console. serve.py imports
+# it via try/except; per-file COPY (this Dockerfile never uses `COPY . .`).
+# ADDITIVE (sovereign/air-gap viz, no-CDN): base64 of the binary vendored assets
+# (globe earth-night texture + 20 KaTeX woff2 fonts) shipped as TEXT. The elite
+# console imports `_vendor_blobs` and serves them at /vendor/earth-night.jpg and
+# /vendor/fonts/*; without this COPY the import fails and those routes 404 (the
+# *.js/*.css libs come from `COPY static/ ./static/`). Per-file COPY (no `COPY . .`).
+# ADDITIVE (FLEET vessels/drones, GAP-1+GAP-2): per-file COPY of the FLEET (Vessels)
+# module + its embedded verbatim platform seed-data. serve.py imports
+# killinchu_fleet_vessels and front-inserts its 12 routes under /api/killinchu/v1/fleet/*
+# (vessels, forecast-modules, predictive-maintenance, compliance-certificates,
+# port-state-deficiencies, ai-briefings, event-logs, fleets, maintenance-logs,
+# shipment-records, all, voyage-risk); without these COPYs the import fails and every
+# fleet route falls through to the SPA catch-all (404). This Dockerfile never uses
+# `COPY . .` — every file is explicit. fleet_vessels_data.json carries all 10 datasets
+# embedded verbatim, so the 4 new endpoints need no new COPY line. Cache-bust: full-vessels-2026-06-06
+# Live data proxies (Digitraffic FI AIS + adsb.lol military) — per-file COPY.
+# Without this `import killinchu_live_feeds` fails and /ais/live + /air/live 404.
+# Bundled on-disk snapshots for the live-data layer (cached fallback). If any
+# upstream feed (Digitraffic AIS / adsb.lol / celestrak / rekor / kev / osv /
+# prometheus) is unreachable, get_feed() serves the in-image snapshot labelled
+# 'cached' — NEVER fabricated. KILLINCHU_LIVE_SNAPSHOTS defaults to /app/live_snapshots.
+COPY live_snapshots/ ./live_snapshots/
+# SZL Agent Body anatomy engine (YUYAY gate + YAWAR bus + organism pipeline) —
+# per-file COPY. Without this `import killinchu_anatomy` fails and the organism
+# pipeline endpoints 404.
+# killinchu_health_twin.py: flagship LIVE 3D vessel/drone HEALTH TWIN backend.
+# Computes per-subsystem health (hull/propulsion/comms/sensors/nav/payload) from
+# real-ish signals using OUR formulas: split-conformal band (W5-3/W7-4, NOT
+# Hoeffding), Λ geometric-mean trust aggregate (Conjecture 1), and the YUYAY
+# 13-axis conjunctive gate. Reuses live Digitraffic AIS via killinchu_live_feeds.
+# serve.py imports via try/except; without this COPY the /api/killinchu/v1/twin/*
+# routes fall through to the SPA catch-all.
+# killinchu_beyond.py: Beyond-Cannonico proof console — autonomy-governance
+# generalized beyond one drone (autonomy envelope · 3-of-4 swarm quorum · HOTL
+# override register). serve.py imports it via try/except; without this COPY the
+# /api/killinchu/v1/{autonomy,swarm,hotl}/* routes fall through to the SPA.
 
 # ADDITIVE (Formulas → Ecosystem echo, Opus 4.8, 2026-06-03): per-file COPY of the
 # shared formulas package + endpoint shim (this Dockerfile never uses `COPY . .`).
@@ -194,7 +471,6 @@ COPY szl_khipu_consensus.py ./szl_khipu_consensus.py
 COPY szl_shared_formulas/__init__.py ./szl_shared_formulas/__init__.py
 COPY szl_shared_formulas/welford.py ./szl_shared_formulas/welford.py
 COPY szl_shared_formulas/bloom_filter.py ./szl_shared_formulas/bloom_filter.py
-COPY killinchu_formula_endpoints.py ./killinchu_formula_endpoints.py
 
 # ADDITIVE (Killinchu Closeout, Opus 4.8, 2026-06-03): per-file COPY of the
 # REAL-EDGE surface — the three extra shared formulas (PAC-Bayes + Kalman +
@@ -211,8 +487,6 @@ COPY killinchu_formula_endpoints.py ./killinchu_formula_endpoints.py
 COPY szl_shared_formulas/pac_bayes.py ./szl_shared_formulas/pac_bayes.py
 COPY szl_shared_formulas/kalman.py ./szl_shared_formulas/kalman.py
 COPY szl_shared_formulas/byzantine_quorum.py ./szl_shared_formulas/byzantine_quorum.py
-COPY killinchu_edge_formulas.py ./killinchu_edge_formulas.py
-COPY killinchu_edge_console.py ./killinchu_edge_console.py
 COPY src/killinchu/__init__.py ./src/killinchu/__init__.py
 COPY src/killinchu/lambda_calc.py ./src/killinchu/lambda_calc.py
 COPY src/killinchu/dsse.py ./src/killinchu/dsse.py
@@ -222,14 +496,223 @@ COPY src/killinchu/simulator.py ./src/killinchu/simulator.py
 COPY web/console.html ./web/console.html
 COPY web/console.js ./web/console.js
 
-# ADDITIVE (route-wiring squad, Opus 4.8, 2026-06-05): per-file COPY of the two
-# console modules serve.py registers BEFORE the SPA catch-all. This Dockerfile
-# NEVER uses `COPY . .` — without these explicit COPYs `import killinchu_elite_console`
-# and `import killinchu_beyond` fail and /elite + /beyond fall through to the SPA
-# shell (404 on the API tabs). Both modules are self-contained (fastapi + stdlib);
-# beyond.py optionally uses szl_dsse + szl_khipu_consensus (already COPY'd above).
+# ADDITIVE (Governed Agent Loop, 2026-06-06): the operational RAG -> tool-call ->
+# policy/trust gate -> signed-receipt loop + canonical live MCP + consumer UI.
+# This Dockerfile NEVER uses `COPY . .` — every file is explicit. Without this
+# line `import szl_agentic_loop` fails silently and /mcp/, /ask-and-act 404.
+# Receipts are signed with the persistent cosign ECDSA-P256-SHA256 key (szl_dsse).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-COPY killinchu_elite_console.py ./killinchu_elite_console.py
-COPY killinchu_beyond.py ./killinchu_beyond.py
+# szl_anatomy_routes: backs the canonical formula MCP tools (list_formulas/run_formula/
+# formula_proof_status) in szl_agentic_loop; byte-identical with a11oy. Deps: szl_formulas only.
+
+# Formula-wiring module (ADDITIVE 2026-06-06): registers the kernel-verified theorem
+# mechanisms as live executable checks + the /api/<ns>/v1/formulas/* endpoints
+# (selftest, proof-summary). BYTE-IDENTICAL across a11oy + killinchu (single source of
+# truth). This Dockerfile NEVER uses `COPY . .` -- without this line
+# `import szl_formula_wiring` fails silently and the formula endpoints 404.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# a11oy Code engine (PORTED 2026-06-06): governed coder (chat/code/research),
+# C20/W7-5 router, W5-3/W7-4 conformal, real sandbox, per-run-GENESIS receipts.
+# Imports szl_llm_registry (COPY'd below) for the OPEN-WEIGHT roster.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+
+# ADDITIVE (Operational Control Surfaces, 2026-06-06): makes VESSELS and DRONES
+# genuinely operational — select a track -> issue a governed command -> deny-by-
+# default policy/kernel gate -> genuinely cosign-signed receipt -> track STATE
+# updates. Every control action is wrapped in the governed-run loop (P1-P6) so
+# 'operate' = 'governed + receipted'. Self-contained operator UI at /ops + /control.
+# This Dockerfile NEVER uses `COPY . .` — every file is explicit. Without this line
+# `import killinchu_ops_control` fails silently and /ops + /api/killinchu/v1/ops/* 404.
+# Receipts are signed with the persistent cosign ECDSA-P256-SHA256 key (szl_dsse).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+
+# ---------------------------------------------------------------------------
+# OPEN-WEIGHT ALLOY MODEL LAYER (model-integration squad, 2026-06-06; PORTED from a11oy)
+# Same open-weight alloy forged into a11oy, ported to killinchu. Per-file COPY
+# (this Dockerfile NEVER uses `COPY . .`). Without these, `import szl_alloy_models`
+# fails silently and /api/killinchu/v1/alloy/* 404.
+#   * szl_alloy_models.py : roster + C20/W7-5 router + W5-3/W7-4 conformal +
+#     C10-C12 consensus + governed suggest (honest tower-side label; output never faked).
+#   * szl_llm_registry.py : the LLM registry the alloy roster UNIFIES into (one roster).
+# OPEN-WEIGHT only, NO closed weights, NO keys; weights NOT redistributed.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ADDITIVE (a11oy Code agentic core, 2026-06-10): the GENUINELY-agentic loop + agentic
+# RAG + MCP client are SHARED canonical modules forged in a11oy and shipped BYTE-IDENTICAL
+# into killinchu for drift-free parity. killinchu does NOT host a11oy_code_orchestrator.py
+# (a11oy-specific), so nothing here imports them at boot, but they MUST be present and
+# byte-identical with a11oy. All three are stdlib-only at import time (szl_brain/szl_rag/
+# httpx/faiss are lazy + guarded). szl_rag.py is already COPY'd above (line ~189). Per-file
+# COPY (this Dockerfile never uses `COPY . .`).
+# EGRESS FIX (2026-06-10): the org-RAG full build runs INSIDE this HF Space,
+# which can reach huggingface.co but NOT api.github.com (Space egress is
+# GitHub-blocked). Bundle the REAL highest-value files of the four GitHub-only
+# corpus categories (thesis/formulas/doctrine/lean) in-image so a11oy_org_rag.py
+# ingests them when GitHub is unreachable. corpus/INDEX.json records each file's
+# real origin repo+path+blob_sha+commit_sha; chunks cite bundled:<repo>@<sha>:<path>
+# (real files, honest provenance, NOT fabricated). BYTE-IDENTICAL across a11oy &
+# killinchu. Per-file/dir COPY (this Dockerfile does not use COPY . .).
+COPY corpus/ ./corpus/
+# ADDITIVE (MINED ops upgrades, 2026-06-07): four license-vetted operational/efficiency
+# surfaces (pattern-mined clean-room WITH NOTICE: al-jshen/compute MIT, gpu-bartender MIT,
+# MLRC-deep-thinking MIT, kvpress Apache-2.0). serve.py imports killinchu_mined_ops via
+# try/except and register()s POST /api/killinchu/v1/mined/{scicompute,edge-estimator,
+# swarm-resilience,telemetry-press} + GET .../index. Per-file COPY (this Dockerfile NEVER
+# uses `COPY . .`); without it `import killinchu_mined_ops` fails and every mined route 404s.
+# Pure-stdlib, additive; Lambda stays Conjecture 1; no fabricated data.
+
+# ADDITIVE (RE-SWEEP wave-2 ops, 2026-06-07): three license-vetted operational surfaces
+# (pattern-mined clean-room WITH NOTICE: anvaka/ngraph.path MIT, rowanwins/visibility-graph
+# MIT, ft2023/IRanker-demo MIT, al-jshen/adaptive MIT). serve.py imports killinchu_resweep_ops
+# via try/except and register()s POST /api/killinchu/v1/resweep/{route,threat-rank,
+# adaptive-sample} + GET .../index. Per-file COPY (this Dockerfile NEVER uses `COPY . .`);
+# without it `import killinchu_resweep_ops` fails and every resweep route 404s.
+# Pure-stdlib, additive; Lambda stays Conjecture 1; no fabricated data.
+
+# ADDITIVE (Wave9 + Wave10 EXPERIMENTAL theorems, 2026-06-08): six killinchu-targeted
+# theorem families PROVEN on lutar-lean main (Wave9 PR #199 merged @ 66735bf; Wave10
+# PR #200) as EXPERIMENTAL · CI-green — kernel-verified, NOT locked. serve.py imports
+# killinchu_wave910 via try/except and register()s POST /api/killinchu/v1/wave910/
+# {stl-robustness,covariance-intersection,gershgorin,mesh-resilience,audit-receipts,
+# quorum-consensus} + GET .../index + .../selftest. Per-file COPY (this Dockerfile NEVER
+# uses `COPY . .`); without it `import killinchu_wave910` fails and every wave910 route 404s.
+# Pure-stdlib, additive; locked-proven stays EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1.
+
+# ADDITIVE (DEV-WIRE-K R1, Opus 4.8, 2026-06-09): Posture & Drift + Topology &
+# Health + Attack-Surface + Zero-Trust surfaces. serve.py imports
+# killinchu_posture_topology via try/except and front-inserts GET
+# /api/killinchu/v1/{posture/drift,topology/health,attack-surface/graph,
+# zerotrust/mesh}. This Dockerfile NEVER uses `COPY . .` — every file is explicit;
+# WITHOUT this line `import killinchu_posture_topology` fails (ModuleNotFoundError)
+# and all four routes 404. Real PSI+KS(scipy.stats.ks_2samp)+vendored-ADWIN drift
+# on live ADS-B; real graph metrics (Fiedler λ2 etc.) via networkx/numpy fallback;
+# Attack-Surface + Zero-Trust mesh from REAL deploy/uds-package.yaml. NO fabricated
+# data; honest empty states; organ role names (Operator/Provenance Anchor/Policy);
+# locked-proven stays EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1.
+# ADDITIVE (DEV-WIRE-K R1): the REAL UDS Package CR consumed by the Attack-Surface
+# and Zero-Trust mesh endpoints (killinchu_posture_topology._load_uds_package reads
+# /app/deploy/uds-package.yaml). This Dockerfile NEVER uses `COPY . .`; WITHOUT this
+# line the file is absent in-image and both tabs honestly render the empty state
+# instead of the real allow/expose graph. Real allow rules only — no invented CVEs.
+COPY deploy/uds-package.yaml ./deploy/uds-package.yaml
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (SZL Enterprise Connector Framework, 2026-06-10, founder directive):
+# per-file COPY of the connector framework (this Dockerfile NEVER uses `COPY . .`).
+# serve.py imports szl_connectors_serve (try/except); without these COPYs the import
+# fails and /api/killinchu/connectors + /integrations 404. Shared byte-identical w/ a11oy.
+# Cache-bust: szl-connectors-2026-06-10
+COPY szl_connectors/__init__.py ./szl_connectors/__init__.py
+COPY szl_connectors/base.py ./szl_connectors/base.py
+COPY szl_connectors/bindings.py ./szl_connectors/bindings.py
+COPY szl_connectors/comms/__init__.py ./szl_connectors/comms/__init__.py
+COPY szl_connectors/comms/comms_connectors.py ./szl_connectors/comms/comms_connectors.py
+COPY szl_connectors/crm/__init__.py ./szl_connectors/crm/__init__.py
+COPY szl_connectors/crm/crm_connectors.py ./szl_connectors/crm/crm_connectors.py
+COPY szl_connectors/data_sources/__init__.py ./szl_connectors/data_sources/__init__.py
+COPY szl_connectors/data_sources/geo.py ./szl_connectors/data_sources/geo.py
+COPY szl_connectors/data_sources/macro.py ./szl_connectors/data_sources/macro.py
+COPY szl_connectors/data_sources/maritime_air.py ./szl_connectors/data_sources/maritime_air.py
+COPY szl_connectors/data_sources/research.py ./szl_connectors/data_sources/research.py
+COPY szl_connectors/data_sources/security.py ./szl_connectors/data_sources/security.py
+# NOAA/MarineCadastre AIS Aug-2024 coastal-US connector — imported transitively
+# by killinchu_ais_aug2024.py (GET /api/killinchu/v1/ais/*). Without this per-file
+# COPY the connector import fails on the Space -> /ais/sources 500. (prr fix)
+COPY szl_connectors/data_sources/ais_noaa_aug2024.py ./szl_connectors/data_sources/ais_noaa_aug2024.py
+COPY szl_connectors/erp/__init__.py ./szl_connectors/erp/__init__.py
+COPY szl_connectors/erp/erpnext.py ./szl_connectors/erp/erpnext.py
+COPY szl_connectors/erp/odoo.py ./szl_connectors/erp/odoo.py
+COPY szl_connectors/erp/others.py ./szl_connectors/erp/others.py
+COPY szl_connectors/erp/sap_s4.py ./szl_connectors/erp/sap_s4.py
+COPY szl_connectors/governance.py ./szl_connectors/governance.py
+COPY szl_connectors/identity/__init__.py ./szl_connectors/identity/__init__.py
+COPY szl_connectors/identity/identity_connectors.py ./szl_connectors/identity/identity_connectors.py
+COPY szl_connectors/itsm/__init__.py ./szl_connectors/itsm/__init__.py
+COPY szl_connectors/itsm/itsm_connectors.py ./szl_connectors/itsm/itsm_connectors.py
+COPY szl_connectors/oauth.py ./szl_connectors/oauth.py
+COPY szl_connectors/observability/__init__.py ./szl_connectors/observability/__init__.py
+COPY szl_connectors/observability/observability_connectors.py ./szl_connectors/observability/observability_connectors.py
+COPY szl_connectors/ready.py ./szl_connectors/ready.py
+COPY szl_connectors/registry.py ./szl_connectors/registry.py
+COPY szl_connectors/storage/__init__.py ./szl_connectors/storage/__init__.py
+COPY szl_connectors/storage/storage_connectors.py ./szl_connectors/storage/storage_connectors.py
+COPY szl_connectors/warehouse/__init__.py ./szl_connectors/warehouse/__init__.py
+COPY szl_connectors/warehouse/warehouse_connectors.py ./szl_connectors/warehouse/warehouse_connectors.py
+COPY pages/integrations.html ./pages/integrations.html
+
+# ADDITIVE (Task: HF Dataset Bucket Foundation): the ONE shared Hugging Face
+# 'bucket' client both flagships reuse. Durable, append-only, idempotent
+# (content-addressed dedup), offline-tolerant local queue + flush, rate-aware
+# batched Hub commits. Pure stdlib + huggingface_hub (lazy). BYTE-IDENTICAL
+# across a11oy + killinchu (shared-file-drift enforces it via this COPY list).
+# This Dockerfile never uses `COPY . .` — without this line `import
+# szl_hf_bucket` fails. Imported lazily by callers; no boot-time side effects.
+COPY szl_hf_bucket.py szl_metrics_prom.py ./
+
+# ADDITIVE (Task MW5: 3D HOLOGRAPHIC MARITIME GLOBE): self-contained WebGL2
+# holographic globe view for the /elite surface (+ /jackin/globe alias). Plots
+# REAL vessel + aircraft tracks at true lat/lon with motion plus honestly-
+# labelled dark-halo / spoof-arc / Λ-risk / forecast-cone intel layers
+# (INFERENCE/FORECAST today; auto-upgrades to backend LIVE when the W2/W3
+# maritime endpoints are reachable + advertised). 0 runtime CDN — the entire
+# engine + landmask + styles are vendored inline as base64-embedded HTML. This
+# Dockerfile never uses `COPY . .`; without this line `import
+# killinchu_maritime_globe` in serve.py fails (registration is guarded, so the
+# app still boots, but the globe route would be absent). Imported once at boot;
+# no network side effects.
+COPY killinchu_maritime_globe.py ./
+# copy-sync lockstep guard (CHECK 2): these modules are on main + imported by serve.py
+# (try/except-guarded) but were NEVER COPY'd into the image, so the import silently fell
+# back to a STUB on the Space (the recurring "merged-but-not-live" failure).
+# killinchu_elite_wiring wires the /elite console; killinchu_flow_compartments backs the
+# flow-compartments surface. Per-file COPY (this Dockerfile never uses `COPY . .`).
+COPY killinchu_elite_wiring.py killinchu_flow_compartments.py ./
+# CoT INTEROP (MITRE Cursor on Target export/ingest): serve.py imports
+# killinchu_cot_interop (try/except-guarded) to serve /api/killinchu/v1/cot/*.
+# Per-file COPY (this Dockerfile never uses `COPY . .`) or the guarded import
+# falls back to a STUB on the Space (merged-but-not-live). Mirrored to the HF
+# Space via hf-sync (on.push.paths + APP_FILES — copy-sync lockstep enforced).
+COPY killinchu_cot_interop.py ./
+# AIS Aug 2024 dataset connector: serve.py imports killinchu_ais_aug2024
+# (try/except-guarded) to register the NOAA coastal-US AIS Aug 2024 governed
+# source. Per-file COPY (this Dockerfile never uses `COPY . .`) or the guarded
+# import falls back to a STUB on the Space (merged-but-not-live). Mirrored to
+# the HF Space via hf-sync (on.push.paths + APP_FILES — copy-sync lockstep).
+COPY killinchu_ais_aug2024.py ./
+
+
+# --- ESTATE ECOSYSTEM FOUNDATION (Dev5, 2026-06): byte-identical shared modules ---
+# 3 shared JS (label engine / receipt-cosign / codename sanitizer) + codename gate + ecosystem router.
+COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js ./static/shared/
+COPY szl_codename_gate.py szl_ecosystem_routes.py ./
+
+# git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
+# at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
+# time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
+# the SZL_GIT_SHA variable). Kept last so a per-build value busts no earlier cache.
+ARG SZL_GIT_SHA=unknown
+ARG SZL_BUILD_TIME=unknown
+ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
+    SZL_BUILD_TIME=${SZL_BUILD_TIME}
+
+# Container HEALTHCHECK for the standalone Docker path (DEPLOY.md §1, `docker run`).
+# The k8s manifests already wire liveness/readiness probes; this gives the same
+# signal to plain Docker / Compose / Watchtower so an unhealthy container is
+# self-reporting instead of looking "up" while the app is wedged. Hits the real
+# doctrine envelope endpoint (returns 200 JSON); stdlib-only, no curl dependency.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7860/api/killinchu/healthz', timeout=4).status==200 else 1)" || exit 1
 
 CMD ["python", "serve.py"]
+
+
+# Build cache-bust 2026-06-13T20:55Z (MW5 maritime globe): COPY killinchu_maritime_globe.py
+# into /app so serve.py can import+register the holographic globe at /elite/globe.
+
+# Build cache-bust 2026-06-06T09:10Z (model-integration squad): PORTED OPEN-WEIGHT ALLOY
+# MODEL LAYER from a11oy -> COPY szl_alloy_models.py + szl_llm_registry.py; serve.py
+# registers alloy under /api/killinchu/v1/alloy/* (C20/W7-5 router, W5-3/W7-4 conformal,
+# C10-C12 consensus; DeepSeek-Coder-V2 CODE_PRIMARY; honest tower-side; never faked).
+
+# Build cache-bust 2026-06-07T05:00Z (MINED ops squad): COPY killinchu_mined_ops.py
+# into /app so serve.py can import+register the 4 mined operational/efficiency surfaces.
