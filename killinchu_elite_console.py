@@ -8774,23 +8774,41 @@ window.intel_idempotency_key=function(method,path){
   return ('elite:'+operation+':'+nonce)
     .replace(/[^A-Za-z0-9._:-]/g,'-').slice(0,128);
 };
+window.__intel_pending_mutation_keys=Object.create(null);
+window.intel_logical_action_key=function(logicalAction,method,path){
+  logicalAction=String(logicalAction||'').trim();
+  if(!logicalAction) throw new Error('a logical action id is required for operator writes');
+  var remembered=window.__intel_pending_mutation_keys[logicalAction];
+  if(remembered) return remembered;
+  var created=window.intel_idempotency_key(method,path);
+  window.__intel_pending_mutation_keys[logicalAction]=created;
+  return created;
+};
 window.intel_fetch=async function(path,opts){
   opts=opts||{};
   var method=String(opts.method||'GET').toUpperCase();
+  var logicalAction=String(opts.logicalAction||'').trim();
   var headers=new Headers(opts.headers||{});
   if(method!=='GET'&&method!=='HEAD'&&method!=='OPTIONS'){
     var token=window.intel_operator_token()||window.intel_operator_authorize(false);
     if(!token) throw new Error('operator authorization is required for this action');
     headers.set('Authorization','Bearer '+token);
     if(!headers.has('Idempotency-Key')){
-      headers.set('Idempotency-Key',window.intel_idempotency_key(method,path));
+      headers.set(
+        'Idempotency-Key',
+        window.intel_logical_action_key(logicalAction,method,path)
+      );
     }
   }
   var requestOpts=Object.assign({},opts,{method:method,headers:headers});
+  delete requestOpts.logicalAction;
   var r=await fetch('/api/'+window.__intel_ns+path,requestOpts);
   var text=await r.text(),d={};
   try{ d=text?JSON.parse(text):{}; }catch(_e){ d={error:text||('HTTP '+r.status)}; }
   d.__http=r.status;
+  if(logicalAction&&(r.ok||r.status<500)){
+    delete window.__intel_pending_mutation_keys[logicalAction];
+  }
   if(r.status===401) window.intel_operator_clear(false);
   if(!r.ok) throw new Error((d&&d.error)||('HTTP '+r.status));
   return d;
@@ -8798,7 +8816,7 @@ window.intel_fetch=async function(path,opts){
 window.intel_run=async function(kind,btn){
   var old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='⟳ '+(kind==='live'?'loading live…':'crawling…'); }
   try{
-    await window.intel_fetch('/'+(kind==='live'?'live':'crawl/run'),{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    await window.intel_fetch('/'+(kind==='live'?'live':'crawl/run'),{method:'POST',logicalAction:'intel:'+kind,headers:{'Content-Type':'application/json'},body:'{}'});
     await window.intel_render(document.getElementById('intel-root'));
   }catch(e){ alert('failed: '+((e&&e.message)||e)); }
   finally{ if(btn){ btn.disabled=false; btn.textContent=old; } }
@@ -8811,13 +8829,13 @@ window.intel_wl_create=async function(){
   if(!name.trim()){ alert('name is required'); return; }
   var body={name:name.trim(),enabled:true,triggers:[]};
   if(field.trim()&&thr.trim()!=='') body.triggers.push({field:field.trim(),op:op,threshold:thr});
-  try{ await window.intel_fetch('/watchlists',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  try{ await window.intel_fetch('/watchlists',{method:'POST',logicalAction:'watchlist:create',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     await window.intel_render(document.getElementById('intel-root')); }
   catch(e){ alert('create failed: '+((e&&e.message)||e)); }
 };
 window.intel_wl_delete=async function(id){
   if(!confirm('Delete watchlist #'+id+'?')) return;
-  try{ await window.intel_fetch('/watchlists/'+id,{method:'DELETE'}); await window.intel_render(document.getElementById('intel-root')); }
+  try{ await window.intel_fetch('/watchlists/'+id,{method:'DELETE',logicalAction:'watchlist:delete:'+id}); await window.intel_render(document.getElementById('intel-root')); }
   catch(e){ alert('delete failed: '+((e&&e.message)||e)); }
 };
 window.intel_render=async function(c){

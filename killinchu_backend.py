@@ -908,6 +908,12 @@ def _fetch_mil_adsb(timeout: float = 12.0) -> Tuple[Optional[dict], int, Optiona
         return None, 0, repr(e)
 
 
+def _fetch_crawl_input() -> Tuple[Optional[dict], int, Optional[str], str]:
+    """Fetch upstream data without holding the durable store transaction."""
+    payload, http_status, err = _fetch_mil_adsb()
+    return payload, http_status, err, _now_iso()
+
+
 def _derive_facts(payload: dict) -> List[Tuple[str, str, str]]:
     """(kind, label, value) facts derived from a real ADS-B snapshot."""
     ac = payload.get("ac") or payload.get("aircraft") or []
@@ -934,6 +940,8 @@ def run_crawl(
     mode: str = "crawl",
     *,
     ntfy_actions: Optional[List[Dict[str, Any]]] = None,
+    fetched: Optional[Tuple[Optional[dict], int, Optional[str], str]] = None,
+    transaction_open: bool = False,
 ) -> Dict[str, Any]:
     """Fetch the real feed, persist snapshot/facts/events, evaluate watchlists.
 
@@ -944,8 +952,21 @@ def run_crawl(
     if not st.ok():
         return _envelope("degraded", {"error": "no durable backend", "events_created": 0}, _adsb_citation())
 
-    payload, http_status, err = _fetch_mil_adsb()
-    fetched_at = _now_iso()
+    crawl_input = fetched if fetched is not None else _fetch_crawl_input()
+    if transaction_open:
+        return _persist_crawl(st, mode, crawl_input, ntfy_actions)
+    with st.transaction():
+        return _persist_crawl(st, mode, crawl_input, ntfy_actions)
+
+
+def _persist_crawl(
+    st: "_Store",
+    mode: str,
+    fetched: Tuple[Optional[dict], int, Optional[str], str],
+    ntfy_actions: Optional[List[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    """Persist one completed fetch. The caller must own the store transaction."""
+    payload, http_status, err, fetched_at = fetched
 
     if payload is None:
         # Upstream down — record an HONEST degraded event so the timeline reflects
@@ -1271,11 +1292,14 @@ def run_crawl_guarded(mode: str = "auto") -> Optional[Dict[str, Any]]:
         st = _store()
         if not st.ok():
             return run_crawl(mode=mode, ntfy_actions=[])
+        fetched = _fetch_crawl_input()
         ntfy_actions: List[Dict[str, Any]] = []
         with st.transaction():
             result = run_crawl(
                 mode=mode,
                 ntfy_actions=ntfy_actions,
+                fetched=fetched,
+                transaction_open=True,
             )
         _deliver_ntfy_actions(ntfy_actions)
         return result
@@ -1694,6 +1718,14 @@ def register(
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, _adsb_citation()), status_code=200)
+        if _sched_state["circuit_open"]:
+            return JSONResponse(_envelope("failed", {
+                "health": "failed",
+                "error": _sched_state["last_error"],
+                "failure_class": _sched_state["failure_class"],
+                "circuit_open": True,
+                "operator_action": _sched_state["operator_action"],
+            }, _adsb_citation()), status_code=503)
         context, replay = _claim_mutation(
             operation="live.refresh",
             actor_id=actor_id,
@@ -1702,17 +1734,6 @@ def register(
         )
         if replay is not None:
             return replay
-        if _sched_state["circuit_open"]:
-            result = _envelope("failed", {
-                "health": "failed",
-                "error": _sched_state["last_error"],
-                "failure_class": _sched_state["failure_class"],
-                "circuit_open": True,
-                "operator_action": _sched_state["operator_action"],
-            }, _adsb_citation())
-            with s.transaction():
-                _stage_mutation(context, result, status_code=503)
-            return _reconcile_mutation(key_hash, replayed=False)
         rows = s.query("SELECT id, fetched_at, record_count FROM snapshots ORDER BY id DESC LIMIT 1")
         if rows:
             try:
@@ -1738,10 +1759,13 @@ def register(
         def _refresh_and_stage() -> "JSONResponse":
             ntfy_actions: List[Dict[str, Any]] = []
             try:
+                fetched = _fetch_crawl_input()
                 with s.transaction():
                     result = run_crawl(
                         mode="live",
                         ntfy_actions=ntfy_actions,
+                        fetched=fetched,
+                        transaction_open=True,
                     )
                     _stage_mutation(context, result)
             except Exception:
@@ -1758,6 +1782,14 @@ def register(
         actor_id, key_hash, gate_error = _operator_gate(request)
         if gate_error is not None:
             return gate_error
+        if _sched_state["circuit_open"]:
+            return JSONResponse(_envelope("failed", {
+                "health": "failed",
+                "error": _sched_state["last_error"],
+                "failure_class": _sched_state["failure_class"],
+                "circuit_open": True,
+                "operator_action": _sched_state["operator_action"],
+            }, _adsb_citation()), status_code=503)
         context, replay = _claim_mutation(
             operation="crawl.run",
             actor_id=actor_id,
@@ -1766,28 +1798,27 @@ def register(
         )
         if replay is not None:
             return replay
-        if _sched_state["circuit_open"]:
-            st.fail_operator_mutation(key_hash=key_hash)
-            return JSONResponse(_envelope("failed", {
-                "health": "failed",
-                "error": _sched_state["last_error"],
-                "failure_class": _sched_state["failure_class"],
-                "circuit_open": True,
-                "operator_action": _sched_state["operator_action"],
-            }, _adsb_citation()), status_code=503)
-        ntfy_actions: List[Dict[str, Any]] = []
-        try:
-            with st.transaction():
-                result = run_crawl(
-                    mode="crawl",
-                    ntfy_actions=ntfy_actions,
-                )
-                _stage_mutation(context, result)
-        except Exception:
-            st.fail_operator_mutation(key_hash=key_hash)
-            raise
-        _deliver_ntfy_actions(ntfy_actions)
-        return _reconcile_mutation(key_hash, replayed=False)
+        import asyncio
+
+        def _crawl_and_stage() -> "JSONResponse":
+            ntfy_actions: List[Dict[str, Any]] = []
+            try:
+                fetched = _fetch_crawl_input()
+                with st.transaction():
+                    result = run_crawl(
+                        mode="crawl",
+                        ntfy_actions=ntfy_actions,
+                        fetched=fetched,
+                        transaction_open=True,
+                    )
+                    _stage_mutation(context, result)
+            except Exception:
+                st.fail_operator_mutation(key_hash=key_hash)
+                raise
+            _deliver_ntfy_actions(ntfy_actions)
+            return _reconcile_mutation(key_hash, replayed=False)
+
+        return await asyncio.to_thread(_crawl_and_stage)
 
     # -- crawl/status (auto-crawl scheduler health) ------------------------
     async def crawl_status(request: Request) -> JSONResponse:
