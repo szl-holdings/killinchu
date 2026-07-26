@@ -1,4 +1,4 @@
-"""Focused contract tests for Killinchu's P0 public discovery routes."""
+"""Focused contract tests for Killinchu's P0 public runtime routes."""
 
 from __future__ import annotations
 
@@ -109,6 +109,136 @@ class PublicRouteRepairTests(unittest.TestCase):
             )
             self.assertLess(app.router.routes.index(source_route), app.router.routes.index(catchall_route))
 
+    def test_build_info_uses_strict_captured_source_sha_without_environment_leak(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sha = "A" * 40
+            with patch.dict(
+                os.environ,
+                {
+                    "SZL_GIT_SHA": sha,
+                    "SECRET_TOKEN": "must-not-appear",
+                },
+            ):
+                app = self._app(Path(tmp) / "source.json")
+                os.environ["SZL_GIT_SHA"] = "b" * 40
+                client = TestClient(app)
+
+                response = client.get("/api/build-info")
+                head = client.head("/api/build-info")
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["status"], "OBSERVED")
+            self.assertEqual(response.json()["service"], "killinchu")
+            self.assertEqual(response.json()["build"]["state"], "OBSERVED")
+            self.assertEqual(response.json()["build"]["revision"], sha.lower())
+            self.assertEqual(
+                response.json()["build"]["revision_source"],
+                "env:SZL_GIT_SHA",
+            )
+            self.assertIs(response.json()["receipt_minted"], False)
+            self.assertNotIn("must-not-appear", response.text)
+            self.assertNotIn("SECRET_TOKEN", response.text)
+            self.assertEqual(response.headers["cache-control"], "no-store")
+            self.assertEqual(response.headers["x-content-type-options"], "nosniff")
+            self.assertEqual(head.status_code, response.status_code)
+            self.assertEqual(head.content, b"")
+            self.assertEqual(head.headers["content-length"], response.headers["content-length"])
+
+            build_route = next(
+                route
+                for route in app.router.routes
+                if getattr(route, "name", None) == "killinchu_p0_build_info"
+            )
+            catchall_route = next(
+                route
+                for route in app.router.routes
+                if getattr(route, "path", None) == "/{full_path:path}"
+            )
+            self.assertLess(app.router.routes.index(build_route), app.router.routes.index(catchall_route))
+
+    def test_build_info_rejects_non_sha_values_without_reflection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            for invalid in (
+                "a" * 39,
+                "a" * 41,
+                "a" * 64,
+                "g" * 40,
+                "not-a-sha SECRET_VALUE",
+                " " + ("a" * 40),
+                ("a" * 40) + "\t",
+            ):
+                with self.subTest(invalid=invalid), patch.dict(
+                    os.environ, {"SZL_GIT_SHA": invalid}
+                ):
+                    response = TestClient(self._app(Path(tmp) / "source.json")).get(
+                        "/api/build-info"
+                    )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["status"], "UNKNOWN")
+                self.assertEqual(response.json()["build"]["state"], "UNKNOWN")
+                self.assertIsNone(response.json()["build"]["revision"])
+                self.assertEqual(response.json()["build"]["revision_source"], "UNKNOWN")
+                self.assertNotIn(invalid, response.text)
+                self.assertNotIn("SECRET_VALUE", response.text)
+
+    def test_code_and_chat_explicitly_redirect_before_spa_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            app = self._app(Path(tmp) / "source.json")
+            client = TestClient(app)
+            catchall_route = next(
+                route
+                for route in app.router.routes
+                if getattr(route, "path", None) == "/{full_path:path}"
+            )
+
+            for path, route_name in (
+                ("/code", "killinchu_p0_code_entry"),
+                ("/chat", "killinchu_p0_chat_entry"),
+            ):
+                response = client.get(path, follow_redirects=False)
+                head = client.head(path, follow_redirects=False)
+
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.headers["location"], "/console")
+                self.assertEqual(response.headers["cache-control"], "no-store")
+                self.assertEqual(response.headers["x-content-type-options"], "nosniff")
+                self.assertEqual(response.content, b"")
+                self.assertEqual(head.status_code, response.status_code)
+                self.assertEqual(head.headers["location"], response.headers["location"])
+                self.assertEqual(head.content, b"")
+
+                route = next(
+                    route
+                    for route in app.router.routes
+                    if getattr(route, "name", None) == route_name
+                )
+                self.assertLess(app.router.routes.index(route), app.router.routes.index(catchall_route))
+
+    def test_hf_sync_binds_exact_revision_and_probes_runtime_identity(self) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        workflow = (repository_root / ".github" / "workflows" / "hf-sync.yml").read_text(
+            encoding="utf-8"
+        )
+
+        for contract in (
+            "reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8",
+            "hf-repo: SZLHOLDINGS/killinchu",
+            "ref: ${{ github.sha }}",
+            "dockerfile-path: Dockerfile",
+            "include-readme: true",
+            "prune: true",
+            "source-revision-variable: SZL_GIT_SHA",
+            "source-revision-probe-path: /api/build-info",
+            '"/api/killinchu/healthz"',
+            '"/api/build-info"',
+            '"/console"',
+            '"/api/killinchu/v1/code/capabilities"',
+            "HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}",
+        ):
+            self.assertIn(contract, workflow)
+        self.assertNotIn("secrets: inherit", workflow)
+
     def test_production_default_artifact_is_truthful_and_served_byte_exact(self) -> None:
         repository_root = Path(__file__).resolve().parents[1]
         artifact_path = repository_root / ".well-known" / "szl-source.json"
@@ -207,6 +337,9 @@ class PublicRouteRepairTests(unittest.TestCase):
             names = [getattr(route, "name", None) for route in app.router.routes]
             self.assertEqual(names.count("killinchu_p0_openapi_alias"), 1)
             self.assertEqual(names.count("killinchu_p0_source_artifact"), 1)
+            self.assertEqual(names.count("killinchu_p0_build_info"), 1)
+            self.assertEqual(names.count("killinchu_p0_code_entry"), 1)
+            self.assertEqual(names.count("killinchu_p0_chat_entry"), 1)
 
 
 if __name__ == "__main__":  # pragma: no cover

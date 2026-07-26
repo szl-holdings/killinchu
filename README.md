@@ -61,8 +61,14 @@ ecosystem-stage: "operational"
 - **Primary face — the full application:** https://szlholdings-killinchu.hf.space/elite
 - Space URL: https://szlholdings-killinchu.hf.space
 - Health: `curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
-- Source/deployment attestation: https://szlholdings-killinchu.hf.space/.well-known/szl-source.json
-  (unsigned structural snapshot; its `PENDING_GITHUB_SYNC` / `NOT_CLAIMED` fields are authoritative)
+- Runtime source identity: https://szlholdings-killinchu.hf.space/api/build-info
+  (`build.state=OBSERVED` only for a valid `SZL_GIT_SHA`; the deploy workflow requires
+  `build.revision` to equal the exact GitHub commit being deployed)
+- Historical source snapshot: https://szlholdings-killinchu.hf.space/.well-known/szl-source.json
+  (unsigned structural evidence captured 2026-07-16, not a current runtime identity proof)
+- Edge Verdict Console: https://szlholdings-killinchu.hf.space/console
+- Compatibility entries: `/code` and `/chat` return HTTP 302 to the existing `/console`;
+  they are aliases, not separate code or chat products
 - OpenAPI: https://szlholdings-killinchu.hf.space/openapi.json
 - Spaces registry: https://szlholdings-killinchu.hf.space/spaces
   (apps open on canonical isolated HF origins; legacy `/spaces/<slug>` links are no-store 307 handoffs)
@@ -135,7 +141,12 @@ verdict = gate.evaluate(receipt)             # -> signed verdict + receipt id
 curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit
 # => "c7c0ba17"
 
-# 2. Verify image signature + build-provenance attestation. SLSA L1 honest ·
+# 2. Observe the source revision reported by the running process
+curl -s https://szlholdings-killinchu.hf.space/api/build-info \
+  | jq '{state: .build.state, revision: .build.revision, source: .build.revision_source}'
+# The source-bound deploy fails unless state=OBSERVED and revision equals its GitHub SHA.
+
+# 3. Verify image signature + build-provenance attestation. SLSA L1 honest ·
 #    L2 build-attested: container provenance via attest-build-provenance
 #    (Sigstore keyless, Fulcio + Rekor). Verify with `cosign verify-attestation`.
 #    SLSA L3 is roadmap; we do NOT claim L3 today.
@@ -144,19 +155,19 @@ cosign verify \
   --certificate-identity-regexp='^https://github.com/szl-holdings/' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 
-# 3. Inspect the public transparency-log entry for this image (Sigstore Rekor).
+# 4. Inspect the public transparency-log entry for this image (Sigstore Rekor).
 #    Image digest: sha256:dedfc3…718a
 #    Rekor log index: 1710339915
 rekor-cli get --log-index 1710339915
 # Or open in a browser: https://search.sigstore.dev/?logIndex=1710339915
 
-# 4. Exercise the counter-UAS evaluate endpoint
+# 5. Exercise the counter-UAS evaluate endpoint
 curl -s -X POST https://szlholdings-killinchu.hf.space/api/killinchu/counter-uas/evaluate \
   -H 'content-type: application/json' \
   -d '{"track":{"lat":32.71,"lon":-117.15,"alt_m":120,"vel_ms":25}}'
 # => {"verdict":"CLASSIFY","lambda_score":0.73,"receipt_signed":true}
 
-# 5. Deploy as part of the signed mesh bundle
+# 6. Deploy as part of the signed mesh bundle
 uds-cli bundle deploy oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.0 --confirm
 ```
 
@@ -247,6 +258,7 @@ exposes `register(app, ns="killinchu")` and is registered **before** the SPA cat
 
 | Endpoint | Method | Description |
 |---|---|---|
+| `/api/build-info` | GET, HEAD | Allowlisted runtime source revision; `UNKNOWN` unless `SZL_GIT_SHA` is a valid 40-hex SHA |
 | `/api/killinchu/healthz` | GET | Liveness |
 | `/api/killinchu/readyz` | GET | Readiness (DB + decoders loaded) |
 | `/api/killinchu/v1/honest` | GET | Doctrine v11 honesty disclosure |
@@ -254,6 +266,8 @@ exposes `register(app, ns="killinchu")` and is registered **before** the SPA cat
 | `/api/killinchu/v1/remote-id/decode` | POST | Decode OpenDroneID / ASTM F3411 hex |
 | `/api/killinchu/v1/counter-uas/evaluate` | POST | Geofence + 13-axis Λ-gate + receipt |
 | `/api/killinchu/v1/lambda` | GET | Λ-gate axis definitions |
+| `/console` | GET | Existing Edge Verdict Console |
+| `/code`, `/chat` | GET, HEAD | Explicit HTTP 302 aliases to `/console`; no SPA soft-404 fallthrough |
 
 The full, canonical endpoint list is on the [docs site](https://szl-holdings.github.io/docs-site/flagships/killinchu) and the [API reference](https://szl-holdings.github.io/docs-site/api/).
 
