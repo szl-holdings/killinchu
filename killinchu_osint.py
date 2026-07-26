@@ -46,6 +46,7 @@ Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import threading
@@ -524,10 +525,19 @@ _ARCHIVE_REQUESTED = os.environ.get("KILLINCHU_INTEL_ARCHIVE", "").strip().lower
 _ARCHIVE_RIGHTS_APPROVED = os.environ.get(
     "KILLINCHU_INTEL_ARCHIVE_RIGHTS_APPROVED", "",
 ).strip().lower() in ("1", "true", "yes", "on")
+_ARCHIVE_PSEUDONYM_KEY = os.environ.get(
+    "KILLINCHU_INTEL_ARCHIVE_PSEUDONYM_KEY", "",
+).encode("utf-8")
+_ARCHIVE_PSEUDONYM_KEY_READY = len(_ARCHIVE_PSEUDONYM_KEY) >= 32
 # Publication is fail-closed. A legacy KILLINCHU_INTEL_ARCHIVE=true setting is
 # insufficient on its own: an operator must separately attest that the
-# source-by-source rights/privacy review has completed.
-_ARCHIVE_ENABLED = _ARCHIVE_REQUESTED and _ARCHIVE_RIGHTS_APPROVED
+# source-by-source rights/privacy review has completed and supply a secret
+# pseudonymization key. The key never enters a payload, receipt, or status body.
+_ARCHIVE_ENABLED = (
+    _ARCHIVE_REQUESTED
+    and _ARCHIVE_RIGHTS_APPROVED
+    and _ARCHIVE_PSEUDONYM_KEY_READY
+)
 _ARCHIVE_REPO = os.environ.get("KILLINCHU_INTEL_ARCHIVE_REPO", _HF_REPO).strip()
 _ARCHIVE_PREFIX = os.environ.get("KILLINCHU_INTEL_ARCHIVE_PREFIX", "intel").strip().strip("/") or "intel"
 _ARCHIVE_INTERVAL = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_INTERVAL", "300"))
@@ -546,10 +556,15 @@ _ARCHIVE_STATE: dict[str, Any] = {
     "enabled": _ARCHIVE_ENABLED,
     "requested": _ARCHIVE_REQUESTED,
     "rights_approved": _ARCHIVE_RIGHTS_APPROVED,
+    "pseudonym_key_present": _ARCHIVE_PSEUDONYM_KEY_READY,
     "publication_state": (
         "RIGHTS_APPROVED_COARSENED_DERIVATIVE"
         if _ARCHIVE_ENABLED
-        else "FROZEN_PENDING_RIGHTS_AND_PRIVACY_REVIEW"
+        else (
+            "FROZEN_PENDING_PSEUDONYM_KEY"
+            if _ARCHIVE_REQUESTED and _ARCHIVE_RIGHTS_APPROVED
+            else "FROZEN_PENDING_RIGHTS_AND_PRIVACY_REVIEW"
+        )
     ),
     "repo": _ARCHIVE_REPO,
     "prefix": _ARCHIVE_PREFIX,
@@ -623,8 +638,9 @@ def _archive_card() -> str:
         "## Honesty (Doctrine v11)\n"
         "- Every record is a **third-party CLAIM / self-report**, not attested truth.\n"
         "  Broadcast positions and open-web reports can be spoofed, delayed, or wrong.\n"
-        "- The record `id` is a **sha256 content-address** used for dedup / integrity —\n"
-        "  it is **NOT a DSSE / Ed25519 signature** and asserts nothing about correctness.\n"
+        "- Platform `track_id` values are rotating, secret-keyed HMAC pseudonyms. The\n"
+        "  record `id` is a **sha256 content-address** used for dedup / integrity.\n"
+        "  Neither value is a DSSE / Ed25519 signature or proof of correctness.\n"
         "- Records are **append-only** and **bounded**: deduped per identity per UTC hour\n"
         "  per ~%.2f° cell, so the archive grows steadily without flooding.\n"
         "- No \"proven\" or \"verified\" claim is made about any item.\n"
@@ -724,8 +740,11 @@ def _archive_round(v):
 
 
 def _archive_track_id(value: Any, window: str) -> str:
-    """Return a rotating, non-secret identifier for within-window dedup only."""
-    return hashlib.sha256(f"{value}|{window}".encode("utf-8")).hexdigest()[:16]
+    """Return a rotating keyed pseudonym for within-window dedup only."""
+    if not _ARCHIVE_PSEUDONYM_KEY_READY:
+        raise RuntimeError("archive pseudonymization key is unavailable")
+    message = f"{value}|{window}".encode("utf-8")
+    return hmac.new(_ARCHIVE_PSEUDONYM_KEY, message, hashlib.sha256).hexdigest()[:24]
 
 
 def _archive_altitude(v: Any) -> tuple[Optional[float], bool]:
@@ -764,12 +783,13 @@ def _archive_feed_air(lf, bucket) -> int:
         ident = a.get("hex") or a.get("flight")
         if not ident:
             continue
-        dedup = {"hex": a.get("hex"), "flight": a.get("flight"), "hour": hour,
+        track_id = _archive_track_id(ident, hour)
+        dedup = {"track_id": track_id, "hour": hour,
                  "lat": _archive_round(a.get("lat")), "lon": _archive_round(a.get("lon"))}
         altitude_ft, on_ground = _archive_altitude(a.get("alt_baro"))
         payload = {
             "kind": "adsb-aircraft", "source": "adsb",
-            "track_id": _archive_track_id(ident, hour),
+            "track_id": track_id,
             "lat": _archive_round(a.get("lat")), "lon": _archive_round(a.get("lon")),
             "alt_baro": altitude_ft, "on_ground": on_ground,
             "gs": a.get("gs"), "track": a.get("track"),
@@ -778,7 +798,8 @@ def _archive_feed_air(lf, bucket) -> int:
             "feed_endpoint": data.get("endpoint"),
             "attribution": data.get("attribution"),
             "honesty": ("third-party ADS-B broadcast self-report; position is a claim, "
-                        "not attested; id is a sha256 dedup hash, not a signature"),
+                        "not attested; track_id is a rotating keyed pseudonym and "
+                        "record id is a sha256 dedup hash; neither is a signature"),
         }
         recs.append(bucket.make_record(payload, kind="adsb-aircraft", source="adsb", dedup_key=dedup))
     if not recs:
@@ -801,18 +822,20 @@ def _archive_feed_ais(lf, bucket) -> int:
         mmsi = v.get("mmsi")
         if not mmsi:
             continue
-        dedup = {"mmsi": mmsi, "hour": hour,
+        track_id = _archive_track_id(mmsi, hour)
+        dedup = {"track_id": track_id, "hour": hour,
                  "lat": _archive_round(v.get("lat")), "lon": _archive_round(v.get("lon"))}
         payload = {
             "kind": "ais-vessel", "source": "ais",
-            "track_id": _archive_track_id(mmsi, hour),
+            "track_id": track_id,
             "sog": v.get("sog"), "cog": v.get("cog"), "heading": v.get("heading"),
             "navStat": v.get("navStat"),
             "lat": _archive_round(v.get("lat")), "lon": _archive_round(v.get("lon")),
             "observed_hour_utc": hour, "feed_fetched_at": feed.get("fetched_at"),
             "attribution": data.get("attribution"),
             "honesty": ("third-party AIS broadcast self-report; position is a claim, "
-                        "not attested; id is a sha256 dedup hash, not a signature"),
+                        "not attested; track_id is a rotating keyed pseudonym and "
+                        "record id is a sha256 dedup hash; neither is a signature"),
         }
         recs.append(bucket.make_record(payload, kind="ais-vessel", source="ais", dedup_key=dedup))
     if not recs:
@@ -943,6 +966,7 @@ def _archive_status(head_probe: Optional[dict] = None) -> dict:
         "enabled": _ARCHIVE_ENABLED,
         "requested": _ARCHIVE_REQUESTED,
         "rights_approved": _ARCHIVE_RIGHTS_APPROVED,
+        "pseudonym_key_present": _ARCHIVE_PSEUDONYM_KEY_READY,
         "publication_state": _ARCHIVE_STATE["publication_state"],
         "repo": _ARCHIVE_REPO,
         "prefix": _ARCHIVE_PREFIX,
@@ -960,13 +984,18 @@ def _archive_status(head_probe: Optional[dict] = None) -> dict:
         "projection": {
             "coordinate_cell_degrees": _ARCHIVE_CELL,
             "persistent_platform_identifiers_published": False,
+            "track_identifier": "rotating_hmac_sha256_96bit",
             "altitude_schema": "nullable_float_with_on_ground_boolean",
         },
         "note": (
             "publication frozen until separate rights/privacy approval"
-            if not _ARCHIVE_ENABLED
-            else "coarsened, identifier-minimized derivative via szl_hf_bucket; "
-                 "rows are third-party claims and ids are dedup hashes, not signatures"
+            if not _ARCHIVE_RIGHTS_APPROVED
+            else (
+                "publication frozen until a 32-byte pseudonymization key is configured"
+                if not _ARCHIVE_PSEUDONYM_KEY_READY
+                else "coarsened, keyed-pseudonym derivative via szl_hf_bucket; "
+                     "rows are third-party claims and ids are not signatures"
+            )
         ),
     }
     try:

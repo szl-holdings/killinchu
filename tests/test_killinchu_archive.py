@@ -129,7 +129,9 @@ def test_archive_publication_requires_separate_rights_approval():
     )
 
 
-def test_archive_projection_coarsens_and_minimizes_identifiers(tmp_path):
+def test_archive_projection_coarsens_and_minimizes_identifiers(tmp_path, monkeypatch):
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY", b"k" * 32)
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY_READY", True)
     bucket = _mk_bucket(tmp_path)
 
     assert ko._archive_feed_air(_FakeLF(air=_live_air()), bucket) == 2
@@ -141,8 +143,8 @@ def test_archive_projection_coarsens_and_minimizes_identifiers(tmp_path):
     vessel = next(record["payload"] for record in queued if record["kind"] == "ais-vessel")
     assert {"hex", "flight"}.isdisjoint(air)
     assert {"mmsi", "name"}.isdisjoint(vessel)
-    assert len(air["track_id"]) == 16
-    assert len(vessel["track_id"]) == 16
+    assert len(air["track_id"]) == 24
+    assert len(vessel["track_id"]) == 24
     assert air["lat"] == 50.0
     assert air["lon"] == 8.0
     assert isinstance(air["alt_baro"], float)
@@ -182,6 +184,14 @@ def archive(tmp_path, monkeypatch):
     ko._CORPUS.clear(); ko._META.clear(); ko._CHAIN_HEAD.clear(); ko._CHAIN_OK.clear()
     monkeypatch.setattr(ko, "_OSINT_DIR", tmp_path)
     monkeypatch.setattr(ko, "_ARCHIVE_ENABLED", True)
+    monkeypatch.setattr(ko, "_ARCHIVE_RIGHTS_APPROVED", True)
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY", b"k" * 32)
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY_READY", True)
+    monkeypatch.setitem(
+        ko._ARCHIVE_STATE,
+        "publication_state",
+        "RIGHTS_APPROVED_COARSENED_DERIVATIVE",
+    )
     bucket = _mk_bucket(tmp_path / "queue")
     monkeypatch.setattr(ko, "_ARCHIVE_BUCKET", bucket)
     # Pretend boot already happened so the request path never spawns the
@@ -301,7 +311,7 @@ def test_archive_status_is_honest(archive):
     assert st["repo"] == "SZLHOLDINGS/killinchu-osint-corpus"
     assert st["browse_url"].startswith("https://huggingface.co/datasets/")
     assert "viewer" in st["viewer_url"]
-    assert st["rights_approved"] is False
+    assert st["rights_approved"] is True
     assert st["projection"]["persistent_platform_identifiers_published"] is False
     assert st["projection"]["coordinate_cell_degrees"] >= 1.0
     # never claims a signature / proof
@@ -319,6 +329,29 @@ def test_status_endpoint_includes_archive(archive):
 def test_dataset_card_is_honest():
     card = ko._archive_card()
     assert "third-party CLAIM" in card
-    assert "NOT a DSSE / Ed25519 signature" in card
+    assert "HMAC pseudonyms" in card
+    assert "Neither value is a DSSE / Ed25519 signature" in card
     assert "intel/*.ndjson" in card        # viewer config over the NDJSON shards
     assert "proven" not in card.lower().split("no \"proven\"")[0]
+
+
+def test_track_pseudonym_fails_closed_without_key(monkeypatch):
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY", b"")
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY_READY", False)
+
+    with pytest.raises(RuntimeError, match="pseudonymization key"):
+        ko._archive_track_id("ae01ce", "2026-06-12T00")
+
+
+def test_track_pseudonym_is_keyed_and_window_rotated(monkeypatch):
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY_READY", True)
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY", b"a" * 32)
+    first = ko._archive_track_id("ae01ce", "2026-06-12T00")
+    repeat = ko._archive_track_id("ae01ce", "2026-06-12T00")
+    rotated = ko._archive_track_id("ae01ce", "2026-06-12T01")
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY", b"b" * 32)
+    rekeyed = ko._archive_track_id("ae01ce", "2026-06-12T00")
+
+    assert first == repeat
+    assert len(first) == 24
+    assert len({first, rotated, rekeyed}) == 3
