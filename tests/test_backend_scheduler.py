@@ -248,6 +248,29 @@ def test_overlap_guard_does_not_double_start(backend_env, monkeypatch):
     assert calls == ["auto", "auto"]
 
 
+def test_guarded_crawl_does_not_prefetch_before_injected_runner(
+    backend_env,
+    monkeypatch,
+):
+    """A wrapped run_crawl owns its inputs; the guard must not touch ADS-B first."""
+    calls = []
+
+    def _wrapped_crawl(mode="crawl", **kwargs):
+        calls.append((mode, kwargs))
+        return {"status": "live"}
+
+    def _unexpected_fetch():
+        raise AssertionError("guard fetched ADS-B before invoking wrapped run_crawl")
+
+    monkeypatch.setattr(kb, "run_crawl", _wrapped_crawl)
+    monkeypatch.setattr(kb, "_fetch_crawl_input", _unexpected_fetch)
+
+    assert kb.run_crawl_guarded("auto") == {"status": "live"}
+    assert len(calls) == 1
+    assert calls[0][0] == "auto"
+    assert calls[0][1]["ntfy_actions"] == []
+
+
 # ---------------------------------------------------------------------------
 # 4) Slow upstream I/O never holds the durable store transaction lock.
 # ---------------------------------------------------------------------------
