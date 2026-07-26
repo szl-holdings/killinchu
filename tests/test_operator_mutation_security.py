@@ -159,6 +159,56 @@ def test_watchlist_create_update_delete_replays_are_safe(secured_backend):
     assert created.json()["mutation_receipt"]["signed"] is False
 
 
+def test_definitive_watchlist_not_found_does_not_consume_key(secured_backend):
+    app, store, _ = secured_backend
+    now = "2026-07-26T00:00:00Z"
+
+    with TestClient(app) as client:
+        update_headers = _headers("missing-watch-update-0001")
+        missing_update = client.put(
+            f"/api/{NS}/watchlists/700",
+            json={"name": "now-present"},
+            headers=update_headers,
+        )
+        assert missing_update.status_code == 404
+        assert store.query(
+            "SELECT COUNT(*) AS c FROM operator_mutations"
+        )[0]["c"] == 0
+
+        store.execute(
+            "INSERT INTO watchlists("
+            "id, name, description, enabled, created_at, updated_at"
+            ") VALUES(?,?,?,?,?,?)",
+            (700, "seed", "", 1, now, now),
+        )
+        updated = client.put(
+            f"/api/{NS}/watchlists/700",
+            json={"name": "now-present"},
+            headers=update_headers,
+        )
+        assert updated.status_code == 200
+        assert updated.json()["watchlist"]["name"] == "now-present"
+
+        delete_headers = _headers("missing-watch-delete-0001")
+        missing_delete = client.delete(
+            f"/api/{NS}/watchlists/701",
+            headers=delete_headers,
+        )
+        assert missing_delete.status_code == 404
+        store.execute(
+            "INSERT INTO watchlists("
+            "id, name, description, enabled, created_at, updated_at"
+            ") VALUES(?,?,?,?,?,?)",
+            (701, "delete-me", "", 1, now, now),
+        )
+        deleted = client.delete(
+            f"/api/{NS}/watchlists/701",
+            headers=delete_headers,
+        )
+        assert deleted.status_code == 200
+        assert deleted.json()["deleted"] == 701
+
+
 def test_manual_crawl_replay_does_not_repeat_side_effects(secured_backend):
     app, store, monkeypatch = secured_backend
     payload = {"ac": [{"t": "F16", "flag": "US"}]}

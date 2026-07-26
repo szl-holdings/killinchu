@@ -8806,7 +8806,16 @@ window.intel_fetch=async function(path,opts){
   var text=await r.text(),d={};
   try{ d=text?JSON.parse(text):{}; }catch(_e){ d={error:text||('HTTP '+r.status)}; }
   d.__http=r.status;
-  if(logicalAction&&(r.ok||r.status<500)){
+  var mutationState=String((d&&d.mutation_state)||'');
+  var ambiguousMutation=(
+    r.status===409&&(
+      mutationState==='in_progress'||
+      mutationState==='receipt_pending'||
+      mutationState==='receipt_emitting'||
+      mutationState==='needs_operator_review'
+    )
+  );
+  if(logicalAction&&!ambiguousMutation&&(r.ok||r.status<500)){
     delete window.__intel_pending_mutation_keys[logicalAction];
   }
   if(r.status===401) window.intel_operator_clear(false);

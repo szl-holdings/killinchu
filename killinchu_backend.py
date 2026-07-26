@@ -220,35 +220,42 @@ def _push_ntfy(title: str, message: str, cfg: Dict[str, Any],
         threading.Thread(target=_go, name="killinchu-ntfy", daemon=True).start()
 
 
-def _ntfy_should_push(key: Tuple[int, int], cfg: Dict[str, Any], now_ts: float) -> bool:
-    """True only on a clear->fire edge, or after the optional cooldown re-page window."""
+def _ntfy_claim_transition(
+    key: Tuple[int, int],
+    cfg: Dict[str, Any],
+    firing: bool,
+    now_ts: float,
+) -> Tuple[bool, bool]:
+    """Atomically discard stale transitions and reserve the latest state.
+
+    Crawls commit independently and deliver their ntfy intents after commit.
+    A later observation can therefore reach this function before an earlier
+    thread resumes. The observation timestamp is part of the immutable intent;
+    accepting and advancing it under one lock prevents the delayed thread from
+    overwriting or paging stale state.
+    """
     with _NTFY_STATE_LOCK:
         prev = _NTFY_STATE.get(key) or {}
+        if now_ts < float(prev.get("observed_ts") or 0.0):
+            return False, False
+
         was_firing = bool(prev.get("firing"))
         last_push = float(prev.get("last_push_ts") or 0.0)
-    if not was_firing:
-        return True  # off -> on edge
-    cooldown = float(cfg.get("cooldown") or 0.0)
-    if cooldown > 0 and (now_ts - last_push) >= cooldown:
-        return True  # still firing, but the quiet window elapsed -> re-page
-    return False
+        if firing:
+            cooldown = float(cfg.get("cooldown") or 0.0)
+            should_send = (
+                not was_firing
+                or (cooldown > 0 and (now_ts - last_push) >= cooldown)
+            )
+        else:
+            should_send = bool(cfg.get("recovery") and was_firing)
 
-
-def _ntfy_mark(key: Tuple[int, int], firing: bool, pushed: bool, now_ts: float) -> None:
-    """Record this trigger's firing state (and last push time) for edge detection."""
-    with _NTFY_STATE_LOCK:
-        prev = _NTFY_STATE.get(key) or {}
-        last_push = float(prev.get("last_push_ts") or 0.0)
-        if pushed:
-            last_push = now_ts
-        _NTFY_STATE[key] = {"firing": firing, "last_push_ts": last_push}
-
-
-def _ntfy_was_firing(key: Tuple[int, int]) -> bool:
-    """True if this trigger was firing at the previous evaluation."""
-    with _NTFY_STATE_LOCK:
-        prev = _NTFY_STATE.get(key) or {}
-        return bool(prev.get("firing"))
+        _NTFY_STATE[key] = {
+            "firing": firing,
+            "last_push_ts": now_ts if should_send else last_push,
+            "observed_ts": now_ts,
+        }
+        return True, should_send
 
 
 def _queue_ntfy_transition(
@@ -292,18 +299,14 @@ def _deliver_ntfy_actions(actions: List[Dict[str, Any]]) -> None:
     """Deliver committed ntfy intents, then advance edge/de-dup state."""
     for action in actions:
         firing = bool(action["firing"])
-        should_send = (
-            _ntfy_should_push(
-                action["key"],
-                action["cfg"],
-                float(action["now_ts"]),
-            )
-            if firing
-            else bool(
-                action["cfg"].get("recovery")
-                and _ntfy_was_firing(action["key"])
-            )
+        accepted, should_send = _ntfy_claim_transition(
+            action["key"],
+            action["cfg"],
+            firing,
+            float(action["now_ts"]),
         )
+        if not accepted:
+            continue
         if should_send:
             _push_ntfy(
                 action["title"],
@@ -312,12 +315,6 @@ def _deliver_ntfy_actions(actions: List[Dict[str, Any]]) -> None:
                 priority=action["priority"],
                 tags=action["tags"],
             )
-        _ntfy_mark(
-            action["key"],
-            firing,
-            should_send,
-            float(action["now_ts"]),
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -1958,6 +1955,14 @@ def register(
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, []), status_code=503)
         wid = int(request.path_params["wid"])
         body = await _json_body(request)
+        if (
+            s.get_operator_mutation(key_hash=key_hash) is None
+            and not _watchlist_dto(s, wid)
+        ):
+            return JSONResponse(
+                _envelope("error", {"error": "not found"}, []),
+                status_code=404,
+            )
         context, replay = _claim_mutation(
             operation=f"watchlist.update:{wid}",
             actor_id=actor_id,
@@ -1966,9 +1971,6 @@ def register(
         )
         if replay is not None:
             return replay
-        if not _watchlist_dto(s, wid):
-            s.fail_operator_mutation(key_hash=key_hash)
-            return JSONResponse(_envelope("error", {"error": "not found"}, []), status_code=404)
         now = _now_iso()
         try:
             with s.transaction():
@@ -2011,6 +2013,14 @@ def register(
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, []), status_code=503)
         wid = int(request.path_params["wid"])
+        if (
+            s.get_operator_mutation(key_hash=key_hash) is None
+            and not _watchlist_dto(s, wid)
+        ):
+            return JSONResponse(
+                _envelope("error", {"error": "not found"}, []),
+                status_code=404,
+            )
         context, replay = _claim_mutation(
             operation=f"watchlist.delete:{wid}",
             actor_id=actor_id,
@@ -2019,9 +2029,6 @@ def register(
         )
         if replay is not None:
             return replay
-        if not _watchlist_dto(s, wid):
-            s.fail_operator_mutation(key_hash=key_hash)
-            return JSONResponse(_envelope("error", {"error": "not found"}, []), status_code=404)
         try:
             with s.transaction():
                 s.execute("DELETE FROM triggers WHERE watchlist_id=?", (wid,))

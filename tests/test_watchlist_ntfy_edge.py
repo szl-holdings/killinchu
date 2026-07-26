@@ -237,3 +237,54 @@ def test_cooldown_repages_only_after_window(store, pushes, monkeypatch):
     clock["t"] = 1150.0                  # within the new window -> quiet again
     _evaluate(store, count=10)
     assert len(pushes) == 2
+
+
+def test_delayed_older_transition_cannot_overwrite_or_page(monkeypatch):
+    key = (71, 81)
+    cfg = {
+        "url": "https://ntfy.invalid/topic",
+        "token": "",
+        "priority": "high",
+        "cooldown": 0.0,
+        "recovery": True,
+        "recovery_priority": "low",
+    }
+    sent = []
+    monkeypatch.setattr(
+        kb,
+        "_push_ntfy",
+        lambda title, message, cfg, priority=None, tags="rotating_light": sent.append(
+            (title, priority, tags)
+        ),
+    )
+
+    newer = []
+    older = []
+    kb._queue_ntfy_transition(
+        newer,
+        key=key,
+        cfg=cfg,
+        firing=True,
+        title="new firing",
+        message="new",
+        now_ts=200.0,
+    )
+    kb._queue_ntfy_transition(
+        older,
+        key=key,
+        cfg=cfg,
+        firing=False,
+        title="stale recovery",
+        message="old",
+        now_ts=100.0,
+    )
+
+    kb._deliver_ntfy_actions(newer)
+    kb._deliver_ntfy_actions(older)
+
+    assert sent == [("new firing", "high", "rotating_light")]
+    assert kb._NTFY_STATE[key] == {
+        "firing": True,
+        "last_push_ts": 200.0,
+        "observed_ts": 200.0,
+    }

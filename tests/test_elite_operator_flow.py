@@ -37,8 +37,12 @@ def test_shipped_elite_console_gates_mutations_with_tab_scoped_authority():
     assert "window.__intel_pending_mutation_keys=Object.create(null)" in operator_block
     assert "window.intel_logical_action_key" in operator_block
     assert "delete requestOpts.logicalAction" in operator_block
-    assert "if(logicalAction&&(r.ok||r.status<500))" in operator_block
+    assert "if(logicalAction&&!ambiguousMutation&&(r.ok||r.status<500))" in operator_block
     assert "delete window.__intel_pending_mutation_keys[logicalAction]" in operator_block
+    assert "r.status===409&&(" in operator_block
+    assert "mutationState==='in_progress'" in operator_block
+    assert "mutationState==='receipt_emitting'" in operator_block
+    assert "mutationState==='needs_operator_review'" in operator_block
 
     # The actual shipped mutation controls still share the guarded fetch path.
     assert "await window.intel_fetch('/'+(kind==='live'?'live':'crawl/run')" in html
