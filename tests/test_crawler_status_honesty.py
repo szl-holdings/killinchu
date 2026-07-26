@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import sqlite3
 from pathlib import Path
 
@@ -140,13 +141,24 @@ def test_status_contract_reports_failed_never_ok_after_storage_failure():
 
 def test_open_circuit_blocks_manual_and_cache_miss_crawls(monkeypatch):
     calls = []
+    token = "crawler-status-operator-token"
+    monkeypatch.setenv(
+        "A11OY_COMPUTE_TOKEN_SHA256",
+        hashlib.sha256(token.encode("utf-8")).hexdigest(),
+    )
     kb._open_scheduler_circuit("database or disk is full")
     monkeypatch.setattr(kb, "run_crawl", lambda mode="crawl": calls.append(mode))
 
     app = FastAPI()
     kb.register(app, ns=NS)
     with TestClient(app) as client:
-        manual = client.post(f"/api/{NS}/crawl/run")
+        manual = client.post(
+            f"/api/{NS}/crawl/run",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Idempotency-Key": "crawler-status-circuit-0001",
+            },
+        )
         live = client.post(f"/api/{NS}/live")
 
     assert manual.status_code == 503

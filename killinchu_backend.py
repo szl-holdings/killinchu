@@ -47,8 +47,10 @@ See the endpoint/table map in the header comment above for the full route list.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -66,11 +68,32 @@ from typing import Any, Dict, List, Optional, Tuple
 # guarded so the module still loads (and degrades) where FastAPI is absent; when
 # register() actually runs, FastAPI is by definition present.
 try:  # pragma: no cover - import-environment dependent
-    from fastapi import Request  # noqa: F401  (module-global for annotation resolution)
+    from fastapi import Depends, Request, Security  # noqa: F401  (module-global for annotation resolution)
     from fastapi.responses import JSONResponse  # noqa: F401
+    from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+    _OPERATOR_BEARER = HTTPBearer(
+        auto_error=False,
+        scheme_name="OperatorBearer",
+        description=(
+            "Fail-closed operator bearer. The runtime stores only its SHA-256 "
+            "digest in A11OY_COMPUTE_TOKEN_SHA256."
+        ),
+    )
+
+    async def _declare_operator_bearer(
+        credentials: Optional[HTTPAuthorizationCredentials] = Security(_OPERATOR_BEARER),
+    ) -> None:
+        """Declare the security scheme; handlers enforce the canonical gate."""
+        del credentials
 except Exception:  # FastAPI not installed in this context; register() won't be called
+    Depends = Any  # type: ignore
     Request = Any  # type: ignore
+    Security = Any  # type: ignore
     JSONResponse = Any  # type: ignore
+
+    async def _declare_operator_bearer() -> None:
+        return None
 
 DOCTRINE = "v11"
 _START_TS = time.time()
@@ -81,6 +104,8 @@ _START_TS = time.time()
 _MIL_ADSB_URL = "https://api.adsb.lol/v2/mil"
 _LIVE_CACHE_TTL = 60  # seconds a "live" scrape stays fresh before a re-fetch
 _USER_AGENT = "killinchu-backend/1.0 (+https://killinchu.a-11-oy.com)"
+_IDEMPOTENCY_KEY_RE = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
+_MUTATION_RECEIPT_SCHEMA = "szl.killinchu.operator-mutation-receipt/v1"
 
 
 def _now_iso() -> str:
@@ -386,11 +411,24 @@ class _Store:
                 source_url TEXT,
                 ts TEXT NOT NULL
             )""",
+            """CREATE TABLE IF NOT EXISTS operator_mutations (
+                idempotency_key_hash TEXT PRIMARY KEY,
+                operation TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                request_digest TEXT NOT NULL,
+                state TEXT NOT NULL,
+                status_code INTEGER,
+                response_json TEXT,
+                receipt_json TEXT,
+                created_at TEXT NOT NULL,
+                completed_at TEXT
+            )""",
             "CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)",
             "CREATE INDEX IF NOT EXISTS idx_notif_ts ON notifications(ts)",
             "CREATE INDEX IF NOT EXISTS idx_facts_snap ON facts(snapshot_id)",
             "CREATE INDEX IF NOT EXISTS idx_snap_src ON snapshots(source, fetched_at)",
             "CREATE INDEX IF NOT EXISTS idx_trig_wl ON triggers(watchlist_id)",
+            "CREATE INDEX IF NOT EXISTS idx_operator_mutations_created ON operator_mutations(created_at)",
         ]
         with self._lock:
             cur = self._cursor()
@@ -481,6 +519,89 @@ class _Store:
                 out.append({cols[i]: r[i] for i in range(len(cols))})
         return out
 
+    def claim_operator_mutation(
+        self,
+        *,
+        key_hash: str,
+        operation: str,
+        actor_id: str,
+        request_digest: str,
+    ) -> Tuple[str, Optional[Dict[str, Any]]]:
+        """Reserve one mutation key before side effects.
+
+        Returns ``("claimed", None)``, ``("replay", row)``, ``("in_progress",
+        row)``, or ``("conflict", row)``. The durable reservation makes retries
+        at-most-once even if the process fails after the mutation begins.
+        """
+        now = _now_iso()
+        with self._lock:
+            cur = self._cursor()
+            cur.execute(
+                self._q(
+                    "SELECT operation, actor_id, request_digest, state, status_code, "
+                    "response_json, receipt_json FROM operator_mutations "
+                    "WHERE idempotency_key_hash=?"
+                ),
+                (key_hash,),
+            )
+            row = cur.fetchone()
+            if row is not None:
+                cols = [d[0] for d in cur.description] if cur.description else []
+                if isinstance(row, sqlite3.Row):
+                    existing = {k: row[k] for k in row.keys()}
+                else:
+                    existing = {cols[i]: row[i] for i in range(len(cols))}
+                cur.close()
+                if (
+                    existing["operation"] != operation
+                    or existing["actor_id"] != actor_id
+                    or existing["request_digest"] != request_digest
+                ):
+                    return "conflict", existing
+                if existing["state"] == "completed":
+                    return "replay", existing
+                return "in_progress", existing
+            cur.execute(
+                self._q(
+                    "INSERT INTO operator_mutations("
+                    "idempotency_key_hash, operation, actor_id, request_digest, state, created_at"
+                    ") VALUES(?,?,?,?,?,?)"
+                ),
+                (key_hash, operation, actor_id, request_digest, "in_progress", now),
+            )
+            self._commit()
+            cur.close()
+        return "claimed", None
+
+    def complete_operator_mutation(
+        self,
+        *,
+        key_hash: str,
+        status_code: int,
+        response: Dict[str, Any],
+        receipt: Dict[str, Any],
+    ) -> None:
+        """Persist the exact successful response and deterministic receipt."""
+        self.execute(
+            "UPDATE operator_mutations SET state=?, status_code=?, response_json=?, "
+            "receipt_json=?, completed_at=? WHERE idempotency_key_hash=?",
+            (
+                "completed",
+                status_code,
+                _canonical_json(response),
+                _canonical_json(receipt),
+                _now_iso(),
+                key_hash,
+            ),
+        )
+
+    def fail_operator_mutation(self, *, key_hash: str) -> None:
+        """Keep an incomplete claim fail-closed so a retry cannot duplicate it."""
+        self.execute(
+            "UPDATE operator_mutations SET state=? WHERE idempotency_key_hash=?",
+            ("failed", key_hash),
+        )
+
     def health(self) -> Dict[str, Any]:
         """Ping the backend and return a health dict for ``/db/health`` + ``/healthz``.
 
@@ -526,6 +647,44 @@ def _envelope(status: str, data: Dict[str, Any], citations: List[Dict[str, str]]
     }
     body.update(data)
     return body
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _sha256_json(value: Any) -> str:
+    return "sha256:" + hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def _mutation_receipt(
+    *,
+    operation: str,
+    actor_id: str,
+    key_hash: str,
+    request_digest: str,
+    result: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Build a deterministic, non-secret receipt for one completed mutation.
+
+    This receipt is tamper-evident but intentionally unsigned. The host's DSSE
+    emitter is defined after this backend is registered, so claiming a signature
+    here would be false.
+    """
+    material = {
+        "schema": _MUTATION_RECEIPT_SCHEMA,
+        "operation": operation,
+        "actor_id": actor_id,
+        "idempotency_key_hash": key_hash,
+        "request_digest": request_digest,
+        "result_digest": _sha256_json(result),
+        "signed": False,
+        "signature_state": "UNSIGNED",
+    }
+    return {
+        **material,
+        "receipt_digest": _sha256_json(material),
+    }
 
 
 def _adsb_citation(extra: Optional[str] = None) -> List[Dict[str, str]]:
@@ -1018,6 +1177,135 @@ def register(app, ns: str = "killinchu") -> str:
             return {}
         return b if isinstance(b, dict) else {}
 
+    def _operator_gate(
+        request: "Request",
+    ) -> Tuple[Optional[str], Optional[str], Optional["JSONResponse"]]:
+        """Require the canonical fail-closed bearer and a bounded replay key."""
+        try:
+            from szl_provenance import _wire_d_authorize_request
+
+            actor_id, authorization_error = _wire_d_authorize_request(request)
+        except Exception:
+            actor_id, authorization_error = None, "NOT_CONFIGURED"
+        if authorization_error is not None:
+            if authorization_error == "NOT_CONFIGURED":
+                reason = "operator authority is not configured"
+                status_code = 503
+            elif authorization_error == "MISSING":
+                reason = "missing operator bearer authority"
+                status_code = 401
+            else:
+                reason = "invalid operator bearer authority"
+                status_code = 401
+            response = JSONResponse(
+                _envelope("denied", {"error": reason}, []),
+                status_code=status_code,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            return None, None, response
+
+        key = (request.headers.get("idempotency-key") or "").strip()
+        if not _IDEMPOTENCY_KEY_RE.fullmatch(key):
+            return None, None, JSONResponse(
+                _envelope(
+                    "error",
+                    {
+                        "error": (
+                            "Idempotency-Key is required and must be 8-128 "
+                            "characters from A-Z, a-z, 0-9, dot, underscore, colon, or dash"
+                        )
+                    },
+                    [],
+                ),
+                status_code=400,
+            )
+        key_hash = "sha256:" + hashlib.sha256(key.encode("utf-8")).hexdigest()
+        return actor_id, key_hash, None
+
+    def _claim_mutation(
+        *,
+        operation: str,
+        actor_id: str,
+        key_hash: str,
+        request_payload: Dict[str, Any],
+    ) -> Tuple[Optional[Dict[str, str]], Optional["JSONResponse"]]:
+        request_digest = _sha256_json(
+            {"operation": operation, "payload": request_payload}
+        )
+        claim_state, existing = _store().claim_operator_mutation(
+            key_hash=key_hash,
+            operation=operation,
+            actor_id=actor_id,
+            request_digest=request_digest,
+        )
+        if claim_state == "replay" and existing is not None:
+            response = json.loads(existing["response_json"])
+            response["idempotency_replayed"] = True
+            return None, JSONResponse(
+                response,
+                status_code=int(existing["status_code"]),
+                headers={"Idempotency-Replayed": "true"},
+            )
+        if claim_state == "conflict":
+            return None, JSONResponse(
+                _envelope(
+                    "conflict",
+                    {"error": "Idempotency-Key was already used for a different mutation"},
+                    [],
+                ),
+                status_code=409,
+            )
+        if claim_state == "in_progress":
+            return None, JSONResponse(
+                _envelope(
+                    "conflict",
+                    {
+                        "error": (
+                            "A mutation with this Idempotency-Key is already in progress "
+                            "or failed before completion; operator reconciliation is required"
+                        )
+                    },
+                    [],
+                ),
+                status_code=409,
+            )
+        return {
+            "operation": operation,
+            "actor_id": actor_id,
+            "key_hash": key_hash,
+            "request_digest": request_digest,
+        }, None
+
+    def _complete_mutation(
+        context: Dict[str, str],
+        result: Dict[str, Any],
+        *,
+        status_code: int = 200,
+    ) -> "JSONResponse":
+        receipt = _mutation_receipt(
+            operation=context["operation"],
+            actor_id=context["actor_id"],
+            key_hash=context["key_hash"],
+            request_digest=context["request_digest"],
+            result=result,
+        )
+        response = {
+            **result,
+            "mutation_receipt": receipt,
+            "idempotency_replayed": False,
+        }
+        _store().complete_operator_mutation(
+            key_hash=context["key_hash"],
+            status_code=status_code,
+            response=response,
+            receipt=receipt,
+        )
+        return JSONResponse(
+            response,
+            status_code=status_code,
+            headers={"Idempotency-Replayed": "false"},
+        )
+
     # -- db health (used by /healthz) --------------------------------------
     async def db_health(request: Request) -> JSONResponse:
         """GET /db/health — report the durable store's backend + last ping."""
@@ -1060,7 +1348,19 @@ def register(app, ns: str = "killinchu") -> str:
     # -- crawl/run (manual) ------------------------------------------------
     async def crawl_run(request: Request) -> JSONResponse:
         """POST /crawl/run — trigger a manual crawl and return its result envelope."""
+        actor_id, key_hash, gate_error = _operator_gate(request)
+        if gate_error is not None:
+            return gate_error
+        context, replay = _claim_mutation(
+            operation="crawl.run",
+            actor_id=actor_id,
+            key_hash=key_hash,
+            request_payload={},
+        )
+        if replay is not None:
+            return replay
         if _sched_state["circuit_open"]:
+            _store().fail_operator_mutation(key_hash=key_hash)
             return JSONResponse(_envelope("failed", {
                 "health": "failed",
                 "error": _sched_state["last_error"],
@@ -1068,7 +1368,12 @@ def register(app, ns: str = "killinchu") -> str:
                 "circuit_open": True,
                 "operator_action": _sched_state["operator_action"],
             }, _adsb_citation()), status_code=503)
-        return JSONResponse(run_crawl(mode="crawl"))
+        try:
+            result = run_crawl(mode="crawl")
+            return _complete_mutation(context, result)
+        except Exception:
+            _store().fail_operator_mutation(key_hash=key_hash)
+            raise
 
     # -- crawl/status (auto-crawl scheduler health) ------------------------
     async def crawl_status(request: Request) -> JSONResponse:
@@ -1156,6 +1461,9 @@ def register(app, ns: str = "killinchu") -> str:
 
     async def watchlists_create(request: Request) -> JSONResponse:
         """POST /watchlists — create a watchlist and its triggers."""
+        actor_id, key_hash, gate_error = _operator_gate(request)
+        if gate_error is not None:
+            return gate_error
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, []), status_code=503)
@@ -1163,46 +1471,20 @@ def register(app, ns: str = "killinchu") -> str:
         name = (body.get("name") or "").strip()
         if not name:
             return JSONResponse(_envelope("error", {"error": "name is required"}, []), status_code=400)
-        now = _now_iso()
-        wid = s.insert_returning_id(
-            "INSERT INTO watchlists(name, description, enabled, created_at, updated_at) VALUES(?,?,?,?,?)",
-            (name, body.get("description") or "", 1 if body.get("enabled", True) else 0, now, now),
+        context, replay = _claim_mutation(
+            operation="watchlist.create",
+            actor_id=actor_id,
+            key_hash=key_hash,
+            request_payload=body,
         )
-        for tg in (body.get("triggers") or []):
-            field = (tg.get("field") or "").strip()
-            op = (tg.get("op") or "gt").strip().lower()
-            thr = tg.get("threshold")
-            if not field or thr is None:
-                continue
-            s.execute(
-                "INSERT INTO triggers(watchlist_id, field, op, threshold, created_at) VALUES(?,?,?,?,?)",
-                (wid, field, op, str(thr), now),
-            )
-        return JSONResponse(_envelope("ok", {"watchlist": _watchlist_dto(s, wid)}, []), status_code=201)
-
-    async def watchlists_update(request: Request) -> JSONResponse:
-        """PUT /watchlists/{wid} — update a watchlist and its triggers."""
-        s = _store()
-        if not s.ok():
-            return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, []), status_code=503)
-        wid = int(request.path_params["wid"])
-        if not _watchlist_dto(s, wid):
-            return JSONResponse(_envelope("error", {"error": "not found"}, []), status_code=404)
-        body = await _json_body(request)
+        if replay is not None:
+            return replay
         now = _now_iso()
-        sets, params = [], []
-        if "name" in body:
-            sets.append("name=?"); params.append((body.get("name") or "").strip())
-        if "description" in body:
-            sets.append("description=?"); params.append(body.get("description") or "")
-        if "enabled" in body:
-            sets.append("enabled=?"); params.append(1 if body.get("enabled") else 0)
-        sets.append("updated_at=?"); params.append(now)
-        params.append(wid)
-        s.execute(f"UPDATE watchlists SET {', '.join(sets)} WHERE id=?", tuple(params))
-        # Replace triggers when provided.
-        if "triggers" in body:
-            s.execute("DELETE FROM triggers WHERE watchlist_id=?", (wid,))
+        try:
+            wid = s.insert_returning_id(
+                "INSERT INTO watchlists(name, description, enabled, created_at, updated_at) VALUES(?,?,?,?,?)",
+                (name, body.get("description") or "", 1 if body.get("enabled", True) else 0, now, now),
+            )
             for tg in (body.get("triggers") or []):
                 field = (tg.get("field") or "").strip()
                 op = (tg.get("op") or "gt").strip().lower()
@@ -1213,31 +1495,125 @@ def register(app, ns: str = "killinchu") -> str:
                     "INSERT INTO triggers(watchlist_id, field, op, threshold, created_at) VALUES(?,?,?,?,?)",
                     (wid, field, op, str(thr), now),
                 )
-        return JSONResponse(_envelope("ok", {"watchlist": _watchlist_dto(s, wid)}, []))
+            result = _envelope("ok", {"watchlist": _watchlist_dto(s, wid)}, [])
+            return _complete_mutation(context, result, status_code=201)
+        except Exception:
+            s.fail_operator_mutation(key_hash=key_hash)
+            raise
 
-    async def watchlists_delete(request: Request) -> JSONResponse:
-        """DELETE /watchlists/{wid} — delete a watchlist and its triggers."""
+    async def watchlists_update(request: Request) -> JSONResponse:
+        """PUT /watchlists/{wid} — update a watchlist and its triggers."""
+        actor_id, key_hash, gate_error = _operator_gate(request)
+        if gate_error is not None:
+            return gate_error
         s = _store()
         if not s.ok():
             return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, []), status_code=503)
         wid = int(request.path_params["wid"])
+        body = await _json_body(request)
+        context, replay = _claim_mutation(
+            operation=f"watchlist.update:{wid}",
+            actor_id=actor_id,
+            key_hash=key_hash,
+            request_payload=body,
+        )
+        if replay is not None:
+            return replay
         if not _watchlist_dto(s, wid):
+            s.fail_operator_mutation(key_hash=key_hash)
             return JSONResponse(_envelope("error", {"error": "not found"}, []), status_code=404)
-        s.execute("DELETE FROM triggers WHERE watchlist_id=?", (wid,))
-        s.execute("DELETE FROM watchlists WHERE id=?", (wid,))
-        return JSONResponse(_envelope("ok", {"deleted": wid}, []))
+        now = _now_iso()
+        try:
+            sets, params = [], []
+            if "name" in body:
+                sets.append("name=?"); params.append((body.get("name") or "").strip())
+            if "description" in body:
+                sets.append("description=?"); params.append(body.get("description") or "")
+            if "enabled" in body:
+                sets.append("enabled=?"); params.append(1 if body.get("enabled") else 0)
+            sets.append("updated_at=?"); params.append(now)
+            params.append(wid)
+            s.execute(f"UPDATE watchlists SET {', '.join(sets)} WHERE id=?", tuple(params))
+            # Replace triggers when provided.
+            if "triggers" in body:
+                s.execute("DELETE FROM triggers WHERE watchlist_id=?", (wid,))
+                for tg in (body.get("triggers") or []):
+                    field = (tg.get("field") or "").strip()
+                    op = (tg.get("op") or "gt").strip().lower()
+                    thr = tg.get("threshold")
+                    if not field or thr is None:
+                        continue
+                    s.execute(
+                        "INSERT INTO triggers(watchlist_id, field, op, threshold, created_at) VALUES(?,?,?,?,?)",
+                        (wid, field, op, str(thr), now),
+                    )
+            result = _envelope("ok", {"watchlist": _watchlist_dto(s, wid)}, [])
+            return _complete_mutation(context, result)
+        except Exception:
+            s.fail_operator_mutation(key_hash=key_hash)
+            raise
+
+    async def watchlists_delete(request: Request) -> JSONResponse:
+        """DELETE /watchlists/{wid} — delete a watchlist and its triggers."""
+        actor_id, key_hash, gate_error = _operator_gate(request)
+        if gate_error is not None:
+            return gate_error
+        s = _store()
+        if not s.ok():
+            return JSONResponse(_envelope("degraded", {"error": "no durable backend"}, []), status_code=503)
+        wid = int(request.path_params["wid"])
+        context, replay = _claim_mutation(
+            operation=f"watchlist.delete:{wid}",
+            actor_id=actor_id,
+            key_hash=key_hash,
+            request_payload={},
+        )
+        if replay is not None:
+            return replay
+        if not _watchlist_dto(s, wid):
+            s.fail_operator_mutation(key_hash=key_hash)
+            return JSONResponse(_envelope("error", {"error": "not found"}, []), status_code=404)
+        try:
+            s.execute("DELETE FROM triggers WHERE watchlist_id=?", (wid,))
+            s.execute("DELETE FROM watchlists WHERE id=?", (wid,))
+            result = _envelope("ok", {"deleted": wid}, [])
+            return _complete_mutation(context, result)
+        except Exception:
+            s.fail_operator_mutation(key_hash=key_hash)
+            raise
 
     # Register all routes (early import => added before the SPA catch-all).
+    operator_dependencies = [Depends(_declare_operator_bearer)]
     app.add_api_route(f"{base}/db/health", db_health, methods=["GET"])
     app.add_api_route(f"{base}/live", live, methods=["POST"])
-    app.add_api_route(f"{base}/crawl/run", crawl_run, methods=["POST"])
+    app.add_api_route(
+        f"{base}/crawl/run",
+        crawl_run,
+        methods=["POST"],
+        dependencies=operator_dependencies,
+    )
     app.add_api_route(f"{base}/crawl/status", crawl_status, methods=["GET"])
     app.add_api_route(f"{base}/timeline", timeline, methods=["GET"])
     app.add_api_route(f"{base}/alerts/recent", alerts_recent, methods=["GET"])
     app.add_api_route(f"{base}/watchlists", watchlists_list, methods=["GET"])
-    app.add_api_route(f"{base}/watchlists", watchlists_create, methods=["POST"])
-    app.add_api_route(f"{base}/watchlists/{{wid}}", watchlists_update, methods=["PUT"])
-    app.add_api_route(f"{base}/watchlists/{{wid}}", watchlists_delete, methods=["DELETE"])
+    app.add_api_route(
+        f"{base}/watchlists",
+        watchlists_create,
+        methods=["POST"],
+        dependencies=operator_dependencies,
+    )
+    app.add_api_route(
+        f"{base}/watchlists/{{wid}}",
+        watchlists_update,
+        methods=["PUT"],
+        dependencies=operator_dependencies,
+    )
+    app.add_api_route(
+        f"{base}/watchlists/{{wid}}",
+        watchlists_delete,
+        methods=["DELETE"],
+        dependencies=operator_dependencies,
+    )
 
     # Start the self-updating auto-crawl scheduler (guarded so a failure here
     # never blocks route registration).

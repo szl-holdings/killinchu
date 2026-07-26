@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import sqlite3
 import threading
@@ -31,6 +32,11 @@ from fastapi.testclient import TestClient
 import killinchu_backend as kb
 
 NS = "killinchu"
+OPERATOR_TOKEN = "backend-scheduler-operator-token"
+OPERATOR_HEADERS = {
+    "Authorization": f"Bearer {OPERATOR_TOKEN}",
+    "Idempotency-Key": "backend-scheduler-crawl-0001",
+}
 
 # Env that influences the scheduler / store; cleared so the host environment
 # can never make these tests flaky.
@@ -76,6 +82,10 @@ def backend_env(tmp_path, monkeypatch):
     monkeypatch.delenv("KILLINCHU_DATABASE_URL", raising=False)
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("KILLINCHU_DB_DIR", str(tmp_path))
+    monkeypatch.setenv(
+        "A11OY_COMPUTE_TOKEN_SHA256",
+        hashlib.sha256(OPERATOR_TOKEN.encode("utf-8")).hexdigest(),
+    )
     for var in SCHED_ENV:
         monkeypatch.delenv(var, raising=False)
 
@@ -335,7 +345,7 @@ def test_open_circuit_is_failed_publicly_and_blocks_manual_crawl(backend_env, mo
     kb.register(app, ns=NS)
     with TestClient(app) as client:
         status = client.get(f"/api/{NS}/crawl/status")
-        manual = client.post(f"/api/{NS}/crawl/run")
+        manual = client.post(f"/api/{NS}/crawl/run", headers=OPERATOR_HEADERS)
 
     assert status.status_code == 200
     body = status.json()

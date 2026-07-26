@@ -36,6 +36,26 @@ We follow a **90-day responsible disclosure** policy. After 90 days from initial
 - **Cosign keyless signing** — containers signed via Sigstore OIDC keyless mode; verify with `cosign verify ghcr.io/szl-holdings/<repo>:<tag>`
 - **SBOM** — CycloneDX SBOM attached to each GitHub Release
 
+## Operator Mutation Controls
+
+The public timeline, alerts, watchlist list, crawler status, and health routes
+remain read-only. Durable operator mutations fail closed:
+
+- `POST /api/killinchu/crawl/run`
+- `POST /api/killinchu/watchlists`
+- `PUT /api/killinchu/watchlists/{wid}`
+- `DELETE /api/killinchu/watchlists/{wid}`
+
+Each request requires `Authorization: Bearer <operator-token>` and a unique
+`Idempotency-Key`. The runtime stores only the lowercase SHA-256 digest of the
+operator token in `A11OY_COMPUTE_TOKEN_SHA256`; it never stores or returns the
+raw bearer or raw idempotency key. Missing authority configuration returns 503,
+while missing or invalid authority returns 401.
+
+Successful mutations return a deterministic, non-secret SHA-256 receipt and
+persist the response for replay. These receipts are explicitly `UNSIGNED`;
+they are tamper-evident idempotency evidence, not DSSE identity attestations.
+
 ## Section 889 Attestation
 
 SZL Holdings attests that no covered telecommunications equipment or services from the following vendors are used in this software:
