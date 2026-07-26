@@ -120,6 +120,34 @@ def _live_air():
     }
 
 
+def test_archive_publication_requires_separate_rights_approval():
+    assert ko._ARCHIVE_REQUESTED is False
+    assert ko._ARCHIVE_RIGHTS_APPROVED is False
+    assert ko._ARCHIVE_ENABLED is False
+    assert ko._ARCHIVE_STATE["publication_state"] == (
+        "FROZEN_PENDING_RIGHTS_AND_PRIVACY_REVIEW"
+    )
+
+
+def test_archive_projection_coarsens_and_minimizes_identifiers(tmp_path):
+    bucket = _mk_bucket(tmp_path)
+
+    assert ko._archive_feed_air(_FakeLF(air=_live_air()), bucket) == 2
+    assert ko._archive_feed_ais(_FakeLF(ais=_live_ais()), bucket) == 2
+
+    queued = bucket.read_recent(10)
+
+    air = next(record["payload"] for record in queued if record["kind"] == "adsb-aircraft")
+    vessel = next(record["payload"] for record in queued if record["kind"] == "ais-vessel")
+    assert {"hex", "flight"}.isdisjoint(air)
+    assert {"mmsi", "name"}.isdisjoint(vessel)
+    assert len(air["track_id"]) == 16
+    assert len(vessel["track_id"]) == 16
+    assert air["lat"] == 50.0
+    assert air["lon"] == 8.0
+    assert isinstance(air["alt_baro"], float)
+
+
 def _live_ais():
     return {
         "mode": "live", "fetched_at": "2026-06-12T00:00:00Z",
@@ -273,8 +301,11 @@ def test_archive_status_is_honest(archive):
     assert st["repo"] == "SZLHOLDINGS/killinchu-osint-corpus"
     assert st["browse_url"].startswith("https://huggingface.co/datasets/")
     assert "viewer" in st["viewer_url"]
+    assert st["rights_approved"] is False
+    assert st["projection"]["persistent_platform_identifiers_published"] is False
+    assert st["projection"]["coordinate_cell_degrees"] >= 1.0
     # never claims a signature / proof
-    assert "NOT a signature" in st["note"]
+    assert "not signatures" in st["note"]
 
 
 def test_status_endpoint_includes_archive(archive):

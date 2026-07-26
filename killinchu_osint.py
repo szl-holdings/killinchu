@@ -518,20 +518,39 @@ def _durable_status(head_probe: Optional[dict] = None) -> dict:
 # dedup / integrity, NOT a DSSE/Ed25519 signature, and asserts nothing about
 # correctness. Best-effort + off the request path: never raises, never blocks.
 # ---------------------------------------------------------------------------
-_ARCHIVE_ENABLED = os.environ.get("KILLINCHU_INTEL_ARCHIVE", "").strip().lower() in ("1", "true", "yes", "on")
+_ARCHIVE_REQUESTED = os.environ.get("KILLINCHU_INTEL_ARCHIVE", "").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+_ARCHIVE_RIGHTS_APPROVED = os.environ.get(
+    "KILLINCHU_INTEL_ARCHIVE_RIGHTS_APPROVED", "",
+).strip().lower() in ("1", "true", "yes", "on")
+# Publication is fail-closed. A legacy KILLINCHU_INTEL_ARCHIVE=true setting is
+# insufficient on its own: an operator must separately attest that the
+# source-by-source rights/privacy review has completed.
+_ARCHIVE_ENABLED = _ARCHIVE_REQUESTED and _ARCHIVE_RIGHTS_APPROVED
 _ARCHIVE_REPO = os.environ.get("KILLINCHU_INTEL_ARCHIVE_REPO", _HF_REPO).strip()
 _ARCHIVE_PREFIX = os.environ.get("KILLINCHU_INTEL_ARCHIVE_PREFIX", "intel").strip().strip("/") or "intel"
 _ARCHIVE_INTERVAL = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_INTERVAL", "300"))
 _ARCHIVE_AIR_LIMIT = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_AIR_LIMIT", "40"))
 _ARCHIVE_AIS_LIMIT = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_AIS_LIMIT", "40"))
 try:
-    _ARCHIVE_CELL = float(os.environ.get("KILLINCHU_INTEL_ARCHIVE_CELL", "0.1")) or 0.1
+    _ARCHIVE_CELL = max(
+        1.0,
+        float(os.environ.get("KILLINCHU_INTEL_ARCHIVE_CELL", "1.0")) or 1.0,
+    )
 except Exception:
-    _ARCHIVE_CELL = 0.1
+    _ARCHIVE_CELL = 1.0
 
 # Honest, observable state of the public archive (surfaced in osint/status).
 _ARCHIVE_STATE: dict[str, Any] = {
     "enabled": _ARCHIVE_ENABLED,
+    "requested": _ARCHIVE_REQUESTED,
+    "rights_approved": _ARCHIVE_RIGHTS_APPROVED,
+    "publication_state": (
+        "RIGHTS_APPROVED_COARSENED_DERIVATIVE"
+        if _ARCHIVE_ENABLED
+        else "FROZEN_PENDING_RIGHTS_AND_PRIVACY_REVIEW"
+    ),
     "repo": _ARCHIVE_REPO,
     "prefix": _ARCHIVE_PREFIX,
     "public": None,        # None=unknown, True/False once ensured
@@ -704,6 +723,21 @@ def _archive_round(v):
         return None
 
 
+def _archive_track_id(value: Any, window: str) -> str:
+    """Return a rotating, non-secret identifier for within-window dedup only."""
+    return hashlib.sha256(f"{value}|{window}".encode("utf-8")).hexdigest()[:16]
+
+
+def _archive_altitude(v: Any) -> tuple[Optional[float], bool]:
+    """Normalize mixed ADS-B altitude values to one nullable numeric column."""
+    if isinstance(v, str) and v.strip().lower() == "ground":
+        return None, True
+    try:
+        return (float(v), False) if v is not None else (None, False)
+    except (TypeError, ValueError):
+        return None, False
+
+
 def _archive_hour() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H")
 
@@ -732,11 +766,13 @@ def _archive_feed_air(lf, bucket) -> int:
             continue
         dedup = {"hex": a.get("hex"), "flight": a.get("flight"), "hour": hour,
                  "lat": _archive_round(a.get("lat")), "lon": _archive_round(a.get("lon"))}
+        altitude_ft, on_ground = _archive_altitude(a.get("alt_baro"))
         payload = {
             "kind": "adsb-aircraft", "source": "adsb",
-            "hex": a.get("hex"), "flight": a.get("flight"),
-            "lat": a.get("lat"), "lon": a.get("lon"),
-            "alt_baro": a.get("alt_baro"), "gs": a.get("gs"), "track": a.get("track"),
+            "track_id": _archive_track_id(ident, hour),
+            "lat": _archive_round(a.get("lat")), "lon": _archive_round(a.get("lon")),
+            "alt_baro": altitude_ft, "on_ground": on_ground,
+            "gs": a.get("gs"), "track": a.get("track"),
             "category": a.get("category"), "type": a.get("type"), "squawk": a.get("squawk"),
             "observed_hour_utc": hour, "feed_fetched_at": feed.get("fetched_at"),
             "feed_endpoint": data.get("endpoint"),
@@ -769,9 +805,10 @@ def _archive_feed_ais(lf, bucket) -> int:
                  "lat": _archive_round(v.get("lat")), "lon": _archive_round(v.get("lon"))}
         payload = {
             "kind": "ais-vessel", "source": "ais",
-            "mmsi": mmsi, "name": v.get("name"),
+            "track_id": _archive_track_id(mmsi, hour),
             "sog": v.get("sog"), "cog": v.get("cog"), "heading": v.get("heading"),
-            "navStat": v.get("navStat"), "lat": v.get("lat"), "lon": v.get("lon"),
+            "navStat": v.get("navStat"),
+            "lat": _archive_round(v.get("lat")), "lon": _archive_round(v.get("lon")),
             "observed_hour_utc": hour, "feed_fetched_at": feed.get("fetched_at"),
             "attribution": data.get("attribution"),
             "honesty": ("third-party AIS broadcast self-report; position is a claim, "
@@ -904,6 +941,9 @@ def _archive_status(head_probe: Optional[dict] = None) -> dict:
     (head_* keys appear only when the committed head was actually read back)."""
     st = {
         "enabled": _ARCHIVE_ENABLED,
+        "requested": _ARCHIVE_REQUESTED,
+        "rights_approved": _ARCHIVE_RIGHTS_APPROVED,
+        "publication_state": _ARCHIVE_STATE["publication_state"],
         "repo": _ARCHIVE_REPO,
         "prefix": _ARCHIVE_PREFIX,
         "public": _ARCHIVE_STATE["public"],
@@ -917,8 +957,17 @@ def _archive_status(head_probe: Optional[dict] = None) -> dict:
         "token_present": bool(_hf_token()),
         "browse_url": "https://huggingface.co/datasets/%s" % _ARCHIVE_REPO,
         "viewer_url": "https://huggingface.co/datasets/%s/viewer" % _ARCHIVE_REPO,
-        "note": ("append-only content-addressed NDJSON archive via szl_hf_bucket; "
-                 "rows are third-party claims, id is a sha256 dedup hash NOT a signature"),
+        "projection": {
+            "coordinate_cell_degrees": _ARCHIVE_CELL,
+            "persistent_platform_identifiers_published": False,
+            "altitude_schema": "nullable_float_with_on_ground_boolean",
+        },
+        "note": (
+            "publication frozen until separate rights/privacy approval"
+            if not _ARCHIVE_ENABLED
+            else "coarsened, identifier-minimized derivative via szl_hf_bucket; "
+                 "rows are third-party claims and ids are dedup hashes, not signatures"
+        ),
     }
     try:
         if _ARCHIVE_BUCKET is not None:
