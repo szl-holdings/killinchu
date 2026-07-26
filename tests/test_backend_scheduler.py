@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import sqlite3
 import threading
@@ -31,6 +32,11 @@ from fastapi.testclient import TestClient
 import killinchu_backend as kb
 
 NS = "killinchu"
+OPERATOR_TOKEN = "backend-scheduler-operator-token"
+OPERATOR_HEADERS = {
+    "Authorization": f"Bearer {OPERATOR_TOKEN}",
+    "Idempotency-Key": "backend-scheduler-crawl-0001",
+}
 
 # Env that influences the scheduler / store; cleared so the host environment
 # can never make these tests flaky.
@@ -76,6 +82,10 @@ def backend_env(tmp_path, monkeypatch):
     monkeypatch.delenv("KILLINCHU_DATABASE_URL", raising=False)
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("KILLINCHU_DB_DIR", str(tmp_path))
+    monkeypatch.setenv(
+        "A11OY_COMPUTE_TOKEN_SHA256",
+        hashlib.sha256(OPERATOR_TOKEN.encode("utf-8")).hexdigest(),
+    )
     for var in SCHED_ENV:
         monkeypatch.delenv(var, raising=False)
 
@@ -208,7 +218,7 @@ def test_overlap_guard_does_not_double_start(backend_env, monkeypatch):
     release = threading.Event()
     calls = []
 
-    def _slow_crawl(mode="crawl"):
+    def _slow_crawl(mode="crawl", **_kwargs):
         calls.append(mode)
         entered.set()
         # Hold the crawl "in flight" until the test lets it finish.
@@ -238,8 +248,76 @@ def test_overlap_guard_does_not_double_start(backend_env, monkeypatch):
     assert calls == ["auto", "auto"]
 
 
+def test_guarded_crawl_does_not_prefetch_before_injected_runner(
+    backend_env,
+    monkeypatch,
+):
+    """A wrapped run_crawl owns its inputs; the guard must not touch ADS-B first."""
+    calls = []
+
+    def _wrapped_crawl(mode="crawl", **kwargs):
+        calls.append((mode, kwargs))
+        return {"status": "live"}
+
+    def _unexpected_fetch():
+        raise AssertionError("guard fetched ADS-B before invoking wrapped run_crawl")
+
+    monkeypatch.setattr(kb, "run_crawl", _wrapped_crawl)
+    monkeypatch.setattr(kb, "_fetch_crawl_input", _unexpected_fetch)
+
+    assert kb.run_crawl_guarded("auto") == {"status": "live"}
+    assert len(calls) == 1
+    assert calls[0][0] == "auto"
+    assert calls[0][1]["ntfy_actions"] == []
+
+
 # ---------------------------------------------------------------------------
-# 4) The /live cache-miss scrape runs OFF the event loop (PERF: no stall).
+# 4) Slow upstream I/O never holds the durable store transaction lock.
+# ---------------------------------------------------------------------------
+def test_guarded_crawl_fetch_does_not_hold_store_lock(backend_env, monkeypatch):
+    st = backend_env
+    entered = threading.Event()
+    release = threading.Event()
+    query_done = threading.Event()
+    errors = []
+
+    def _blocking_fetch(timeout=12.0):
+        entered.set()
+        assert release.wait(timeout=5), "fetch was never released"
+        return {"ac": [{"t": "F16", "flag": "US"}]}, 200, None
+
+    monkeypatch.setattr(kb, "_fetch_mil_adsb", _blocking_fetch)
+
+    def _crawl():
+        try:
+            kb.run_crawl_guarded("auto")
+        except Exception as exc:  # pragma: no cover - asserted below
+            errors.append(exc)
+
+    crawl_thread = threading.Thread(target=_crawl, daemon=True)
+    crawl_thread.start()
+    assert entered.wait(timeout=5), "upstream fetch never started"
+
+    def _query():
+        st.query("SELECT COUNT(*) AS c FROM snapshots")
+        query_done.set()
+
+    query_thread = threading.Thread(target=_query, daemon=True)
+    query_thread.start()
+    assert query_done.wait(timeout=1), (
+        "a slow upstream fetch held the store transaction lock"
+    )
+
+    release.set()
+    crawl_thread.join(timeout=5)
+    query_thread.join(timeout=5)
+    assert not errors
+    assert not crawl_thread.is_alive()
+    assert not query_thread.is_alive()
+
+
+# ---------------------------------------------------------------------------
+# 5) The /live cache-miss scrape runs OFF the event loop (PERF: no stall).
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_live_cache_miss_does_not_block_event_loop(backend_env, monkeypatch):
@@ -269,8 +347,11 @@ async def test_live_cache_miss_does_not_block_event_loop(backend_env, monkeypatc
     live_route = next(r for r in app.router.routes
                       if getattr(r, "path", "") == f"/api/{NS}/live")
 
-    class _Req:  # minimal Request stand-in; /live only reads the store.
-        pass
+    class _Req:
+        headers = {
+            "authorization": f"Bearer {OPERATOR_TOKEN}",
+            "idempotency-key": "backend-scheduler-live-0001",
+        }
 
     live_task = asyncio.create_task(live_route.endpoint(_Req()))
 
@@ -290,7 +371,7 @@ async def test_live_cache_miss_does_not_block_event_loop(backend_env, monkeypatc
 
 
 # ---------------------------------------------------------------------------
-# 5) Non-retriable storage failures halt fail-closed instead of spinning.
+# 6) Non-retriable storage failures halt fail-closed instead of spinning.
 # ---------------------------------------------------------------------------
 def test_storage_failure_opens_circuit_and_stops_scheduler(backend_env, monkeypatch):
     calls = []
@@ -322,20 +403,35 @@ def test_storage_failure_opens_circuit_and_stops_scheduler(backend_env, monkeypa
 
 
 def test_open_circuit_is_failed_publicly_and_blocks_manual_crawl(backend_env, monkeypatch):
-    calls = []
+    st = backend_env
     kb._SCHED_STARTED = True
     kb._sched_state["last_success_at"] = "2026-07-15T12:40:00+00:00"
     kb._open_scheduler_circuit(
         sqlite3.OperationalError("database or disk is full"),
         paused_at="2026-07-15T13:10:00+00:00",
     )
-    monkeypatch.setattr(kb, "run_crawl", lambda mode="crawl": calls.append(mode))
+    monkeypatch.setattr(
+        kb,
+        "_fetch_mil_adsb",
+        lambda timeout=12.0: ({"ac": [{"t": "F16", "flag": "US"}]}, 200, None),
+    )
 
     app = FastAPI(title="kc-circuit-test", version="0.0.0")
     kb.register(app, ns=NS)
     with TestClient(app) as client:
         status = client.get(f"/api/{NS}/crawl/status")
-        manual = client.post(f"/api/{NS}/crawl/run")
+        manual = client.post(f"/api/{NS}/crawl/run", headers=OPERATOR_HEADERS)
+        mutation_count = st.query(
+            "SELECT COUNT(*) AS c FROM operator_mutations"
+        )[0]["c"]
+        kb._sched_state["circuit_open"] = False
+        kb._sched_state["failure_class"] = None
+        kb._sched_state["last_error"] = None
+        kb._sched_state["operator_action"] = None
+        retried = client.post(
+            f"/api/{NS}/crawl/run",
+            headers=OPERATOR_HEADERS,
+        )
 
     assert status.status_code == 200
     body = status.json()
@@ -345,4 +441,11 @@ def test_open_circuit_is_failed_publicly_and_blocks_manual_crawl(backend_env, mo
     assert body["failure_class"] == "storage_unavailable"
     assert body["scheduler"]["next_run_at"] is None
     assert manual.status_code == 503
-    assert calls == []
+    assert mutation_count == 0
+    assert retried.status_code == 200
+    assert st.query(
+        "SELECT COUNT(*) AS c FROM operator_mutations"
+    )[0]["c"] == 1
+    assert st.query(
+        "SELECT COUNT(*) AS c FROM snapshots"
+    )[0]["c"] == 1

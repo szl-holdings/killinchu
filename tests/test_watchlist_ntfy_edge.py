@@ -87,9 +87,19 @@ def _seed(st, field="count", op="gt", threshold="3"):
 
 def _evaluate(st, count):
     """Run one crawl's worth of watchlist evaluation for a given mil count."""
-    return kb._evaluate_watchlists(
-        st, snap_id=1, event_id=1, count=count, facts=[], ts=kb._now_iso()
+    actions = []
+    created = kb._evaluate_watchlists(
+        st,
+        snap_id=1,
+        event_id=1,
+        count=count,
+        facts=[],
+        ts=kb._now_iso(),
+        ntfy_actions=actions,
     )
+    # Unit-level equivalent of the production after-commit hook.
+    kb._deliver_ntfy_actions(actions)
+    return created
 
 
 def _notif_count(st):
@@ -165,13 +175,33 @@ def test_unevaluatable_snapshot_clears_the_edge(store, pushes, monkeypatch):
     _seed(store, field="type:F-16", op="gte", threshold="1")
 
     # No facts => field absent => un-evaluatable => no push, no alert row.
-    kb._evaluate_watchlists(store, 1, 1, count=10, facts=[], ts=kb._now_iso())
+    actions = []
+    kb._evaluate_watchlists(
+        store,
+        1,
+        1,
+        count=10,
+        facts=[],
+        ts=kb._now_iso(),
+        ntfy_actions=actions,
+    )
+    kb._deliver_ntfy_actions(actions)
     assert pushes == []
     assert _notif_count(store) == 0
 
     # Now the type appears -> first real fire pages once.
     facts = [("type", "airframe:F-16", "2")]
-    kb._evaluate_watchlists(store, 1, 1, count=10, facts=facts, ts=kb._now_iso())
+    actions = []
+    kb._evaluate_watchlists(
+        store,
+        1,
+        1,
+        count=10,
+        facts=facts,
+        ts=kb._now_iso(),
+        ntfy_actions=actions,
+    )
+    kb._deliver_ntfy_actions(actions)
     assert len(pushes) == 1
     assert _notif_count(store) == 1
 
@@ -207,3 +237,54 @@ def test_cooldown_repages_only_after_window(store, pushes, monkeypatch):
     clock["t"] = 1150.0                  # within the new window -> quiet again
     _evaluate(store, count=10)
     assert len(pushes) == 2
+
+
+def test_delayed_older_transition_cannot_overwrite_or_page(monkeypatch):
+    key = (71, 81)
+    cfg = {
+        "url": "https://ntfy.invalid/topic",
+        "token": "",
+        "priority": "high",
+        "cooldown": 0.0,
+        "recovery": True,
+        "recovery_priority": "low",
+    }
+    sent = []
+    monkeypatch.setattr(
+        kb,
+        "_push_ntfy",
+        lambda title, message, cfg, priority=None, tags="rotating_light": sent.append(
+            (title, priority, tags)
+        ),
+    )
+
+    newer = []
+    older = []
+    kb._queue_ntfy_transition(
+        newer,
+        key=key,
+        cfg=cfg,
+        firing=True,
+        title="new firing",
+        message="new",
+        now_ts=200.0,
+    )
+    kb._queue_ntfy_transition(
+        older,
+        key=key,
+        cfg=cfg,
+        firing=False,
+        title="stale recovery",
+        message="old",
+        now_ts=100.0,
+    )
+
+    kb._deliver_ntfy_actions(newer)
+    kb._deliver_ntfy_actions(older)
+
+    assert sent == [("new firing", "high", "rotating_light")]
+    assert kb._NTFY_STATE[key] == {
+        "firing": True,
+        "last_push_ts": 200.0,
+        "observed_ts": 200.0,
+    }

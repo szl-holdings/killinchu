@@ -30,6 +30,7 @@ import json
 import math
 import os
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -964,15 +965,15 @@ except Exception as _be_e:
 # timeline,alerts/recent,watchlists}. Persists to Postgres (when DATABASE_URL is set
 # AND psycopg is installed) else durable SQLite. Every endpoint returns the Doctrine
 # v11 envelope {status, citations, fetchedAt} with honest live/cached/degraded labels.
-# Additive, try/except-guarded, registered EARLY (before the SPA catch-all).
+# Import early, but register after the canonical Khipu/DSSE emitter is defined.
+# That point is still before the SPA catch-all and lets operator mutations use
+# the host's real receipt path instead of a parallel unsigned construction.
 try:
     import killinchu_backend as _kc_backend
-    _kc_be_status = _kc_backend.register(app, ns="killinchu")
-    import sys as _kc_be_sys
-    print(f"[killinchu] persistent backend registered: {_kc_be_status}", file=_kc_be_sys.stderr)
+    _kc_be_status = "deferred until canonical receipt emitter"
 except Exception as _kc_be_e:
     import sys as _kc_be_sys
-    print(f"[killinchu] persistent backend NOT registered: {_kc_be_e!r}", file=_kc_be_sys.stderr)
+    print(f"[killinchu] persistent backend NOT importable: {_kc_be_e!r}", file=_kc_be_sys.stderr)
     _kc_backend = None
 # ── Real persistent backend (killinchu-backend) ── end
 
@@ -1720,6 +1721,7 @@ _load_drones()
 # Same pattern as vessels' Wire-F DAG. Resets on Space restart (honest).
 # ---------------------------------------------------------------------------
 _KHIPU_DAG: list[dict[str, Any]] = []
+_KHIPU_LOCK = threading.RLock()
 
 
 def _digest_node(receipt: dict[str, Any], parents: list[str]) -> str:
@@ -1736,40 +1738,76 @@ def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
     # any single node. The Merkle DAG links receipts via SHA-256 parent digests.
     # Real DSSE signing happens when SZL_COSIGN_PRIVATE_KEY_PEM is set (Space secret);
     # absent = PLACEHOLDER label (honest — never fabricates a signature).
-    parents = [_KHIPU_DAG[-1]["digest"]] if _KHIPU_DAG else []
-    receipt = {
-        "schema": "szl.killinchu.receipt/v1",
-        "kind": kind,
-        "payload": payload,
-        "doctrine": DOCTRINE,
-        "ts_utc": datetime.now(timezone.utc).isoformat(),
-    }
-    sigs, signed = _receipt_signatures(receipt)
-    node: dict[str, Any] = {
-        "index": len(_KHIPU_DAG),
-        "wire": "F",
-        "source": "killinchu",
-        "receipt": receipt,
-        "parents": parents,
-        "dsse": {
-            "payloadType": "application/vnd.szl.receipt+json",
-            "signatures": sigs,
+    with _KHIPU_LOCK:
+        # Reconciliation can call the emitter again after a response loss.
+        # Return the existing node for identical deterministic mutation material.
+        if kind == "operator_mutation":
+            key_hash = payload.get("idempotency_key_hash")
+            for existing in reversed(_KHIPU_DAG):
+                prior = existing.get("receipt", {})
+                if (
+                    key_hash
+                    and prior.get("kind") == kind
+                    and prior.get("payload", {}).get("idempotency_key_hash") == key_hash
+                ):
+                    if prior.get("payload") != payload:
+                        raise RuntimeError(
+                            "operator mutation receipt key reused with different material"
+                        )
+                    return existing
+
+        parents = [_KHIPU_DAG[-1]["digest"]] if _KHIPU_DAG else []
+        receipt = {
+            "schema": "szl.killinchu.receipt/v1",
+            "kind": kind,
+            "payload": payload,
+            "doctrine": DOCTRINE,
+            "ts_utc": datetime.now(timezone.utc).isoformat(),
+        }
+        sigs, signed = _receipt_signatures(receipt)
+        node: dict[str, Any] = {
+            "index": len(_KHIPU_DAG),
+            "wire": "F",
+            "source": "killinchu",
+            "receipt": receipt,
+            "parents": parents,
+            "dsse": {
+                "payloadType": "application/vnd.szl.receipt+json",
+                "signatures": sigs,
+                "signed": signed,
+                "keyid": (sigs[0].get("keyid") if sigs else None),
+                "honesty": (
+                    "REAL — ECDSA-P256-SHA256 DSSE over cosign keypair; verify with "
+                    "`cosign verify-blob --key cosign.pub` or POST /khipu/verify."
+                    if signed else
+                    "PLACEHOLDER — SZL_COSIGN_PRIVATE_PEM secret absent; no signature "
+                    "fabricated (honest). Set the Space secret to enable real signing."
+                ),
+            },
             "signed": signed,
-            "keyid": (sigs[0].get("keyid") if sigs else None),
-            "honesty": (
-                "REAL — ECDSA-P256-SHA256 DSSE over cosign keypair; verify with "
-                "`cosign verify-blob --key cosign.pub` or POST /khipu/verify."
-                if signed else
-                "PLACEHOLDER — SZL_COSIGN_PRIVATE_PEM secret absent; no signature "
-                "fabricated (honest). Set the Space secret to enable real signing."
-            ),
-        },
-        "signed": signed,
-        "ts_utc": receipt["ts_utc"],
-    }
-    node["digest"] = _digest_node(receipt, parents)
-    _KHIPU_DAG.append(node)
-    return node
+            "ts_utc": receipt["ts_utc"],
+        }
+        node["digest"] = _digest_node(receipt, parents)
+        _KHIPU_DAG.append(node)
+        return node
+
+
+if _kc_backend is not None:
+    try:
+        _kc_be_status = _kc_backend.register(
+            app,
+            ns="killinchu",
+            emit_receipt=_emit_receipt,
+        )
+        print(
+            f"[killinchu] persistent backend registered: {_kc_be_status}",
+            file=sys.stderr,
+        )
+    except Exception as _kc_be_e:
+        print(
+            f"[killinchu] persistent backend NOT registered: {_kc_be_e!r}",
+            file=sys.stderr,
+        )
 
 
 def _khipu_root() -> str | None:
