@@ -87,9 +87,19 @@ def _seed(st, field="count", op="gt", threshold="3"):
 
 def _evaluate(st, count):
     """Run one crawl's worth of watchlist evaluation for a given mil count."""
-    return kb._evaluate_watchlists(
-        st, snap_id=1, event_id=1, count=count, facts=[], ts=kb._now_iso()
+    actions = []
+    created = kb._evaluate_watchlists(
+        st,
+        snap_id=1,
+        event_id=1,
+        count=count,
+        facts=[],
+        ts=kb._now_iso(),
+        ntfy_actions=actions,
     )
+    # Unit-level equivalent of the production after-commit hook.
+    kb._deliver_ntfy_actions(actions)
+    return created
 
 
 def _notif_count(st):
@@ -165,13 +175,33 @@ def test_unevaluatable_snapshot_clears_the_edge(store, pushes, monkeypatch):
     _seed(store, field="type:F-16", op="gte", threshold="1")
 
     # No facts => field absent => un-evaluatable => no push, no alert row.
-    kb._evaluate_watchlists(store, 1, 1, count=10, facts=[], ts=kb._now_iso())
+    actions = []
+    kb._evaluate_watchlists(
+        store,
+        1,
+        1,
+        count=10,
+        facts=[],
+        ts=kb._now_iso(),
+        ntfy_actions=actions,
+    )
+    kb._deliver_ntfy_actions(actions)
     assert pushes == []
     assert _notif_count(store) == 0
 
     # Now the type appears -> first real fire pages once.
     facts = [("type", "airframe:F-16", "2")]
-    kb._evaluate_watchlists(store, 1, 1, count=10, facts=facts, ts=kb._now_iso())
+    actions = []
+    kb._evaluate_watchlists(
+        store,
+        1,
+        1,
+        count=10,
+        facts=facts,
+        ts=kb._now_iso(),
+        ntfy_actions=actions,
+    )
+    kb._deliver_ntfy_actions(actions)
     assert len(pushes) == 1
     assert _notif_count(store) == 1
 

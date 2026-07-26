@@ -251,28 +251,73 @@ def _ntfy_was_firing(key: Tuple[int, int]) -> bool:
         return bool(prev.get("firing"))
 
 
-def _ntfy_clear(key: Tuple[int, int], cfg: Optional[Dict[str, Any]],
-                title: str, message: str, now_ts: float) -> None:
-    """Handle a not-firing evaluation for one trigger.
+def _queue_ntfy_transition(
+    actions: List[Dict[str, Any]],
+    *,
+    key: Tuple[int, int],
+    cfg: Optional[Dict[str, Any]],
+    firing: bool,
+    title: str,
+    message: str,
+    now_ts: float,
+) -> None:
+    """Queue an alert transition without performing an external side effect.
 
-    On a fire->clear EDGE (the trigger was firing at the previous evaluation),
-    send a single lower-priority "recovered" ntfy push, mirroring the box
-    monitors' RECOVERED notice — unless recovery notices are disabled. Recovery
-    is edge-triggered the same way a fire is: once the state is marked not-firing
-    it stays quiet while it remains clear. A no-op when no push channel is
-    configured (state is only tracked then).
+    Watchlist evaluation runs inside the crawl transaction. Sending ntfy, or
+    advancing its edge/de-dup state, before that transaction commits can page
+    on rolled-back data and suppress the next legitimate alert. Callers deliver
+    these immutable intents only after a successful commit.
     """
     if cfg is None:
         return
-    if cfg.get("recovery") and _ntfy_was_firing(key):
-        _push_ntfy(
-            title,
-            message,
-            cfg,
-            priority=cfg.get("recovery_priority") or "low",
-            tags="white_check_mark",
+    if firing:
+        priority = cfg.get("priority") or "high"
+        tags = "rotating_light"
+    else:
+        priority = cfg.get("recovery_priority") or "low"
+        tags = "white_check_mark"
+    actions.append({
+        "key": key,
+        "cfg": dict(cfg),
+        "firing": firing,
+        "title": title,
+        "message": message,
+        "priority": priority,
+        "tags": tags,
+        "now_ts": now_ts,
+    })
+
+
+def _deliver_ntfy_actions(actions: List[Dict[str, Any]]) -> None:
+    """Deliver committed ntfy intents, then advance edge/de-dup state."""
+    for action in actions:
+        firing = bool(action["firing"])
+        should_send = (
+            _ntfy_should_push(
+                action["key"],
+                action["cfg"],
+                float(action["now_ts"]),
+            )
+            if firing
+            else bool(
+                action["cfg"].get("recovery")
+                and _ntfy_was_firing(action["key"])
+            )
         )
-    _ntfy_mark(key, False, False, now_ts)
+        if should_send:
+            _push_ntfy(
+                action["title"],
+                action["message"],
+                action["cfg"],
+                priority=action["priority"],
+                tags=action["tags"],
+            )
+        _ntfy_mark(
+            action["key"],
+            firing,
+            should_send,
+            float(action["now_ts"]),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -885,7 +930,11 @@ def _derive_facts(payload: dict) -> List[Tuple[str, str, str]]:
     return facts
 
 
-def run_crawl(mode: str = "crawl") -> Dict[str, Any]:
+def run_crawl(
+    mode: str = "crawl",
+    *,
+    ntfy_actions: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     """Fetch the real feed, persist snapshot/facts/events, evaluate watchlists.
 
     Honest status: 'live' when the upstream answered, 'cached' when it failed but a
@@ -954,7 +1003,20 @@ def run_crawl(mode: str = "crawl") -> Dict[str, Any]:
          "info" if n else "low", "adsb.lol/mil", _MIL_ADSB_URL, fetched_at),
     )
 
-    alerts = _evaluate_watchlists(st, snap_id, event_id, n, facts, fetched_at)
+    # Callers own the surrounding transaction and deliver these intents only
+    # after it commits. A missing queue fails closed: in-app alerts persist,
+    # while no external ntfy side effect is attempted.
+    if ntfy_actions is None:
+        ntfy_actions = []
+    alerts = _evaluate_watchlists(
+        st,
+        snap_id,
+        event_id,
+        n,
+        facts,
+        fetched_at,
+        ntfy_actions=ntfy_actions,
+    )
 
     return _envelope("live", {
         "snapshot_id": snap_id,
@@ -975,7 +1037,8 @@ def _coerce_num(v: Any) -> Optional[float]:
 
 
 def _evaluate_watchlists(st: _Store, snap_id: int, event_id: int, count: int,
-                          facts: List[Tuple[str, str, str]], ts: str) -> List[int]:
+                          facts: List[Tuple[str, str, str]], ts: str, *,
+                          ntfy_actions: List[Dict[str, Any]]) -> List[int]:
     """Evaluate enabled watchlist triggers against this snapshot's facts.
 
     Supported fields: 'count' (the military-aircraft count) and 'type:<airframe>'
@@ -1004,12 +1067,17 @@ def _evaluate_watchlists(st: _Store, snap_id: int, event_id: int, count: int,
                 # real fire registers as a fresh clear->fire edge. If it was
                 # firing, this is a fire->clear edge — page a recovery notice.
                 # (State is only tracked when a push channel is configured.)
-                _ntfy_clear(
-                    key, cfg,
-                    f"killinchu · watchlist '{wl['name']}' recovered",
-                    f"{tg['field']} {op} {tg['threshold']} no longer evaluatable "
-                    f"(data unavailable)\nseverity info · {ts}",
-                    now_ts,
+                _queue_ntfy_transition(
+                    ntfy_actions,
+                    key=key,
+                    cfg=cfg,
+                    firing=False,
+                    title=f"killinchu · watchlist '{wl['name']}' recovered",
+                    message=(
+                        f"{tg['field']} {op} {tg['threshold']} no longer evaluatable "
+                        f"(data unavailable)\nseverity info · {ts}"
+                    ),
+                    now_ts=now_ts,
                 )
                 continue
             hit = (
@@ -1022,12 +1090,18 @@ def _evaluate_watchlists(st: _Store, snap_id: int, event_id: int, count: int,
             if not hit:
                 # Condition no longer met this snapshot. On a fire->clear edge
                 # (was firing, now clear) page a single recovery notice.
-                _ntfy_clear(
-                    key, cfg,
-                    f"killinchu · watchlist '{wl['name']}' recovered",
-                    f"{tg['field']} {op} {tg['threshold']} cleared (observed {actual:g})\n"
-                    f"severity info · source adsb.lol/mil · {ts}",
-                    now_ts,
+                _queue_ntfy_transition(
+                    ntfy_actions,
+                    key=key,
+                    cfg=cfg,
+                    firing=False,
+                    title=f"killinchu · watchlist '{wl['name']}' recovered",
+                    message=(
+                        f"{tg['field']} {op} {tg['threshold']} cleared "
+                        f"(observed {actual:g})\n"
+                        f"severity info · source adsb.lol/mil · {ts}"
+                    ),
+                    now_ts=now_ts,
                 )
                 continue
             nid = st.insert_returning_id(
@@ -1045,16 +1119,18 @@ def _evaluate_watchlists(st: _Store, snap_id: int, event_id: int, count: int,
             # on every crawl does NOT re-page. No channel configured => no push and
             # no state tracking (so enabling a channel mid-condition still pages).
             if cfg is not None:
-                pushed = False
-                if _ntfy_should_push(key, cfg, now_ts):
-                    _push_ntfy(
-                        f"killinchu · watchlist '{wl['name']}'",
+                _queue_ntfy_transition(
+                    ntfy_actions,
+                    key=key,
+                    cfg=cfg,
+                    firing=True,
+                    title=f"killinchu · watchlist '{wl['name']}'",
+                    message=(
                         f"{tg['field']} {op} {tg['threshold']} (observed {actual:g})\n"
-                        f"severity warn · source adsb.lol/mil · {ts}",
-                        cfg,
-                    )
-                    pushed = True
-                _ntfy_mark(key, True, pushed, now_ts)
+                        f"severity warn · source adsb.lol/mil · {ts}"
+                    ),
+                    now_ts=now_ts,
+                )
     return created
 
 
@@ -1192,7 +1268,17 @@ def run_crawl_guarded(mode: str = "auto") -> Optional[Dict[str, Any]]:
     if not _sched_lock.acquire(blocking=False):
         return None
     try:
-        return run_crawl(mode=mode)
+        st = _store()
+        if not st.ok():
+            return run_crawl(mode=mode, ntfy_actions=[])
+        ntfy_actions: List[Dict[str, Any]] = []
+        with st.transaction():
+            result = run_crawl(
+                mode=mode,
+                ntfy_actions=ntfy_actions,
+            )
+        _deliver_ntfy_actions(ntfy_actions)
+        return result
     finally:
         _sched_lock.release()
 
@@ -1650,13 +1736,18 @@ def register(
         import asyncio
 
         def _refresh_and_stage() -> "JSONResponse":
+            ntfy_actions: List[Dict[str, Any]] = []
             try:
                 with s.transaction():
-                    result = run_crawl(mode="live")
+                    result = run_crawl(
+                        mode="live",
+                        ntfy_actions=ntfy_actions,
+                    )
                     _stage_mutation(context, result)
             except Exception:
                 s.fail_operator_mutation(key_hash=key_hash)
                 raise
+            _deliver_ntfy_actions(ntfy_actions)
             return _reconcile_mutation(key_hash, replayed=False)
 
         return await asyncio.to_thread(_refresh_and_stage)
@@ -1684,13 +1775,18 @@ def register(
                 "circuit_open": True,
                 "operator_action": _sched_state["operator_action"],
             }, _adsb_citation()), status_code=503)
+        ntfy_actions: List[Dict[str, Any]] = []
         try:
             with st.transaction():
-                result = run_crawl(mode="crawl")
+                result = run_crawl(
+                    mode="crawl",
+                    ntfy_actions=ntfy_actions,
+                )
                 _stage_mutation(context, result)
         except Exception:
             st.fail_operator_mutation(key_hash=key_hash)
             raise
+        _deliver_ntfy_actions(ntfy_actions)
         return _reconcile_mutation(key_hash, replayed=False)
 
     # -- crawl/status (auto-crawl scheduler health) ------------------------

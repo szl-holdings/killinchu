@@ -218,7 +218,7 @@ def test_overlap_guard_does_not_double_start(backend_env, monkeypatch):
     release = threading.Event()
     calls = []
 
-    def _slow_crawl(mode="crawl"):
+    def _slow_crawl(mode="crawl", **_kwargs):
         calls.append(mode)
         entered.set()
         # Hold the crawl "in flight" until the test lets it finish.

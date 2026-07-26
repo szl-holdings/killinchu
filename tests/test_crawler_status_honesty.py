@@ -179,7 +179,7 @@ def test_clean_process_state_allows_guarded_crawl(monkeypatch):
     _reset_state()  # Equivalent module state after the documented service restart.
     calls = []
 
-    def live(mode="auto"):
+    def live(mode="auto", **_kwargs):
         calls.append(mode)
         return {"status": "live"}
 

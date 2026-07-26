@@ -8736,9 +8736,64 @@ window.intel_real_chip=function(env,db){
   if(st==='error') return window.intel_badge('DEGRADED','bad','backend error');
   return window.intel_badge('…','dim','checking');
 };
+window.__intel_operator_key='killinchu.elite.operator.bearer.v1';
+window.intel_operator_token=function(){
+  try{ return (window.sessionStorage.getItem(window.__intel_operator_key)||'').trim(); }
+  catch(_e){ return ''; }
+};
+window.intel_operator_authorize=function(force){
+  var current=window.intel_operator_token();
+  if(current&&!force) return current;
+  var entered=window.prompt(
+    'Operator authorization\\n\\nEnter the bearer token configured for this Killinchu deployment. It is kept only in this browser tab session and is never rendered or written to the URL.',
+    ''
+  );
+  if(entered===null) return '';
+  entered=String(entered).trim();
+  if(!entered){ window.intel_operator_clear(false); return ''; }
+  if(entered.length>4096){ throw new Error('operator token exceeds the 4096-character client bound'); }
+  try{ window.sessionStorage.setItem(window.__intel_operator_key,entered); }
+  catch(_e){ throw new Error('this browser cannot retain the operator token for the tab session'); }
+  return entered;
+};
+window.intel_operator_clear=function(rerender){
+  try{ window.sessionStorage.removeItem(window.__intel_operator_key); }catch(_e){}
+  if(rerender!==false&&window.intel_render){
+    window.intel_render(document.getElementById('intel-root'));
+  }
+};
+window.intel_idempotency_key=function(method,path){
+  var operation=(String(method||'POST')+':'+String(path||'mutation'))
+    .replace(/[^A-Za-z0-9._:-]/g,'-').slice(0,48);
+  var nonce='';
+  try{
+    nonce=(window.crypto&&window.crypto.randomUUID)
+      ?window.crypto.randomUUID()
+      :(Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,18));
+  }catch(_e){ nonce=Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,18); }
+  return ('elite:'+operation+':'+nonce)
+    .replace(/[^A-Za-z0-9._:-]/g,'-').slice(0,128);
+};
 window.intel_fetch=async function(path,opts){
-  var r=await fetch('/api/'+window.__intel_ns+path,opts||{});
-  var d=await r.json(); d.__http=r.status; return d;
+  opts=opts||{};
+  var method=String(opts.method||'GET').toUpperCase();
+  var headers=new Headers(opts.headers||{});
+  if(method!=='GET'&&method!=='HEAD'&&method!=='OPTIONS'){
+    var token=window.intel_operator_token()||window.intel_operator_authorize(false);
+    if(!token) throw new Error('operator authorization is required for this action');
+    headers.set('Authorization','Bearer '+token);
+    if(!headers.has('Idempotency-Key')){
+      headers.set('Idempotency-Key',window.intel_idempotency_key(method,path));
+    }
+  }
+  var requestOpts=Object.assign({},opts,{method:method,headers:headers});
+  var r=await fetch('/api/'+window.__intel_ns+path,requestOpts);
+  var text=await r.text(),d={};
+  try{ d=text?JSON.parse(text):{}; }catch(_e){ d={error:text||('HTTP '+r.status)}; }
+  d.__http=r.status;
+  if(r.status===401) window.intel_operator_clear(false);
+  if(!r.ok) throw new Error((d&&d.error)||('HTTP '+r.status));
+  return d;
 };
 window.intel_run=async function(kind,btn){
   var old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='⟳ '+(kind==='live'?'loading live…':'crawling…'); }
@@ -8781,9 +8836,14 @@ window.intel_render=async function(c){
     h+=window.intel_real_chip(hl,db);
     h+=' '+window.intel_badge('backend: '+((db.backend)||'?'),db.durable?'good':'bad','active DB backend (postgres-first; durable-sqlite fallback)');
     h+=' '+window.intel_badge('postgres-first','info','prefers Postgres when DATABASE_URL is set');
+    h+=' '+window.intel_badge(
+      window.intel_operator_token()?'operator authorized (tab session)':'operator auth required for writes',
+      window.intel_operator_token()?'good':'warn',
+      'Bearer authority stays in sessionStorage for this browser tab only; it is never rendered, logged, or placed in the URL.'
+    );
     if(db.ping_ms!=null) h+=' '+window.intel_badge('db ping '+esc(String(db.ping_ms))+'ms',db.ping_ok?'good':'bad','last SELECT 1 latency');
     h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">store: '+esc(db.dsn_kind||'')+(db.init_error?(' \u00b7 '+esc(db.init_error)):'')+' \u00b7 fetched '+esc((hl&&hl.fetchedAt)||'')+'</div>';
-    h+='<div class="btns" style="margin-top:.55rem"><button class="btn teal" onclick="window.intel_run(\'crawl\',this)">▶ Run crawl (scrape + persist)</button> <button class="btn" onclick="window.intel_run(\'live\',this)">⟳ Load live (cached scrape)</button></div></div>';
+    h+='<div class="btns" style="margin-top:.55rem"><button class="btn teal" onclick="window.intel_run(\'crawl\',this)">▶ Run crawl (scrape + persist)</button> <button class="btn" onclick="window.intel_run(\'live\',this)">⟳ Load live (cached scrape)</button> <button class="btn" onclick="try{window.intel_operator_authorize(true);window.intel_render(document.getElementById(\'intel-root\'));}catch(e){alert(e.message||e)}">Authorize operator</button> <button class="btn" onclick="window.intel_operator_clear(true)">Clear operator session</button></div></div>';
     /* timeline */
     h+='<div class="card"><div class="card-h"><span class="card-t">Timeline (events)</span><span class="card-ep">/api/killinchu/timeline</span></div>';
     h+='<div style="margin:.2rem 0 .4rem">'+window.intel_badge(String(tl.status||''),window.intel_status_kind(tl.status),'envelope status')+' '+window.intel_badge((tl.count||0)+' events','dim')+'</div>';

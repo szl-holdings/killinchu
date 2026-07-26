@@ -309,3 +309,67 @@ def test_cooldown_repages_only_after_window(backend_env, pushes, monkeypatch):
         clock["t"] = 1150.0             # within the new window -> quiet again
         _crawl(client)
         assert len(pushes) == 2
+
+
+def test_rolled_back_crawl_neither_pages_nor_suppresses_next_alert(
+    backend_env,
+    pushes,
+    monkeypatch,
+):
+    """External alert delivery and de-dup state begin only after DB commit."""
+    monkeypatch.setenv(
+        "KILLINCHU_NTFY_URL",
+        "https://ntfy.example/killinchu-test",
+    )
+    monkeypatch.setattr(
+        kb,
+        "_fetch_mil_adsb",
+        lambda timeout=12.0: (MATCH_PAYLOAD, 200, None),
+    )
+    app = FastAPI(title="kc-watchlist-rollback-proof", version="0.0.0")
+    kb.register(app, ns=NS)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        _seed_f16_watchlist(client)
+        original_stage = backend_env.stage_operator_mutation
+
+        def fail_before_commit(**_kwargs):
+            raise RuntimeError("forced failure before crawl transaction commit")
+
+        monkeypatch.setattr(
+            backend_env,
+            "stage_operator_mutation",
+            fail_before_commit,
+        )
+        rolled_back = client.post(
+            f"/api/{NS}/crawl/run",
+            headers={
+                "Authorization": f"Bearer {OPERATOR_TOKEN}",
+                "Idempotency-Key": "watchlist-rollback-crawl-0001",
+            },
+        )
+
+        assert rolled_back.status_code == 500
+        assert pushes == []
+        assert backend_env.query(
+            "SELECT COUNT(*) AS c FROM notifications"
+        )[0]["c"] == 0
+        with kb._NTFY_STATE_LOCK:
+            assert kb._NTFY_STATE == {}
+
+        # Restore receipt staging and prove the next real committed edge pages.
+        setattr(backend_env, "stage_operator_mutation", original_stage)
+        committed = client.post(
+            f"/api/{NS}/crawl/run",
+            headers={
+                "Authorization": f"Bearer {OPERATOR_TOKEN}",
+                "Idempotency-Key": "watchlist-rollback-crawl-0002",
+            },
+        )
+
+    assert committed.status_code == 200, committed.text
+    assert committed.json()["alerts_created"] == 1
+    assert len(pushes) == 1
+    assert backend_env.query(
+        "SELECT COUNT(*) AS c FROM notifications"
+    )[0]["c"] == 1

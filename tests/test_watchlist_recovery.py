@@ -70,7 +70,18 @@ def _store_with_trigger(mod, field="count", op="gt", threshold="3"):
 
 
 def _eval(mod, st, count, ts="2026-06-11T00:00:00Z"):
-    return mod._evaluate_watchlists(st, 1, 1, count, [], ts)
+    actions = []
+    created = mod._evaluate_watchlists(
+        st,
+        1,
+        1,
+        count,
+        [],
+        ts,
+        ntfy_actions=actions,
+    )
+    mod._deliver_ntfy_actions(actions)
+    return created
 
 
 def test_fire_then_recover_then_quiet(kb):
@@ -126,12 +137,32 @@ def test_unevaluatable_after_fire_recovers(kb):
 
     # Fire: inject the matching fact.
     facts = [("type", "airframe:F-22", "2")]
-    mod._evaluate_watchlists(st, 1, 1, 0, facts, "2026-06-11T00:00:00Z")
+    actions = []
+    mod._evaluate_watchlists(
+        st,
+        1,
+        1,
+        0,
+        facts,
+        "2026-06-11T00:00:00Z",
+        ntfy_actions=actions,
+    )
+    mod._deliver_ntfy_actions(actions)
     assert len(sent) == 1
     assert sent[0]["headers"]["Priority"] == "high"
 
     # Next snapshot has no such fact -> un-evaluatable -> fire->clear recovery.
-    mod._evaluate_watchlists(st, 2, 2, 0, [], "2026-06-11T00:05:00Z")
+    actions = []
+    mod._evaluate_watchlists(
+        st,
+        2,
+        2,
+        0,
+        [],
+        "2026-06-11T00:05:00Z",
+        ntfy_actions=actions,
+    )
+    mod._deliver_ntfy_actions(actions)
     assert len(sent) == 2
     assert sent[1]["headers"]["Priority"] == "low"
     assert "no longer evaluatable" in sent[1]["body"]
