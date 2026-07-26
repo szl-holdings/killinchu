@@ -1286,18 +1286,8 @@ def run_crawl_guarded(mode: str = "auto") -> Optional[Dict[str, Any]]:
     if not _sched_lock.acquire(blocking=False):
         return None
     try:
-        st = _store()
-        if not st.ok():
-            return run_crawl(mode=mode, ntfy_actions=[])
-        fetched = _fetch_crawl_input()
         ntfy_actions: List[Dict[str, Any]] = []
-        with st.transaction():
-            result = run_crawl(
-                mode=mode,
-                ntfy_actions=ntfy_actions,
-                fetched=fetched,
-                transaction_open=True,
-            )
+        result = run_crawl(mode=mode, ntfy_actions=ntfy_actions)
         _deliver_ntfy_actions(ntfy_actions)
         return result
     finally:
