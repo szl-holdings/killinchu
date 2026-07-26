@@ -543,6 +543,7 @@ _ARCHIVE_PREFIX = os.environ.get("KILLINCHU_INTEL_ARCHIVE_PREFIX", "intel").stri
 _ARCHIVE_INTERVAL = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_INTERVAL", "300"))
 _ARCHIVE_AIR_LIMIT = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_AIR_LIMIT", "40"))
 _ARCHIVE_AIS_LIMIT = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_AIS_LIMIT", "40"))
+_ARCHIVE_PROJECTION_SCHEMA = "killinchu.platform-projection/v2"
 try:
     _ARCHIVE_CELL = max(
         1.0,
@@ -641,10 +642,19 @@ def _archive_card() -> str:
         "- Platform `track_id` values are rotating, secret-keyed HMAC pseudonyms. The\n"
         "  record `id` is a **sha256 content-address** used for dedup / integrity.\n"
         "  Neither value is a DSSE / Ed25519 signature or proof of correctness.\n"
+        "- New platform rows declare projection schema `%s`. Historical pre-v2 rows\n"
+        "  may remain in the append-only backing shards and may contain raw platform\n"
+        "  identifiers. The public `/osint/archive/recent` API withholds those legacy\n"
+        "  platform rows; this card does not claim the backing archive was migrated.\n"
         "- Records are **append-only** and **bounded**: deduped per identity per UTC hour\n"
         "  per ~%.2f° cell, so the archive grows steadily without flooding.\n"
         "- No \"proven\" or \"verified\" claim is made about any item.\n"
-    ) % (_ARCHIVE_PREFIX, _ARCHIVE_PREFIX, _ARCHIVE_CELL)
+    ) % (
+        _ARCHIVE_PREFIX,
+        _ARCHIVE_PREFIX,
+        _ARCHIVE_PROJECTION_SCHEMA,
+        _ARCHIVE_CELL,
+    )
 
 
 def _archive_ensure_public() -> bool:
@@ -788,6 +798,7 @@ def _archive_feed_air(lf, bucket) -> int:
                  "lat": _archive_round(a.get("lat")), "lon": _archive_round(a.get("lon"))}
         altitude_ft, on_ground = _archive_altitude(a.get("alt_baro"))
         payload = {
+            "projection_schema": _ARCHIVE_PROJECTION_SCHEMA,
             "kind": "adsb-aircraft", "source": "adsb",
             "track_id": track_id,
             "lat": _archive_round(a.get("lat")), "lon": _archive_round(a.get("lon")),
@@ -826,6 +837,7 @@ def _archive_feed_ais(lf, bucket) -> int:
         dedup = {"track_id": track_id, "hour": hour,
                  "lat": _archive_round(v.get("lat")), "lon": _archive_round(v.get("lon"))}
         payload = {
+            "projection_schema": _ARCHIVE_PROJECTION_SCHEMA,
             "kind": "ais-vessel", "source": "ais",
             "track_id": track_id,
             "sog": v.get("sog"), "cog": v.get("cog"), "heading": v.get("heading"),
@@ -983,7 +995,12 @@ def _archive_status(head_probe: Optional[dict] = None) -> dict:
         "viewer_url": "https://huggingface.co/datasets/%s/viewer" % _ARCHIVE_REPO,
         "projection": {
             "coordinate_cell_degrees": _ARCHIVE_CELL,
-            "persistent_platform_identifiers_published": False,
+            "schema": _ARCHIVE_PROJECTION_SCHEMA,
+            "persistent_platform_identifiers_published": None,
+            "new_projection_persistent_platform_identifiers_published": False,
+            "legacy_records_may_contain_raw_identifiers": True,
+            "legacy_records_public_read_policy": "withheld",
+            "claim_scope": "new_projection_rows_only",
             "track_identifier": "rotating_hmac_sha256_96bit",
             "altitude_schema": "nullable_float_with_on_ground_boolean",
         },
@@ -1055,6 +1072,45 @@ def _item_from_archive_payload(p: dict) -> dict:
     return it
 
 
+def _archive_public_record(record: Any) -> tuple[Optional[dict], Optional[str]]:
+    """Apply the public archive read policy without mutating append-only history.
+
+    Open-web OSINT rows are unaffected. Platform rows are returned only when they
+    explicitly carry the current privacy projection schema. Historical rows are
+    withheld rather than heuristically redacted because their full legacy shape
+    and coordinate precision cannot be proven safe at this boundary.
+    """
+    if not isinstance(record, dict):
+        return None, "invalid_record"
+    kind = record.get("kind")
+    if kind not in ("adsb-aircraft", "ais-vessel"):
+        return dict(record), None
+    payload = record.get("payload")
+    if not isinstance(payload, dict):
+        return None, "legacy_platform_projection"
+    if payload.get("projection_schema") != _ARCHIVE_PROJECTION_SCHEMA:
+        return None, "legacy_platform_projection"
+    forbidden = (
+        {"hex", "flight", "registration", "tail", "callsign"}
+        if kind == "adsb-aircraft"
+        else {"mmsi", "name", "imo", "callsign"}
+    )
+    if forbidden.intersection(payload):
+        return None, "unsafe_platform_projection"
+    for coordinate in ("lat", "lon"):
+        value = payload.get(coordinate)
+        if value is None:
+            continue
+        try:
+            numeric = float(value)
+            grid_index = numeric / _ARCHIVE_CELL
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None, "unsafe_platform_projection"
+        if abs(grid_index - round(grid_index)) > 1e-9:
+            return None, "unsafe_platform_projection"
+    return dict(record), None
+
+
 def _archive_read(n: int = 24, kind: Optional[str] = None) -> dict:
     """READ live records back from the PUBLIC intel archive (network call) so the
     archive is a real backing store, not write-only. HF-unreachable-tolerant and
@@ -1093,6 +1149,14 @@ def _archive_read(n: int = 24, kind: Optional[str] = None) -> dict:
         return out
     if kind:
         recs = [r for r in recs if r.get("kind") == kind]
+    public_recs = []
+    withheld: dict[str, int] = {}
+    for record in recs:
+        public_record, reason = _archive_public_record(record)
+        if public_record is not None:
+            public_recs.append(public_record)
+        else:
+            withheld[reason or "policy"] = int(withheld.get(reason or "policy", 0)) + 1
     # Honest live/cached/unreachable: a committed head.json (count is not None)
     # means we genuinely reached HF on this request.
     hf_ok = bool(head) and head.get("count") is not None
@@ -1102,7 +1166,17 @@ def _archive_read(n: int = 24, kind: Optional[str] = None) -> dict:
         mode = "cached"
     else:
         mode = "unreachable"
-    out.update({"mode": mode, "records": recs, "count": len(recs), "head": head})
+    out.update({
+        "mode": mode,
+        "records": public_recs,
+        "count": len(public_recs),
+        "records_examined": len(recs),
+        "records_withheld": sum(withheld.values()),
+        "withheld_by_policy": withheld,
+        "projection_schema": _ARCHIVE_PROJECTION_SCHEMA,
+        "legacy_platform_read_policy": "withheld",
+        "head": head,
+    })
     return out
 
 
