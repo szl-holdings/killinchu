@@ -33,6 +33,9 @@
 # deterministic).
 from __future__ import annotations
 
+import hashlib
+import itertools
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -40,6 +43,8 @@ from fastapi.testclient import TestClient
 import killinchu_backend as kb
 
 NS = "killinchu"
+OPERATOR_TOKEN = "watchlist-integration-operator-token"
+_CRAWL_KEYS = itertools.count(1)
 
 # Env that influences the store, scheduler, and ntfy push; cleared so the host
 # environment can never make these tests flaky.
@@ -99,6 +104,10 @@ def backend_env(tmp_path, monkeypatch):
     monkeypatch.delenv("KILLINCHU_DATABASE_URL", raising=False)
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("KILLINCHU_DB_DIR", str(tmp_path))
+    monkeypatch.setenv(
+        "A11OY_COMPUTE_TOKEN_SHA256",
+        hashlib.sha256(OPERATOR_TOKEN.encode("utf-8")).hexdigest(),
+    )
     # Synchronous pushes so a single crawl is fully resolved when /crawl/run
     # returns — no daemon thread races in the assertions.
     monkeypatch.setenv("KILLINCHU_NTFY_BLOCKING", "1")
@@ -156,6 +165,10 @@ def _seed_f16_watchlist(client: TestClient) -> int:
             "enabled": True,
             "triggers": [{"field": "type:F-16", "op": "gte", "threshold": 1}],
         },
+        headers={
+            "Authorization": f"Bearer {OPERATOR_TOKEN}",
+            "Idempotency-Key": "watchlist-integration-seed-0001",
+        },
     )
     assert r.status_code == 201, r.text
     return int(r.json()["watchlist"]["id"])
@@ -168,9 +181,32 @@ def _alerts_count(client: TestClient) -> int:
 
 
 def _crawl(client: TestClient) -> dict:
-    r = client.post(f"/api/{NS}/crawl/run")
+    r = client.post(
+        f"/api/{NS}/crawl/run",
+        headers={
+            "Authorization": f"Bearer {OPERATOR_TOKEN}",
+            "Idempotency-Key": f"watchlist-integration-crawl-{next(_CRAWL_KEYS):04d}",
+        },
+    )
     assert r.status_code == 200, r.text
     return r.json()
+
+
+def test_operator_mutation_routes_keep_openapi_security_contract(backend_env):
+    """This file is a protected CI target, so route/auth drift fails CI."""
+    app = FastAPI(title="kc-watchlist-openapi-contract", version="0.0.0")
+    kb.register(app, ns=NS)
+    schema = app.openapi()
+    protected = {
+        (f"/api/{NS}/crawl/run", "post"),
+        (f"/api/{NS}/watchlists", "post"),
+        (f"/api/{NS}/watchlists/{{wid}}", "put"),
+        (f"/api/{NS}/watchlists/{{wid}}", "delete"),
+    }
+    assert schema["components"]["securitySchemes"]["OperatorBearer"]["type"] == "http"
+    for path, method in protected:
+        assert schema["paths"][path][method]["security"] == [{"OperatorBearer": []}]
+    assert "security" not in schema["paths"][f"/api/{NS}/watchlists"]["get"]
 
 
 # ---------------------------------------------------------------------------
