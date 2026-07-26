@@ -46,6 +46,7 @@ Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import threading
@@ -518,20 +519,54 @@ def _durable_status(head_probe: Optional[dict] = None) -> dict:
 # dedup / integrity, NOT a DSSE/Ed25519 signature, and asserts nothing about
 # correctness. Best-effort + off the request path: never raises, never blocks.
 # ---------------------------------------------------------------------------
-_ARCHIVE_ENABLED = os.environ.get("KILLINCHU_INTEL_ARCHIVE", "").strip().lower() in ("1", "true", "yes", "on")
+_ARCHIVE_REQUESTED = os.environ.get("KILLINCHU_INTEL_ARCHIVE", "").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+_ARCHIVE_RIGHTS_APPROVED = os.environ.get(
+    "KILLINCHU_INTEL_ARCHIVE_RIGHTS_APPROVED", "",
+).strip().lower() in ("1", "true", "yes", "on")
+_ARCHIVE_PSEUDONYM_KEY = os.environ.get(
+    "KILLINCHU_INTEL_ARCHIVE_PSEUDONYM_KEY", "",
+).encode("utf-8")
+_ARCHIVE_PSEUDONYM_KEY_READY = len(_ARCHIVE_PSEUDONYM_KEY) >= 32
+# Publication is fail-closed. A legacy KILLINCHU_INTEL_ARCHIVE=true setting is
+# insufficient on its own: an operator must separately attest that the
+# source-by-source rights/privacy review has completed and supply a secret
+# pseudonymization key. The key never enters a payload, receipt, or status body.
+_ARCHIVE_ENABLED = (
+    _ARCHIVE_REQUESTED
+    and _ARCHIVE_RIGHTS_APPROVED
+    and _ARCHIVE_PSEUDONYM_KEY_READY
+)
 _ARCHIVE_REPO = os.environ.get("KILLINCHU_INTEL_ARCHIVE_REPO", _HF_REPO).strip()
 _ARCHIVE_PREFIX = os.environ.get("KILLINCHU_INTEL_ARCHIVE_PREFIX", "intel").strip().strip("/") or "intel"
 _ARCHIVE_INTERVAL = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_INTERVAL", "300"))
 _ARCHIVE_AIR_LIMIT = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_AIR_LIMIT", "40"))
 _ARCHIVE_AIS_LIMIT = int(os.environ.get("KILLINCHU_INTEL_ARCHIVE_AIS_LIMIT", "40"))
+_ARCHIVE_PROJECTION_SCHEMA = "killinchu.platform-projection/v2"
 try:
-    _ARCHIVE_CELL = float(os.environ.get("KILLINCHU_INTEL_ARCHIVE_CELL", "0.1")) or 0.1
+    _ARCHIVE_CELL = max(
+        1.0,
+        float(os.environ.get("KILLINCHU_INTEL_ARCHIVE_CELL", "1.0")) or 1.0,
+    )
 except Exception:
-    _ARCHIVE_CELL = 0.1
+    _ARCHIVE_CELL = 1.0
 
 # Honest, observable state of the public archive (surfaced in osint/status).
 _ARCHIVE_STATE: dict[str, Any] = {
     "enabled": _ARCHIVE_ENABLED,
+    "requested": _ARCHIVE_REQUESTED,
+    "rights_approved": _ARCHIVE_RIGHTS_APPROVED,
+    "pseudonym_key_present": _ARCHIVE_PSEUDONYM_KEY_READY,
+    "publication_state": (
+        "RIGHTS_APPROVED_COARSENED_DERIVATIVE"
+        if _ARCHIVE_ENABLED
+        else (
+            "FROZEN_PENDING_PSEUDONYM_KEY"
+            if _ARCHIVE_REQUESTED and _ARCHIVE_RIGHTS_APPROVED
+            else "FROZEN_PENDING_RIGHTS_AND_PRIVACY_REVIEW"
+        )
+    ),
     "repo": _ARCHIVE_REPO,
     "prefix": _ARCHIVE_PREFIX,
     "public": None,        # None=unknown, True/False once ensured
@@ -604,12 +639,22 @@ def _archive_card() -> str:
         "## Honesty (Doctrine v11)\n"
         "- Every record is a **third-party CLAIM / self-report**, not attested truth.\n"
         "  Broadcast positions and open-web reports can be spoofed, delayed, or wrong.\n"
-        "- The record `id` is a **sha256 content-address** used for dedup / integrity —\n"
-        "  it is **NOT a DSSE / Ed25519 signature** and asserts nothing about correctness.\n"
+        "- Platform `track_id` values are rotating, secret-keyed HMAC pseudonyms. The\n"
+        "  record `id` is a **sha256 content-address** used for dedup / integrity.\n"
+        "  Neither value is a DSSE / Ed25519 signature or proof of correctness.\n"
+        "- New platform rows declare projection schema `%s`. Historical pre-v2 rows\n"
+        "  may remain in the append-only backing shards and may contain raw platform\n"
+        "  identifiers. The public `/osint/archive/recent` API withholds those legacy\n"
+        "  platform rows; this card does not claim the backing archive was migrated.\n"
         "- Records are **append-only** and **bounded**: deduped per identity per UTC hour\n"
         "  per ~%.2f° cell, so the archive grows steadily without flooding.\n"
         "- No \"proven\" or \"verified\" claim is made about any item.\n"
-    ) % (_ARCHIVE_PREFIX, _ARCHIVE_PREFIX, _ARCHIVE_CELL)
+    ) % (
+        _ARCHIVE_PREFIX,
+        _ARCHIVE_PREFIX,
+        _ARCHIVE_PROJECTION_SCHEMA,
+        _ARCHIVE_CELL,
+    )
 
 
 def _archive_ensure_public() -> bool:
@@ -704,6 +749,24 @@ def _archive_round(v):
         return None
 
 
+def _archive_track_id(value: Any, window: str) -> str:
+    """Return a rotating keyed pseudonym for within-window dedup only."""
+    if not _ARCHIVE_PSEUDONYM_KEY_READY:
+        raise RuntimeError("archive pseudonymization key is unavailable")
+    message = f"{value}|{window}".encode("utf-8")
+    return hmac.new(_ARCHIVE_PSEUDONYM_KEY, message, hashlib.sha256).hexdigest()[:24]
+
+
+def _archive_altitude(v: Any) -> tuple[Optional[float], bool]:
+    """Normalize mixed ADS-B altitude values to one nullable numeric column."""
+    if isinstance(v, str) and v.strip().lower() == "ground":
+        return None, True
+    try:
+        return (float(v), False) if v is not None else (None, False)
+    except (TypeError, ValueError):
+        return None, False
+
+
 def _archive_hour() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H")
 
@@ -730,19 +793,24 @@ def _archive_feed_air(lf, bucket) -> int:
         ident = a.get("hex") or a.get("flight")
         if not ident:
             continue
-        dedup = {"hex": a.get("hex"), "flight": a.get("flight"), "hour": hour,
+        track_id = _archive_track_id(ident, hour)
+        dedup = {"track_id": track_id, "hour": hour,
                  "lat": _archive_round(a.get("lat")), "lon": _archive_round(a.get("lon"))}
+        altitude_ft, on_ground = _archive_altitude(a.get("alt_baro"))
         payload = {
+            "projection_schema": _ARCHIVE_PROJECTION_SCHEMA,
             "kind": "adsb-aircraft", "source": "adsb",
-            "hex": a.get("hex"), "flight": a.get("flight"),
-            "lat": a.get("lat"), "lon": a.get("lon"),
-            "alt_baro": a.get("alt_baro"), "gs": a.get("gs"), "track": a.get("track"),
+            "track_id": track_id,
+            "lat": _archive_round(a.get("lat")), "lon": _archive_round(a.get("lon")),
+            "alt_baro": altitude_ft, "on_ground": on_ground,
+            "gs": a.get("gs"), "track": a.get("track"),
             "category": a.get("category"), "type": a.get("type"), "squawk": a.get("squawk"),
             "observed_hour_utc": hour, "feed_fetched_at": feed.get("fetched_at"),
             "feed_endpoint": data.get("endpoint"),
             "attribution": data.get("attribution"),
             "honesty": ("third-party ADS-B broadcast self-report; position is a claim, "
-                        "not attested; id is a sha256 dedup hash, not a signature"),
+                        "not attested; track_id is a rotating keyed pseudonym and "
+                        "record id is a sha256 dedup hash; neither is a signature"),
         }
         recs.append(bucket.make_record(payload, kind="adsb-aircraft", source="adsb", dedup_key=dedup))
     if not recs:
@@ -765,17 +833,21 @@ def _archive_feed_ais(lf, bucket) -> int:
         mmsi = v.get("mmsi")
         if not mmsi:
             continue
-        dedup = {"mmsi": mmsi, "hour": hour,
+        track_id = _archive_track_id(mmsi, hour)
+        dedup = {"track_id": track_id, "hour": hour,
                  "lat": _archive_round(v.get("lat")), "lon": _archive_round(v.get("lon"))}
         payload = {
+            "projection_schema": _ARCHIVE_PROJECTION_SCHEMA,
             "kind": "ais-vessel", "source": "ais",
-            "mmsi": mmsi, "name": v.get("name"),
+            "track_id": track_id,
             "sog": v.get("sog"), "cog": v.get("cog"), "heading": v.get("heading"),
-            "navStat": v.get("navStat"), "lat": v.get("lat"), "lon": v.get("lon"),
+            "navStat": v.get("navStat"),
+            "lat": _archive_round(v.get("lat")), "lon": _archive_round(v.get("lon")),
             "observed_hour_utc": hour, "feed_fetched_at": feed.get("fetched_at"),
             "attribution": data.get("attribution"),
             "honesty": ("third-party AIS broadcast self-report; position is a claim, "
-                        "not attested; id is a sha256 dedup hash, not a signature"),
+                        "not attested; track_id is a rotating keyed pseudonym and "
+                        "record id is a sha256 dedup hash; neither is a signature"),
         }
         recs.append(bucket.make_record(payload, kind="ais-vessel", source="ais", dedup_key=dedup))
     if not recs:
@@ -904,6 +976,10 @@ def _archive_status(head_probe: Optional[dict] = None) -> dict:
     (head_* keys appear only when the committed head was actually read back)."""
     st = {
         "enabled": _ARCHIVE_ENABLED,
+        "requested": _ARCHIVE_REQUESTED,
+        "rights_approved": _ARCHIVE_RIGHTS_APPROVED,
+        "pseudonym_key_present": _ARCHIVE_PSEUDONYM_KEY_READY,
+        "publication_state": _ARCHIVE_STATE["publication_state"],
         "repo": _ARCHIVE_REPO,
         "prefix": _ARCHIVE_PREFIX,
         "public": _ARCHIVE_STATE["public"],
@@ -917,8 +993,27 @@ def _archive_status(head_probe: Optional[dict] = None) -> dict:
         "token_present": bool(_hf_token()),
         "browse_url": "https://huggingface.co/datasets/%s" % _ARCHIVE_REPO,
         "viewer_url": "https://huggingface.co/datasets/%s/viewer" % _ARCHIVE_REPO,
-        "note": ("append-only content-addressed NDJSON archive via szl_hf_bucket; "
-                 "rows are third-party claims, id is a sha256 dedup hash NOT a signature"),
+        "projection": {
+            "coordinate_cell_degrees": _ARCHIVE_CELL,
+            "schema": _ARCHIVE_PROJECTION_SCHEMA,
+            "persistent_platform_identifiers_published": None,
+            "new_projection_persistent_platform_identifiers_published": False,
+            "legacy_records_may_contain_raw_identifiers": True,
+            "legacy_records_public_read_policy": "withheld",
+            "claim_scope": "new_projection_rows_only",
+            "track_identifier": "rotating_hmac_sha256_96bit",
+            "altitude_schema": "nullable_float_with_on_ground_boolean",
+        },
+        "note": (
+            "publication frozen until separate rights/privacy approval"
+            if not _ARCHIVE_RIGHTS_APPROVED
+            else (
+                "publication frozen until a 32-byte pseudonymization key is configured"
+                if not _ARCHIVE_PSEUDONYM_KEY_READY
+                else "coarsened, keyed-pseudonym derivative via szl_hf_bucket; "
+                     "rows are third-party claims and ids are not signatures"
+            )
+        ),
     }
     try:
         if _ARCHIVE_BUCKET is not None:
@@ -977,6 +1072,45 @@ def _item_from_archive_payload(p: dict) -> dict:
     return it
 
 
+def _archive_public_record(record: Any) -> tuple[Optional[dict], Optional[str]]:
+    """Apply the public archive read policy without mutating append-only history.
+
+    Open-web OSINT rows are unaffected. Platform rows are returned only when they
+    explicitly carry the current privacy projection schema. Historical rows are
+    withheld rather than heuristically redacted because their full legacy shape
+    and coordinate precision cannot be proven safe at this boundary.
+    """
+    if not isinstance(record, dict):
+        return None, "invalid_record"
+    kind = record.get("kind")
+    if kind not in ("adsb-aircraft", "ais-vessel"):
+        return dict(record), None
+    payload = record.get("payload")
+    if not isinstance(payload, dict):
+        return None, "legacy_platform_projection"
+    if payload.get("projection_schema") != _ARCHIVE_PROJECTION_SCHEMA:
+        return None, "legacy_platform_projection"
+    forbidden = (
+        {"hex", "flight", "registration", "tail", "callsign"}
+        if kind == "adsb-aircraft"
+        else {"mmsi", "name", "imo", "callsign"}
+    )
+    if forbidden.intersection(payload):
+        return None, "unsafe_platform_projection"
+    for coordinate in ("lat", "lon"):
+        value = payload.get(coordinate)
+        if value is None:
+            continue
+        try:
+            numeric = float(value)
+            grid_index = numeric / _ARCHIVE_CELL
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None, "unsafe_platform_projection"
+        if abs(grid_index - round(grid_index)) > 1e-9:
+            return None, "unsafe_platform_projection"
+    return dict(record), None
+
+
 def _archive_read(n: int = 24, kind: Optional[str] = None) -> dict:
     """READ live records back from the PUBLIC intel archive (network call) so the
     archive is a real backing store, not write-only. HF-unreachable-tolerant and
@@ -1007,14 +1141,45 @@ def _archive_read(n: int = 24, kind: Optional[str] = None) -> dict:
         head = b.head()
     except Exception as exc:  # noqa: BLE001
         out["head_error"] = type(exc).__name__
-    try:
-        recs = b.read_recent(n) if n else []
-    except Exception as exc:  # noqa: BLE001
-        out.update({"mode": "unreachable", "records": [], "count": 0,
-                    "head": head, "error": type(exc).__name__})
-        return out
-    if kind:
-        recs = [r for r in recs if r.get("kind") == kind]
+    recs: list[dict] = []
+    public_recs: list[dict] = []
+    withheld: dict[str, int] = {}
+    if n:
+        # Filtering after read_recent(n) lets an unsafe/legacy-heavy newest tail
+        # hide older public records. Expand the bounded read window until we
+        # collect n safe records or the archive is exhausted. HFBucket preserves
+        # oldest->newest ordering, so the final slice remains the n newest safe
+        # records even when the examined window grows.
+        read_window = n
+        prior_examined = -1
+        while True:
+            try:
+                recs = b.read_recent(read_window)
+            except Exception as exc:  # noqa: BLE001
+                out.update({"mode": "unreachable", "records": [], "count": 0,
+                            "head": head, "error": type(exc).__name__})
+                return out
+            candidates = (
+                [r for r in recs if r.get("kind") == kind]
+                if kind
+                else recs
+            )
+            public_recs = []
+            withheld = {}
+            for record in candidates:
+                public_record, reason = _archive_public_record(record)
+                if public_record is not None:
+                    public_recs.append(public_record)
+                else:
+                    policy = reason or "policy"
+                    withheld[policy] = int(withheld.get(policy, 0)) + 1
+            if len(public_recs) >= n:
+                public_recs = public_recs[-n:]
+                break
+            if len(recs) < read_window or len(recs) == prior_examined:
+                break
+            prior_examined = len(recs)
+            read_window *= 2
     # Honest live/cached/unreachable: a committed head.json (count is not None)
     # means we genuinely reached HF on this request.
     hf_ok = bool(head) and head.get("count") is not None
@@ -1024,7 +1189,17 @@ def _archive_read(n: int = 24, kind: Optional[str] = None) -> dict:
         mode = "cached"
     else:
         mode = "unreachable"
-    out.update({"mode": mode, "records": recs, "count": len(recs), "head": head})
+    out.update({
+        "mode": mode,
+        "records": public_recs,
+        "count": len(public_recs),
+        "records_examined": len(recs),
+        "records_withheld": sum(withheld.values()),
+        "withheld_by_policy": withheld,
+        "projection_schema": _ARCHIVE_PROJECTION_SCHEMA,
+        "legacy_platform_read_policy": "withheld",
+        "head": head,
+    })
     return out
 
 

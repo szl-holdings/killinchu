@@ -120,6 +120,38 @@ def _live_air():
     }
 
 
+def test_archive_publication_requires_separate_rights_approval():
+    assert ko._ARCHIVE_REQUESTED is False
+    assert ko._ARCHIVE_RIGHTS_APPROVED is False
+    assert ko._ARCHIVE_ENABLED is False
+    assert ko._ARCHIVE_STATE["publication_state"] == (
+        "FROZEN_PENDING_RIGHTS_AND_PRIVACY_REVIEW"
+    )
+
+
+def test_archive_projection_coarsens_and_minimizes_identifiers(tmp_path, monkeypatch):
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY", b"k" * 32)
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY_READY", True)
+    bucket = _mk_bucket(tmp_path)
+
+    assert ko._archive_feed_air(_FakeLF(air=_live_air()), bucket) == 2
+    assert ko._archive_feed_ais(_FakeLF(ais=_live_ais()), bucket) == 2
+
+    queued = bucket.read_recent(10)
+
+    air = next(record["payload"] for record in queued if record["kind"] == "adsb-aircraft")
+    vessel = next(record["payload"] for record in queued if record["kind"] == "ais-vessel")
+    assert {"hex", "flight"}.isdisjoint(air)
+    assert {"mmsi", "name"}.isdisjoint(vessel)
+    assert air["projection_schema"] == ko._ARCHIVE_PROJECTION_SCHEMA
+    assert vessel["projection_schema"] == ko._ARCHIVE_PROJECTION_SCHEMA
+    assert len(air["track_id"]) == 24
+    assert len(vessel["track_id"]) == 24
+    assert air["lat"] == 50.0
+    assert air["lon"] == 8.0
+    assert isinstance(air["alt_baro"], float)
+
+
 def _live_ais():
     return {
         "mode": "live", "fetched_at": "2026-06-12T00:00:00Z",
@@ -154,6 +186,14 @@ def archive(tmp_path, monkeypatch):
     ko._CORPUS.clear(); ko._META.clear(); ko._CHAIN_HEAD.clear(); ko._CHAIN_OK.clear()
     monkeypatch.setattr(ko, "_OSINT_DIR", tmp_path)
     monkeypatch.setattr(ko, "_ARCHIVE_ENABLED", True)
+    monkeypatch.setattr(ko, "_ARCHIVE_RIGHTS_APPROVED", True)
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY", b"k" * 32)
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY_READY", True)
+    monkeypatch.setitem(
+        ko._ARCHIVE_STATE,
+        "publication_state",
+        "RIGHTS_APPROVED_COARSENED_DERIVATIVE",
+    )
     bucket = _mk_bucket(tmp_path / "queue")
     monkeypatch.setattr(ko, "_ARCHIVE_BUCKET", bucket)
     # Pretend boot already happened so the request path never spawns the
@@ -273,8 +313,15 @@ def test_archive_status_is_honest(archive):
     assert st["repo"] == "SZLHOLDINGS/killinchu-osint-corpus"
     assert st["browse_url"].startswith("https://huggingface.co/datasets/")
     assert "viewer" in st["viewer_url"]
+    assert st["rights_approved"] is True
+    assert st["projection"]["persistent_platform_identifiers_published"] is None
+    assert st["projection"]["new_projection_persistent_platform_identifiers_published"] is False
+    assert st["projection"]["legacy_records_may_contain_raw_identifiers"] is True
+    assert st["projection"]["legacy_records_public_read_policy"] == "withheld"
+    assert st["projection"]["claim_scope"] == "new_projection_rows_only"
+    assert st["projection"]["coordinate_cell_degrees"] >= 1.0
     # never claims a signature / proof
-    assert "NOT a signature" in st["note"]
+    assert "not signatures" in st["note"]
 
 
 def test_status_endpoint_includes_archive(archive):
@@ -288,6 +335,167 @@ def test_status_endpoint_includes_archive(archive):
 def test_dataset_card_is_honest():
     card = ko._archive_card()
     assert "third-party CLAIM" in card
-    assert "NOT a DSSE / Ed25519 signature" in card
+    assert "HMAC pseudonyms" in card
+    assert "Neither value is a DSSE / Ed25519 signature" in card
+    assert ko._ARCHIVE_PROJECTION_SCHEMA in card
+    assert "may contain raw platform" in card
+    assert "withholds those legacy" in card
     assert "intel/*.ndjson" in card        # viewer config over the NDJSON shards
     assert "proven" not in card.lower().split("no \"proven\"")[0]
+
+
+def test_track_pseudonym_fails_closed_without_key(monkeypatch):
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY", b"")
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY_READY", False)
+
+    with pytest.raises(RuntimeError, match="pseudonymization key"):
+        ko._archive_track_id("ae01ce", "2026-06-12T00")
+
+
+def test_track_pseudonym_is_keyed_and_window_rotated(monkeypatch):
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY_READY", True)
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY", b"a" * 32)
+    first = ko._archive_track_id("ae01ce", "2026-06-12T00")
+    repeat = ko._archive_track_id("ae01ce", "2026-06-12T00")
+    rotated = ko._archive_track_id("ae01ce", "2026-06-12T01")
+    monkeypatch.setattr(ko, "_ARCHIVE_PSEUDONYM_KEY", b"b" * 32)
+    rekeyed = ko._archive_track_id("ae01ce", "2026-06-12T00")
+
+    assert first == repeat
+    assert len(first) == 24
+    assert len({first, rotated, rekeyed}) == 3
+
+
+def test_archive_read_withholds_legacy_platform_identifiers(archive):
+    ko, bucket, _tmp, _mp = archive
+    legacy_air = bucket.make_record(
+        {
+            "kind": "adsb-aircraft",
+            "source": "adsb",
+            "hex": "ae01ce",
+            "flight": "RCH123",
+            "lat": 50.123456,
+            "lon": 8.654321,
+        },
+        kind="adsb-aircraft",
+        source="adsb",
+        dedup_key="legacy-air",
+    )
+    legacy_ais = bucket.make_record(
+        {
+            "kind": "ais-vessel",
+            "source": "ais",
+            "mmsi": 230123456,
+            "name": "FINNMAID",
+            "lat": 60.123456,
+            "lon": 24.654321,
+        },
+        kind="ais-vessel",
+        source="ais",
+        dedup_key="legacy-ais",
+    )
+    bucket.append_many([legacy_air, legacy_ais], auto_flush=False)
+
+    out = ko._archive_read(10)
+
+    assert out["records"] == []
+    assert out["count"] == 0
+    assert out["records_examined"] == 2
+    assert out["records_withheld"] == 2
+    assert out["withheld_by_policy"] == {"legacy_platform_projection": 2}
+    assert "ae01ce" not in str(out)
+    assert "230123456" not in str(out)
+
+
+def test_archive_read_backfills_safe_records_before_unsafe_tail(archive):
+    ko, bucket, _tmp, _mp = archive
+    safe_records = [
+        bucket.make_record(
+            {"kind": "osint-item", "source": "test", "title": f"safe-{idx}"},
+            kind="osint-item",
+            source="test",
+            dedup_key=f"safe-{idx}",
+            ts=f"2026-07-26T00:00:0{idx}Z",
+        )
+        for idx in range(2)
+    ]
+    legacy_records = [
+        bucket.make_record(
+            {
+                "kind": "adsb-aircraft",
+                "source": "adsb",
+                "hex": f"ae01c{idx}",
+                "lat": 50.123456,
+                "lon": 8.654321,
+            },
+            kind="adsb-aircraft",
+            source="adsb",
+            dedup_key=f"legacy-tail-{idx}",
+            ts=f"2026-07-26T00:01:0{idx}Z",
+        )
+        for idx in range(2)
+    ]
+    bucket.append_many(safe_records + legacy_records, auto_flush=False)
+
+    out = ko._archive_read(2)
+
+    assert [r["payload"]["title"] for r in out["records"]] == [
+        "safe-0",
+        "safe-1",
+    ]
+    assert out["count"] == 2
+    assert out["records_examined"] == 4
+    assert out["records_withheld"] == 2
+    assert out["withheld_by_policy"] == {"legacy_platform_projection": 2}
+
+
+def test_archive_read_serves_only_current_safe_projection(archive):
+    ko, bucket, _tmp, _mp = archive
+    assert ko._archive_feed_air(_FakeLF(air=_live_air()), bucket) == 2
+    assert ko._archive_feed_ais(_FakeLF(ais=_live_ais()), bucket) == 2
+
+    out = ko._archive_read(10)
+
+    assert out["count"] == 4
+    assert out["records_withheld"] == 0
+    assert all(
+        record["payload"]["projection_schema"] == ko._ARCHIVE_PROJECTION_SCHEMA
+        for record in out["records"]
+    )
+    assert all(
+        {"hex", "flight", "mmsi", "name"}.isdisjoint(record["payload"])
+        for record in out["records"]
+    )
+
+
+@pytest.mark.parametrize(
+    "unsafe_field,unsafe_value",
+    [("hex", "ae01ce"), ("lat", 50.123456)],
+)
+def test_archive_read_rejects_unsafe_current_projection(
+    archive, unsafe_field, unsafe_value
+):
+    ko, bucket, _tmp, _mp = archive
+    payload = {
+        "projection_schema": ko._ARCHIVE_PROJECTION_SCHEMA,
+        "kind": "adsb-aircraft",
+        "source": "adsb",
+        "track_id": "a" * 24,
+        "lat": 50.0,
+        "lon": 8.0,
+    }
+    payload[unsafe_field] = unsafe_value
+    record = bucket.make_record(
+        payload,
+        kind="adsb-aircraft",
+        source="adsb",
+        dedup_key="unsafe-" + unsafe_field,
+    )
+    bucket.append(record, auto_flush=False)
+
+    out = ko._archive_read(10)
+
+    assert out["records"] == []
+    assert out["records_withheld"] == 1
+    assert out["withheld_by_policy"] == {"unsafe_platform_projection": 1}
+    assert str(unsafe_value) not in str(out)
