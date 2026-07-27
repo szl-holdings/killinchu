@@ -1,0 +1,63 @@
+name: OSINT Regression — Bounded Diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/diag-osint-regression.yml
+      - killinchu_osint.py
+      - killinchu_intel_archive_card.py
+      - tests/test_osint.py
+      - tests/test_killinchu_archive.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diag-osint-regression-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    name: Capture exact offline OSINT failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Install exact diagnostic dependency
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Execute and preserve exact failure
+        id: test
+        shell: bash
+        run: |
+          set +e
+          python -m pytest tests/test_osint.py tests/test_killinchu_archive.py -q -vv \
+            > osint-regression.txt 2>&1
+          code=$?
+          cat osint-regression.txt
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload bounded diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: osint-regression-${{ github.run_id }}
+          path: osint-regression.txt
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve failing result
+        env:
+          EXIT_CODE: ${{ steps.test.outputs.exit_code }}
+        run: |
+          code="${EXIT_CODE:-2}"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Offline OSINT regression remains; see uploaded diagnostic evidence."
+            exit "$code"
+          fi
+          echo 'Offline OSINT regression suite passed.'
