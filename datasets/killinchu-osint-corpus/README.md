@@ -58,8 +58,7 @@ relicense the third-party records in this dataset.
 
 For new platform rows, Killinchu:
 
-- replaces raw aircraft/vessel identifiers with rotating, secret-keyed **HMAC
-  pseudonyms**;
+- replaces raw aircraft/vessel identifiers with rotating, secret-keyed **HMAC pseudonyms**;
 - rounds positions to approximately `{{ARCHIVE_CELL}}°` cells;
 - normalizes selected kinematic fields;
 - adds source, observation-window, and honesty metadata;
