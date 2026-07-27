@@ -605,55 +605,13 @@ def _archive_bucket():
 
 
 def _archive_card() -> str:
-    """Honest dataset card (README.md) with a viewer config over the NDJSON
-    shards. Never inflates: rows are third-party claims, id is sha256 dedup."""
-    return (
-        "---\n"
-        "license: other\n"
-        "pretty_name: killinchu live intel archive\n"
-        "tags:\n"
-        "  - osint\n"
-        "  - adsb\n"
-        "  - ais\n"
-        "  - aviation\n"
-        "  - maritime\n"
-        "  - szl-holdings\n"
-        "configs:\n"
-        "  - config_name: intel\n"
-        "    data_files:\n"
-        "      - split: train\n"
-        "        path: %s/*.ndjson\n"
-        "---\n\n"
-        "# killinchu — live intel archive\n\n"
-        "Append-only, content-addressed archive of the live intelligence streams the\n"
-        "**killinchu** demo ingests, published by SZL Holdings. Written by the shared\n"
-        "`szl_hf_bucket` client: one NDJSON shard per UTC day under `%s/`.\n\n"
-        "Each row is `{schema, id, ts, source, kind, payload}`.\n\n"
-        "## Streams\n"
-        "- `kind: adsb-aircraft` (`source: adsb`) — live military ADS-B aircraft from the\n"
-        "  adsb.lol / adsb.fi community network. **Data: adsb.lol / adsb.fi community ADS-B (ODbL).**\n"
-        "- `kind: ais-vessel` (`source: ais`) — live AIS vessel positions from Fintraffic /\n"
-        "  Digitraffic. **Data: Fintraffic / Digitraffic (CC BY 4.0).**\n"
-        "- `kind: osint-item` (`source: <vertical>`) — normalized open-web OSINT items\n"
-        "  (active only when a search key is configured).\n\n"
-        "## Honesty (Doctrine v11)\n"
-        "- Every record is a **third-party CLAIM / self-report**, not attested truth.\n"
-        "  Broadcast positions and open-web reports can be spoofed, delayed, or wrong.\n"
-        "- Platform `track_id` values are rotating, secret-keyed HMAC pseudonyms. The\n"
-        "  record `id` is a **sha256 content-address** used for dedup / integrity.\n"
-        "  Neither value is a DSSE / Ed25519 signature or proof of correctness.\n"
-        "- New platform rows declare projection schema `%s`. Historical pre-v2 rows\n"
-        "  may remain in the append-only backing shards and may contain raw platform\n"
-        "  identifiers. The public `/osint/archive/recent` API withholds those legacy\n"
-        "  platform rows; this card does not claim the backing archive was migrated.\n"
-        "- Records are **append-only** and **bounded**: deduped per identity per UTC hour\n"
-        "  per ~%.2f° cell, so the archive grows steadily without flooding.\n"
-        "- No \"proven\" or \"verified\" claim is made about any item.\n"
-    ) % (
-        _ARCHIVE_PREFIX,
-        _ARCHIVE_PREFIX,
-        _ARCHIVE_PROJECTION_SCHEMA,
-        _ARCHIVE_CELL,
+    """Render the reviewed mixed-source card from one canonical source file."""
+    from killinchu_intel_archive_card import render_card
+
+    return render_card(
+        prefix=_ARCHIVE_PREFIX,
+        projection_schema=_ARCHIVE_PROJECTION_SCHEMA,
+        cell_degrees=_ARCHIVE_CELL,
     )
 
 
