@@ -58,8 +58,8 @@ relicense the third-party records in this dataset.
 
 For new platform rows, Killinchu:
 
-- replaces raw aircraft/vessel identifiers with rotating, secret-keyed HMAC
-  pseudonyms;
+- replaces raw aircraft/vessel identifiers with rotating, secret-keyed **HMAC
+  pseudonyms**;
 - rounds positions to approximately `{{ARCHIVE_CELL}}°` cells;
 - normalizes selected kinematic fields;
 - adds source, observation-window, and honesty metadata;
@@ -72,10 +72,11 @@ this card does not claim that historical backing shards were rewritten.
 
 ## Honesty boundary
 
-- Every record is a **third-party claim or broadcast self-report**, not attested
+- No "proven" or "verified" claim is made about the truth of any item.
+- Every record is a **third-party CLAIM or broadcast self-report**, not attested
   truth. Positions and reports can be spoofed, delayed, incomplete, or wrong.
-- `track_id` is a rotating pseudonym. The record `id` and `prov_hash` values are
-  SHA-256 content addresses for deduplication and integrity; none is a signature.
-- No “proven” or “verified” claim is made about the truth of any item.
+- `track_id` is a rotating HMAC pseudonym. The record `id` and `prov_hash`
+  values are SHA-256 content addresses for deduplication and integrity. **Neither
+  value is a DSSE / Ed25519 signature.**
 - The archive is append-only and bounded; re-observation does not imply
   independent corroboration.
