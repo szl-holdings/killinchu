@@ -54,6 +54,7 @@ def render_card(
         "Creative Commons Attribution 4.0",
         "Fintraffic / digitraffic.fi",
         "source-specific",
+        "HMAC pseudonyms",
         "not attested",
     )
     for marker in required:
