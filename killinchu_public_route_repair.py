@@ -45,22 +45,22 @@ _PINNED_OPTION_A_RECORD = (
 _OPTION_A_APPROVED_AT = date(2026, 7, 25)
 _OPTION_A_REVIEW_DUE = date(2026, 10, 23)
 _APPROVED_OPTION_A_ROLE = (
-    "distinct counter-UAS product and organ/wave staging surface"
+    "active, distinct counter-UAS product and deployment staging surface"
 )
 _APPROVED_PUBLIC_RISK_CONTROLS = (
     (
         "github-single-editable-source",
-        "ENFORCED_BY_CODE",
+        "UNVERIFIED",
         ".github/workflows/hf-sync.yml",
     ),
     (
         "generated-exact-hf-deployment",
-        "ENFORCED_BY_CODE",
+        "UNVERIFIED",
         ".github/workflows/hf-sync.yml",
     ),
     (
         "ci-reconciliation-gates",
-        "ENFORCED_BY_CI",
+        "UNVERIFIED",
         (
             ".github/workflows/copy-completeness-guard.yml",
             ".github/workflows/dockerfile-copy-guard.yml",
@@ -70,7 +70,7 @@ _APPROVED_PUBLIC_RISK_CONTROLS = (
     ),
     (
         "complete-post-deploy-attestation",
-        "ENFORCED_BY_CI",
+        "UNAVAILABLE",
         (
             ".github/workflows/hf-sync.yml",
             "/api/build-info",
@@ -92,7 +92,7 @@ _APPROVED_PUBLIC_RISK_CONTROLS = (
     ),
     (
         "mixed-source-rights-and-attribution",
-        "ENFORCED_BY_CI",
+        "UNVERIFIED",
         (
             "datasets/killinchu-osint-corpus/README.md",
             "datasets/killinchu-osint-corpus/LICENSE.md",
@@ -109,6 +109,7 @@ _APPROVED_PUBLIC_RISK_CONTROLS = (
     ),
     ("rollback-runbook", "DOCUMENTED", "DEPLOY.md"),
 )
+_FAIL_CLOSED_CONTROL_STATES = frozenset({"UNAVAILABLE", "UNVERIFIED"})
 _APPROVED_PUBLIC_RISK_EXCEPTIONS = (
     (
         "runtime-source-receipt",
@@ -149,6 +150,9 @@ _PUBLIC_RISK_DECISION_KEYS = {
 _PUBLIC_RISK_CONTROL_KEYS = {"id", "state", "evidence"}
 _PUBLIC_RISK_EXCEPTION_KEYS = {"id", "state", "boundary"}
 _REQUIRED_EXTERNAL_VERIFICATION = [
+    "bind the deployed image digest to an immutable protected-main build output",
+    "bind the deployed organ inventory to the canonical registration inventory",
+    "verify actual protected-main required-check settings cover every claimed CI gate",
     "compare the runtime /api/build-info revision to the exact protected GitHub main revision",
     "verify the Hugging Face Space repository revision from the deploy receipt",
     "verify the mixed-source dataset card from its immutable publication receipt",
@@ -156,7 +160,8 @@ _REQUIRED_EXTERNAL_VERIFICATION = [
 ]
 _TRUTH_BOUNDARY = (
     "RUNNING and HTTP 200 are transport evidence only; they do not override "
-    "failed source binding, rights publication, or explicit exceptions"
+    "failed source binding, rights publication, explicit exceptions, or "
+    "unproved image digest, organ inventory, and required-check settings"
 )
 _JSON_HEADERS = {
     "Cache-Control": "no-store",
@@ -300,7 +305,8 @@ def _validate_public_risk_contract(
     if (
         payload.get("schema") != "szl.killinchu-public-risk-transition/v1"
         or payload.get("product") != "killinchu"
-        or payload.get("overall_state") != "CONDITIONAL_EXCEPTION_ACTIVE"
+        or payload.get("overall_state")
+        != "CONDITIONAL_EXCEPTION_UNVERIFIED"
         or not _exact_keys(decision, _PUBLIC_RISK_DECISION_KEYS)
         or decision.get("option") != "A"
         or decision.get("status") != "ACCEPTED_CONDITIONAL"
@@ -406,6 +412,17 @@ def _validate_public_risk_contract(
     ):
         raise _PublicRiskContractError(
             "DIVERGENT", "OPTION_A_EXCEPTION_MISMATCH"
+        )
+
+    # The v1 artifact has no immutable image-digest, organ-inventory, or live
+    # branch-protection proof fields. File and workflow references therefore
+    # cannot substantiate CI or attestation enforcement.
+    if any(
+        state in _FAIL_CLOSED_CONTROL_STATES
+        for _, state, _ in approved_control_projection
+    ):
+        raise _PublicRiskContractError(
+            "UNAVAILABLE", "CI_ATTESTATION_EVIDENCE_UNPROVED"
         )
     return _project_public_risk_contract(payload)
 
@@ -570,6 +587,15 @@ def register(
                 today=_utc_today(),
             )
         except _PublicRiskContractError as exc:
+            if (
+                exc.reason_code == "CI_ATTESTATION_EVIDENCE_UNPROVED"
+                and build_identity["state"] != "OBSERVED"
+            ):
+                return public_risk_failure(
+                    state="DIVERGENT",
+                    reason_code="RUNTIME_SOURCE_MISMATCH",
+                    method=request.method,
+                )
             return public_risk_failure(
                 state=exc.state,
                 reason_code=exc.reason_code,

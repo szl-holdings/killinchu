@@ -1,30 +1,30 @@
 {
   "schema": "szl.killinchu-public-risk-transition/v1",
   "product": "killinchu",
-  "overall_state": "CONDITIONAL_EXCEPTION_ACTIVE",
+  "overall_state": "CONDITIONAL_EXCEPTION_UNVERIFIED",
   "decision": {
     "option": "A",
     "status": "ACCEPTED_CONDITIONAL",
     "approved_at": "2026-07-25",
     "review_due": "2026-10-23",
     "migration_state": "NOT_MIGRATED",
-    "role": "distinct counter-UAS product and organ/wave staging surface",
+    "role": "active, distinct counter-UAS product and deployment staging surface",
     "authoritative_record": "https://github.com/szl-holdings/a11oy/blob/1ca37c24fd39660fcfbca009b0c7a39bfaf8e286/docs/decisions/2026-07-25-killinchu-public-space-exception.md"
   },
   "controls": [
     {
       "id": "github-single-editable-source",
-      "state": "ENFORCED_BY_CODE",
+      "state": "UNVERIFIED",
       "evidence": ".github/workflows/hf-sync.yml"
     },
     {
       "id": "generated-exact-hf-deployment",
-      "state": "ENFORCED_BY_CODE",
+      "state": "UNVERIFIED",
       "evidence": ".github/workflows/hf-sync.yml"
     },
     {
       "id": "ci-reconciliation-gates",
-      "state": "ENFORCED_BY_CI",
+      "state": "UNVERIFIED",
       "evidence": [
         ".github/workflows/copy-completeness-guard.yml",
         ".github/workflows/dockerfile-copy-guard.yml",
@@ -34,7 +34,7 @@
     },
     {
       "id": "complete-post-deploy-attestation",
-      "state": "ENFORCED_BY_CI",
+      "state": "UNAVAILABLE",
       "evidence": [
         ".github/workflows/hf-sync.yml",
         "/api/build-info",
@@ -56,7 +56,7 @@
     },
     {
       "id": "mixed-source-rights-and-attribution",
-      "state": "ENFORCED_BY_CI",
+      "state": "UNVERIFIED",
       "evidence": [
         "datasets/killinchu-osint-corpus/README.md",
         "datasets/killinchu-osint-corpus/LICENSE.md",
@@ -90,10 +90,13 @@
     }
   ],
   "required_external_verification": [
+    "bind the deployed image digest to an immutable protected-main build output",
+    "bind the deployed organ inventory to the canonical registration inventory",
+    "verify actual protected-main required-check settings cover every claimed CI gate",
     "compare the runtime /api/build-info revision to the exact protected GitHub main revision",
     "verify the Hugging Face Space repository revision from the deploy receipt",
     "verify the mixed-source dataset card from its immutable publication receipt",
     "verify product-domain primary navigation excludes Killinchu until the reconciliation gate passes"
   ],
-  "truth_boundary": "RUNNING and HTTP 200 are transport evidence only; they do not override failed source binding, rights publication, or explicit exceptions"
+  "truth_boundary": "RUNNING and HTTP 200 are transport evidence only; they do not override failed source binding, rights publication, explicit exceptions, or unproved image digest, organ inventory, and required-check settings"
 }

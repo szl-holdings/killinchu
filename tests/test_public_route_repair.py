@@ -202,7 +202,7 @@ class PublicRouteRepairTests(unittest.TestCase):
                 self.assertNotIn(invalid, response.text)
                 self.assertNotIn("SECRET_VALUE", response.text)
 
-    def test_public_risk_status_preserves_explicit_exceptions_and_head_parity(
+    def test_public_risk_status_fails_closed_for_unproved_controls_with_head_parity(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -229,13 +229,12 @@ class PublicRouteRepairTests(unittest.TestCase):
                 response = client.get("/api/public-risk-status")
                 head = client.head("/api/public-risk-status")
 
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, 503)
             payload = response.json()
-            self.assertEqual(payload["overall_state"], "CONDITIONAL_EXCEPTION_ACTIVE")
-            self.assertEqual(payload["decision"]["option"], "A")
+            self.assertEqual(payload["state"], "UNAVAILABLE")
             self.assertEqual(
-                payload["explicit_exceptions"][0]["state"],
-                "UNAVAILABLE",
+                payload["reason_code"],
+                "CI_ATTESTATION_EVIDENCE_UNPROVED",
             )
             self.assertEqual(
                 payload["runtime_observation"]["source"]["revision"],
@@ -363,7 +362,11 @@ class PublicRouteRepairTests(unittest.TestCase):
                     "controls": [
                         {
                             **control,
-                            "state": "UNVERIFIED",
+                            "state": (
+                                "ENFORCED_BY_CI"
+                                if control["state"] == "UNVERIFIED"
+                                else "UNVERIFIED"
+                            ),
                         }
                         if control["id"] == entry["id"]
                         else control
@@ -657,6 +660,27 @@ class PublicRouteRepairTests(unittest.TestCase):
         )
         mutations.extend(
             (
+                f"control-state-{entry['id']}",
+                {
+                    **canonical,
+                    "controls": [
+                        {
+                            **control,
+                            "state": "ENFORCED_BY_CI",
+                        }
+                        if control["id"] == entry["id"]
+                        else control
+                        for control in canonical["controls"]
+                    ],
+                },
+                "OPTION_A_CONTROL_MISMATCH",
+                "ENFORCED_BY_CI",
+            )
+            for entry in canonical["controls"]
+            if entry["state"] in {"UNAVAILABLE", "UNVERIFIED"}
+        )
+        mutations.extend(
+            (
                 f"exception-boundary-{entry['id']}",
                 {
                     **canonical,
@@ -770,12 +794,16 @@ class PublicRouteRepairTests(unittest.TestCase):
         )
         self.assertEqual(
             payload["overall_state"],
-            "CONDITIONAL_EXCEPTION_ACTIVE",
+            "CONDITIONAL_EXCEPTION_UNVERIFIED",
         )
         self.assertEqual(payload["decision"]["status"], "ACCEPTED_CONDITIONAL")
         self.assertEqual(payload["decision"]["option"], "A")
         self.assertEqual(payload["decision"]["review_due"], "2026-10-23")
         self.assertEqual(payload["decision"]["migration_state"], "NOT_MIGRATED")
+        self.assertEqual(
+            payload["decision"]["role"],
+            "active, distinct counter-UAS product and deployment staging surface",
+        )
         self.assertIn(
             "/blob/1ca37c24fd39660fcfbca009b0c7a39bfaf8e286/",
             payload["decision"]["authoritative_record"],
@@ -792,6 +820,30 @@ class PublicRouteRepairTests(unittest.TestCase):
         self.assertEqual(
             control_states["outside-primary-navigation"],
             "OUTSIDE_PRIMARY_NAVIGATION",
+        )
+        for control_id in (
+            "github-single-editable-source",
+            "generated-exact-hf-deployment",
+            "ci-reconciliation-gates",
+            "mixed-source-rights-and-attribution",
+        ):
+            self.assertEqual(control_states[control_id], "UNVERIFIED")
+        self.assertEqual(
+            control_states["complete-post-deploy-attestation"],
+            "UNAVAILABLE",
+        )
+        self.assertNotIn("ENFORCED_BY_CI", control_states.values())
+        self.assertIn(
+            "bind the deployed image digest to an immutable protected-main build output",
+            payload["required_external_verification"],
+        )
+        self.assertIn(
+            "bind the deployed organ inventory to the canonical registration inventory",
+            payload["required_external_verification"],
+        )
+        self.assertIn(
+            "verify actual protected-main required-check settings cover every claimed CI gate",
+            payload["required_external_verification"],
         )
 
         for control in payload["controls"]:
@@ -855,13 +907,21 @@ class PublicRouteRepairTests(unittest.TestCase):
             '"public-risk-transition.json"',
             '"/api/killinchu/healthz"',
             '"/api/build-info"',
-            '"/api/public-risk-status"',
+            "https://szlholdings-killinchu.hf.space/api/public-risk-status",
             '"/console"',
             '"/api/killinchu/v1/code/capabilities"',
             "HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}",
+            "verify-risk-status-fails-closed:",
+            'test "$code" = "503"',
+            'payload["state"] == "UNAVAILABLE"',
+            'payload["reason_code"] == "CI_ATTESTATION_EVIDENCE_UNPROVED"',
         ):
             self.assertIn(contract, workflow)
         self.assertNotIn("secrets: inherit", workflow)
+        smoke_paths = next(
+            line for line in workflow.splitlines() if "smoke-paths:" in line
+        )
+        self.assertNotIn("/api/public-risk-status", smoke_paths)
 
     def test_production_default_artifact_is_truthful_and_served_byte_exact(self) -> None:
         repository_root = Path(__file__).resolve().parents[1]
