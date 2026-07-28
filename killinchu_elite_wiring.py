@@ -509,6 +509,8 @@ def health(app, ns: str = "killinchu", probe: bool = False,
         any_route = False
         any_200 = False
         any_degraded = False
+        probe_error = False
+        probe_budget_exhausted = False
         for ep in eps:
             exists = _route_exists(app, ep)
             any_route = any_route or exists
@@ -535,22 +537,30 @@ def health(app, ns: str = "killinchu", probe: bool = False,
                 row["status"] = probe_result["status"]
                 if "detail" in probe_result:
                     row["detail"] = probe_result["detail"]
-                if probe_result["status"] == 200:
-                    any_200 = True
-                    # Honest degrade detection on the PARSED body: a feed that
-                    # answers but reports cached/empty/disabled/unreachable is
-                    # 'degraded', not silently 'wired'. We inspect structured
-                    # fields only (never a loose substring like 'reason', which
-                    # legitimately appears inside cited source notes).
-                    j = probe_result.get("body")
-                    if isinstance(j, dict):
-                        mode = str(j.get("mode", "")).lower()
-                        status = str(j.get("status", "")).lower()
-                        if (mode in {"cached", "unreachable", "self"}
-                                or status in {"disabled", "unreachable", "degraded"}
-                                or j.get("empty") is True
-                                or j.get("degraded") is True):
-                            any_degraded = True
+                probe_status = probe_result.get("status")
+                if isinstance(probe_status, int):
+                    if probe_status == 200:
+                        any_200 = True
+                        # Honest degrade detection on the PARSED body: a feed that
+                        # answers but reports cached/empty/disabled/unreachable is
+                        # 'degraded', not silently 'wired'. We inspect structured
+                        # fields only (never a loose substring like 'reason', which
+                        # legitimately appears inside cited source notes).
+                        j = probe_result.get("body")
+                        if isinstance(j, dict):
+                            mode = str(j.get("mode", "")).lower()
+                            status = str(j.get("status", "")).lower()
+                            if (mode in {"cached", "unreachable", "self"}
+                                    or status in {"disabled", "unreachable", "degraded"}
+                                    or j.get("empty") is True
+                                    or j.get("degraded") is True):
+                                any_degraded = True
+                    else:
+                        probe_error = True
+                elif probe_status == "probe-error":
+                    probe_error = True
+                elif probe_status == "probe-budget-exhausted":
+                    probe_budget_exhausted = True
             ep_status.append(row)
 
         sim = w["data_class"] == "SIMULATED"
@@ -564,10 +574,19 @@ def health(app, ns: str = "killinchu", probe: bool = False,
             # exists in the repo but is not yet deployed on this surface.
             verdict = "needs-deploy"
             n_deploy += 1
+        elif probe and probe_error:
+            # Probe failures (5xx, transport errors, schema parse errors, etc.)
+            # are not a health signal; the wiring is present but degraded.
+            verdict = "degraded"
+            n_degraded += 1
         elif probe and any_200 and any_degraded:
             # Feed answered but honestly reports cached/empty/disabled.
             verdict = "degraded"
             n_degraded += 1
+        elif probe and probe_budget_exhausted:
+            # Probe budget exhaustion indicates partial coverage: report as cached
+            # once stronger evidence checks are clean.
+            verdict = "cached"
         else:
             # Route is registered. If probing and it returned 200 -> wired-live;
             # if probing hit a transient (429 rate-limit / 5xx / param-required
@@ -668,6 +687,10 @@ def _frontier_source_state(endpoint_rows, probe):
                 if isinstance(row, dict) and isinstance(row.get("status"), int)]
     if any(status >= 400 for status in statuses):
         return "DEGRADED"
+    if any(row.get("status") == "probe-budget-exhausted"
+           for row in rows if isinstance(row, dict)
+           and row.get("route_registered")):
+        return "CACHED"
     registered = [bool(row.get("route_registered"))
                   for row in rows if isinstance(row, dict)]
     if registered and not all(registered):
