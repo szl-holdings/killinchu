@@ -442,6 +442,7 @@ class PublicRouteRepairTests(unittest.TestCase):
             "source-revision-probe-path: /api/build-info",
             '"/api/killinchu/healthz"',
             '"/api/build-info"',
+            '"/api/public-risk-status"',
             '"/console"',
             '"/api/killinchu/v1/code/capabilities"',
             "HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}",
