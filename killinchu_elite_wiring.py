@@ -688,7 +688,7 @@ def _frontier_source_state(endpoint_rows, probe):
         return "DEGRADED"
     statuses = [row.get("status") for row in rows
                 if isinstance(row, dict) and isinstance(row.get("status"), int)]
-    if any(status >= 400 for status in statuses):
+    if any(status != 200 for status in statuses):
         return "DEGRADED"
     registered = [bool(row.get("route_registered"))
                   for row in rows if isinstance(row, dict)]
