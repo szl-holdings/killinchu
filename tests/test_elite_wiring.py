@@ -10,8 +10,8 @@
 #   * effector / weapon-target / intercept views are labelled SIMULATED (doctrine
 #     v11: killinchu NEVER claims a real kinetic effect)
 #   * no committed leader/source string smuggles in an API key
-#   * register() is additive — it adds exactly its two routes and touches none of
-#     the pre-existing /elite data routes
+#   * register() is additive — it adds its audit and preview routes and touches
+#     none of the pre-existing /elite data routes
 #
 # The module is pure stdlib; this test does not require network.
 from __future__ import annotations
@@ -150,6 +150,90 @@ def test_health_recognizes_late_included_router_routes():
     assert by_view["cuas_triage"]["verdict"] == "SIMULATED"
     # The SPA catch-all must not turn an actually absent data route green.
     assert by_view["scaling"]["verdict"] == "needs-deploy"
+
+
+def test_incident_command_distinguishes_verified_from_measured():
+    from fastapi import FastAPI
+    app = FastAPI()
+
+    @app.get("/api/killinchu/v1/scaling/summary")
+    async def _scaling():
+        return {"status": "available"}
+
+    command = kew.incident_command(app, ns="killinchu", probe=False)
+    by_view = {row["view"]: row for row in command["queue"]}
+
+    assert command["probe_requested"] is False
+    assert command["probe_performed"] is False
+    assert command["evidence_label"] == "VERIFIED"
+    assert command["next_allowed_action"] == "REQUEST_READ_ONLY_PROBE"
+    assert command["executable"] is False
+    assert by_view["scaling"]["source_state"] == "CACHED"
+    assert all(row["evidence_label"] == "VERIFIED" for row in command["queue"])
+    assert all(row["executable"] is False for row in command["queue"])
+    assert command["queue_digest"] == kew._frontier_sha(command["queue"])
+
+
+def test_lease_preview_withholds_without_crypto_and_never_forwards(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    captured = {}
+
+    def _intercept(action, sign_fn=None, ns="killinchu", forward=True):
+        captured.update({
+            "action": action,
+            "sign_fn": sign_fn,
+            "forward": forward,
+        })
+        return {"verdict": "REQUIRE-HUMAN-CONFIRM", "allowed": False}
+
+    marker_signer = object()
+    monkeypatch.setattr(kew, "intercept_action", _intercept)
+    now = datetime.now(timezone.utc)
+    decision_digest = "a" * 64
+    preview = kew.authorization_lease_preview({
+        "action": "OBSERVE",
+        "decision_digest": decision_digest,
+        "uncertainty": 0.1,
+        "lease": {
+            "lease_id": "lease-1",
+            "issuer": "operator",
+            "subject": "killinchu",
+            "mission_id": "mission-1",
+            "not_before": (now - timedelta(minutes=1)).isoformat(),
+            "expires_at": (now + timedelta(minutes=5)).isoformat(),
+            "max_uncertainty": 0.2,
+            "decision_digest": decision_digest,
+            "allowed_actions": ["OBSERVE"],
+        },
+    }, sign_fn=marker_signer)
+
+    assert preview["verdict"] == "WITHHOLD"
+    assert preview["blockers"] == ["CRYPTOGRAPHIC_LEASE_VERIFIER_UNAVAILABLE"]
+    assert preview["signature_verification"] == "UNAVAILABLE"
+    assert preview["evidence_label"] == "VERIFIED"
+    assert preview["executable"] is False
+    assert captured["sign_fn"] is marker_signer
+    assert captured["forward"] is False
+    assert captured["action"]["executable"] is False
+
+
+def test_lease_preview_rejects_nonfinite_uncertainty(monkeypatch):
+    monkeypatch.setattr(
+        kew,
+        "intercept_action",
+        lambda action, sign_fn=None, ns="killinchu", forward=True: {
+            "verdict": "REQUIRE-HUMAN-CONFIRM",
+            "allowed": False,
+        },
+    )
+    preview = kew.authorization_lease_preview({
+        "action": "OBSERVE",
+        "uncertainty": "nan",
+        "lease": {"allowed_actions": ["OBSERVE"], "max_uncertainty": 1.0},
+    })
+    assert "INVALID_UNCERTAINTY" in preview["blockers"]
+    assert preview["verdict"] == "WITHHOLD"
 
 
 if __name__ == "__main__":
