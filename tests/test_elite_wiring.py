@@ -270,6 +270,24 @@ def test_health_degrades_unparseable_success_bodies(monkeypatch):
         "needs_deploy": 0,
         "simulated": 0,
     }
+def test_probe_budget_never_masks_stronger_source_evidence():
+    exhausted = {
+        "route_registered": True,
+        "status": "probe-budget-exhausted",
+    }
+
+    assert kew._frontier_source_state([
+        {"route_registered": True, "status": 500},
+        exhausted,
+    ], probe=True) == "DEGRADED"
+    assert kew._frontier_source_state([
+        {"route_registered": False},
+        exhausted,
+    ], probe=True) == "UNAVAILABLE"
+    assert kew._frontier_source_state([
+        {"route_registered": True, "status": 200},
+        exhausted,
+    ], probe=True) == "CACHED"
 
 
 def test_lease_preview_withholds_without_crypto_and_never_forwards(monkeypatch):

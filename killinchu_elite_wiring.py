@@ -698,6 +698,10 @@ def _frontier_source_state(endpoint_rows, probe):
                   for row in rows if isinstance(row, dict)]
     if registered and not all(registered):
         return "UNAVAILABLE"
+    if any(row.get("status") == "probe-budget-exhausted"
+           for row in rows if isinstance(row, dict)
+           and row.get("route_registered")):
+        return "CACHED"
     registered_rows = [row for row in rows
                        if isinstance(row, dict) and row.get("route_registered")]
     if (probe and registered_rows
