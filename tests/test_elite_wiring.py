@@ -174,6 +174,26 @@ def test_incident_command_distinguishes_verified_from_measured():
     assert command["queue_digest"] == kew._frontier_sha(command["queue"])
 
 
+def test_probe_budget_exhaustion_never_masks_stronger_evidence():
+    exhausted = {
+        "route_registered": True,
+        "status": "probe-budget-exhausted",
+    }
+
+    assert kew._frontier_source_state([
+        {"route_registered": True, "status": 500},
+        exhausted,
+    ], probe=True) == "DEGRADED"
+    assert kew._frontier_source_state([
+        {"route_registered": False},
+        exhausted,
+    ], probe=True) == "UNAVAILABLE"
+    assert kew._frontier_source_state([
+        {"route_registered": True, "status": 200},
+        exhausted,
+    ], probe=True) == "CACHED"
+
+
 def _probe_wiring(*endpoints):
     return {
         "data_class": "real-compute",
