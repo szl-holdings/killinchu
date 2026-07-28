@@ -608,6 +608,106 @@ class PublicRouteRepairTests(unittest.TestCase):
                         "PUBLIC_SCHEMA_INVALID",
                     )
 
+    def test_public_risk_status_rejects_unapproved_published_content(
+        self,
+    ) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        canonical = json.loads(
+            (repository_root / "public-risk-transition.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        mutations = [
+            (
+                "decision-role",
+                {
+                    **canonical,
+                    "decision": {
+                        **canonical["decision"],
+                        "role": "unreviewed role",
+                    },
+                },
+                "OPTION_A_ROLE_MISMATCH",
+                "unreviewed role",
+            ),
+        ]
+        mutations.extend(
+            (
+                f"control-evidence-{entry['id']}",
+                {
+                    **canonical,
+                    "controls": [
+                        {
+                            **control,
+                            "evidence": (
+                                ["unreviewed-control-evidence"]
+                                if isinstance(control["evidence"], list)
+                                else "unreviewed-control-evidence"
+                            ),
+                        }
+                        if control["id"] == entry["id"]
+                        else control
+                        for control in canonical["controls"]
+                    ],
+                },
+                "OPTION_A_CONTROL_MISMATCH",
+                "unreviewed-control-evidence",
+            )
+            for entry in canonical["controls"]
+        )
+        mutations.extend(
+            (
+                f"exception-boundary-{entry['id']}",
+                {
+                    **canonical,
+                    "explicit_exceptions": [
+                        {
+                            **exception,
+                            "boundary": "unreviewed exception boundary",
+                        }
+                        if exception["id"] == entry["id"]
+                        else exception
+                        for exception in canonical["explicit_exceptions"]
+                    ],
+                },
+                "OPTION_A_EXCEPTION_MISMATCH",
+                "unreviewed exception boundary",
+            )
+            for entry in canonical["explicit_exceptions"]
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for index, (
+                label,
+                mutated,
+                reason_code,
+                injected_text,
+            ) in enumerate(mutations):
+                with self.subTest(label=label):
+                    risk_path = Path(tmp) / f"unapproved-{index}.json"
+                    risk_path.write_text(json.dumps(mutated), encoding="utf-8")
+                    with (
+                        patch.dict(os.environ, {"SZL_GIT_SHA": "c" * 40}),
+                        patch(
+                            "killinchu_public_route_repair._utc_today",
+                            return_value=date(2026, 7, 28),
+                        ),
+                    ):
+                        response = TestClient(
+                            self._app(
+                                Path(tmp) / "source.json",
+                                risk_artifact_path=risk_path,
+                            )
+                        ).get("/api/public-risk-status")
+
+                    self.assertEqual(response.status_code, 503)
+                    self.assertEqual(response.json()["state"], "DIVERGENT")
+                    self.assertEqual(
+                        response.json()["reason_code"],
+                        reason_code,
+                    )
+                    self.assertNotIn(injected_text, response.text)
+
     def test_public_risk_status_publishes_runtime_mismatch_as_divergent(
         self,
     ) -> None:
