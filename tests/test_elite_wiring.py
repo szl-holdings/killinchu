@@ -174,6 +174,104 @@ def test_incident_command_distinguishes_verified_from_measured():
     assert command["queue_digest"] == kew._frontier_sha(command["queue"])
 
 
+def _probe_wiring(*endpoints):
+    return {
+        "data_class": "real-compute",
+        "leaders": ["test"],
+        "note": "bounded probe test",
+        "endpoints": list(endpoints),
+    }
+
+
+def test_health_deduplicates_shared_live_probes(monkeypatch):
+    from fastapi import FastAPI
+    app = FastAPI()
+    calls = 0
+
+    @app.get("/api/killinchu/v1/shared")
+    async def _shared():
+        nonlocal calls
+        calls += 1
+        return {"status": "available"}
+
+    monkeypatch.setattr(kew, "ELITE_WIRING", {
+        "alpha": _probe_wiring("/api/{ns}/v1/shared"),
+        "beta": _probe_wiring("/api/{ns}/v1/shared"),
+    })
+    result = kew.health(app, ns="killinchu", probe=True, probe_limit=8)
+
+    assert calls == 1
+    assert result["unique_probes"] == 1
+    assert result["summary"]["wired"] == 2
+    assert {
+        row["endpoints"][0]["status"] for row in result["views"]
+    } == {200}
+
+
+def test_incident_command_bounds_unique_probes_and_reports_cached_views(monkeypatch):
+    from fastapi import FastAPI
+    app = FastAPI()
+    calls = {"alpha": 0, "beta": 0, "gamma": 0}
+
+    @app.get("/api/killinchu/v1/alpha")
+    async def _alpha():
+        calls["alpha"] += 1
+        return {"status": "available"}
+
+    @app.get("/api/killinchu/v1/beta")
+    async def _beta():
+        calls["beta"] += 1
+        return {"status": "available"}
+
+    @app.get("/api/killinchu/v1/gamma")
+    async def _gamma():
+        calls["gamma"] += 1
+        return {"status": "available"}
+
+    monkeypatch.setattr(kew, "ELITE_WIRING", {
+        "alpha": _probe_wiring("/api/{ns}/v1/alpha"),
+        "beta": _probe_wiring("/api/{ns}/v1/beta"),
+        "gamma": _probe_wiring("/api/{ns}/v1/gamma"),
+    })
+    command = kew.incident_command(
+        app,
+        ns="killinchu",
+        probe=True,
+        probe_limit=2,
+    )
+
+    assert sum(calls.values()) == 2
+    assert command["probe_limit"] == 2
+    assert command["unique_probes"] == 2
+    assert command["summary"]["cached"] == 1
+    gamma = next(row for row in command["queue"] if row["view"] == "gamma")
+    assert gamma["source_state"] == "CACHED"
+    assert gamma["affected_endpoints"][0]["status"] == "probe-budget-exhausted"
+
+
+def test_health_degrades_unparseable_success_bodies(monkeypatch):
+    from fastapi import FastAPI, Response
+    app = FastAPI()
+
+    @app.get("/api/killinchu/v1/plain")
+    async def _plain():
+        return Response("not-json", media_type="text/plain")
+
+    monkeypatch.setattr(kew, "ELITE_WIRING", {
+        "plain": _probe_wiring("/api/{ns}/v1/plain"),
+    })
+    result = kew.health(app, ns="killinchu", probe=True, probe_limit=1)
+
+    assert result["views"][0]["verdict"] == "degraded"
+    assert result["summary"] == {
+        "wired": 0,
+        "cached": 0,
+        "degraded": 1,
+        "needs_deploy": 0,
+        "simulated": 0,
+    }
+
+
 def test_lease_preview_withholds_without_crypto_and_never_forwards(monkeypatch):
     from datetime import datetime, timedelta, timezone
 
