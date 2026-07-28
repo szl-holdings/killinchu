@@ -108,7 +108,10 @@ def test_health_reports_honestly_without_probe():
     assert by_view["scaling"]["verdict"] == "needs-deploy"
     s = h["summary"]
     assert s["simulated"] == len(kew.SIMULATED_VIEWS)
-    assert s["wired"] + s["degraded"] + s["needs_deploy"] + s["simulated"] == h["view_count"]
+    assert (
+        s["wired"] + s["cached"] + s["degraded"]
+        + s["needs_deploy"] + s["simulated"]
+    ) == h["view_count"]
 
 
 def test_health_recognizes_late_included_router_routes():
@@ -172,6 +175,122 @@ def test_incident_command_distinguishes_verified_from_measured():
     assert all(row["evidence_label"] == "VERIFIED" for row in command["queue"])
     assert all(row["executable"] is False for row in command["queue"])
     assert command["queue_digest"] == kew._frontier_sha(command["queue"])
+
+
+def test_health_deduplicates_and_bounds_live_probes(monkeypatch):
+    from fastapi import FastAPI
+
+    app = FastAPI()
+    calls = []
+
+    @app.get("/api/killinchu/v1/probe/a")
+    async def _probe_a():
+        calls.append("a")
+        return {"status": "available"}
+
+    @app.get("/api/killinchu/v1/probe/b")
+    async def _probe_b():
+        calls.append("b")
+        return {"status": "available"}
+
+    monkeypatch.setattr(kew, "ELITE_WIRING", {
+        "first": {
+            "endpoints": ["/api/killinchu/v1/probe/a"],
+            "data_class": "live-feed",
+            "leaders": [],
+            "note": "first",
+        },
+        "second": {
+            "endpoints": [
+                "/api/killinchu/v1/probe/a",
+                "/api/killinchu/v1/probe/b",
+            ],
+            "data_class": "live-feed",
+            "leaders": [],
+            "note": "second",
+        },
+    })
+
+    result = kew.health(app, probe=True, probe_limit=1)
+    by_view = {row["view"]: row for row in result["views"]}
+
+    assert calls == ["a"]
+    assert result["probe_performed"] is True
+    assert result["unique_probes"] == 1
+    assert by_view["first"]["endpoints"][0]["status"] == 200
+    assert by_view["second"]["endpoints"][0]["status"] == 200
+    assert by_view["second"]["endpoints"][1]["status"] == "probe-budget-exhausted"
+    assert by_view["second"]["verdict"] == "cached"
+    assert sum(result["summary"].values()) == result["view_count"]
+
+
+def test_incident_command_keeps_unprobed_views_verified(monkeypatch):
+    from fastapi import FastAPI
+
+    app = FastAPI()
+
+    @app.get("/api/killinchu/v1/probe/a")
+    async def _probe_a():
+        return {"status": "available"}
+
+    @app.get("/api/killinchu/v1/probe/b")
+    async def _probe_b():
+        return {"status": "available"}
+
+    monkeypatch.setattr(kew, "ELITE_WIRING", {
+        "measured": {
+            "endpoints": ["/api/killinchu/v1/probe/a"],
+            "data_class": "live-feed",
+            "leaders": [],
+            "note": "measured",
+        },
+        "budget_exhausted": {
+            "endpoints": ["/api/killinchu/v1/probe/b"],
+            "data_class": "live-feed",
+            "leaders": [],
+            "note": "not probed",
+        },
+    })
+
+    command = kew.incident_command(app, probe=True, probe_limit=1)
+    by_view = {row["view"]: row for row in command["queue"]}
+
+    assert command["probe_performed"] is True
+    assert command["unique_probes"] == 1
+    assert command["evidence_label"] == "VERIFIED"
+    assert by_view["measured"]["probe_complete"] is True
+    assert by_view["measured"]["evidence_label"] == "MEASURED"
+    assert by_view["budget_exhausted"]["probe_performed"] is False
+    assert by_view["budget_exhausted"]["probe_complete"] is False
+    assert by_view["budget_exhausted"]["evidence_label"] == "VERIFIED"
+    assert by_view["budget_exhausted"]["source_state"] == "CACHED"
+
+
+def test_health_marks_failed_probe_degraded(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+
+    app = FastAPI()
+
+    @app.get("/api/killinchu/v1/probe/failure")
+    async def _probe_failure():
+        return JSONResponse({"status": "unavailable"}, status_code=503)
+
+    monkeypatch.setattr(kew, "ELITE_WIRING", {
+        "failure": {
+            "endpoints": ["/api/killinchu/v1/probe/failure"],
+            "data_class": "live-feed",
+            "leaders": [],
+            "note": "failure",
+        },
+    })
+
+    result = kew.health(app, probe=True, probe_limit=1)
+
+    assert result["views"][0]["endpoints"][0]["status"] == 503
+    assert result["views"][0]["verdict"] == "degraded"
+    assert result["summary"]["degraded"] == 1
+    assert sum(result["summary"].values()) == result["view_count"]
 
 
 def test_lease_preview_withholds_without_crypto_and_never_forwards(monkeypatch):

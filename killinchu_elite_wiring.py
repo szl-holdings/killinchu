@@ -483,7 +483,8 @@ def audit_map(ns: str = "killinchu") -> Dict[str, Any]:
     }
 
 
-def health(app, ns: str = "killinchu", probe: bool = False) -> Dict[str, Any]:
+def health(app, ns: str = "killinchu", probe: bool = False,
+           probe_limit: Optional[int] = None) -> Dict[str, Any]:
     """Per-view wiring health via in-process route existence (+ optional live probe).
 
     Never fabricates: a missing route is 'needs-deploy', an erroring/empty body is
@@ -498,33 +499,54 @@ def health(app, ns: str = "killinchu", probe: bool = False) -> Dict[str, Any]:
         except Exception:
             client = None
 
+    probe_cache: Dict[str, Dict[str, Any]] = {}
+    unique_probes = 0
     rows: List[Dict[str, Any]] = []
-    n_wired = n_degraded = n_deploy = n_sim = 0
+    n_wired = n_cached = n_degraded = n_deploy = n_sim = 0
     for vid, w in ELITE_WIRING.items():
         eps = [_expand(e, ns) for e in w["endpoints"]]
         ep_status = []
         any_route = False
         any_200 = False
         any_degraded = False
+        probe_error = False
+        probe_budget_exhausted = False
         for ep in eps:
             exists = _route_exists(app, ep)
             any_route = any_route or exists
             row = {"endpoint": ep, "route_registered": exists}
             if probe and client is not None and exists and "{" not in ep:
-                try:
-                    r = client.get(ep)
-                    row["status"] = r.status_code
-                    if r.status_code == 200:
+                if ep not in probe_cache:
+                    if probe_limit is not None and unique_probes >= probe_limit:
+                        probe_cache[ep] = {"status": "probe-budget-exhausted"}
+                    else:
+                        unique_probes += 1
+                        try:
+                            r = client.get(ep)
+                            try:
+                                body = r.json()
+                            except Exception:
+                                body = None
+                            probe_cache[ep] = {"status": r.status_code, "body": body}
+                        except Exception as e:  # pragma: no cover
+                            probe_cache[ep] = {
+                                "status": "probe-error",
+                                "detail": str(e)[:120],
+                            }
+                probe_result = probe_cache[ep]
+                row["status"] = probe_result["status"]
+                if "detail" in probe_result:
+                    row["detail"] = probe_result["detail"]
+                probe_status = probe_result.get("status")
+                if isinstance(probe_status, int):
+                    if probe_status == 200:
                         any_200 = True
                         # Honest degrade detection on the PARSED body: a feed that
                         # answers but reports cached/empty/disabled/unreachable is
                         # 'degraded', not silently 'wired'. We inspect structured
                         # fields only (never a loose substring like 'reason', which
                         # legitimately appears inside cited source notes).
-                        try:
-                            j = r.json()
-                        except Exception:
-                            j = None
+                        j = probe_result.get("body")
                         if isinstance(j, dict):
                             mode = str(j.get("mode", "")).lower()
                             status = str(j.get("status", "")).lower()
@@ -533,9 +555,12 @@ def health(app, ns: str = "killinchu", probe: bool = False) -> Dict[str, Any]:
                                     or j.get("empty") is True
                                     or j.get("degraded") is True):
                                 any_degraded = True
-                except Exception as e:  # pragma: no cover
-                    row["status"] = "probe-error"
-                    row["detail"] = str(e)[:120]
+                    else:
+                        probe_error = True
+                elif probe_status == "probe-error":
+                    probe_error = True
+                elif probe_status == "probe-budget-exhausted":
+                    probe_budget_exhausted = True
             ep_status.append(row)
 
         sim = w["data_class"] == "SIMULATED"
@@ -549,10 +574,16 @@ def health(app, ns: str = "killinchu", probe: bool = False) -> Dict[str, Any]:
             # exists in the repo but is not yet deployed on this surface.
             verdict = "needs-deploy"
             n_deploy += 1
+        elif probe and probe_error:
+            verdict = "degraded"
+            n_degraded += 1
         elif probe and any_200 and any_degraded:
             # Feed answered but honestly reports cached/empty/disabled.
             verdict = "degraded"
             n_degraded += 1
+        elif probe and probe_budget_exhausted:
+            verdict = "cached"
+            n_cached += 1
         else:
             # Route is registered. If probing and it returned 200 -> wired-live;
             # if probing hit a transient (429 rate-limit / 5xx / param-required
@@ -573,8 +604,12 @@ def health(app, ns: str = "killinchu", probe: bool = False) -> Dict[str, Any]:
         "lambda": "Conjecture 1",
         "locked_formulas": 8,
         "probed": bool(probe and client is not None),
+        "probe_performed": unique_probes > 0,
+        "probe_limit": probe_limit,
+        "unique_probes": unique_probes,
         "view_count": len(rows),
-        "summary": {"wired": n_wired, "degraded": n_degraded,
+        "summary": {"wired": n_wired, "cached": n_cached,
+                    "degraded": n_degraded,
                     "needs_deploy": n_deploy, "simulated": n_sim},
         "views": rows,
         "checked_at": _now_iso(),
@@ -595,9 +630,17 @@ def register(app, ns: str = "killinchu") -> Dict[str, Any]:
         return JSONResponse(audit_map(ns))
 
     @app.get(base + "/health")
-    async def _elite_wiring_health(probe: bool = False):  # noqa: ANN202
+    async def _elite_wiring_health(probe: bool = False,
+                                   probe_limit: int = 8):  # noqa: ANN202
         import asyncio
-        data = await asyncio.to_thread(health, app, ns, probe)
+        limit = max(1, min(32, int(probe_limit)))
+        data = await asyncio.to_thread(
+            health,
+            app,
+            ns,
+            probe,
+            limit if probe else 0,
+        )
         return JSONResponse(data)
 
     return {"registered": True, "ns": ns,
@@ -655,18 +698,25 @@ def _frontier_source_state(endpoint_rows, probe):
                   for row in rows if isinstance(row, dict)]
     if registered and not all(registered):
         return "UNAVAILABLE"
-    if probe and statuses and all(status == 200 for status in statuses):
+    if any(row.get("status") == "probe-budget-exhausted"
+           for row in rows if isinstance(row, dict)
+           and row.get("route_registered")):
+        return "CACHED"
+    registered_rows = [row for row in rows
+                       if isinstance(row, dict) and row.get("route_registered")]
+    if (probe and registered_rows
+            and all(row.get("status") == 200 for row in registered_rows)):
         return "LIVE"
     if registered and all(registered):
         return "CACHED"
     return "UNAVAILABLE"
 
 
-def incident_command(app, ns="killinchu", probe=False):
+def incident_command(app, ns="killinchu", probe=False, probe_limit=8):
     """Project every /elite tab into one prioritized operational action queue."""
-    wiring = health(app, ns, bool(probe))
-    probe_performed = bool(wiring.get("probed"))
-    evidence_label = "MEASURED" if probe_performed else "VERIFIED"
+    limit = max(1, min(32, int(probe_limit)))
+    wiring = health(app, ns, bool(probe), limit if probe else 0)
+    probe_performed = bool(wiring.get("probe_performed"))
     views = (wiring.get("views") or wiring.get("wiring")
              or wiring.get("results") or {})
     if isinstance(views, dict):
@@ -681,6 +731,23 @@ def incident_command(app, ns="killinchu", probe=False):
     for row in rows:
         endpoint_rows = row.get("endpoints", [])
         source_state = _frontier_source_state(endpoint_rows, probe_performed)
+        registered_rows = [
+            endpoint for endpoint in endpoint_rows
+            if isinstance(endpoint, dict) and endpoint.get("route_registered")
+        ]
+        row_probe_performed = any(
+            "status" in endpoint
+            and endpoint.get("status") != "probe-budget-exhausted"
+            for endpoint in registered_rows
+        )
+        row_probe_complete = bool(registered_rows) and all(
+            "status" in endpoint
+            and endpoint.get("status") != "probe-budget-exhausted"
+            for endpoint in registered_rows
+        ) and len(registered_rows) == len(endpoint_rows)
+        row_evidence_label = (
+            "MEASURED" if row_probe_complete else "VERIFIED"
+        )
         if source_state == "UNAVAILABLE":
             priority, action = 90, "RESTORE_ROUTE_OR_SOURCE"
             approval = "maintainer"
@@ -702,12 +769,19 @@ def incident_command(app, ns="killinchu", probe=False):
             "recommended_action": action,
             "required_authority": approval,
             "affected_endpoints": endpoint_rows,
-            "evidence_label": evidence_label,
+            "probe_performed": row_probe_performed,
+            "probe_complete": row_probe_complete,
+            "evidence_label": row_evidence_label,
             "executable": False,
         })
     queue.sort(key=lambda item: (-item["priority"], str(item["view"])))
     observed_at = _frontier_now()
     queue_digest = _frontier_sha(queue)
+    evidence_label = (
+        "MEASURED"
+        if queue and all(item["evidence_label"] == "MEASURED" for item in queue)
+        else "VERIFIED"
+    )
     needs_action = any(item["priority"] >= 40 for item in queue)
     if not probe_performed:
         next_allowed_action = "REQUEST_READ_ONLY_PROBE"
@@ -723,6 +797,8 @@ def incident_command(app, ns="killinchu", probe=False):
         "observed_at": observed_at,
         "probe_requested": bool(probe),
         "probe_performed": probe_performed,
+        "probe_limit": limit,
+        "unique_probes": wiring.get("unique_probes", 0),
         "evidence_label": evidence_label,
         "executable": False,
         "summary": {
@@ -840,8 +916,15 @@ def register(app, ns: str = "killinchu") -> Dict[str, Any]:
     except Exception:  # pragma: no cover - honest unsigned fallback
         frontier_sign_payload = None
 
-    async def _incident_command(probe: bool = False):  # noqa: ANN202
-        data = await asyncio.to_thread(incident_command, app, ns, probe)
+    async def _incident_command(probe: bool = False,
+                                probe_limit: int = 8):  # noqa: ANN202
+        data = await asyncio.to_thread(
+            incident_command,
+            app,
+            ns,
+            probe,
+            probe_limit,
+        )
         return data
 
     async def _lease_preview(body: dict):  # noqa: ANN202
