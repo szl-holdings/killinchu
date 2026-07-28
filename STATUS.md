@@ -14,6 +14,9 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
 - **`/api/build-info`** — reports `OBSERVED` only for a valid 40-hex
   `SZL_GIT_SHA`; the source-bound deploy verifies it against the exact GitHub
   commit before declaring success
+- **`/api/public-risk-status`** — publishes the dated conditional Option A
+  public-Space exception, enforced controls, startup-captured source identity,
+  and the exceptions that remain explicitly unavailable
 - **`/console`** — existing Killinchu Edge Verdict Console
 - **`/code` and `/chat`** — explicit HTTP 302 compatibility aliases to
   `/console`, not separate products
@@ -35,6 +38,10 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
 - **`/.well-known/szl-source.json`** — historical unsigned structural snapshot
   captured 2026-07-16. It is preserved evidence, not proof of the current
   running source revision; `/api/build-info` is the runtime identity probe.
+- **Runtime source identity receipt** — `/api/build-info` and
+  `/api/public-risk-status` do not mint a cryptographic source receipt.
+- **Historical archive privacy** — pre-v2 backing shards are not claimed
+  rewritten or erased; the public recent API withholds legacy platform rows.
 
 ## What's Deprecated
 

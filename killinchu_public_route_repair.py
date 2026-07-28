@@ -1,11 +1,12 @@
 """Fail-closed public runtime routes for the Killinchu Space.
 
-The application has a large, additive router. Five exact public contracts must
+The application has a large, additive router. Six exact public contracts must
 win before its SPA catch-all:
 
 * ``/openapi.json`` delegates to the already-hardened namespaced generator.
 * ``/.well-known/szl-source.json`` serves the on-disk attestation artifact.
 * ``/api/build-info`` exposes only a strictly validated deployment source SHA.
+* ``/api/public-risk-status`` exposes the dated conditional-publication contract.
 * ``/code`` and ``/chat`` redirect to the existing Edge Verdict Console.
 
 This module does not manufacture OpenAPI or source-attestation evidence. If the
@@ -28,9 +29,11 @@ from typing import Any
 _OPENAPI_ROUTE_NAME = "killinchu_p0_openapi_alias"
 _SOURCE_ROUTE_NAME = "killinchu_p0_source_artifact"
 _BUILD_INFO_ROUTE_NAME = "killinchu_p0_build_info"
+_PUBLIC_RISK_ROUTE_NAME = "killinchu_p0_public_risk_status"
 _CODE_ROUTE_NAME = "killinchu_p0_code_entry"
 _CHAT_ROUTE_NAME = "killinchu_p0_chat_entry"
 _MAX_SOURCE_BYTES = 2 * 1024 * 1024
+_MAX_PUBLIC_RISK_BYTES = 128 * 1024
 _SHA40_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 _JSON_HEADERS = {
     "Cache-Control": "no-store",
@@ -74,6 +77,7 @@ def register(
     *,
     ns: str = "killinchu",
     artifact_path: str | os.PathLike[str] | None = None,
+    risk_artifact_path: str | os.PathLike[str] | None = None,
 ) -> dict[str, Any]:
     """Register exact public routes ahead of defaults and the SPA catch-all."""
 
@@ -100,6 +104,18 @@ def register(
             source_path = app_root / ".well-known" / "szl-source.json"
     else:
         source_path = Path(artifact_path)
+
+    if risk_artifact_path is None:
+        configured_risk_path = os.environ.get(
+            "KILLINCHU_PUBLIC_RISK_PATH", ""
+        ).strip()
+        if configured_risk_path:
+            public_risk_path = Path(configured_risk_path)
+        else:
+            app_root = Path(os.environ.get("KILLINCHU_ROOT", "/app"))
+            public_risk_path = app_root / "public-risk-transition.json"
+    else:
+        public_risk_path = Path(risk_artifact_path)
 
     # The reusable deployer compares this immutable startup observation with
     # the exact checked-out GitHub SHA. Public requests never re-read process
@@ -183,6 +199,43 @@ def register(
         )
         return _head_from(response, Response) if request.method == "HEAD" else response
 
+    async def public_risk_status(request: Any) -> Any:
+        try:
+            raw = public_risk_path.read_bytes()
+            if not raw or len(raw) > _MAX_PUBLIC_RISK_BYTES:
+                raise ValueError("public-risk contract has an invalid size")
+            payload = json.loads(raw.decode("utf-8"))
+            if (
+                not isinstance(payload, dict)
+                or payload.get("schema")
+                != "szl.killinchu-public-risk-transition/v1"
+                or not isinstance(payload.get("controls"), list)
+                or not payload["controls"]
+                or not isinstance(payload.get("explicit_exceptions"), list)
+                or not payload["explicit_exceptions"]
+                or payload.get("overall_state")
+                != "CONDITIONAL_EXCEPTION_ACTIVE"
+                or payload.get("decision", {}).get("option") != "A"
+                or payload.get("decision", {}).get("status")
+                != "ACCEPTED_CONDITIONAL"
+            ):
+                raise ValueError("public-risk contract has an invalid schema")
+        except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
+            return unavailable(
+                "szl.killinchu-public-risk-transition-unavailable/v1",
+                "public-risk transition contract is unavailable or invalid",
+                request.method,
+            )
+
+        response_payload = dict(payload)
+        response_payload["runtime_observation"] = {
+            "source": build_identity,
+            "source_identity_receipt_minted": False,
+            "observation_scope": "STARTUP_CAPTURED",
+        }
+        response = JSONResponse(response_payload, headers=_JSON_HEADERS)
+        return _head_from(response, Response) if request.method == "HEAD" else response
+
     async def console_entry(_: Any) -> Any:
         return Response(content=b"", status_code=302, headers=_REDIRECT_HEADERS)
 
@@ -223,6 +276,17 @@ def register(
         )
         registered.append("/api/build-info")
 
+    if _PUBLIC_RISK_ROUTE_NAME not in existing_names:
+        routes.append(
+            Route(
+                "/api/public-risk-status",
+                endpoint=public_risk_status,
+                methods=["GET", "HEAD"],
+                name=_PUBLIC_RISK_ROUTE_NAME,
+            )
+        )
+        registered.append("/api/public-risk-status")
+
     if _CODE_ROUTE_NAME not in existing_names:
         routes.append(
             Route(
@@ -254,6 +318,7 @@ def register(
         "registered": registered,
         "openapi_source": organ_path,
         "source_artifact": str(source_path),
+        "public_risk_artifact": str(public_risk_path),
     }
 
 

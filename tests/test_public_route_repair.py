@@ -19,7 +19,12 @@ from killinchu_public_route_repair import register
 
 class PublicRouteRepairTests(unittest.TestCase):
     @staticmethod
-    def _app(artifact_path: Path | None, *, openapi_fails: bool = False) -> FastAPI:
+    def _app(
+        artifact_path: Path | None,
+        *,
+        openapi_fails: bool = False,
+        risk_artifact_path: Path | None = None,
+    ) -> FastAPI:
         app = FastAPI()
 
         if openapi_fails:
@@ -43,9 +48,18 @@ class PublicRouteRepairTests(unittest.TestCase):
             return HTMLResponse(f"<html>SPA:{html_escape(full_path)}</html>")
 
         if artifact_path is None:
-            register(app, ns="killinchu")
+            register(
+                app,
+                ns="killinchu",
+                risk_artifact_path=risk_artifact_path,
+            )
         else:
-            register(app, ns="killinchu", artifact_path=artifact_path)
+            register(
+                app,
+                ns="killinchu",
+                artifact_path=artifact_path,
+                risk_artifact_path=risk_artifact_path,
+            )
         return app
 
     def test_openapi_alias_precedes_default_and_has_head_parity(self) -> None:
@@ -181,6 +195,132 @@ class PublicRouteRepairTests(unittest.TestCase):
                 self.assertEqual(response.json()["build"]["revision_source"], "UNKNOWN")
                 self.assertNotIn(invalid, response.text)
                 self.assertNotIn("SECRET_VALUE", response.text)
+
+    def test_public_risk_status_preserves_explicit_exceptions_and_head_parity(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            risk_path = Path(tmp) / "public-risk-transition.json"
+            risk_path.write_text(
+                json.dumps(
+                    {
+                        "schema": "szl.killinchu-public-risk-transition/v1",
+                        "overall_state": "CONDITIONAL_EXCEPTION_ACTIVE",
+                        "decision": {
+                            "option": "A",
+                            "status": "ACCEPTED_CONDITIONAL",
+                        },
+                        "controls": [
+                            {
+                                "id": "post-deploy-source-binding",
+                                "state": "ENFORCED_BY_CI",
+                            }
+                        ],
+                        "explicit_exceptions": [
+                            {
+                                "id": "runtime-source-receipt",
+                                "state": "UNAVAILABLE",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            sha = "c" * 40
+            with patch.dict(os.environ, {"SZL_GIT_SHA": sha}):
+                app = self._app(
+                    Path(tmp) / "source.json",
+                    risk_artifact_path=risk_path,
+                )
+                client = TestClient(app)
+                response = client.get("/api/public-risk-status")
+                head = client.head("/api/public-risk-status")
+
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertEqual(payload["overall_state"], "CONDITIONAL_EXCEPTION_ACTIVE")
+            self.assertEqual(payload["decision"]["option"], "A")
+            self.assertEqual(
+                payload["explicit_exceptions"][0]["state"],
+                "UNAVAILABLE",
+            )
+            self.assertEqual(
+                payload["runtime_observation"]["source"]["revision"],
+                sha,
+            )
+            self.assertIs(
+                payload["runtime_observation"]["source_identity_receipt_minted"],
+                False,
+            )
+            self.assertEqual(response.headers["cache-control"], "no-store")
+            self.assertEqual(head.status_code, response.status_code)
+            self.assertEqual(head.content, b"")
+            self.assertEqual(
+                head.headers["content-length"],
+                response.headers["content-length"],
+            )
+
+            route = next(
+                route
+                for route in app.router.routes
+                if getattr(route, "name", None)
+                == "killinchu_p0_public_risk_status"
+            )
+            catchall_route = next(
+                route
+                for route in app.router.routes
+                if getattr(route, "path", None) == "/{full_path:path}"
+            )
+            self.assertLess(
+                app.router.routes.index(route),
+                app.router.routes.index(catchall_route),
+            )
+
+    def test_public_risk_status_fails_closed_for_invalid_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            risk_path = Path(tmp) / "public-risk-transition.json"
+            risk_path.write_text('{"schema":"wrong"}', encoding="utf-8")
+            response = TestClient(
+                self._app(
+                    Path(tmp) / "source.json",
+                    risk_artifact_path=risk_path,
+                )
+            ).get("/api/public-risk-status")
+
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.json()["state"], "UNAVAILABLE")
+            self.assertEqual(
+                response.json()["schema"],
+                "szl.killinchu-public-risk-transition-unavailable/v1",
+            )
+
+    def test_committed_public_risk_contract_keeps_evidence_and_exceptions(
+        self,
+    ) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        payload = json.loads(
+            (repository_root / "public-risk-transition.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            payload["overall_state"],
+            "CONDITIONAL_EXCEPTION_ACTIVE",
+        )
+        self.assertEqual(payload["decision"]["status"], "ACCEPTED_CONDITIONAL")
+        self.assertEqual(payload["decision"]["option"], "A")
+        self.assertEqual(payload["decision"]["review_due"], "2026-10-23")
+        self.assertGreaterEqual(len(payload["explicit_exceptions"]), 2)
+
+        for control in payload["controls"]:
+            evidence = control["evidence"]
+            for reference in evidence if isinstance(evidence, list) else [evidence]:
+                if reference.startswith("/"):
+                    continue
+                self.assertTrue(
+                    (repository_root / reference).is_file(),
+                    f"missing public-risk evidence: {reference}",
+                )
 
     def test_code_and_chat_explicitly_redirect_before_spa_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -338,6 +478,7 @@ class PublicRouteRepairTests(unittest.TestCase):
             self.assertEqual(names.count("killinchu_p0_openapi_alias"), 1)
             self.assertEqual(names.count("killinchu_p0_source_artifact"), 1)
             self.assertEqual(names.count("killinchu_p0_build_info"), 1)
+            self.assertEqual(names.count("killinchu_p0_public_risk_status"), 1)
             self.assertEqual(names.count("killinchu_p0_code_entry"), 1)
             self.assertEqual(names.count("killinchu_p0_chat_entry"), 1)
 

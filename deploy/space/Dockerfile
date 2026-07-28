@@ -242,10 +242,12 @@ COPY szl_kc_ttc.py szl_kc_specdec.py szl_kc_worldmodel.py ./
 COPY szl_kc_episodic.py szl_kc_qec.py szl_kc_energy.py ./
 # WAVE K / DEV 5: killinchu frontier full-wire surface bootstrap (additive)
 COPY killinchu_frontier_wave_surfaces.py ./
-# P0 public discovery contracts: exact OpenAPI + source-attestation routes.
+# P0 public discovery contracts: exact OpenAPI, source, and risk-status routes.
 COPY killinchu_public_route_repair.py ./
 # Unsigned structural source/deployment snapshot; claims remain fail-closed.
 COPY .well-known/szl-source.json ./.well-known/szl-source.json
+# Dated Option A public-Space exception and explicit risk boundaries.
+COPY public-risk-transition.json ./public-risk-transition.json
 
 # ADDITIVE (live knowledge console — 2026-06-09): the generated, kernel-derived
 # knowledge corpus (axioms/theorems/formulas/frameworks), byte-identical to
