@@ -7,8 +7,9 @@
     "status": "ACCEPTED_CONDITIONAL",
     "approved_at": "2026-07-25",
     "review_due": "2026-10-23",
+    "migration_state": "NOT_MIGRATED",
     "role": "distinct counter-UAS product and organ/wave staging surface",
-    "authoritative_record": "https://github.com/szl-holdings/a11oy/blob/main/docs/decisions/2026-07-25-killinchu-public-space-exception.md"
+    "authoritative_record": "https://github.com/szl-holdings/a11oy/blob/1ca37c24fd39660fcfbca009b0c7a39bfaf8e286/docs/decisions/2026-07-25-killinchu-public-space-exception.md"
   },
   "controls": [
     {
@@ -22,21 +23,36 @@
       "evidence": ".github/workflows/hf-sync.yml"
     },
     {
-      "id": "copy-and-alias-contracts",
+      "id": "ci-reconciliation-gates",
       "state": "ENFORCED_BY_CI",
       "evidence": [
         ".github/workflows/copy-completeness-guard.yml",
         ".github/workflows/dockerfile-copy-guard.yml",
-        ".github/workflows/fgbrain-doctrine-verify.yml"
+        ".github/workflows/fgbrain-doctrine-verify.yml",
+        "tests/test_public_route_repair.py"
       ]
     },
     {
-      "id": "post-deploy-source-binding",
+      "id": "complete-post-deploy-attestation",
       "state": "ENFORCED_BY_CI",
       "evidence": [
         ".github/workflows/hf-sync.yml",
-        "/api/build-info"
+        "/api/build-info",
+        "/api/public-risk-status"
       ]
+    },
+    {
+      "id": "mismatch-publication",
+      "state": "DIVERGENT_ON_ANY_MISMATCH",
+      "evidence": [
+        "killinchu_public_route_repair.py",
+        "tests/test_public_route_repair.py"
+      ]
+    },
+    {
+      "id": "outside-primary-navigation",
+      "state": "OUTSIDE_PRIMARY_NAVIGATION",
+      "evidence": "https://github.com/szl-holdings/a11oy/blob/1ca37c24fd39660fcfbca009b0c7a39bfaf8e286/docs/decisions/2026-07-25-killinchu-public-space-exception.md"
     },
     {
       "id": "mixed-source-rights-and-attribution",
@@ -76,7 +92,8 @@
   "required_external_verification": [
     "compare the runtime /api/build-info revision to the exact protected GitHub main revision",
     "verify the Hugging Face Space repository revision from the deploy receipt",
-    "verify the mixed-source dataset card from its immutable publication receipt"
+    "verify the mixed-source dataset card from its immutable publication receipt",
+    "verify product-domain primary navigation excludes Killinchu until the reconciliation gate passes"
   ],
   "truth_boundary": "RUNNING and HTTP 200 are transport evidence only; they do not override failed source binding, rights publication, or explicit exceptions"
 }

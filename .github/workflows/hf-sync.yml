@@ -42,6 +42,6 @@ jobs:
       wait-running: 1200
       source-revision-variable: SZL_GIT_SHA
       source-revision-probe-path: /api/build-info
-      smoke-paths: '["/","/api/killinchu/healthz","/api/build-info","/console","/api/killinchu/v1/code/capabilities"]'
+      smoke-paths: '["/","/api/killinchu/healthz","/api/build-info","/api/public-risk-status","/console","/api/killinchu/v1/code/capabilities"]'
     secrets:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}

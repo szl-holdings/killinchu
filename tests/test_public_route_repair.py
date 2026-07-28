@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from datetime import date
 from html import escape as html_escape
+from io import BytesIO
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -14,7 +16,11 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 
-from killinchu_public_route_repair import register
+from killinchu_public_route_repair import (
+    _MAX_PUBLIC_RISK_BYTES,
+    _read_bounded,
+    register,
+)
 
 
 class PublicRouteRepairTests(unittest.TestCase):
@@ -208,7 +214,13 @@ class PublicRouteRepairTests(unittest.TestCase):
                 ).read_bytes()
             )
             sha = "c" * 40
-            with patch.dict(os.environ, {"SZL_GIT_SHA": sha}):
+            with (
+                patch.dict(os.environ, {"SZL_GIT_SHA": sha}),
+                patch(
+                    "killinchu_public_route_repair._utc_today",
+                    return_value=date(2026, 7, 28),
+                ),
+            ):
                 app = self._app(
                     Path(tmp) / "source.json",
                     risk_artifact_path=risk_path,
@@ -272,7 +284,11 @@ class PublicRouteRepairTests(unittest.TestCase):
             self.assertEqual(response.json()["state"], "UNAVAILABLE")
             self.assertEqual(
                 response.json()["schema"],
-                "szl.killinchu-public-risk-transition-unavailable/v1",
+                "szl.killinchu-public-risk-transition-status/v1",
+            )
+            self.assertEqual(
+                response.json()["reason_code"],
+                "PUBLIC_SCHEMA_INVALID",
             )
 
     def test_public_risk_status_fails_closed_for_non_finite_json(self) -> None:
@@ -308,7 +324,11 @@ class PublicRouteRepairTests(unittest.TestCase):
                     self.assertEqual(response.json()["state"], "UNAVAILABLE")
                     self.assertEqual(
                         response.json()["schema"],
-                        "szl.killinchu-public-risk-transition-unavailable/v1",
+                        "szl.killinchu-public-risk-transition-status/v1",
+                    )
+                    self.assertEqual(
+                        response.json()["reason_code"],
+                        "PUBLIC_CONTRACT_UNAVAILABLE",
                     )
 
     def test_public_risk_status_fails_closed_if_any_boundary_is_dropped(
@@ -391,14 +411,253 @@ class PublicRouteRepairTests(unittest.TestCase):
                 with self.subTest(name=name):
                     risk_path = Path(tmp) / f"{name}.json"
                     risk_path.write_text(json.dumps(mutated), encoding="utf-8")
-                    response = TestClient(
-                        self._app(
-                            Path(tmp) / "source.json",
-                            risk_artifact_path=risk_path,
-                        )
-                    ).get("/api/public-risk-status")
+                    with patch(
+                        "killinchu_public_route_repair._utc_today",
+                        return_value=date(2026, 7, 28),
+                    ):
+                        response = TestClient(
+                            self._app(
+                                Path(tmp) / "source.json",
+                                risk_artifact_path=risk_path,
+                            )
+                        ).get("/api/public-risk-status")
+                    self.assertEqual(response.status_code, 503)
+                    expected_state = (
+                        "UNAVAILABLE"
+                        if name == "decision-type"
+                        else "DIVERGENT"
+                    )
+                    self.assertEqual(
+                        response.json()["state"],
+                        expected_state,
+                    )
+
+    def test_public_risk_status_rejects_unknown_fields_without_reflection(
+        self,
+    ) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        canonical = json.loads(
+            (repository_root / "public-risk-transition.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        mutations = (
+            {**canonical, "internal_notes": "TOP_SECRET_VALUE"},
+            {
+                **canonical,
+                "decision": {
+                    **canonical["decision"],
+                    "private_owner": "TOP_SECRET_VALUE",
+                },
+            },
+            {
+                **canonical,
+                "controls": [
+                    {
+                        **canonical["controls"][0],
+                        "internal_ticket": "TOP_SECRET_VALUE",
+                    },
+                    *canonical["controls"][1:],
+                ],
+            },
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for index, mutated in enumerate(mutations):
+                with self.subTest(index=index):
+                    risk_path = Path(tmp) / f"unknown-{index}.json"
+                    risk_path.write_text(json.dumps(mutated), encoding="utf-8")
+                    with (
+                        patch.dict(os.environ, {"SZL_GIT_SHA": "c" * 40}),
+                        patch(
+                            "killinchu_public_route_repair._utc_today",
+                            return_value=date(2026, 7, 28),
+                        ),
+                    ):
+                        response = TestClient(
+                            self._app(
+                                Path(tmp) / "source.json",
+                                risk_artifact_path=risk_path,
+                            )
+                        ).get("/api/public-risk-status")
+
                     self.assertEqual(response.status_code, 503)
                     self.assertEqual(response.json()["state"], "UNAVAILABLE")
+                    self.assertEqual(
+                        response.json()["reason_code"],
+                        "PUBLIC_SCHEMA_INVALID",
+                    )
+                    self.assertNotIn("TOP_SECRET_VALUE", response.text)
+
+    def test_public_risk_status_fails_closed_at_review_due_or_migration(
+        self,
+    ) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        canonical = json.loads(
+            (repository_root / "public-risk-transition.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            risk_path = Path(tmp) / "public-risk-transition.json"
+            risk_path.write_text(json.dumps(canonical), encoding="utf-8")
+            with (
+                patch.dict(os.environ, {"SZL_GIT_SHA": "c" * 40}),
+                patch(
+                    "killinchu_public_route_repair._utc_today",
+                    return_value=date(2026, 10, 23),
+                ),
+            ):
+                expired = TestClient(
+                    self._app(
+                        Path(tmp) / "source.json",
+                        risk_artifact_path=risk_path,
+                    )
+                ).get("/api/public-risk-status")
+
+            migrated_payload = {
+                **canonical,
+                "decision": {
+                    **canonical["decision"],
+                    "migration_state": "MIGRATED_TO_APPROVED_FIVE",
+                },
+            }
+            risk_path.write_text(
+                json.dumps(migrated_payload),
+                encoding="utf-8",
+            )
+            with (
+                patch.dict(os.environ, {"SZL_GIT_SHA": "c" * 40}),
+                patch(
+                    "killinchu_public_route_repair._utc_today",
+                    return_value=date(2026, 7, 28),
+                ),
+            ):
+                migrated = TestClient(
+                    self._app(
+                        Path(tmp) / "source.json",
+                        risk_artifact_path=risk_path,
+                    )
+                ).get("/api/public-risk-status")
+
+        self.assertEqual(expired.status_code, 503)
+        self.assertEqual(
+            expired.json()["reason_code"],
+            "OPTION_A_REVIEW_EXPIRED",
+        )
+        self.assertEqual(migrated.status_code, 503)
+        self.assertEqual(
+            migrated.json()["reason_code"],
+            "OPTION_A_CAPABILITY_MIGRATED",
+        )
+
+    def test_public_risk_status_rejects_mutated_authority_or_deadline(
+        self,
+    ) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        canonical = json.loads(
+            (repository_root / "public-risk-transition.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        mutations = {
+            "authority": {
+                **canonical,
+                "decision": {
+                    **canonical["decision"],
+                    "authoritative_record": canonical["decision"][
+                        "authoritative_record"
+                    ].replace(
+                        "1ca37c24fd39660fcfbca009b0c7a39bfaf8e286",
+                        "f" * 40,
+                    ),
+                },
+            },
+            "deadline": {
+                **canonical,
+                "decision": {
+                    **canonical["decision"],
+                    "review_due": "2027-10-23",
+                },
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for label, mutated in mutations.items():
+                with self.subTest(label=label):
+                    risk_path = Path(tmp) / f"{label}.json"
+                    risk_path.write_text(json.dumps(mutated), encoding="utf-8")
+                    with (
+                        patch.dict(os.environ, {"SZL_GIT_SHA": "c" * 40}),
+                        patch(
+                            "killinchu_public_route_repair._utc_today",
+                            return_value=date(2026, 7, 28),
+                        ),
+                    ):
+                        response = TestClient(
+                            self._app(
+                                Path(tmp) / "source.json",
+                                risk_artifact_path=risk_path,
+                            )
+                        ).get("/api/public-risk-status")
+
+                    self.assertEqual(response.status_code, 503)
+                    self.assertEqual(response.json()["state"], "UNAVAILABLE")
+                    self.assertEqual(
+                        response.json()["reason_code"],
+                        "PUBLIC_SCHEMA_INVALID",
+                    )
+
+    def test_public_risk_status_publishes_runtime_mismatch_as_divergent(
+        self,
+    ) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        with (
+            patch.dict(os.environ, {"SZL_GIT_SHA": ""}),
+            patch(
+                "killinchu_public_route_repair._utc_today",
+                return_value=date(2026, 7, 28),
+            ),
+        ):
+            response = TestClient(
+                self._app(
+                    repository_root / ".well-known" / "szl-source.json",
+                    risk_artifact_path=(
+                        repository_root / "public-risk-transition.json"
+                    ),
+                )
+            ).get("/api/public-risk-status")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["state"], "DIVERGENT")
+        self.assertEqual(
+            response.json()["reason_code"],
+            "RUNTIME_SOURCE_MISMATCH",
+        )
+
+    def test_public_risk_reader_never_reads_past_bound_plus_sentinel(
+        self,
+    ) -> None:
+        class TrackingReader(BytesIO):
+            def __init__(self, payload: bytes) -> None:
+                super().__init__(payload)
+                self.read_sizes: list[int] = []
+
+            def read(self, size: int = -1) -> bytes:
+                self.read_sizes.append(size)
+                return super().read(size)
+
+        reader = TrackingReader(b"x" * (_MAX_PUBLIC_RISK_BYTES + 16))
+        with (
+            patch.object(Path, "open", return_value=reader),
+            self.assertRaises(ValueError),
+        ):
+            _read_bounded(Path("ignored"), _MAX_PUBLIC_RISK_BYTES)
+
+        self.assertEqual(
+            reader.read_sizes,
+            [_MAX_PUBLIC_RISK_BYTES + 1],
+        )
 
     def test_committed_public_risk_contract_keeps_evidence_and_exceptions(
         self,
@@ -416,12 +675,29 @@ class PublicRouteRepairTests(unittest.TestCase):
         self.assertEqual(payload["decision"]["status"], "ACCEPTED_CONDITIONAL")
         self.assertEqual(payload["decision"]["option"], "A")
         self.assertEqual(payload["decision"]["review_due"], "2026-10-23")
+        self.assertEqual(payload["decision"]["migration_state"], "NOT_MIGRATED")
+        self.assertIn(
+            "/blob/1ca37c24fd39660fcfbca009b0c7a39bfaf8e286/",
+            payload["decision"]["authoritative_record"],
+        )
         self.assertGreaterEqual(len(payload["explicit_exceptions"]), 2)
+        control_states = {
+            control["id"]: control["state"]
+            for control in payload["controls"]
+        }
+        self.assertEqual(
+            control_states["mismatch-publication"],
+            "DIVERGENT_ON_ANY_MISMATCH",
+        )
+        self.assertEqual(
+            control_states["outside-primary-navigation"],
+            "OUTSIDE_PRIMARY_NAVIGATION",
+        )
 
         for control in payload["controls"]:
             evidence = control["evidence"]
             for reference in evidence if isinstance(evidence, list) else [evidence]:
-                if reference.startswith("/"):
+                if reference.startswith(("/", "https://")):
                     continue
                 self.assertTrue(
                     (repository_root / reference).is_file(),
@@ -479,6 +755,7 @@ class PublicRouteRepairTests(unittest.TestCase):
             '"public-risk-transition.json"',
             '"/api/killinchu/healthz"',
             '"/api/build-info"',
+            '"/api/public-risk-status"',
             '"/console"',
             '"/api/killinchu/v1/code/capabilities"',
             "HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}",
