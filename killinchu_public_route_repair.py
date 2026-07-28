@@ -35,6 +35,19 @@ _CHAT_ROUTE_NAME = "killinchu_p0_chat_entry"
 _MAX_SOURCE_BYTES = 2 * 1024 * 1024
 _MAX_PUBLIC_RISK_BYTES = 128 * 1024
 _SHA40_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+_REQUIRED_PUBLIC_RISK_CONTROLS = {
+    "github-single-editable-source": "ENFORCED_BY_CODE",
+    "generated-exact-hf-deployment": "ENFORCED_BY_CODE",
+    "copy-and-alias-contracts": "ENFORCED_BY_CI",
+    "post-deploy-source-binding": "ENFORCED_BY_CI",
+    "mixed-source-rights-and-attribution": "ENFORCED_BY_CI",
+    "passive-sensing-legal-boundary": "DECLARED_AND_RUNTIME_GATED",
+    "rollback-runbook": "DOCUMENTED",
+}
+_REQUIRED_PUBLIC_RISK_EXCEPTIONS = {
+    "runtime-source-receipt": "UNAVAILABLE",
+    "historical-pre-v2-archive-shards": "NOT_REWRITTEN",
+}
 _JSON_HEADERS = {
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
@@ -70,6 +83,52 @@ def _source_build_identity() -> dict[str, str | None]:
         "revision": None,
         "revision_source": "UNKNOWN",
     }
+
+
+def _has_required_public_risk_boundaries(payload: object) -> bool:
+    """Reject incomplete or type-confused conditional-publication contracts."""
+
+    if not isinstance(payload, dict):
+        return False
+    decision = payload.get("decision")
+    controls = payload.get("controls")
+    exceptions = payload.get("explicit_exceptions")
+    if (
+        payload.get("schema") != "szl.killinchu-public-risk-transition/v1"
+        or payload.get("overall_state") != "CONDITIONAL_EXCEPTION_ACTIVE"
+        or not isinstance(decision, dict)
+        or decision.get("option") != "A"
+        or decision.get("status") != "ACCEPTED_CONDITIONAL"
+        or not isinstance(controls, list)
+        or not isinstance(exceptions, list)
+    ):
+        return False
+
+    control_states: dict[str, object] = {}
+    for control in controls:
+        if not isinstance(control, dict):
+            return False
+        identifier = control.get("id")
+        if not isinstance(identifier, str) or identifier in control_states:
+            return False
+        control_states[identifier] = control.get("state")
+
+    exception_states: dict[str, object] = {}
+    for exception in exceptions:
+        if not isinstance(exception, dict):
+            return False
+        identifier = exception.get("id")
+        if not isinstance(identifier, str) or identifier in exception_states:
+            return False
+        exception_states[identifier] = exception.get("state")
+
+    return all(
+        control_states.get(identifier) == state
+        for identifier, state in _REQUIRED_PUBLIC_RISK_CONTROLS.items()
+    ) and all(
+        exception_states.get(identifier) == state
+        for identifier, state in _REQUIRED_PUBLIC_RISK_EXCEPTIONS.items()
+    )
 
 
 def register(
@@ -205,20 +264,7 @@ def register(
             if not raw or len(raw) > _MAX_PUBLIC_RISK_BYTES:
                 raise ValueError("public-risk contract has an invalid size")
             payload = json.loads(raw.decode("utf-8"))
-            if (
-                not isinstance(payload, dict)
-                or payload.get("schema")
-                != "szl.killinchu-public-risk-transition/v1"
-                or not isinstance(payload.get("controls"), list)
-                or not payload["controls"]
-                or not isinstance(payload.get("explicit_exceptions"), list)
-                or not payload["explicit_exceptions"]
-                or payload.get("overall_state")
-                != "CONDITIONAL_EXCEPTION_ACTIVE"
-                or payload.get("decision", {}).get("option") != "A"
-                or payload.get("decision", {}).get("status")
-                != "ACCEPTED_CONDITIONAL"
-            ):
+            if not _has_required_public_risk_boundaries(payload):
                 raise ValueError("public-risk contract has an invalid schema")
         except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
             return unavailable(

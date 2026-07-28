@@ -201,30 +201,11 @@ class PublicRouteRepairTests(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             risk_path = Path(tmp) / "public-risk-transition.json"
-            risk_path.write_text(
-                json.dumps(
-                    {
-                        "schema": "szl.killinchu-public-risk-transition/v1",
-                        "overall_state": "CONDITIONAL_EXCEPTION_ACTIVE",
-                        "decision": {
-                            "option": "A",
-                            "status": "ACCEPTED_CONDITIONAL",
-                        },
-                        "controls": [
-                            {
-                                "id": "post-deploy-source-binding",
-                                "state": "ENFORCED_BY_CI",
-                            }
-                        ],
-                        "explicit_exceptions": [
-                            {
-                                "id": "runtime-source-receipt",
-                                "state": "UNAVAILABLE",
-                            }
-                        ],
-                    }
-                ),
-                encoding="utf-8",
+            risk_path.write_bytes(
+                (
+                    Path(__file__).resolve().parents[1]
+                    / "public-risk-transition.json"
+                ).read_bytes()
             )
             sha = "c" * 40
             with patch.dict(os.environ, {"SZL_GIT_SHA": sha}):
@@ -293,6 +274,95 @@ class PublicRouteRepairTests(unittest.TestCase):
                 response.json()["schema"],
                 "szl.killinchu-public-risk-transition-unavailable/v1",
             )
+
+    def test_public_risk_status_fails_closed_if_any_boundary_is_dropped(
+        self,
+    ) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        canonical = json.loads(
+            (repository_root / "public-risk-transition.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        mutations = [("decision-type", {**canonical, "decision": "Option A"})]
+        mutations.extend(
+            (
+                f"control-{entry['id']}",
+                {
+                    **canonical,
+                    "controls": [
+                        control
+                        for control in canonical["controls"]
+                        if control["id"] != entry["id"]
+                    ],
+                },
+            )
+            for entry in canonical["controls"]
+        )
+        mutations.extend(
+            (
+                f"control-state-{entry['id']}",
+                {
+                    **canonical,
+                    "controls": [
+                        {
+                            **control,
+                            "state": "UNVERIFIED",
+                        }
+                        if control["id"] == entry["id"]
+                        else control
+                        for control in canonical["controls"]
+                    ],
+                },
+            )
+            for entry in canonical["controls"]
+        )
+        mutations.extend(
+            (
+                f"exception-{entry['id']}",
+                {
+                    **canonical,
+                    "explicit_exceptions": [
+                        exception
+                        for exception in canonical["explicit_exceptions"]
+                        if exception["id"] != entry["id"]
+                    ],
+                },
+            )
+            for entry in canonical["explicit_exceptions"]
+        )
+        mutations.extend(
+            (
+                f"exception-state-{entry['id']}",
+                {
+                    **canonical,
+                    "explicit_exceptions": [
+                        {
+                            **exception,
+                            "state": "AVAILABLE",
+                        }
+                        if exception["id"] == entry["id"]
+                        else exception
+                        for exception in canonical["explicit_exceptions"]
+                    ],
+                },
+            )
+            for entry in canonical["explicit_exceptions"]
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, mutated in mutations:
+                with self.subTest(name=name):
+                    risk_path = Path(tmp) / f"{name}.json"
+                    risk_path.write_text(json.dumps(mutated), encoding="utf-8")
+                    response = TestClient(
+                        self._app(
+                            Path(tmp) / "source.json",
+                            risk_artifact_path=risk_path,
+                        )
+                    ).get("/api/public-risk-status")
+                    self.assertEqual(response.status_code, 503)
+                    self.assertEqual(response.json()["state"], "UNAVAILABLE")
 
     def test_committed_public_risk_contract_keeps_evidence_and_exceptions(
         self,
