@@ -362,7 +362,11 @@ class PublicRouteRepairTests(unittest.TestCase):
                     "controls": [
                         {
                             **control,
-                            "state": "UNVERIFIED",
+                            "state": (
+                                "ENFORCED_BY_CI"
+                                if control["state"] == "UNVERIFIED"
+                                else "UNVERIFIED"
+                            ),
                         }
                         if control["id"] == entry["id"]
                         else control
@@ -798,7 +802,7 @@ class PublicRouteRepairTests(unittest.TestCase):
         self.assertEqual(payload["decision"]["migration_state"], "NOT_MIGRATED")
         self.assertEqual(
             payload["decision"]["role"],
-            "distinct product and deployment staging surface",
+            "active, distinct counter-UAS product and deployment staging surface",
         )
         self.assertIn(
             "/blob/1ca37c24fd39660fcfbca009b0c7a39bfaf8e286/",

@@ -45,7 +45,7 @@ _PINNED_OPTION_A_RECORD = (
 _OPTION_A_APPROVED_AT = date(2026, 7, 25)
 _OPTION_A_REVIEW_DUE = date(2026, 10, 23)
 _APPROVED_OPTION_A_ROLE = (
-    "distinct product and deployment staging surface"
+    "active, distinct counter-UAS product and deployment staging surface"
 )
 _APPROVED_PUBLIC_RISK_CONTROLS = (
     (
@@ -587,6 +587,15 @@ def register(
                 today=_utc_today(),
             )
         except _PublicRiskContractError as exc:
+            if (
+                exc.reason_code == "CI_ATTESTATION_EVIDENCE_UNPROVED"
+                and build_identity["state"] != "OBSERVED"
+            ):
+                return public_risk_failure(
+                    state="DIVERGENT",
+                    reason_code="RUNTIME_SOURCE_MISMATCH",
+                    method=request.method,
+                )
             return public_risk_failure(
                 state=exc.state,
                 reason_code=exc.reason_code,

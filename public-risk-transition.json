@@ -8,7 +8,7 @@
     "approved_at": "2026-07-25",
     "review_due": "2026-10-23",
     "migration_state": "NOT_MIGRATED",
-    "role": "distinct product and deployment staging surface",
+    "role": "active, distinct counter-UAS product and deployment staging surface",
     "authoritative_record": "https://github.com/szl-holdings/a11oy/blob/1ca37c24fd39660fcfbca009b0c7a39bfaf8e286/docs/decisions/2026-07-25-killinchu-public-space-exception.md"
   },
   "controls": [
