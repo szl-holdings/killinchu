@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """killinchu_elite_wiring.py — /elite view → data-feed wiring map + honest health.
 
-ADDITIVE. Pure stdlib. Registers ONE new read-only namespace and touches NO
-existing route, view, or feed. It answers a single operational question that the
-/elite console cannot answer about itself:
+ADDITIVE. Pure stdlib. Registers read-only audit and decision-support surfaces
+and touches NO existing route, view, feed, or effector. It answers operational
+questions that the /elite console cannot answer about itself:
 
     "Is every /elite view wired to a REAL data feed, and is that feed populating
      right now — or is it empty / dark / honestly degraded?"
@@ -665,6 +665,8 @@ def _frontier_source_state(endpoint_rows, probe):
 def incident_command(app, ns="killinchu", probe=False):
     """Project every /elite tab into one prioritized operational action queue."""
     wiring = health(app, ns, bool(probe))
+    probe_performed = bool(wiring.get("probed"))
+    evidence_label = "MEASURED" if probe_performed else "VERIFIED"
     views = (wiring.get("views") or wiring.get("wiring")
              or wiring.get("results") or {})
     if isinstance(views, dict):
@@ -678,7 +680,7 @@ def incident_command(app, ns="killinchu", probe=False):
     queue = []
     for row in rows:
         endpoint_rows = row.get("endpoints", [])
-        source_state = _frontier_source_state(endpoint_rows, bool(probe))
+        source_state = _frontier_source_state(endpoint_rows, probe_performed)
         if source_state == "UNAVAILABLE":
             priority, action = 90, "RESTORE_ROUTE_OR_SOURCE"
             approval = "maintainer"
@@ -700,12 +702,19 @@ def incident_command(app, ns="killinchu", probe=False):
             "recommended_action": action,
             "required_authority": approval,
             "affected_endpoints": endpoint_rows,
-            "evidence_label": "MEASURED",
+            "evidence_label": evidence_label,
             "executable": False,
         })
     queue.sort(key=lambda item: (-item["priority"], str(item["view"])))
     observed_at = _frontier_now()
     queue_digest = _frontier_sha(queue)
+    needs_action = any(item["priority"] >= 40 for item in queue)
+    if not probe_performed:
+        next_allowed_action = "REQUEST_READ_ONLY_PROBE"
+    elif needs_action:
+        next_allowed_action = "OPEN_INCIDENT"
+    else:
+        next_allowed_action = "OBSERVE"
     return {
         "service": "killinchu-incident-command",
         "version": "v1",
@@ -713,7 +722,8 @@ def incident_command(app, ns="killinchu", probe=False):
         "policy_version": FRONTIER_POLICY_VERSION,
         "observed_at": observed_at,
         "probe_requested": bool(probe),
-        "evidence_label": "MEASURED",
+        "probe_performed": probe_performed,
+        "evidence_label": evidence_label,
         "executable": False,
         "summary": {
             "total_views": len(queue),
@@ -725,15 +735,7 @@ def incident_command(app, ns="killinchu", probe=False):
         },
         "queue": queue,
         "queue_digest": queue_digest,
-        "next_allowed_action": (
-            "RUN_READ_ONLY_PROBE"
-            if not probe
-            else (
-                queue[0]["recommended_action"]
-                if queue and queue[0]["priority"] >= 40
-                else "MONITOR"
-            )
-        ),
+        "next_allowed_action": next_allowed_action,
         "invariant": ("Read-only decision support only. No effector is executed; "
                       "every non-observation action requires separate authority."),
     }
@@ -760,9 +762,15 @@ def authorization_lease_preview(body, sign_fn=None):
     if decision_digest != str(lease.get("decision_digest", "")).lower():
         blockers.append("DECISION_DIGEST_MISMATCH")
     try:
+        import math
         uncertainty = float(body.get("uncertainty", 1.0))
         max_uncertainty = float(lease.get("max_uncertainty", 0.0))
-        if uncertainty > max_uncertainty:
+        if (not math.isfinite(uncertainty)
+                or not math.isfinite(max_uncertainty)
+                or uncertainty < 0.0
+                or max_uncertainty < 0.0):
+            blockers.append("INVALID_UNCERTAINTY")
+        elif uncertainty > max_uncertainty:
             blockers.append("UNCERTAINTY_EXCEEDS_LEASE")
     except (TypeError, ValueError):
         blockers.append("INVALID_UNCERTAINTY")
@@ -773,6 +781,8 @@ def authorization_lease_preview(body, sign_fn=None):
             str(lease.get("not_before", "")).replace("Z", "+00:00"))
         expires_at = datetime.fromisoformat(
             str(lease.get("expires_at", "")).replace("Z", "+00:00"))
+        if not_before >= expires_at:
+            blockers.append("INVALID_LEASE_WINDOW")
         if now < not_before:
             blockers.append("LEASE_NOT_ACTIVE")
         if now >= expires_at:
@@ -809,6 +819,7 @@ def authorization_lease_preview(body, sign_fn=None):
             "executable": False,
         },
         sign_fn=sign_fn,
+        forward=False,
     )
     preview["governance"] = governed
     return preview
