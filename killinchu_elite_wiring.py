@@ -725,14 +725,21 @@ def incident_command(app, ns="killinchu", probe=False):
         },
         "queue": queue,
         "queue_digest": queue_digest,
-        "next_allowed_action": ("RUN_READ_ONLY_PROBE" if not probe
-                                else "OPEN_HIGHEST_PRIORITY_INCIDENT"),
+        "next_allowed_action": (
+            "RUN_READ_ONLY_PROBE"
+            if not probe
+            else (
+                queue[0]["recommended_action"]
+                if queue and queue[0]["priority"] >= 40
+                else "MONITOR"
+            )
+        ),
         "invariant": ("Read-only decision support only. No effector is executed; "
                       "every non-observation action requires separate authority."),
     }
 
 
-def authorization_lease_preview(body):
+def authorization_lease_preview(body, sign_fn=None):
     """Evaluate lease shape and action bounds without asserting signature validity."""
     body = body if isinstance(body, dict) else {}
     lease = body.get("lease") if isinstance(body.get("lease"), dict) else {}
@@ -792,14 +799,17 @@ def authorization_lease_preview(body):
                       "signature state as verification."),
     }
     preview["digest"] = _frontier_sha(preview)
-    governed = intercept_action({
-        "action": "authorization_lease_preview",
-        "requested_action": action,
-        "lease_id": lease.get("lease_id"),
-        "decision_digest": decision_digest,
-        "preview_digest": preview["digest"],
-        "executable": False,
-    })
+    governed = intercept_action(
+        {
+            "action": "authorization_lease_preview",
+            "requested_action": action,
+            "lease_id": lease.get("lease_id"),
+            "decision_digest": decision_digest,
+            "preview_digest": preview["digest"],
+            "executable": False,
+        },
+        sign_fn=sign_fn,
+    )
     preview["governance"] = governed
     return preview
 
@@ -814,13 +824,21 @@ def register(app, ns: str = "killinchu") -> Dict[str, Any]:
     base = "/api/%s/v1/elite" % ns
     incident_path = base + "/incident-command"
     lease_path = base + "/authorization/lease/preview"
+    try:
+        from szl_dsse import sign_payload as frontier_sign_payload
+    except Exception:  # pragma: no cover - honest unsigned fallback
+        frontier_sign_payload = None
 
     async def _incident_command(probe: bool = False):  # noqa: ANN202
         data = await asyncio.to_thread(incident_command, app, ns, probe)
         return data
 
     async def _lease_preview(body: dict):  # noqa: ANN202
-        return await asyncio.to_thread(authorization_lease_preview, body)
+        return await asyncio.to_thread(
+            authorization_lease_preview,
+            body,
+            frontier_sign_payload,
+        )
 
     if not _route_exists(app, incident_path):
         app.add_api_route(incident_path, _incident_command, methods=["GET"])

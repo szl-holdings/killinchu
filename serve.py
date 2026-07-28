@@ -2254,12 +2254,15 @@ async def cosign_pub() -> Response:
     Verify offline:  cosign verify-blob --key cosign.pub --signature sig.b64 payload.json"""
     pem = None
     if _szl_dsse is not None:
-        pem = getattr(_szl_dsse, "COSIGN_PUBLIC_PEM", None)
+        active_public_key_pem = getattr(_szl_dsse, "active_public_key_pem", None)
+        pem = active_public_key_pem() if callable(active_public_key_pem) else None
     if not pem:
         return Response(content="public key unavailable in this runtime\n",
-                        media_type="text/plain", status_code=503)
+                        media_type="text/plain", status_code=503,
+                        headers={"cache-control": "no-store"})
     return Response(content=pem if pem.endswith("\n") else pem + "\n",
-                    media_type="application/x-pem-file")
+                    media_type="application/x-pem-file",
+                    headers={"cache-control": "no-store"})
 
 
 @app.get("/api/killinchu/v1/receipt/export")
@@ -2585,7 +2588,8 @@ try:
     def _kc_ar_pubpem():
         if _szl_dsse is None:
             return ""
-        return getattr(_szl_dsse, "COSIGN_PUBLIC_PEM", "") or ""
+        active_public_key_pem = getattr(_szl_dsse, "active_public_key_pem", None)
+        return active_public_key_pem() if callable(active_public_key_pem) else ""
 
     _kc_ar_status = _kc_ar.register(
         app, "killinchu",
@@ -4851,7 +4855,7 @@ try:
 
     def _killinchu_loop_pubpem():
         try:
-            return _szl_dsse.COSIGN_PUBLIC_PEM
+            return _szl_dsse.active_public_key_pem()
         except Exception:
             return ""
 
