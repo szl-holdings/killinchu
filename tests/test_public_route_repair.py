@@ -275,6 +275,32 @@ class PublicRouteRepairTests(unittest.TestCase):
                 "szl.killinchu-public-risk-transition-unavailable/v1",
             )
 
+    def test_public_risk_status_fails_closed_for_non_finite_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repository_root = Path(__file__).resolve().parents[1]
+            payload = json.loads(
+                (repository_root / "public-risk-transition.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            payload["truth_boundary"] = float("nan")
+            risk_path = Path(tmp) / "public-risk-transition.json"
+            risk_path.write_text(json.dumps(payload), encoding="utf-8")
+
+            response = TestClient(
+                self._app(
+                    Path(tmp) / "source.json",
+                    risk_artifact_path=risk_path,
+                )
+            ).get("/api/public-risk-status")
+
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.json()["state"], "UNAVAILABLE")
+            self.assertEqual(
+                response.json()["schema"],
+                "szl.killinchu-public-risk-transition-unavailable/v1",
+            )
+
     def test_public_risk_status_fails_closed_if_any_boundary_is_dropped(
         self,
     ) -> None:
@@ -440,6 +466,7 @@ class PublicRouteRepairTests(unittest.TestCase):
             "prune: true",
             "source-revision-variable: SZL_GIT_SHA",
             "source-revision-probe-path: /api/build-info",
+            '"public-risk-transition.json"',
             '"/api/killinchu/healthz"',
             '"/api/build-info"',
             '"/console"',

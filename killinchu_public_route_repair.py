@@ -85,6 +85,12 @@ def _source_build_identity() -> dict[str, str | None]:
     }
 
 
+def _reject_non_finite_json_constant(value: str) -> None:
+    """Reject decoder extensions that cannot be emitted by JSONResponse."""
+
+    raise ValueError(f"non-finite JSON constant is forbidden: {value}")
+
+
 def _has_required_public_risk_boundaries(payload: object) -> bool:
     """Reject incomplete or type-confused conditional-publication contracts."""
 
@@ -263,7 +269,10 @@ def register(
             raw = public_risk_path.read_bytes()
             if not raw or len(raw) > _MAX_PUBLIC_RISK_BYTES:
                 raise ValueError("public-risk contract has an invalid size")
-            payload = json.loads(raw.decode("utf-8"))
+            payload = json.loads(
+                raw.decode("utf-8"),
+                parse_constant=_reject_non_finite_json_constant,
+            )
             if not _has_required_public_risk_boundaries(payload):
                 raise ValueError("public-risk contract has an invalid schema")
         except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
