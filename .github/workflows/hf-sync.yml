@@ -21,6 +21,7 @@ on:
       - "szl_connectors/**"
       - "*.html"
       - "knowledge.json"
+      - "public-risk-transition.json"
       - "README.md"
       - ".github/workflows/hf-sync.yml"
   workflow_dispatch: {}
