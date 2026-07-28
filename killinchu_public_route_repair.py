@@ -22,6 +22,7 @@ import inspect
 import json
 import os
 import re
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -35,19 +36,62 @@ _CHAT_ROUTE_NAME = "killinchu_p0_chat_entry"
 _MAX_SOURCE_BYTES = 2 * 1024 * 1024
 _MAX_PUBLIC_RISK_BYTES = 128 * 1024
 _SHA40_RE = re.compile(r"^[0-9a-fA-F]{40}$")
-_REQUIRED_PUBLIC_RISK_CONTROLS = {
+_PINNED_OPTION_A_RECORD_RE = re.compile(
+    r"^https://github\.com/szl-holdings/a11oy/blob/[0-9a-f]{40}/"
+    r"docs/decisions/2026-07-25-killinchu-public-space-exception\.md$"
+)
+_REQUIRED_OPTION_A_CONTROLS = {
     "github-single-editable-source": "ENFORCED_BY_CODE",
     "generated-exact-hf-deployment": "ENFORCED_BY_CODE",
-    "copy-and-alias-contracts": "ENFORCED_BY_CI",
-    "post-deploy-source-binding": "ENFORCED_BY_CI",
+    "ci-reconciliation-gates": "ENFORCED_BY_CI",
+    "complete-post-deploy-attestation": "ENFORCED_BY_CI",
+    "mismatch-publication": "DIVERGENT_ON_ANY_MISMATCH",
+    "outside-primary-navigation": "OUTSIDE_PRIMARY_NAVIGATION",
+}
+_REQUIRED_ADDITIONAL_CONTROLS = {
     "mixed-source-rights-and-attribution": "ENFORCED_BY_CI",
     "passive-sensing-legal-boundary": "DECLARED_AND_RUNTIME_GATED",
     "rollback-runbook": "DOCUMENTED",
+}
+_REQUIRED_PUBLIC_RISK_CONTROLS = {
+    **_REQUIRED_OPTION_A_CONTROLS,
+    **_REQUIRED_ADDITIONAL_CONTROLS,
 }
 _REQUIRED_PUBLIC_RISK_EXCEPTIONS = {
     "runtime-source-receipt": "UNAVAILABLE",
     "historical-pre-v2-archive-shards": "NOT_REWRITTEN",
 }
+_PUBLIC_RISK_TOP_LEVEL_KEYS = {
+    "schema",
+    "product",
+    "overall_state",
+    "decision",
+    "controls",
+    "explicit_exceptions",
+    "required_external_verification",
+    "truth_boundary",
+}
+_PUBLIC_RISK_DECISION_KEYS = {
+    "option",
+    "status",
+    "approved_at",
+    "review_due",
+    "migration_state",
+    "role",
+    "authoritative_record",
+}
+_PUBLIC_RISK_CONTROL_KEYS = {"id", "state", "evidence"}
+_PUBLIC_RISK_EXCEPTION_KEYS = {"id", "state", "boundary"}
+_REQUIRED_EXTERNAL_VERIFICATION = [
+    "compare the runtime /api/build-info revision to the exact protected GitHub main revision",
+    "verify the Hugging Face Space repository revision from the deploy receipt",
+    "verify the mixed-source dataset card from its immutable publication receipt",
+    "verify product-domain primary navigation excludes Killinchu until the reconciliation gate passes",
+]
+_TRUTH_BOUNDARY = (
+    "RUNNING and HTTP 200 are transport evidence only; they do not override "
+    "failed source binding, rights publication, or explicit exceptions"
+)
 _JSON_HEADERS = {
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
@@ -85,50 +129,189 @@ def _source_build_identity() -> dict[str, str | None]:
     }
 
 
-def _has_required_public_risk_boundaries(payload: object) -> bool:
-    """Reject incomplete or type-confused conditional-publication contracts."""
+class _PublicRiskContractError(ValueError):
+    """A public-safe fail-closed classification for an invalid risk contract."""
 
-    if not isinstance(payload, dict):
-        return False
+    def __init__(self, state: str, reason_code: str) -> None:
+        super().__init__(reason_code)
+        self.state = state
+        self.reason_code = reason_code
+
+
+def _utc_today() -> date:
+    return datetime.now(timezone.utc).date()
+
+
+def _read_bounded(path: Path, max_bytes: int) -> bytes:
+    """Read at most max_bytes plus one sentinel byte."""
+
+    with path.open("rb") as stream:
+        raw = stream.read(max_bytes + 1)
+    if not raw or len(raw) > max_bytes:
+        raise ValueError("artifact has an invalid size")
+    return raw
+
+
+def _exact_keys(value: object, required: set[str]) -> bool:
+    return isinstance(value, dict) and set(value) == required
+
+
+def _valid_evidence(value: object) -> bool:
+    if isinstance(value, str):
+        return bool(value)
+    return (
+        isinstance(value, list)
+        and bool(value)
+        and all(isinstance(item, str) and bool(item) for item in value)
+    )
+
+
+def _project_public_risk_contract(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return only the reviewed public v1 fields."""
+
+    decision = payload["decision"]
+    return {
+        "schema": payload["schema"],
+        "product": payload["product"],
+        "overall_state": payload["overall_state"],
+        "decision": {
+            key: decision[key]
+            for key in (
+                "option",
+                "status",
+                "approved_at",
+                "review_due",
+                "migration_state",
+                "role",
+                "authoritative_record",
+            )
+        },
+        "controls": [
+            {
+                "id": control["id"],
+                "state": control["state"],
+                "evidence": (
+                    list(control["evidence"])
+                    if isinstance(control["evidence"], list)
+                    else control["evidence"]
+                ),
+            }
+            for control in payload["controls"]
+        ],
+        "explicit_exceptions": [
+            {
+                "id": exception["id"],
+                "state": exception["state"],
+                "boundary": exception["boundary"],
+            }
+            for exception in payload["explicit_exceptions"]
+        ],
+        "required_external_verification": list(
+            payload["required_external_verification"]
+        ),
+        "truth_boundary": payload["truth_boundary"],
+    }
+
+
+def _validate_public_risk_contract(
+    payload: object,
+    *,
+    today: date,
+) -> dict[str, Any]:
+    """Validate the closed public schema and current Option A authority."""
+
+    if not _exact_keys(payload, _PUBLIC_RISK_TOP_LEVEL_KEYS):
+        raise _PublicRiskContractError("UNAVAILABLE", "PUBLIC_SCHEMA_INVALID")
+
     decision = payload.get("decision")
     controls = payload.get("controls")
     exceptions = payload.get("explicit_exceptions")
+    decision = payload.get("decision")
     if (
         payload.get("schema") != "szl.killinchu-public-risk-transition/v1"
+        or payload.get("product") != "killinchu"
         or payload.get("overall_state") != "CONDITIONAL_EXCEPTION_ACTIVE"
-        or not isinstance(decision, dict)
+        or not _exact_keys(decision, _PUBLIC_RISK_DECISION_KEYS)
         or decision.get("option") != "A"
         or decision.get("status") != "ACCEPTED_CONDITIONAL"
+        or not isinstance(decision.get("role"), str)
+        or not decision["role"]
+        or not isinstance(decision.get("authoritative_record"), str)
+        or not _PINNED_OPTION_A_RECORD_RE.fullmatch(
+            decision["authoritative_record"]
+        )
         or not isinstance(controls, list)
+        or not controls
         or not isinstance(exceptions, list)
+        or not exceptions
+        or payload.get("required_external_verification")
+        != _REQUIRED_EXTERNAL_VERIFICATION
+        or payload.get("truth_boundary") != _TRUTH_BOUNDARY
     ):
-        return False
+        raise _PublicRiskContractError("UNAVAILABLE", "PUBLIC_SCHEMA_INVALID")
+
+    try:
+        approved_at = date.fromisoformat(decision["approved_at"])
+        review_due = date.fromisoformat(decision["review_due"])
+    except (TypeError, ValueError):
+        raise _PublicRiskContractError(
+            "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
+        ) from None
+    if approved_at >= review_due:
+        raise _PublicRiskContractError("UNAVAILABLE", "PUBLIC_SCHEMA_INVALID")
+    if decision.get("migration_state") != "NOT_MIGRATED":
+        raise _PublicRiskContractError(
+            "UNAVAILABLE", "OPTION_A_CAPABILITY_MIGRATED"
+        )
+    if today >= review_due:
+        raise _PublicRiskContractError(
+            "UNAVAILABLE", "OPTION_A_REVIEW_EXPIRED"
+        )
 
     control_states: dict[str, object] = {}
     for control in controls:
-        if not isinstance(control, dict):
-            return False
+        if not _exact_keys(control, _PUBLIC_RISK_CONTROL_KEYS):
+            raise _PublicRiskContractError(
+                "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
+            )
         identifier = control.get("id")
-        if not isinstance(identifier, str) or identifier in control_states:
-            return False
+        if (
+            not isinstance(identifier, str)
+            or identifier in control_states
+            or not _valid_evidence(control.get("evidence"))
+        ):
+            raise _PublicRiskContractError(
+                "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
+            )
         control_states[identifier] = control.get("state")
 
     exception_states: dict[str, object] = {}
     for exception in exceptions:
-        if not isinstance(exception, dict):
-            return False
+        if not _exact_keys(exception, _PUBLIC_RISK_EXCEPTION_KEYS):
+            raise _PublicRiskContractError(
+                "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
+            )
         identifier = exception.get("id")
-        if not isinstance(identifier, str) or identifier in exception_states:
-            return False
+        if (
+            not isinstance(identifier, str)
+            or identifier in exception_states
+            or not isinstance(exception.get("boundary"), str)
+            or not exception["boundary"]
+        ):
+            raise _PublicRiskContractError(
+                "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
+            )
         exception_states[identifier] = exception.get("state")
 
-    return all(
-        control_states.get(identifier) == state
-        for identifier, state in _REQUIRED_PUBLIC_RISK_CONTROLS.items()
-    ) and all(
-        exception_states.get(identifier) == state
-        for identifier, state in _REQUIRED_PUBLIC_RISK_EXCEPTIONS.items()
-    )
+    if control_states != _REQUIRED_PUBLIC_RISK_CONTROLS:
+        raise _PublicRiskContractError(
+            "DIVERGENT", "OPTION_A_CONTROL_MISMATCH"
+        )
+    if exception_states != _REQUIRED_PUBLIC_RISK_EXCEPTIONS:
+        raise _PublicRiskContractError(
+            "DIVERGENT", "OPTION_A_EXCEPTION_MISMATCH"
+        )
+    return _project_public_risk_contract(payload)
 
 
 def register(
@@ -230,9 +413,7 @@ def register(
 
     async def source_attestation(request: Any) -> Any:
         try:
-            raw = source_path.read_bytes()
-            if not raw or len(raw) > _MAX_SOURCE_BYTES:
-                raise ValueError("source attestation has an invalid size")
+            raw = _read_bounded(source_path, _MAX_SOURCE_BYTES)
             parsed = json.loads(raw.decode("utf-8"))
             if not isinstance(parsed, dict):
                 raise ValueError("source attestation must be a JSON object")
@@ -258,22 +439,56 @@ def register(
         )
         return _head_from(response, Response) if request.method == "HEAD" else response
 
+    def public_risk_failure(
+        *,
+        state: str,
+        reason_code: str,
+        method: str,
+    ) -> Any:
+        response = JSONResponse(
+            {
+                "schema": "szl.killinchu-public-risk-transition-status/v1",
+                "state": state,
+                "reason_code": reason_code,
+                "runtime_observation": {
+                    "source": build_identity,
+                    "source_identity_receipt_minted": False,
+                    "observation_scope": "STARTUP_CAPTURED",
+                },
+            },
+            status_code=503,
+            headers=_JSON_HEADERS,
+        )
+        return _head_from(response, Response) if method == "HEAD" else response
+
     async def public_risk_status(request: Any) -> Any:
         try:
-            raw = public_risk_path.read_bytes()
-            if not raw or len(raw) > _MAX_PUBLIC_RISK_BYTES:
-                raise ValueError("public-risk contract has an invalid size")
+            raw = _read_bounded(public_risk_path, _MAX_PUBLIC_RISK_BYTES)
             payload = json.loads(raw.decode("utf-8"))
-            if not _has_required_public_risk_boundaries(payload):
-                raise ValueError("public-risk contract has an invalid schema")
+            response_payload = _validate_public_risk_contract(
+                payload,
+                today=_utc_today(),
+            )
+        except _PublicRiskContractError as exc:
+            return public_risk_failure(
+                state=exc.state,
+                reason_code=exc.reason_code,
+                method=request.method,
+            )
         except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
-            return unavailable(
-                "szl.killinchu-public-risk-transition-unavailable/v1",
-                "public-risk transition contract is unavailable or invalid",
-                request.method,
+            return public_risk_failure(
+                state="UNAVAILABLE",
+                reason_code="PUBLIC_CONTRACT_UNAVAILABLE",
+                method=request.method,
             )
 
-        response_payload = dict(payload)
+        if build_identity["state"] != "OBSERVED":
+            return public_risk_failure(
+                state="DIVERGENT",
+                reason_code="RUNTIME_SOURCE_MISMATCH",
+                method=request.method,
+            )
+
         response_payload["runtime_observation"] = {
             "source": build_identity,
             "source_identity_receipt_minted": False,
