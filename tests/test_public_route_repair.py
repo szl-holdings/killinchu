@@ -291,6 +291,46 @@ class PublicRouteRepairTests(unittest.TestCase):
                 "PUBLIC_SCHEMA_INVALID",
             )
 
+    def test_public_risk_status_fails_closed_for_non_finite_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repository_root = Path(__file__).resolve().parents[1]
+            payload = json.loads(
+                (repository_root / "public-risk-transition.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            risk_path = Path(tmp) / "public-risk-transition.json"
+            client = TestClient(
+                self._app(
+                    Path(tmp) / "source.json",
+                    risk_artifact_path=risk_path,
+                )
+            )
+
+            for label, token in (
+                ("decoder extension", "NaN"),
+                ("exponent overflow", "1e999"),
+            ):
+                with self.subTest(label=label):
+                    payload["truth_boundary"] = "NON_FINITE_PLACEHOLDER"
+                    serialized = json.dumps(payload).replace(
+                        '"NON_FINITE_PLACEHOLDER"',
+                        token,
+                    )
+                    risk_path.write_text(serialized, encoding="utf-8")
+                    response = client.get("/api/public-risk-status")
+
+                    self.assertEqual(response.status_code, 503)
+                    self.assertEqual(response.json()["state"], "UNAVAILABLE")
+                    self.assertEqual(
+                        response.json()["schema"],
+                        "szl.killinchu-public-risk-transition-status/v1",
+                    )
+                    self.assertEqual(
+                        response.json()["reason_code"],
+                        "PUBLIC_CONTRACT_UNAVAILABLE",
+                    )
+
     def test_public_risk_status_fails_closed_if_any_boundary_is_dropped(
         self,
     ) -> None:
@@ -655,6 +695,7 @@ class PublicRouteRepairTests(unittest.TestCase):
             "prune: true",
             "source-revision-variable: SZL_GIT_SHA",
             "source-revision-probe-path: /api/build-info",
+            '"public-risk-transition.json"',
             '"/api/killinchu/healthz"',
             '"/api/build-info"',
             '"/api/public-risk-status"',

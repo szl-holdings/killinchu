@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import math
 import os
 import re
 from datetime import date, datetime, timezone
@@ -129,6 +130,21 @@ def _source_build_identity() -> dict[str, str | None]:
     }
 
 
+def _reject_non_finite_json_constant(value: str) -> None:
+    """Reject decoder extensions that cannot be emitted by JSONResponse."""
+
+    raise ValueError(f"non-finite JSON constant is forbidden: {value}")
+
+
+def _parse_finite_json_float(value: str) -> float:
+    """Parse a JSON float while rejecting exponent overflow."""
+
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError(f"non-finite JSON float is forbidden: {value}")
+    return parsed
+
+
 class _PublicRiskContractError(ValueError):
     """A public-safe fail-closed classification for an invalid risk contract."""
 
@@ -226,7 +242,6 @@ def _validate_public_risk_contract(
     decision = payload.get("decision")
     controls = payload.get("controls")
     exceptions = payload.get("explicit_exceptions")
-    decision = payload.get("decision")
     if (
         payload.get("schema") != "szl.killinchu-public-risk-transition/v1"
         or payload.get("product") != "killinchu"
@@ -464,7 +479,11 @@ def register(
     async def public_risk_status(request: Any) -> Any:
         try:
             raw = _read_bounded(public_risk_path, _MAX_PUBLIC_RISK_BYTES)
-            payload = json.loads(raw.decode("utf-8"))
+            payload = json.loads(
+                raw.decode("utf-8"),
+                parse_constant=_reject_non_finite_json_constant,
+                parse_float=_parse_finite_json_float,
+            )
             response_payload = _validate_public_risk_contract(
                 payload,
                 today=_utc_today(),
