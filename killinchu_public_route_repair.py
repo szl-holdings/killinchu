@@ -37,10 +37,13 @@ _CHAT_ROUTE_NAME = "killinchu_p0_chat_entry"
 _MAX_SOURCE_BYTES = 2 * 1024 * 1024
 _MAX_PUBLIC_RISK_BYTES = 128 * 1024
 _SHA40_RE = re.compile(r"^[0-9a-fA-F]{40}$")
-_PINNED_OPTION_A_RECORD_RE = re.compile(
-    r"^https://github\.com/szl-holdings/a11oy/blob/[0-9a-f]{40}/"
-    r"docs/decisions/2026-07-25-killinchu-public-space-exception\.md$"
+_PINNED_OPTION_A_RECORD = (
+    "https://github.com/szl-holdings/a11oy/blob/"
+    "1ca37c24fd39660fcfbca009b0c7a39bfaf8e286/"
+    "docs/decisions/2026-07-25-killinchu-public-space-exception.md"
 )
+_OPTION_A_APPROVED_AT = date(2026, 7, 25)
+_OPTION_A_REVIEW_DUE = date(2026, 10, 23)
 _REQUIRED_OPTION_A_CONTROLS = {
     "github-single-editable-source": "ENFORCED_BY_CODE",
     "generated-exact-hf-deployment": "ENFORCED_BY_CODE",
@@ -249,12 +252,11 @@ def _validate_public_risk_contract(
         or not _exact_keys(decision, _PUBLIC_RISK_DECISION_KEYS)
         or decision.get("option") != "A"
         or decision.get("status") != "ACCEPTED_CONDITIONAL"
+        or decision.get("approved_at") != _OPTION_A_APPROVED_AT.isoformat()
+        or decision.get("review_due") != _OPTION_A_REVIEW_DUE.isoformat()
         or not isinstance(decision.get("role"), str)
         or not decision["role"]
-        or not isinstance(decision.get("authoritative_record"), str)
-        or not _PINNED_OPTION_A_RECORD_RE.fullmatch(
-            decision["authoritative_record"]
-        )
+        or decision.get("authoritative_record") != _PINNED_OPTION_A_RECORD
         or not isinstance(controls, list)
         or not controls
         or not isinstance(exceptions, list)
@@ -265,20 +267,11 @@ def _validate_public_risk_contract(
     ):
         raise _PublicRiskContractError("UNAVAILABLE", "PUBLIC_SCHEMA_INVALID")
 
-    try:
-        approved_at = date.fromisoformat(decision["approved_at"])
-        review_due = date.fromisoformat(decision["review_due"])
-    except (TypeError, ValueError):
-        raise _PublicRiskContractError(
-            "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
-        ) from None
-    if approved_at >= review_due:
-        raise _PublicRiskContractError("UNAVAILABLE", "PUBLIC_SCHEMA_INVALID")
     if decision.get("migration_state") != "NOT_MIGRATED":
         raise _PublicRiskContractError(
             "UNAVAILABLE", "OPTION_A_CAPABILITY_MIGRATED"
         )
-    if today >= review_due:
+    if today >= _OPTION_A_REVIEW_DUE:
         raise _PublicRiskContractError(
             "UNAVAILABLE", "OPTION_A_REVIEW_EXPIRED"
         )

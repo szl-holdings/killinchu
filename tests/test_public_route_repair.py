@@ -551,6 +551,63 @@ class PublicRouteRepairTests(unittest.TestCase):
             "OPTION_A_CAPABILITY_MIGRATED",
         )
 
+    def test_public_risk_status_rejects_mutated_authority_or_deadline(
+        self,
+    ) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        canonical = json.loads(
+            (repository_root / "public-risk-transition.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        mutations = {
+            "authority": {
+                **canonical,
+                "decision": {
+                    **canonical["decision"],
+                    "authoritative_record": canonical["decision"][
+                        "authoritative_record"
+                    ].replace(
+                        "1ca37c24fd39660fcfbca009b0c7a39bfaf8e286",
+                        "f" * 40,
+                    ),
+                },
+            },
+            "deadline": {
+                **canonical,
+                "decision": {
+                    **canonical["decision"],
+                    "review_due": "2027-10-23",
+                },
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for label, mutated in mutations.items():
+                with self.subTest(label=label):
+                    risk_path = Path(tmp) / f"{label}.json"
+                    risk_path.write_text(json.dumps(mutated), encoding="utf-8")
+                    with (
+                        patch.dict(os.environ, {"SZL_GIT_SHA": "c" * 40}),
+                        patch(
+                            "killinchu_public_route_repair._utc_today",
+                            return_value=date(2026, 7, 28),
+                        ),
+                    ):
+                        response = TestClient(
+                            self._app(
+                                Path(tmp) / "source.json",
+                                risk_artifact_path=risk_path,
+                            )
+                        ).get("/api/public-risk-status")
+
+                    self.assertEqual(response.status_code, 503)
+                    self.assertEqual(response.json()["state"], "UNAVAILABLE")
+                    self.assertEqual(
+                        response.json()["reason_code"],
+                        "PUBLIC_SCHEMA_INVALID",
+                    )
+
     def test_public_risk_status_publishes_runtime_mismatch_as_divergent(
         self,
     ) -> None:
