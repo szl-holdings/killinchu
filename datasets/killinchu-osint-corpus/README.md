@@ -1,6 +1,6 @@
 ---
 license: other
-license_name: "Mixed source terms: ODbL-1.0, CC-BY-4.0, and source-specific open-web rights"
+license_name: mixed-source-terms
 license_link: https://github.com/szl-holdings/killinchu/blob/main/datasets/killinchu-osint-corpus/LICENSE.md
 pretty_name: killinchu live intel archive
 tags:
@@ -41,8 +41,9 @@ source-specific contract is in [LICENSE.md](./LICENSE.md).
   Attribution: **Fintraffic / digitraffic.fi**. The archive is a transformed,
   coarsened projection; changes are identified below.
 - `kind: osint-item` (`source: <vertical>`) — normalized open-web reports. Each
-  record preserves its source URL and host. Rights remain with the original
-  publisher; inclusion here does not grant additional reuse rights.
+  record preserves its source URL and host.
+  Rights remain with the original publisher; inclusion here does not grant
+  additional reuse rights.
 
 The Apache-2.0 license for Killinchu's software and projection code does **not**
 relicense the third-party records in this dataset.

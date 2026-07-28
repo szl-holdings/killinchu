@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import killinchu_intel_archive_card as card
@@ -10,7 +11,13 @@ def test_card_has_complete_other_license_metadata():
         cell_degrees=1.0,
     )
     assert "license: other" in text
-    assert "license_name:" in text
+    license_name = next(
+        line.removeprefix("license_name: ").strip()
+        for line in text.splitlines()
+        if line.startswith("license_name: ")
+    )
+    assert re.fullmatch(r"[a-z0-9.-]+", license_name)
+    assert license_name == "mixed-source-terms"
     assert "license_link:" in text
     assert "intel/*.ndjson" in text
     assert "killinchu.platform-projection/v2" in text
