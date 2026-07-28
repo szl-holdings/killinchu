@@ -292,6 +292,33 @@ def test_health_degrades_unparseable_success_bodies(monkeypatch):
     }
 
 
+def test_incident_command_degrades_every_non_200_probe(monkeypatch):
+    from fastapi import FastAPI, Response
+    app = FastAPI()
+
+    @app.get("/api/killinchu/v1/non-200")
+    async def _non_200():
+        return Response(status_code=204)
+
+    monkeypatch.setattr(kew, "ELITE_WIRING", {
+        "non_200": _probe_wiring("/api/{ns}/v1/non-200"),
+    })
+    command = kew.incident_command(
+        app,
+        ns="killinchu",
+        probe=True,
+        probe_limit=1,
+    )
+    item = command["queue"][0]
+
+    assert item["affected_endpoints"][0]["status"] == 204
+    assert item["wiring_verdict"] == "degraded"
+    assert item["source_state"] == "DEGRADED"
+    assert item["priority"] == 75
+    assert item["recommended_action"] == "INVESTIGATE_SOURCE_FRESHNESS"
+    assert command["summary"]["degraded"] == 1
+
+
 def test_lease_preview_withholds_without_crypto_and_never_forwards(monkeypatch):
     from datetime import datetime, timedelta, timezone
 
