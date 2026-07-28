@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -89,6 +90,15 @@ def _reject_non_finite_json_constant(value: str) -> None:
     """Reject decoder extensions that cannot be emitted by JSONResponse."""
 
     raise ValueError(f"non-finite JSON constant is forbidden: {value}")
+
+
+def _parse_finite_json_float(value: str) -> float:
+    """Parse a JSON float while rejecting exponent overflow."""
+
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError(f"non-finite JSON float is forbidden: {value}")
+    return parsed
 
 
 def _has_required_public_risk_boundaries(payload: object) -> bool:
@@ -272,6 +282,7 @@ def register(
             payload = json.loads(
                 raw.decode("utf-8"),
                 parse_constant=_reject_non_finite_json_constant,
+                parse_float=_parse_finite_json_float,
             )
             if not _has_required_public_risk_boundaries(payload):
                 raise ValueError("public-risk contract has an invalid schema")

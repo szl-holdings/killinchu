@@ -283,23 +283,33 @@ class PublicRouteRepairTests(unittest.TestCase):
                     encoding="utf-8"
                 )
             )
-            payload["truth_boundary"] = float("nan")
             risk_path = Path(tmp) / "public-risk-transition.json"
-            risk_path.write_text(json.dumps(payload), encoding="utf-8")
-
-            response = TestClient(
+            client = TestClient(
                 self._app(
                     Path(tmp) / "source.json",
                     risk_artifact_path=risk_path,
                 )
-            ).get("/api/public-risk-status")
-
-            self.assertEqual(response.status_code, 503)
-            self.assertEqual(response.json()["state"], "UNAVAILABLE")
-            self.assertEqual(
-                response.json()["schema"],
-                "szl.killinchu-public-risk-transition-unavailable/v1",
             )
+
+            for label, token in (
+                ("decoder extension", "NaN"),
+                ("exponent overflow", "1e999"),
+            ):
+                with self.subTest(label=label):
+                    payload["truth_boundary"] = "NON_FINITE_PLACEHOLDER"
+                    serialized = json.dumps(payload).replace(
+                        '"NON_FINITE_PLACEHOLDER"',
+                        token,
+                    )
+                    risk_path.write_text(serialized, encoding="utf-8")
+                    response = client.get("/api/public-risk-status")
+
+                    self.assertEqual(response.status_code, 503)
+                    self.assertEqual(response.json()["state"], "UNAVAILABLE")
+                    self.assertEqual(
+                        response.json()["schema"],
+                        "szl.killinchu-public-risk-transition-unavailable/v1",
+                    )
 
     def test_public_risk_status_fails_closed_if_any_boundary_is_dropped(
         self,
