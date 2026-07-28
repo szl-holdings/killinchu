@@ -610,3 +610,254 @@ __all__ = ["register", "register_intercept", "intercept_action",
            "forward_receipt_to_ledger", "audit_map", "health",
            "ELITE_WIRING", "SIMULATED_VIEWS", "QHAWAQ_ORGAN",
            "QHAWAQ_CONJECTURE_NOTE", "LEDGER_SINK_URL"]
+
+
+# ---------------------------------------------------------------------------
+# Decision Genome frontier: cross-tab incident command and authorization lease
+# preview. This layer never executes an effector and never expands authority.
+# ---------------------------------------------------------------------------
+DECISION_GENOME_SCHEMA_ID = "urn:szl:contracts:decision-genome:v1"
+FRONTIER_POLICY_VERSION = "killinchu-incident-command-v1"
+_READ_ONLY_ACTIONS = frozenset({
+    "OBSERVE",
+    "OPEN_INCIDENT",
+    "REQUEST_READ_ONLY_PROBE",
+    "EXPORT_RECEIPT",
+})
+
+
+def _frontier_now():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _frontier_sha(value):
+    import hashlib
+    import json
+    body = json.dumps(value, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(body).hexdigest()
+
+
+def _frontier_source_state(endpoint_rows, probe):
+    rows = endpoint_rows if isinstance(endpoint_rows, list) else []
+    if not rows:
+        return "UNAVAILABLE"
+    if any(str(row.get("status", "")).lower() in
+           {"probe-error", "degraded", "unreachable", "disabled"}
+           for row in rows if isinstance(row, dict)):
+        return "DEGRADED"
+    statuses = [row.get("status") for row in rows
+                if isinstance(row, dict) and isinstance(row.get("status"), int)]
+    if any(status >= 400 for status in statuses):
+        return "DEGRADED"
+    registered = [bool(row.get("route_registered"))
+                  for row in rows if isinstance(row, dict)]
+    if registered and not all(registered):
+        return "UNAVAILABLE"
+    if probe and statuses and all(status == 200 for status in statuses):
+        return "LIVE"
+    if registered and all(registered):
+        return "CACHED"
+    return "UNAVAILABLE"
+
+
+def incident_command(app, ns="killinchu", probe=False):
+    """Project every /elite tab into one prioritized operational action queue."""
+    wiring = health(app, ns, bool(probe))
+    views = (wiring.get("views") or wiring.get("wiring")
+             or wiring.get("results") or {})
+    if isinstance(views, dict):
+        rows = [{"view": key, **(value if isinstance(value, dict) else {})}
+                for key, value in views.items()]
+    elif isinstance(views, list):
+        rows = [value for value in views if isinstance(value, dict)]
+    else:
+        rows = []
+
+    queue = []
+    for row in rows:
+        endpoint_rows = row.get("endpoints", [])
+        source_state = _frontier_source_state(endpoint_rows, bool(probe))
+        if source_state == "UNAVAILABLE":
+            priority, action = 90, "RESTORE_ROUTE_OR_SOURCE"
+            approval = "maintainer"
+        elif source_state == "DEGRADED":
+            priority, action = 75, "INVESTIGATE_SOURCE_FRESHNESS"
+            approval = "operator"
+        elif source_state == "CACHED":
+            priority, action = 40, "RUN_READ_ONLY_PROBE"
+            approval = "operator"
+        else:
+            priority, action = 10, "MONITOR"
+            approval = "none"
+        queue.append({
+            "incident_id": "wiring:%s" % str(row.get("view", row.get("id", "unknown"))),
+            "view": row.get("view", row.get("id", "unknown")),
+            "priority": priority,
+            "source_state": source_state,
+            "wiring_verdict": row.get("verdict", "unknown"),
+            "recommended_action": action,
+            "required_authority": approval,
+            "affected_endpoints": endpoint_rows,
+            "evidence_label": "MEASURED",
+            "executable": False,
+        })
+    queue.sort(key=lambda item: (-item["priority"], str(item["view"])))
+    observed_at = _frontier_now()
+    queue_digest = _frontier_sha(queue)
+    return {
+        "service": "killinchu-incident-command",
+        "version": "v1",
+        "schema_id": DECISION_GENOME_SCHEMA_ID,
+        "policy_version": FRONTIER_POLICY_VERSION,
+        "observed_at": observed_at,
+        "probe_requested": bool(probe),
+        "evidence_label": "MEASURED",
+        "executable": False,
+        "summary": {
+            "total_views": len(queue),
+            "needs_action": sum(1 for item in queue if item["priority"] >= 40),
+            "live": sum(1 for item in queue if item["source_state"] == "LIVE"),
+            "cached": sum(1 for item in queue if item["source_state"] == "CACHED"),
+            "degraded": sum(1 for item in queue if item["source_state"] == "DEGRADED"),
+            "unavailable": sum(1 for item in queue if item["source_state"] == "UNAVAILABLE"),
+        },
+        "queue": queue,
+        "queue_digest": queue_digest,
+        "next_allowed_action": (
+            "RUN_READ_ONLY_PROBE"
+            if not probe
+            else (
+                queue[0]["recommended_action"]
+                if queue and queue[0]["priority"] >= 40
+                else "MONITOR"
+            )
+        ),
+        "invariant": ("Read-only decision support only. No effector is executed; "
+                      "every non-observation action requires separate authority."),
+    }
+
+
+def authorization_lease_preview(body, sign_fn=None):
+    """Evaluate lease shape and action bounds without asserting signature validity."""
+    body = body if isinstance(body, dict) else {}
+    lease = body.get("lease") if isinstance(body.get("lease"), dict) else {}
+    action = str(body.get("action", "")).upper()
+    blockers = []
+    required = ("lease_id", "issuer", "subject", "mission_id", "not_before",
+                "expires_at", "max_uncertainty", "decision_digest")
+    for field in required:
+        if field not in lease:
+            blockers.append("MISSING_%s" % field.upper())
+    allowed = lease.get("allowed_actions")
+    if not isinstance(allowed, list) or action not in {
+            str(item).upper() for item in allowed}:
+        blockers.append("ACTION_OUTSIDE_LEASE")
+    if action not in _READ_ONLY_ACTIONS:
+        blockers.append("EFFECTOR_ACTION_NOT_ALLOWED_IN_PREVIEW")
+    decision_digest = str(body.get("decision_digest", "")).lower()
+    if decision_digest != str(lease.get("decision_digest", "")).lower():
+        blockers.append("DECISION_DIGEST_MISMATCH")
+    try:
+        uncertainty = float(body.get("uncertainty", 1.0))
+        max_uncertainty = float(lease.get("max_uncertainty", 0.0))
+        if uncertainty > max_uncertainty:
+            blockers.append("UNCERTAINTY_EXCEEDS_LEASE")
+    except (TypeError, ValueError):
+        blockers.append("INVALID_UNCERTAINTY")
+    try:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        not_before = datetime.fromisoformat(
+            str(lease.get("not_before", "")).replace("Z", "+00:00"))
+        expires_at = datetime.fromisoformat(
+            str(lease.get("expires_at", "")).replace("Z", "+00:00"))
+        if now < not_before:
+            blockers.append("LEASE_NOT_ACTIVE")
+        if now >= expires_at:
+            blockers.append("LEASE_EXPIRED")
+    except (TypeError, ValueError):
+        blockers.append("INVALID_LEASE_TIME")
+    if lease.get("revoked_at"):
+        blockers.append("LEASE_REVOKED")
+
+    # v1 deliberately does not trust a caller-asserted verification flag.
+    blockers.append("CRYPTOGRAPHIC_LEASE_VERIFIER_UNAVAILABLE")
+    preview = {
+        "service": "killinchu-authorization-lease-preview",
+        "schema_id": DECISION_GENOME_SCHEMA_ID,
+        "policy_version": FRONTIER_POLICY_VERSION,
+        "evaluated_at": _frontier_now(),
+        "action": action,
+        "verdict": "WITHHOLD" if blockers else "REVIEW_REQUIRED",
+        "blockers": sorted(set(blockers)),
+        "signature_verification": "UNAVAILABLE",
+        "executable": False,
+        "evidence_label": "VERIFIED",
+        "invariant": ("Preview never executes an action and never treats caller-supplied "
+                      "signature state as verification."),
+    }
+    preview["digest"] = _frontier_sha(preview)
+    governed = intercept_action(
+        {
+            "action": "authorization_lease_preview",
+            "requested_action": action,
+            "lease_id": lease.get("lease_id"),
+            "decision_digest": decision_digest,
+            "preview_digest": preview["digest"],
+            "executable": False,
+        },
+        sign_fn=sign_fn,
+    )
+    preview["governance"] = governed
+    return preview
+
+
+_register_elite_wiring_base = register
+
+
+def register(app, ns: str = "killinchu") -> Dict[str, Any]:
+    """Register the original wiring audit plus the Decision Genome frontier."""
+    import asyncio
+    status = _register_elite_wiring_base(app, ns)
+    base = "/api/%s/v1/elite" % ns
+    incident_path = base + "/incident-command"
+    lease_path = base + "/authorization/lease/preview"
+    try:
+        from szl_dsse import sign_payload as frontier_sign_payload
+    except Exception:  # pragma: no cover - honest unsigned fallback
+        frontier_sign_payload = None
+
+    async def _incident_command(probe: bool = False):  # noqa: ANN202
+        data = await asyncio.to_thread(incident_command, app, ns, probe)
+        return data
+
+    async def _lease_preview(body: dict):  # noqa: ANN202
+        return await asyncio.to_thread(
+            authorization_lease_preview,
+            body,
+            frontier_sign_payload,
+        )
+
+    if not _route_exists(app, incident_path):
+        app.add_api_route(incident_path, _incident_command, methods=["GET"])
+    if not _route_exists(app, lease_path):
+        app.add_api_route(lease_path, _lease_preview, methods=["POST"])
+    routes = list(status.get("routes", [])) if isinstance(status, dict) else []
+    routes.extend([incident_path, lease_path])
+    if isinstance(status, dict):
+        status["routes"] = routes
+        status["decision_genome_schema_id"] = DECISION_GENOME_SCHEMA_ID
+        status["frontier"] = "registered"
+        return status
+    return {"registered": True, "ns": ns, "routes": routes,
+            "decision_genome_schema_id": DECISION_GENOME_SCHEMA_ID}
+
+
+__all__.extend([
+    "incident_command",
+    "authorization_lease_preview",
+    "DECISION_GENOME_SCHEMA_ID",
+    "FRONTIER_POLICY_VERSION",
+])

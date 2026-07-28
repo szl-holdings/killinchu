@@ -77,6 +77,8 @@ def test_register_is_additive():
     assert added_paths == {
         "/api/killinchu/v1/elite/wiring",
         "/api/killinchu/v1/elite/wiring/health",
+        "/api/killinchu/v1/elite/incident-command",
+        "/api/killinchu/v1/elite/authorization/lease/preview",
     }, f"register added unexpected routes: {added_paths}"
     # the pre-existing data route is still present, untouched
     assert ("/api/killinchu/v1/posture/drift",
