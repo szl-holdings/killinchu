@@ -913,8 +913,8 @@ class PublicRouteRepairTests(unittest.TestCase):
             "HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}",
             "verify-risk-status-fails-closed:",
             'test "$code" = "503"',
-            'payload["status"] == "UNAVAILABLE"',
-            'payload["reason"] == "CI_ATTESTATION_EVIDENCE_UNPROVED"',
+            'payload["state"] == "UNAVAILABLE"',
+            'payload["reason_code"] == "CI_ATTESTATION_EVIDENCE_UNPROVED"',
         ):
             self.assertIn(contract, workflow)
         self.assertNotIn("secrets: inherit", workflow)

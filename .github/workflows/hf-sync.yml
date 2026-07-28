@@ -71,6 +71,8 @@ jobs:
           import sys
 
           payload = json.load(open(sys.argv[1], encoding="utf-8"))
-          assert payload["status"] == "UNAVAILABLE", payload
-          assert payload["reason"] == "CI_ATTESTATION_EVIDENCE_UNPROVED", payload
+          assert payload["state"] == "UNAVAILABLE", payload
+          assert (
+              payload["reason_code"] == "CI_ATTESTATION_EVIDENCE_UNPROVED"
+          ), payload
           PY
