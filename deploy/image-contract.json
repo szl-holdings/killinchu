@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "af261fb53b2c791cf64970245da0d7871ed94c9e027b1d456f95906b96cd9120"
+    "sha256": "6a3970b81df18f4be822a8321fbf05a248684eb6da8eb32e76b0c01328124791"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "af261fb53b2c791cf64970245da0d7871ed94c9e027b1d456f95906b96cd9120"
+    "sha256": "6a3970b81df18f4be822a8321fbf05a248684eb6da8eb32e76b0c01328124791"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -28,6 +28,7 @@
     "a11oy_yupay_nav.py",
     "cathedral.html",
     "corpus/",
+    "datasets/killinchu-osint-corpus/",
     "deploy/uds-package.yaml",
     "drones_db.json",
     "fleet_vessels_data.json",
@@ -58,6 +59,7 @@
     "killinchu_fusion.py",
     "killinchu_genius.py",
     "killinchu_health_twin.py",
+    "killinchu_intel_archive_card.py",
     "killinchu_live_feeds.py",
     "killinchu_maritime_globe.py",
     "killinchu_maritime_intel.py",
@@ -92,6 +94,7 @@
     "live_wires_3d.js",
     "operator_shell_v4.py",
     "pages/integrations.html",
+    "public-risk-transition.json",
     "serve.py",
     "src/killinchu/__init__.py",
     "src/killinchu/dsse.py",

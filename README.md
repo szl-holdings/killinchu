@@ -62,6 +62,7 @@ ecosystem-stage: "operational"
 - Space URL: https://szlholdings-killinchu.hf.space
 - Health: `curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
 - Runtime source identity: https://szlholdings-killinchu.hf.space/api/build-info
+- Conditional public-risk contract: https://szlholdings-killinchu.hf.space/api/public-risk-status
   (`build.state=OBSERVED` only for a valid `SZL_GIT_SHA`; the deploy workflow requires
   `build.revision` to equal the exact GitHub commit being deployed)
 - Historical source snapshot: https://szlholdings-killinchu.hf.space/.well-known/szl-source.json
@@ -259,6 +260,7 @@ exposes `register(app, ns="killinchu")` and is registered **before** the SPA cat
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/build-info` | GET, HEAD | Allowlisted runtime source revision; `UNKNOWN` unless `SZL_GIT_SHA` is a valid 40-hex SHA |
+| `/api/public-risk-status` | GET, HEAD | Dated Option A public-Space exception, enforced controls, startup-captured source identity, and explicit exceptions |
 | `/api/killinchu/healthz` | GET | Liveness |
 | `/api/killinchu/readyz` | GET | Readiness (DB + decoders loaded) |
 | `/api/killinchu/v1/honest` | GET | Doctrine v11 honesty disclosure |
