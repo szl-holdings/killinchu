@@ -44,27 +44,89 @@ _PINNED_OPTION_A_RECORD = (
 )
 _OPTION_A_APPROVED_AT = date(2026, 7, 25)
 _OPTION_A_REVIEW_DUE = date(2026, 10, 23)
-_REQUIRED_OPTION_A_CONTROLS = {
-    "github-single-editable-source": "ENFORCED_BY_CODE",
-    "generated-exact-hf-deployment": "ENFORCED_BY_CODE",
-    "ci-reconciliation-gates": "ENFORCED_BY_CI",
-    "complete-post-deploy-attestation": "ENFORCED_BY_CI",
-    "mismatch-publication": "DIVERGENT_ON_ANY_MISMATCH",
-    "outside-primary-navigation": "OUTSIDE_PRIMARY_NAVIGATION",
-}
-_REQUIRED_ADDITIONAL_CONTROLS = {
-    "mixed-source-rights-and-attribution": "ENFORCED_BY_CI",
-    "passive-sensing-legal-boundary": "DECLARED_AND_RUNTIME_GATED",
-    "rollback-runbook": "DOCUMENTED",
-}
-_REQUIRED_PUBLIC_RISK_CONTROLS = {
-    **_REQUIRED_OPTION_A_CONTROLS,
-    **_REQUIRED_ADDITIONAL_CONTROLS,
-}
-_REQUIRED_PUBLIC_RISK_EXCEPTIONS = {
-    "runtime-source-receipt": "UNAVAILABLE",
-    "historical-pre-v2-archive-shards": "NOT_REWRITTEN",
-}
+_APPROVED_OPTION_A_ROLE = (
+    "distinct counter-UAS product and organ/wave staging surface"
+)
+_APPROVED_PUBLIC_RISK_CONTROLS = (
+    (
+        "github-single-editable-source",
+        "ENFORCED_BY_CODE",
+        ".github/workflows/hf-sync.yml",
+    ),
+    (
+        "generated-exact-hf-deployment",
+        "ENFORCED_BY_CODE",
+        ".github/workflows/hf-sync.yml",
+    ),
+    (
+        "ci-reconciliation-gates",
+        "ENFORCED_BY_CI",
+        (
+            ".github/workflows/copy-completeness-guard.yml",
+            ".github/workflows/dockerfile-copy-guard.yml",
+            ".github/workflows/fgbrain-doctrine-verify.yml",
+            "tests/test_public_route_repair.py",
+        ),
+    ),
+    (
+        "complete-post-deploy-attestation",
+        "ENFORCED_BY_CI",
+        (
+            ".github/workflows/hf-sync.yml",
+            "/api/build-info",
+            "/api/public-risk-status",
+        ),
+    ),
+    (
+        "mismatch-publication",
+        "DIVERGENT_ON_ANY_MISMATCH",
+        (
+            "killinchu_public_route_repair.py",
+            "tests/test_public_route_repair.py",
+        ),
+    ),
+    (
+        "outside-primary-navigation",
+        "OUTSIDE_PRIMARY_NAVIGATION",
+        _PINNED_OPTION_A_RECORD,
+    ),
+    (
+        "mixed-source-rights-and-attribution",
+        "ENFORCED_BY_CI",
+        (
+            "datasets/killinchu-osint-corpus/README.md",
+            "datasets/killinchu-osint-corpus/LICENSE.md",
+            ".github/workflows/publish-intel-archive-card.yml",
+        ),
+    ),
+    (
+        "passive-sensing-legal-boundary",
+        "DECLARED_AND_RUNTIME_GATED",
+        (
+            "LEGAL_BOUNDARIES.md",
+            "tests/test_operator_mutation_security.py",
+        ),
+    ),
+    ("rollback-runbook", "DOCUMENTED", "DEPLOY.md"),
+)
+_APPROVED_PUBLIC_RISK_EXCEPTIONS = (
+    (
+        "runtime-source-receipt",
+        "UNAVAILABLE",
+        (
+            "/api/build-info reports startup-captured source identity but "
+            "does not mint a cryptographic receipt"
+        ),
+    ),
+    (
+        "historical-pre-v2-archive-shards",
+        "NOT_REWRITTEN",
+        (
+            "the public recent API withholds legacy platform rows; the "
+            "backing shards are not claimed erased or rewritten"
+        ),
+    ),
+)
 _PUBLIC_RISK_TOP_LEVEL_KEYS = {
     "schema",
     "product",
@@ -175,16 +237,6 @@ def _exact_keys(value: object, required: set[str]) -> bool:
     return isinstance(value, dict) and set(value) == required
 
 
-def _valid_evidence(value: object) -> bool:
-    if isinstance(value, str):
-        return bool(value)
-    return (
-        isinstance(value, list)
-        and bool(value)
-        and all(isinstance(item, str) and bool(item) for item in value)
-    )
-
-
 def _project_public_risk_contract(payload: dict[str, Any]) -> dict[str, Any]:
     """Return only the reviewed public v1 fields."""
 
@@ -275,47 +327,83 @@ def _validate_public_risk_contract(
         raise _PublicRiskContractError(
             "UNAVAILABLE", "OPTION_A_REVIEW_EXPIRED"
         )
+    if decision["role"] != _APPROVED_OPTION_A_ROLE:
+        raise _PublicRiskContractError(
+            "DIVERGENT", "OPTION_A_ROLE_MISMATCH"
+        )
 
-    control_states: dict[str, object] = {}
+    seen_control_ids: set[str] = set()
+    approved_control_projection: list[tuple[object, object, object]] = []
     for control in controls:
         if not _exact_keys(control, _PUBLIC_RISK_CONTROL_KEYS):
             raise _PublicRiskContractError(
                 "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
             )
         identifier = control.get("id")
+        state = control.get("state")
+        evidence = control.get("evidence")
         if (
             not isinstance(identifier, str)
-            or identifier in control_states
-            or not _valid_evidence(control.get("evidence"))
+            or identifier in seen_control_ids
+            or not isinstance(state, str)
+            or not state
         ):
             raise _PublicRiskContractError(
                 "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
             )
-        control_states[identifier] = control.get("state")
+        if isinstance(evidence, str):
+            if not evidence:
+                raise _PublicRiskContractError(
+                    "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
+                )
+            normalized_evidence: object = evidence
+        elif (
+            isinstance(evidence, list)
+            and evidence
+            and all(isinstance(item, str) and item for item in evidence)
+        ):
+            normalized_evidence = tuple(evidence)
+        else:
+            raise _PublicRiskContractError(
+                "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
+            )
+        seen_control_ids.add(identifier)
+        approved_control_projection.append(
+            (identifier, state, normalized_evidence)
+        )
 
-    exception_states: dict[str, object] = {}
+    seen_exception_ids: set[str] = set()
+    approved_exception_projection: list[tuple[object, object, object]] = []
     for exception in exceptions:
         if not _exact_keys(exception, _PUBLIC_RISK_EXCEPTION_KEYS):
             raise _PublicRiskContractError(
                 "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
             )
         identifier = exception.get("id")
+        state = exception.get("state")
+        boundary = exception.get("boundary")
         if (
             not isinstance(identifier, str)
-            or identifier in exception_states
-            or not isinstance(exception.get("boundary"), str)
-            or not exception["boundary"]
+            or identifier in seen_exception_ids
+            or not isinstance(state, str)
+            or not state
+            or not isinstance(boundary, str)
+            or not boundary
         ):
             raise _PublicRiskContractError(
                 "UNAVAILABLE", "PUBLIC_SCHEMA_INVALID"
             )
-        exception_states[identifier] = exception.get("state")
+        seen_exception_ids.add(identifier)
+        approved_exception_projection.append((identifier, state, boundary))
 
-    if control_states != _REQUIRED_PUBLIC_RISK_CONTROLS:
+    if tuple(approved_control_projection) != _APPROVED_PUBLIC_RISK_CONTROLS:
         raise _PublicRiskContractError(
             "DIVERGENT", "OPTION_A_CONTROL_MISMATCH"
         )
-    if exception_states != _REQUIRED_PUBLIC_RISK_EXCEPTIONS:
+    if (
+        tuple(approved_exception_projection)
+        != _APPROVED_PUBLIC_RISK_EXCEPTIONS
+    ):
         raise _PublicRiskContractError(
             "DIVERGENT", "OPTION_A_EXCEPTION_MISMATCH"
         )
