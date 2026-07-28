@@ -907,13 +907,21 @@ class PublicRouteRepairTests(unittest.TestCase):
             '"public-risk-transition.json"',
             '"/api/killinchu/healthz"',
             '"/api/build-info"',
-            '"/api/public-risk-status"',
+            "https://szlholdings-killinchu.hf.space/api/public-risk-status",
             '"/console"',
             '"/api/killinchu/v1/code/capabilities"',
             "HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}",
+            "verify-risk-status-fails-closed:",
+            'test "$code" = "503"',
+            'payload["status"] == "UNAVAILABLE"',
+            'payload["reason"] == "CI_ATTESTATION_EVIDENCE_UNPROVED"',
         ):
             self.assertIn(contract, workflow)
         self.assertNotIn("secrets: inherit", workflow)
+        smoke_paths = next(
+            line for line in workflow.splitlines() if "smoke-paths:" in line
+        )
+        self.assertNotIn("/api/public-risk-status", smoke_paths)
 
     def test_production_default_artifact_is_truthful_and_served_byte_exact(self) -> None:
         repository_root = Path(__file__).resolve().parents[1]

@@ -42,6 +42,35 @@ jobs:
       wait-running: 1200
       source-revision-variable: SZL_GIT_SHA
       source-revision-probe-path: /api/build-info
-      smoke-paths: '["/","/api/killinchu/healthz","/api/build-info","/api/public-risk-status","/console","/api/killinchu/v1/code/capabilities"]'
+      smoke-paths: '["/","/api/killinchu/healthz","/api/build-info","/console","/api/killinchu/v1/code/capabilities"]'
     secrets:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+
+  verify-risk-status-fails-closed:
+    name: Verify public risk status is intentionally unavailable
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require HTTP 503 and the evidence-unproved reason
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(
+            curl --fail-with-body --silent --show-error \
+              --output "$body" \
+              --write-out '%{http_code}' \
+              --max-time 30 \
+              https://szlholdings-killinchu.hf.space/api/public-risk-status \
+            || true
+          )"
+          test "$code" = "503"
+          python - "$body" <<'PY'
+          import json
+          import sys
+
+          payload = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert payload["status"] == "UNAVAILABLE", payload
+          assert payload["reason"] == "CI_ATTESTATION_EVIDENCE_UNPROVED", payload
+          PY
