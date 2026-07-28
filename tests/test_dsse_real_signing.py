@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
 # Authored by Yachay (CTO). Co-Authored-By: Perplexity Computer Agent.
-# Doctrine v11 LOCKED 749/14/163 · Λ Conjecture 1 · SLSA L1 honest (L2 roadmap)
+# Doctrine v11 LOCKED 749/14/163 · Λ Conjecture 1 · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap
 """
 tests/test_dsse_real_signing.py — proves the DSSE signer flips from
 `signatures: []` (honest UNSIGNED) to a REAL ECDSA-P256-SHA256 signature
@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import base64
 import importlib
+import json
 import os
 import sys
 
@@ -77,7 +78,7 @@ def test_unsigned_fallback_when_secret_absent(monkeypatch):
 def test_real_signature_with_ephemeral_key_verifies(monkeypatch):
     """Secret present (ephemeral test key) -> REAL signature that verifies
     against the matching public key via raw cryptography AND via the module's
-    own verify path when the embedded public key is swapped to the test key."""
+    own active-runtime verify path."""
     priv_pem, pub_pem = _gen_ephemeral_keypair()
     monkeypatch.delenv(_LEGACY_ENV, raising=False)
     monkeypatch.setenv(_PRIV_ENV, priv_pem)
@@ -90,7 +91,7 @@ def test_real_signature_with_ephemeral_key_verifies(monkeypatch):
     assert env["signed"] is True
     assert len(env["signatures"]) == 1
     sig_entry = env["signatures"][0]
-    assert sig_entry["keyid"] == szl_dsse.KEYID
+    assert sig_entry["keyid"] == szl_dsse.keyid_for_public_pem(pub_pem)
     assert "REAL" in env["honesty"]
 
     # 1) Verify the signature against the test public key with raw cryptography,
@@ -101,9 +102,9 @@ def test_real_signature_with_ephemeral_key_verifies(monkeypatch):
     sig = base64.b64decode(sig_entry["sig"])
     pub.verify(sig, msg, ec.ECDSA(hashes.SHA256()))  # raises InvalidSignature on failure
 
-    # 2) Module verify path: point the embedded public key at the test public
-    #    key and confirm verify_envelope() validates the just-made signature.
-    monkeypatch.setattr(szl_dsse, "COSIGN_PUBLIC_PEM", pub_pem, raising=True)
+    # 2) Module verify path derives the active public key from the same runtime
+    #    secret, so no unrelated embedded key can invalidate a fresh receipt.
+    assert szl_dsse.active_public_key_pem() == pub_pem
     verdict = szl_dsse.verify_envelope(env)
     assert verdict["verified"] is True
 
@@ -124,6 +125,22 @@ def test_tampered_payload_fails_verification(monkeypatch):
         pub.verify(sig, msg, ec.ECDSA(hashes.SHA256()))
 
 
+def test_valid_signature_with_wrong_keyid_fails_verification(monkeypatch):
+    """The key identifier is part of the verifier policy, not decoration."""
+    priv_pem, pub_pem = _gen_ephemeral_keypair()
+    monkeypatch.delenv(_LEGACY_ENV, raising=False)
+    monkeypatch.setenv(_PRIV_ENV, priv_pem)
+    importlib.reload(szl_dsse)
+    monkeypatch.setattr(szl_dsse, "COSIGN_PUBLIC_PEM", pub_pem, raising=True)
+
+    env = szl_dsse.sign_payload({"claim": "keyid-bound"})
+    env["signatures"][0]["keyid"] = "different-key"
+
+    verdict = szl_dsse.verify_envelope(env)
+    assert verdict["verified"] is False
+    assert verdict["signatures"][0]["reason"] == "unexpected keyid"
+
+
 def test_legacy_env_var_still_works(monkeypatch):
     """Backward-compat: the legacy SZL_COSIGN_PRIVATE_PEM name still signs."""
     priv_pem, _pub_pem = _gen_ephemeral_keypair()
@@ -133,6 +150,99 @@ def test_legacy_env_var_still_works(monkeypatch):
     env = szl_dsse.sign_payload({"compat": True})
     assert env["signed"] is True
     assert len(env["signatures"]) == 1
+
+
+def test_injected_shared_public_key_is_the_no_secret_verify_key(monkeypatch):
+    """The shared loader's public alias is also the DSSE verifier trust root."""
+    priv_pem, pub_pem = _gen_ephemeral_keypair()
+    monkeypatch.delenv(_PRIV_ENV, raising=False)
+    monkeypatch.delenv(_LEGACY_ENV, raising=False)
+    monkeypatch.delenv(szl_dsse.TRUSTED_PUBLIC_PEMS_ENV, raising=False)
+    importlib.reload(szl_dsse)
+    keyid = szl_dsse.configure_runtime_public_key(pub_pem)
+
+    body = szl_dsse.canonical_json({"shared": "runtime-public-key"})
+    message = szl_dsse.pae(szl_dsse.KHIPU_PAYLOAD_TYPE, body)
+    private_key = serialization.load_pem_private_key(
+        priv_pem.encode("ascii"), password=None
+    )
+    signature = private_key.sign(message, ec.ECDSA(hashes.SHA256()))
+    envelope = {
+        "payloadType": szl_dsse.KHIPU_PAYLOAD_TYPE,
+        "payload": base64.b64encode(body).decode("ascii"),
+        "signatures": [{
+            "sig": base64.b64encode(signature).decode("ascii"),
+            "keyid": keyid,
+        }],
+    }
+
+    assert szl_dsse.active_public_key_pem() == pub_pem
+    verdict = szl_dsse.verify_envelope(envelope)
+    assert verdict["verified"] is True
+    assert verdict["signatures"][0]["verified_by_keyid"] == keyid
+
+
+def test_rotation_retains_old_key_in_process(monkeypatch):
+    """An in-process signer rotation preserves verification of old receipts."""
+    first_private, first_public = _gen_ephemeral_keypair()
+    second_private, second_public = _gen_ephemeral_keypair()
+    monkeypatch.delenv(_LEGACY_ENV, raising=False)
+    monkeypatch.delenv(szl_dsse.TRUSTED_PUBLIC_PEMS_ENV, raising=False)
+    monkeypatch.setenv(_PRIV_ENV, first_private)
+    importlib.reload(szl_dsse)
+    first_envelope = szl_dsse.sign_payload({"rotation": "before"})
+
+    monkeypatch.setenv(_PRIV_ENV, second_private)
+    second_envelope = szl_dsse.sign_payload({"rotation": "after"})
+
+    assert first_envelope["signatures"][0]["keyid"] == (
+        szl_dsse.keyid_for_public_pem(first_public)
+    )
+    assert second_envelope["signatures"][0]["keyid"] == (
+        szl_dsse.keyid_for_public_pem(second_public)
+    )
+    assert szl_dsse.verify_envelope(first_envelope)["verified"] is True
+    assert szl_dsse.verify_envelope(second_envelope)["verified"] is True
+
+
+def test_rotation_retains_old_key_across_restart_when_configured(monkeypatch):
+    """Retained public-only config preserves old receipts across restarts."""
+    first_private, first_public = _gen_ephemeral_keypair()
+    second_private, _ = _gen_ephemeral_keypair()
+    monkeypatch.delenv(_LEGACY_ENV, raising=False)
+    monkeypatch.setenv(_PRIV_ENV, first_private)
+    monkeypatch.delenv(szl_dsse.TRUSTED_PUBLIC_PEMS_ENV, raising=False)
+    importlib.reload(szl_dsse)
+    first_envelope = szl_dsse.sign_payload({"rotation": "before-restart"})
+
+    monkeypatch.setenv(_PRIV_ENV, second_private)
+    monkeypatch.setenv(
+        szl_dsse.TRUSTED_PUBLIC_PEMS_ENV,
+        json.dumps([first_public]),
+    )
+    importlib.reload(szl_dsse)
+
+    assert szl_dsse.verify_envelope(first_envelope)["verified"] is True
+
+
+def test_non_p256_private_key_fails_closed(monkeypatch):
+    """A configured key of the wrong algorithm never produces a signature."""
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode("utf-8")
+    monkeypatch.delenv(_LEGACY_ENV, raising=False)
+    monkeypatch.setenv(_PRIV_ENV, private_pem)
+    importlib.reload(szl_dsse)
+
+    assert szl_dsse.signing_available() is False
+    envelope = szl_dsse.sign_payload({"wrong": "algorithm"})
+    assert envelope["signed"] is False
+    assert envelope["signatures"] == []
 
 
 @pytest.mark.skipif(
