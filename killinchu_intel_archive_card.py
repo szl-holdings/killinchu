@@ -56,6 +56,7 @@ def render_card(
         "source-specific",
         "HMAC pseudonyms",
         "not attested",
+        "not a DSSE / Ed25519 signature",
     )
     for marker in required:
         if marker not in text:
