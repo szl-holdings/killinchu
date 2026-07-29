@@ -336,7 +336,7 @@ def test_dataset_card_is_honest():
     card = ko._archive_card()
     assert "third-party CLAIM" in card
     assert "HMAC pseudonyms" in card
-    assert "Neither value is a DSSE / Ed25519 signature" in card
+    assert "not a DSSE / Ed25519 signature" in card
     assert ko._ARCHIVE_PROJECTION_SCHEMA in card
     assert "may contain raw platform" in card
     assert "withholds those legacy" in card
