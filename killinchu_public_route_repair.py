@@ -36,7 +36,10 @@ _CODE_ROUTE_NAME = "killinchu_p0_code_entry"
 _CHAT_ROUTE_NAME = "killinchu_p0_chat_entry"
 _MAX_SOURCE_BYTES = 2 * 1024 * 1024
 _MAX_PUBLIC_RISK_BYTES = 128 * 1024
+_MAX_RELEASE_ATTESTATION_BYTES = 4096
 _SHA40_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_ATTESTATION_ID_RE = re.compile(r"^[0-9]+$")
 _PINNED_OPTION_A_RECORD = (
     "https://github.com/szl-holdings/a11oy/blob/"
     "1ca37c24fd39660fcfbca009b0c7a39bfaf8e286/"
@@ -197,6 +200,60 @@ def _source_build_identity() -> dict[str, str | None]:
         "state": "UNKNOWN",
         "revision": None,
         "revision_source": "UNKNOWN",
+    }
+
+
+def _release_receipt(source_revision: str | None) -> dict[str, str]:
+    """Validate the exact non-secret GitHub OIDC attestation reference."""
+
+    unavailable = {
+        "state": "UNAVAILABLE",
+        "reason": "NO_MATCHED_GITHUB_OIDC_ATTESTATION",
+    }
+    raw = os.environ.get("RELEASE_ATTESTATION", "")
+    if (
+        not raw
+        or len(raw) > _MAX_RELEASE_ATTESTATION_BYTES
+        or source_revision is None
+    ):
+        return unavailable
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError):
+        return unavailable
+    if not isinstance(value, dict):
+        return unavailable
+
+    revision = str(value.get("source_revision") or "")
+    digest = str(value.get("manifest_sha256") or "")
+    attestation_id = str(value.get("attestation_id") or "")
+    url = str(value.get("attestation_url") or "")
+    expected_url = (
+        "https://github.com/szl-holdings/killinchu/attestations/"
+        + attestation_id
+    )
+    if (
+        value.get("schema") != "szl.github-oidc-release-attestation/v1"
+        or revision != source_revision
+        or not re.fullmatch(r"[0-9a-f]{40}", revision)
+        or not _SHA256_RE.fullmatch(digest)
+        or not _ATTESTATION_ID_RE.fullmatch(attestation_id)
+        or url != expected_url
+    ):
+        return unavailable
+
+    return {
+        "state": "GITHUB_OIDC_ATTESTED",
+        "source_revision": revision,
+        "subject": "hf-deploy-manifest.json",
+        "subject_sha256": digest,
+        "attestation_id": attestation_id,
+        "attestation_url": url,
+        "verification": (
+            "Download hf-deploy-manifest.json from the matching deployment run "
+            "and run gh attestation verify hf-deploy-manifest.json "
+            "-R szl-holdings/killinchu"
+        ),
     }
 
 
@@ -476,6 +533,8 @@ def register(
     # the exact checked-out GitHub SHA. Public requests never re-read process
     # environment or execute a source-control command.
     build_identity = _source_build_identity()
+    release_receipt = _release_receipt(build_identity["revision"])
+    receipt_minted = release_receipt["state"] == "GITHUB_OIDC_ATTESTED"
 
     def unavailable(schema: str, reason: str, method: str) -> Any:
         response = JSONResponse(
@@ -546,7 +605,8 @@ def register(
                 "status": build_identity["state"],
                 "service": ns,
                 "build": build_identity,
-                "receipt_minted": False,
+                "receipt_minted": receipt_minted,
+                "release_receipt": release_receipt,
             },
             headers=_JSON_HEADERS,
         )
@@ -565,7 +625,8 @@ def register(
                 "reason_code": reason_code,
                 "runtime_observation": {
                     "source": build_identity,
-                    "source_identity_receipt_minted": False,
+                    "source_identity_receipt_minted": receipt_minted,
+                    "release_receipt": release_receipt,
                     "observation_scope": "STARTUP_CAPTURED",
                 },
             },
@@ -617,7 +678,8 @@ def register(
 
         response_payload["runtime_observation"] = {
             "source": build_identity,
-            "source_identity_receipt_minted": False,
+            "source_identity_receipt_minted": receipt_minted,
+            "release_receipt": release_receipt,
             "observation_scope": "STARTUP_CAPTURED",
         }
         response = JSONResponse(response_payload, headers=_JSON_HEADERS)
