@@ -9,6 +9,10 @@ def test_release_receipt_publication_is_serialized_and_rejects_stale_source() ->
     for contract in (
         "group: killinchu-hf-release-receipt",
         "cancel-in-progress: false",
+        "Require exact current protected main before deployment",
+        'if source_ref != "refs/heads/main":',
+        '"refusing stale production deploy: "',
+        "needs: preflight",
         "GITHUB_TOKEN: ${{ github.token }}",
         'f"/repos/{os.environ[\'GITHUB_REPOSITORY\']}/commits/main"',
         "current_main != source_sha",
