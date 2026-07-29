@@ -156,6 +156,10 @@ class PublicRouteRepairTests(unittest.TestCase):
                 "env:SZL_GIT_SHA",
             )
             self.assertIs(response.json()["receipt_minted"], False)
+            self.assertEqual(
+                response.json()["release_receipt"]["state"],
+                "UNAVAILABLE",
+            )
             self.assertNotIn("must-not-appear", response.text)
             self.assertNotIn("SECRET_TOKEN", response.text)
             self.assertEqual(response.headers["cache-control"], "no-store")
@@ -175,6 +179,74 @@ class PublicRouteRepairTests(unittest.TestCase):
                 if getattr(route, "path", None) == "/{full_path:path}"
             )
             self.assertLess(app.router.routes.index(build_route), app.router.routes.index(catchall_route))
+
+    def test_build_info_accepts_only_exact_revision_github_oidc_receipt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            revision = "a" * 40
+            attestation_id = "123456"
+            receipt = {
+                "schema": "szl.github-oidc-release-attestation/v1",
+                "source_revision": revision,
+                "manifest_sha256": "b" * 64,
+                "attestation_id": attestation_id,
+                "attestation_url": (
+                    "https://github.com/szl-holdings/killinchu/attestations/"
+                    + attestation_id
+                ),
+            }
+            with patch.dict(
+                os.environ,
+                {
+                    "SZL_GIT_SHA": revision,
+                    "RELEASE_ATTESTATION": json.dumps(receipt),
+                },
+            ):
+                response = TestClient(self._app(Path(tmp) / "source.json")).get(
+                    "/api/build-info"
+                )
+
+            payload = response.json()
+            self.assertIs(payload["receipt_minted"], True)
+            self.assertEqual(
+                payload["release_receipt"]["state"],
+                "GITHUB_OIDC_ATTESTED",
+            )
+            self.assertEqual(payload["release_receipt"]["source_revision"], revision)
+            self.assertEqual(payload["release_receipt"]["subject_sha256"], "b" * 64)
+            self.assertEqual(
+                payload["release_receipt"]["attestation_url"],
+                receipt["attestation_url"],
+            )
+
+            invalid_receipts = (
+                {**receipt, "source_revision": "c" * 40},
+                {**receipt, "manifest_sha256": "B" * 64},
+                {**receipt, "attestation_id": "../123"},
+                {
+                    **receipt,
+                    "attestation_url": (
+                        "https://github.com/szl-holdings/david-leads/"
+                        "attestations/123456"
+                    ),
+                },
+                {**receipt, "schema": "szl.github-oidc-release-attestation/v2"},
+            )
+            for invalid in invalid_receipts:
+                with self.subTest(invalid=invalid), patch.dict(
+                    os.environ,
+                    {
+                        "SZL_GIT_SHA": revision,
+                        "RELEASE_ATTESTATION": json.dumps(invalid),
+                    },
+                ):
+                    rejected = TestClient(self._app(Path(tmp) / "source.json")).get(
+                        "/api/build-info"
+                    )
+                self.assertIs(rejected.json()["receipt_minted"], False)
+                self.assertEqual(
+                    rejected.json()["release_receipt"]["state"],
+                    "UNAVAILABLE",
+                )
 
     def test_build_info_rejects_non_sha_values_without_reflection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -243,6 +315,10 @@ class PublicRouteRepairTests(unittest.TestCase):
             self.assertIs(
                 payload["runtime_observation"]["source_identity_receipt_minted"],
                 False,
+            )
+            self.assertEqual(
+                payload["runtime_observation"]["release_receipt"]["state"],
+                "UNAVAILABLE",
             )
             self.assertEqual(response.headers["cache-control"], "no-store")
             self.assertEqual(head.status_code, response.status_code)
@@ -915,6 +991,13 @@ class PublicRouteRepairTests(unittest.TestCase):
             'test "$code" = "503"',
             'payload["state"] == "UNAVAILABLE"',
             'payload["reason_code"] == "CI_ATTESTATION_EVIDENCE_UNPROVED"',
+            "id-token: write",
+            "attestations: write",
+            "release-receipt:",
+            "actions/attest@36051bcae73b7c2a8a6945a48cbf80953c6baa35",
+            'key="RELEASE_ATTESTATION"',
+            'body.get("receipt_minted") is True',
+            "killinchu-release-receipt",
         ):
             self.assertIn(contract, workflow)
         self.assertNotIn("secrets: inherit", workflow)

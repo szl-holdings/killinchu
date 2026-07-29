@@ -38,8 +38,18 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
 - **`/.well-known/szl-source.json`** — historical unsigned structural snapshot
   captured 2026-07-16. It is preserved evidence, not proof of the current
   running source revision; `/api/build-info` is the runtime identity probe.
-- **Runtime source identity receipt** — `/api/build-info` and
-  `/api/public-risk-status` do not mint a cryptographic source receipt.
+- **Runtime source identity receipt** — after an exact-source deployment, the
+  deploy workflow attests the generated deployment manifest with GitHub OIDC
+  and writes only its non-secret reference to the Space. `/api/build-info`
+  reports `receipt_minted=true` only when that reference matches the
+  startup-captured source SHA, manifest digest, attestation ID, and canonical
+  GitHub attestation URL. Before that post-deploy gate completes, the receipt
+  remains explicitly `UNAVAILABLE`.
+- **Conditional public-risk decision** — the dated Option A authority artifact
+  still records its original pre-attestation exception and remains fail-closed
+  while its other CI, rights, image, organ-inventory, and branch-protection
+  evidence is unproved. A live release receipt does not silently rewrite that
+  separate authority record.
 - **Historical archive privacy** — pre-v2 backing shards are not claimed
   rewritten or erased; the public recent API withholds legacy platform rows.
 
