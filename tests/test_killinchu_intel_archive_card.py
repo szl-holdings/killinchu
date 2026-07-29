@@ -32,6 +32,7 @@ def test_source_specific_attribution_is_explicit():
     assert "Fintraffic / digitraffic.fi" in text
     assert "Creative Commons Attribution 4.0" in text
     assert "Rights remain with the original publisher" in text
+    assert "not a DSSE / Ed25519 signature" in text
 
 
 def test_license_contract_does_not_blanket_relicense_sources():

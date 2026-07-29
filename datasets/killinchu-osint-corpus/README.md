@@ -76,6 +76,6 @@ this card does not claim that historical backing shards were rewritten.
 - Every record is a **third-party CLAIM or broadcast self-report**, not attested
   truth. Positions and reports can be spoofed, delayed, incomplete, or wrong.
 - `track_id` is a rotating HMAC pseudonym. The record `id` and `prov_hash` values
-  are SHA-256 content addresses for deduplication and integrity. **Neither value is a DSSE / Ed25519 signature.**
+  are SHA-256 content addresses for deduplication and integrity, **not a DSSE / Ed25519 signature**.
 - The archive is append-only and bounded; re-observation does not imply
   independent corroboration.
