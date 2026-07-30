@@ -67,7 +67,7 @@ jobs:
           python -m pip install \
             --disable-pip-version-check \
             --no-cache-dir \
-            "huggingface_hub==1.1.5"
+            "huggingface_hub==1.26.0"
 
       - name: Activate and verify Space controls
         run: |
