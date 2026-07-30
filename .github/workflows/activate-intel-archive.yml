@@ -1,0 +1,131 @@
+name: Activate Killinchu intel archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type ACTIVATE KILLINCHU INTEL ARCHIVE
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: activate-killinchu-intel-archive
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    name: Activate rights-reviewed privacy projection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      SPACE_ID: SZLHOLDINGS/killinchu
+
+    steps:
+      - name: Require explicit activation confirmation
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          if [[ "$CONFIRMATION" != "ACTIVATE KILLINCHU INTEL ARCHIVE" ]]; then
+            echo "::error::confirmation must exactly equal ACTIVATE KILLINCHU INTEL ARCHIVE"
+            exit 1
+          fi
+          if [[ -z "${HF_TOKEN:-}" ]]; then
+            echo "::error::HF_WRITE_TOKEN is not configured"
+            exit 1
+          fi
+
+      - name: Checkout exact workflow commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Require protected current main
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::activation may run only from refs/heads/main"
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if [[ "$GITHUB_SHA" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::workflow commit is not current protected main"
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v6.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned Hugging Face client
+        run: |
+          python -m pip install \
+            --disable-pip-version-check \
+            --no-cache-dir \
+            "huggingface_hub==1.1.5"
+
+      - name: Activate and verify Space controls
+        run: |
+          python - <<'PY'
+          import os
+          import secrets
+
+          from huggingface_hub import HfApi
+
+          repo_id = os.environ["SPACE_ID"]
+          token = os.environ["HF_TOKEN"]
+          api = HfApi(token=token)
+
+          existing_secrets = api.get_space_secrets(repo_id, token=token)
+          api.add_space_variable(
+              repo_id=repo_id,
+              key="KILLINCHU_INTEL_ARCHIVE_RIGHTS_APPROVED",
+              value="true",
+              description=(
+                  "Activated from protected main after the source-specific "
+                  "rights and privacy contract merged in killinchu#272/#287."
+              ),
+              token=token,
+          )
+
+          key_created = False
+          if "KILLINCHU_INTEL_ARCHIVE_PSEUDONYM_KEY" not in existing_secrets:
+              pseudonym_key = secrets.token_urlsafe(48)
+              print(f"::add-mask::{pseudonym_key}")
+              api.add_space_secret(
+                  repo_id=repo_id,
+                  key="KILLINCHU_INTEL_ARCHIVE_PSEUDONYM_KEY",
+                  value=pseudonym_key,
+                  description=(
+                      "Secret HMAC key for rotating 96-bit archive track "
+                      "pseudonyms; generated in GitHub Actions and never logged."
+                  ),
+                  token=token,
+              )
+              key_created = True
+
+          variables = api.get_space_variables(repo_id, token=token)
+          configured_secrets = api.get_space_secrets(repo_id, token=token)
+          rights = variables.get("KILLINCHU_INTEL_ARCHIVE_RIGHTS_APPROVED")
+          rights_value = getattr(rights, "value", None)
+          if str(rights_value).lower() != "true":
+              raise RuntimeError("rights approval variable read-back failed")
+          if "KILLINCHU_INTEL_ARCHIVE_PSEUDONYM_KEY" not in configured_secrets:
+              raise RuntimeError("pseudonym key metadata read-back failed")
+
+          api.restart_space(repo_id=repo_id, token=token)
+
+          summary = os.environ["GITHUB_STEP_SUMMARY"]
+          with open(summary, "a", encoding="utf-8") as handle:
+              handle.write("## Killinchu intel archive activation\n\n")
+              handle.write(f"- Space: `{repo_id}`\n")
+              handle.write("- Rights variable: `true` (read-back verified)\n")
+              handle.write("- Pseudonym key: present (value never read back)\n")
+              handle.write(f"- Pseudonym key created this run: `{key_created}`\n")
+              handle.write("- Space restart: requested\n")
+          PY
