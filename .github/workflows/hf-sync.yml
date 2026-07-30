@@ -3,27 +3,12 @@ name: Sync to HuggingFace Space
 # Thin caller for the immutable reusable deployer. It derives the exact Space
 # file set from Dockerfile COPY sources, binds SZL_GIT_SHA to the checked-out
 # GitHub commit, and refuses a running deployment whose /api/build-info response
-# does not expose that same revision. The paths below are only a cheap trigger,
-# not a correctness boundary.
+# does not expose that same revision. Every protected-main push enters this lane,
+# and the reusable deployer revalidates the default-branch tip at mutation time.
 
 on:
   push:
     branches: [main]
-    paths:
-      - "Dockerfile"
-      - "serve.py"
-      - "**/*.py"
-      - "web/**"
-      - "static/**"
-      - "static-vendor/**"
-      - "src/**"
-      - "corpus/**"
-      - "szl_connectors/**"
-      - "*.html"
-      - "knowledge.json"
-      - "public-risk-transition.json"
-      - "README.md"
-      - ".github/workflows/hf-sync.yml"
   workflow_dispatch: {}
 
 concurrency:
@@ -36,57 +21,13 @@ permissions:
   attestations: write
 
 jobs:
-  preflight:
-    name: Require exact current protected main before deployment
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Reject non-main or stale dispatches before remote mutation
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          SOURCE_REF: ${{ github.ref }}
-          SOURCE_SHA: ${{ github.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import urllib.request
-
-          source_ref = os.environ["SOURCE_REF"]
-          source_sha = os.environ["SOURCE_SHA"]
-          if source_ref != "refs/heads/main":
-              raise SystemExit(
-                  "refusing production deploy from non-main ref: "
-                  f"{source_ref!r}"
-              )
-
-          request = urllib.request.Request(
-              os.environ["GITHUB_API_URL"].rstrip("/")
-              + f"/repos/{os.environ['GITHUB_REPOSITORY']}/commits/main",
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
-                  "X-GitHub-Api-Version": "2022-11-28",
-              },
-          )
-          with urllib.request.urlopen(request, timeout=20) as response:
-              current_main = json.load(response).get("sha")
-          if current_main != source_sha:
-              raise SystemExit(
-                  "refusing stale production deploy: "
-                  f"current_main={current_main!r} source_sha={source_sha!r}"
-              )
-          PY
-
   deploy:
     name: Deploy, source-bind, and attest exact surface
-    needs: preflight
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@391f67e28dd966d9e42f88c6e3f852f3c63add84
     with:
       hf-repo: SZLHOLDINGS/killinchu
       ref: ${{ github.sha }}
+      require-default-branch-tip: true
       dockerfile-path: Dockerfile
       include-readme: true
       prune: true

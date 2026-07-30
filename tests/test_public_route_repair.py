@@ -972,15 +972,15 @@ class PublicRouteRepairTests(unittest.TestCase):
         )
 
         for contract in (
-            "reusable-hf-deploy.yml@9aa36ed914e88bdef2873b26c022e0cecb1e6ec8",
+            "reusable-hf-deploy.yml@391f67e28dd966d9e42f88c6e3f852f3c63add84",
             "hf-repo: SZLHOLDINGS/killinchu",
             "ref: ${{ github.sha }}",
+            "require-default-branch-tip: true",
             "dockerfile-path: Dockerfile",
             "include-readme: true",
             "prune: true",
             "source-revision-variable: SZL_GIT_SHA",
             "source-revision-probe-path: /api/build-info",
-            '"public-risk-transition.json"',
             '"/api/killinchu/healthz"',
             '"/api/build-info"',
             "https://szlholdings-killinchu.hf.space/api/public-risk-status",
