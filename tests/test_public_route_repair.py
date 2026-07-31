@@ -274,6 +274,90 @@ class PublicRouteRepairTests(unittest.TestCase):
                 self.assertNotIn(invalid, response.text)
                 self.assertNotIn("SECRET_VALUE", response.text)
 
+    def test_vertical_conformance_routes_expose_exact_sha_and_honest_partial_evidence(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sha = "d" * 40
+            with patch.dict(os.environ, {"SZL_GIT_SHA": sha}):
+                app = self._app(Path(tmp) / "source.json")
+                client = TestClient(app)
+                version = client.get("/version")
+                evidence = client.get("/evidence")
+                version_head = client.head("/version")
+                evidence_head = client.head("/evidence")
+
+            self.assertEqual(version.status_code, 200)
+            self.assertEqual(
+                version.json(),
+                {
+                    "schemaVersion": "szl.vertical-conformance.version.v1",
+                    "service": "killinchu",
+                    "surface": "vessels",
+                    "gitSha": sha,
+                },
+            )
+            self.assertEqual(evidence.status_code, 200)
+            self.assertEqual(
+                evidence.json()["schemaVersion"],
+                "szl.vertical-conformance.evidence.v1",
+            )
+            self.assertEqual(evidence.json()["surface"], "vessels")
+            self.assertEqual(evidence.json()["evidenceState"], "PARTIAL")
+            self.assertEqual(evidence.json()["gitSha"], sha)
+            self.assertEqual(evidence.json()["receipts"], [])
+            self.assertEqual(
+                evidence.json()["releaseReceipt"]["state"],
+                "UNAVAILABLE",
+            )
+            self.assertIn(
+                "No portable cross-repository root-to-target DSSE receipt pair",
+                evidence.json()["limitations"][0],
+            )
+            self.assertEqual(version.headers["cache-control"], "no-store")
+            self.assertEqual(evidence.headers["cache-control"], "no-store")
+            self.assertEqual(version_head.status_code, 200)
+            self.assertEqual(version_head.content, b"")
+            self.assertEqual(evidence_head.status_code, 200)
+            self.assertEqual(evidence_head.content, b"")
+
+            route_names = {
+                getattr(route, "name", None): app.router.routes.index(route)
+                for route in app.router.routes
+            }
+            catchall = next(
+                route
+                for route in app.router.routes
+                if getattr(route, "path", None) == "/{full_path:path}"
+            )
+            self.assertLess(
+                route_names["killinchu_vertical_conformance_version"],
+                app.router.routes.index(catchall),
+            )
+            self.assertLess(
+                route_names["killinchu_vertical_conformance_evidence"],
+                app.router.routes.index(catchall),
+            )
+
+    def test_vertical_conformance_routes_fail_closed_without_exact_sha(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            for invalid in ("", "not-a-sha", "a" * 39):
+                with self.subTest(invalid=invalid), patch.dict(
+                    os.environ,
+                    {"SZL_GIT_SHA": invalid},
+                ):
+                    client = TestClient(self._app(Path(tmp) / "source.json"))
+                    version = client.get("/version")
+                    evidence = client.get("/evidence")
+
+                self.assertEqual(version.status_code, 503)
+                self.assertEqual(version.json()["state"], "UNAVAILABLE")
+                self.assertEqual(evidence.status_code, 503)
+                self.assertEqual(evidence.json()["state"], "UNAVAILABLE")
+                if invalid:
+                    self.assertNotIn(invalid, version.text)
+                    self.assertNotIn(invalid, evidence.text)
+
     def test_public_risk_status_fails_closed_for_unproved_controls_with_head_parity(
         self,
     ) -> None:
@@ -1105,6 +1189,8 @@ class PublicRouteRepairTests(unittest.TestCase):
             self.assertEqual(names.count("killinchu_p0_openapi_alias"), 1)
             self.assertEqual(names.count("killinchu_p0_source_artifact"), 1)
             self.assertEqual(names.count("killinchu_p0_build_info"), 1)
+            self.assertEqual(names.count("killinchu_vertical_conformance_version"), 1)
+            self.assertEqual(names.count("killinchu_vertical_conformance_evidence"), 1)
             self.assertEqual(names.count("killinchu_p0_public_risk_status"), 1)
             self.assertEqual(names.count("killinchu_p0_code_entry"), 1)
             self.assertEqual(names.count("killinchu_p0_chat_entry"), 1)
