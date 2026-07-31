@@ -65,7 +65,42 @@ def test_payload_exposes_homogeneous_manifest_without_relicensing_raw_rows():
     assert row["training_eligible"] is False
     assert provenance["license"]["blanket_training_rights"] is False
     assert provenance["claims"]["reproducible_historical_generation"] == "NOT_CLAIMED"
+    assert len(provenance["archive"]["shard_state_sha256"]) == 64
     assert "archive_manifest" in payloads["README.md"].decode("utf-8")
+
+
+def test_unchanged_source_and_shards_are_noop_eligible():
+    shards = [
+        {
+            "path": "intel/day.ndjson",
+            "bytes": 123,
+            "git_blob_id": "b" * 40,
+            "git_blob_hash_algorithm": "sha1",
+            "rights_status": "MIXED_SOURCE_ROW_LEVEL_RIGHTS_NOT_ESTABLISHED",
+            "training_eligible": False,
+        }
+    ]
+    source = "c" * 40
+    existing = json.dumps(
+        {
+            "source": {"revision": source},
+            "archive": {"shard_state_sha256": publisher.shard_state_sha256(shards)},
+        }
+    ).encode()
+    assert publisher.binding_is_current(
+        existing, source_revision=source, shards=shards
+    )
+    assert not publisher.binding_is_current(
+        existing, source_revision="d" * 40, shards=shards
+    )
+
+
+def test_workflow_refuses_non_main_publication_source():
+    workflow = (
+        Path(publisher.ROOT) / ".github/workflows/publish-intel-archive-card.yml"
+    ).read_text(encoding="utf-8")
+    assert "git fetch --no-tags --depth=1 origin main" in workflow
+    assert "git rev-parse origin/main" in workflow
 
 
 def test_source_files_are_hash_bound():

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
+from huggingface_hub.errors import EntryNotFoundError
 
 import killinchu_intel_archive_card as card
 
@@ -41,6 +42,25 @@ def sha256_bytes(payload: bytes) -> str:
 def source_file(path: str) -> dict[str, Any]:
     body = (ROOT / path).read_bytes().replace(b"\r\n", b"\n")
     return {"path": path, "bytes": len(body), "sha256": sha256_bytes(body)}
+
+
+def shard_state_sha256(shards: list[dict[str, Any]]) -> str:
+    """Fingerprint the raw shard state independently of binding-only commits."""
+    return sha256_bytes(canonical_json(shards))
+
+
+def binding_is_current(
+    existing: bytes, *, source_revision: str, shards: list[dict[str, Any]]
+) -> bool:
+    try:
+        payload = json.loads(existing)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return False
+    return (
+        payload.get("source", {}).get("revision") == source_revision
+        and payload.get("archive", {}).get("shard_state_sha256")
+        == shard_state_sha256(shards)
+    )
 
 
 def archive_snapshot(api: HfApi) -> tuple[str, list[dict[str, Any]]]:
@@ -110,6 +130,7 @@ def build_payloads(
             "shards": len(shards),
             "bytes": sum(int(item.get("bytes") or 0) for item in shards),
             "manifest_sha256": sha256_bytes(manifest),
+            "shard_state_sha256": shard_state_sha256(shards),
             "file_hash_scope": "HUGGING_FACE_GIT_BLOB_SHA1_AT_IMMUTABLE_REVISION",
         },
         "license": {
@@ -145,6 +166,36 @@ def publish(
         raise PublicationError("HF_TOKEN is required")
     api = api or HfApi(token=token)
     archive_revision, shards = archive_snapshot(api)
+    try:
+        existing = Path(
+            hf_hub_download(
+                repo_id=REPO_ID,
+                repo_type="dataset",
+                filename="DATASET_PROVENANCE.json",
+                revision=archive_revision,
+                token=token,
+                force_download=True,
+            )
+        ).read_bytes()
+    except EntryNotFoundError:
+        existing = b""
+    if binding_is_current(
+        existing, source_revision=source_revision, shards=shards
+    ):
+        report = {
+            "schema": "szl.killinchu-archive-publication/v2",
+            "status": "ALREADY_BOUND_NO_COMMIT",
+            "source_repository": "szl-holdings/killinchu",
+            "source_revision": source_revision,
+            "hf_revision": archive_revision,
+            "archive_shards_bound": len(shards),
+            "raw_rows_training_eligible": False,
+            "shard_state_sha256": shard_state_sha256(shards),
+            "signed_release_receipt": "UNAVAILABLE_NO_APPROVED_OWNER_KEY_IN_WORKFLOW",
+        }
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_bytes(canonical_json(report))
+        return report
     payloads = build_payloads(
         source_revision=source_revision,
         archive_revision=archive_revision,
@@ -185,6 +236,7 @@ def publish(
         "archive_revision_before_binding": archive_revision,
         "hf_revision_after": revision,
         "archive_shards_bound": len(shards),
+        "shard_state_sha256": shard_state_sha256(shards),
         "raw_rows_training_eligible": False,
         "files": observed,
         "signed_release_receipt": "UNAVAILABLE_NO_APPROVED_OWNER_KEY_IN_WORKFLOW",
