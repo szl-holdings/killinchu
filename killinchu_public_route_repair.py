@@ -1,11 +1,13 @@
 """Fail-closed public runtime routes for the Killinchu Space.
 
-The application has a large, additive router. Six exact public contracts must
+The application has a large, additive router. Eight exact public contracts must
 win before its SPA catch-all:
 
 * ``/openapi.json`` delegates to the already-hardened namespaced generator.
 * ``/.well-known/szl-source.json`` serves the on-disk attestation artifact.
 * ``/api/build-info`` exposes only a strictly validated deployment source SHA.
+* ``/version`` exposes that same exact SHA for vertical conformance.
+* ``/evidence`` exposes an honest, fail-closed conformance evidence boundary.
 * ``/api/public-risk-status`` exposes the dated conditional-publication contract.
 * ``/code`` and ``/chat`` redirect to the existing Edge Verdict Console.
 
@@ -31,6 +33,8 @@ from typing import Any
 _OPENAPI_ROUTE_NAME = "killinchu_p0_openapi_alias"
 _SOURCE_ROUTE_NAME = "killinchu_p0_source_artifact"
 _BUILD_INFO_ROUTE_NAME = "killinchu_p0_build_info"
+_VERSION_ROUTE_NAME = "killinchu_vertical_conformance_version"
+_EVIDENCE_ROUTE_NAME = "killinchu_vertical_conformance_evidence"
 _PUBLIC_RISK_ROUTE_NAME = "killinchu_p0_public_risk_status"
 _CODE_ROUTE_NAME = "killinchu_p0_code_entry"
 _CHAT_ROUTE_NAME = "killinchu_p0_chat_entry"
@@ -612,6 +616,55 @@ def register(
         )
         return _head_from(response, Response) if request.method == "HEAD" else response
 
+    async def conformance_version(request: Any) -> Any:
+        if build_identity["state"] != "OBSERVED":
+            return unavailable(
+                "szl.vertical-conformance.version-unavailable/v1",
+                "exact deployed Git SHA is unavailable",
+                request.method,
+            )
+        response = JSONResponse(
+            {
+                "schemaVersion": "szl.vertical-conformance.version.v1",
+                "service": ns,
+                "surface": "vessels",
+                "gitSha": build_identity["revision"],
+            },
+            headers=_JSON_HEADERS,
+        )
+        return _head_from(response, Response) if request.method == "HEAD" else response
+
+    async def conformance_evidence(request: Any) -> Any:
+        if build_identity["state"] != "OBSERVED":
+            return unavailable(
+                "szl.vertical-conformance.evidence-unavailable/v1",
+                "exact deployed Git SHA is unavailable",
+                request.method,
+            )
+        response = JSONResponse(
+            {
+                "schemaVersion": "szl.vertical-conformance.evidence.v1",
+                "service": ns,
+                "surface": "vessels",
+                "evidenceState": "PARTIAL",
+                "gitSha": build_identity["revision"],
+                "receipts": [],
+                "releaseReceipt": release_receipt,
+                "limitations": [
+                    (
+                        "No portable cross-repository root-to-target DSSE receipt "
+                        "pair is exposed by this deployment."
+                    ),
+                    (
+                        "No conformance denial receipt or OTel GenAI span set is "
+                        "claimed by this endpoint."
+                    ),
+                ],
+            },
+            headers=_JSON_HEADERS,
+        )
+        return _head_from(response, Response) if request.method == "HEAD" else response
+
     def public_risk_failure(
         *,
         state: str,
@@ -724,6 +777,28 @@ def register(
             )
         )
         registered.append("/api/build-info")
+
+    if _VERSION_ROUTE_NAME not in existing_names:
+        routes.append(
+            Route(
+                "/version",
+                endpoint=conformance_version,
+                methods=["GET", "HEAD"],
+                name=_VERSION_ROUTE_NAME,
+            )
+        )
+        registered.append("/version")
+
+    if _EVIDENCE_ROUTE_NAME not in existing_names:
+        routes.append(
+            Route(
+                "/evidence",
+                endpoint=conformance_evidence,
+                methods=["GET", "HEAD"],
+                name=_EVIDENCE_ROUTE_NAME,
+            )
+        )
+        registered.append("/evidence")
 
     if _PUBLIC_RISK_ROUTE_NAME not in existing_names:
         routes.append(
