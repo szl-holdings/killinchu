@@ -19,7 +19,10 @@ def test_card_has_complete_other_license_metadata():
     assert re.fullmatch(r"[a-z0-9.-]+", license_name)
     assert license_name == "mixed-source-terms"
     assert "license_link:" in text
-    assert "intel/*.ndjson" in text
+    assert 'config_name: archive_manifest' in text
+    assert 'path: "viewer/archive_manifest.jsonl"' in text
+    assert "mixed raw\nNDJSON remains available under `intel/`" in text
+    assert "training_eligible: false" in text
     assert "killinchu.platform-projection/v2" in text
     assert "1.00°" in text
     assert "adsb.fi" not in text
