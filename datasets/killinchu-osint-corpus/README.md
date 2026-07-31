@@ -11,10 +11,11 @@ tags:
   - maritime
   - szl-holdings
 configs:
-  - config_name: intel
+  - config_name: archive_manifest
+    default: true
     data_files:
       - split: train
-        path: "{{ARCHIVE_PREFIX}}/*.ndjson"
+        path: "viewer/archive_manifest.jsonl"
 ---
 
 # killinchu — live intel archive
@@ -25,6 +26,19 @@ Append-only, content-addressed archive of the live intelligence streams the
 `{{ARCHIVE_PREFIX}}/`.
 
 Each row is `{schema, id, ts, source, kind, payload}`.
+
+## Viewer-safe contract
+
+The default Dataset Viewer configuration is the homogeneous
+`archive_manifest`, one row per immutable raw shard. It exposes path, byte
+count, Git blob hash, rights state, and training eligibility. The mixed raw
+NDJSON remains available under `{{ARCHIVE_PREFIX}}/` but is deliberately not
+coerced into one table: historical shards contain schema drift, and mixing
+numbers and strings in fields such as `alt_baro` breaks strict dataset loaders.
+
+This is a usability repair, not a rewrite of append-only history. Every raw
+manifest row is `training_eligible: false` until row-level rights and privacy
+admission are established.
 
 ## License and attribution
 
