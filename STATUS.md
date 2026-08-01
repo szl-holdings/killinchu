@@ -35,9 +35,10 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
 
 ## Evidence Boundaries
 
-- **`/.well-known/szl-source.json`** — historical unsigned structural snapshot
-  captured 2026-07-16. It is preserved evidence, not proof of the current
-  running source revision; `/api/build-info` is the runtime identity probe.
+- **`/.well-known/szl-source.json`** — startup-captured runtime source revision with an explicit GitHub OIDC receipt reference when available; Hugging Face repository revision remains unclaimed unless the platform exposes it
+  and `/api/build-info` is the companion runtime identity probe. The historical
+  2026-07-16 structural snapshot remains in the repository as preserved evidence;
+  it is not served as the current runtime identity.
 - **Runtime source identity receipt** — after an exact-source deployment, the
   deploy workflow attests the generated deployment manifest with GitHub OIDC
   and writes only its non-secret reference to the Space. `/api/build-info`
