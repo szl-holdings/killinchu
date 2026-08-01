@@ -22,7 +22,7 @@
      Counter-UAS operator console. Leader patterns: Anduril Lattice (dark tactical COP,
      prioritized threat list, severity color, human-on-the-loop), Dedrone RF-360 (classification
      badges), Skydio (clean console, large CTAs), DroneShield (threat ticker strip).
-     Self-contained (KANCHAY tokens, no CDN, no build). Wired LIVE to real endpoints.
+     Self-contained (KANCHAY tokens, no CDN, no build). Wired to truth-labelled endpoints.
      Does NOT touch #root (React SPA) or any /api route — pure prepend. MARKER: data-szl-deck-v3 -->
 <section id="szl-cmd-deck" data-szl-deck-v3="killinchu" aria-label="killinchu counter-UAS command deck">
   <style>
@@ -166,9 +166,9 @@
       </div>
 
       <div class="kcd-ops">
-        <button class="kcd-btn halt" id="kcd-halt"><span class="ico"></span>HALT</button>
-        <button class="kcd-btn over" id="kcd-over"><span class="ico"></span>OVERRIDE</button>
-        <button class="kcd-btn esc" id="kcd-esc"><span class="ico"></span>ESCALATE</button>
+        <button class="kcd-btn halt" id="kcd-halt"><span class="ico"></span>HALT ADVISORY</button>
+        <button class="kcd-btn over" id="kcd-over"><span class="ico"></span>OVERRIDE ADVISORY</button>
+        <button class="kcd-btn esc" id="kcd-esc"><span class="ico"></span>ESCALATE ADVISORY</button>
       </div>
       <div class="kcd-ops-note" id="kcd-ops-note">Operator action posts an advisory verdict to the rule engine — human authority required, no autonomous defeat.</div>
 
@@ -186,17 +186,17 @@
     <!-- RIGHT: live threat list -->
     <div class="kcd-right">
       <div class="kcd-rt-head">
-        <span class="t">▣ Active threat board</span>
+        <span class="t">▣ Observed air picture</span>
         <span class="c" id="kcd-rt-count">— tracks</span>
       </div>
       <div class="kcd-threats" id="kcd-threats">
-        <div class="kcd-loading">Loading live tracks…</div>
+        <div class="kcd-loading">Loading ADS-B observations…</div>
       </div>
     </div>
   </div>
 
   <div class="kcd-foot" id="kcd-foot">
-    Tracks are simulated over REAL adversary drone signatures from the curated DB — illustrative, not a live sensor feed ·
+    Default mode uses real ADS-B observations; identity and position are unauthenticated claims, not confirmed threats ·
     receipts DSSE-signed when keyed (honest placeholder otherwise) · sign: Yachay · Perplexity Computer Agent
   </div>
 
@@ -206,21 +206,22 @@
     function sevOf(t){
       var s=(t.side||"").toLowerCase(), st=(t.status||"").toLowerCase();
       if(s==="adversary" || st.indexOf("strike")>=0 || st.indexOf("inbound")>=0) return "red";
-      if(s==="dual-use" || st.indexOf("recon")>=0 || st.indexOf("isr")>=0 || st.indexOf("patrol")>=0) return "amber";
+      if(s==="dual-use" || st.indexOf("advisory")>=0 || st.indexOf("recon")>=0 || st.indexOf("isr")>=0 || st.indexOf("patrol")>=0) return "amber";
       return "green";
     }
-    function sevLabel(sev){return sev==="red"?"HOSTILE":sev==="amber"?"CAUTION":"CLEARED";}
+    function sevLabel(sev){return sev==="red"?"TRAINING FLAG":sev==="amber"?"ADVISORY":"OBSERVED";}
     function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
     function el(id){return document.getElementById(id);}
 
     function renderThreats(data){
       var box=el("kcd-threats"); if(!box) return;
       var threats=(data&&data.threats)||[];
-      el("kcd-st-tracks").innerHTML = ((data&&data.total_tracks)||threats.length) + '<span class="u">live</span>';
-      var active=(data&&data.active_threats)!=null?data.active_threats:threats.filter(function(t){return sevOf(t)==="red";}).length;
+      var mode=(data&&data.mode)||"UNAVAILABLE";
+      el("kcd-st-tracks").innerHTML = ((data&&data.total_tracks)||threats.length) + '<span class="u">'+esc(mode.toLowerCase())+'</span>';
+      var active=(data&&data.active_threats)!=null?data.active_threats:0;
       el("kcd-st-breaches").textContent = active;
-      el("kcd-rt-count").textContent = threats.length + " tracks · " + active + " hostile";
-      if(!threats.length){box.innerHTML='<div class="kcd-loading">No active tracks — airspace nominal.</div>';return;}
+      el("kcd-rt-count").textContent = threats.length + " observations · " + active + " confirmed threats";
+      if(!threats.length){box.innerHTML='<div class="kcd-loading">'+(mode==="UNAVAILABLE"?"ADS-B unavailable — no tracks fabricated.":"No position-bearing ADS-B observations.")+'</div>';return;}
       // sort: red first, then amber, then green
       var ord={red:0,amber:1,green:2};
       threats.sort(function(a,b){return ord[sevOf(a)]-ord[sevOf(b)];});
@@ -248,7 +249,7 @@
         var sev=sevOf(t);var cls=sev==="red"?"hostile":"";
         return '<span class="'+cls+'">'+esc(t.track_id)+' '+esc(t.model)+'</span> <b>'+esc(t.status)+'</b>';
       }).join("   ·   ");
-      var r=el("kcd-ticker-run"); if(r) r.innerHTML = run + "   ·   "+threats.length+" TRACKS · "+active+" HOSTILE · DSSE-SIGNED VERDICTS";
+      var r=el("kcd-ticker-run"); if(r) r.innerHTML = run + "   ·   "+threats.length+" OBSERVATIONS · "+active+" CONFIRMED THREATS · "+esc(mode);
     }
 
     function loadThreats(){
@@ -258,7 +259,9 @@
     function loadDoctrine(){
       fetch(API+"/honest").then(function(r){return r.json();}).then(function(d){
         if(d&&d.declarations){var s=el("kcd-doctrine-state"); if(s) s.textContent="v"+d.doctrine.replace("v","")+" · "+d.declarations+"/"+d.axioms_unique+"/"+d.sorries_total+" LOCKED";}
-      }).catch(function(){});
+      }).catch(function(){
+        renderThreats({mode:"UNAVAILABLE",availability:"UNAVAILABLE",total_tracks:0,active_threats:0,threats:[]});
+      });
       fetch(API+"/drones/database").then(function(r){return r.json();}).then(function(d){
         if(d&&(d.total||d.count)){var n=d.total||d.count; el("kcd-st-db").innerHTML=n+'<span class="u">sigs</span>';}
       }).catch(function(){});
@@ -267,13 +270,13 @@
       }).catch(function(){});
     }
     function op(kind,note){
-      var n=el("kcd-ops-note"); if(n){n.textContent=kind+" recorded — advisory verdict queued (human authority required). "+note; }
+      var n=el("kcd-ops-note"); if(n){n.textContent=kind+" preview only — no action dispatched or recorded. "+note; }
     }
     function bind(){
       var h=el("kcd-halt"),o=el("kcd-over"),e=el("kcd-esc");
-      if(h)h.onclick=function(){op("HALT","Counter-UAS rule engine evaluates breach set → conservative HALT.");};
-      if(o)o.onclick=function(){op("OVERRIDE","Operator override logged to khipu DAG; receipt DSSE-signed when keyed.");};
-      if(e)e.onclick=function(){op("ESCALATE","Track escalated to operator shell v4 inbox.");};
+      if(h)h.onclick=function(){op("HALT ADVISORY","Human authorization and a receipted backend procedure are required.");};
+      if(o)o.onclick=function(){op("OVERRIDE ADVISORY","Human authorization and a receipted backend procedure are required.");};
+      if(e)e.onclick=function(){op("ESCALATE ADVISORY","Human authorization and a receipted backend procedure are required.");};
     }
     function init(){bind();loadThreats();loadDoctrine();setInterval(loadThreats,15000);}
     if(document.readyState!=="loading")init();else document.addEventListener("DOMContentLoaded",init);
@@ -283,6 +286,7 @@
 
 
     <div id="root"></div>
+    <script src="/static/truth-cop.js" defer></script>
 
     <!-- SZL KILLINCHU DECK-ROUTE GUARD (ADDITIVE) — Sign: Stephen P. Lutar Jr. + Perplexity Computer Agent
          WHY: static/index.html carries the always-present, self-contained, LIVE counter-UAS

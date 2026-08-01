@@ -19,7 +19,7 @@ REAL endpoints (NO MOCKS):
   GET  /api/killinchu/v1/drones/database   — 50+ curated real drone systems
   POST /api/killinchu/v1/counter-uas/evaluate — telemetry+geofence+policy → ALLOW/HALT + Λ-receipt
   GET  /api/killinchu/v1/swarm/topology    — Remote-ID broadcasts → connected-component clusters
-  GET  /api/killinchu/v1/threats/active    — live threat board from real adversary signatures
+  GET  /api/killinchu/v1/threats/active    — truth-labelled ADS-B operational picture
   POST /api/killinchu/v1/receipt/emit      — mint DSSE-PLACEHOLDER receipt into Khipu DAG
   GET  /api/killinchu/healthz              — { status, doctrine v11, 749/14/163 }
 
@@ -2168,46 +2168,38 @@ async def swarm_topology(request: Request) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
-# Active threats board — real adversary signatures from Phase-1 research
+# Operational air picture — evidence-labelled ADS-B observations
 # ---------------------------------------------------------------------------
 @app.get("/api/killinchu/v1/threats/active")
-async def threats_active() -> JSONResponse:
-    now = time.time()
-    sig = {d["id"]: d for d in _DRONES}
-    threats = []
+async def threats_active(mode: str = "live") -> JSONResponse:
+    """Serve the canonical TrackBatch without manufacturing live evidence."""
+    from killinchu_track_contract import air_feed_batch, training_batch, unavailable_batch
 
-    def mk(idx, drone_id, lat, lon, alt, hdg, spd, status):
-        d = sig.get(drone_id, {})
-        return {
-            "track_id": f"TRK-{idx:04d}",
-            "model": d.get("model", drone_id), "side": d.get("side", "unknown"),
-            "role": d.get("role", ""), "group": d.get("group", ""),
-            "country": d.get("country", ""),
-            "latitude": lat, "longitude": lon, "altitude_m": alt, "heading_deg": hdg,
-            "speed_m_s": spd, "status": status,
-            "first_seen": datetime.fromtimestamp(now - 600, timezone.utc).isoformat(),
-            "last_update": datetime.fromtimestamp(now, timezone.utc).isoformat(),
-            "telemetry_source": "simulated track over real signature",
-        }
+    requested_mode = mode.strip().lower()
+    if requested_mode == "training":
+        return JSONResponse(training_batch(_DRONES), headers={"cache-control": "no-store"})
+    if requested_mode != "live":
+        batch = unavailable_batch()
+        batch["error"] = "mode must be 'live' or explicit 'training'"
+        return JSONResponse(
+            batch,
+            status_code=422,
+            headers={"cache-control": "no-store"},
+        )
+    if _killinchu_live_feeds is None:
+        return JSONResponse(
+            unavailable_batch(), status_code=503, headers={"cache-control": "no-store"}
+        )
 
-    threats.append(mk(1, "shahed136", 47.85, 35.10, 1500, 270, 51.4, "INBOUND"))
-    threats.append(mk(2, "shahed136", 47.86, 35.12, 1450, 268, 50.0, "INBOUND"))
-    threats.append(mk(3, "lancet3", 47.40, 36.20, 800, 95, 30.5, "LOITERING"))
-    threats.append(mk(4, "orlan10", 48.10, 37.50, 3000, 180, 41.6, "ISR"))
-    threats.append(mk(5, "tb2", 47.10, 35.80, 6000, 90, 61.7, "PATROL"))
-    threats.append(mk(6, "djimavic3", 47.91, 35.05, 120, 200, 15.0, "RECON"))
-    threats.append(mk(7, "wingloong2", 46.50, 34.20, 8000, 45, 102.7, "ISR"))
-    threats.append(mk(8, "fpv7in", 47.88, 35.08, 60, 250, 41.6, "STRIKE-RUN"))
-
-    return JSONResponse({
-        "ok": True,
-        "active_threats": len([t for t in threats if t["side"] == "adversary"]),
-        "total_tracks": len(threats),
-        "threats": threats,
-        "doctrine": DOCTRINE,
-        "honesty": ("Tracks are simulated over REAL adversary drone signatures from the curated DB. "
-                    "Not a live sensor feed; positions are illustrative."),
-    })
+    try:
+        batch = air_feed_batch(_killinchu_live_feeds.get_feed("air"))
+    except Exception:
+        batch = unavailable_batch()
+    return JSONResponse(
+        batch,
+        status_code=200 if batch["availability"] != "UNAVAILABLE" else 503,
+        headers={"cache-control": "no-store"},
+    )
 
 
 # ---------------------------------------------------------------------------

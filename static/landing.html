@@ -456,14 +456,14 @@ img, svg, canvas, video { max-width: 100%; height: auto; }
     <p class="ds-lead ds-reveal">These tiles read killinchu's own endpoints on this Space right now. If an endpoint is slow or unreachable, the tile says so rather than faking a number.</p>
     <div class="ds-grid ds-grid--4" style="margin-top:42px;">
       <div class="ds-kpi ds-reveal">
-        <span class="ds-kpi__label">Drones tracked</span>
+        <span class="ds-kpi__label">Observed air tracks</span>
         <span id="kpi-tracks" class="ds-kpi__value is-loading">——</span>
-        <span class="ds-kpi__note">/threats/active · total_tracks</span>
+        <span class="ds-kpi__note">TrackBatch · total_tracks</span>
       </div>
       <div class="ds-kpi ds-reveal">
-        <span class="ds-kpi__label">Active threats</span>
+        <span class="ds-kpi__label">Confirmed threats</span>
         <span id="kpi-threats" class="ds-kpi__value is-loading">——</span>
-        <span class="ds-kpi__note">/threats/active · active_threats</span>
+        <span class="ds-kpi__note">TrackBatch · active_threats</span>
       </div>
       <div class="ds-kpi ds-reveal">
         <span class="ds-kpi__label">Drone fingerprints</span>
@@ -634,6 +634,7 @@ cosign verify-blob --key cosign.pub \
   </div>
 </footer>
 
+<script src="/static/truth-cop.js" defer></script>
 <script>
 (function(){
   "use strict";
@@ -710,25 +711,29 @@ cosign verify-blob --key cosign.pub \
   function shortHash(h){ return (h&&h.length>10) ? h.slice(0,8)+"…"+h.slice(-4) : (h||"—"); }
 
   var ok = { tracks:false, db:false, trust:false };
+  var trackMode = "UNAVAILABLE";
   function reportState(){
     var s=$("kc-proof-state"); if(!s) return;
     var good = ok.tracks && ok.db && ok.trust;
     s.textContent = good
-      ? "Live · all endpoints responding on this Space."
-      : "Reading live endpoints… some may be slow.";
-    if(good) s.style.color = "var(--teal)";
+      ? trackMode+" · ADS-B observations are unauthenticated claims, not confirmed threats."
+      : "UNAVAILABLE · one or more evidence endpoints are not available.";
+    s.style.color = good && trackMode === "LIVE" ? "var(--teal)" : "var(--gold)";
   }
 
   function loadThreats(){
     fetch(API+"/threats/active",{cache:"no-store"}).then(function(r){return r.json();}).then(function(d){
+      trackMode=(d&&d.mode)||"UNAVAILABLE";
       var total=(d&&(d.total_tracks!=null?d.total_tracks:(d.threats&&d.threats.length)))||0;
       var act=(d&&d.active_threats!=null)?d.active_threats:0;
-      setVal("kpi-tracks", String(total), "is-live");
+      setVal("kpi-tracks", trackMode==="UNAVAILABLE"?"unavailable":String(total), trackMode==="LIVE"?"is-live":null);
       setVal("kpi-threats", String(act), act>0?"is-loading":"is-live");
       var te=$("kpi-threats"); if(te){ te.classList.remove("is-loading"); te.style.color = act>0 ? "var(--red)" : "var(--teal)"; }
-      ok.tracks=true; reportState();
+      ok.tracks=trackMode!=="UNAVAILABLE"; reportState();
     }).catch(function(){
+      trackMode="UNAVAILABLE"; ok.tracks=false;
       setVal("kpi-tracks","n/a"); setVal("kpi-threats","n/a");
+      reportState();
     });
   }
   function loadDB(){
