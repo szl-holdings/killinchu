@@ -65,8 +65,9 @@ ecosystem-stage: "operational"
 - Conditional public-risk contract: https://szlholdings-killinchu.hf.space/api/public-risk-status
   (`build.state=OBSERVED` only for a valid `SZL_GIT_SHA`; the deploy workflow requires
   `build.revision` to equal the exact GitHub commit being deployed)
-- Historical source snapshot: https://szlholdings-killinchu.hf.space/.well-known/szl-source.json
-  (unsigned structural evidence captured 2026-07-16, not a current runtime identity proof)
+- Runtime source attestation: https://szlholdings-killinchu.hf.space/.well-known/szl-source.json
+  (startup-captured deployed Git revision plus the GitHub OIDC receipt reference
+  when available; Hugging Face repository revision remains explicitly unclaimed)
 - Edge Verdict Console: https://szlholdings-killinchu.hf.space/console
 - Compatibility entries: `/code` and `/chat` return HTTP 302 to the existing `/console`;
   they are aliases, not separate code or chat products

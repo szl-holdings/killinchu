@@ -4,7 +4,8 @@ The application has a large, additive router. Eight exact public contracts must
 win before its SPA catch-all:
 
 * ``/openapi.json`` delegates to the already-hardened namespaced generator.
-* ``/.well-known/szl-source.json`` serves the on-disk attestation artifact.
+* ``/.well-known/szl-source.json`` binds the running process to the same
+  startup-captured source revision and release receipt as ``/api/build-info``.
 * ``/api/build-info`` exposes only a strictly validated deployment source SHA.
 * ``/version`` exposes that same exact SHA for vertical conformance.
 * ``/evidence`` exposes an honest, fail-closed conformance evidence boundary.
@@ -12,10 +13,11 @@ win before its SPA catch-all:
 * ``/code`` and ``/chat`` redirect to the existing Edge Verdict Console.
 
 This module does not manufacture OpenAPI or source-attestation evidence. If the
-real generator or artifact is unavailable, callers receive an explicit JSON
-503 instead of a misleading HTML shell or a synthetic success response. Build
-identity is captured once at registration and is ``UNKNOWN`` unless
-``SZL_GIT_SHA`` is an exact 40-character hexadecimal revision.
+real generator or source identity is unavailable, callers receive an explicit
+JSON 503 instead of a misleading HTML shell or a synthetic success response.
+Build identity is captured once at registration and is ``UNKNOWN`` unless
+``SZL_GIT_SHA`` is an exact 40-character hexadecimal revision. A caller-supplied
+artifact path remains available for offline historical-snapshot inspection.
 """
 
 from __future__ import annotations
@@ -511,6 +513,7 @@ def register(
         None,
     )
 
+    configured_path = ""
     if artifact_path is None:
         configured_path = os.environ.get("KILLINCHU_SOURCE_ATTESTATION_PATH", "").strip()
         if configured_path:
@@ -539,6 +542,8 @@ def register(
     build_identity = _source_build_identity()
     release_receipt = _release_receipt(build_identity["revision"])
     receipt_minted = release_receipt["state"] == "GITHUB_OIDC_ATTESTED"
+    startup_observed_at = datetime.now(timezone.utc).isoformat()
+    runtime_source_attestation = artifact_path is None and not configured_path
 
     def unavailable(schema: str, reason: str, method: str) -> Any:
         response = JSONResponse(
@@ -588,6 +593,69 @@ def register(
         return _head_from(response, Response) if request.method == "HEAD" else response
 
     async def source_attestation(request: Any) -> Any:
+        if runtime_source_attestation:
+            if build_identity["state"] != "OBSERVED":
+                return unavailable(
+                    "szl.deployment-source-unavailable/v1",
+                    "exact deployed Git SHA is unavailable",
+                    request.method,
+                )
+            attestation_state = (
+                "GITHUB_OIDC_ATTESTED"
+                if receipt_minted
+                else "SOURCE_REVISION_OBSERVED"
+            )
+            payload = {
+                "schema": "szl.deployment-source/v3",
+                "state": attestation_state,
+                "source": {
+                    "repository": "szl-holdings/killinchu",
+                    "revision": build_identity["revision"],
+                    "revision_state": build_identity["state"],
+                    "revision_source": build_identity["revision_source"],
+                },
+                "deployment": {
+                    "hf_space": "SZLHOLDINGS/killinchu",
+                    "running_process_revision": build_identity["revision"],
+                    "huggingface_repository_revision": None,
+                    "huggingface_revision_state": "NOT_EXPOSED_TO_RUNTIME",
+                },
+                "release_receipt": release_receipt,
+                "observed_at": startup_observed_at,
+                "alignment_state": (
+                    "SOURCE_BOUND_WITH_ATTESTATION"
+                    if receipt_minted
+                    else "SOURCE_REVISION_OBSERVED_RECEIPT_UNAVAILABLE"
+                ),
+                "claims": {
+                    "running_process_source_revision": "OBSERVED",
+                    "github_oidc_release_receipt": (
+                        "OBSERVED_REFERENCE"
+                        if receipt_minted
+                        else "UNAVAILABLE"
+                    ),
+                    "huggingface_repository_revision": "NOT_CLAIMED",
+                    "whole_repository_byte_parity": "NOT_CLAIMED",
+                    "reproducible_build": "NOT_CLAIMED",
+                },
+                "limits": [
+                    (
+                        "The runtime captures a deployer-provided Git revision; "
+                        "it does not query or mutate GitHub per request."
+                    ),
+                    (
+                        "The Hugging Face repository revision is not exposed to "
+                        "this process and remains explicitly unclaimed."
+                    ),
+                    (
+                        "The release receipt is a verifiable reference to the "
+                        "GitHub OIDC attestation, not an in-process verification."
+                    ),
+                ],
+            }
+            response = JSONResponse(payload, headers=_JSON_HEADERS)
+            return _head_from(response, Response) if request.method == "HEAD" else response
+
         try:
             raw = _read_bounded(source_path, _MAX_SOURCE_BYTES)
             parsed = json.loads(raw.decode("utf-8"))
