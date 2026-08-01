@@ -11,12 +11,8 @@ from urllib.parse import urljoin
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 36_741
-EXPECTED_WIDGET_SHA256 = "94ce0ff1aadc311b396d26193a670acaacfdce9f53bc907d15c45253d5a3ea12"
-REMOVAL_CONDITION = (
-    "removed immediately after paired A11oy successor lands and "
-    "main-to-main equality is proven"
-)
+EXPECTED_WIDGET_BYTES = 36_599
+EXPECTED_WIDGET_SHA256 = "4278f99b199b8130043ae4ab089f4091add343ecac76091c589cab7a82066fb9"
 
 
 class ControlDockCopRouteContractTests(unittest.TestCase):
@@ -40,19 +36,13 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
         ):
             self.assertIn(token, source)
 
-    def test_open_toasts_clear_the_shifted_cop_panel_and_safe_area(self) -> None:
+    def test_open_notifications_use_the_visible_live_log(self) -> None:
         source = WIDGET_PATH.read_text(encoding="utf-8")
-        generic = (
-            '.aow-root[data-open="true"] .aow-toasts{'
-            "bottom:calc(540px + 100px);}"
+        self.assertIn(
+            '.aow-root[data-open="true"] .aow-toasts{display:none;}',
+            source,
         )
-        combined = (
-            '.aow-root[data-dock-has-cop="true"][data-open="true"] '
-            ".aow-toasts{bottom:calc(env(safe-area-inset-bottom,0px) + 688px);}"
-        )
-        self.assertIn(generic, source)
-        self.assertIn(combined, source)
-        self.assertGreater(source.index(combined), source.index(generic))
+        self.assertIn("pushMsg('op'", source)
         self.assertIn(
             "max-height:calc(100vh - 120px - env(safe-area-inset-bottom,0px))",
             source,
@@ -98,7 +88,7 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
             source,
         )
 
-    def test_widget_allowlist_is_narrow_and_self_expiring(self) -> None:
+    def test_widget_remains_under_shared_drift_enforcement(self) -> None:
         lines = ALLOWLIST_PATH.read_text(encoding="utf-8").splitlines()
         widget_lines = [
             line
@@ -106,8 +96,7 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
             if line.split("#", 1)[0].strip()
             == "static-vendor/a11oy-operator-widget.js"
         ]
-        self.assertEqual(len(widget_lines), 1)
-        self.assertIn(REMOVAL_CONDITION, widget_lines[0])
+        self.assertEqual(widget_lines, [])
 
 
 if __name__ == "__main__":
