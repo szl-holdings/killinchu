@@ -46,7 +46,7 @@ ecosystem-stage: "degraded"
 > The COP observation and fusion path consumes real public feeds when available;
 > physical effectors remain explicitly **SIMULATED** and human-on-the-loop.
 
-[![SLSA L1 honest · L2 evidence unavailable at public gate](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20evidence%20UNAVAILABLE-c9b787?style=flat-square)](https://szlholdings-killinchu.hf.space/api/public-risk-status)
+[![SLSA L1 honest · promotion evidence unavailable at public gate](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20promotion%20evidence%20UNAVAILABLE-c9b787?style=flat-square)](https://szlholdings-killinchu.hf.space/api/public-risk-status)
 [![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
 [![CI](https://github.com/szl-holdings/killinchu/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/killinchu/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-5fb3a3?style=flat-square)](https://www.apache.org/licenses/LICENSE-2.0)
@@ -155,8 +155,8 @@ curl -s https://szlholdings-killinchu.hf.space/api/build-info \
 # The source-bound deploy fails unless state=OBSERVED and revision equals its GitHub SHA.
 
 # 3. Verify image signature and any available build-provenance attestation.
-#    SLSA L1 is the current honest claim. Treat L2 as UNAVAILABLE while the
-#    public-risk gate cannot prove the current attestation evidence.
+#    SLSA L1 is the current honest claim. Treat any higher promotion as
+#    UNAVAILABLE while the public-risk gate cannot prove current evidence.
 #    SLSA L3 is roadmap; we do NOT claim L3 today.
 cosign verify \
   ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
