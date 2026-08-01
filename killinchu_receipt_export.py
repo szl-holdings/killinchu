@@ -40,6 +40,7 @@ def build_receipt_export(
     dsse_module: Any = None,
     khipu_root: str | None = None,
     public_key_url: str = DEFAULT_PUBLIC_KEY_URL,
+    ledger: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Return ``(body, status_code)`` for the public receipt export route.
 
@@ -50,8 +51,60 @@ def build_receipt_export(
     different receipt.
     """
 
+    ledger_truth = dict(
+        ledger
+        or {
+            "durability_state": "EPHEMERAL",
+            "ready": True,
+            "production_ready": False,
+            "integrity": {"state": "NOT_VERIFIED", "verified": False},
+            "replay": {"state": "NOT_APPLICABLE", "nodes": len(dag)},
+        }
+    )
     out = _base(doctrine, public_key_url)
+    out["ledger"] = ledger_truth
+    out["ledger_durability"] = ledger_truth.get("durability_state", "UNAVAILABLE")
     ledger_size = len(dag)
+
+    if ledger_truth.get("ready") is not True:
+        out.update(
+            {
+                "ok": False,
+                "export_state": "LEDGER_UNAVAILABLE",
+                "receipt_available": False,
+                "ledger_size": 0,
+                "node_index": None,
+                "node_digest": None,
+                "khipu_root": None,
+                "dsse": None,
+                "payload_b64": None,
+                "signed": False,
+                "keyid": None,
+                "verification": {
+                    "state": "UNAVAILABLE",
+                    "verified": None,
+                    "reason": "selected ledger mode is not ready",
+                },
+                "verify_offline": [],
+                "limits": [
+                    {
+                        "code": "LEDGER_UNAVAILABLE",
+                        "detail": "Startup replay and integrity must succeed before export.",
+                    }
+                ],
+                "honesty": "No receipt is exported from an unready ledger.",
+            }
+        )
+        return out, 503
+
+    durability_limits = []
+    if ledger_truth.get("durability_state") == "EPHEMERAL":
+        durability_limits.append(
+            {
+                "code": "EPHEMERAL_LEDGER",
+                "detail": "The in-memory Khipu ledger resets on Space restart.",
+            }
+        )
 
     if ledger_size == 0:
         out.update(
@@ -77,10 +130,7 @@ def build_receipt_export(
                         "code": "NO_RECEIPTS",
                         "detail": "No receipt has been emitted since this runtime started.",
                     },
-                    {
-                        "code": "EPHEMERAL_LEDGER",
-                        "detail": "The in-memory Khipu ledger resets on Space restart.",
-                    },
+                    *durability_limits,
                 ],
                 "honesty": (
                     "The export route is reachable, but no receipt exists. "
@@ -208,12 +258,7 @@ def build_receipt_export(
         else "SIGNATURE_UNVERIFIED"
     )
     keyid = signatures[0].get("keyid") if signatures else None
-    limits = [
-        {
-            "code": "EPHEMERAL_LEDGER",
-            "detail": "The in-memory Khipu ledger resets on Space restart.",
-        }
-    ]
+    limits = list(durability_limits)
     if not signed:
         limits.append(
             {
@@ -253,4 +298,3 @@ def build_receipt_export(
         }
     )
     return out, 200
-
