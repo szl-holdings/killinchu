@@ -3507,7 +3507,7 @@ try:
         return _OPW_KC_Resp(content=f.read_bytes(), media_type=ct,
                             headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
-    _OPW_KC_TAG = b'<script src="/vendor/a11oy-operator-widget.js?v=0e270225adc0ed21de48b9224e3b8f10bcd0c9a78ea9472cd7d4af1cfecff38c" data-surface="killinchu" defer></script>'
+    _OPW_KC_TAG = b'<script src="/vendor/a11oy-operator-widget.js?v=24481854807822e1e59c6b3774143ac8801d14aa9a49aa7952f22917d29b933b" data-surface="killinchu" defer></script>'
     _OPW_KC_MARK = b'a11oy-operator-widget.js'
 
     class _OperatorWidgetInjectorKC(_OPW_KC_Base):
