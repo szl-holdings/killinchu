@@ -11,8 +11,8 @@ from urllib.parse import urljoin
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 36_599
-EXPECTED_WIDGET_SHA256 = "4278f99b199b8130043ae4ab089f4091add343ecac76091c589cab7a82066fb9"
+EXPECTED_WIDGET_BYTES = 36_965
+EXPECTED_WIDGET_SHA256 = "0e270225adc0ed21de48b9224e3b8f10bcd0c9a78ea9472cd7d4af1cfecff38c"
 
 
 class ControlDockCopRouteContractTests(unittest.TestCase):
@@ -74,6 +74,10 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
             "window.addEventListener('load', syncDockPosition, { once: true })",
             "new window.MutationObserver(syncDockPosition)",
             "{ childList: true, subtree: true }",
+            "document.querySelector('[data-szl-dock-control=\"investor\"]')",
+            'data-dock-has-investor="true"',
+            'bottom:calc(env(safe-area-inset-bottom,0px) + 200px)',
+            'max-height:calc(100vh - 228px - env(safe-area-inset-bottom,0px))',
         ):
             self.assertIn(token, source)
 
