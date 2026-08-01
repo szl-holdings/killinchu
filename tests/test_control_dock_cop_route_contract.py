@@ -11,8 +11,8 @@ from urllib.parse import urljoin
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 36_459
-EXPECTED_WIDGET_SHA256 = "bc55fb9965a90b832310ab0932d8de17b60ba23cbee9bee5efafd958e252aa19"
+EXPECTED_WIDGET_BYTES = 36_741
+EXPECTED_WIDGET_SHA256 = "94ce0ff1aadc311b396d26193a670acaacfdce9f53bc907d15c45253d5a3ea12"
 REMOVAL_CONDITION = (
     "removed immediately after paired A11oy successor lands and "
     "main-to-main equality is proven"
@@ -53,6 +53,14 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
         self.assertIn(generic, source)
         self.assertIn(combined, source)
         self.assertGreater(source.index(combined), source.index(generic))
+        self.assertIn(
+            "max-height:calc(100vh - 120px - env(safe-area-inset-bottom,0px))",
+            source,
+        )
+        self.assertIn(
+            "max-height:calc(100vh - 168px - env(safe-area-inset-bottom,0px))",
+            source,
+        )
 
     def test_investor_control_occupies_the_third_accessible_dock_row(self) -> None:
         source = (ROOT / "killinchu_elite_console.py").read_text(encoding="utf-8")
@@ -74,8 +82,21 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
             "data-dock-has-cop",
             "document.querySelector('[data-szl-dock-control=\"cop\"]')",
             "window.addEventListener('load', syncDockPosition, { once: true })",
+            "new window.MutationObserver(syncDockPosition)",
+            "{ childList: true, subtree: true }",
         ):
             self.assertIn(token, source)
+
+    def test_operator_widget_immutable_url_is_content_addressed(self) -> None:
+        source = (ROOT / "serve.py").read_text(encoding="utf-8")
+        versioned_url = (
+            "/vendor/a11oy-operator-widget.js?v=" + EXPECTED_WIDGET_SHA256
+        )
+        self.assertIn(f'src="{versioned_url}"', source)
+        self.assertIn(
+            'headers={"Cache-Control": "public, max-age=31536000, immutable"}',
+            source,
+        )
 
     def test_widget_allowlist_is_narrow_and_self_expiring(self) -> None:
         lines = ALLOWLIST_PATH.read_text(encoding="utf-8").splitlines()
