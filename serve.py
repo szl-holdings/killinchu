@@ -3428,7 +3428,7 @@ try:
     from starlette.middleware.base import BaseHTTPMiddleware as _COP_Base
     from starlette.responses import Response as _COP_SResp
 
-    _COP_LINK = (b'<a href="elite/cop" data-szl-dock-control="cop" '
+    _COP_LINK = (b'<a href="/elite/cop" data-szl-dock-control="cop" '
                  b'aria-label="Open the operational Common Operating Picture" '
                  b'title="Open the Common Operating Picture; effectors remain SIMULATED" '
                  b'style="position:fixed;right:calc(env(safe-area-inset-right,0px) + 16px);'

@@ -5,13 +5,14 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 import unittest
+from urllib.parse import urljoin
 
 
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 36_331
-EXPECTED_WIDGET_SHA256 = "4fc45e43803b677af74863ecfb303202110fb99104eb0f5f614ad12a6647caf4"
+EXPECTED_WIDGET_BYTES = 36_459
+EXPECTED_WIDGET_SHA256 = "bc55fb9965a90b832310ab0932d8de17b60ba23cbee9bee5efafd958e252aa19"
 REMOVAL_CONDITION = (
     "removed immediately after paired A11oy successor lands and "
     "main-to-main equality is proven"
@@ -21,8 +22,16 @@ REMOVAL_CONDITION = (
 class ControlDockCopRouteContractTests(unittest.TestCase):
     def test_cop_link_is_accessible_relative_and_safe_area_aware(self) -> None:
         source = (ROOT / "serve.py").read_text(encoding="utf-8")
+        for console_url in (
+            "https://killinchu.example/elite",
+            "https://killinchu.example/killinchu/elite",
+        ):
+            self.assertEqual(
+                urljoin(console_url, "/elite/cop"),
+                "https://killinchu.example/elite/cop",
+            )
         for token in (
-            'href="elite/cop"',
+            'href="/elite/cop"',
             'data-szl-dock-control="cop"',
             'aria-label="Open the operational Common Operating Picture"',
             'bottom:calc(env(safe-area-inset-bottom,0px) + 16px)',
@@ -30,6 +39,20 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
             '_COP_MARK = b\'data-szl-dock-control="cop"\'',
         ):
             self.assertIn(token, source)
+
+    def test_open_toasts_clear_the_shifted_cop_panel_and_safe_area(self) -> None:
+        source = WIDGET_PATH.read_text(encoding="utf-8")
+        generic = (
+            '.aow-root[data-open="true"] .aow-toasts{'
+            "bottom:calc(540px + 100px);}"
+        )
+        combined = (
+            '.aow-root[data-dock-has-cop="true"][data-open="true"] '
+            ".aow-toasts{bottom:calc(env(safe-area-inset-bottom,0px) + 688px);}"
+        )
+        self.assertIn(generic, source)
+        self.assertIn(combined, source)
+        self.assertGreater(source.index(combined), source.index(generic))
 
     def test_investor_control_occupies_the_third_accessible_dock_row(self) -> None:
         source = (ROOT / "killinchu_elite_console.py").read_text(encoding="utf-8")
