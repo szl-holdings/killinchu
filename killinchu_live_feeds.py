@@ -353,6 +353,10 @@ def _fetch_air(limit: int = 40) -> dict:
             "alt_baro": a.get("alt_baro"), "gs": a.get("gs"),
             "track": a.get("track"), "category": a.get("category"),
             "type": a.get("t"), "squawk": a.get("squawk"),
+            # Seconds since the receiver last observed the position/frame.
+            # Retain these so TrackEnvelope timestamps derive from evidence,
+            # rather than being manufactured at response time.
+            "seen_pos": a.get("seen_pos"), "seen": a.get("seen"),
         })
     return {"aircraft": out, "total": len(ac), "endpoint": used,
             "attribution": "Data: adsb.lol / adsb.fi community ADS-B (ODbL)"}
