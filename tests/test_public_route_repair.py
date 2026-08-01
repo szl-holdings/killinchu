@@ -1090,57 +1090,82 @@ class PublicRouteRepairTests(unittest.TestCase):
         )
         self.assertNotIn("/api/public-risk-status", smoke_paths)
 
-    def test_production_default_artifact_is_truthful_and_served_byte_exact(self) -> None:
+    def test_production_source_attestation_uses_captured_runtime_identity(self) -> None:
         repository_root = Path(__file__).resolve().parents[1]
-        artifact_path = repository_root / ".well-known" / "szl-source.json"
         dockerfile = (repository_root / "Dockerfile").read_text(encoding="utf-8")
-        raw = artifact_path.read_bytes()
-        artifact = json.loads(raw.decode("utf-8"))
-
         self.assertIn(
             "COPY .well-known/szl-source.json ./.well-known/szl-source.json",
             dockerfile,
         )
-        self.assertEqual(artifact["source"]["commit"], "9958c34a2066ba05e9679ce96ae4841fd67b1db6")
-        self.assertEqual(artifact["source"]["sync_state"], "PENDING_GITHUB_SYNC")
-        self.assertEqual(artifact["alignment_state"], "PENDING_GITHUB_SYNC")
-        self.assertEqual(artifact["attestation_state"], "UNSIGNED_STRUCTURAL")
-        self.assertEqual(artifact["observed_at"], "2026-07-16T18:09:53.000Z")
-        self.assertEqual(
-            artifact["deployment"]["audited_live_hf_revision"],
-            "bba71e38fc3955fb1809a76965911675a94041b2",
-        )
-        self.assertEqual(artifact["deployment"]["audited_live_stage"], "RUNNING")
-        self.assertEqual(artifact["deployment"]["audited_live_hardware"], "cpu-basic")
-        self.assertEqual(
-            artifact["deployment"]["audited_live_last_modified"],
-            "2026-07-16T18:09:53.000Z",
-        )
-        self.assertEqual(artifact["deployment"]["current_hf_revision_state"], "NOT_CLAIMED")
-        self.assertEqual(artifact["extensions"]["overlay"]["worktree_scope_state"], "NOT_ATTESTED")
-        for claim in (
-            "github_parity",
-            "hugging_face_parity",
-            "deployed_equivalence",
-            "reproducible_build",
-            "build_provenance",
-            "current_hf_head",
-        ):
-            self.assertEqual(artifact["claims"][claim], "NOT_CLAIMED")
 
-        with patch.dict(os.environ, {"KILLINCHU_ROOT": str(repository_root)}):
+        revision = "a" * 40
+        receipt = {
+            "schema": "szl.github-oidc-release-attestation/v1",
+            "source_revision": revision,
+            "manifest_sha256": "b" * 64,
+            "attestation_id": "38342394",
+            "attestation_url": (
+                "https://github.com/szl-holdings/killinchu/attestations/38342394"
+            ),
+        }
+        with patch.dict(
+            os.environ,
+            {
+                "KILLINCHU_ROOT": str(repository_root),
+                "SZL_GIT_SHA": revision,
+                "RELEASE_ATTESTATION": json.dumps(receipt),
+            },
+        ):
             client = TestClient(self._app(None))
             response = client.get("/.well-known/szl-source.json")
             head = client.head("/.well-known/szl-source.json")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, raw)
+        artifact = response.json()
+        self.assertEqual(artifact["schema"], "szl.deployment-source/v3")
+        self.assertEqual(artifact["state"], "GITHUB_OIDC_ATTESTED")
+        self.assertEqual(artifact["source"]["repository"], "szl-holdings/killinchu")
+        self.assertEqual(artifact["source"]["revision"], revision)
+        self.assertEqual(artifact["deployment"]["running_process_revision"], revision)
+        self.assertIsNone(artifact["deployment"]["huggingface_repository_revision"])
+        self.assertEqual(
+            artifact["deployment"]["huggingface_revision_state"],
+            "NOT_EXPOSED_TO_RUNTIME",
+        )
+        self.assertEqual(artifact["release_receipt"]["state"], "GITHUB_OIDC_ATTESTED")
+        self.assertEqual(
+            artifact["alignment_state"], "SOURCE_BOUND_WITH_ATTESTATION"
+        )
+        self.assertEqual(
+            artifact["claims"]["huggingface_repository_revision"], "NOT_CLAIMED"
+        )
+        self.assertEqual(
+            artifact["claims"]["whole_repository_byte_parity"], "NOT_CLAIMED"
+        )
         self.assertEqual(response.headers["content-type"], "application/json")
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertEqual(response.headers["x-content-type-options"], "nosniff")
         self.assertEqual(head.status_code, 200)
         self.assertEqual(head.content, b"")
         self.assertEqual(head.headers["content-length"], response.headers["content-length"])
+
+    def test_production_source_attestation_fails_closed_without_runtime_sha(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"SZL_GIT_SHA": "", "RELEASE_ATTESTATION": ""},
+        ):
+            client = TestClient(self._app(None))
+            response = client.get("/.well-known/szl-source.json")
+            head = client.head("/.well-known/szl-source.json")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(
+            response.json()["schema"], "szl.deployment-source-unavailable/v1"
+        )
+        self.assertEqual(response.json()["state"], "UNAVAILABLE")
+        self.assertNotIn("text/html", response.headers["content-type"])
+        self.assertEqual(head.status_code, 503)
+        self.assertEqual(head.content, b"")
 
     def test_missing_or_invalid_artifact_fails_closed_as_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
