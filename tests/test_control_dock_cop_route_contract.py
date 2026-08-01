@@ -14,8 +14,8 @@ from urllib.parse import urljoin
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 40_737
-EXPECTED_WIDGET_SHA256 = "50fbf93caba2439d06a5cb340a66166cdf401f91f2ec36104e22364462a09681"
+EXPECTED_WIDGET_BYTES = 41_011
+EXPECTED_WIDGET_SHA256 = "a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c"
 
 
 def _extract_braced_function(source: str, name: str) -> str:
@@ -153,6 +153,9 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
             "target.closest('[data-szl-dock-control=\"investor\"]')",
             "close(false)",
             "focusControlledDialog(investorControl)",
+            "var inputFocusTimer = null",
+            "clearTimeout(inputFocusTimer)",
+            "if (isOpen) input.focus()",
             "control.getAttribute('aria-expanded') !== 'true'",
             "dialog.getAttribute('aria-modal') !== 'true'",
         ):
@@ -160,6 +163,8 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
 
     def test_investor_handoff_focuses_modal_and_returns_to_launcher(self) -> None:
         widget_source = WIDGET_PATH.read_text(encoding="utf-8")
+        open_function = _extract_braced_function(widget_source, "open")
+        close_function = _extract_braced_function(widget_source, "close")
         focus_function = _extract_braced_function(
             widget_source, "focusControlledDialog"
         )
@@ -170,6 +175,8 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
         overlay_script = _extract_ceo_overlay_script(console_source)
         script = r"""
 const timers = [];
+let now = 0;
+let nextTimerId = 1;
 const documentListeners = {};
 let document;
 
@@ -199,12 +206,24 @@ class FakeElement {
   focus() { document.activeElement = this; }
 }
 
-const fab = new FakeElement("szl-ceo-fab");
-fab.setAttribute("aria-controls", "szl-ceo");
-fab.setAttribute("aria-expanded", "false");
-fab.closest = function(selector) {
+const investorFab = new FakeElement("szl-ceo-fab");
+investorFab.setAttribute("aria-controls", "szl-ceo");
+investorFab.setAttribute("aria-expanded", "false");
+investorFab.closest = function(selector) {
   return selector === '[data-szl-dock-control="investor"]' ? this : null;
 };
+const fab = new FakeElement("aow-fab");
+const root = new FakeElement("aow-root");
+let inputFocusCount = 0;
+const input = new FakeElement("aow-input");
+input.focus = function() { inputFocusCount += 1; document.activeElement = this; };
+const state = { unread: 1 };
+const thread = [];
+function syncDockPosition() {}
+function persist() {}
+function refreshBadge() {}
+function renderThread() {}
+function scrollThread() {}
 const panel = new FakeElement("szl-ceo");
 panel.setAttribute("aria-modal", "true");
 const initialFocus = new FakeElement("szl-ceo-close");
@@ -219,10 +238,10 @@ panel.querySelector = function(selector) {
 
 document = {
   activeElement: fab,
-  documentElement: { style: {} },
+  documentElement: { style: {}, removeAttribute() {} },
   head: { appendChild() {} },
   getElementById(id) {
-    if (id === "szl-ceo-fab") return fab;
+    if (id === "szl-ceo-fab") return investorFab;
     if (id === "szl-ceo") return panel;
     return null;
   },
@@ -237,39 +256,67 @@ const window = {
   addEventListener(type, listener) { (windowListeners[type] ||= []).push(listener); },
 };
 const location = { hash: "" };
-function setTimeout(callback) { timers.push(callback); }
+function setTimeout(callback, delay) {
+  const timer = { id: nextTimerId++, due: now + (delay || 0), callback, cancelled: false };
+  timers.push(timer);
+  return timer.id;
+}
+function clearTimeout(id) {
+  const timer = timers.find(item => item.id === id);
+  if (timer) timer.cancelled = true;
+}
+function advanceTo(target) {
+  while (true) {
+    const ready = timers
+      .filter(item => !item.cancelled && item.due <= target)
+      .sort((left, right) => left.due - right.due || left.id - right.id);
+    if (!ready.length) break;
+    const timer = ready[0];
+    timer.cancelled = true;
+    now = timer.due;
+    timer.callback();
+  }
+  now = target;
+}
 function fetch() { throw new Error("unexpected network call"); }
 """ + overlay_script + r"""
-let isOpen = true;
-let operatorClosedWith = "not-called";
-function close(restoreFocus) { operatorClosedWith = restoreFocus; isOpen = false; }
-""" + focus_function + "\n" + click_listener + r"""
+let isOpen = false;
+let inputFocusTimer = null;
+""" + open_function + "\n" + close_function + "\n" + focus_function + "\n" + click_listener + r"""
 function dispatchInvestorClick() {
-  const event = { target: fab, preventDefault() { this.defaultPrevented = true; } };
+  const event = { target: investorFab, preventDefault() { this.defaultPrevented = true; } };
   (documentListeners.click || []).filter(item => item.capture).forEach(item => item.listener(event));
-  (fab.listeners.click || []).forEach(listener => listener(event));
+  (investorFab.listeners.click || []).forEach(listener => listener(event));
   (documentListeners.click || []).filter(item => !item.capture).forEach(item => item.listener(event));
-  while (timers.length) timers.shift()();
+  advanceTo(now);
 }
 
 fab.focus();
+open();
+if (!isOpen || inputFocusTimer === null) throw new Error("open did not queue operator input focus");
+advanceTo(10);
+investorFab.focus();
 dispatchInvestorClick();
-if (operatorClosedWith !== false) throw new Error("operator handoff did not use close(false)");
+if (isOpen) throw new Error("operator did not close during investor handoff");
+if (inputFocusTimer !== null) throw new Error("operator input focus timer was not cleared");
 if (!panel.classList.contains("on")) throw new Error("investor modal did not open");
-if (fab.getAttribute("aria-expanded") !== "true") throw new Error("launcher did not expose open state");
+if (investorFab.getAttribute("aria-expanded") !== "true") throw new Error("launcher did not expose open state");
 if (document.activeElement !== initialFocus) throw new Error("focus did not enter investor modal");
+advanceTo(60);
+if (inputFocusCount !== 0) throw new Error("stale operator timer focused the hidden input");
+if (document.activeElement !== initialFocus) throw new Error("stale operator timer stole modal focus");
 
 const closeEvent = { target: initialFocus, preventDefault() { this.defaultPrevented = true; } };
 (panel.listeners.click || []).forEach(listener => listener(closeEvent));
 if (panel.classList.contains("on")) throw new Error("investor modal did not close");
-if (document.activeElement !== fab) throw new Error("focus did not return to investor launcher");
+if (document.activeElement !== investorFab) throw new Error("focus did not return to investor launcher");
 
 dispatchInvestorClick();
 if (document.activeElement !== initialFocus) throw new Error("focus did not re-enter investor modal");
 const escapeEvent = { key: "Escape" };
 (documentListeners.keydown || []).forEach(item => item.listener(escapeEvent));
 if (panel.classList.contains("on")) throw new Error("Escape did not close investor modal");
-if (document.activeElement !== fab) throw new Error("Escape did not restore launcher focus");
+if (document.activeElement !== investorFab) throw new Error("Escape did not restore launcher focus");
 """
         _run_node(script)
 
