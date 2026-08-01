@@ -11,8 +11,8 @@ from urllib.parse import urljoin
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 37_080
-EXPECTED_WIDGET_SHA256 = "24481854807822e1e59c6b3774143ac8801d14aa9a49aa7952f22917d29b933b"
+EXPECTED_WIDGET_BYTES = 37_373
+EXPECTED_WIDGET_SHA256 = "11ea2344c63e11f19d454df14d3c081b17f3b37af1995a83e70ca40bf270f465"
 
 
 class ControlDockCopRouteContractTests(unittest.TestCase):
@@ -79,6 +79,10 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
             'bottom:calc(env(safe-area-inset-bottom,0px) + 200px)',
             'max-height:calc(100vh - 228px - env(safe-area-inset-bottom,0px))',
             '.aow-root[data-dock-has-investor="true"] .aow-toasts{bottom:calc(env(safe-area-inset-bottom,0px) + 200px);}',
+            '@media (max-height:480px)',
+            'top:calc(env(safe-area-inset-top,0px) + 8px)',
+            'right:calc(env(safe-area-inset-right,0px) + 176px)',
+            'max-width:calc(100vw - 192px)',
         ):
             self.assertIn(token, source)
 
