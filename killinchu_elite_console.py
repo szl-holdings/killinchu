@@ -371,16 +371,17 @@ __all__ = ["register"]
 # ===========================================================================
 _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (additive, 0-CDN) -->
 <style>
-/* Investor pill stacks ABOVE the floating reliability/Chaski orb badge so the two
-   never overlap or clip the circular FAB at 1280-1920px. Both share the bottom-right
-   corner; the pill sits one row up (safe-area aware), max-width capped to viewport. */
+/* Shared bottom-right control dock. COP owns the first row, the a11oy operator
+   owns the second, and this investor control owns the third. Keep these offsets
+   aligned with static-vendor/a11oy-operator-widget.js and serve.py. */
 #szl-ceo-fab{position:fixed;right:calc(env(safe-area-inset-right,0px) + 16px);
-  bottom:calc(env(safe-area-inset-bottom,0px) + 74px);z-index:2147483000;display:inline-flex;align-items:center;gap:8px;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 140px);z-index:2147483000;display:inline-flex;align-items:center;gap:8px;
   font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
   padding:11px 16px;min-height:44px;max-width:calc(100vw - 32px);border-radius:10px;border:1px solid rgba(201,183,135,.45);
   background:rgba(201,183,135,.12);color:#d6c69a;cursor:pointer;backdrop-filter:blur(8px);text-decoration:none;
   box-shadow:0 8px 26px -10px rgba(0,0,0,.7);white-space:nowrap;}
 #szl-ceo-fab:hover{background:rgba(201,183,135,.2);border-color:rgba(201,183,135,.7);text-decoration:none;}
+#szl-ceo-fab:focus-visible{outline:3px solid #c9b787;outline-offset:3px;}
 #szl-ceo-fab .dot{width:8px;height:8px;border-radius:50%;background:#5fb3a3;box-shadow:0 0 0 3px rgba(95,179,163,.18);}
 #szl-ceo{position:fixed;inset:0;z-index:2147483001;display:none;overflow-y:auto;
   background:rgba(6,6,6,.94);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
@@ -428,7 +429,8 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   font-family:'JetBrains Mono',monospace;font-size:11px;color:#949494;line-height:1.7;letter-spacing:.02em;}
 </style>
 
-<a id="szl-ceo-fab" href="#szl-ceo" role="button" aria-controls="szl-ceo" aria-expanded="false">
+<a id="szl-ceo-fab" href="#szl-ceo" role="button" data-szl-dock-control="investor"
+   aria-label="Open the Killinchu investor view" aria-controls="szl-ceo" aria-expanded="false">
   <span class="dot"></span> Investor view
 </a>
 
@@ -439,7 +441,7 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
         <div class="szl-ceo-eyebrow">SZL Holdings · killinchu · investor view</div>
         <h1>Governed counter-UAS that proves every decision.</h1>
       </div>
-      <button class="szl-ceo-close" type="button" data-szl-ceo-close>✕ Operator view</button>
+      <button class="szl-ceo-close" type="button" data-szl-ceo-close data-szl-initial-focus>✕ Operator view</button>
     </div>
     <p class="lead">The plain-English version of what the operator console does. Every claim below is
     labeled with what is genuinely live versus a demonstration — no fabricated state, ever.</p>
@@ -526,6 +528,7 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   var fab=document.getElementById("szl-ceo-fab");
   var panel=document.getElementById("szl-ceo");
   if(!fab||!panel) return;
+  var initialFocus=panel.querySelector("[data-szl-initial-focus]");
   var jsonLoaded=false, badgesDone=false;
 
   function paintBadges(){
@@ -567,9 +570,12 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   }
 
   function open(){ panel.classList.add("on"); fab.setAttribute("aria-expanded","true");
-    document.documentElement.style.overflow="hidden"; paintBadges(); }
+    document.documentElement.style.overflow="hidden"; paintBadges();
+    if(initialFocus&&typeof initialFocus.focus==="function") initialFocus.focus();
+    else { if(!panel.hasAttribute("tabindex")) panel.setAttribute("tabindex","-1"); panel.focus(); } }
   function close(){ panel.classList.remove("on"); fab.setAttribute("aria-expanded","false");
-    document.documentElement.style.overflow=""; }
+    document.documentElement.style.overflow="";
+    if(typeof fab.focus==="function") fab.focus(); }
 
   fab.addEventListener("click", function(e){ if(e&&e.preventDefault) e.preventDefault(); open(); });
   // Honor deep-links: /elite#szl-ceo opens the investor section directly.
