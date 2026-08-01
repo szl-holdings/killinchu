@@ -32,7 +32,7 @@ Each row is `{schema, id, ts, source, kind, payload}`.
 The default Dataset Viewer configuration is the homogeneous
 `archive_manifest`, one row per immutable raw shard. It exposes path, byte
 count, Git blob hash, rights state, and training eligibility. The mixed raw
-NDJSON remains available under `{{ARCHIVE_PREFIX}}/` but is deliberately not
+NDJSON remains available under `{{ARCHIVE_PREFIX}}/*.ndjson` but is deliberately not
 coerced into one table: historical shards contain schema drift, and mixing
 numbers and strings in fields such as `alt_baro` breaks strict dataset loaders.
 

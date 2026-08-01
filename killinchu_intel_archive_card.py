@@ -57,6 +57,7 @@ def render_card(
         "HMAC pseudonyms",
         "not attested",
         "not a DSSE / Ed25519 signature",
+        f"{prefix}/*.ndjson",
     )
     for marker in required:
         if marker not in text:

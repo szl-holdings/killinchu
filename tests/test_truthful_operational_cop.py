@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,6 +28,19 @@ REQUIRED_PROVENANCE = {
     "payload_sha256",
     "trust",
 }
+
+
+def _real_test_client():
+    """Undo the OSINT suite's process-global FastAPI stub when tests share a worker."""
+    fastapi = sys.modules.get("fastapi")
+    if fastapi is not None and not hasattr(fastapi, "__path__"):
+        sys.modules.pop("fastapi", None)
+        sys.modules.pop("fastapi.responses", None)
+        sys.modules.pop("fastapi.testclient", None)
+        importlib.invalidate_caches()
+    from fastapi.testclient import TestClient
+
+    return TestClient
 
 
 def _feed(mode: str = "live") -> dict:
@@ -191,10 +206,9 @@ def test_frontend_surfaces_consume_truth_contract_and_fail_closed() -> None:
 
 
 def test_production_route_defaults_real_and_requires_explicit_training(monkeypatch) -> None:
-    from fastapi.testclient import TestClient
-
     root = Path(__file__).resolve().parents[1]
     monkeypatch.setenv("KILLINCHU_ROOT", str(root))
+    TestClient = _real_test_client()
     import serve
 
     class AirFeed:
@@ -222,8 +236,7 @@ def test_production_route_defaults_real_and_requires_explicit_training(monkeypat
 
 
 def test_production_route_returns_typed_503_when_feed_is_absent(monkeypatch) -> None:
-    from fastapi.testclient import TestClient
-
+    TestClient = _real_test_client()
     import serve
 
     monkeypatch.setattr(serve, "_killinchu_live_feeds", None)
