@@ -19,7 +19,7 @@ tags:
   - dsse
   - slsa-l1
   - apache-2.0
-ecosystem-stage: "operational"
+ecosystem-stage: "degraded"
 ---
 
 <!-- SZL-ESTATE-CARD:v2:START -->
@@ -40,7 +40,13 @@ ecosystem-stage: "operational"
 
 > **53 drone fingerprints · 13-axis Λ-gate · DSSE-signed verdicts · human-on-the-loop**
 
-[![SLSA L1 honest · L2 build-attested · L3 roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20build--attested%20%C2%B7%20L3%20roadmap-c9b787?style=flat-square)](https://github.com/szl-holdings/killinchu)
+> **Current promotion posture:** the application is running, but the authoritative
+> [`/api/public-risk-status`](https://szlholdings-killinchu.hf.space/api/public-risk-status)
+> gate must be treated as **UNAVAILABLE** until it returns current verified evidence.
+> The COP observation and fusion path consumes real public feeds when available;
+> physical effectors remain explicitly **SIMULATED** and human-on-the-loop.
+
+[![SLSA L1 honest · L2 evidence unavailable at public gate](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20evidence%20UNAVAILABLE-c9b787?style=flat-square)](https://szlholdings-killinchu.hf.space/api/public-risk-status)
 [![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
 [![CI](https://github.com/szl-holdings/killinchu/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/killinchu/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-5fb3a3?style=flat-square)](https://www.apache.org/licenses/LICENSE-2.0)
@@ -59,6 +65,7 @@ ecosystem-stage: "operational"
 **HF Space (one-click, no login):** [![Open in Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Open%20in%20Spaces-killinchu-FF9D00?style=flat-square)](https://huggingface.co/spaces/SZLHOLDINGS/killinchu)
 
 - **Primary face — the full application:** https://szlholdings-killinchu.hf.space/elite
+- **Common Operating Picture — real observation/fusion, simulated actuation:** https://szlholdings-killinchu.hf.space/elite/cop
 - Space URL: https://szlholdings-killinchu.hf.space
 - Health: `curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
 - Runtime source identity: https://szlholdings-killinchu.hf.space/api/build-info
@@ -147,9 +154,9 @@ curl -s https://szlholdings-killinchu.hf.space/api/build-info \
   | jq '{state: .build.state, revision: .build.revision, source: .build.revision_source}'
 # The source-bound deploy fails unless state=OBSERVED and revision equals its GitHub SHA.
 
-# 3. Verify image signature + build-provenance attestation. SLSA L1 honest ·
-#    L2 build-attested: container provenance via attest-build-provenance
-#    (Sigstore keyless, Fulcio + Rekor). Verify with `cosign verify-attestation`.
+# 3. Verify image signature and any available build-provenance attestation.
+#    SLSA L1 is the current honest claim. Treat L2 as UNAVAILABLE while the
+#    public-risk gate cannot prove the current attestation evidence.
 #    SLSA L3 is roadmap; we do NOT claim L3 today.
 cosign verify \
   ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
