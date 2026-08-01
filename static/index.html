@@ -127,6 +127,10 @@
       border-radius:4px;background:var(--kc-surface);border:1px solid var(--kc-border);color:var(--kc-sub)}
     .kcd-card .tele{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--kc-ghost)}
     .kcd-card .tele b{color:var(--kc-sub)}
+    .kcd-card{cursor:pointer}.kcd-card.selected{border-color:var(--kc-cyan);box-shadow:0 0 0 1px var(--kc-cyan) inset}
+    .kcd-auth{display:grid;grid-template-columns:1fr 1.4fr;gap:8px;margin:8px 0}
+    .kcd-auth input{width:100%;background:var(--kc-surface);border:1px solid var(--kc-border);border-radius:6px;color:var(--kc-text);padding:8px 10px}
+    @media(max-width:720px){.kcd-auth{grid-template-columns:1fr}}
     .kcd-loading{color:var(--kc-ghost);font-family:"JetBrains Mono",monospace;font-size:12px;padding:20px 0;text-align:center}
     .kcd-foot{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:#525f73;
       padding:9px 22px;border-top:1px solid var(--kc-border);background:#0a0f1e}
@@ -170,7 +174,11 @@
         <button class="kcd-btn over" id="kcd-over"><span class="ico"></span>OVERRIDE ADVISORY</button>
         <button class="kcd-btn esc" id="kcd-esc"><span class="ico"></span>ESCALATE ADVISORY</button>
       </div>
-      <div class="kcd-ops-note" id="kcd-ops-note">Operator action posts an advisory verdict to the rule engine — human authority required, no autonomous defeat.</div>
+      <div class="kcd-auth">
+        <input id="kcd-operator-token" type="password" autocomplete="off" placeholder="Operator bearer (kept in this tab only)" aria-label="Operator bearer token">
+        <input id="kcd-advisory-reason" maxlength="500" placeholder="Reason for the advisory (12-500 characters)" aria-label="Advisory reason">
+      </div>
+      <div class="kcd-ops-note" id="kcd-ops-note" aria-live="polite">Select an observed track. Authorized actions are recorded as advisory-only receipts; no dispatch, OTA, or actuation is attempted.</div>
 
       <div class="kcd-links">
         <a class="primary" href="/uds.html">Open UDS Command Center</a>
@@ -202,7 +210,8 @@
 
   <script>
   (function(){
-    var API = "/api/killinchu/v1";
+    var API = "/api/killinchu/v1", ADVISORY_API = "/api/killinchu/operator-advisories";
+    var TRACKS=[], SELECTED=null, CURRENT_MODE="UNAVAILABLE", IN_FLIGHT=false;
     function sevOf(t){
       var s=(t.side||"").toLowerCase(), st=(t.status||"").toLowerCase();
       if(s==="adversary" || st.indexOf("strike")>=0 || st.indexOf("inbound")>=0) return "red";
@@ -217,6 +226,8 @@
       var box=el("kcd-threats"); if(!box) return;
       var threats=(data&&data.threats)||[];
       var mode=(data&&data.mode)||"UNAVAILABLE";
+      TRACKS=threats; CURRENT_MODE=mode;
+      if(SELECTED){SELECTED=threats.find(function(t){return t.track_id===SELECTED.track_id;})||null;}
       el("kcd-st-tracks").innerHTML = ((data&&data.total_tracks)||threats.length) + '<span class="u">'+esc(mode.toLowerCase())+'</span>';
       var active=(data&&data.active_threats)!=null?data.active_threats:0;
       el("kcd-st-breaches").textContent = active;
@@ -225,9 +236,9 @@
       // sort: red first, then amber, then green
       var ord={red:0,amber:1,green:2};
       threats.sort(function(a,b){return ord[sevOf(a)]-ord[sevOf(b)];});
-      box.innerHTML = threats.map(function(t){
+      box.innerHTML = threats.map(function(t,idx){
         var sev=sevOf(t);
-        return '<div class="kcd-card sev-'+sev+'">'+
+        return '<div class="kcd-card sev-'+sev+(SELECTED&&SELECTED.track_id===t.track_id?' selected':'')+'" data-track-index="'+idx+'" tabindex="0">'+
           '<div class="row1"><span class="model">'+esc(t.model)+'</span>'+
           '<span class="sevb">'+sevLabel(sev)+'</span></div>'+
           '<div class="meta">'+
@@ -244,6 +255,11 @@
           '</div>'+
         '</div>';
       }).join("");
+      box.querySelectorAll("[data-track-index]").forEach(function(card){
+        function choose(){SELECTED=TRACKS[Number(card.dataset.trackIndex)];renderThreats(data);
+          var n=el("kcd-ops-note");if(n)n.textContent="Selected "+SELECTED.track_id+". Enter operator authority and a reason to record an advisory-only receipt.";}
+        card.onclick=choose;card.onkeydown=function(ev){if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();choose();}};
+      });
       // ticker
       var run=threats.slice(0,8).map(function(t){
         var sev=sevOf(t);var cls=sev==="red"?"hostile":"";
@@ -269,14 +285,41 @@
         var v=d&&(d.lambda||d.value); if(v!=null) el("kcd-st-lambda").textContent=Number(v).toFixed(3);
       }).catch(function(){});
     }
-    function op(kind,note){
-      var n=el("kcd-ops-note"); if(n){n.textContent=kind+" preview only — no action dispatched or recorded. "+note; }
+    function advisoryKey(){
+      if(window.crypto&&crypto.randomUUID)return "killinchu-advisory:"+crypto.randomUUID();
+      return "killinchu-advisory:"+Date.now()+":"+Math.random().toString(16).slice(2);
+    }
+    async function op(kind){
+      if(IN_FLIGHT)return;
+      var note=el("kcd-ops-note"),token=el("kcd-operator-token").value,reason=el("kcd-advisory-reason").value.trim();
+      if(!SELECTED){note.textContent="Select an observed track first.";return;}
+      if(!token){note.textContent="Operator bearer authority is required; nothing was recorded.";return;}
+      if(reason.length<12){note.textContent="Provide a reason of at least 12 characters; nothing was recorded.";return;}
+      var target={
+        track_id:SELECTED.track_id,mode:SELECTED.mode||CURRENT_MODE,
+        payload_sha256:SELECTED.payload_sha256,observed_at:SELECTED.observed_at,
+        source:SELECTED.source,sensor_id:SELECTED.sensor_id||"",
+        authentication:SELECTED.authentication||"UNSPECIFIED",trust:SELECTED.trust
+      };
+      IN_FLIGHT=true;note.textContent="Recording "+kind+" advisory receipt…";
+      document.querySelectorAll(".kcd-ops button").forEach(function(b){b.disabled=true;});
+      try{
+        var response=await fetch(ADVISORY_API,{method:"POST",headers:{
+          "Content-Type":"application/json","Authorization":"Bearer "+token,"Idempotency-Key":advisoryKey()
+        },body:JSON.stringify({action:kind,target:target,reason:reason})});
+        var data=await response.json();
+        if(!response.ok)throw new Error(data.error||("HTTP "+response.status));
+        var a=data.advisory||{},receipt=data.mutation_receipt||{};
+        note.textContent=kind+" recorded as "+a.effect+" (#"+a.id+"). execution="+a.execution+", dispatch="+a.dispatch+", OTA="+a.ota+". Receipt "+(receipt.digest||receipt.receipt_digest||"recorded")+".";
+        el("kcd-advisory-reason").value="";el("kcd-operator-token").value="";
+      }catch(err){note.textContent=kind+" was not recorded: "+err.message;}
+      finally{IN_FLIGHT=false;document.querySelectorAll(".kcd-ops button").forEach(function(b){b.disabled=false;});}
     }
     function bind(){
       var h=el("kcd-halt"),o=el("kcd-over"),e=el("kcd-esc");
-      if(h)h.onclick=function(){op("HALT ADVISORY","Human authorization and a receipted backend procedure are required.");};
-      if(o)o.onclick=function(){op("OVERRIDE ADVISORY","Human authorization and a receipted backend procedure are required.");};
-      if(e)e.onclick=function(){op("ESCALATE ADVISORY","Human authorization and a receipted backend procedure are required.");};
+      if(h)h.onclick=function(){op("HALT");};
+      if(o)o.onclick=function(){op("OVERRIDE");};
+      if(e)e.onclick=function(){op("ESCALATE");};
     }
     function init(){bind();loadThreats();loadDoctrine();setInterval(loadThreats,15000);}
     if(document.readyState!=="loading")init();else document.addEventListener("DOMContentLoaded",init);

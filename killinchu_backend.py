@@ -24,11 +24,13 @@
 #   POST   /api/killinchu/watchlists           — create (+ triggers)
 #   PUT    /api/killinchu/watchlists/{wid}      — update (+ triggers)
 #   DELETE /api/killinchu/watchlists/{wid}      — delete
+#   GET    /api/killinchu/operator-advisories   — public redacted advisory receipts
+#   POST   /api/killinchu/operator-advisories   — authenticated advisory-only receipt
 #   GET    /api/killinchu/operator-mutations/{key_digest} — inspect receipt state
 #   POST   /api/killinchu/operator-mutations/{key_digest}/reconcile — resolve state
 #
 # Tables: snapshots, facts, events, watchlists, triggers, notifications,
-# operator_mutations.
+# advisory_actions, operator_mutations.
 """Persistent, honest-by-default backend for the killinchu Space.
 
 Exposes the ``/api/killinchu/*`` REST surface backed by a durable store that is
@@ -110,6 +112,29 @@ _LIVE_CACHE_TTL = 60  # seconds a "live" scrape stays fresh before a re-fetch
 _USER_AGENT = "killinchu-backend/1.0 (+https://killinchu.a-11-oy.com)"
 _IDEMPOTENCY_KEY_RE = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
 _MUTATION_RECEIPT_SCHEMA = "szl.killinchu.operator-mutation-receipt/v1"
+_ADVISORY_SCHEMA = "szl.killinchu.operational-advisory/v1"
+_ADVISORY_ACTIONS = frozenset({"HALT", "OVERRIDE", "ESCALATE"})
+_ADVISORY_TARGET_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+_SHA256_RE = re.compile(r"^(?:sha256:)?([0-9a-fA-F]{64})$")
+_ADVISORY_TRUST_BY_MODE = {
+    "LIVE": "CLAIM",
+    "CACHED": "STALE_CLAIM",
+    "TRAINING": "TRAINING_ONLY",
+}
+_ADVISORY_MODES = frozenset(_ADVISORY_TRUST_BY_MODE)
+_ADVISORY_BODY_FIELDS = frozenset({"action", "target", "reason"})
+_ADVISORY_TARGET_FIELDS = frozenset(
+    {
+        "track_id",
+        "mode",
+        "payload_sha256",
+        "observed_at",
+        "source",
+        "sensor_id",
+        "authentication",
+        "trust",
+    }
+)
 
 
 def _now_iso() -> str:
@@ -470,12 +495,24 @@ class _Store:
                 created_at TEXT NOT NULL,
                 completed_at TEXT
             )""",
+            f"""CREATE TABLE IF NOT EXISTS advisory_actions (
+                id {pk},
+                action TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                target_json TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                actuation_dispatched INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )""",
             "CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)",
             "CREATE INDEX IF NOT EXISTS idx_notif_ts ON notifications(ts)",
             "CREATE INDEX IF NOT EXISTS idx_facts_snap ON facts(snapshot_id)",
             "CREATE INDEX IF NOT EXISTS idx_snap_src ON snapshots(source, fetched_at)",
             "CREATE INDEX IF NOT EXISTS idx_trig_wl ON triggers(watchlist_id)",
             "CREATE INDEX IF NOT EXISTS idx_operator_mutations_created ON operator_mutations(created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_advisory_actions_created ON advisory_actions(created_at)",
         ]
         with self._lock:
             cur = self._cursor()
@@ -1406,6 +1443,9 @@ def register(
     ns: str = "killinchu",
     *,
     emit_receipt: Optional[Callable[[str, Dict[str, Any]], Dict[str, Any]]] = None,
+    resolve_advisory_track: Optional[
+        Callable[[Dict[str, Any]], Optional[Dict[str, Any]]]
+    ] = None,
 ) -> str:
     """Mount the killinchu backend routes on *app* and return the base path.
 
@@ -1415,7 +1455,6 @@ def register(
     added via the router so they bind correctly. The whole body is caller-guarded
     upstream so a failure here can never crash the host app.
     """
-    from fastapi import Request
     from fastapi.responses import JSONResponse
 
     base = f"/api/{ns}"
@@ -2030,6 +2069,288 @@ def register(
             raise
         return _reconcile_mutation(key_hash, replayed=False)
 
+    def _advisory_dto(row: Dict[str, Any], *, public: bool) -> Dict[str, Any]:
+        target = json.loads(row["target_json"])
+        advisory = {
+            "schema": _ADVISORY_SCHEMA,
+            "id": int(row["id"]),
+            "action": row["action"],
+            "target": target,
+            "reason": row["reason"],
+            "status": row["status"],
+            "effect": "ADVISORY_ONLY",
+            "advisory_only": True,
+            "execution": "NOT_ATTEMPTED",
+            "dispatch": "NOT_ATTEMPTED",
+            "ota": "NOT_ATTEMPTED",
+            "destructive_action": "NOT_ATTEMPTED",
+            "requires_separate_authorized_procedure": True,
+            "actuation_dispatched": bool(row["actuation_dispatched"]),
+            "ota_dispatched": False,
+            "external_command_sent": False,
+            "created_at": row["created_at"],
+        }
+        if public:
+            advisory["actor_id_hash"] = _sha256_json(row["actor_id"])
+        else:
+            advisory["actor_id"] = row["actor_id"]
+        return advisory
+
+    async def advisories_recent(request: Request) -> JSONResponse:
+        """Return the public, redacted advisory receipt index."""
+        try:
+            limit = max(1, min(int(request.query_params.get("limit", "20")), 100))
+        except (TypeError, ValueError):
+            limit = 20
+        rows = _store().query(
+            "SELECT id, action, target_id, target_json, reason, actor_id, "
+            "status, actuation_dispatched, created_at "
+            "FROM advisory_actions ORDER BY id DESC LIMIT ?",
+            (limit,),
+        )
+        return JSONResponse(
+            _envelope(
+                "ok",
+                {
+                    "advisories": [_advisory_dto(row, public=True) for row in rows],
+                    "count": len(rows),
+                    "authority": "HUMAN_OPERATOR",
+                    "effect": "ADVISORY_ONLY",
+                },
+                [],
+            )
+        )
+
+    async def advisories_create(request: Request) -> JSONResponse:
+        """Authenticate and durably receipt an advisory-only operator action."""
+        actor_id, key_hash, gate_error = _operator_gate(request)
+        if gate_error is not None:
+            return gate_error
+        body = await _json_body(request)
+        if set(body) != _ADVISORY_BODY_FIELDS:
+            return JSONResponse(
+                _envelope(
+                    "error",
+                    {"error": "body must contain exactly action, target, and reason"},
+                    [],
+                ),
+                status_code=400,
+            )
+        action = str(body.get("action") or "").strip().upper()
+        reason = str(body.get("reason") or "").strip()
+        target = body.get("target")
+        if action not in _ADVISORY_ACTIONS:
+            return JSONResponse(
+                _envelope(
+                    "error",
+                    {"error": "action must be HALT, OVERRIDE, or ESCALATE"},
+                    [],
+                ),
+                status_code=400,
+            )
+        if not isinstance(target, dict):
+            return JSONResponse(
+                _envelope("error", {"error": "target object is required"}, []),
+                status_code=400,
+            )
+        if set(target) != _ADVISORY_TARGET_FIELDS:
+            return JSONResponse(
+                _envelope(
+                    "error",
+                    {
+                        "error": (
+                            "target must contain exactly track_id, mode, payload_sha256, "
+                            "observed_at, source, sensor_id, authentication, and trust"
+                        )
+                    },
+                    [],
+                ),
+                status_code=400,
+            )
+
+        target_id = str(target.get("track_id") or "").strip()
+        mode = str(target.get("mode") or "").strip().upper()
+        payload_match = _SHA256_RE.fullmatch(
+            str(target.get("payload_sha256") or "").strip()
+        )
+        observed_at = str(target.get("observed_at") or "").strip()
+        source = str(target.get("source") or "").strip()
+        sensor_id = str(target.get("sensor_id") or "").strip()
+        authentication = str(target.get("authentication") or "").strip()
+        trust = str(target.get("trust") or "").strip().upper()
+        if not _ADVISORY_TARGET_RE.fullmatch(target_id):
+            return JSONResponse(
+                _envelope("error", {"error": "target.track_id is invalid"}, []),
+                status_code=400,
+            )
+        if mode not in _ADVISORY_MODES:
+            return JSONResponse(
+                _envelope(
+                    "error",
+                    {"error": "target.mode must be LIVE, CACHED, or TRAINING"},
+                    [],
+                ),
+                status_code=400,
+            )
+        if payload_match is None:
+            return JSONResponse(
+                _envelope(
+                    "error",
+                    {"error": "target.payload_sha256 must be a SHA-256 digest"},
+                    [],
+                ),
+                status_code=400,
+            )
+        if not observed_at or len(observed_at) > 64:
+            return JSONResponse(
+                _envelope("error", {"error": "target.observed_at is required"}, []),
+                status_code=400,
+            )
+        if (
+            not source
+            or len(source) > 240
+            or len(sensor_id) > 128
+            or len(authentication) > 128
+        ):
+            return JSONResponse(
+                _envelope("error", {"error": "target provenance is invalid"}, []),
+                status_code=400,
+            )
+        if trust != _ADVISORY_TRUST_BY_MODE[mode]:
+            return JSONResponse(
+                _envelope(
+                    "error",
+                    {"error": "target trust does not match its operational mode"},
+                    [],
+                ),
+                status_code=400,
+            )
+        if len(reason) < 12 or len(reason) > 500:
+            return JSONResponse(
+                _envelope(
+                    "error",
+                    {"error": "reason must contain 12-500 characters"},
+                    [],
+                ),
+                status_code=400,
+            )
+
+        normalized_target = {
+            "track_id": target_id,
+            "mode": mode,
+            "payload_sha256": payload_match.group(1).lower(),
+            "observed_at": observed_at,
+            "source": source,
+            "sensor_id": sensor_id or None,
+            "authentication": authentication or "UNSPECIFIED",
+            "trust": trust,
+        }
+        if resolve_advisory_track is None:
+            return JSONResponse(
+                _envelope(
+                    "unavailable",
+                    {"error": "canonical operational track resolver is not configured"},
+                    [],
+                ),
+                status_code=503,
+            )
+        try:
+            resolved_target = resolve_advisory_track(normalized_target)
+        except Exception:
+            return JSONResponse(
+                _envelope(
+                    "unavailable",
+                    {"error": "canonical operational track feed is unavailable"},
+                    [],
+                ),
+                status_code=503,
+            )
+        if isinstance(resolved_target, dict) and resolved_target.get(
+            "resolver_status"
+        ) == "UNAVAILABLE":
+            return JSONResponse(
+                _envelope(
+                    "unavailable",
+                    {"error": "canonical operational track feed is unavailable"},
+                    [],
+                ),
+                status_code=503,
+            )
+        if not isinstance(resolved_target, dict):
+            return JSONResponse(
+                _envelope(
+                    "conflict",
+                    {"error": "target is stale or absent from the canonical track feed"},
+                    [],
+                ),
+                status_code=409,
+            )
+        canonical_target = {
+            field: resolved_target.get(field) for field in _ADVISORY_TARGET_FIELDS
+        }
+        if canonical_target != normalized_target:
+            return JSONResponse(
+                _envelope(
+                    "conflict",
+                    {"error": "target no longer matches the canonical track envelope"},
+                    [],
+                ),
+                status_code=409,
+            )
+        request_payload = {
+            "action": action,
+            "target": normalized_target,
+            "reason": reason,
+        }
+        context, replay = _claim_mutation(
+            operation="advisory.create",
+            actor_id=actor_id,
+            key_hash=key_hash,
+            request_payload=request_payload,
+        )
+        if replay is not None:
+            return replay
+
+        now = _now_iso()
+        try:
+            with st.transaction():
+                advisory_id = st.insert_returning_id(
+                    "INSERT INTO advisory_actions("
+                    "action, target_id, target_json, reason, actor_id, status, "
+                    "actuation_dispatched, created_at"
+                    ") VALUES(?,?,?,?,?,?,?,?)",
+                    (
+                        action,
+                        target_id,
+                        _canonical_json(normalized_target),
+                        reason,
+                        actor_id,
+                        "RECORDED",
+                        0,
+                        now,
+                    ),
+                )
+                row = st.query(
+                    "SELECT id, action, target_id, target_json, reason, actor_id, "
+                    "status, actuation_dispatched, created_at "
+                    "FROM advisory_actions WHERE id=?",
+                    (advisory_id,),
+                )[0]
+                result = _envelope(
+                    "ok",
+                    {
+                        "advisory": _advisory_dto(row, public=False),
+                        "authority": "HUMAN_OPERATOR",
+                        "effect": "ADVISORY_ONLY",
+                    },
+                    [],
+                )
+                _stage_mutation(context, result, status_code=201)
+        except Exception:
+            st.fail_operator_mutation(key_hash=key_hash)
+            raise
+        return _reconcile_mutation(key_hash, replayed=False)
+
     def _key_hash_from_path(request: "Request") -> Optional[str]:
         digest = str(request.path_params.get("key_digest") or "").strip().lower()
         if not re.fullmatch(r"[0-9a-f]{64}", digest):
@@ -2193,6 +2514,17 @@ def register(
     app.add_api_route(f"{base}/crawl/status", crawl_status, methods=["GET"])
     app.add_api_route(f"{base}/timeline", timeline, methods=["GET"])
     app.add_api_route(f"{base}/alerts/recent", alerts_recent, methods=["GET"])
+    app.add_api_route(
+        f"{base}/operator-advisories",
+        advisories_recent,
+        methods=["GET"],
+    )
+    app.add_api_route(
+        f"{base}/operator-advisories",
+        advisories_create,
+        methods=["POST"],
+        dependencies=operator_dependencies,
+    )
     app.add_api_route(f"{base}/watchlists", watchlists_list, methods=["GET"])
     app.add_api_route(
         f"{base}/watchlists",

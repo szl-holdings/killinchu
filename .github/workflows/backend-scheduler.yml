@@ -17,6 +17,9 @@ on:
       - tests/test_backend_scheduler.py
       - tests/test_elite_operator_flow.py
       - tests/test_operator_mutation_security.py
+      - tests/test_operational_advisories.py
+      - static/index.html
+      - killinchu_track_contract.py
       - .github/workflows/backend-scheduler.yml
   pull_request:
     branches: [main]
@@ -27,6 +30,9 @@ on:
       - tests/test_backend_scheduler.py
       - tests/test_elite_operator_flow.py
       - tests/test_operator_mutation_security.py
+      - tests/test_operational_advisories.py
+      - static/index.html
+      - killinchu_track_contract.py
       - .github/workflows/backend-scheduler.yml
 
 permissions:
@@ -67,4 +73,5 @@ jobs:
           tests/test_backend_scheduler.py
           tests/test_elite_operator_flow.py
           tests/test_operator_mutation_security.py
+          tests/test_operational_advisories.py
           -q

@@ -1794,10 +1794,28 @@ def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 if _kc_backend is not None:
     try:
+        def _resolve_operational_advisory_track(target: dict) -> dict | None:
+            """Resolve an advisory target against the same canonical TrackBatch as the UI."""
+            from killinchu_track_contract import air_feed_batch, training_batch
+
+            if target.get("mode") == "TRAINING":
+                batch = training_batch(_DRONES)
+            elif _killinchu_live_feeds is not None:
+                batch = air_feed_batch(_killinchu_live_feeds.get_feed("air"))
+            else:
+                return {"resolver_status": "UNAVAILABLE"}
+            if batch.get("availability") == "UNAVAILABLE":
+                return {"resolver_status": "UNAVAILABLE"}
+            for track in batch.get("tracks") or []:
+                if track.get("track_id") == target.get("track_id"):
+                    return track
+            return None
+
         _kc_be_status = _kc_backend.register(
             app,
             ns="killinchu",
             emit_receipt=_emit_receipt,
+            resolve_advisory_track=_resolve_operational_advisory_track,
         )
         print(
             f"[killinchu] persistent backend registered: {_kc_be_status}",
