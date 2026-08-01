@@ -441,7 +441,7 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
         <div class="szl-ceo-eyebrow">SZL Holdings · killinchu · investor view</div>
         <h1>Governed counter-UAS that proves every decision.</h1>
       </div>
-      <button class="szl-ceo-close" type="button" data-szl-ceo-close>✕ Operator view</button>
+      <button class="szl-ceo-close" type="button" data-szl-ceo-close data-szl-initial-focus>✕ Operator view</button>
     </div>
     <p class="lead">The plain-English version of what the operator console does. Every claim below is
     labeled with what is genuinely live versus a demonstration — no fabricated state, ever.</p>
@@ -528,6 +528,7 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   var fab=document.getElementById("szl-ceo-fab");
   var panel=document.getElementById("szl-ceo");
   if(!fab||!panel) return;
+  var initialFocus=panel.querySelector("[data-szl-initial-focus]");
   var jsonLoaded=false, badgesDone=false;
 
   function paintBadges(){
@@ -569,9 +570,12 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   }
 
   function open(){ panel.classList.add("on"); fab.setAttribute("aria-expanded","true");
-    document.documentElement.style.overflow="hidden"; paintBadges(); }
+    document.documentElement.style.overflow="hidden"; paintBadges();
+    if(initialFocus&&typeof initialFocus.focus==="function") initialFocus.focus();
+    else { if(!panel.hasAttribute("tabindex")) panel.setAttribute("tabindex","-1"); panel.focus(); } }
   function close(){ panel.classList.remove("on"); fab.setAttribute("aria-expanded","false");
-    document.documentElement.style.overflow=""; }
+    document.documentElement.style.overflow="";
+    if(typeof fab.focus==="function") fab.focus(); }
 
   fab.addEventListener("click", function(e){ if(e&&e.preventDefault) e.preventDefault(); open(); });
   // Honor deep-links: /elite#szl-ceo opens the investor section directly.
