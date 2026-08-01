@@ -3428,13 +3428,17 @@ try:
     from starlette.middleware.base import BaseHTTPMiddleware as _COP_Base
     from starlette.responses import Response as _COP_SResp
 
-    _COP_LINK = (b'<a href="/elite/cop" '
-                 b'style="position:fixed;right:16px;bottom:16px;z-index:99998;'
+    _COP_LINK = (b'<a href="/elite/cop" data-szl-dock-control="cop" '
+                 b'aria-label="Open the operational Common Operating Picture" '
+                 b'title="Open the Common Operating Picture; effectors remain SIMULATED" '
+                 b'style="position:fixed;right:calc(env(safe-area-inset-right,0px) + 16px);'
+                 b'bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:2147481000;'
                  b'font:600 12px/1 JetBrains Mono,ui-monospace,monospace;letter-spacing:.5px;'
                  b'color:#3af4c8;background:rgba(13,19,30,.92);border:1px solid rgba(58,244,200,.4);'
-                 b'border-radius:999px;padding:10px 14px;text-decoration:none;'
-                 b'box-shadow:0 2px 18px rgba(0,0,0,.5)">COP \xe2\x86\x97</a>')
-    _COP_MARK = b'href="/elite/cop"'
+                 b'border-radius:999px;padding:0 14px;min-height:44px;box-sizing:border-box;'
+                 b'display:inline-flex;align-items:center;text-decoration:none;'
+                 b'box-shadow:0 2px 18px rgba(0,0,0,.5)">OPEN COP \xe2\x86\x97</a>')
+    _COP_MARK = b'data-szl-dock-control="cop"'
 
     class _COPNavInjector(_COP_Base):
         async def dispatch(self, request, call_next):
@@ -3503,7 +3507,7 @@ try:
         return _OPW_KC_Resp(content=f.read_bytes(), media_type=ct,
                             headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
-    _OPW_KC_TAG = b'<script src="/vendor/a11oy-operator-widget.js" data-surface="killinchu" defer></script>'
+    _OPW_KC_TAG = b'<script src="/vendor/a11oy-operator-widget.js?v=50fbf93caba2439d06a5cb340a66166cdf401f91f2ec36104e22364462a09681" data-surface="killinchu" defer></script>'
     _OPW_KC_MARK = b'a11oy-operator-widget.js'
 
     class _OperatorWidgetInjectorKC(_OPW_KC_Base):
