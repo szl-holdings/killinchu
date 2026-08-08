@@ -221,6 +221,37 @@ def test_spaces_health_aggregate_is_row_derived_and_cache_is_explicit_copy():
     assert fresh["state"] == "LIVE" and "cached_state" not in fresh
 
 
+def test_inventory_ignores_org_profile_but_rejects_real_drift():
+    class Response:
+        status_code = 200
+
+        def __init__(self, names):
+            self._names = names
+
+        def json(self):
+            return [{"id": f"SZLHOLDINGS/{name}"} for name in self._names]
+
+    class Client:
+        def __init__(self, names):
+            self._names = names
+
+        async def get(self, *_args, **_kwargs):
+            return Response(self._names)
+
+    canonical = [row[0] for row in EXPECTED]
+    exact = asyncio.run(surface._probe_inventory(Client(canonical + ["README"])))
+    drift = asyncio.run(
+        surface._probe_inventory(Client(canonical[1:] + ["README", "rogue-space"]))
+    )
+
+    assert exact["state"] == "LIVE"
+    assert exact["observed_count"] == len(canonical)
+    assert exact["missing"] == exact["unexpected"] == []
+    assert drift["state"] == "DEGRADED"
+    assert drift["missing"] == [canonical[0]]
+    assert drift["unexpected"] == ["rogue-space"]
+
+
 def test_killinchu_related_nav_links_public_ecosystem_and_anatomy_v5():
     related = nav._build_related_strip("/ecosystem").decode("utf-8")
     assert 'href="https://a-11-oy.com/ecosystem"' in related
@@ -248,6 +279,7 @@ if __name__ == "__main__":
     test_mobile_tiles_nav_and_health_labels_are_reachable_and_fail_closed()
     test_legacy_space_routes_are_no_store_307_handoffs_without_proxy_bytes_or_cookies()
     test_spaces_health_aggregate_is_row_derived_and_cache_is_explicit_copy()
+    test_inventory_ignores_org_profile_but_rejects_real_drift()
     test_killinchu_related_nav_links_public_ecosystem_and_anatomy_v5()
     test_crawler_surface_never_presents_stopped_or_failed_as_healthy()
-    print("test_ecosystem_alignment: 8 focused offline tests passed")
+    print("test_ecosystem_alignment: 9 focused offline tests passed")
