@@ -42,6 +42,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 import killinchu_protocols as kp
+from killinchu_ledger import LedgerRuntime, LedgerUnavailable
 from killinchu_receipt_export import build_receipt_export
 from szl_safe_static import RootedStaticFiles
 
@@ -1732,6 +1733,28 @@ def _digest_node(receipt: dict[str, Any], parents: list[str]) -> str:
     return h.hexdigest()
 
 
+_LEDGER_RUNTIME = LedgerRuntime.from_environment(
+    _KHIPU_DAG,
+    _KHIPU_LOCK,
+    _digest_node,
+)
+_LEDGER_RUNTIME.startup()
+
+
+@app.exception_handler(LedgerUnavailable)
+async def _ledger_unavailable_handler(_: Request, exc: LedgerUnavailable) -> JSONResponse:
+    return JSONResponse(
+        {
+            "ok": False,
+            "error": "receipt ledger unavailable",
+            "detail": str(exc),
+            "ledger": _LEDGER_RUNTIME.readiness(),
+        },
+        status_code=503,
+        headers={"cache-control": "no-store"},
+    )
+
+
 def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
     # WHY this exists: every counter-UAS verdict must be signed + chained so that
     # a downstream audit tool can verify the chain of decisions without trusting
@@ -1739,6 +1762,16 @@ def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
     # Real DSSE signing happens when SZL_COSIGN_PRIVATE_KEY_PEM is set (Space secret);
     # absent = PLACEHOLDER label (honest — never fabricates a signature).
     with _KHIPU_LOCK:
+        # P1-review guard: replay/reconnect must be applied before building receipt
+        # metadata that depends on DAG head depth.
+        # If the external durable adapter reports unreadiness or stale replay,
+        # refresh it before deriving the parent/index so we don't persist
+        # a receipt against a stale DAG head.
+        try:
+            _LEDGER_RUNTIME.startup()
+        except Exception:
+            # Keep fail-closed semantics: readiness/append will surface a 503.
+            pass
         # Reconciliation can call the emitter again after a response loss.
         # Return the existing node for identical deterministic mutation material.
         if kind == "operator_mutation":
@@ -1788,7 +1821,7 @@ def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
             "ts_utc": receipt["ts_utc"],
         }
         node["digest"] = _digest_node(receipt, parents)
-        _KHIPU_DAG.append(node)
+        _LEDGER_RUNTIME.append(node)
         return node
 
 
@@ -1868,7 +1901,7 @@ if STATIC_DIR.exists():
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
-@app.get("/api/killinchu/healthz")
+@app.api_route("/api/killinchu/healthz", methods=["GET", "HEAD"])
 async def healthz() -> JSONResponse:
     # ADDITIVE: real uptime + last DB ping from the persistent backend (guarded —
     # if the backend module is absent, healthz still returns its full doctrine envelope).
@@ -1878,6 +1911,7 @@ async def healthz() -> JSONResponse:
             _be_health = _kc_backend.health_fields()
     except Exception:
         _be_health = {}
+    _ledger_health = _LEDGER_RUNTIME.readiness()
     _payload = {
         "status": "ok",
         "service": "killinchu",
@@ -1900,6 +1934,7 @@ async def healthz() -> JSONResponse:
         "drones_in_database": len(_DRONES),
         "khipu_root": _khipu_root(),
         "khipu_nodes": len(_KHIPU_DAG),
+        "ledger": _ledger_health,
         "decoders": ["OpenDroneID/ASTM F3411", "ADS-B Mode-S 1090ES (pyModeS v3)", "MAVLink v1/v2 (pymavlink)"],
         "hatun_willay": True,
         "pivoted_from": "vessels",
@@ -1908,9 +1943,20 @@ async def healthz() -> JSONResponse:
     return JSONResponse(_payload)
 
 
-@app.get("/api/killinchu/readyz")
+@app.api_route("/api/killinchu/readyz", methods=["GET", "HEAD"])
 async def readyz() -> JSONResponse:
-    return JSONResponse({"status": "ready", "drones": len(_DRONES), "doctrine": DOCTRINE})
+    ledger = _LEDGER_RUNTIME.readiness()
+    ready = ledger.get("ready") is True
+    return JSONResponse(
+        {
+            "status": "ready" if ready else "unavailable",
+            "drones": len(_DRONES),
+            "doctrine": DOCTRINE,
+            "ledger": ledger,
+        },
+        status_code=200 if ready else 503,
+        headers={"cache-control": "no-store"},
+    )
 
 
 @app.get("/api/killinchu/v1/honest")
@@ -2229,6 +2275,7 @@ async def receipt_emit(request: Request) -> JSONResponse:
     kind = body.get("kind", "manual")
     payload = body.get("payload", body)
     node = _emit_receipt(kind, payload)
+    ledger = _LEDGER_RUNTIME.readiness()
     return JSONResponse({
         "ok": True, "wire": "F",
         "node_index": node["index"], "node_digest": node["digest"],
@@ -2236,18 +2283,31 @@ async def receipt_emit(request: Request) -> JSONResponse:
         "dsse": node["dsse"], "ts_utc": node["ts_utc"],
         "signature": SIGNATURE_PLACEHOLDER,
         "doctrine": DOCTRINE,
-        "honesty": (f"Signature is {SIGNATURE_PLACEHOLDER}. Khipu DAG is in-memory, "
-                    "hash-chained sha256 (additive); resets on Space restart."),
+        "ledger": ledger,
+        "honesty": (
+            f"Signature state is {'verified' if node.get('signed') else 'unsigned'}. "
+            f"Ledger durability is {ledger['durability_state']}; production readiness is "
+            f"{ledger['production_ready']}."
+        ),
     })
 
 
-@app.get("/api/killinchu/v1/receipt/ledger")
+@app.api_route("/api/killinchu/v1/receipt/ledger", methods=["GET", "HEAD"])
 async def receipt_ledger(limit: int = 100) -> JSONResponse:
-    nodes = _KHIPU_DAG[-limit:]
+    ledger = _LEDGER_RUNTIME.readiness()
+    if ledger.get("ready") is not True:
+        return JSONResponse(
+            {"ok": False, "nodes": [], "ledger": ledger, "error": "ledger unavailable"},
+            status_code=503,
+            headers={"cache-control": "no-store"},
+        )
+    snapshot = _LEDGER_RUNTIME.snapshot()
+    nodes = snapshot[-limit:]
     return JSONResponse({
-        "wire": "F", "khipu_root": _khipu_root(), "count": len(_KHIPU_DAG),
+        "wire": "F", "khipu_root": _khipu_root(), "count": len(snapshot),
         "nodes": nodes, "doctrine": DOCTRINE,
-        "honesty": f"In-memory hash-chained DAG. Signatures {SIGNATURE_PLACEHOLDER}.",
+        "ledger": ledger,
+        "honesty": f"Hash-chained DAG; durability is {ledger['durability_state']}.",
     })
 
 
@@ -2258,7 +2318,7 @@ async def receipt_ledger(limit: int = 100) -> JSONResponse:
 # receipt OFFLINE with `cosign verify-blob --key cosign.pub`. Registered BEFORE
 # the /{full_path:path} catch-all. ZERO BANDAID — same key the signer uses.
 # ===========================================================================
-@app.get("/cosign.pub")
+@app.api_route("/cosign.pub", methods=["GET", "HEAD"])
 async def cosign_pub() -> Response:
     """Raw PEM public key (keyid szlholdings-cosign) that signs killinchu receipts.
     Verify offline:  cosign verify-blob --key cosign.pub --signature sig.b64 payload.json"""
@@ -2275,7 +2335,7 @@ async def cosign_pub() -> Response:
                     headers={"cache-control": "no-store"})
 
 
-@app.get("/api/killinchu/v1/receipt/export")
+@app.api_route("/api/killinchu/v1/receipt/export", methods=["GET", "HEAD"])
 async def receipt_export(index: int = -1) -> JSONResponse:
     """Export one bounded receipt or an explicit, typed empty state.
 
@@ -2283,14 +2343,26 @@ async def receipt_export(index: int = -1) -> JSONResponse:
     against the public key. Missing receipts or signing capability are never
     represented by a fabricated envelope.
     """
+    ledger = _LEDGER_RUNTIME.readiness()
     body, status_code = build_receipt_export(
-        _KHIPU_DAG,
+        _LEDGER_RUNTIME.snapshot() if ledger.get("ready") is True else [],
         index=index,
         doctrine=DOCTRINE,
         dsse_module=_szl_dsse,
         khipu_root=_khipu_root(),
+        ledger=ledger,
     )
     return JSONResponse(body, status_code=status_code)
+
+
+@app.api_route("/api/killinchu/v1/receipt/ledger/readiness", methods=["GET", "HEAD"])
+async def receipt_ledger_readiness() -> JSONResponse:
+    ledger = _LEDGER_RUNTIME.readiness()
+    return JSONResponse(
+        ledger,
+        status_code=200 if ledger.get("ready") is True else 503,
+        headers={"cache-control": "no-store"},
+    )
 
 
 @app.get("/api/killinchu/v1/lambda")
@@ -2621,7 +2693,7 @@ except Exception as _kc_ar_e:
 # ============================================================================
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def spa_root():
     """FRONT DOOR = a polished HOME page (static/landing.html) that tells the
     defense-buyer story — what killinchu is (governed counter-UAS + maritime C2),
@@ -2639,6 +2711,15 @@ async def spa_root():
     # rather than serving a blank shell (deny-by-default, never a half-state).
     from starlette.responses import RedirectResponse as _RootRedir
     return _RootRedir(url="/elite", status_code=307)
+
+
+@app.api_route("/robots.txt", methods=["GET", "HEAD"])
+async def robots_txt() -> Response:
+    return Response(
+        content="User-agent: *\nAllow: /\n",
+        media_type="text/plain; charset=utf-8",
+        headers={"cache-control": "public, max-age=3600"},
+    )
 
 
 @app.get("/hero")
@@ -4684,7 +4765,38 @@ except Exception as _qa6_e:  # pragma: no cover — additive; never break the Sp
     print(f"[killinchu] QA6 bare-alias wiring NOT applied: {_qa6_e!r}", file=__import__("sys").stderr)
 
 
-@app.get("/{full_path:path}")
+_SPA_HISTORY_EXACT = frozenset({
+    # SPA routes observed in current build manifest that require HTML fallback.
+    "receipts",
+    "remote-id",
+    "research",
+    "swarm",
+    "about",
+    "ads-b",
+    "companion-defense",
+    "detection",
+    "doctrine",
+    "threats/active",
+    "threats/live",
+    "geoint",
+    "identify",
+    "lambda",
+    "legal",
+    "mavlink",
+    "satellites",
+    "verticals",
+})
+
+
+def _is_spa_history_route(full_path: str) -> bool:
+    path = full_path.strip("/")
+    if path in _SPA_HISTORY_EXACT:
+        return True
+    parts = path.split("/")
+    return len(parts) == 2 and parts[0] == "drones" and bool(parts[1])
+
+
+@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
 async def spa_fallback(full_path: str, request: Request) -> Response:
     # QA6 defense-in-depth: bare data prefixes must NEVER be served the SPA HTML.
     # If a bare data path somehow reaches the catch-all (alias not wired), return an
@@ -4696,7 +4808,16 @@ async def spa_fallback(full_path: str, request: Request) -> Response:
     static_response = await _SPA_FILES.get(full_path, request.scope)
     if static_response is not None:
         return static_response
-    return FileResponse(INDEX_HTML, media_type="text/html")
+    if _is_spa_history_route(full_path):
+        history_response = await _SPA_FILES.get("index.html", request.scope)
+        if history_response is not None:
+            history_response.headers["cache-control"] = "no-store"
+            return history_response
+    return JSONResponse(
+        {"error": "not found", "path": f"/{full_path}"},
+        status_code=404,
+        headers={"cache-control": "no-store"},
+    )
 
 
 
