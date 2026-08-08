@@ -64,7 +64,9 @@ jobs:
             --target "box=https://killinchu.a-11-oy.com" \
             --target "hf=https://szlholdings-killinchu.hf.space" \
             --summary-file /tmp/killinchu-api-health.json | tee /tmp/probe.log
-          code=$?
+          # Capture the validator, not tee. Without PIPESTATUS this step can
+          # report a green run while every live probe is sustained-down.
+          code="${PIPESTATUS[0]}"
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ -f /tmp/killinchu-api-health.json ]; then
             checked=$(python3 -c "import json;print(json.load(open('/tmp/killinchu-api-health.json'))['checked'])")
