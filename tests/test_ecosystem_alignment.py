@@ -16,6 +16,7 @@ EXPECTED = [
     ("energy-attest-holo", "energy-attest-holo", "Energy Attestation Holo", "static"),
     ("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "static"),
     ("governed-norm-holo", "governed-norm-holo", "Governed Norms — WILLAY classifiers", "static"),
+    ("governed-agent-bench", "governed-agent-bench", "Governed Agent Benchmark", "gradio"),
     ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static"),
     ("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "static"),
     ("hatun-mcp", "hatun-mcp", "hatun — MCP Server", "docker"),
@@ -24,7 +25,6 @@ EXPECTED = [
     ("killinchu", "killinchu", "killinchu — Andean Drone Intelligence", "docker"),
     ("lambda-gate-holo", "lambda-gate-holo", "Λ Gate — Conjecture 1, never green", "static"),
     ("llm-router-live", "llm-router-live", "SZL LLM Router", "docker"),
-    ("README", "readme", "SZL Holdings — Governed-AI Command Platform", "static"),
     ("receipt-chain-live", "receipt-chain-live", "Receipt Chain Live", "static"),
     ("sda", "sda", "SZL SDA", "docker"),
     ("szl-blocked-live", "szl-blocked-live", "szl-blocked-live", "static"),
@@ -60,7 +60,7 @@ def test_space_urls_and_canonical_handoff_boundary_are_fail_closed():
         assert surface.proxy_url(name) == expected_url
         assert proxy.hf_url(slug) == expected_url
         assert surface.hf_repo_url(name) == f"https://huggingface.co/spaces/SZLHOLDINGS/{name}"
-    assert surface.hf_api_url("readme").endswith("/SZLHOLDINGS/README")
+    assert surface.hf_api_url("governed-agent-bench").endswith("/SZLHOLDINGS/governed-agent-bench")
     assert set(proxy.PROXY_SPACES) == {row[1] for row in EXPECTED}
     assert len(proxy.PROXY_SPACES) == 26
     for resolver in (
