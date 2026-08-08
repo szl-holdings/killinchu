@@ -307,12 +307,31 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
         }
 
     observed = set()
-    for item in data:
+    for index, item in enumerate(data):
         identity = item.get("id") if isinstance(item, dict) else None
-        if isinstance(identity, str) and identity.startswith(_ORG + "/"):
-            name = identity.split("/", 1)[1]
-            if name != "README":
-                observed.add(name)
+        if not isinstance(identity, str) or not identity.startswith(_ORG + "/"):
+            return {
+                "schema": "szl.hf-space-inventory/v1",
+                "state": "UNAVAILABLE",
+                "canonical_count": len(SPACES),
+                "http_status": status,
+                "source": via,
+                "error": "hub_api_schema",
+                "malformed_index": index,
+            }
+        name = identity.split("/", 1)[1]
+        if not name or "/" in name:
+            return {
+                "schema": "szl.hf-space-inventory/v1",
+                "state": "UNAVAILABLE",
+                "canonical_count": len(SPACES),
+                "http_status": status,
+                "source": via,
+                "error": "hub_api_schema",
+                "malformed_index": index,
+            }
+        if name != "README":
+            observed.add(name)
     expected = set(_SPACE_BY_NAME)
     missing = sorted(expected - observed)
     unexpected = sorted(observed - expected)

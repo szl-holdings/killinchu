@@ -69,6 +69,22 @@ def test_hub_inventory_ignores_org_profile_but_detects_application_drift():
         async def get(self, *_args, **_kwargs):
             return Response(self._names)
 
+    class RawResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    class RawClient:
+        def __init__(self, payload):
+            self._payload = payload
+
+        async def get(self, *_args, **_kwargs):
+            return RawResponse(self._payload)
+
     canonical = [row[0] for row in EXPECTED]
     exact = asyncio.run(surface._probe_inventory(Client(canonical + ["README"])))
     drift = asyncio.run(
@@ -80,6 +96,25 @@ def test_hub_inventory_ignores_org_profile_but_detects_application_drift():
     assert drift["state"] == "DEGRADED"
     assert drift["missing"] == [canonical[0]]
     assert drift["unexpected"] == ["rogue-space"]
+
+    canonical_payload = [{"id": f"SZLHOLDINGS/{name}"} for name in canonical]
+    malformed_payloads = [
+        canonical_payload + [None],
+        canonical_payload + [{}],
+        canonical_payload + [{"id": 7}],
+        canonical_payload + [{"id": "OTHER/rogue-space"}],
+        canonical_payload + [{"id": "SZLHOLDINGS/"}],
+        canonical_payload + [{"id": "SZLHOLDINGS/foo/bar"}],
+    ]
+    malformed_results = [
+        asyncio.run(surface._probe_inventory(RawClient(payload)))
+        for payload in malformed_payloads
+    ]
+    for result in malformed_results:
+        assert result["state"] == "UNAVAILABLE"
+        assert result["error"] == "hub_api_schema"
+        assert result["malformed_index"] == len(canonical)
+        assert "missing" not in result and "unexpected" not in result
 
 
 def test_space_urls_and_canonical_handoff_boundary_are_fail_closed():
