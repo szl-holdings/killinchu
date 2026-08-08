@@ -103,6 +103,8 @@ def test_hub_inventory_ignores_org_profile_but_detects_application_drift():
         canonical_payload + [{}],
         canonical_payload + [{"id": 7}],
         canonical_payload + [{"id": "OTHER/rogue-space"}],
+        canonical_payload + [{"id": "SZLHOLDINGS/"}],
+        canonical_payload + [{"id": "SZLHOLDINGS/foo/bar"}],
     ]
     malformed_results = [
         asyncio.run(surface._probe_inventory(RawClient(payload)))
