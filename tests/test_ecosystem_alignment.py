@@ -50,6 +50,37 @@ def test_space_inventory_is_exact_and_shared():
     assert len({row[1] for row in EXPECTED}) == 26
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
 
+def test_hub_inventory_ignores_org_profile_but_detects_application_drift():
+    import asyncio
+
+    class Response:
+        status_code = 200
+
+        def __init__(self, names):
+            self._names = names
+
+        def json(self):
+            return [{"id": f"SZLHOLDINGS/{name}"} for name in self._names]
+
+    class Client:
+        def __init__(self, names):
+            self._names = names
+
+        async def get(self, *_args, **_kwargs):
+            return Response(self._names)
+
+    canonical = [row[0] for row in EXPECTED]
+    exact = asyncio.run(surface._probe_inventory(Client(canonical + ["README"])))
+    drift = asyncio.run(
+        surface._probe_inventory(Client(canonical[1:] + ["README", "rogue-space"]))
+    )
+    assert exact["state"] == "LIVE"
+    assert exact["observed_count"] == len(canonical)
+    assert exact["missing"] == exact["unexpected"] == []
+    assert drift["state"] == "DEGRADED"
+    assert drift["missing"] == [canonical[0]]
+    assert drift["unexpected"] == ["rogue-space"]
+
 
 def test_space_urls_and_canonical_handoff_boundary_are_fail_closed():
     for name, slug, _title, sdk in EXPECTED:
@@ -243,6 +274,7 @@ def test_crawler_surface_never_presents_stopped_or_failed_as_healthy():
 
 if __name__ == "__main__":
     test_space_inventory_is_exact_and_shared()
+    test_hub_inventory_ignores_org_profile_but_detects_application_drift()
     test_space_urls_and_canonical_handoff_boundary_are_fail_closed()
     test_tiles_and_fallback_include_all_audited_titles()
     test_mobile_tiles_nav_and_health_labels_are_reachable_and_fail_closed()
