@@ -82,6 +82,40 @@ def test_hub_inventory_ignores_org_profile_but_detects_application_drift():
     assert drift["unexpected"] == ["rogue-space"]
 
 
+def test_hub_inventory_rejects_every_malformed_entry_shape():
+    class Response:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    class Client:
+        def __init__(self, payload):
+            self._payload = payload
+
+        async def get(self, *_args, **_kwargs):
+            return Response(self._payload)
+
+    canonical = [{"id": f"SZLHOLDINGS/{row[0]}"} for row in EXPECTED]
+    malformed_entries = [
+        canonical + [None],
+        canonical + [{}],
+        canonical + [{"id": 7}],
+        canonical + [{"id": "OTHER/rogue-space"}],
+    ]
+
+    for payload in malformed_entries:
+        result = asyncio.run(surface._probe_inventory(Client(payload)))
+        assert result["state"] == "UNAVAILABLE"
+        assert result["http_status"] == 200
+        assert result["error"] == "hub_api_schema"
+        assert result["malformed_index"] == len(canonical)
+        assert "missing" not in result and "unexpected" not in result
+
+
 def test_space_urls_and_canonical_handoff_boundary_are_fail_closed():
     for name, slug, _title, sdk in EXPECTED:
         suffix = ".static.hf.space" if sdk == "static" else ".hf.space"
@@ -275,6 +309,7 @@ def test_crawler_surface_never_presents_stopped_or_failed_as_healthy():
 if __name__ == "__main__":
     test_space_inventory_is_exact_and_shared()
     test_hub_inventory_ignores_org_profile_but_detects_application_drift()
+    test_hub_inventory_rejects_every_malformed_entry_shape()
     test_space_urls_and_canonical_handoff_boundary_are_fail_closed()
     test_tiles_and_fallback_include_all_audited_titles()
     test_mobile_tiles_nav_and_health_labels_are_reachable_and_fail_closed()
@@ -282,4 +317,4 @@ if __name__ == "__main__":
     test_spaces_health_aggregate_is_row_derived_and_cache_is_explicit_copy()
     test_killinchu_related_nav_links_public_ecosystem_and_anatomy_v5()
     test_crawler_surface_never_presents_stopped_or_failed_as_healthy()
-    print("test_ecosystem_alignment: 8 focused offline tests passed")
+    print("test_ecosystem_alignment: 10 focused offline tests passed")
