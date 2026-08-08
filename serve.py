@@ -1762,6 +1762,16 @@ def _emit_receipt(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
     # Real DSSE signing happens when SZL_COSIGN_PRIVATE_KEY_PEM is set (Space secret);
     # absent = PLACEHOLDER label (honest — never fabricates a signature).
     with _KHIPU_LOCK:
+        # P1-review guard: replay/reconnect must be applied before building receipt
+        # metadata that depends on DAG head depth.
+        # If the external durable adapter reports unreadiness or stale replay,
+        # refresh it before deriving the parent/index so we don't persist
+        # a receipt against a stale DAG head.
+        try:
+            _LEDGER_RUNTIME.startup()
+        except Exception:
+            # Keep fail-closed semantics: readiness/append will surface a 503.
+            pass
         # Reconciliation can call the emitter again after a response loss.
         # Return the existing node for identical deterministic mutation material.
         if kind == "operator_mutation":
@@ -4756,12 +4766,25 @@ except Exception as _qa6_e:  # pragma: no cover — additive; never break the Sp
 
 
 _SPA_HISTORY_EXACT = frozenset({
+    # SPA routes observed in current build manifest that require HTML fallback.
     "receipts",
     "remote-id",
     "research",
     "swarm",
+    "about",
+    "ads-b",
+    "companion-defense",
+    "detection",
+    "doctrine",
     "threats/active",
     "threats/live",
+    "geoint",
+    "identify",
+    "lambda",
+    "legal",
+    "mavlink",
+    "satellites",
+    "verticals",
 })
 
 
