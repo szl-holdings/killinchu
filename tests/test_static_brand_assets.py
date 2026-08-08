@@ -27,7 +27,7 @@ def test_brand_assets_are_packaged_and_served_as_css():
 def test_static_mount_precedes_the_spa_catch_all():
     source = (ROOT / "serve.py").read_text(encoding="utf-8")
     mount = 'app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")'
-    catch_all = '@app.get("/{full_path:path}")'
+    catch_all = '@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])'
 
     assert source.count(mount) == 1
     assert source.index(mount) < source.index(catch_all)
