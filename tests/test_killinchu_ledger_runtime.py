@@ -128,6 +128,69 @@ class LedgerRuntimeTests(unittest.TestCase):
         self.assertEqual(runtime.snapshot(), [])
         self.assertFalse(runtime.readiness()["ready"])
 
+    def test_transient_startup_failure_recovers_on_readiness_without_restart(self):
+        class RecoveringAdapter:
+            def __init__(self):
+                self.startup_calls = 0
+
+            def startup(self):
+                self.startup_calls += 1
+                if self.startup_calls == 1:
+                    raise RuntimeError("temporary outage")
+
+            def replay(self):
+                return []
+
+            def append(self, _node):
+                return None
+
+            def verify_integrity(self, _nodes):
+                return {"verified": True}
+
+            def readiness(self):
+                return {"ready": True}
+
+        adapter = RecoveringAdapter()
+        runtime = LedgerRuntime(
+            [],
+            threading.RLock(),
+            _digest,
+            mode=DURABLE_EXTERNAL,
+            adapter=adapter,
+            recovery_interval_s=0,
+        )
+
+        failed = runtime.startup()
+        recovered = runtime.readiness()
+
+        self.assertFalse(failed["ready"])
+        self.assertTrue(recovered["ready"])
+        self.assertTrue(recovered["production_ready"])
+        self.assertEqual(recovered["replay"], {"state": "VERIFIED", "nodes": 0})
+        self.assertEqual(recovered["recovery"]["attempts"], 2)
+        self.assertEqual(adapter.startup_calls, 2)
+
+    def test_failed_external_append_recovers_by_replay_without_restart(self):
+        adapter = _ExternalAdapter(append_fails=True)
+        runtime = LedgerRuntime(
+            [],
+            threading.RLock(),
+            _digest,
+            mode=DURABLE_EXTERNAL,
+            adapter=adapter,
+            recovery_interval_s=0,
+        )
+        self.assertTrue(runtime.startup()["ready"])
+
+        with self.assertRaises(LedgerUnavailable):
+            runtime.append(_node(0))
+
+        adapter.append_fails = False
+        self.assertTrue(runtime.readiness()["ready"])
+        runtime.append(_node(0))
+        self.assertEqual(len(runtime.snapshot()), 1)
+        self.assertEqual(len(adapter.nodes), 1)
+
     def test_export_refuses_unready_external_ledger(self):
         body, status = build_receipt_export(
             [],

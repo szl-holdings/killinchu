@@ -36,6 +36,27 @@ class KillinchuHttpHardeningTests(unittest.TestCase):
         self.assertEqual(head.status_code, 404)
         self.assertEqual(head.content, b"")
 
+    def test_known_spa_history_routes_support_direct_get_and_head(self):
+        for path in (
+            "/receipts",
+            "/research",
+            "/remote-id",
+            "/swarm",
+            "/threats/active",
+            "/threats/live",
+            "/drones/database",
+            "/drones/track-42",
+        ):
+            response = self.client.get(path)
+            head = self.client.head(path)
+
+            self.assertEqual(response.status_code, 200, path)
+            self.assertIn("text/html", response.headers["content-type"], path)
+            self.assertIn('<div id="root"></div>', response.text, path)
+            self.assertEqual(response.headers["cache-control"], "no-store", path)
+            self.assertEqual(head.status_code, 200, path)
+            self.assertEqual(head.content, b"", path)
+
     def test_root_key_and_export_support_head(self):
         root = self.client.head("/", follow_redirects=False)
         key = self.client.head("/cosign.pub")

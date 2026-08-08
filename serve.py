@@ -4755,6 +4755,24 @@ except Exception as _qa6_e:  # pragma: no cover — additive; never break the Sp
     print(f"[killinchu] QA6 bare-alias wiring NOT applied: {_qa6_e!r}", file=__import__("sys").stderr)
 
 
+_SPA_HISTORY_EXACT = frozenset({
+    "receipts",
+    "remote-id",
+    "research",
+    "swarm",
+    "threats/active",
+    "threats/live",
+})
+
+
+def _is_spa_history_route(full_path: str) -> bool:
+    path = full_path.strip("/")
+    if path in _SPA_HISTORY_EXACT:
+        return True
+    parts = path.split("/")
+    return len(parts) == 2 and parts[0] == "drones" and bool(parts[1])
+
+
 @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
 async def spa_fallback(full_path: str, request: Request) -> Response:
     # QA6 defense-in-depth: bare data prefixes must NEVER be served the SPA HTML.
@@ -4767,6 +4785,11 @@ async def spa_fallback(full_path: str, request: Request) -> Response:
     static_response = await _SPA_FILES.get(full_path, request.scope)
     if static_response is not None:
         return static_response
+    if _is_spa_history_route(full_path):
+        history_response = await _SPA_FILES.get("index.html", request.scope)
+        if history_response is not None:
+            history_response.headers["cache-control"] = "no-store"
+            return history_response
     return JSONResponse(
         {"error": "not found", "path": f"/{full_path}"},
         status_code=404,

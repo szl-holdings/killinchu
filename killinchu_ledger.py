@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import time
 from copy import deepcopy
 from threading import RLock
 from typing import Any, Callable, Mapping, MutableSequence, Sequence
@@ -46,6 +47,7 @@ class LedgerRuntime:
         mode: str = EPHEMERAL,
         adapter: Any = None,
         configuration_error: str | None = None,
+        recovery_interval_s: float = 5.0,
     ) -> None:
         self._dag = dag
         self._lock = lock
@@ -53,6 +55,9 @@ class LedgerRuntime:
         self._mode = mode
         self._adapter = adapter
         self._configuration_error = configuration_error
+        self._recovery_interval_s = max(0.0, float(recovery_interval_s))
+        self._next_recovery_at = 0.0
+        self._recovery_attempts = 0
         self._ready = False
         self._startup_state = "NOT_STARTED"
         self._reason = "startup has not run"
@@ -159,6 +164,11 @@ class LedgerRuntime:
         self._ready = False
         self._startup_state = "FAILED"
         self._reason = reason
+        if self._mode == DURABLE_EXTERNAL:
+            self._next_recovery_at = max(
+                self._next_recovery_at,
+                time.monotonic() + self._recovery_interval_s,
+            )
 
     def startup(self) -> dict[str, Any]:
         """Initialize the selected mode and replay external state before readiness."""
@@ -166,7 +176,7 @@ class LedgerRuntime:
         with self._lock:
             if self._configuration_error:
                 self._fail(self._configuration_error)
-                return self.readiness()
+                return self.readiness(recover=False)
             if self._mode == EPHEMERAL:
                 self._integrity = self._local_integrity(self._dag)
                 self._ready = self._integrity["verified"] is True
@@ -177,12 +187,14 @@ class LedgerRuntime:
                     else "ephemeral ledger integrity verification failed"
                 )
                 self._replay = {"state": "NOT_APPLICABLE", "nodes": len(self._dag)}
-                return self.readiness()
+                return self.readiness(recover=False)
 
             if self._mode != DURABLE_EXTERNAL or not self._adapter_contract(self._adapter):
                 self._fail("external ledger adapter contract is unavailable")
-                return self.readiness()
+                return self.readiness(recover=False)
 
+            self._recovery_attempts += 1
+            self._next_recovery_at = time.monotonic() + self._recovery_interval_s
             try:
                 self._adapter.startup()
                 replayed = [deepcopy(dict(node)) for node in self._adapter.replay()]
@@ -190,7 +202,7 @@ class LedgerRuntime:
                 if local_report.get("verified") is not True:
                     self._integrity = local_report
                     self._fail("external ledger replay failed local integrity verification")
-                    return self.readiness()
+                    return self.readiness(recover=False)
                 external_report = dict(self._adapter.verify_integrity(replayed))
                 if external_report.get("verified") is not True:
                     self._integrity = {
@@ -200,21 +212,35 @@ class LedgerRuntime:
                         "reason": "external integrity hook did not verify replay",
                     }
                     self._fail("external ledger integrity verification failed")
-                    return self.readiness()
+                    return self.readiness(recover=False)
                 self._dag[:] = replayed
                 self._integrity = local_report
                 self._replay = {"state": "VERIFIED", "nodes": len(replayed)}
                 self._ready = True
                 self._startup_state = "READY"
                 self._reason = "external ledger replay and integrity verified"
+                self._next_recovery_at = 0.0
             except Exception:
                 self._fail("external ledger startup or replay failed")
-            return self.readiness()
+            return self.readiness(recover=False)
 
-    def readiness(self) -> dict[str, Any]:
+    def readiness(self, *, recover: bool = True) -> dict[str, Any]:
         """Return a secret-free, fail-closed readiness and truth envelope."""
 
         with self._lock:
+            now = time.monotonic()
+            can_recover = (
+                recover
+                and self._mode == DURABLE_EXTERNAL
+                and not self._ready
+                and not self._configuration_error
+                and self._adapter_contract(self._adapter)
+                and now >= self._next_recovery_at
+            )
+            if can_recover:
+                self.startup()
+                now = time.monotonic()
+
             adapter_ready = True
             adapter_state = "NOT_APPLICABLE"
             if self._mode == DURABLE_EXTERNAL and self._ready:
@@ -244,6 +270,12 @@ class LedgerRuntime:
                 "adapter_state": adapter_state,
                 "integrity": deepcopy(self._integrity),
                 "replay": deepcopy(self._replay),
+                "recovery": {
+                    "attempts": self._recovery_attempts,
+                    "retry_after_s": round(
+                        max(0.0, self._next_recovery_at - now), 3
+                    ) if self._mode == DURABLE_EXTERNAL and not ready else 0.0,
+                },
                 "reason": self._reason if ready or self._reason else "ledger unavailable",
             }
 
