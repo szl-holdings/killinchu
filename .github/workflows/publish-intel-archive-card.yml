@@ -48,9 +48,37 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 1
+      - name: Checkout exact shared publisher source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: 3dde396da0b2c17722e8b78e9da34057801dce5d
+          path: shared-hf-publisher
+          persist-credentials: false
+          fetch-depth: 1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12'
+          python-version: '3.12.10'
+      - name: Install exact shared hash-locked publisher closure
+        env:
+          SHARED_PUBLISHER_SHA: 3dde396da0b2c17722e8b78e9da34057801dce5d
+          SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
+          PUBLISHER_VENV: ${{ runner.temp }}/hf-card-validator-venv
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C shared-hf-publisher rev-parse HEAD)" = "$SHARED_PUBLISHER_SHA"
+          test "$(git -C shared-hf-publisher rev-parse HEAD:requirements/hf-publisher.lock)" = "$SHARED_LOCK_BLOB"
+          test ! -e "$PUBLISHER_VENV"
+          python -I -m venv "$PUBLISHER_VENV"
+          PUBLISHER_PYTHON="$PUBLISHER_VENV/bin/python"
+          test "$("$PUBLISHER_PYTHON" -I -P -c 'import platform; print(platform.python_version())')" = "3.12.10"
+          "$PUBLISHER_PYTHON" -I -P -m pip install \
+            --disable-pip-version-check --require-hashes --only-binary=:all: \
+            --ignore-installed -r shared-hf-publisher/requirements/hf-publisher.lock
+          "$PUBLISHER_PYTHON" -I -P -c \
+            'import importlib.metadata as m, huggingface_hub as h; assert m.version("huggingface-hub") == "1.19.0" == h.__version__'
+          echo "HF_PUBLISHER_SITE=$("$PUBLISHER_PYTHON" -I -P -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" >> "$GITHUB_ENV"
       - name: Render and test the exact source contract
         id: validation
         shell: bash
@@ -68,8 +96,7 @@ jobs:
               --card-out "$EVIDENCE_DIR/rendered/README.md" \
               --license-out "$EVIDENCE_DIR/rendered/LICENSE.md"
             python -m pip install --disable-pip-version-check pytest
-            python -m pip install --disable-pip-version-check 'huggingface_hub==1.23.0'
-            python -m pytest -q \
+            PYTHONPATH="$HF_PUBLISHER_SITE${PYTHONPATH:+:$PYTHONPATH}" python -m pytest -q \
               tests/test_killinchu_intel_archive_card.py \
               tests/test_killinchu_intel_archive_publish.py
             python - <<'PY'
@@ -109,18 +136,42 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 1
+      - name: Checkout exact shared publisher source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: 3dde396da0b2c17722e8b78e9da34057801dce5d
+          path: shared-hf-publisher
+          persist-credentials: false
+          fetch-depth: 1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12'
-      - name: Install pinned Hugging Face client
-        run: python -m pip install --disable-pip-version-check 'huggingface_hub==1.23.0'
+          python-version: '3.12.10'
+      - name: Install exact shared hash-locked publisher closure
+        env:
+          SHARED_PUBLISHER_SHA: 3dde396da0b2c17722e8b78e9da34057801dce5d
+          SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
+          PUBLISHER_VENV: ${{ runner.temp }}/hf-card-publisher-venv
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C shared-hf-publisher rev-parse HEAD)" = "$SHARED_PUBLISHER_SHA"
+          test "$(git -C shared-hf-publisher rev-parse HEAD:requirements/hf-publisher.lock)" = "$SHARED_LOCK_BLOB"
+          test ! -e "$PUBLISHER_VENV"
+          python -I -m venv "$PUBLISHER_VENV"
+          PUBLISHER_PYTHON="$PUBLISHER_VENV/bin/python"
+          test "$("$PUBLISHER_PYTHON" -I -P -c 'import platform; print(platform.python_version())')" = "3.12.10"
+          "$PUBLISHER_PYTHON" -I -P -m pip install \
+            --disable-pip-version-check --require-hashes --only-binary=:all: \
+            --ignore-installed -r shared-hf-publisher/requirements/hf-publisher.lock
+          "$PUBLISHER_PYTHON" -I -P -c \
+            'import importlib.metadata as m, huggingface_hub as h; assert m.version("huggingface-hub") == "1.19.0" == h.__version__'
+          echo "HF_PUBLISHER_PYTHON=$PUBLISHER_PYTHON" >> "$GITHUB_ENV"
       - name: Refuse stale manual or scheduled source refs
         shell: bash
         run: |
@@ -131,10 +182,12 @@ jobs:
             exit 2
           }
       - name: Publish and independently read back the exact revision
+        env:
+          HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
           test -n "${HF_TOKEN:-}" || { echo '::error::HF write token is not configured'; exit 2; }
-          python killinchu_intel_archive_publish.py \
+          "$HF_PUBLISHER_PYTHON" killinchu_intel_archive_publish.py \
             --source-revision "$GITHUB_SHA" \
             --report "$EVIDENCE_DIR/publication.json"
       - name: Upload immutable publication receipt
