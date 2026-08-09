@@ -23,7 +23,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy, source-bind, and attest exact surface
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@391f67e28dd966d9e42f88c6e3f852f3c63add84
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@55e935bc9a8d7ff7d5178af341b05f5d075b1f55
     with:
       hf-repo: SZLHOLDINGS/killinchu
       ref: ${{ github.sha }}
@@ -127,7 +127,37 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.10"
+
+      - name: Checkout exact shared publisher source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
+          path: shared-hf-publisher
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install exact shared hash-locked publisher closure
+        env:
+          SHARED_PUBLISHER_SHA: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
+          SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
+          PUBLISHER_VENV: ${{ runner.temp }}/hf-receipt-publisher-venv
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C shared-hf-publisher rev-parse HEAD)" = "$SHARED_PUBLISHER_SHA"
+          test "$(git -C shared-hf-publisher rev-parse HEAD:requirements/hf-publisher.lock)" = "$SHARED_LOCK_BLOB"
+          test ! -e "$PUBLISHER_VENV"
+          python -I -m venv "$PUBLISHER_VENV"
+          PUBLISHER_PYTHON="$PUBLISHER_VENV/bin/python"
+          test "$("$PUBLISHER_PYTHON" -I -P -c 'import platform; print(platform.python_version())')" = "3.12.10"
+          "$PUBLISHER_PYTHON" -I -P -m pip install \
+            --disable-pip-version-check --require-hashes --only-binary=:all: \
+            --ignore-installed -r shared-hf-publisher/requirements/hf-publisher.lock
+          "$PUBLISHER_PYTHON" -I -P -c \
+            'import importlib.metadata as m, huggingface_hub as h, requests; assert m.version("huggingface-hub") == "1.19.0" == h.__version__; assert requests.__version__ == "2.32.5"'
+          echo "HF_PUBLISHER_PYTHON=$PUBLISHER_PYTHON" >> "$GITHUB_ENV"
 
       - name: Publish receipt reference and verify restarted runtime
         env:
@@ -142,9 +172,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check \
-            "huggingface_hub==1.19.0" "requests==2.32.5"
-          python3 - <<'PY'
+          "$HF_PUBLISHER_PYTHON" -I -P - <<'PY'
           import json
           import os
           import time

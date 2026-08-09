@@ -23,7 +23,6 @@ jobs:
     permissions:
       contents: read
     env:
-      HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
       SPACE_ID: SZLHOLDINGS/killinchu
 
     steps:
@@ -36,11 +35,6 @@ jobs:
             echo "::error::confirmation must exactly equal ACTIVATE KILLINCHU INTEL ARCHIVE"
             exit 1
           fi
-          if [[ -z "${HF_TOKEN:-}" ]]; then
-            echo "::error::HF_WRITE_TOKEN is not configured"
-            exit 1
-          fi
-
       - name: Checkout exact workflow commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -60,18 +54,45 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v6.1.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.10"
 
-      - name: Install pinned Hugging Face client
+      - name: Checkout exact shared publisher source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
+          path: shared-hf-publisher
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install exact shared hash-locked publisher closure
+        env:
+          SHARED_PUBLISHER_SHA: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
+          SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
+          PUBLISHER_VENV: ${{ runner.temp }}/hf-publisher-venv
+        shell: bash
         run: |
-          python -m pip install \
-            --disable-pip-version-check \
-            --no-cache-dir \
-            "huggingface_hub==1.26.0"
+          set -euo pipefail
+          test "$(git -C shared-hf-publisher rev-parse HEAD)" = "$SHARED_PUBLISHER_SHA"
+          test "$(git -C shared-hf-publisher rev-parse HEAD:requirements/hf-publisher.lock)" = "$SHARED_LOCK_BLOB"
+          test ! -e "$PUBLISHER_VENV"
+          python -I -m venv "$PUBLISHER_VENV"
+          PUBLISHER_PYTHON="$PUBLISHER_VENV/bin/python"
+          test "$("$PUBLISHER_PYTHON" -I -P -c 'import platform; print(platform.python_version())')" = "3.12.10"
+          "$PUBLISHER_PYTHON" -I -P -m pip install \
+            --disable-pip-version-check --require-hashes --only-binary=:all: \
+            --ignore-installed -r shared-hf-publisher/requirements/hf-publisher.lock
+          "$PUBLISHER_PYTHON" -I -P -c \
+            'import importlib.metadata as m, huggingface_hub as h; assert m.version("huggingface-hub") == "1.19.0" == h.__version__'
+          echo "HF_PUBLISHER_PYTHON=$PUBLISHER_PYTHON" >> "$GITHUB_ENV"
 
       - name: Activate and verify Space controls
+        env:
+          HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
         run: |
-          python - <<'PY'
+          set -euo pipefail
+          test -n "${HF_TOKEN:-}" || { echo "::error::HF_WRITE_TOKEN is not configured"; exit 1; }
+          "$HF_PUBLISHER_PYTHON" -I -P - <<'PY'
           import os
           import secrets
 
