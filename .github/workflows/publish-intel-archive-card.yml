@@ -52,7 +52,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: szl-holdings/.github
-          ref: 3dde396da0b2c17722e8b78e9da34057801dce5d
+          ref: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
           path: shared-hf-publisher
           persist-credentials: false
           fetch-depth: 1
@@ -61,7 +61,7 @@ jobs:
           python-version: '3.12.10'
       - name: Install exact shared hash-locked publisher closure
         env:
-          SHARED_PUBLISHER_SHA: 3dde396da0b2c17722e8b78e9da34057801dce5d
+          SHARED_PUBLISHER_SHA: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
           SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
           PUBLISHER_VENV: ${{ runner.temp }}/hf-card-validator-venv
         shell: bash
@@ -145,7 +145,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: szl-holdings/.github
-          ref: 3dde396da0b2c17722e8b78e9da34057801dce5d
+          ref: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
           path: shared-hf-publisher
           persist-credentials: false
           fetch-depth: 1
@@ -154,7 +154,7 @@ jobs:
           python-version: '3.12.10'
       - name: Install exact shared hash-locked publisher closure
         env:
-          SHARED_PUBLISHER_SHA: 3dde396da0b2c17722e8b78e9da34057801dce5d
+          SHARED_PUBLISHER_SHA: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
           SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
           PUBLISHER_VENV: ${{ runner.temp }}/hf-card-publisher-venv
         shell: bash
