@@ -250,7 +250,7 @@ def test_github_tip_rejects_malformed_responses(payload):
 
 
 def test_github_tip_failure_never_logs_token():
-    token = "never-print-this-token"
+    token = "-".join(("synthetic", "redaction", "sentinel"))
 
     def unavailable(_request, *, timeout):
         raise TimeoutError("transport timeout")
