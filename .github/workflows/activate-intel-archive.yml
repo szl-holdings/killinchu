@@ -88,13 +88,18 @@ jobs:
 
       - name: Activate and verify Space controls
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
         run: |
           set -euo pipefail
           test -n "${HF_TOKEN:-}" || { echo "::error::HF_WRITE_TOKEN is not configured"; exit 1; }
           "$HF_PUBLISHER_PYTHON" -I -P - <<'PY'
+          import json
           import os
+          import re
           import secrets
+          import urllib.parse
+          import urllib.request
 
           from huggingface_hub import HfApi
 
@@ -103,6 +108,58 @@ jobs:
           api = HfApi(token=token)
 
           existing_secrets = api.get_space_secrets(repo_id, token=token)
+
+          # This authenticated read is deliberately inside the final secret-bearing
+          # path and immediately precedes the first Hugging Face mutation.
+          source_revision = os.environ["GITHUB_SHA"]
+          github_repository = os.environ["GITHUB_REPOSITORY"]
+          github_api_url = os.environ["GITHUB_API_URL"]
+          github_token = os.environ["GITHUB_TOKEN"]
+          if github_repository != "szl-holdings/killinchu":
+              raise RuntimeError("unexpected GitHub source repository")
+          if re.fullmatch(r"[0-9a-f]{40}", source_revision) is None:
+              raise RuntimeError("GITHUB_SHA is not an exact revision")
+          parsed_api = urllib.parse.urlsplit(github_api_url)
+          if (
+              parsed_api.scheme != "https"
+              or not parsed_api.netloc
+              or parsed_api.username is not None
+              or parsed_api.password is not None
+              or parsed_api.query
+              or parsed_api.fragment
+          ):
+              raise RuntimeError("GITHUB_API_URL is not an allowed HTTPS API origin")
+          github_request = urllib.request.Request(
+              f"{github_api_url.rstrip('/')}/repos/{github_repository}/commits/main",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {github_token}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          try:
+              with urllib.request.urlopen(github_request, timeout=10.0) as response:
+                  if getattr(response, "status", None) != 200:
+                      raise RuntimeError("protected-main lookup returned a non-200 status")
+                  github_body = response.read(65_537)
+          except Exception as exc:
+              raise RuntimeError(
+                  f"protected-main lookup failed ({type(exc).__name__})"
+              ) from None
+          if len(github_body) > 65_536:
+              raise RuntimeError("protected-main response exceeded the size limit")
+          try:
+              github_payload = json.loads(github_body.decode("utf-8"))
+          except (UnicodeDecodeError, json.JSONDecodeError):
+              raise RuntimeError("protected-main response was not valid JSON") from None
+          observed_main = github_payload.get("sha") if isinstance(github_payload, dict) else None
+          if not isinstance(observed_main, str) or re.fullmatch(
+              r"[0-9a-f]{40}", observed_main
+          ) is None:
+              raise RuntimeError("protected-main response did not contain an exact revision")
+          if observed_main != source_revision:
+              raise RuntimeError("workflow source is no longer current protected main")
+
           api.add_space_variable(
               repo_id=repo_id,
               key="KILLINCHU_INTEL_ARCHIVE_RIGHTS_APPROVED",
