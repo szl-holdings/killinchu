@@ -1,8 +1,8 @@
 {
   "files": {
     "static-vendor/a11oy-operator-widget.js": "a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c",
-    "szl_spaces_proxy.py": "35d7b2fa2eea7c7f0c2afce2719cc8853aacc859a8384a1bd4e828d07d31a850",
-    "szl_spaces_surface.py": "607270ffc00f545b63ee03f45613725a31b990703d3a5180b468e0d174ca77d6"
+    "szl_spaces_proxy.py": "5a4da7f1aafa4c18f6528e739519b6d1d62f254ec893469ab1619ccf116b019f",
+    "szl_spaces_surface.py": "91e7c615f821f6b1b9efb95a1e89ef906a436d389b99536fe83f68de4cdbec04"
   },
   "payload_id": "spaces-health-hardening-2026-08-08",
   "schema": "szl-shared-source-payload/v1"

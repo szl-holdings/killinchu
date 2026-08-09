@@ -6,6 +6,11 @@ from pathlib import Path
 import killinchu_nav_wireup as nav
 import szl_spaces_proxy as proxy
 import szl_spaces_surface as surface
+import killinchu_spaces_adapter as spaces_adapter
+
+
+spaces_adapter.configure_proxy(proxy)
+spaces_adapter.configure_surface(surface)
 
 
 EXPECTED = [

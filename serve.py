@@ -5577,7 +5577,9 @@ try:
             raise ImportError("shared Spaces module lacks redirect-only security contract")
     except Exception:
         import szl_spaces_proxy as _szl_spaces_proxy
-    _szl_spaces_proxy_status = _szl_spaces_proxy.register(app, ns="killinchu")
+    _szl_spaces_proxy_status = __import__(
+        "killinchu_spaces_adapter"
+    ).register_proxy(app, _szl_spaces_proxy, ns="killinchu")
     print(f"[killinchu] Spaces canonical handoffs registered: {_szl_spaces_proxy_status}", file=__import__("sys").stderr)
 except Exception as _szl_sp_e:  # pragma: no cover
     print(f"[killinchu] Spaces canonical handoffs NOT registered: {_szl_sp_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
@@ -5589,7 +5591,9 @@ try:
             raise ImportError("shared Spaces surface lacks canonical-origin contract")
     except Exception:
         import szl_spaces_surface as _szl_spaces_surface
-    _szl_spaces_surface_status = _szl_spaces_surface.register(app, ns="killinchu")
+    _szl_spaces_surface_status = __import__(
+        "killinchu_spaces_adapter"
+    ).register_surface(app, _szl_spaces_surface, ns="killinchu")
     print(f"[killinchu] Spaces surface registered: {_szl_spaces_surface_status}", file=__import__("sys").stderr)
 except Exception as _szl_ss_e:  # pragma: no cover
     print(f"[killinchu] Spaces surface NOT registered: {_szl_ss_e!r}; SPA + API unaffected", file=__import__("sys").stderr)

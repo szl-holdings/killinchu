@@ -107,10 +107,10 @@ COPY static/ ./static/
 # are left untouched. Signed-off-by: Yachay <yachay@szlholdings.ai>
 # ---------------------------------------------------------------------------
 COPY cathedral.html knowledge.json operator_shell_v4.py serve.py killinchu_ledger.py killinchu_receipt_export.py szl_evidence_research.py szl_readiness.py szl_quantum_bio.py szl_quant_qbio_holo.py szl_unified_formulas.py szl_cuas_formulas.py killinchu_research_sources.py szl_contracting.py szl_conjecture_factory.py killinchu_backend.py a11oy_hf_assets.py drones_db.json killinchu_protocols.py killinchu_expansion.py killinchu_naval_haps.py szl_dsse.py szl_content_address.py szl_safe_static.py szl_provenance.py LEGAL_BOUNDARIES.md ./
-# Shared Spaces modules (Dev2+3) — canonical handoffs + isolated-origin tiles.
+# Shared Spaces modules (Dev2+3) — canonical A11oy bytes plus Killinchu policy adapter.
 # Per-file COPY (this Dockerfile uses no `COPY . .`) or serve.py's guarded import
 # falls back and /spaces + /api/<ns>/v1/spaces/health 404.
-COPY szl_spaces_proxy.py szl_spaces_surface.py ./
+COPY szl_spaces_proxy.py szl_spaces_surface.py killinchu_spaces_adapter.py ./
 COPY szl_live_wires.py live_wires.html live_wires_3d.js szl_rosie_companion.py killinchu_szl_pqc_sign.py szl_rekor.py killinchu_osint.py killinchu_intel_archive_card.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py killinchu_genius.py killinchu_warhacker_demos.py killinchu_v3.py szl_brain.py szl_rag.py szl_formulas.py szl_understudy.py ./
 # Canonical mixed-source Hugging Face dataset card and rights contract.
 COPY datasets/killinchu-osint-corpus/ ./datasets/killinchu-osint-corpus/
