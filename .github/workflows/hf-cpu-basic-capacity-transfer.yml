@@ -1,0 +1,171 @@
+name: Governed HF cpu-basic capacity transfer
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: >-
+          Type exactly: TRANSFER CPU-BASIC FROM SZLHOLDINGS/llm-router-live TO
+          SZLHOLDINGS/killinchu
+        required: true
+        type: string
+
+concurrency:
+  group: killinchu-hf-cpu-basic-capacity-transfer
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  transfer:
+    name: Transfer fixed cpu-basic slot with rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact dispatch revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Require exact confirmation and protected current main
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EXPECTED_CONFIRMATION: TRANSFER CPU-BASIC FROM SZLHOLDINGS/llm-router-live TO SZLHOLDINGS/killinchu
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_REF: refs/heads/main
+          OBSERVED_GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_PROTECTED: ${{ github.ref_protected }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SHARED_PUBLISHER_SHA: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -I - <<'PY'
+          import json
+          import os
+          import subprocess
+          import urllib.request
+
+          def require(condition, message):
+              if not condition:
+                  raise SystemExit(message)
+
+          def github_get(path):
+              request = urllib.request.Request(
+                  os.environ["GITHUB_API_URL"].rstrip("/") + path,
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  return json.load(response)
+
+          require(os.environ["EVENT_NAME"] == "workflow_dispatch", "manual dispatch required")
+          require(
+              os.environ["CONFIRMATION"] == os.environ["EXPECTED_CONFIRMATION"],
+              "exact capacity-transfer confirmation required",
+          )
+          require(
+              os.environ["GITHUB_REPOSITORY"] == "szl-holdings/killinchu",
+              "fixed GitHub repository required",
+          )
+          require(
+              os.environ["OBSERVED_GITHUB_REF"] == os.environ["GITHUB_REF"],
+              "dispatch must target refs/heads/main",
+          )
+          require(
+              os.environ["GITHUB_REF_PROTECTED"].lower() == "true",
+              "dispatch ref must be protected",
+          )
+          local_head = subprocess.check_output(
+              ["git", "rev-parse", "HEAD"], text=True
+          ).strip()
+          require(local_head == os.environ["GITHUB_SHA"], "checkout SHA mismatch")
+
+          branch = github_get("/repos/szl-holdings/killinchu/branches/main")
+          require(branch.get("protected") is True, "live main is not protected")
+          require(
+              branch.get("commit", {}).get("sha") == os.environ["GITHUB_SHA"],
+              "refusing stale dispatch: github.sha is not current main",
+          )
+
+          shared = github_get(
+              "/repos/szl-holdings/.github/commits/"
+              + os.environ["SHARED_PUBLISHER_SHA"]
+          )
+          require(
+              shared.get("sha") == os.environ["SHARED_PUBLISHER_SHA"],
+              "shared publisher SHA mismatch",
+          )
+          require(
+              shared.get("commit", {}).get("verification", {}).get("verified")
+              is True,
+              "shared publisher commit is not GitHub-verified",
+          )
+          PY
+
+      - name: Set up exact Python runtime
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Checkout exact shared publisher source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
+          path: shared-hf-publisher
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install exact hash-locked shared publisher closure
+        env:
+          SHARED_PUBLISHER_SHA: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55
+          SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
+          PUBLISHER_VENV: ${{ runner.temp }}/hf-capacity-transfer-venv
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C shared-hf-publisher rev-parse HEAD)" = "$SHARED_PUBLISHER_SHA"
+          test "$(git -C shared-hf-publisher rev-parse HEAD:requirements/hf-publisher.lock)" = "$SHARED_LOCK_BLOB"
+          test ! -e "$PUBLISHER_VENV"
+          python -I -m venv "$PUBLISHER_VENV"
+          PUBLISHER_PYTHON="$PUBLISHER_VENV/bin/python"
+          test "$("$PUBLISHER_PYTHON" -I -P -c 'import platform; print(platform.python_version())')" = "3.12.10"
+          "$PUBLISHER_PYTHON" -I -P -m pip install \
+            --disable-pip-version-check --require-hashes --only-binary=:all: \
+            --ignore-installed -r shared-hf-publisher/requirements/hf-publisher.lock
+          "$PUBLISHER_PYTHON" -I -P -c \
+            'import importlib.metadata as m, huggingface_hub as h, requests; assert m.version("huggingface-hub") == "1.19.0" == h.__version__; assert requests.__version__ == "2.32.5"'
+          echo "HF_PUBLISHER_PYTHON=$PUBLISHER_PYTHON" >> "$GITHUB_ENV"
+
+      - name: Execute fixed governed capacity transfer
+        env:
+          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_CAPACITY_TRANSFER_CONFIRMATION: ${{ inputs.confirmation }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$HF_PUBLISHER_PYTHON" -I -P scripts/hf_cpu_basic_capacity_transfer.py
+
+      - name: Upload redacted transfer evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-cpu-basic-capacity-transfer-evidence
+          path: hf-cpu-basic-capacity-transfer-evidence.json
+          if-no-files-found: warn
+          retention-days: 90
