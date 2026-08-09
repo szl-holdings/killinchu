@@ -41,7 +41,7 @@ jobs:
           EXPECTED_CONFIRMATION: TRANSFER CPU-BASIC FROM SZLHOLDINGS/llm-router-live TO SZLHOLDINGS/killinchu
           EVENT_NAME: ${{ github.event_name }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GITHUB_REF: refs/heads/main
+          EXPECTED_GITHUB_REF: refs/heads/main
           OBSERVED_GITHUB_REF: ${{ github.ref }}
           GITHUB_REF_PROTECTED: ${{ github.ref_protected }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -83,7 +83,8 @@ jobs:
               "fixed GitHub repository required",
           )
           require(
-              os.environ["OBSERVED_GITHUB_REF"] == os.environ["GITHUB_REF"],
+              os.environ["OBSERVED_GITHUB_REF"]
+              == os.environ["EXPECTED_GITHUB_REF"],
               "dispatch must target refs/heads/main",
           )
           require(

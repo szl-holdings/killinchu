@@ -208,8 +208,9 @@ def test_manual_workflow_is_fixed_scope_locked_and_protected_main_only() -> None
         CONFIRMATION,
         "group: killinchu-hf-cpu-basic-capacity-transfer",
         "cancel-in-progress: false",
-        "GITHUB_REF: refs/heads/main",
+        "EXPECTED_GITHUB_REF: refs/heads/main",
         "GITHUB_REF_PROTECTED: ${{ github.ref_protected }}",
+        'os.environ["OBSERVED_GITHUB_REF"]\n              == os.environ["EXPECTED_GITHUB_REF"]',
         "SHARED_PUBLISHER_SHA: 55e935bc9a8d7ff7d5178af341b05f5d075b1f55",
         "SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9",
         "HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}",
@@ -223,4 +224,5 @@ def test_manual_workflow_is_fixed_scope_locked_and_protected_main_only() -> None
     assert "schedule:" not in trigger_block
     assert "source" not in workflow.split("jobs:", 1)[0]
     assert "target" not in workflow.split("jobs:", 1)[0]
-
+    assert "\n          GITHUB_REF:" not in workflow
+    assert 'os.environ["GITHUB_REF"]' not in workflow
