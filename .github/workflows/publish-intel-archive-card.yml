@@ -183,12 +183,15 @@ jobs:
           }
       - name: Publish and independently read back the exact revision
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
           test -n "${HF_TOKEN:-}" || { echo '::error::HF write token is not configured'; exit 2; }
           "$HF_PUBLISHER_PYTHON" killinchu_intel_archive_publish.py \
             --source-revision "$GITHUB_SHA" \
+            --github-repository "$GITHUB_REPOSITORY" \
+            --github-api-url "$GITHUB_API_URL" \
             --report "$EVIDENCE_DIR/publication.json"
       - name: Upload immutable publication receipt
         if: always()
