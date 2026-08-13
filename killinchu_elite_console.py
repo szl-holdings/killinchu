@@ -720,38 +720,11 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <!-- VENDORED viz libs (no-CDN, sovereign / air-gap ready). Chart.js 4.4.1, 3d-force-graph 1.73.4,
      ECharts 5 + echarts-gl 2, globe.gl 2, Cytoscape 3, D3 7, KaTeX 0.16.9. Served from /vendor/* . -->
 <script defer src="/vendor/chart.umd.min.js"></script>
-<!-- Shared Three.js executes synchronously so its compatibility shim is installed
-     before any deferred graph/globe UMD bundle can evaluate window.THREE. -->
-<script src="/vendor/three.min.js"></script>
-<script>
-(function(){
-  if(typeof THREE==='undefined'||THREE.Timer) return;
-  function Timer(){
-    this._previousTime=0; this._currentTime=0;
-    this._delta=0; this._elapsed=0; this._timescale=1;
-    this._usePageVisibility=false;
-  }
-  Timer.prototype.getDelta=function(){ return this._delta; };
-  Timer.prototype.getElapsed=function(){ return this._elapsed; };
-  Timer.prototype.getTimescale=function(){ return this._timescale; };
-  Timer.prototype.setTimescale=function(t){ this._timescale=t; return this; };
-  Timer.prototype.reset=function(){ this._currentTime=(typeof performance!=='undefined'?performance.now():Date.now()); return this; };
-  Timer.prototype.dispose=function(){ return this; };
-  Timer.prototype.connect=function(){ return this; };
-  Timer.prototype.disconnect=function(){ return this; };
-  Timer.prototype.update=function(timestamp){
-    this._previousTime=this._currentTime;
-    this._currentTime=(timestamp!==undefined?timestamp:(typeof performance!=='undefined'?performance.now():Date.now()));
-    var d=(this._currentTime-this._previousTime)/1000;
-    if(!isFinite(d)||d<0) d=0;
-    if(d>0.2) d=0.2;
-    this._delta=d*this._timescale;
-    this._elapsed+=this._delta;
-    return this;
-  };
-  THREE.Timer=Timer;
-})();
-</script>
+<!-- All three scripts are deferred and therefore execute in document order: core,
+     compatibility shim, then graph/globe consumers. This keeps cold-start parsing
+     non-blocking without exposing an unshimmed window.THREE to a dependent bundle. -->
+<script defer src="/vendor/three.min.js"></script>
+<script defer src="/vendor/three-timer-shim.js"></script>
 <script defer src="/vendor/3d-force-graph.min.js"></script>
 <script defer src="/vendor/echarts.min.js"></script>
 <script defer src="/vendor/echarts-gl.min.js"></script>
@@ -771,7 +744,7 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
      Faithful re-implementation of three's Timer API (delta/elapsed in seconds). -->
 <script>
 /* Deferred vendor libraries finish before DOMContentLoaded. Install the narrowly
-   scoped teardown guard then; the required THREE.Timer shim is already synchronous. */
+   scoped teardown guard then; the Timer shim ran before all Three consumers. */
 (function(){
   function __szlHeadInit(){
 
