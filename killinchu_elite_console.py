@@ -696,15 +696,16 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="canonical" href="https://szlholdings-killinchu.hf.space/elite" />
 <title>killinchu — Counter-UAS Governance · SZL Holdings</title>
 <meta name="description" content="killinchu is SZL Holdings' counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint."/>
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="killinchu · SZL Holdings" />
-<meta property="og:url" content="https://killinchu.a-11-oy.com/" />
+<meta property="og:url" content="https://szlholdings-killinchu.hf.space/elite" />
 <meta property="og:title" content="killinchu · Counter-UAS Governance" />
 <meta property="og:description" content="killinchu is SZL Holdings&#x27; counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint." />
-<meta property="og:image" content="https://killinchu.a-11-oy.com/og-card.png" />
-<meta property="og:image:secure_url" content="https://killinchu.a-11-oy.com/og-card.png" />
+<meta property="og:image" content="https://szlholdings-killinchu.hf.space/og-card.png" />
+<meta property="og:image:secure_url" content="https://szlholdings-killinchu.hf.space/og-card.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
@@ -712,13 +713,18 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="killinchu · Counter-UAS Governance" />
 <meta name="twitter:description" content="killinchu is SZL Holdings&#x27; counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint." />
-<meta name="twitter:image" content="https://killinchu.a-11-oy.com/og-card.png" />
+<meta name="twitter:image" content="https://szlholdings-killinchu.hf.space/og-card.png" />
 <meta name="twitter:image:alt" content="killinchu — counter-UAS governance: live track board, governed ROE, signed receipts" />
 <!-- SOVEREIGN: self-hosted fonts (0 runtime CDN; no fonts.googleapis.com / fonts.gstatic.com). Served from /vendor/fonts/. -->
 <link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
 <!-- VENDORED viz libs (no-CDN, sovereign / air-gap ready). Chart.js 4.4.1, 3d-force-graph 1.73.4,
      ECharts 5 + echarts-gl 2, globe.gl 2, Cytoscape 3, D3 7, KaTeX 0.16.9. Served from /vendor/* . -->
 <script defer src="/vendor/chart.umd.min.js"></script>
+<!-- All three scripts are deferred and therefore execute in document order: core,
+     compatibility shim, then graph/globe consumers. This keeps cold-start parsing
+     non-blocking without exposing an unshimmed window.THREE to a dependent bundle. -->
+<script defer src="/vendor/three.min.js"></script>
+<script defer src="/vendor/three-timer-shim.js"></script>
 <script defer src="/vendor/3d-force-graph.min.js"></script>
 <script defer src="/vendor/echarts.min.js"></script>
 <script defer src="/vendor/echarts-gl.min.js"></script>
@@ -731,17 +737,14 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
      Three.js r160 (THREE) — 3D HEALTH TWIN; deck.gl (deck) — geospatial layers;
      Konva (Konva) — 2D schematic canvas; Sigma+Graphology (Sigma/graphology) +
      Dagre (dagre) — receipt-chain DAG. All UMD globals, 0 runtime CDN. -->
-<script defer src="/vendor/three.min.js"></script>
 <!-- THREE.Timer shim (0-CDN): vendored three.min.js (r160 core) does NOT export the Timer
      class that globe.gl expects (added to three core in r170+). globe.gl calls
      `new THREE.Timer().update()/.getDelta()`; without it -> "z0.Timer is not a constructor"
      and the globe canvases (fleet_c2 / pulse / constellations) blank intermittently.
      Faithful re-implementation of three's Timer API (delta/elapsed in seconds). -->
 <script>
-/* PERF: vendor libs now load with `defer` (parse-unblocking, in-order). The two
-   IIFEs below (benign-teardown error guard + THREE.Timer shim) depend on those
-   deferred libs having executed, so they are deferred to DOMContentLoaded — which
-   fires AFTER all deferred scripts run. Behaviour is unchanged; only timing moves. */
+/* Deferred vendor libraries finish before DOMContentLoaded. Install the narrowly
+   scoped teardown guard then; the Timer shim ran before all Three consumers. */
 (function(){
   function __szlHeadInit(){
 
@@ -762,34 +765,6 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
   window.addEventListener('unhandledrejection', function(ev){
     try{ var r=ev&&ev.reason; if(r && isBenignTeardown(r.message||r)){ ev.preventDefault(); return false; } }catch(e){}
   });
-})();
-(function(){
-  if(typeof THREE==='undefined'||THREE.Timer) return;
-  function Timer(){
-    this._previousTime=0; this._currentTime=0;
-    this._delta=0; this._elapsed=0; this._timescale=1;
-    this._usePageVisibility=false;
-  }
-  Timer.prototype.getDelta=function(){ return this._delta; };
-  Timer.prototype.getElapsed=function(){ return this._elapsed; };
-  Timer.prototype.getTimescale=function(){ return this._timescale; };
-  Timer.prototype.setTimescale=function(t){ this._timescale=t; return this; };
-  Timer.prototype.reset=function(){ this._currentTime=(typeof performance!=='undefined'?performance.now():Date.now()); return this; };
-  Timer.prototype.dispose=function(){ return this; };
-  Timer.prototype.connect=function(){ return this; };
-  Timer.prototype.disconnect=function(){ return this; };
-  Timer.prototype.update=function(timestamp){
-    this._previousTime=this._currentTime;
-    this._currentTime=(timestamp!==undefined?timestamp:(typeof performance!=='undefined'?performance.now():Date.now()));
-    // delta/elapsed in SECONDS, scaled, with a sane clamp to avoid huge first-frame jumps
-    var d=(this._currentTime-this._previousTime)/1000;
-    if(!isFinite(d)||d<0) d=0;
-    if(d>0.2) d=0.2;
-    this._delta=d*this._timescale;
-    this._elapsed+=this._delta;
-    return this;
-  };
-  THREE.Timer=Timer;
 })();
   }
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',__szlHeadInit);}else{__szlHeadInit();}
