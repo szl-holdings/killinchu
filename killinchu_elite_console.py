@@ -720,8 +720,38 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <!-- VENDORED viz libs (no-CDN, sovereign / air-gap ready). Chart.js 4.4.1, 3d-force-graph 1.73.4,
      ECharts 5 + echarts-gl 2, globe.gl 2, Cytoscape 3, D3 7, KaTeX 0.16.9. Served from /vendor/* . -->
 <script defer src="/vendor/chart.umd.min.js"></script>
-<!-- Shared Three.js must execute before graph/globe UMD bundles so every renderer reuses one core instance. -->
-<script defer src="/vendor/three.min.js"></script>
+<!-- Shared Three.js executes synchronously so its compatibility shim is installed
+     before any deferred graph/globe UMD bundle can evaluate window.THREE. -->
+<script src="/vendor/three.min.js"></script>
+<script>
+(function(){
+  if(typeof THREE==='undefined'||THREE.Timer) return;
+  function Timer(){
+    this._previousTime=0; this._currentTime=0;
+    this._delta=0; this._elapsed=0; this._timescale=1;
+    this._usePageVisibility=false;
+  }
+  Timer.prototype.getDelta=function(){ return this._delta; };
+  Timer.prototype.getElapsed=function(){ return this._elapsed; };
+  Timer.prototype.getTimescale=function(){ return this._timescale; };
+  Timer.prototype.setTimescale=function(t){ this._timescale=t; return this; };
+  Timer.prototype.reset=function(){ this._currentTime=(typeof performance!=='undefined'?performance.now():Date.now()); return this; };
+  Timer.prototype.dispose=function(){ return this; };
+  Timer.prototype.connect=function(){ return this; };
+  Timer.prototype.disconnect=function(){ return this; };
+  Timer.prototype.update=function(timestamp){
+    this._previousTime=this._currentTime;
+    this._currentTime=(timestamp!==undefined?timestamp:(typeof performance!=='undefined'?performance.now():Date.now()));
+    var d=(this._currentTime-this._previousTime)/1000;
+    if(!isFinite(d)||d<0) d=0;
+    if(d>0.2) d=0.2;
+    this._delta=d*this._timescale;
+    this._elapsed+=this._delta;
+    return this;
+  };
+  THREE.Timer=Timer;
+})();
+</script>
 <script defer src="/vendor/3d-force-graph.min.js"></script>
 <script defer src="/vendor/echarts.min.js"></script>
 <script defer src="/vendor/echarts-gl.min.js"></script>
@@ -740,10 +770,8 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
      and the globe canvases (fleet_c2 / pulse / constellations) blank intermittently.
      Faithful re-implementation of three's Timer API (delta/elapsed in seconds). -->
 <script>
-/* PERF: vendor libs now load with `defer` (parse-unblocking, in-order). The two
-   IIFEs below (benign-teardown error guard + THREE.Timer shim) depend on those
-   deferred libs having executed, so they are deferred to DOMContentLoaded — which
-   fires AFTER all deferred scripts run. Behaviour is unchanged; only timing moves. */
+/* Deferred vendor libraries finish before DOMContentLoaded. Install the narrowly
+   scoped teardown guard then; the required THREE.Timer shim is already synchronous. */
 (function(){
   function __szlHeadInit(){
 
@@ -764,34 +792,6 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
   window.addEventListener('unhandledrejection', function(ev){
     try{ var r=ev&&ev.reason; if(r && isBenignTeardown(r.message||r)){ ev.preventDefault(); return false; } }catch(e){}
   });
-})();
-(function(){
-  if(typeof THREE==='undefined'||THREE.Timer) return;
-  function Timer(){
-    this._previousTime=0; this._currentTime=0;
-    this._delta=0; this._elapsed=0; this._timescale=1;
-    this._usePageVisibility=false;
-  }
-  Timer.prototype.getDelta=function(){ return this._delta; };
-  Timer.prototype.getElapsed=function(){ return this._elapsed; };
-  Timer.prototype.getTimescale=function(){ return this._timescale; };
-  Timer.prototype.setTimescale=function(t){ this._timescale=t; return this; };
-  Timer.prototype.reset=function(){ this._currentTime=(typeof performance!=='undefined'?performance.now():Date.now()); return this; };
-  Timer.prototype.dispose=function(){ return this; };
-  Timer.prototype.connect=function(){ return this; };
-  Timer.prototype.disconnect=function(){ return this; };
-  Timer.prototype.update=function(timestamp){
-    this._previousTime=this._currentTime;
-    this._currentTime=(timestamp!==undefined?timestamp:(typeof performance!=='undefined'?performance.now():Date.now()));
-    // delta/elapsed in SECONDS, scaled, with a sane clamp to avoid huge first-frame jumps
-    var d=(this._currentTime-this._previousTime)/1000;
-    if(!isFinite(d)||d<0) d=0;
-    if(d>0.2) d=0.2;
-    this._delta=d*this._timescale;
-    this._elapsed+=this._delta;
-    return this;
-  };
-  THREE.Timer=Timer;
 })();
   }
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',__szlHeadInit);}else{__szlHeadInit();}

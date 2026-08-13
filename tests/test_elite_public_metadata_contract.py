@@ -36,7 +36,8 @@ def test_console_metadata_uses_the_reachable_canonical_origin() -> None:
 
 def test_shared_three_core_precedes_every_dependent_console_bundle() -> None:
     html = _console_html()
-    core = '<script defer src="/vendor/three.min.js"></script>'
+    core = '<script src="/vendor/three.min.js"></script>'
+    timer_shim = "THREE.Timer=Timer;"
     dependents = (
         '<script defer src="/vendor/3d-force-graph.min.js"></script>',
         '<script defer src="/vendor/globe.gl.min.js"></script>',
@@ -44,6 +45,11 @@ def test_shared_three_core_precedes_every_dependent_console_bundle() -> None:
     )
 
     assert html.count(core) == 1
+    assert html.count(timer_shim) == 1
     core_position = html.index(core)
+    shim_position = html.index(timer_shim)
+    globe_position = html.index(dependents[1])
+    assert core_position < shim_position < globe_position
+    assert "DOMContentLoaded" not in html[core_position:globe_position]
     for dependent in dependents:
         assert core_position < html.index(dependent)
