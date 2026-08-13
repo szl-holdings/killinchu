@@ -696,15 +696,16 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="canonical" href="https://szlholdings-killinchu.hf.space/elite" />
 <title>killinchu — Counter-UAS Governance · SZL Holdings</title>
 <meta name="description" content="killinchu is SZL Holdings' counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint."/>
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="killinchu · SZL Holdings" />
-<meta property="og:url" content="https://killinchu.a-11-oy.com/" />
+<meta property="og:url" content="https://szlholdings-killinchu.hf.space/elite" />
 <meta property="og:title" content="killinchu · Counter-UAS Governance" />
 <meta property="og:description" content="killinchu is SZL Holdings&#x27; counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint." />
-<meta property="og:image" content="https://killinchu.a-11-oy.com/og-card.png" />
-<meta property="og:image:secure_url" content="https://killinchu.a-11-oy.com/og-card.png" />
+<meta property="og:image" content="https://szlholdings-killinchu.hf.space/og-card.png" />
+<meta property="og:image:secure_url" content="https://szlholdings-killinchu.hf.space/og-card.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
@@ -712,13 +713,15 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="killinchu · Counter-UAS Governance" />
 <meta name="twitter:description" content="killinchu is SZL Holdings&#x27; counter-UAS governance layer: live track board, sensor-fusion, multi-track prioritization, ROE editor, engagement audit, DSSE receipt verifier, 13-axis Λ-gate, 3-of-4 BFT quorum, PQC hybrid signing, protocol decoders, geofence, swarm topology, threat classification, cross-flagship mesh, and signed per-engagement autonomy governance. Every view reads a live endpoint." />
-<meta name="twitter:image" content="https://killinchu.a-11-oy.com/og-card.png" />
+<meta name="twitter:image" content="https://szlholdings-killinchu.hf.space/og-card.png" />
 <meta name="twitter:image:alt" content="killinchu — counter-UAS governance: live track board, governed ROE, signed receipts" />
 <!-- SOVEREIGN: self-hosted fonts (0 runtime CDN; no fonts.googleapis.com / fonts.gstatic.com). Served from /vendor/fonts/. -->
 <link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
 <!-- VENDORED viz libs (no-CDN, sovereign / air-gap ready). Chart.js 4.4.1, 3d-force-graph 1.73.4,
      ECharts 5 + echarts-gl 2, globe.gl 2, Cytoscape 3, D3 7, KaTeX 0.16.9. Served from /vendor/* . -->
 <script defer src="/vendor/chart.umd.min.js"></script>
+<!-- Shared Three.js must execute before graph/globe UMD bundles so every renderer reuses one core instance. -->
+<script defer src="/vendor/three.min.js"></script>
 <script defer src="/vendor/3d-force-graph.min.js"></script>
 <script defer src="/vendor/echarts.min.js"></script>
 <script defer src="/vendor/echarts-gl.min.js"></script>
@@ -731,7 +734,6 @@ _CONSOLE_HTML = r"""<!DOCTYPE html>
      Three.js r160 (THREE) — 3D HEALTH TWIN; deck.gl (deck) — geospatial layers;
      Konva (Konva) — 2D schematic canvas; Sigma+Graphology (Sigma/graphology) +
      Dagre (dagre) — receipt-chain DAG. All UMD globals, 0 runtime CDN. -->
-<script defer src="/vendor/three.min.js"></script>
 <!-- THREE.Timer shim (0-CDN): vendored three.min.js (r160 core) does NOT export the Timer
      class that globe.gl expects (added to three core in r170+). globe.gl calls
      `new THREE.Timer().update()/.getDelta()`; without it -> "z0.Timer is not a constructor"
