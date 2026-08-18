@@ -1,0 +1,112 @@
+name: HF universal frontend shared verifier pin 2026-08-17
+
+on:
+  push:
+    branches:
+      - ci/pin-hf-universal-frontend-action-v1-20260817
+    paths:
+      - .github/workflows/hf-universal-frontend-shared-pin-20260817.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hf-universal-frontend-shared-pin-20260817
+  cancel-in-progress: false
+
+jobs:
+  pin-and-retire:
+    if: >-
+      github.actor == 'stephenlutar2-hash' &&
+      github.ref == 'refs/heads/ci/pin-hf-universal-frontend-action-v1-20260817'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      HEAD_BRANCH: ci/pin-hf-universal-frontend-action-v1-20260817
+      SELF_PATH: .github/workflows/hf-universal-frontend-shared-pin-20260817.yml
+      TARGET_PATH: .github/workflows/hf-universal-frontend-v1.yml
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Bind checkout to event head
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Resolve immutable organization verifier revision
+        id: shared
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha=$(curl --fail --silent --show-error --max-time 30 \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            https://api.github.com/repos/szl-holdings/.github/commits/main \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          curl --fail --silent --show-error --max-time 30 \
+            "https://raw.githubusercontent.com/szl-holdings/.github/$sha/actions/hf-universal-frontend-v1/action.yml" \
+            | grep -Fq 'SZL Hugging Face universal frontend contract v1'
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Pin permanent workflow to the immutable shared verifier
+        env:
+          SHARED_SHA: ${{ steps.shared.outputs.sha }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path('.github/workflows/hf-universal-frontend-v1.yml')
+          text = path.read_text(encoding='utf-8')
+          old = """      - name: Verify source-native adapter and managed files
+        run: |
+          python3 -m py_compile scripts/apply_hf_universal_frontend_v1.py
+          python3 scripts/apply_hf_universal_frontend_v1.py --check
+          python3 -m pytest -q tests/test_hf_universal_frontend_v1.py
+"""
+          sha = os.environ['SHARED_SHA']
+          new = f"""      - name: Verify source-native adapter and adversarial controls
+        run: |
+          python3 -m py_compile scripts/apply_hf_universal_frontend_v1.py
+          python3 scripts/apply_hf_universal_frontend_v1.py --check
+          python3 -m pytest -q tests/test_hf_universal_frontend_v1.py
+
+      - name: Verify the pinned organization-wide frontend contract
+        uses: szl-holdings/.github/actions/hf-universal-frontend-v1@{sha}
+"""
+          if text.count(old) != 1:
+              if f'szl-holdings/.github/actions/hf-universal-frontend-v1@{sha}' in text:
+                  raise SystemExit(0)
+              raise SystemExit(f'expected one local verifier block, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Verify immutable pin and bounded workflow state
+        env:
+          SHARED_SHA: ${{ steps.shared.outputs.sha }}
+        run: |
+          grep -Fq "uses: szl-holdings/.github/actions/hf-universal-frontend-v1@$SHARED_SHA" "$TARGET_PATH"
+          ! grep -Eq 'hf-universal-frontend-v1@(main|v[0-9]|latest)' "$TARGET_PATH"
+          python3 scripts/apply_hf_universal_frontend_v1.py --check
+
+      - name: Retire this controller and commit the permanent pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "$SELF_PATH"
+          git add "$TARGET_PATH"
+          test "$(git diff --cached --name-only | sort)" = "$TARGET_PATH"
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git commit \
+            -m 'ci(hf): pin shared universal frontend verifier' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:$HEAD_BRANCH
