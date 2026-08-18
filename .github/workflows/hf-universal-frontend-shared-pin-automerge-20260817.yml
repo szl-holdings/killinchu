@@ -1,0 +1,96 @@
+name: HF universal frontend shared pin PR auto-merge 2026-08-17
+
+on:
+  push:
+    branches:
+      - ci/pin-hf-universal-frontend-action-v1-20260817
+    paths:
+      - .github/workflows/hf-universal-frontend-shared-pin-automerge-20260817.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: hf-universal-frontend-shared-pin-automerge-20260817
+  cancel-in-progress: false
+
+jobs:
+  arm-and-retire:
+    if: >-
+      github.actor == 'stephenlutar2-hash' &&
+      github.ref == 'refs/heads/ci/pin-hf-universal-frontend-action-v1-20260817'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_BRANCH: ci/pin-hf-universal-frontend-action-v1-20260817
+      SELF_PATH: .github/workflows/hf-universal-frontend-shared-pin-automerge-20260817.yml
+      PIN_CONTROLLER: .github/workflows/hf-universal-frontend-shared-pin-20260817.yml
+      TARGET_PATH: .github/workflows/hf-universal-frontend-v1.yml
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Bind checkout to event head
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Wait for immutable pin materialization
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            git fetch origin "$HEAD_BRANCH"
+            git reset --hard "origin/$HEAD_BRANCH"
+            if [ ! -e "$PIN_CONTROLLER" ] && \
+               grep -Eq 'uses: szl-holdings/.github/actions/hf-universal-frontend-v1@[0-9a-f]{40}$' "$TARGET_PATH"; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo '::error::Immutable shared verifier pin was not materialized.'
+          exit 1
+
+      - name: Resolve and validate unique PR
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t numbers < <(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --head "$HEAD_BRANCH" \
+            --base main \
+            --json number \
+            --jq '.[].number')
+          test "${#numbers[@]}" -eq 1
+          number="${numbers[0]}"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          mapfile -t files < <(gh pr diff "$number" --repo "$GITHUB_REPOSITORY" --name-only)
+          for path in "${files[@]}"; do
+            case "$path" in
+              $SELF_PATH|$TARGET_PATH) ;;
+              *) echo "::error::Unexpected PR path: $path"; exit 1 ;;
+            esac
+          done
+
+      - name: Enable protected squash auto-merge
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash
+
+      - name: Retire this controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "$SELF_PATH"
+          test "$(git diff --cached --name-only)" = "$SELF_PATH"
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git commit \
+            -m 'chore(hf): retire one-shot shared-pin auto-merge controller' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:$HEAD_BRANCH
