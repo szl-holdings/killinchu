@@ -1,0 +1,28 @@
+{
+  "app_file": "static/index.html",
+  "contract": {
+    "horizontal_overflow_allowed": false,
+    "minimum_touch_target_px": 44,
+    "reduced_motion_required": true,
+    "technical_identifier_wrapping_required": true,
+    "viewport_classes": [
+      360,
+      390,
+      768,
+      1024,
+      1440
+    ]
+  },
+  "css_file": "static/szl-universal-frontend.css",
+  "entry_file": null,
+  "file_sha256": {
+    "README.md": "a48f34152bf5fae7919fa1a973a19f33f1f01203656c2c21acbc5c10d7952a33",
+    "static/index.html": "f1488f4e9511f79a9fd481d9cfc50689017a4456285c5d429a63923650febe97",
+    "static/szl-universal-frontend.css": "00dd26d4f69b07c81fb8af66a2803648eb71d79b14da2487d2a7dd11bce89592"
+  },
+  "framework": "static",
+  "remote_mutation": false,
+  "schema": "szl.hf-universal-frontend/v1",
+  "sdk": "docker",
+  "short_description": "Governed autonomous-systems command surface"
+}

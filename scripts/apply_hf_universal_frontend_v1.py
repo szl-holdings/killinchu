@@ -272,6 +272,18 @@ def detect(front: FrontMatter) -> Detection:
         if html.is_file():
             return Detection(sdk=sdk, framework="static", app_file=html, css_file=html.parent / "szl-universal-frontend.css")
 
+    # Docker Spaces commonly serve a pre-built static application from a
+    # repository-local static/ directory. Keep this deterministic and bounded
+    # to the canonical root document rather than an arbitrary nested HTML file.
+    docker_static = ROOT / "static" / "index.html"
+    if sdk == "docker" and docker_static.is_file():
+        return Detection(
+            sdk=sdk,
+            framework="static",
+            app_file=docker_static,
+            css_file=docker_static.parent / "szl-universal-frontend.css",
+        )
+
     entry = _react_entry()
     if entry and (ROOT / "package.json").is_file():
         return Detection(sdk=sdk or "docker", framework="react", app_file=entry, css_file=entry.parent / "szl-universal-frontend.css", entry_file=entry)

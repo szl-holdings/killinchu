@@ -56,6 +56,29 @@ def test_static_adapter_injects_viewport_and_css(monkeypatch: pytest.MonkeyPatch
     assert MODULE.validate()["framework"] == "static"
 
 
+def test_docker_static_adapter_uses_canonical_static_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _bind_root(monkeypatch, tmp_path)
+    (tmp_path / "README.md").write_text(
+        "---\ntitle: Example\nsdk: docker\nshort_description: Old description\n---\n# Example\n",
+        encoding="utf-8",
+    )
+    static = tmp_path / "static"
+    static.mkdir()
+    (static / "index.html").write_text("<html><head></head><body></body></html>", encoding="utf-8")
+    nested = static / "jackin"
+    nested.mkdir()
+    (nested / "index.html").write_text("<html><head></head><body></body></html>", encoding="utf-8")
+
+    result = MODULE.apply()
+
+    assert result["sdk"] == "docker"
+    assert result["framework"] == "static"
+    assert result["app_file"] == "static/index.html"
+    assert result["css_file"] == "static/szl-universal-frontend.css"
+    assert MODULE.HTML_MARKER in (static / "index.html").read_text(encoding="utf-8")
+    assert MODULE.HTML_MARKER not in (nested / "index.html").read_text(encoding="utf-8")
+
+
 def test_gradio_adapter_binds_new_css_keyword(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _bind_root(monkeypatch, tmp_path)
     (tmp_path / "README.md").write_text(_readme("gradio", "app.py"), encoding="utf-8")

@@ -1,0 +1,107 @@
+/* SZL Hugging Face Universal Frontend v1
+ * Mobile-first, framework-neutral accessibility and overflow contract.
+ */
+:root {
+  --szl-touch-target: 44px;
+  --szl-gutter: clamp(14px, 3vw, 28px);
+  --szl-content-max: 1440px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { max-width: 100%; overflow-x: clip; text-size-adjust: 100%; }
+body, #root, .gradio-container, .stApp, [data-testid="stAppViewContainer"] {
+  max-width: 100%;
+  min-width: 0;
+}
+body { margin: 0; overflow-x: clip; }
+
+main, section, article, header, footer, nav, form,
+.row, .column, .grid, .container, .wrap, .panel, .card,
+.gr-row, .gr-column, .gr-group, .gr-box, .gradio-container > div {
+  min-width: 0;
+}
+
+img, video, svg, iframe { max-width: 100%; height: auto; }
+canvas { max-width: 100%; }
+pre, code, samp, kbd, .mono,
+[class*="hash"], [class*="digest"], [class*="revision"],
+[class*="receipt"], [data-evidence-id] {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+pre { overflow-x: auto; white-space: pre-wrap; }
+table { max-width: 100%; }
+.table-wrap, [class*="table-container"], [data-testid="stDataFrame"] {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+button,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+a.btn,
+a.button,
+a[class*="button"],
+.gr-button,
+.gr-button-primary,
+[data-testid*="submit"] {
+  min-height: var(--szl-touch-target);
+  min-width: var(--szl-touch-target);
+  max-width: 100%;
+}
+
+input, select, textarea { max-width: 100%; min-height: var(--szl-touch-target); }
+:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+
+.gradio-container,
+.stApp > header + div,
+[data-testid="stAppViewContainer"] > .main {
+  width: min(100%, var(--szl-content-max));
+  margin-inline: auto;
+}
+.gradio-container { padding-inline: var(--szl-gutter) !important; }
+[data-testid="stAppViewContainer"] .block-container {
+  max-width: var(--szl-content-max);
+  padding-inline: var(--szl-gutter);
+}
+
+@media (max-width: 768px) {
+  .gr-row, .row, [class*="columns"], [class*="grid"] {
+    min-width: 0;
+  }
+  .gradio-container,
+  [data-testid="stAppViewContainer"] .block-container {
+    padding-inline: var(--szl-gutter) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  :root { --szl-gutter: 14px; }
+  .cta-row, .actions, .button-row, [class*="action-row"] {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
+  }
+  .cta-row > *, .actions > *, .button-row > *, [class*="action-row"] > * {
+    width: 100%;
+    max-width: 100%;
+  }
+  dialog, [role="dialog"], .modal, [class*="modal"] {
+    max-width: calc(100vw - 28px);
+    max-height: calc(100dvh - 28px);
+    overflow: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
