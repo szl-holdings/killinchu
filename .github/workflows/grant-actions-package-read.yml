@@ -1,7 +1,7 @@
 # Copyright 2026 SZL Holdings
 # SPDX-License-Identifier: Apache-2.0
 #
-# grant-actions-package-read — alternative to flipping killinchu PUBLIC.
+# grant-actions-package-read - alternative to flipping killinchu PUBLIC.
 #
 # WHY THIS EXISTS
 #   ghcr.io/szl-holdings/killinchu is PRIVATE (the only private flagship of 5).
@@ -31,10 +31,9 @@ on:
   workflow_call:
     inputs:
       image_ref:
-        description: "Fully-qualified killinchu image to verify pullable"
-        required: false
+        description: "Exact immutable ghcr.io/szl-holdings/killinchu@sha256:<64 lowercase hex> reference"
+        required: true
         type: string
-        default: "ghcr.io/szl-holdings/killinchu:uds-v0.2.0"
     secrets:
       GHCR_PULL_TOKEN:
         description: "PAT/token with read:packages on szl-holdings/killinchu (this repo's GHCR_TOKEN)"
@@ -47,9 +46,9 @@ on:
   workflow_dispatch:
     inputs:
       image_ref:
-        description: "Fully-qualified killinchu image to verify pullable"
-        required: false
-        default: "ghcr.io/szl-holdings/killinchu:uds-v0.2.0"
+        description: "Exact immutable ghcr.io/szl-holdings/killinchu@sha256:<64 lowercase hex> reference"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -94,9 +93,22 @@ jobs:
         run: |
           set -euo pipefail
           IMG="${{ inputs.image_ref }}"
+          if [[ ! "${IMG}" =~ ^ghcr\.io/szl-holdings/killinchu@sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::image_ref must be an exact immutable ghcr.io/szl-holdings/killinchu@sha256:<64 lowercase hex> reference."
+            exit 1
+          fi
+          EXPECTED_DIGEST="${IMG##*@}"
           echo "Resolving digest for private image: ${IMG}"
           DIGEST="$(crane digest "${IMG}")"
-          echo "Resolved: ${IMG}@${DIGEST}"
+          if [[ ! "${DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Registry returned a malformed digest for ${IMG}: ${DIGEST}"
+            exit 1
+          fi
+          if [[ "${DIGEST}" != "${EXPECTED_DIGEST}" ]]; then
+            echo "::error::Digest readback mismatch for ${IMG}: resolved ${DIGEST}, expected ${EXPECTED_DIGEST}."
+            exit 1
+          fi
+          echo "Resolved exact immutable reference: ${IMG}"
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Summary
@@ -104,8 +116,9 @@ jobs:
         run: |
           {
             echo "### grant-actions-package-read"
-            echo "Private killinchu image pulled WITHOUT a visibility flip."
+            echo "Private killinchu digest resolved WITHOUT a visibility flip."
             echo "- Image: \`${{ inputs.image_ref }}\`"
             echo "- Digest: \`${{ steps.resolve.outputs.digest }}\`"
+            echo "- Mutable tag fallback: disabled."
             echo "- Auth: GHCR read token (founder visibility decision untouched)."
           } >> "$GITHUB_STEP_SUMMARY"
