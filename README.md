@@ -8,7 +8,7 @@ sdk: docker
 app_port: 7860
 pinned: true
 license: apache-2.0
-short_description: "counter-UAS edge organ · 13-axis Λ-gate · DSSE receipts"
+short_description: Governed autonomous-systems command surface
 tags:
   - doctrine-v11
   - defense
@@ -20,6 +20,8 @@ tags:
   - slsa-l1
   - apache-2.0
 ecosystem-stage: "operational"
+fullWidth: true
+header: mini
 ---
 
 <!-- SZL-ESTATE-CARD:v2:START -->
