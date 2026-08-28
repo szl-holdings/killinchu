@@ -1,0 +1,55 @@
+name: Bounded doctrine repair
+
+on:
+  push:
+    branches:
+      - cursor/honest-verify-json-aliases-a1f0
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bounded-doctrine-repair-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.repository == 'szl-holdings/killinchu'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the exact branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Replace the exact overclaim and remove this one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path("serve.py")
+          old = '"Lambda a theorem."'
+          new = '"Lambda remains Conjecture 1, never a theorem."'
+          text = source.read_text(encoding="utf-8")
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f"expected exactly one bounded doctrine phrase, found {count}")
+          source.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          workflow = Path(".github/workflows/zz-bounded-doctrine-repair.yml")
+          if not workflow.is_file():
+              raise SystemExit("one-shot workflow file is missing")
+          workflow.unlink()
+          PY
+
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add serve.py .github/workflows/zz-bounded-doctrine-repair.yml
+          git diff --cached --check
+          git commit -m "fix(doctrine): keep Lambda at Conjecture 1" \
+            -m "Replace the exact verifier-page overclaim and remove the bounded one-shot repair workflow."
+          git commit --amend --no-edit --signoff
+          git push origin "HEAD:${GITHUB_REF_NAME}"
