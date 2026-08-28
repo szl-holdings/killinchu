@@ -105,7 +105,7 @@ _HONESTY_RIBBON = (
     '<span class="szl-chip szl-chip-unknown">UNKNOWN</span>'
     '</div>'
     '<p>Effector stays <b>SIMULATED</b>. Detector is <b>Waman</b> — no weights, '
-    'frames SKIP. <b>KILLINCHU-EYE</b> is an alias, not a second detector. '
+    'no tensors, frames SKIP. <b>KILLINCHU-EYE</b> is an alias, not a second detector. '
     'Jobs UNKNOWN. Λ = Conjecture 1, never a theorem. '
     'Doctrine v11 749/14/163.</p>'
     '</aside>'
@@ -422,6 +422,9 @@ if __name__ == "__main__":
     assert b2.count("/static/szl-kanchay-overlay.css") == 1, "kanchay overlay inject must be idempotent"
     assert b1.count('data-szl-overlay="atelier-ayni"') == 1, "honesty overlay must inject exactly once"
     assert "Waman" in b1 and "KILLINCHU-EYE" in b1 and "SIMULATED" in b1
+    assert '<span class="szl-chip szl-chip-simulated">SIMULATED</span>' in b1
+    assert "no tensors" in b1 and "frames SKIP" in b1
+    assert "not a second detector" in b1
     assert "from_pretrained" not in b1
     assert "szl-model-inference-lab" not in b1
     assert "Try-Chaski" not in b1

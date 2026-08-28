@@ -81,6 +81,9 @@ class KanchayHonestyOverlayTests(unittest.TestCase):
         self.assertIn("Waman", self.landing)
         self.assertIn("KILLINCHU-EYE is an alias, not a second detector", self.landing)
         self.assertIn("SIMULATED", self.landing)
+        self.assertIn('<span class="szl-chip szl-chip-simulated">SIMULATED</span>', self.landing)
+        self.assertIn("no tensors", self.landing)
+        self.assertIn("frames SKIP", self.landing)
         self.assertIn("Conjecture 1, never a theorem", self.landing)
         self.assertIn("#080c14", self.landing)
         self.assertIn("#3af4c8", self.landing)
@@ -103,20 +106,52 @@ class KanchayHonestyOverlayTests(unittest.TestCase):
         elite = self.client.get("/elite")
         self.assertEqual(home.status_code, 200)
         self.assertEqual(elite.status_code, 200)
+        chip = '<span class="szl-chip szl-chip-simulated">SIMULATED</span>'
         for response, name in ((home, "/"), (elite, "/elite")):
             body = response.text
             self.assertIn("text/html", response.headers.get("content-type", ""), name)
             self.assertIn("szl-kanchay-overlay.css", body, name)
             self.assertIn('data-szl-overlay="atelier-ayni"', body, name)
+            self.assertIn(chip, body, name)
+            self.assertGreaterEqual(body.count(chip), 1, name)
             self.assertIn("Waman", body, name)
             self.assertIn("KILLINCHU-EYE", body, name)
+            self.assertIn("not a second detector", body, name)
+            self.assertIn("no tensors", body, name)
+            self.assertIn("frames SKIP", body, name)
             self.assertIn("SIMULATED", body, name)
             self.assertIn("Conjecture 1", body, name)
             self.assertNotIn("from_pretrained", body, name)
             self.assertNotIn("szl-model-inference-lab", body, name)
             self.assertNotIn("Try-Chaski", body, name)
             self.assertNotIn("command demonstration", body.lower(), name)
+            self.assertNotIn("Brand Orchestration", body, name)
             self.assertLessEqual(body.lower().count("huggingface.co/szlholdings/waman/resolve"), 0, name)
+
+    def test_simulated_chip_is_not_dropped_and_waman_has_no_tensors(self):
+        chip = '<span class="szl-chip szl-chip-simulated">SIMULATED</span>'
+        self.assertIn(chip, self.landing)
+        self.assertIn("no tensors", self.landing)
+        self.assertIn("frames SKIP", self.landing)
+        self.assertIn("KILLINCHU-EYE is an alias, not a second detector", self.landing)
+        self.assertIn("visibility: visible !important", self.css)
+        self.assertIn("#szl-kanchay-honesty .szl-chip-simulated", self.css)
+        # Overlay must not hide the locked chip or stamp fake operational.
+        self.assertNotIn(
+            "#szl-kanchay-honesty .szl-chip-simulated { display: none",
+            " ".join(self.css.split()),
+        )
+        ribbon = self.landing[
+            self.landing.find('id="szl-kanchay-honesty"') : self.landing.find(
+                'id="szl-kanchay-honesty"'
+            )
+            + 900
+        ]
+        self.assertIn(chip, ribbon)
+        self.assertIn("Effector stays", ribbon)
+        self.assertNotIn("fully real", ribbon.lower())
+        self.assertNotIn("operational", ribbon.lower())
+        self.assertNotIn("from_pretrained", ribbon)
 
     def test_locked_honesty_labels_are_the_only_chips_on_overlay(self):
         for label in ("ROADMAP", "UNKNOWN", "SIMULATED"):

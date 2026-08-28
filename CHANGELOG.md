@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - KANCHAY visual + honesty overlay on the killinchu silhouette: void `#080c14`, proof `#3af4c8`, lattice `#5b8dee`, gold `#d7b96b`, Space Grotesk + JetBrains Mono.
-- Uniform **SIMULATED** chip on effector / detection copy (no mixed "command demonstration" wording).
-- Detector lock: **Waman** is the detector; **KILLINCHU-EYE** is an alias, not a second detector. Overlay is ROADMAP — no weights, no frames, no tensors, no inference-lab wiring.
-- Strip Brand Orchestration Layer chrome (Hub / Pricing / API Keys / SDK foreign nav). Λ stays Conjecture 1. Doctrine v11 749/14/163.
+- Uniform **SIMULATED** chip on effector / detection copy (no mixed "command demonstration" wording). ATELIER will not stamp fake operational — the chip stays.
+- Detector lock: **Waman** is the detector; **KILLINCHU-EYE** is an alias, not a second detector. Overlay is ROADMAP — no weights, no tensors, frames SKIP, no inference-lab wiring.
+- No Brand Orchestration Layer chrome (Hub / Pricing / API Keys / SDK foreign nav). Λ stays Conjecture 1. Doctrine v11 749/14/163.
 - Shared Spaces honesty labels synced with a11oy#1395 (no allow-list): energy-attested-runs **8/8 SIMULATED**; szl-forge-lab **SNAPSHOT — not a trainer, not Serve Studio**. Effector stays SIMULATED.
 
 ---

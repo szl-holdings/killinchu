@@ -87,6 +87,12 @@ a[href*="huggingface.co/pricing"] {
   border-color: rgba(58, 244, 200, 0.45);
   color: #3af4c8;
 }
+/* Locked visible. Owner may want fully real; ATELIER will not stamp fake operational. */
+#szl-kanchay-honesty .szl-chip-simulated {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
 .szl-chip-roadmap {
   border-color: rgba(91, 141, 238, 0.45);
   background: rgba(91, 141, 238, 0.10);
