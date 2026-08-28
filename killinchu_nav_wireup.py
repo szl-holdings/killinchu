@@ -97,19 +97,19 @@ _OVERLAY_LINK = (
     b'<link rel="stylesheet" href="/static/szl-kanchay-overlay.css" data-kc-brand="kanchay-overlay"/>'
 )
 _HONESTY_RIBBON = (
-    b'<aside id="szl-kanchay-honesty" data-szl-overlay="atelier-ayni" '
-    b'aria-label="Killinchu honesty overlay">'
-    b'<div class="szl-chip-row">'
-    b'<span class="szl-chip szl-chip-simulated">SIMULATED</span>'
-    b'<span class="szl-chip szl-chip-roadmap">ROADMAP</span>'
-    b'<span class="szl-chip szl-chip-unknown">UNKNOWN</span>'
-    b'</div>'
-    b'<p>Effector stays <b>SIMULATED</b>. Detector is <b>Waman</b> — no weights, '
-    b'frames SKIP. <b>KILLINCHU-EYE</b> is an alias, not a second detector. '
-    b'Jobs UNKNOWN. \xce\x9b = Conjecture 1, never a theorem. '
-    b'Doctrine v11 749/14/163.</p>'
-    b'</aside>'
-)
+    '<aside id="szl-kanchay-honesty" data-szl-overlay="atelier-ayni" '
+    'aria-label="Killinchu honesty overlay">'
+    '<div class="szl-chip-row">'
+    '<span class="szl-chip szl-chip-simulated">SIMULATED</span>'
+    '<span class="szl-chip szl-chip-roadmap">ROADMAP</span>'
+    '<span class="szl-chip szl-chip-unknown">UNKNOWN</span>'
+    '</div>'
+    '<p>Effector stays <b>SIMULATED</b>. Detector is <b>Waman</b> — no weights, '
+    'frames SKIP. <b>KILLINCHU-EYE</b> is an alias, not a second detector. '
+    'Jobs UNKNOWN. Λ = Conjecture 1, never a theorem. '
+    'Doctrine v11 749/14/163.</p>'
+    '</aside>'
+).encode("utf-8")
 
 # Sidebar anchor: the killinchu sidebar ends with <div class="side-foot">…; we
 # place the Restraint nav-item immediately before it (last item in the aside).
