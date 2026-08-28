@@ -5852,8 +5852,8 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre>
             "live_ui": "/elite#audit",
             "honesty": (
                 "Signatures are real when the runtime key is present; otherwise "
-                "UNSIGNED, never fabricated. A verified envelope does not make "
-                "Lambda remains Conjecture 1, never a theorem."
+                "UNSIGNED, never fabricated. Lambda stays Conjecture 1, never a theorem; "
+                "a verified envelope does not change that."
             ),
         },
     }
