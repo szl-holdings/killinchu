@@ -62,6 +62,8 @@ class KanchayHonestyOverlayTests(unittest.TestCase):
         self.assertIn("Space Grotesk", self.css)
         self.assertIn("JetBrains Mono", self.css)
         self.assertIn("szl-chip-simulated", self.css)
+        self.assertIn("szl-chip-roadmap", self.css)
+        self.assertIn("szl-chip-unknown", self.css)
         self.assertIn('nav[data-related-restraint]', self.css)
         self.assertIn("/pricing", self.css)
         self.assertIn("api-keys", self.css)
@@ -118,8 +120,10 @@ class KanchayHonestyOverlayTests(unittest.TestCase):
 
     def test_locked_honesty_labels_are_the_only_chips_on_overlay(self):
         for label in ("ROADMAP", "UNKNOWN", "SIMULATED"):
-            self.assertIn(label, self.css)
             self.assertIn(label, self.landing)
+        self.assertIn(".szl-chip-simulated", self.css)
+        self.assertIn(".szl-chip-roadmap", self.css)
+        self.assertIn(".szl-chip-unknown", self.css)
         # Overlay chip classes must not invent a seventh vocabulary.
         for banned in ("PROVEN", "LIVE", "SAMPLE", "EXPERIMENTAL", "MODELED"):
             self.assertNotIn(f"szl-chip-{banned.lower()}", self.css)
@@ -129,7 +133,7 @@ class KanchayHonestyOverlayTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.headers["content-type"].startswith("text/css"))
         self.assertIn(b"#080c14", response.content)
-        self.assertIn(b"SIMULATED", response.content)
+        self.assertIn(b"szl-chip-simulated", response.content)
 
 
 if __name__ == "__main__":

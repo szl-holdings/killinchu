@@ -54,7 +54,7 @@ html, body {
 .ds-btn--primary { color: #080c14 !important; }
 .ds-receipt__check { color: #080c14 !important; }
 
-/* Strip Brand Orchestration Layer chrome (Hub / Pricing / API Keys / SDK). */
+/* Hide foreign Hub / Pricing / API Keys / SDK nav. */
 nav[data-related-restraint],
 nav[aria-label="Related surfaces"],
 a[href$="/pricing"],
