@@ -468,7 +468,7 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
       <div class="szl-pp">
         <span class="n">04</span>
         <h3>The trust math is a machine-checked estate — 8 locked formulas, 0 gaps.</h3>
-        <p>Eight formulas are locked-proven in Lean (kernel c7c0ba17). The single trust score (Λ) is <b style="color:#c9b787">Conjecture&nbsp;1, not a theorem</b> — and we say so on every surface.</p>
+        <p>Eight formulas are locked-proven in Lean (kernel c7c0ba17). The single trust score (Λ) is <b style="color:#d7b96b">Conjecture&nbsp;1, not a theorem</b> — and we say so on every surface.</p>
         <div class="badges"><span class="szl-pp-tag proven">PROVEN × 8</span> <span class="szl-pp-tag conj">Λ = CONJECTURE 1</span></div>
       </div>
       <div class="szl-pp">
@@ -482,6 +482,12 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
         <h3>The effector is SIMULATED — human on the loop, always.</h3>
         <p>killinchu governs and records the engagement decision; it does not fire anything. Defensive by doctrine, every engagement needs a human.</p>
         <div class="badges"><span data-szl-badge="SIMULATED"></span></div>
+      </div>
+      <div class="szl-pp">
+        <span class="n">06b</span>
+        <h3>Waman is the detector. KILLINCHU-EYE is an alias.</h3>
+        <p>One detector lane. KILLINCHU-EYE is not a second detector and not a second model. No weights on this overlay — frames SKIP, no tensors, no Hub download, no trained-weights copy. Effector stays SIMULATED. Jobs UNKNOWN.</p>
+        <div class="badges"><span class="szl-chip szl-chip-roadmap">ROADMAP</span> <span class="szl-chip szl-chip-simulated">SIMULATED</span> <span class="szl-chip szl-chip-unknown">UNKNOWN</span></div>
       </div>
       <div class="szl-pp">
         <span class="n">07</span>
@@ -3185,8 +3191,8 @@ const VIEWS = {
       hero_init();}},
 
   // ── OPERATE (governed control) — select a track, issue a governed command, clear the
-  //    Λ-gate, emit a genuinely-signed receipt. Effector is a command demonstration, simulated. ──
-  operate:{title:'Operate (governed control)',badge:'SELECT → ROE → Λ-GATE → P3 → RECEIPT → VERIFY · EFFECTOR SIMULATED',sub:'The operator centerpiece — select a track, issue a governed command and watch the <b>6-stage governed run-loop (P1–P6)</b> execute live: ROE policy read, real Λ-gate, P3 non-interference, receipt emit and independent verify. The command → Λ-gate → receipt loop is <b>real and live</b>; the receipt is <b>DSSE-signed when a cosign key is armed (<code>SZL_COSIGN_PRIVATE_PEM</code>), and UNSIGNED-honest otherwise — never a fabricated signature</b>. The <b>effector link is a command demonstration, simulated</b>. Λ is advisory (Conjecture 1); kinetic stays human-in-the-loop.',
+  //    Λ-gate, emit a genuinely-signed receipt. Effector stays SIMULATED. ──
+  operate:{title:'Operate (governed control)',badge:'SELECT → ROE → Λ-GATE → P3 → RECEIPT → VERIFY · EFFECTOR SIMULATED',sub:'The operator centerpiece — select a track, issue a governed command and watch the <b>6-stage governed run-loop (P1–P6)</b> execute live: ROE policy read, real Λ-gate, P3 non-interference, receipt emit and independent verify. The command → Λ-gate → receipt loop is <b>real and live</b>; the receipt is <b>DSSE-signed when a cosign key is armed (<code>SZL_COSIGN_PRIVATE_PEM</code>), and UNSIGNED-honest otherwise — never a fabricated signature</b>. The <b>effector stays SIMULATED</b>. Λ is advisory (Conjecture 1); kinetic stays human-in-the-loop.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Command</div><div class="v teal" id="op-cmd">—</div><div class="d">governed</div></div>
       <div class="kpi"><div class="k">Trust Λ</div><div class="v" id="op-lam">—</div><div class="d">advisory · Conjecture 1</div></div>
@@ -3209,7 +3215,7 @@ const VIEWS = {
         <div class="form-row"><label for="op-action">Command</label><select id="op-action" aria-label="Command" style="width:100%;padding:.5rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono)"><option value="observe">observe</option><option value="track-and-warn">track + warn</option><option value="jam">jam (recommend)</option></select></div>
         <div class="btns"><button class="btn teal" onclick="operate_run()">▶ Issue governed command</button></div>
         <div id="op-body" style="margin-top:.5rem"><div class="row mono dim">awaiting command</div></div></div>
-      <div class="honesty" style="margin-top:.6rem"><b>Effector:</b> command demonstration, simulated — the governance loop (command → Λ-gate → receipt) is real and live; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>
+      <div class="honesty" style="margin-top:.6rem"><b>Effector:</b> <span class="szl-chip szl-chip-simulated">SIMULATED</span> — the governance loop (command → Λ-gate → receipt) is real and live; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>
       <details class="raw"><summary>raw receipt envelope (/receipt/emit)</summary><pre class="out" id="op-raw">—</pre></details>
       ${HONEST}`;}},
 
@@ -3281,7 +3287,7 @@ const VIEWS = {
       uds_init();}},
 
   // ── FOUNDER TAB A — FLEET HEALTH & GOVERNED C2 ─────────────────────────────
-  fleet_c2:{title:'Fleet Health & Governed C2 (3D)',badge:'NAVY · MARITIME + ARMY · AIR · LIVE ADS-B (mil) + AIS · health inferred from telemetry · Λ-gate hack detection',sub:'A live 3D fleet picture of <b>military aircraft</b> (real ADS-B from adsb.lol) and <b>vessels</b> (real AIS from Digitraffic Finland) on a globe. Each asset is a 3D node with <b>color-coded subsystem health</b> — <b>inferred from real telemetry</b> (signal freshness, kinematics plausibility, anomaly), <b>not fabricated sensor data</b>. <b>Hack / spoof detection</b> runs through the <b>Λ-gate</b>: anomalous tracks get flagged and a <b>genuinely-signed receipt</b> is emitted (the moat). The <b>governed command console</b> emits a real <b>CoT/TAK</b> command through the command → Λ-gate → signed-receipt loop — <b>the governance loop is real and live; the effector link is a command demonstration (we do not pilot real military assets).</b>',
+  fleet_c2:{title:'Fleet Health & Governed C2 (3D)',badge:'NAVY · MARITIME + ARMY · AIR · LIVE ADS-B (mil) + AIS · health inferred from telemetry · Λ-gate hack detection',sub:'A live 3D fleet picture of <b>military aircraft</b> (real ADS-B from adsb.lol) and <b>vessels</b> (real AIS from Digitraffic Finland) on a globe. Each asset is a 3D node with <b>color-coded subsystem health</b> — <b>inferred from real telemetry</b> (signal freshness, kinematics plausibility, anomaly), <b>not fabricated sensor data</b>. <b>Hack / spoof detection</b> runs through the <b>Λ-gate</b>: anomalous tracks get flagged and a <b>genuinely-signed receipt</b> is emitted (the moat). The <b>governed command console</b> emits a real <b>CoT/TAK</b> command through the command → Λ-gate → signed-receipt loop — <b>the governance loop is real and live; the effector stays SIMULATED (we do not pilot real military assets).</b>',
     render:async(c)=>{c.innerHTML=`${window.ECON||''}<div class="kpis">
       <div class="kpi"><div class="k">Live assets</div><div class="v teal" id="fc-n">—</div><div class="d">ADS-B + AIS</div></div>
       <div class="kpi"><div class="k">Nominal</div><div class="v" id="fc-ok">—</div><div class="d">health inferred</div></div>
@@ -3292,9 +3298,9 @@ const VIEWS = {
           <div id="fc-globe" class="globe3d" style="height:380px;border-radius:10px;overflow:hidden;background:#03060c"></div>
           <div class="row mono dim" style="font-size:11px;margin-top:.3rem"><span style="color:#39d98a">●</span> nominal &nbsp; <span style="color:#f5c451">●</span> needs-attention &nbsp; <span style="color:#ff5c5c">●</span> anomalous/spoof-suspect (health <b>inferred from telemetry</b>) — click an asset.</div>
         </div>
-        <div class="card"><div class="card-h"><span class="card-t">Asset health + governed C2</span><span class="card-ep">command demonstration</span></div>
+        <div class="card"><div class="card-h"><span class="card-t">Asset health + governed C2</span><span class="card-ep szl-chip-simulated">SIMULATED</span></div>
           <div id="fc-asset"><div class="row mono dim">select an asset on the globe</div></div>
-          <div class="honesty" style="margin-top:.5rem"><b>Command demonstration:</b> the command → Λ-gate → signed-receipt <b>governance loop is REAL and live</b>; the <b>effector link is simulated</b>. killinchu does not and cannot pilot real military aircraft, vessels, or submarines.</div>
+          <div class="honesty" style="margin-top:.5rem"><b>Effector:</b> <span class="szl-chip szl-chip-simulated">SIMULATED</span> — the command → Λ-gate → signed-receipt <b>governance loop is REAL and live</b>. killinchu does not and cannot pilot real military aircraft, vessels, or submarines.</div>
         </div>
       </div>
       <div class="card"><div class="card-h"><span class="card-t">Subsystem health model (honest)</span><span class="card-ep">inferred, not fabricated</span></div>
@@ -5239,7 +5245,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
       // live /legal record enriches with sourced principles + references if reachable.
       const STATIC_PRIN=[
         'killinchu is a PASSIVE sensing and evidence system — it DETECTS, classifies, geolocates and EVIDENCES; the authorized customer ACTS.',
-        'NOT an offensive cyber or electronic-attack weapon. The effector path is a command demonstration, simulated — no real kinetic effect.',
+        'NOT an offensive cyber or electronic-attack weapon. The effector path stays SIMULATED — no real kinetic effect.',
         'Kinetic response is ALWAYS human-in-the-loop. Active RF jamming requires FCC/DoD authority and only where the deployment context authorizes it.',
         'Trust score Λ is an advisory Conjecture 1 (never a theorem) and is never reported as 100%.',
         'Mirrors LEGAL_BOUNDARIES.md in the Space and is served verbatim from /api/killinchu/v1/legal.'];
@@ -5656,7 +5662,7 @@ async function honest_load(){
   addHTML('ho-host',`<div class="row"><span>Khipu BFT safety</span><span class="spacer b-err badge">Conjecture 2 · open unconditionally</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust scores</span><span class="spacer badge" style="color:#c9b787;border:1px solid #c9b787">advisory · never 100%</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L1 (cosign-signed) · L2 .att emitted, not independently verified · L3 roadmap</span></div>`);
-  addHTML('ho-host',`<div class="row"><span>Effector / kinetic</span><span class="spacer badge" style="color:#c9b787;border:1px solid #c9b787">command demonstration, simulated · human-in-the-loop</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Effector / kinetic</span><span class="spacer badge szl-chip szl-chip-simulated">SIMULATED · human-in-the-loop</span></div>`);
   addHTML('ho-host',`<div class="row"><span>killinchu decision receipts</span><span class="spacer b-live badge">genuinely signed (real key) — verify yourself</span></div>`);
   try{ const d=await orgGet('a11oy','/api/a11oy/v1/honest'); if(el('o-honest')) setOut('o-honest',d); }
   catch(e){ if(el('o-honest')) setOut('o-honest','live honest record unreachable (static claims above are authoritative): '+(e&&e.message||e)); }
@@ -6522,7 +6528,7 @@ function twin_renderRemediate(st){
       <div class="mono dim" style="font-size:.74rem;margin-bottom:.5rem">Run a governed action on <b style="color:#e7e9ec">${esc(nm)}</b>. Each request passes the Rules-of-Engagement check (reversibility, Λ floor, isolate-requires-evidence, no-OTA-while-compromised), then the 13-axis YUYAY Λ-gate, then emits a chained signed receipt.</div>
       <div class="row" style="gap:.5rem;flex-wrap:wrap">${btns}</div>
       <div id="tw-remout" style="margin-top:.6rem"></div>
-      <div class="mono dim" style="font-size:.68rem;margin-top:.5rem;line-height:1.5"><b style="color:${WARN}">Effector is SIMULATED</b> — command demonstration only. killinchu does NOT and CANNOT push firmware, recall, isolate, or otherwise actuate a real asset. The governance (ROE + Λ-gate + signed receipt) is real and offline-verifiable.</div>
+      <div class="mono dim" style="font-size:.68rem;margin-top:.5rem;line-height:1.5"><b style="color:${WARN}">Effector is SIMULATED</b>. killinchu does NOT and CANNOT push firmware, recall, isolate, or otherwise actuate a real asset. The governance (ROE + Λ-gate + signed receipt) is real and offline-verifiable.</div>
     </div>`;
 }
 window.twin_renderRemediate=twin_renderRemediate;
@@ -9319,11 +9325,11 @@ async function fleet_c2_command(assetId, action){
   try{
     var rc=await postJSON(API+'/receipt/emit',{kind:'governed_command',payload:{
       asset:assetId, command:action, mode:'RECOMMEND (human-in-the-loop)',
-      effector_link:'SIMULATED (command demonstration — governance loop real, effector simulated)',
+      effector_link:'SIMULATED',
       cot_type:'a-h-A-M-F-Q', lambda_gate:'ADVISORY (Conjecture 1)'}});
     elS('fc-cmd-out').innerHTML='<div class="row mono" style="font-size:11.5px;line-height:1.7">'+
       '<span style="color:#39d98a">● governed command emitted</span> — receipt node #'+esc(rc.node_index)+' · digest '+esc((rc.node_digest||'').slice(0,16))+'… · <b>DSSE-signed</b><br>'+
-      '<span class="dim">command → Λ-gate → signed receipt loop REAL & live; <b>effector link SIMULATED</b> (command demonstration — we do not pilot real assets)</span></div>';
+      '<span class="dim">command → Λ-gate → signed receipt loop REAL & live; <b>effector link SIMULATED</b> — we do not pilot real assets</span></div>';
   }catch(e){ elS('fc-cmd-out').innerHTML='<div class="row mono" style="color:#ff5c5c">error: '+esc(e.message)+'</div>'; }
 }
 
@@ -9393,7 +9399,7 @@ async function hero_poison(mode){
       tainted_fields:atk.taint, clean_decision:cleanDecTxt, clean_lambda:cleanLam,
       decision:'REJECTED', verdict:'REJECTED', lambda:lam, lambda_delta:-dLam, roe_lambda_floor:lamFloor,
       gate_pass:false, gate_flipped:false, property:'P3 non-interference (unconditional, axiom-free)',
-      effector:'command demonstration, simulated', mode:'RECOMMEND (human-in-the-loop) · SIMULATED demonstration'}});
+      effector:'SIMULATED', mode:'RECOMMEND (human-in-the-loop) · SIMULATED demonstration'}});
     var dg=(rc.node_digest||'').slice(0,16);
     setHTML('hi-gov',
       '<b>Tainted fields quarantined:</b> '+esc(atk.taint)+'<br>'+
@@ -9403,15 +9409,15 @@ async function hero_poison(mode){
       '<span class="dim">P3 non-interference: the adversarial input cannot produce a clear — it is gated to a signed REJECT. Reject signed: node #'+esc(rc.node_index)+' · '+esc(dg)+'… · <b style="color:#5fe39a">DSSE-signed</b></span>');
     setHTML('hi-attack-verdict',
       '<span class="badge b-err">UNGOVERNED: manipulated → ENGAGE</span> &nbsp; <span class="badge b-err">GOVERNED: '+esc(atk.label.toUpperCase())+' → <b>REJECTED</b> (Λ '+cleanLam.toFixed(2)+'→'+lam.toFixed(2)+', gate DENY)</span> '+
-      '&nbsp; <span class="dim mono" style="font-size:11px">P3 proven unconditional &amp; axiom-free. <b>Command demonstration, simulated</b> — no real kinetic effect; the governed REJECT and its signed receipt are real.</span>');
+      '&nbsp; <span class="dim mono" style="font-size:11px">P3 proven unconditional &amp; axiom-free. <b>SIMULATED</b> — no real kinetic effect; the governed REJECT and its signed receipt are real.</span>');
   }catch(e){
-    setHTML('hi-gov','<b style="color:#ff7b7b">Output: REJECTED — gate DENY (Λ '+cleanLam.toFixed(3)+'→'+lam.toFixed(3)+').</b><br><span class="dim">P3 non-interference holds; receipt emit unavailable: '+esc(e.message)+'. Command demonstration, simulated.</span>');
-    setHTML('hi-attack-verdict','<span class="badge b-err">UNGOVERNED: manipulated → ENGAGE</span> &nbsp; <span class="badge b-err">GOVERNED: '+esc(atk.label.toUpperCase())+' → REJECTED (gate DENY)</span> &nbsp; <span class="dim mono" style="font-size:11px">Command demonstration, simulated.</span>');
+    setHTML('hi-gov','<b style="color:#ff7b7b">Output: REJECTED — gate DENY (Λ '+cleanLam.toFixed(3)+'→'+lam.toFixed(3)+').</b><br><span class="dim">P3 non-interference holds; receipt emit unavailable: '+esc(e.message)+'. SIMULATED.</span>');
+    setHTML('hi-attack-verdict','<span class="badge b-err">UNGOVERNED: manipulated → ENGAGE</span> &nbsp; <span class="badge b-err">GOVERNED: '+esc(atk.label.toUpperCase())+' → REJECTED (gate DENY)</span> &nbsp; <span class="dim mono" style="font-size:11px">SIMULATED.</span>');
   }
 }
 // K4 — OPERATE (governed control). Real loop: read live ROE policy → compute advisory Λ for the
-// chosen command → gate at the policy floor → emit a genuinely DSSE-signed receipt. The effector link
-// is a command demonstration, simulated (killinchu does not pilot real assets); the governance loop is real.
+// chosen command → gate at the policy floor → emit a genuinely DSSE-signed receipt. The effector
+// stays SIMULATED (killinchu does not pilot real assets); the governance loop is real.
 function _opStage(id,state){var n=el(id);if(!n)return;n.classList.remove('on','hold');if(state)n.classList.add(state);}
 function _opResetPipe(){['op-p1','op-p2','op-p3','op-p4','op-p5','op-p6'].forEach(function(i){_opStage(i,null);});}
 async function operate_run(){
@@ -9441,7 +9447,7 @@ async function operate_run(){
     var rc=await postJSON(API+'/receipt/emit',{kind:'governed_command',payload:{
       track:track, command:action, lambda:lam, lambda_status:'advisory · Conjecture 1', roe_lambda_floor:lamFloor,
       gate_pass:gatePass, decision:verdict, mode:'RECOMMEND (human-in-the-loop) · SIMULATED demonstration',
-      effector:'command demonstration, simulated'}});
+      effector:'SIMULATED'}});
     _opStage('op-p5','on');
     var dg=(rc.node_digest||'').slice(0,16);
     var dsse=rc.dsse||{};
@@ -9475,12 +9481,12 @@ async function operate_run(){
       '<div class="row"><span>Decision</span><span class="spacer mono" style="max-width:62%;text-align:right">'+esc(verdict)+'</span></div>'+
       '<div class="row"><span>Receipt (Khipu DAG)</span><span class="spacer mono teal">node #'+esc(rc.node_index)+' · '+esc(dg)+'… · '+sigCell+'</span></div>'+
       '<div class="row"><span>Independent verify (P6)</span><span class="spacer mono" style="max-width:62%;text-align:right">'+verifyTxt+'</span></div>'+
-      '<div class="row mono dim" style="margin-top:.4rem">Effector: <b>command demonstration, simulated</b> — the command → Λ-gate → receipt loop is real; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>');
+      '<div class="row mono dim" style="margin-top:.4rem">Effector: <b>SIMULATED</b> — the command → Λ-gate → receipt loop is real; killinchu does not fly the effector. Kinetic stays human-in-the-loop.</div>');
     setOut('op-raw', rc);
   }catch(e){
     _opStage('op-p5','hold');
     setTxt('op-sig','retry');
-    setHTML('op-body','<div class="row mono dim">governed gate evaluated: '+esc(verdict)+'. Receipt emit retry: '+esc(e&&e.message||e)+'. Effector: command demonstration, simulated.</div>');
+    setHTML('op-body','<div class="row mono dim">governed gate evaluated: '+esc(verdict)+'. Receipt emit retry: '+esc(e&&e.message||e)+'. Effector: SIMULATED.</div>');
   }
 }
 window.operate_run=operate_run;
@@ -9563,7 +9569,7 @@ function go(view){
     if(V.fleet_c2 && !V.fleet_c2_3d){
       V.fleet_c2_3d={title:V.fleet_c2.title,badge:V.fleet_c2.badge,sub:V.fleet_c2.sub,render:V.fleet_c2.render};
       V.fleet_c2={title:'Fleet Health & Governed C2 (3D)',badge:'NAVY · MARITIME + ARMY · AIR · LIVE ADS-B + AIS · UNIFIED FLEET',
-        sub:'The unified fleet surface — the live 3D governed-C2 fleet picture (military ADS-B + AIS, Λ-gate hack detection, signed receipts) plus fleet operations: overview, the 3D health twin, maintenance & compliance, ops/maintenance logs, voyages and briefings. Governance loop real; effector link a command demonstration (simulated). Sub-views below.',
+        sub:'The unified fleet surface — the live 3D governed-C2 fleet picture (military ADS-B + AIS, Λ-gate hack detection, signed receipts) plus fleet operations: overview, the 3D health twin, maintenance & compliance, ops/maintenance logs, voyages and briefings. Governance loop real; effector stays SIMULATED. Sub-views below.',
         render:function(c){ renderSurface('fleet_c2',c); }};
     }
     // OPERATOR OSINT: the 5 Operator orchestration views as one surface.
@@ -9710,7 +9716,7 @@ go(VIEWS[start]?start:'tracks');
  *
  * Doctrine: Λ = Conjecture 1 (never theorem); trust never 100%; SLSA L1·L2 honest;
  * 0 runtime CDN (uses in-image echarts only); no user-visible codenames; effector
- * stays simulated/command-demonstration. Display-layer additive. Uses elS() null-safe.
+ * stays SIMULATED. Display-layer additive. Uses elS() null-safe.
  * ============================================================================ */
 (function(){
   function reg(){
@@ -9732,7 +9738,7 @@ go(VIEWS[start]?start:'tracks');
     }
     function autoPill(gateId){ return '<span class="badge b-live" style="font-size:9.5px">'+dot()+'AUTO-RECORDING <span id="np-ts-'+esc(gateId)+'" class="mono dim" style="margin-left:5px">live</span></span>'; }
     function kpi(k,id,d,color){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(color||TEAL)+'">—</div><div class="d">'+esc(d||'')+'</div></div>'; }
-    function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' Λ = <b>Conjecture 1</b> (advisory, not a theorem); trust is never 100%. 0 runtime CDN. killinchu effector stays <b>simulated / command-demonstration</b>.</div>'; }
+    function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' Λ = <b>Conjecture 1</b> (advisory, not a theorem); trust is never 100%. 0 runtime CDN. killinchu effector stays <b>SIMULATED</b>.</div>'; }
 
     // ── helpers shared by intent classifier ──────────────────────────────────
     // great-circle distance (km) + closing-rate geometry over real lat/lon/track/velocity
@@ -9850,14 +9856,14 @@ go(VIEWS[start]?start:'tracks');
     V.retask_board = {
       title:'Drift-Triggered Re-Tasking Board',
       badge:'LIVE PSI/KS/ADWIN · AUTO',
-      sub:'A live re-tasking board driven by <b>real distribution-drift detection</b> on the live ADS-B telemetry. Reads <code>/api/killinchu/v1/posture/drift</code> (real PSI + KS via scipy.stats.ks_2samp + vendored ADWIN over the live track stream). When a feature\u2019s distribution drifts past threshold, the board raises an honest <b>re-tasking recommendation</b> bound to the <b>actual triggering detector</b> — what to re-cue, re-baseline, or escalate. Recommendations are <b>advisory</b>; the effector is <b>simulated / command-demonstration</b>. Live verdict, never fabricated.',
+      sub:'A live re-tasking board driven by <b>real distribution-drift detection</b> on the live ADS-B telemetry. Reads <code>/api/killinchu/v1/posture/drift</code> (real PSI + KS via scipy.stats.ks_2samp + vendored ADWIN over the live track stream). When a feature\u2019s distribution drifts past threshold, the board raises an honest <b>re-tasking recommendation</b> bound to the <b>actual triggering detector</b> — what to re-cue, re-baseline, or escalate. Recommendations are <b>advisory</b>; the effector is <b>SIMULATED</b>. Live verdict, never fabricated.',
       render:function(c){
         c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Live drift verdict</span><span class="card-ep">'+autoPill('rt-gate')+'</span></div>'
           +'<div class="kpis" id="rt-gate">'+kpi('Verdict','rt-verdict','PSI/KS/ADWIN',WARN)+kpi('Drifting features','rt-nfeat','past threshold',RISK)+kpi('Re-task actions','rt-nact','advisory',GOLD)+kpi('Detectors','rt-det','live',INFO)+'</div></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">Per-feature drift (live PSI)</span><span class="card-ep">PSI moderate 0.1 · significant 0.25</span></div><div id="rt-chart" style="height:240px"></div></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">Re-tasking recommendations</span><span class="card-ep">bound to the triggering detector · advisory</span></div><div id="rt-acts"><div class="row mono dim">reading live drift…</div></div></div>'
           +'<details class="raw"><summary>raw /posture/drift</summary><pre class="out" id="rt-raw">—</pre></details>'
-          +honesty('The verdict + triggering detectors come straight from the <b>real</b> PSI/KS/ADWIN computation on the live ADS-B stream. Re-tasking actions are <b>advisory</b> mappings from the actual drifting feature to a sensor/baseline action — nothing is auto-executed; the effector is <b>simulated / command-demonstration</b>.');
+          +honesty('The verdict + triggering detectors come straight from the <b>real</b> PSI/KS/ADWIN computation on the live ADS-B stream. Re-tasking actions are <b>advisory</b> mappings from the actual drifting feature to a sensor/baseline action — nothing is auto-executed; the effector is <b>SIMULATED</b>.');
         // honest action mapping from a real drifting feature -> re-task recommendation
         function actionFor(feat){
           var f=feat.feature, band=feat.psi_band;

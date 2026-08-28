@@ -828,7 +828,7 @@ def register(app: FastAPI, ns: str = "killinchu",
     # -----------------------------------------------------------------------
     # GOVERNED FIX-LOOP: POST /twin/remediate {platform, action}.
     # Runs the action through ROE → Λ-gate → emits a SIGNED DSSE receipt.
-    # The GOVERNANCE is real + provable. The EFFECTOR is a command demonstration:
+    # The GOVERNANCE is real + provable. The EFFECTOR stays SIMULATED:
     # killinchu does NOT and CANNOT push firmware / recall / isolate a real asset.
     # -----------------------------------------------------------------------
     _ACTIONS = {
@@ -905,7 +905,7 @@ def register(app: FastAPI, ns: str = "killinchu",
             "roe": roe, "roe_pass": roe_pass,
             "lambda_gate": {"authorized": gate_pass, "rule": state["yuyay_gate"]["rule"]},
             "lean_theorem_ref": _LEAN_REF,
-            "effector": ("SIMULATED — command demonstration only. killinchu does NOT and CANNOT push "
+            "effector": ("SIMULATED. killinchu does NOT and CANNOT push "
                          "firmware, recall, isolate, or otherwise actuate a real asset. The GOVERNANCE "
                          "(ROE + Λ-gate + signed receipt) is real and provable; the effect is not applied."),
             "feed_label": feed_label,

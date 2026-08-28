@@ -164,6 +164,30 @@ def test_tiles_and_fallback_include_all_audited_titles():
     assert "reverse proxy" not in tiles.lower()
     assert "reverse proxy" not in fallback.lower()
     assert "all RUNNING" not in fallback
+    # Honesty labels (byte-identical with a11oy#1395): energy 8/8 SIMULATED;
+    # forge-lab is SNAPSHOT, not a trainer, not Serve Studio.
+    assert "8/8 SIMULATED" in tiles and "8/8 SIMULATED" in fallback
+    assert "not a trainer" in tiles and "not a trainer" in fallback
+    assert "not Serve Studio" in tiles
+    energy = tiles[
+        tiles.find('data-space="energy-attested-runs"') : tiles.find(
+            'data-space="energy-attested-runs"'
+        )
+        + 900
+    ]
+    assert "8/8 SIMULATED" in energy
+    forge = tiles[
+        tiles.find('data-space="szl-forge-lab"') : tiles.find('data-space="szl-forge-lab"')
+        + 900
+    ]
+    assert "SNAPSHOT" in forge
+    assert "not a trainer" in forge
+    assert "not Serve Studio" in forge
+    by_name = {sp["name"]: sp for sp in surface.SPACES}
+    assert by_name["energy-attested-runs"]["honesty"] == "8/8 SIMULATED"
+    assert by_name["szl-forge-lab"]["honesty"] == (
+        "SNAPSHOT — not a trainer, not Serve Studio"
+    )
 
 
 def test_mobile_tiles_nav_and_health_labels_are_reachable_and_fail_closed():

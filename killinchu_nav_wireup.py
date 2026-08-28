@@ -86,10 +86,29 @@ _REL_MARKER = b'data-related-restraint="r5"'
 # live under THIS app's own /static tree. Idempotent via the plain href substring
 # (also skips pages like static/index.html that already reference brand-bridge.css).
 _BRAND_BRIDGE_HREF = b"brand-bridge.css"
+_OVERLAY_CSS_HREF = b"szl-kanchay-overlay.css"
+_OVERLAY_MARKER = b'data-szl-overlay="atelier-ayni"'
 _HEAD_CLOSE = b"</head>"
 _BRAND_LINKS = (
     b'<link rel="stylesheet" href="/static/brand-tokens.css" data-kc-brand="tokens"/>'
     b'<link rel="stylesheet" href="/static/brand-bridge.css" data-kc-brand="bridge"/>'
+)
+_OVERLAY_LINK = (
+    b'<link rel="stylesheet" href="/static/szl-kanchay-overlay.css" data-kc-brand="kanchay-overlay"/>'
+)
+_HONESTY_RIBBON = (
+    b'<aside id="szl-kanchay-honesty" data-szl-overlay="atelier-ayni" '
+    b'aria-label="Killinchu honesty overlay">'
+    b'<div class="szl-chip-row">'
+    b'<span class="szl-chip szl-chip-simulated">SIMULATED</span>'
+    b'<span class="szl-chip szl-chip-roadmap">ROADMAP</span>'
+    b'<span class="szl-chip szl-chip-unknown">UNKNOWN</span>'
+    b'</div>'
+    b'<p>Effector stays <b>SIMULATED</b>. Detector is <b>Waman</b> — no weights, '
+    b'frames SKIP. <b>KILLINCHU-EYE</b> is an alias, not a second detector. '
+    b'Jobs UNKNOWN. \xce\x9b = Conjecture 1, never a theorem. '
+    b'Doctrine v11 749/14/163.</p>'
+    b'</aside>'
 )
 
 # Sidebar anchor: the killinchu sidebar ends with <div class="side-foot">…; we
@@ -207,6 +226,14 @@ def _make_injector():
                 #     CSS: it re-points existing tokens, never touching markup/layout.
                 if _BRAND_BRIDGE_HREF not in body and _HEAD_CLOSE in body:
                     body = body.replace(_HEAD_CLOSE, _BRAND_LINKS + _HEAD_CLOSE, 1)
+
+                # (4) KANCHAY visual + honesty overlay — tokens, SIMULATED chip,
+                #     Waman detector (alias KILLINCHU-EYE). Idempotent. 0 CDN.
+                #     Does not fetch weights, frames, or inference-lab endpoints.
+                if _OVERLAY_CSS_HREF not in body and _HEAD_CLOSE in body:
+                    body = body.replace(_HEAD_CLOSE, _OVERLAY_LINK + _HEAD_CLOSE, 1)
+                if _OVERLAY_MARKER not in body and b"</body>" in body:
+                    body = body.replace(b"</body>", _HONESTY_RIBBON + b"</body>", 1)
 
                 # body_iterator was fully consumed; MUST rebuild the Response from
                 # the buffered bytes even when unchanged (returning the exhausted
@@ -391,7 +418,15 @@ if __name__ == "__main__":
     assert b1.count("/static/brand-tokens.css") == 1, "brand-tokens dependency must inject once"
     assert b2.count("/static/brand-bridge.css") == 1, "brand-bridge inject must be idempotent"
     assert b1 == b2, "second branded render must be byte-identical (idempotent)"
-    assert 'data-kc-brand="bridge"></head>'.replace("></head>", "") in b1  # marker present
+    assert b1.count("/static/szl-kanchay-overlay.css") == 1, "kanchay overlay must inject exactly once"
+    assert b2.count("/static/szl-kanchay-overlay.css") == 1, "kanchay overlay inject must be idempotent"
+    assert b1.count('data-szl-overlay="atelier-ayni"') == 1, "honesty overlay must inject exactly once"
+    assert "Waman" in b1 and "KILLINCHU-EYE" in b1 and "SIMULATED" in b1
+    assert "from_pretrained" not in b1
+    assert "szl-model-inference-lab" not in b1
+    assert "Try-Chaski" not in b1
+    assert "command demonstration" not in b1
+    assert 'data-kc-brand="bridge"' in b1
     assert "http://" not in b1 and "https://" not in b1, "brand links must be same-origin (0 CDN)"
 
     # FE wiring: bare /organism must 308-redirect to the real /elite/organism page.
