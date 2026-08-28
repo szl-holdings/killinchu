@@ -44,7 +44,6 @@ class KillinchuHttpHardeningTests(unittest.TestCase):
             "/swarm",
             "/threats/active",
             "/threats/live",
-            "/drones/database",
             "/drones/track-42",
         ):
             response = self.client.get(path)
@@ -55,6 +54,62 @@ class KillinchuHttpHardeningTests(unittest.TestCase):
             self.assertIn('<div id="root"></div>', response.text, path)
             self.assertEqual(response.headers["cache-control"], "no-store", path)
             self.assertEqual(head.status_code, 200, path)
+            self.assertEqual(head.content, b"", path)
+
+    def test_verify_explains_dsse_and_is_not_404(self):
+        response = self.client.get("/verify")
+        head = self.client.head("/verify")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/html", response.headers["content-type"])
+        self.assertIn("DSSEv1", response.text)
+        self.assertIn("POST /khipu/verify", response.text)
+        self.assertIn("/elite#audit", response.text)
+        self.assertIn("Conjecture 1", response.text)
+        self.assertIn("SIMULATED", response.text)
+        self.assertIn("EPHEMERAL", response.text)
+        self.assertNotIn("not found", response.text.lower())
+        self.assertEqual(head.status_code, 200)
+        self.assertEqual(head.content, b"")
+
+        json_response = self.client.get(
+            "/verify", headers={"Accept": "application/json"}
+        )
+        self.assertEqual(json_response.status_code, 200)
+        self.assertIn("application/json", json_response.headers["content-type"])
+        body = json_response.json()
+        self.assertEqual(body["dsse"]["in_process"], "POST /khipu/verify")
+        self.assertEqual(body["lambda"], "Conjecture 1 (never a theorem)")
+        self.assertEqual(body["effector"], "SIMULATED")
+        self.assertEqual(body["ledger"], "EPHEMERAL")
+
+    def test_lambda_and_drones_database_return_json_not_spa_html(self):
+        for path, required_keys in (
+            ("/lambda", ("lambda", "uniqueness", "doctrine")),
+            ("/drones/database", ("drones", "count", "total")),
+        ):
+            for headers in ({}, {"Accept": "application/json"}):
+                with self.subTest(path=path, headers=headers):
+                    response = self.client.get(path, headers=headers)
+                    self.assertEqual(response.status_code, 200, path)
+                    self.assertIn(
+                        "application/json",
+                        response.headers["content-type"],
+                        path,
+                    )
+                    self.assertNotIn("text/html", response.headers["content-type"], path)
+                    body = response.json()
+                    for key in required_keys:
+                        self.assertIn(key, body, path)
+                    if path == "/lambda":
+                        self.assertIn("Conjecture 1", body["uniqueness"])
+                    canonical = self.client.get(f"/api/killinchu/v1{path}")
+                    self.assertEqual(canonical.status_code, 200, path)
+                    self.assertEqual(body.keys(), canonical.json().keys(), path)
+
+            head = self.client.head(path, follow_redirects=False)
+            self.assertIn(head.status_code, {200, 302}, path)
+            self.assertNotIn("text/html", head.headers.get("content-type", ""), path)
             self.assertEqual(head.content, b"", path)
 
     def test_root_key_and_export_support_head(self):

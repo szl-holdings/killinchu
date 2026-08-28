@@ -4724,6 +4724,11 @@ try:
         "/feeds/realdata/status": f"{_qa6_base}/feeds/realdata/status",
         "/osint/intel":           f"{_qa6_base}/osint/intel",
         "/mesh/state":            f"{_qa6_base}/mesh/state",
+        # Bare probes of /lambda and /drones/database used to hit the SPA
+        # catch-all and return HTML. Canonical JSON lives at the namespaced
+        # API; reuse those handlers so the short paths are honest.
+        "/lambda":                f"{_qa6_base}/lambda",
+        "/drones/database":       f"{_qa6_base}/drones/database",
     }
     # Index the live routes by path so we can borrow each one's endpoint + methods.
     # NOTE: the namespaced sources are a MIX of route classes —
@@ -4749,6 +4754,8 @@ try:
         if _ep is None:
             continue
         _methods = sorted(getattr(_src, "methods", None) or {"GET"})
+        if "GET" in _methods and "HEAD" not in _methods:
+            _methods.append("HEAD")
         _name = "qa6_bare_alias_" + _bare.strip("/").replace("/", "_")
         if isinstance(_src, _QA6APIRoute):
             # FastAPI handler (e.g. zero-arg /mesh/state): build a fresh APIRoute so
@@ -4780,16 +4787,20 @@ _SPA_HISTORY_EXACT = frozenset({
     "threats/live",
     "geoint",
     "identify",
-    "lambda",
     "legal",
     "mavlink",
     "satellites",
     "verticals",
 })
+# Bare /lambda and /drones/database are JSON aliases of the namespaced API,
+# not SPA history. /drones/<id> (e.g. /drones/track-42) remains HTML.
+_JSON_BARE_DATA_PATHS = frozenset({"lambda", "drones/database"})
 
 
 def _is_spa_history_route(full_path: str) -> bool:
     path = full_path.strip("/")
+    if path in _JSON_BARE_DATA_PATHS:
+        return False
     if path in _SPA_HISTORY_EXACT:
         return True
     parts = path.split("/")
@@ -4805,6 +4816,18 @@ async def spa_fallback(full_path: str, request: Request) -> Response:
         return JSONResponse({"error": "not found"}, status_code=404)
     if full_path in ("feeds", "osint", "mesh"):
         return JSONResponse({"error": "not found"}, status_code=404)
+    # Defense in depth: if the QA6 JSON aliases were not wired, 302 to the
+    # canonical namespaced handlers instead of serving SPA HTML.
+    if full_path in _JSON_BARE_DATA_PATHS:
+        return Response(
+            content=b"",
+            status_code=302,
+            headers={
+                "location": f"/api/killinchu/v1/{full_path}",
+                "cache-control": "no-store",
+                "x-content-type-options": "nosniff",
+            },
+        )
     static_response = await _SPA_FILES.get(full_path, request.scope)
     if static_response is not None:
         return static_response
@@ -5743,6 +5766,141 @@ except Exception as _kc_public_route_e:  # pragma: no cover - preserve startup
     )
 # ============================================================================
 # END: P0 PUBLIC DISCOVERY ROUTE REPAIR
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: GET /verify — DSSE verification explainer (ADDITIVE, 2026-08-28)
+# Footer links and Wave-K surfaces pointed at /verify, which fell through the
+# SPA catch-all as JSON 404. This is a real page: how to verify a DSSEv1
+# receipt against /cosign.pub or POST /khipu/verify, plus a link to the live
+# elite DSSE verifier. Effector remains SIMULATED. Ledger remains EPHEMERAL.
+# Λ = Conjecture 1, never a theorem. Front-inserted so it beats /{full_path:path}.
+# ============================================================================
+try:
+    from fastapi.responses import HTMLResponse as _VerifyHTML
+    from fastapi.routing import APIRoute as _VerifyRoute
+
+    _VERIFY_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Verify a signed receipt · killinchu</title>
+  <meta name="description" content="How to verify a killinchu DSSEv1 receipt against the published cosign public key, offline or via POST /khipu/verify."/>
+  <style>
+    :root { --bg:#0a0e14; --fg:#e8eef4; --dim:#8a8f98; --teal:#5cc4bf; --gold:#c9b787; --line:#2a3340; }
+    html,body { margin:0; background:var(--bg); color:var(--fg);
+      font:16px/1.55 "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif; }
+    main { max-width:720px; margin:0 auto; padding:32px 20px 64px; }
+    h1 { font-size:1.6rem; letter-spacing:.02em; margin:0 0 8px; }
+    h2 { font-size:1.05rem; color:var(--gold); margin:28px 0 10px; }
+    p, li { color:#d5dde6; }
+    .ribbon { font:12px/1.6 "JetBrains Mono", ui-monospace, monospace; color:var(--dim);
+      border:1px solid var(--line); padding:10px 12px; margin:0 0 24px; }
+    a { color:var(--teal); }
+    code, pre { font-family:"JetBrains Mono", ui-monospace, monospace; }
+    pre { background:#10151c; border:1px solid var(--line); padding:14px 16px;
+      overflow:auto; font-size:12.5px; color:#c9d2df; }
+    .note { color:var(--dim); font-size:.92rem; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="ribbon">Doctrine v11 LOCKED · Λ = Conjecture 1, never a theorem · effector SIMULATED · ledger EPHEMERAL</p>
+  <h1>Verify a signed receipt</h1>
+  <p>Every killinchu engagement decision can carry a <b>DSSEv1</b> envelope (in-toto / Sigstore Dead Simple Signing Envelope) signed ECDSA-P256-SHA256 over the DSSE PAE with keyid <code>szlholdings-cosign</code> when the runtime key is present. If the key is absent the receipt is labelled <b>UNSIGNED</b> — never faked. This page does not sign, arm, or actuate anything. Effector action stays SIMULATED and human-on-the-loop. The in-process ledger is EPHEMERAL (resets on restart).</p>
+
+  <h2>Live verifier</h2>
+  <p>The operator console already hosts an in-browser WebCrypto check next to the engagement audit log: <a href="/elite#audit">/elite#audit</a>. Fetch the latest envelope, fetch <a href="/cosign.pub"><code>/cosign.pub</code></a>, verify locally. A tamper test flips one byte and must fail.</p>
+
+  <h2>Offline — cosign</h2>
+  <pre>curl -sS /cosign.pub -o cosign.pub
+curl -sS /api/killinchu/v1/receipt/export -o receipt.json
+# Reconstruct payload.bin + sig.b64 from the DSSE envelope, then:
+cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre>
+  <p class="note"><code>/cosign.pub</code> returns HTTP 503 with a plain-text reason when the public key is not loaded in this runtime. That is honest unavailability, not a substitute key.</p>
+
+  <h2>In-process — POST /khipu/verify</h2>
+  <p>POST a DSSE envelope (or <code>{"envelope": …}</code> / <code>{"dsse": …}</code>) to <code>POST /khipu/verify</code>. The handler verifies against the same published key. <code>verified: true</code> only if the signature matches; mutating the payload must fail.</p>
+  <pre>curl -sS -X POST /khipu/verify \\
+  -H 'content-type: application/json' \\
+  --data-binary @receipt.json</pre>
+
+  <h2>What this is not</h2>
+  <p>Λ (the 13-axis trust score) is <b>Conjecture 1 — never a theorem</b>. A passing signature does not make Λ unique or proven. SLSA is L1 by honest self-assessment (L2 on signed images where attested). The Khipu DAG is tamper-evident in-process; this Space does not claim a durable production ledger.</p>
+  <p class="note">Also on the landing page: <a href="/landing.html#verify">/landing.html#verify</a>. Public key: <a href="/cosign.pub">/cosign.pub</a>. Export: <a href="/api/killinchu/v1/receipt/export">/api/killinchu/v1/receipt/export</a>.</p>
+</main>
+</body>
+</html>
+"""
+
+    _VERIFY_JSON = {
+        "schema": "szl.killinchu-dsse-verify/v1",
+        "path": "/verify",
+        "doctrine": "v11 LOCKED",
+        "lambda": "Conjecture 1 (never a theorem)",
+        "effector": "SIMULATED",
+        "ledger": "EPHEMERAL",
+        "dsse": {
+            "envelope": "DSSEv1",
+            "algorithm": "ECDSA-P256-SHA256",
+            "keyid": "szlholdings-cosign",
+            "public_key": "/cosign.pub",
+            "offline": "cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin",
+            "in_process": "POST /khipu/verify",
+            "live_ui": "/elite#audit",
+            "honesty": (
+                "Signatures are real when the runtime key is present; otherwise "
+                "UNSIGNED, never fabricated. Lambda stays Conjecture 1, never a theorem; "
+                "a verified envelope does not change that."
+            ),
+        },
+    }
+
+    def _verify_prefers_json(request: Request) -> bool:
+        accept = (request.headers.get("accept") or "").lower()
+        json_pos = accept.find("application/json")
+        html_pos = accept.find("text/html")
+        if json_pos >= 0 and (html_pos < 0 or json_pos < html_pos):
+            return True
+        return False
+
+    async def killinchu_verify_page(request: Request) -> Response:
+        if _verify_prefers_json(request):
+            response = JSONResponse(
+                _VERIFY_JSON,
+                headers={"cache-control": "no-store", "x-content-type-options": "nosniff"},
+            )
+        else:
+            response = _VerifyHTML(
+                _VERIFY_HTML,
+                headers={"cache-control": "no-store", "x-content-type-options": "nosniff"},
+            )
+        if request.method == "HEAD":
+            return Response(
+                content=b"",
+                status_code=response.status_code,
+                headers=dict(response.headers),
+            )
+        return response
+
+    _verify_existing = {getattr(_r, "name", None) for _r in app.router.routes}
+    if "killinchu_dsse_verify_page" not in _verify_existing:
+        app.router.routes.insert(
+            0,
+            _VerifyRoute(
+                "/verify",
+                killinchu_verify_page,
+                methods=["GET", "HEAD"],
+                name="killinchu_dsse_verify_page",
+            ),
+        )
+        print("[killinchu] GET /verify DSSE explainer registered", file=sys.stderr)
+except Exception as _kc_verify_e:  # pragma: no cover — never break SPA/other organs
+    print(f"[killinchu] GET /verify NOT registered: {_kc_verify_e!r}", file=sys.stderr)
+# ============================================================================
+# END: GET /verify DSSE explainer
 # ============================================================================
 
 
