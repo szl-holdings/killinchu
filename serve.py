@@ -5853,7 +5853,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre>
             "honesty": (
                 "Signatures are real when the runtime key is present; otherwise "
                 "UNSIGNED, never fabricated. A verified envelope does not make "
-                "Lambda a theorem."
+                "Lambda remains Conjecture 1, never a theorem."
             ),
         },
     }
