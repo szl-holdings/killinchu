@@ -38,7 +38,7 @@ header: mini
 # killinchu 🦅
 
 > **Governed autonomy with a checkable receipt for every decision.**
-> Detect. Classify. Defeat under human authority — a counter-UAS edge organ with a DSSE Khipu receipt for every interdiction decision.
+> Detect. Classify. Recommend under human authority — effectors are simulated/advisory until a real authorized path is proved. A DSSE Khipu receipt binds every decision.
 
 > **53 drone fingerprints · 13-axis Λ-gate · DSSE-signed verdicts · human-on-the-loop**
 
@@ -115,7 +115,7 @@ Key capabilities:
 - **13-axis Λ-gate** — haversine geofence breach check fused with `yuyay_v3` score; decisions emit DSSE Khipu receipts in a real SHA-256 Merkle DAG
 - **53 drone fingerprints** — pre-loaded drone signature library
 - **ROE / policy endpoint** — `/roe/policy`, `/counter-uas/evaluate` (Anduril parity, live HTTP 200)
-- **Competitive parity** — Anduril/defense endpoints live + differentiators (signed receipts, Λ-gate, BFT quorum) no competitor has
+- **Named public contracts (MEASURED HTTP 200 on declared routes)** — `/roe/policy`, `/counter-uas/evaluate`. Not competitive parity. Not an exclusivity claim.
 
 **Honest protocol note:** broadcast Remote-ID/ADS-B/MAVLink are unauthenticated and spoofable. Every decoded field is a *claim*, never ground truth. This is stated explicitly in `/v1/honest`.
 
