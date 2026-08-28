@@ -4754,6 +4754,8 @@ try:
         if _ep is None:
             continue
         _methods = sorted(getattr(_src, "methods", None) or {"GET"})
+        if "GET" in _methods and "HEAD" not in _methods:
+            _methods.append("HEAD")
         _name = "qa6_bare_alias_" + _bare.strip("/").replace("/", "_")
         if isinstance(_src, _QA6APIRoute):
             # FastAPI handler (e.g. zero-arg /mesh/state): build a fresh APIRoute so

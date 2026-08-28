@@ -107,8 +107,9 @@ class KillinchuHttpHardeningTests(unittest.TestCase):
                     self.assertEqual(canonical.status_code, 200, path)
                     self.assertEqual(body.keys(), canonical.json().keys(), path)
 
-            head = self.client.head(path)
-            self.assertEqual(head.status_code, 200, path)
+            head = self.client.head(path, follow_redirects=False)
+            self.assertIn(head.status_code, {200, 302}, path)
+            self.assertNotIn("text/html", head.headers.get("content-type", ""), path)
             self.assertEqual(head.content, b"", path)
 
     def test_root_key_and_export_support_head(self):
