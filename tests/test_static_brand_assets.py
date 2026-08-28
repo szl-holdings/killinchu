@@ -14,7 +14,7 @@ def test_brand_assets_are_packaged_and_served_as_css():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     client = TestClient(app)
 
-    for name in ("brand-tokens.css", "brand-bridge.css"):
+    for name in ("brand-tokens.css", "brand-bridge.css", "szl-kanchay-overlay.css"):
         source = STATIC_DIR / name
         assert source.is_file(), f"missing packaged brand asset: {name}"
 

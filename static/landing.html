@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>killinchu — Autonomous Systems · Drones &amp; Vessels · SZL Holdings</title>
 <meta name="description" content="killinchu is SZL Holdings' field tool for autonomous systems — governed counter-UAS and maritime decisions, every one a verifiable signed receipt. Live track board, sensor fusion, engagement rules, and dark-vessel screening, governed by the same trust brain as the a11oy Command Platform." />
-<meta name="theme-color" content="#0a0a0a" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3 L27 27 L16 21 L5 27 Z' fill='%23c9b787'/%3E%3C/svg%3E" />
+<meta name="theme-color" content="#080c14" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3 L27 27 L16 21 L5 27 Z' fill='%23d7b96b'/%3E%3C/svg%3E" />
 <!-- SOVEREIGN: self-hosted fonts (0 runtime CDN). Space Grotesk + JetBrains Mono are
      vendored in-image and served same-origin via /vendor/fonts/fonts.css (the SAME
      pattern as the clean killinchu console / maritime / mesh pages). NO external font CDN. -->
@@ -20,14 +20,14 @@
 
 /* ---- TOKENS ------------------------------------------------------------- */
 :root {
-  --bg:        #0a0a0a;
+  --bg:        #080c14;
   --panel:     #111317;
   --panel-2:   #15181d;
   --hairline:  #1f2630;
   --hairline-soft: rgba(255,255,255,0.05);
-  --gold:      #c9b787;
-  --gold-dim:  #a89868;
-  --teal:      #5fb3a3;
+  --gold:      #d7b96b;
+  --gold-dim:  #cda64a;
+  --teal:      #3af4c8;
   --red:       #e0564f;
   --muted:     #8a93a0;
   --text:      #e7e9ec;
@@ -103,7 +103,7 @@ img, svg { display: block; }
   background: var(--panel-2); transition: all 0.22s var(--ease); cursor: pointer;
 }
 .ds-btn:hover { border-color: var(--gold-dim); transform: translateY(-1px); }
-.ds-btn--primary { background: var(--gold); color: #0a0a0a; border-color: var(--gold); font-weight: 600; }
+.ds-btn--primary { background: var(--gold); color: #080c14; border-color: var(--gold); font-weight: 600; }
 .ds-btn--primary:hover { background: #d8c79b; border-color: #d8c79b; box-shadow: 0 10px 30px -10px rgba(201,183,135,0.5); }
 .ds-btn__arrow { transition: transform 0.22s var(--ease); }
 .ds-btn:hover .ds-btn__arrow { transform: translateX(3px); }
@@ -134,7 +134,7 @@ img, svg { display: block; }
 /* ---- SIGNED-RECEIPT CHIP ----------------------------------------------- */
 .ds-receipt { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(95,179,163,0.35); background: rgba(95,179,163,0.08); color: var(--teal); }
 .ds-receipt__hash { color: var(--text-soft); }
-.ds-receipt__check { width: 14px; height: 14px; border-radius: 50%; background: var(--teal); color: #0a0a0a; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
+.ds-receipt__check { width: 14px; height: 14px; border-radius: 50%; background: var(--teal); color: #080c14; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
 
 /* ---- LIVE DOT ----------------------------------------------------------- */
 .ds-live { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--teal); }
@@ -256,7 +256,7 @@ img, svg, canvas, video { max-width: 100%; height: auto; }
       <div>
         <p class="ds-eyebrow">SZL Holdings · Governed Counter-UAS &amp; Maritime C2</p>
         <h1 class="ds-hero__h1">Counter-UAS that <span class="accent">proves</span> every decision.</h1>
-        <p class="ds-hero__sub">killinchu is a governed counter-UAS and maritime command-and-control layer. Every engagement passes a <strong style="color:var(--text-soft)">Lean-checked rules-of-engagement gate</strong>, is agreed by a <strong style="color:var(--text-soft)">Byzantine-fault-tolerant witness quorum</strong>, and ships a <strong style="color:var(--text-soft)">signed engagement receipt</strong> you can verify offline. Human on the loop; effector action is SIMULATED.</p>
+        <p class="ds-hero__sub">killinchu is a governed counter-UAS and maritime command-and-control layer. Every engagement passes a <strong style="color:var(--text-soft)">Lean-checked rules-of-engagement gate</strong>, is agreed by a <strong style="color:var(--text-soft)">Byzantine-fault-tolerant witness quorum</strong>, and ships a <strong style="color:var(--text-soft)">signed engagement receipt</strong> you can verify offline. Human on the loop; effector action is SIMULATED. Detector is Waman (ROADMAP, no weights). KILLINCHU-EYE is an alias, not a second detector.</p>
         <div class="ds-hero__cta">
           <a class="ds-btn ds-btn--primary" href="/elite">Enter the operator console <span class="ds-btn__arrow">→</span></a>
           <a class="ds-btn" href="#verify">Verify a signed receipt</a>
@@ -264,6 +264,8 @@ img, svg, canvas, video { max-width: 100%; height: auto; }
         <div class="ds-hero__stamp">
           <span><b>UTC</b> <span id="kc-utc" class="ds-mono">————-——-—— ——:——:——Z</span></span>
           <span><b>DOCTRINE</b> <span id="kc-doctrine" class="ds-mono">v11 LOCKED</span></span>
+          <span><b>DETECTOR</b> Waman · alias KILLINCHU-EYE</span>
+          <span class="szl-chip szl-chip-simulated">SIMULATED</span>
           <span class="ds-live"><span class="ds-live__pulse"></span>LIVE</span>
         </div>
       </div>
@@ -302,13 +304,13 @@ img, svg, canvas, video { max-width: 100%; height: auto; }
           <svg viewBox="0 0 500 500">
             <defs>
               <radialGradient id="kc-core" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="#c9b787" stop-opacity="0.55" />
-                <stop offset="55%" stop-color="#c9b787" stop-opacity="0.08" />
-                <stop offset="100%" stop-color="#c9b787" stop-opacity="0" />
+                <stop offset="0%" stop-color="#d7b96b" stop-opacity="0.55" />
+                <stop offset="55%" stop-color="#d7b96b" stop-opacity="0.08" />
+                <stop offset="100%" stop-color="#d7b96b" stop-opacity="0" />
               </radialGradient>
               <radialGradient id="kc-halo" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="#c9b787" stop-opacity="0.15" />
-                <stop offset="100%" stop-color="#c9b787" stop-opacity="0" />
+                <stop offset="0%" stop-color="#d7b96b" stop-opacity="0.15" />
+                <stop offset="100%" stop-color="#d7b96b" stop-opacity="0" />
               </radialGradient>
             </defs>
             <circle cx="250" cy="250" r="240" fill="url(#kc-halo)" />
@@ -325,18 +327,18 @@ img, svg, canvas, video { max-width: 100%; height: auto; }
             <g id="kc-stations"></g>
             <!-- core -->
             <circle cx="250" cy="250" r="58" fill="url(#kc-core)" />
-            <circle cx="250" cy="250" r="34" fill="none" stroke="#c9b787" stroke-width="0.75" opacity="0.6" />
+            <circle cx="250" cy="250" r="34" fill="none" stroke="#d7b96b" stroke-width="0.75" opacity="0.6" />
             <circle cx="250" cy="250" r="22" fill="none" stroke="#a89868" stroke-width="0.5" />
             <text x="250" y="254" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="12" fill="#f5f5f5" letter-spacing="2.5" font-weight="500">killinchu</text>
           </svg>
 
           <!-- traveling pulses (CSS-rotated groups) -->
           <svg viewBox="0 0 500 500">
-            <g class="ds-orbital__spin dir-cw"><circle r="3.2" fill="#c9b787" cx="320" cy="250" /></g>
-            <g class="ds-orbital__spin dir-ccw"><circle r="3.2" fill="#c9b787" cx="360" cy="250" /></g>
-            <g class="ds-orbital__spin dir-ccw" style="animation-duration:52s;"><circle r="3.2" fill="#c9b787" cx="140" cy="250" /></g>
-            <g class="ds-orbital__spin dir-cw" style="animation-duration:110s;"><circle r="3.2" fill="#5fb3a3" cx="408" cy="250" /></g>
-            <g class="ds-orbital__spin dir-cw" style="animation-duration:38s;"><circle r="3.2" fill="#c9b787" cx="408" cy="250" /></g>
+            <g class="ds-orbital__spin dir-cw"><circle r="3.2" fill="#d7b96b" cx="320" cy="250" /></g>
+            <g class="ds-orbital__spin dir-ccw"><circle r="3.2" fill="#d7b96b" cx="360" cy="250" /></g>
+            <g class="ds-orbital__spin dir-ccw" style="animation-duration:52s;"><circle r="3.2" fill="#d7b96b" cx="140" cy="250" /></g>
+            <g class="ds-orbital__spin dir-cw" style="animation-duration:110s;"><circle r="3.2" fill="#3af4c8" cx="408" cy="250" /></g>
+            <g class="ds-orbital__spin dir-cw" style="animation-duration:38s;"><circle r="3.2" fill="#d7b96b" cx="408" cy="250" /></g>
           </svg>
 
           <div class="ds-orbital__corepulse"></div>
@@ -692,8 +694,8 @@ cosign verify-blob --key cosign.pub \
     ];
     if(stations){ STN.forEach(function(s){
       var a=s.angle*Math.PI/180, cx=250+s.r*Math.cos(a), cy=250+s.r*Math.sin(a);
-      stations.appendChild(mk("circle",{ cx:cx, cy:cy, r:9, fill:"none", stroke:"#c9b787","stroke-width":1, opacity:0.7 }));
-      stations.appendChild(mk("circle",{ cx:cx, cy:cy, r:3, fill:"#c9b787" }));
+      stations.appendChild(mk("circle",{ cx:cx, cy:cy, r:9, fill:"none", stroke:"#d7b96b","stroke-width":1, opacity:0.7 }));
+      stations.appendChild(mk("circle",{ cx:cx, cy:cy, r:3, fill:"#d7b96b" }));
       var anchor = (cx>250) ? "start" : "end";
       var dx = (cx>250) ? 14 : -14;
       var tx=mk("text",{ x:cx+dx, y:cy+3, "text-anchor":anchor,
@@ -841,5 +843,13 @@ cosign verify-blob --key cosign.pub \
   });
 })();
 </script>
+<aside id="szl-kanchay-honesty" data-szl-overlay="atelier-ayni" aria-label="Killinchu honesty overlay">
+  <div class="szl-chip-row">
+    <span class="szl-chip szl-chip-simulated">SIMULATED</span>
+    <span class="szl-chip szl-chip-roadmap">ROADMAP</span>
+    <span class="szl-chip szl-chip-unknown">UNKNOWN</span>
+  </div>
+  <p>Effector stays <b>SIMULATED</b>. Detector is <b>Waman</b> — no weights, no tensors, frames SKIP. <b>KILLINCHU-EYE</b> is an alias, not a second detector. Jobs UNKNOWN. Λ = Conjecture 1, never a theorem. Doctrine v11 749/14/163.</p>
+</aside>
 </body>
 </html>
