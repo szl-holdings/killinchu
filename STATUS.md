@@ -1,6 +1,6 @@
 # STATUS.md — killinchu (Defense / Counter-UAS)
 
-**Updated:** 2026-07-26
+**Updated:** 2026-08-28
 **Doctrine v11 — 749 / 14 / 163 — replay hash c7c0ba17**
 
 HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
@@ -53,6 +53,7 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
   separate authority record.
 - **Historical archive privacy** — pre-v2 backing shards are not claimed
   rewritten or erased; the public recent API withholds legacy platform rows.
+- Human on the loop; effector action is SIMULATED.
 
 ## What's Deprecated
 
@@ -60,5 +61,5 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
 
 ---
 
-*Co-Authored-By: Perplexity Computer Agent*
 *Doctrine v11 — 749/14/163 — c7c0ba17*
+*2026-08-28: live Space probes of `/api/killinchu/healthz`, `/drones/database`, and `/lambda` timed out while runtime stage still reported RUNNING. Merging this to main retriggers `hf-sync.yml` (workflow_dispatch / push to main) so the Space is source-bound and restarted.*
