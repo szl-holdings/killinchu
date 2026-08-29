@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Hub Spaces public cut is 7 KEEP
+- Shared `szl_spaces_surface.py` / `szl_spaces_proxy.py` match a11oy: public
+  Hub estate is 7 KEEP, not 26 tiles. Folded Spaces 307 to product and proof
+  destinations. `/verify` is not cloned. Occupancy UNAVAILABLE. Energy-attested-runs
+  remains 8/8 SIMULATED. Λ = Conjecture 1.
+
 ### Changed
 - KANCHAY visual + honesty overlay on the killinchu silhouette: void `#080c14`, proof `#3af4c8`, lattice `#5b8dee`, gold `#d7b96b`, Space Grotesk + JetBrains Mono.
 - Uniform **SIMULATED** chip on effector / detection copy (no mixed "command demonstration" wording). ATELIER will not stamp fake operational — the chip stays.
