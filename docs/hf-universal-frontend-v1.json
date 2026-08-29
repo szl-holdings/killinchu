@@ -16,7 +16,7 @@
   "css_file": "static/szl-universal-frontend.css",
   "entry_file": null,
   "file_sha256": {
-    "README.md": "baf48ea520713b7a152f3ae5e615255c7dfd8a119b54bd0d6283f37e51eb1ed3",
+    "README.md": "16dd57e13229694f55995b3d12c12999a0dacbce4432ea01b59935e6faeca8ba",
     "static/index.html": "5acb009085b96b13dbcf72d49bc251c4c00c2d0338ad47338311418f7d0a35e7",
     "static/szl-universal-frontend.css": "2f869cd9a9808c8dc8c05278118d26b16c5b3a798cc8ee3b2a1100c359a65027"
   },

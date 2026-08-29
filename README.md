@@ -38,7 +38,7 @@ header: mini
 # killinchu 🦅
 
 > **Governed autonomy with a checkable receipt for every decision.**
-> Detect. Classify. Recommend under human authority — effectors are simulated/advisory until a real authorized path is proved. A DSSE Khipu receipt binds every decision.
+> Detect. Classify. Recommend under human authority. Detection, classification, and the governed-decision layer are LIVE. Physical effector engagement is operator-owned — gated on customer authorization and hardware integration, never exercised by this Space. A DSSE Khipu receipt binds every decision.
 
 > **53 drone fingerprints · 13-axis Λ-gate · DSSE-signed verdicts · human-on-the-loop**
 
@@ -106,7 +106,7 @@ killinchu is a **full left-nav application** at `/elite` in the unified SZL hous
 
 ## What it does
 
-**killinchu is the counter-UAS edge tool of the SZL drones & vessels product.** It runs where the mission happens — detecting, classifying, and evaluating hostile UAS tracks at machine speed, signing every interdiction decision with a DSSE Khipu receipt, and surfacing the result to a **human operator** before any action propagates.
+**killinchu is the counter-UAS edge tool of the SZL drones & vessels product.** Detection, classification, and the governed-decision layer are LIVE and operational: it evaluates hostile UAS tracks at machine speed, signs every engagement *decision* with a DSSE Khipu receipt, and surfaces the result to a **human operator**. Physical effector engagement is operator-owned — gated on customer authorization and hardware integration. This Space does not command a live weapon or establish production authorization.
 
 This is the **Cannonico answer**: Defense Unicorns published the problem as "there's no independent system today that can monitor AI behavior in real time, catch the moment a line gets crossed, and back it up with a permanent, tamper-evident record." killinchu is that system — deployed in one signed UDS command.
 
@@ -310,8 +310,8 @@ must *audit* the decision path, not trust a black box.
 | Deployment | **Single signed OCI image · Zarf/UDS air-gap bundle** | Appliance / cloud |
 | Banned vendors | **Section 889 = exactly 5 (Huawei, ZTE, Hytera, Hikvision, Dahua)** | Compliant |
 
-> killinchu is a **precision substrate**, not a turnkey weapon system. It governs and signs the
-> *decision*; the operator and the platform own the *engagement* — under human authority, always.
+> killinchu is a **precision substrate**, not a turnkey weapon system. The decision layer is LIVE.
+> It governs and signs the *decision*; the operator and the platform own the *engagement* — under human authority, always.
 
 ---
 
@@ -359,6 +359,8 @@ See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platfo
 | Experimental theorems (main `@c7c0ba17`) | ✅ CI-green, **~185 machine-checked theorems** across **Waves 11–22** (+ agentic P1–P6 + coder; all `#print axioms ⊆ {propext, Classical.choice, Quot.sound}`). **NOT** in the locked count. Wave 11 CF-1/2/3/5; Wave 12 CUT-2 + CF-13 + CF-17; Wave 13 replay-root + single-valued NON-Byzantine vote (BFT safety stays Conjecture 2) + HM-bottleneck; Waves 14–22 incl. CF-18/19/20/21 (CF-19 RS-MDS lower bound only). Λ-uniqueness CONDITIONAL on separability (CUT-2, axiom-free); unconditional = Conjecture 1. Khipu BFT safety = Conjecture 2. Key: M2 tamper-evidence. |
 | Λ-uniqueness | ⚠️ **Conjecture 1** — never a theorem |
 | SLSA L3 | ❌ Not claimed |
+| Decision layer (detect / classify / govern / sign) | ✅ LIVE — real decoders, 53 fingerprints, Λ-gate, DSSE receipts |
+| Physical effector engagement | Operator-owned — not exercised by this Space; no production ATO claimed |
 | FedRAMP / CMMC | ❌ Not claimed |
 
 ---
