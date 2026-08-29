@@ -1,6 +1,6 @@
 # STATUS.md — killinchu (Defense / Counter-UAS)
 
-**Updated:** 2026-08-28
+**Updated:** 2026-08-29
 **Doctrine v11 — 749 / 14 / 163 — replay hash c7c0ba17**
 
 HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
@@ -53,7 +53,8 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
   separate authority record.
 - **Historical archive privacy** — pre-v2 backing shards are not claimed
   rewritten or erased; the public recent API withholds legacy platform rows.
-- Human on the loop; effector action is SIMULATED.
+- Human on the loop; physical effector action is SIMULATED. The public Space
+  does not command a live weapon.
 
 ## What's Deprecated
 
@@ -63,3 +64,4 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/killinchu>
 
 *Doctrine v11 — 749/14/163 — c7c0ba17*
 *2026-08-28: live Space probes of `/api/killinchu/healthz`, `/drones/database`, and `/lambda` timed out while runtime stage still reported RUNNING. Merging this to main retriggers `hf-sync.yml` (workflow_dispatch / push to main) so the Space is source-bound and restarted.*
+*2026-08-29: anonymous probes of `https://szlholdings-killinchu.hf.space/api/build-info`, `/healthz`, and `/api/killinchu/readyz` timed out. Hub runtime stage still reported RUNNING. GitHub main `62cb7359edd7b49cb62eacc76d71a29f2cfa7ee4`. Hub SHA `bf5a6c3cb03b2e0c098f9b30b0f1454094f8e402`. hf-sync run `33226520547` (push) published files then failed `Attest exact running commit, bytes, and smoke routes`. Physical effector remains SIMULATED. Merging this to main retriggers `hf-sync.yml` via push only.*
