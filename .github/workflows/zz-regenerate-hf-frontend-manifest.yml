@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile scripts/apply_hf_universal_frontend_v1.py
-          python3 scripts/apply_hf_universal_frontend_v1.py
+          python3 scripts/apply_hf_universal_frontend_v1.py --apply
           python3 scripts/apply_hf_universal_frontend_v1.py --check
           git diff --check
 
