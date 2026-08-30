@@ -5433,7 +5433,7 @@ window.an_run=async function(tamper){
   const cmd=el('an-cmd').value, track=el('an-track').value, conf=parseFloat(el('an-conf').value), scn=el('an-scn').value;
   const dom=(cmd.indexOf('drone')>=0||cmd==='assign_intercept'||cmd==='recall_drone')?'drone':'vessel';
   const body={command:cmd, track_id:track, domain:dom, confidence:conf, reversible:true, severity:'high',
-    operator:'cic@szlholdings.ai', source_label:'live', data_license:'CC-BY-4.0', known_command:true, tamper:!!tamper};
+    operator:'cic@szlholdings.com', source_label:'live', data_license:'CC-BY-4.0', known_command:true, tamper:!!tamper};
   if(scn==='deception') body.note='spoof-friendly maneuver to deceive sensor picture';
   if(scn==='badlicense') body.data_license='GPL-3.0';
   if(scn==='lowconf'){ body.confidence=0.2; }

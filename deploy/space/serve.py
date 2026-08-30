@@ -1588,7 +1588,7 @@ async def killinchu_adsb_v3(
     _now = datetime.now(_tz.utc).isoformat()
     try:
         req = _ur.Request(opensky_url,
-            headers={"User-Agent": "SZL-killinchu/1.0 (C-UAS demo; contact@szlholdings.ai)"})
+            headers={"User-Agent": "SZL-killinchu/1.0 (C-UAS demo; contact@szlholdings.com)"})
         with _ur.urlopen(req, timeout=8) as resp:
             raw = _j.loads(resp.read())
         states = raw.get("states", []) or []
@@ -2169,7 +2169,7 @@ async def killinchu_adsb_inline(
     _now = datetime.now(_tz.utc).isoformat()
     try:
         req = _ur.Request(opensky_url,
-            headers={"User-Agent": "SZL-killinchu/1.0 (C-UAS demo; contact@szlholdings.ai)"})
+            headers={"User-Agent": "SZL-killinchu/1.0 (C-UAS demo; contact@szlholdings.com)"})
         with _ur.urlopen(req, timeout=8) as resp:
             raw = _j.loads(resp.read())
         states = raw.get("states", []) or []
