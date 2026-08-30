@@ -46,6 +46,7 @@ DIAGNOSIS_TUNNEL_DOWN = "TUNNEL_NOT_CONNECTED"
 DIAGNOSIS_ORIGIN_ERROR = "ORIGIN_ERROR"
 DIAGNOSIS_REACHABLE = "REACHABLE"
 DIAGNOSIS_UNKNOWN = "UNKNOWN"
+DIAGNOSIS_CUSTOM_DOMAIN_UNREGISTERED = "CUSTOM_DOMAIN_UNREGISTERED"
 
 OWNERS = {
     DIAGNOSIS_DNS_MISSING: "Cloudflare DNS — create the record for this hostname",
@@ -53,7 +54,17 @@ OWNERS = {
     DIAGNOSIS_ORIGIN_ERROR: "application on the box",
     DIAGNOSIS_REACHABLE: "nobody — target is reachable",
     DIAGNOSIS_UNKNOWN: "needs manual triage",
+    DIAGNOSIS_CUSTOM_DOMAIN_UNREGISTERED: (
+        "Hugging Face Space settings — add this hostname as a custom domain on the Space"
+    ),
 }
+
+# Hugging Face serves its own 404 page when a request arrives with a Host header
+# the Space does not recognise. A bare CNAME to *.hf.space is therefore not
+# enough: the hostname must also be registered on the Space itself. Detecting
+# this specifically matters because the fix is a Space setting, not DNS and not
+# the application.
+HF_404_MARKERS = ("huggingface", "hugging face")
 
 
 def resolve(hostname: str) -> tuple[bool, list[str], str]:
@@ -142,6 +153,13 @@ def classify(hostname: str, url: str, timeout: float) -> dict:
     elif 200 <= status < 400:
         diagnosis = DIAGNOSIS_REACHABLE
         detail = f"{hostname} answered HTTP {status}."
+    elif status == 404 and any(m in body.lower() for m in HF_404_MARKERS):
+        diagnosis = DIAGNOSIS_CUSTOM_DOMAIN_UNREGISTERED
+        detail = (
+            f"{hostname} resolves and reaches Hugging Face, which returned its own 404 page. "
+            "The DNS record is correct but the hostname is not registered as a custom domain "
+            "on the target Space, so HF does not route the Host header to it."
+        )
     else:
         diagnosis = DIAGNOSIS_ORIGIN_ERROR
         detail = f"{hostname} answered HTTP {status} with no Cloudflare tunnel error code."
@@ -162,25 +180,48 @@ def classify(hostname: str, url: str, timeout: float) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--url", required=True, help="Base URL of the own-metal target.")
+    ap.add_argument(
+        "--url",
+        action="append",
+        required=True,
+        default=[],
+        help="Base URL of a target to classify (repeatable).",
+    )
     ap.add_argument("--timeout", type=float, default=15.0, help="Per-request timeout seconds.")
     ap.add_argument("--summary-file", default="", help="Optional path for a JSON summary.")
     args = ap.parse_args(argv)
 
-    base = args.url.rstrip("/")
-    hostname = urlparse(base).hostname or ""
+    results = []
+    for raw in args.url:
+        base = raw.rstrip("/")
+        hostname = urlparse(base).hostname or ""
+        result = classify(hostname, base + "/healthz", args.timeout)
+        results.append(result)
 
-    result = classify(hostname, base + "/healthz", args.timeout)
+        print(f"== reachability: {hostname} ==")
+        print(f"  diagnosis: {result['diagnosis']}")
+        print(f"  owner:     {result['owner']}")
+        print(f"  detail:    {result['detail']}")
+        print()
 
-    print(f"== own-metal reachability: {hostname} ==")
-    print(f"  diagnosis: {result['diagnosis']}")
-    print(f"  owner:     {result['owner']}")
-    print(f"  detail:    {result['detail']}")
+    reachable = sum(1 for r in results if r["diagnosis"] == DIAGNOSIS_REACHABLE)
+    print(f"RESULT: {reachable}/{len(results)} target(s) reachable")
+
+    summary = {
+        "checked": len(results),
+        "reachable": reachable,
+        "worst_diagnosis": (
+            DIAGNOSIS_REACHABLE
+            if reachable == len(results)
+            else next(r["diagnosis"] for r in results if r["diagnosis"] != DIAGNOSIS_REACHABLE)
+        ),
+        "targets": results,
+    }
 
     if args.summary_file:
         with open(args.summary_file, "w", encoding="utf-8") as fh:
-            json.dump(result, fh, indent=2, sort_keys=True)
-        print(f"  wrote summary -> {args.summary_file}")
+            json.dump(summary, fh, indent=2, sort_keys=True)
+        print(f"wrote summary -> {args.summary_file}")
 
     # Always 0: this script classifies, it never gates.
     return 0

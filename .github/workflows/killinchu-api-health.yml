@@ -62,7 +62,7 @@ jobs:
       - name: Run validator self-test (proves it catches SPA-HTML / missing-field)
         run: python3 scripts/test_check_killinchu_api_health.py
 
-      - name: Run own-metal classifier self-test (proves it names the right owner)
+      - name: Run reachability classifier self-test (proves it names the right owner)
         run: python3 scripts/test_diagnose_own_metal_reachability.py
 
   health:
@@ -153,8 +153,8 @@ jobs:
           fi
           echo "Killinchu published API healthy on all endpoints."
 
-  own-metal-reachability:
-    name: Own-metal box reachability (informational)
+  branded-and-own-metal-reachability:
+    name: Branded domain + own-metal reachability (informational)
     needs: self-test
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -172,16 +172,17 @@ jobs:
           set +e
           python3 scripts/diagnose_own_metal_reachability.py \
             --url "https://killinchu.a-11-oy.com" \
+            --url "https://gateway.a-11-oy.com" \
             --summary-file /tmp/own-metal.json | tee /tmp/own-metal.log
-          diagnosis="$(python3 -c "import json;print(json.load(open('/tmp/own-metal.json'))['diagnosis'])" 2>/dev/null || echo UNKNOWN)"
-          owner="$(python3 -c "import json;print(json.load(open('/tmp/own-metal.json'))['owner'])" 2>/dev/null || echo 'needs manual triage')"
+          diagnosis="$(python3 -c "import json;print(json.load(open('/tmp/own-metal.json'))['worst_diagnosis'])" 2>/dev/null || echo UNKNOWN)"
+          reachable="$(python3 -c "import json;d=json.load(open('/tmp/own-metal.json'));print(f\"{d['reachable']}/{d['checked']}\")" 2>/dev/null || echo '?/?')"
           echo "diagnosis=$diagnosis" >> "$GITHUB_OUTPUT"
           {
-            echo "### Own-metal box reachability (informational)"
+            echo "### Branded domain + own-metal reachability (informational)"
             echo ""
-            echo "**Diagnosis:** \`$diagnosis\`"
+            echo "**Reachable:** $reachable"
             echo ""
-            echo "**Owner:** $owner"
+            echo "**Worst diagnosis:** \`$diagnosis\`"
             echo ""
             echo '```'
             cat /tmp/own-metal.log
@@ -192,4 +193,4 @@ jobs:
       - name: Annotate when the box is not reachable
         if: ${{ always() && steps.diagnose.outputs.diagnosis != 'REACHABLE' }}
         run: |
-          echo "::warning::Own-metal box not reachable (${{ steps.diagnose.outputs.diagnosis }}). This does NOT fail the run — the published surface is gated separately."
+          echo "::warning::Non-published target not fully reachable (worst: ${{ steps.diagnose.outputs.diagnosis }}). This does NOT fail the run — the published surface is gated separately."

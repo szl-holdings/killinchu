@@ -78,6 +78,23 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(r["diagnosis"], dg.DIAGNOSIS_UNKNOWN)
         self.assertIn("manual triage", r["owner"])
 
+    def test_hf_404_is_an_unregistered_custom_domain_not_an_app_bug(self) -> None:
+        """A bare CNAME to *.hf.space is not enough; the fix is a Space setting."""
+        self._stub(
+            resolved=True,
+            addrs=["104.21.27.230"],
+            status=404,
+            body='<html><head><title>Hugging Face</title></head><body>huggingface</body></html>',
+        )
+        r = dg.classify("killinchu.a-11-oy.com", "https://killinchu.a-11-oy.com/healthz", 5)
+        self.assertEqual(r["diagnosis"], dg.DIAGNOSIS_CUSTOM_DOMAIN_UNREGISTERED)
+        self.assertIn("custom domain", r["owner"])
+
+    def test_plain_404_without_hf_markers_stays_an_origin_error(self) -> None:
+        self._stub(resolved=True, addrs=["1.2.3.4"], status=404, body="nope")
+        r = dg.classify("box.example.test", "https://x/healthz", 5)
+        self.assertEqual(r["diagnosis"], dg.DIAGNOSIS_ORIGIN_ERROR)
+
     def test_every_diagnosis_has_a_named_owner(self) -> None:
         for name in (
             dg.DIAGNOSIS_DNS_MISSING,
@@ -85,6 +102,7 @@ class ClassifyTest(unittest.TestCase):
             dg.DIAGNOSIS_ORIGIN_ERROR,
             dg.DIAGNOSIS_REACHABLE,
             dg.DIAGNOSIS_UNKNOWN,
+            dg.DIAGNOSIS_CUSTOM_DOMAIN_UNREGISTERED,
         ):
             self.assertIn(name, dg.OWNERS)
             self.assertTrue(dg.OWNERS[name])
@@ -93,6 +111,13 @@ class ClassifyTest(unittest.TestCase):
         """The script diagnoses; the blocking gate is the primary-surface check."""
         self._stub(resolved=False, dns_error="gaierror")
         self.assertEqual(dg.main(["--url", "https://killinchu.a-11-oy.com"]), 0)
+
+    def test_main_accepts_multiple_targets(self) -> None:
+        self._stub(resolved=True, addrs=["1.2.3.4"], status=200, body="{}")
+        rc = dg.main(
+            ["--url", "https://killinchu.a-11-oy.com", "--url", "https://gateway.a-11-oy.com"]
+        )
+        self.assertEqual(rc, 0)
 
 
 if __name__ == "__main__":
