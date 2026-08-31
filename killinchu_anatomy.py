@@ -317,7 +317,7 @@ def run_organism_pipeline(proposal: dict, tamper: bool = False) -> dict:
 
     # HATUN sovereign seal — identity trace to a HUMAN PRINCIPAL
     t = time.time()
-    seal = {"principal": proposal.get("operator", "operator@szlholdings.ai"),
+    seal = {"principal": proposal.get("operator", "operator@szlholdings.com"),
             "identity_trace": "HUMAN principal (no autonomous final authority)",
             "egress_tripwires": 10, "byte_deterministic_commit": True,
             "replay_verified_x": 5, "sealed": yuyay["pass"]}
