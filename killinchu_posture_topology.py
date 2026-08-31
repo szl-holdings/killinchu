@@ -377,7 +377,7 @@ def _load_uds_package() -> dict:
         if not line.strip() or line.strip().startswith("#"):
             continue
         stripped = line.strip()
-        indent = len(line) - len(line.lstrip())
+        len(line) - len(line.lstrip())
         if stripped == "allow:":
             section = "allow"
             continue

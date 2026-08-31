@@ -77,7 +77,6 @@ It is try/except-guarded by the caller; it never crashes the existing app.
 from __future__ import annotations
 
 import asyncio
-import base64
 import hashlib
 import json
 import os

@@ -171,11 +171,11 @@ def main(argv=None):
         failed = True
         print(f"::error::knowledge.json has DRIFTED: {args.self_name} is not "
               f"byte-identical to {args.sibling_name}.")
-        print(f"::error::  a11oy regenerated its corpus; sync killinchu to match. "
-              f"From the killinchu repo root, with a11oy checked out alongside:")
-        print(f"::error::    cp ../a11oy/knowledge.json ./knowledge.json")
-        print(f"::error::  (then commit). Both files must be byte-identical so the "
-              f"two organs never drift from the kernel.")
+        print("::error::  a11oy regenerated its corpus; sync killinchu to match. "
+              "From the killinchu repo root, with a11oy checked out alongside:")
+        print("::error::    cp ../a11oy/knowledge.json ./knowledge.json")
+        print("::error::  (then commit). Both files must be byte-identical so the "
+              "two organs never drift from the kernel.")
         print()
     else:
         print(f"OK: knowledge.json is byte-identical across {args.self_name} and "

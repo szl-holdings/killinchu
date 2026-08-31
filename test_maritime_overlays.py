@@ -124,7 +124,7 @@ class TestPirateZoneRiskAxis(unittest.TestCase):
     def test_receipt_summary_includes_pirate_zone(self):
         v = risk.score_vessel(dict(name="T", currentLat=12.8, currentLon=48.0))
         rcpt = risk._sign_judgment("maritime.risk", v)
-        summary = rcpt["dsse"]
+        rcpt["dsse"]
         # the signed payload commits axes_raw_risk including pirate_zone
         self.assertIn("pirate_zone", v["axes"])
         self.assertIn("receipt_digest_sha256", rcpt)

@@ -204,7 +204,6 @@ def cot_type_for_threat(track: dict[str, Any]) -> str:
     verdict = str(track.get("lambda_verdict", "")).upper()
     kind = str(track.get("type", "")).upper()
     affil = "h" if verdict.startswith("THREAT") else "u"
-    dim = "A"  # all cued threats here are airborne UAS / fixed-wing
     if "FIXED-WING" in kind:
         return f"a-{affil}-A-M-F"
     return f"a-{affil}-A-M-H-Q"

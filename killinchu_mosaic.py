@@ -59,7 +59,6 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import time
 from typing import Any, Callable, Optional
 
 try:
@@ -517,7 +516,6 @@ def register(app: FastAPI, ns: str = "killinchu",
     @app.get(f"/api/{ns}/v1/mosaic/cop")
     async def mosaic_cop() -> JSONResponse:
         # Pull killinchu's live air picture and overlay the anomaly engine.
-        tracks: list = []
         try:
             import serve as _srv  # in-process live threat board
             if hasattr(_srv, "_DRONES"):

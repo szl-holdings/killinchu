@@ -285,7 +285,7 @@ def verify_rekor_log_index(log_index: int, timeout: float = 30.0) -> dict[str, A
         out["rekor_kind"] = f"{body.get('kind')} {body.get('apiVersion')}"
         out["canonical_body"] = body
         spec = body.get("spec", {})
-        env_json = (spec.get("proposedContent") or spec.get("envelopeHash") or {})
+        (spec.get("proposedContent") or spec.get("envelopeHash") or {})
         # dsse v0.0.1 stores hashes after inclusion (not the raw envelope), so the
         # local cosign re-verify path applies only when the caller passes the
         # original envelope; we still expose the stored payload/envelope hashes.

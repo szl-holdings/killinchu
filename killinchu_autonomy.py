@@ -59,7 +59,7 @@ import math
 import time
 from collections import deque
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Optional
 
 try:  # FastAPI host; degrade gracefully if absent (never crash the app).
     from fastapi import FastAPI, Request

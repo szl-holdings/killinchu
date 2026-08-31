@@ -66,7 +66,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import socket
 import urllib.request
 from typing import Any, Dict, List, Optional
 

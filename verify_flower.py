@@ -81,7 +81,7 @@ def main() -> int:
     print("center (pistil) never grows across bloom rounds:")
     check("bloom pistil_immutable (pinned at 1.0)", b["pistil_immutable"] is True)
     # explicit sweep over K: pistil activation must stay exactly 1.0 every round
-    pistil_ids = set(g["pistil"])
+    set(g["pistil"])
     pistil_never_grows = True
     detail_grow = ""
     for k in range(1, 11):

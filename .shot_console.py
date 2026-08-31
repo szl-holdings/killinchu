@@ -1,4 +1,3 @@
-import sys
 from playwright.sync_api import sync_playwright
 
 OUT = "/home/user/workspace/team/killinchu-closeout"

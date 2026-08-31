@@ -458,7 +458,6 @@ def run_missing_test(repo_root: str, dockerfile_path: str) -> bool:
     and checks that the guard reports it missing.
     Returns True if test passed (guard correctly caught the omission).
     """
-    import tempfile
     print("\n[SELF-TEST] Verifying guard catches a missing COPY...")
 
     root = Path(repo_root)
@@ -468,10 +467,8 @@ def run_missing_test(repo_root: str, dockerfile_path: str) -> bool:
     dummy_file.write_text("# synthetic test module\n")
 
     # Create a synthetic entrypoint that imports it
-    ep_content = f"import {dummy_name}\nprint('hi')\n"
-
     try:
-        local_imports = collect_local_imports(
+        collect_local_imports(
             ["<synthetic_ep>"],
             repo_root,
             _stdlib_names(),

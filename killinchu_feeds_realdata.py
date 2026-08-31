@@ -1071,7 +1071,7 @@ def _track_from_rid(b):
     Accepts the common ODID field names (basic_id, location, operator)."""
     loc = b.get("location") or b.get("Location") or {}
     bid = b.get("basic_id") or b.get("BasicID") or {}
-    op = b.get("operator") or b.get("system") or {}
+    b.get("operator") or b.get("system") or {}
     uas_id = (bid.get("uas_id") or bid.get("UASID") or b.get("uas_id")
               or b.get("id") or "unknown")
     lat = loc.get("latitude", loc.get("Latitude", b.get("lat")))

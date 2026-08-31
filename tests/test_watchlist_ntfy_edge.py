@@ -20,7 +20,6 @@
 # final raw HTTP POST is intercepted.
 from __future__ import annotations
 
-import os
 
 import pytest
 

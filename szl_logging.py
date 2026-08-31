@@ -6,7 +6,6 @@ Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 """
 import logging
 import json
-import time
 import sys
 from datetime import datetime, timezone
 

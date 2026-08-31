@@ -741,7 +741,6 @@ def compute_aftershock_forecast(mainshock, sequence, mmin=3.0):
     """mainshock: {mag, time_ms, lat, lon}. sequence: list of feature props with
     {mag, time(ms)} pulled from ComCat for the SAME region AFTER the mainshock.
     Returns honest forecast dict (generic + MLE-refined) over 1d/1wk/1mo."""
-    import math
     g = dict(_RJ_GENERIC)
     mmain = float(mainshock.get("mag") or 0.0)
     t_main = float(mainshock.get("time_ms") or 0.0)
@@ -988,7 +987,7 @@ def register(app, ns="killinchu"):
             seq, q = _fetch_comcat_sequence(lat, lon, t_ms, radius_km=radius_km,
                                             days=30.0, minmag=min(2.5, mmin))
             comcat_ok = True
-        except Exception as e:
+        except Exception:
             seq, q, comcat_ok = [], None, False
         fc = compute_aftershock_forecast(
             {"mag": mag, "time_ms": t_ms, "lat": lat, "lon": lon}, seq, mmin=mmin)

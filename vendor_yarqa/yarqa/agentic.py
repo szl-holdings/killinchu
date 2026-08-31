@@ -29,7 +29,7 @@ from typing import Callable
 
 import numpy as np
 
-from .core import Mesh, compartmentalize, compartment_summary
+from .core import Mesh
 from .provenance import compartmentalize_with_receipt, Receipt
 
 

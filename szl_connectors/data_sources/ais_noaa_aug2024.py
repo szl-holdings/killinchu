@@ -40,7 +40,7 @@ import struct
 import zlib
 from typing import Any
 
-from ..base import Connector, Records, State, _now
+from ..base import Connector, Records, State
 from ..registry import register
 
 # Real NOAA daily AIS zip (Aug 1 2024) — used ONLY when query {"fetch": true}.

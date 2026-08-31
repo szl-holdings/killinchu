@@ -44,9 +44,7 @@ borrow-and-evolve, never an invented SZL theorem.
 """
 from __future__ import annotations
 
-import hashlib
 import math
-import time
 from typing import Any, Dict, List, Optional
 
 import szl_cuas_formulas as _af  # SHARED, byte-identical a11oy↔killinchu

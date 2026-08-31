@@ -1,0 +1,1 @@
+requirements.txt declares vsp-otel, which is vendored per-file under ./vsp_otel/ and is not published to PyPI; install and tests/ execution defer to this repo's dedicated CI (ci.yml, backend-scheduler.yml, osint-tests.yml) with curated dependency sets. Ruff E9/F remains blocking here.

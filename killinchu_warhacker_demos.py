@@ -778,8 +778,8 @@ def _cpa_tcpa(own, tgt):
     """Closest point of approach (constant-velocity). Returns cpa_m, tcpa_s."""
     # convert lat/lon to local ENU metres about own
     m_per_deg = 111320.0
-    ox, oy = 0.0, 0.0
-    rx = (tgt["lat"] - own["lat"]) * 0.0  # placeholder; compute relative below
+    _ox, _oy = 0.0, 0.0
+    (tgt["lat"] - own["lat"]) * 0.0  # placeholder; compute relative below
     # relative position (target - own) in metres
     dpx = (tgt["lon"] - own["lon"]) * m_per_deg * math.cos(math.radians(own["lat"]))
     dpy = (tgt["lat"] - own["lat"]) * m_per_deg
@@ -3443,7 +3443,7 @@ def register(app, sign_fn=None, verify_fn=None, ns="killinchu"):
                 result.setdefault("anchor_health_at",
                                   "/api/%s/uds/v1/rekor/health" % ns)
             return JSONResponse(result)
-        except Exception as e:
+        except Exception:
             import traceback, sys as _sys
             print("[warhacker-demos] demo error:\n" + traceback.format_exc(), file=_sys.stderr)
             return JSONResponse({"ok": False, "demo": key, "mode": mode,

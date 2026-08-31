@@ -339,7 +339,7 @@ def _selftest() -> dict:
     #     best coeff is interior (a real trade-off exists, not the endpoints); best objective is the
     #     max over the sweep; preservation in [0,1]; c=0 has zero shift and zero cost.
     assert r["steering_vector_norm"] > 0.0, r
-    objs = [row["objective"] for row in r["sweep"]]
+    [row["objective"] for row in r["sweep"]]
     # the swept best must equal the reported best coeff's objective
     best_row = max(r["sweep"], key=lambda x: x["objective"])
     assert abs(best_row["coeff"] - r["best_coeff"]) < 1e-6, (best_row, r["best_coeff"])

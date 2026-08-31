@@ -29,7 +29,7 @@ from typing import Any
 import numpy as np
 
 from . import __version__
-from .core import Mesh, compartmentalize, build_connection_map
+from .core import Mesh, compartmentalize
 
 _RECEIPT_SCHEMA = "szl.yarqa.receipt/v1"
 

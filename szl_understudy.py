@@ -34,18 +34,16 @@ Doctrine v11 numbers are VERBATIM: 749 declarations · 14 unique axioms · 163 s
 """
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 import math
-import os
 import sys
 import time
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Request
-from fastapi.responses import JSONResponse, PlainTextResponse, HTMLResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 # ── substrate imports (graceful, honest fallback) ──────────────────────────
 try:

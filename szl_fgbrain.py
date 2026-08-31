@@ -769,7 +769,7 @@ def _homeostasis(seed: int = 42, rounds: int = 12) -> Dict[str, Any]:
     rng = _LCG(seed)
     ms = _vitals_meta_state()
     cand = ms["candidate"]
-    tier = ms["tier"]
+    ms["tier"]
     locked_before = sum(1 for n in NODES if n["tier"] == "locked")
     locked_tiers_before = {n["id"]: n["tier"] for n in NODES if n["tier"] in ("locked", "conjecture")}
 

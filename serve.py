@@ -31,7 +31,6 @@ import math
 import os
 import sys
 import threading
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -2596,9 +2595,9 @@ try:
     except Exception:
         import szl_provenance as _prov  # fall back to local vendored copy
     _prov_status = _prov.register_provenance(app, "killinchu")
-    print(f"[killinchu] szl_provenance registered (Wire D LIVE, SLSA L1 honest; L2 roadmap): {{_prov_status}}", file=sys.stderr)
+    print("[killinchu] szl_provenance registered (Wire D LIVE, SLSA L1 honest; L2 roadmap): {_prov_status}", file=sys.stderr)
 except Exception as _pe:  # pragma: no cover - defensive, additive-only
-    print(f"[killinchu] szl_provenance NOT registered ({{_pe!r}}); existing app unaffected", file=sys.stderr)
+    print("[killinchu] szl_provenance NOT registered ({_pe!r}); existing app unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
 # Warhacker top-level alias routes (ADDITIVE, Yachay, 2026-06-01). Registered
@@ -3276,7 +3275,6 @@ except Exception as _kc_osh_e:
 # ── end operator_shell_v4 ────────────────────────────────────────────────────
 
 # ── /api/killinchu/v1/brain + /llm/tiers + /mesh/state ───────────────────────
-import math as _kc_pr_math
 try:
     import szl_brain as _kc_pr_brain
     _KC_BRAIN_OK = True
@@ -4312,11 +4310,11 @@ async def _killinchu_v1_khipu_dag() -> JSONResponse:
 @app.post("/api/killinchu/v4/inbox")
 async def _killinchu_v4_inbox_post(request: Request) -> JSONResponse:
     """POST telemetry/action into killinchu v4 inbox. Returns DSSE receipt. Doctrine v11."""
-    import hashlib as _hl_inb, uuid as _uuid_inb
+    import hashlib as _hl_inb
     body: dict = await _json_body(request)
     protocol = body.get("protocol", "unknown")
     action = body.get("action", "")
-    raw = body.get("raw", "")
+    body.get("raw", "")
     payload_sha = _hl_inb.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
     receipt_hash = f"sha256:{payload_sha}"
     receipt = {
@@ -4390,7 +4388,6 @@ try:
     import os as _kc_edge_os
     import asyncio as _kc_edge_asyncio
     import json as _kc_edge_json
-    import dataclasses as _kc_edge_dc
     from fastapi.routing import APIRoute as _EdgeRoute_killinchu
     from fastapi.responses import JSONResponse as _EdgeJR_killinchu, StreamingResponse as _EdgeSSE_killinchu
     from fastapi import Request as _EdgeRequest_killinchu

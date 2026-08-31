@@ -72,7 +72,6 @@ import hashlib
 import json
 import math
 import os
-import struct
 import time
 import urllib.request
 from datetime import datetime, timezone

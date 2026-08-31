@@ -53,7 +53,7 @@ import hashlib as _hashlib
 import json as _json
 import math as _math
 import random as _random
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 # --- signed receipts: the SINGLE source of truth (never fabricate a signature) ----
 try:

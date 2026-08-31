@@ -34,7 +34,6 @@ AIS_2024_08_01.zip, coastal United States, August 2024.
 """
 from __future__ import annotations
 
-import os
 import sys
 from typing import Any
 

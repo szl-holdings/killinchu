@@ -4,6 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
+# The publisher runs in its own pinned environment (activate-intel-archive.yml);
+# the base gate's minimal install does not carry huggingface_hub, so skip
+# honestly there instead of failing collection.
+pytest.importorskip("huggingface_hub", reason="publisher env not installed in base CI")
+
 import killinchu_intel_archive_publish as publisher
 
 

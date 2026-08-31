@@ -52,7 +52,6 @@ import hmac
 import json
 import os
 import threading
-import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -660,7 +659,7 @@ class MeshHarness:
         witnesses form a corroboration ring among themselves."""
         with self._lock:
             node_list = list(self.nodes.values())
-            ids = [n.node_id for n in node_list]
+            [n.node_id for n in node_list]
             nodes_out = [{
                 "id": n.node_id, "label": n.label, "role": n.role,
                 "health": n.health, "enrolled": n.enrolled,

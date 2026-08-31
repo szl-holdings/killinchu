@@ -56,7 +56,7 @@ import math
 import re as _re
 import time
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 from fastapi import FastAPI
 
@@ -507,13 +507,13 @@ def _kev_uas_hits() -> dict:
     ent = _THREAT_CACHE.get("kev")
     if ent and (now - ent["ts"]) < _THREAT_TTL["kev"]:
         return ent["data"]
-    hits, src_url, fetched = [], _KEV_URL, None
+    hits, _src_url, fetched = [], _KEV_URL, None
     raw = None
     try:
         if _lf is not None:
             fr = _lf.get_feed("kev")  # reuse cached, snapshot-fallback feed accessor
             raw = (fr or {}).get("data")
-            src_url = (fr or {}).get("source_url") or _KEV_MIRROR
+            (fr or {}).get("source_url") or _KEV_MIRROR
             fetched = (fr or {}).get("fetched_at")
     except Exception:
         raw = None

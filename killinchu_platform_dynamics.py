@@ -43,7 +43,6 @@ HONEST LABELS (doctrine v11):
 """
 from __future__ import annotations
 
-import math
 from typing import Any, Dict, List
 
 import szl_cuas_formulas as _pd  # SHARED, byte-identical a11oy↔killinchu
