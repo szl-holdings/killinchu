@@ -1,0 +1,164 @@
+name: temporary-build-security-contact-successor
+
+on:
+  push:
+    branches:
+      - fix/security-contact-current-main-20260830-v2
+    paths:
+      - .github/workflows/temporary-build-security-contact-successor.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/security-contact-current-main-20260830-v2
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Wait for canonical platform and a11oy sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            platform_support="$(curl -fsSL --retry 2 https://raw.githubusercontent.com/szl-holdings/platform/main/SUPPORT.md 2>/dev/null || true)"
+            a11oy_connector="$(curl -fsSL --retry 2 https://raw.githubusercontent.com/szl-holdings/a11oy/main/szl_connectors/base.py 2>/dev/null || true)"
+            if grep -Fq 'security@szlholdings.com' <<<"$platform_support" \
+              && grep -Fq 'hello@szlholdings.com' <<<"$platform_support" \
+              && grep -Fq 'https://a-11-oy.com' <<<"$platform_support" \
+              && grep -Fq 'contact@szlholdings.com' <<<"$a11oy_connector"; then
+              echo "Canonical upstream sources are present."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::Canonical platform/a11oy fixes did not reach protected main within the bounded wait."
+          exit 1
+      - name: Rebuild Killinchu disclosure repair on current protected main
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git fetch origin main fix/p0-1-dead-security-contact
+          merge_base="$(git merge-base origin/main origin/fix/p0-1-dead-security-contact)"
+          git diff --name-only "${merge_base}..origin/fix/p0-1-dead-security-contact" -- \
+            . ':(exclude).github/workflows/temporary-*' ':(exclude).ci-*' | sort -u > /tmp/observed-paths
+          python - <<'PY'
+          from pathlib import Path
+
+          required = {
+              '.well-known/security.txt',
+              'SECURITY.md',
+              'SUPPORT.md',
+              'deploy/space/serve.py',
+              'killinchu_anatomy.py',
+              'killinchu_elite_console.py',
+              'szl_connectors/base.py',
+          }
+          allowed = required | {'vendor.manifest.json'}
+          observed = {
+              line.strip()
+              for line in Path('/tmp/observed-paths').read_text(encoding='utf-8').splitlines()
+              if line.strip()
+          }
+          missing = sorted(required - observed)
+          extra = sorted(observed - allowed)
+          if missing or extra:
+              raise SystemExit(f'Killinchu source path contract failed: missing={missing}, extra={extra}')
+          print(f'validated reviewed source paths: {sorted(observed)}')
+          PY
+          local_paths=(
+            .well-known/security.txt
+            SECURITY.md
+            deploy/space/serve.py
+            killinchu_anatomy.py
+            killinchu_elite_console.py
+          )
+          git diff --binary "${merge_base}..origin/fix/p0-1-dead-security-contact" -- "${local_paths[@]}" > /tmp/killinchu-local.patch
+          git reset --hard origin/main
+          git apply --3way --index /tmp/killinchu-local.patch
+
+          platform_sha="$(git ls-remote https://github.com/szl-holdings/platform.git refs/heads/main | awk '{print $1}')"
+          test "${#platform_sha}" -eq 40
+          python - "$platform_sha" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          path = pathlib.Path('vendor.manifest.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          data['pin'] = sys.argv[1]
+          path.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
+          PY
+          bash scripts/sync_from_monorepo.sh sync --strict-headers
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/szl-holdings/a11oy/main/szl_connectors/base.py \
+            > /tmp/a11oy-base.py
+          install -m 0644 /tmp/a11oy-base.py szl_connectors/base.py
+
+          rm -f \
+            .github/workflows/temporary-build-security-contact-successor.yml \
+            .github/workflows/temporary-update-pr-348.yml \
+            .github/workflows/temporary-upstream-convergence-348.yml
+          git add -A
+          git diff --cached --check
+
+          python - <<'PY'
+          from pathlib import Path
+
+          checked = (
+              Path('.well-known/security.txt'),
+              Path('SECURITY.md'),
+              Path('SUPPORT.md'),
+              Path('deploy/space/serve.py'),
+              Path('killinchu_anatomy.py'),
+              Path('killinchu_elite_console.py'),
+              Path('szl_connectors/base.py'),
+          )
+          for path in checked:
+              text = path.read_text(encoding='utf-8')
+              if 'szlholdings.ai' in text:
+                  raise SystemExit(f'dead domain remains in {path}')
+          security = Path('.well-known/security.txt').read_text(encoding='utf-8')
+          for required in (
+              'Contact: https://github.com/szl-holdings/killinchu/security/advisories/new',
+              'Contact: mailto:security@szlholdings.com',
+          ):
+              if required not in security:
+                  raise SystemExit(f'security.txt missing {required}')
+          if 'Encryption:' in security:
+              raise SystemExit('security.txt advertises a nonexistent PGP key')
+          support = Path('SUPPORT.md').read_text(encoding='utf-8')
+          for required in (
+              'security@szlholdings.com',
+              'hello@szlholdings.com',
+              'https://a-11-oy.com',
+              'https://a11oy.net',
+          ):
+              if required not in support:
+                  raise SystemExit(f'canonical SUPPORT.md missing {required}')
+          connector = Path('szl_connectors/base.py').read_text(encoding='utf-8')
+          if 'contact@szlholdings.com' not in connector:
+              raise SystemExit('connector User-Agent contact is not canonical')
+          PY
+
+          bash scripts/sync_from_monorepo.sh check --strict-headers
+          rm -rf /tmp/a11oy-peer
+          git clone --depth 1 --branch main https://github.com/szl-holdings/a11oy.git /tmp/a11oy-peer
+          python .github/shared-file-drift-check.py . /tmp/a11oy-peer \
+            --self-name=killinchu --sibling-name=a11oy
+          python -m py_compile \
+            deploy/space/serve.py \
+            killinchu_anatomy.py \
+            killinchu_elite_console.py \
+            szl_connectors/base.py
+          python scripts/check_banned_tokens.py --root . --allowlist .doctrine-allowlist
+
+          git commit -m "fix(security): converge disclosure and canonical shared sources" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push --force-with-lease origin HEAD:fix/security-contact-current-main-20260830-v2
