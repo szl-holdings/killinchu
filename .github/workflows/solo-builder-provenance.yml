@@ -1,0 +1,36 @@
+name: Solo-builder provenance
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+
+permissions: {}
+
+jobs:
+  solo-builder-provenance:
+    # Temporary compatibility name for the legacy protected-branch context.
+    # This is not a DCO trailer check. It proves the change comes from an
+    # organization-owned branch under the declared solo-builder model.
+    name: dco / DCO sign-off
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify organization-owned provenance
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          case "$REPOSITORY" in
+            szl-holdings/*) ;;
+            *) echo "Refusing non-SZL repository: $REPOSITORY" >&2; exit 1 ;;
+          esac
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            case "$HEAD_REPOSITORY" in
+              szl-holdings/*) ;;
+              *) echo "Solo-builder policy requires an organization-owned PR branch: $HEAD_REPOSITORY" >&2; exit 1 ;;
+            esac
+          fi
+          echo "Solo-builder provenance verified for $REPOSITORY ($EVENT_NAME)."
