@@ -23,6 +23,7 @@ on:
           - plan-archive
           - apply-archive
           - restart-space
+          - launch-train-job
         default: probe
       group:
         description: Consolidation group (D-K from the merged plan)
@@ -35,6 +36,14 @@ on:
           - I
           - K
         default: D
+      profile:
+        description: Training profile (launch-train-job only)
+        type: choice
+        options:
+          - khipu-frontier-35-2b
+          - forge-frontier-35-2b
+          - willay-3
+        default: khipu-frontier-35-2b
       repo_id:
         description: Exact Space for restart-space, e.g. SZLHOLDINGS/governed-receipt-verifier
         type: string
@@ -58,6 +67,7 @@ jobs:
       INPUT_OP: ${{ inputs.op }}
       INPUT_GROUP: ${{ inputs.group }}
       INPUT_REPO_ID: ${{ inputs.repo_id }}
+      INPUT_PROFILE: ${{ inputs.profile }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -142,6 +152,69 @@ jobs:
               raise SystemExit(1)
           tname, token = chosen
           print(f"acting with {tname}")
+
+          if op == "launch-train-job":
+              profile = os.environ.get("INPUT_PROFILE", "")
+              payloads = {
+                  "khipu-frontier-35-2b": {
+                      "profile": "khipu-frontier-35-2b",
+                      "base": "Qwen/Qwen3.5-2B",
+                      "data": "SZLHOLDINGS/szl-1-doctrine-sft",
+                      "out_repo": "SZLHOLDINGS/khipu-frontier-35-2b",
+                      "seed": 20260721, "r": 8, "lr": 5e-05, "max_steps": 80,
+                      "max_seq": 1536,
+                  },
+                  "forge-frontier-35-2b": {
+                      "profile": "forge-frontier-35-2b",
+                      "base": "Qwen/Qwen3.5-2B",
+                      "data": "SZLHOLDINGS/szl-1-doctrine-sft",
+                      "out_repo": "SZLHOLDINGS/forge-frontier-35-2b",
+                      "seed": 20260721, "r": 8, "lr": 5e-05, "max_steps": 80,
+                      "max_seq": 1536,
+                  },
+                  "willay-3": {
+                      "profile": "willay-3",
+                      "base": "Qwen/Qwen3.5-2B",
+                      "data": "SZLHOLDINGS/szl-1-doctrine-sft",
+                      "out_repo": "SZLHOLDINGS/willay-3",
+                      "seed": 20260721, "r": 8, "lr": 1e-04, "max_steps": 160,
+                      "max_seq": 1024,
+                  },
+              }
+              p = payloads.get(profile)
+              if not p:
+                  print(f"::error::unknown profile {profile}")
+                  raise SystemExit(1)
+              cmd = (
+                  "pip install -q unsloth trl peft && "
+                  "curl -s https://huggingface.co/SZLHOLDINGS/szl-training-scripts/raw/main/train_receipted_unsloth.py -o /tmp/train.py && "
+                  "python /tmp/train.py --base $BASE_MODEL --data $DATASET --out /out "
+                  "--seed $SEED --r 8 --max-seq 1536"
+              )
+              job_payload = {
+                  "flavor": "a10g-small",
+                  "docker": {"image": "huggingface/transformers-pytorch-gpu:latest"},
+                  "env": {
+                      "PROFILE": p["profile"],
+                      "BASE_MODEL": p["base"],
+                      "DATASET": p["data"],
+                      "OUT_REPO": p["out_repo"],
+                      "SEED": str(p["seed"]),
+                  },
+                  "command": ["bash", "-lc", cmd],
+                  "tags": ["szl-estate-ops", p["profile"], "receipted"],
+              }
+              s, b = call(token, "POST", "/api/jobs/SZLHOLDINGS", job_payload)
+              print(f"launch {profile}: POST /api/jobs HTTP {s}")
+              if s in (200, 201):
+                  try:
+                      print(f"job id: {json.loads(b).get('id')}")
+                  except Exception:
+                      print("job created (id not parsed)")
+              else:
+                  print(f"response: {b[:200]}")
+                  raise SystemExit(1)
+              raise SystemExit(0)
 
           if op == "restart-space":
               if not repo_id_input.startswith(f"{ORG}/"):
