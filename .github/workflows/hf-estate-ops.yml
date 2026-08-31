@@ -169,24 +169,18 @@ jobs:
               print(f"{space}: sdk={info.get('sdk')} private={info.get('private')} "
                     f"archived={archived} stage={stage} lastModified={info.get('lastModified')}")
               if op == "plan-archive":
-                  print(f"{space}: PLAN would archive")
+                  print(f"{space}: PLAN would set visibility=protected")
                   continue
-              if archived:
-                  print(f"{space}: already archived")
+              vis = info.get("visibility") or ("private" if info.get("private") else "public")
+              if vis == "protected":
+                  print(f"{space}: already protected")
                   continue
-              s1, b1 = call(token, "POST", f"/api/spaces/{rid}/archive")
-              if s1 in (200, 201, 204):
-                  print(f"{space}: archive POST -> {s1}")
-              else:
-                  s2, b2 = call(token, "PUT", f"/api/spaces/{rid}/settings",
-                                {"archived": True})
-                  print(f"{space}: archive POST {s1}; settings PUT -> {s2} {b2[:160]}")
-                  if s2 not in (200, 201, 204):
-                      exit_code = 1
-                      continue
+              s1, b1 = call(token, "PUT", f"/api/spaces/{rid}/settings",
+                            {"visibility": "protected"})
+              print(f"{space}: visibility=protected PUT -> {s1} {b1[:160]}")
               s3, b3 = call(token, "GET", f"/api/spaces/{rid}")
-              ok = s3 == 200 and json.loads(b3).get("archived") is True
-              print(f"{space}: verify archived={ok}")
+              ok = s3 == 200 and json.loads(b3).get("visibility") == "protected"
+              print(f"{space}: verify protected={ok}")
               exit_code = exit_code or (0 if ok else 1)
           raise SystemExit(exit_code)
           PYEOF
