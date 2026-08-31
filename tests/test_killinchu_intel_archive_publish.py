@@ -61,9 +61,21 @@ class PublishingApi(FakeApi):
 
 
 class FakeResponse:
-    def __init__(self, payload, *, status=200):
+    def __init__(
+        self,
+        payload,
+        *,
+        status=200,
+        chunk_size=None,
+        read_error=None,
+        read_error_after=None,
+    ):
         self.payload = payload
         self.status = status
+        self.chunk_size = chunk_size
+        self.read_error = read_error
+        self.read_error_after = read_error_after
+        self.offset = 0
 
     def __enter__(self):
         return self
@@ -71,8 +83,33 @@ class FakeResponse:
     def __exit__(self, exc_type, exc, traceback):
         return False
 
-    def read(self, _size):
-        return self.payload
+    def read(self, size):
+        if self.read_error is not None and (
+            self.read_error_after is None or self.offset >= self.read_error_after
+        ):
+            raise self.read_error
+        requested = size if self.chunk_size is None else min(size, self.chunk_size)
+        end = min(len(self.payload), self.offset + requested)
+        chunk = self.payload[self.offset:end]
+        self.offset = end
+        return chunk
+
+
+def github_ref_payload(
+    revision="c" * 40,
+    *,
+    ref="refs/heads/main",
+    object_type="commit",
+):
+    return json.dumps(
+        {
+            "ref": ref,
+            "object": {
+                "type": object_type,
+                "sha": revision,
+            },
+        }
+    ).encode()
 
 
 def tip_sequence(*revisions):
@@ -219,7 +256,7 @@ def test_github_tip_is_authenticated_bounded_and_strict():
     def opener(request, *, timeout):
         captured["request"] = request
         captured["timeout"] = timeout
-        return FakeResponse(json.dumps({"sha": "c" * 40}).encode())
+        return FakeResponse(github_ref_payload())
 
     revision = publisher.github_default_branch_tip(
         token="github-read-token",
@@ -231,13 +268,22 @@ def test_github_tip_is_authenticated_bounded_and_strict():
     assert revision == "c" * 40
     assert captured["timeout"] == 4.5
     assert captured["request"].full_url.endswith(
-        "/repos/szl-holdings/killinchu/commits/main"
+        "/repos/szl-holdings/killinchu/git/ref/heads/main"
     )
     assert captured["request"].get_header("Authorization") == "Bearer github-read-token"
 
 
 @pytest.mark.parametrize(
-    "payload", [b"not-json", b'{"sha":"short"}', b'[]', b'{"sha":"C' + b'"}']
+    "payload",
+    [
+        b"not-json",
+        b"[]",
+        github_ref_payload("short"),
+        github_ref_payload("C" * 40),
+        github_ref_payload(ref="refs/heads/not-main"),
+        github_ref_payload(object_type="tag"),
+        json.dumps({"ref": "refs/heads/main", "object": None}).encode(),
+    ],
 )
 def test_github_tip_rejects_malformed_responses(payload):
     with pytest.raises(publisher.PublicationError):
@@ -246,6 +292,58 @@ def test_github_tip_rejects_malformed_responses(payload):
             api_url="https://api.github.test",
             repository=publisher.SOURCE_REPOSITORY,
             opener=lambda _request, timeout: FakeResponse(payload),
+        )
+
+
+def test_github_tip_accepts_a_valid_chunked_ref_response():
+    revision = publisher.github_default_branch_tip(
+        token="github-read-token",
+        api_url="https://api.github.test",
+        repository=publisher.SOURCE_REPOSITORY,
+        opener=lambda _request, timeout: FakeResponse(
+            github_ref_payload(), chunk_size=3
+        ),
+    )
+    assert revision == "c" * 40
+
+
+def test_github_tip_rejects_a_chunked_response_over_the_existing_size_limit():
+    with pytest.raises(publisher.PublicationError, match="exceeded the size limit"):
+        publisher.github_default_branch_tip(
+            token="github-read-token",
+            api_url="https://api.github.test",
+            repository=publisher.SOURCE_REPOSITORY,
+            opener=lambda _request, timeout: FakeResponse(
+                b"x" * (publisher.MAX_GITHUB_RESPONSE_BYTES + 1),
+                chunk_size=1_013,
+            ),
+        )
+
+
+def test_github_tip_rejects_http_error_without_reading_the_body():
+    response = FakeResponse(github_ref_payload(), status=503)
+    with pytest.raises(publisher.PublicationError, match="non-200"):
+        publisher.github_default_branch_tip(
+            token="github-read-token",
+            api_url="https://api.github.test",
+            repository=publisher.SOURCE_REPOSITORY,
+            opener=lambda _request, timeout: response,
+        )
+    assert response.offset == 0
+
+
+def test_github_tip_fails_closed_on_a_midstream_read_error():
+    with pytest.raises(publisher.PublicationError, match=r"lookup failed \(OSError\)"):
+        publisher.github_default_branch_tip(
+            token="github-read-token",
+            api_url="https://api.github.test",
+            repository=publisher.SOURCE_REPOSITORY,
+            opener=lambda _request, timeout: FakeResponse(
+                github_ref_payload(),
+                chunk_size=4,
+                read_error=OSError("transport interrupted"),
+                read_error_after=4,
+            ),
         )
 
 

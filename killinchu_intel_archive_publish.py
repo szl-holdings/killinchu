@@ -32,6 +32,7 @@ DEFAULT_BRANCH = "main"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 GITHUB_TIMEOUT_SECONDS = 10.0
 MAX_GITHUB_RESPONSE_BYTES = 65_536
+GITHUB_READ_CHUNK_BYTES = 8_192
 
 
 class PublicationError(RuntimeError):
@@ -88,8 +89,9 @@ def github_default_branch_tip(
     if invalid_origin:
         raise PublicationError("GITHUB_API_URL is not an allowed HTTPS API origin")
 
+    expected_ref = f"refs/heads/{DEFAULT_BRANCH}"
     request = urllib.request.Request(
-        f"{api_url.rstrip('/')}/repos/{repository}/commits/{DEFAULT_BRANCH}",
+        f"{api_url.rstrip('/')}/repos/{repository}/git/ref/heads/{DEFAULT_BRANCH}",
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
@@ -100,7 +102,21 @@ def github_default_branch_tip(
         with opener(request, timeout=float(timeout_seconds)) as response:
             if getattr(response, "status", None) != 200:
                 raise PublicationError("GitHub protected-main lookup returned a non-200 status")
-            body = response.read(MAX_GITHUB_RESPONSE_BYTES + 1)
+            body = bytearray()
+            while len(body) <= MAX_GITHUB_RESPONSE_BYTES:
+                remaining = MAX_GITHUB_RESPONSE_BYTES + 1 - len(body)
+                chunk = response.read(min(GITHUB_READ_CHUNK_BYTES, remaining))
+                if not isinstance(chunk, bytes):
+                    raise PublicationError(
+                        "GitHub protected-main response was not a byte stream"
+                    )
+                if not chunk:
+                    break
+                if len(chunk) > remaining:
+                    raise PublicationError(
+                        "GitHub protected-main response exceeded the size limit"
+                    )
+                body.extend(chunk)
     except PublicationError:
         raise
     except Exception as exc:
@@ -110,10 +126,15 @@ def github_default_branch_tip(
     if len(body) > MAX_GITHUB_RESPONSE_BYTES:
         raise PublicationError("GitHub protected-main response exceeded the size limit")
     try:
-        payload = json.loads(body.decode("utf-8"))
+        payload = json.loads(bytes(body).decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         raise PublicationError("GitHub protected-main response was not valid JSON") from None
-    revision = payload.get("sha") if isinstance(payload, dict) else None
+    if not isinstance(payload, dict) or payload.get("ref") != expected_ref:
+        raise PublicationError("GitHub protected-main response named an unexpected ref")
+    target = payload.get("object")
+    if not isinstance(target, dict) or target.get("type") != "commit":
+        raise PublicationError("GitHub protected-main response was not a commit ref")
+    revision = target.get("sha")
     return exact_revision(revision, field="GitHub protected-main revision")
 
 
