@@ -1,0 +1,77 @@
+name: temporary-upstream-convergence-348
+
+on:
+  push:
+    branches:
+      - fix/p0-1-dead-security-contact
+    paths:
+      - .github/workflows/temporary-upstream-convergence-348.yml
+
+permissions:
+  contents: write
+
+jobs:
+  converge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/p0-1-dead-security-contact
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Wait for canonical upstream commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 36); do
+            platform_support="$(curl -fsSL --retry 2 https://raw.githubusercontent.com/szl-holdings/platform/main/SUPPORT.md || true)"
+            a11oy_connector="$(curl -fsSL --retry 2 https://raw.githubusercontent.com/szl-holdings/a11oy/main/szl_connectors/base.py || true)"
+            if grep -Fq 'security@szlholdings.com' <<<"$platform_support" \
+              && grep -Fq 'https://a-11-oy.com' <<<"$platform_support" \
+              && grep -Fq 'contact@szlholdings.com' <<<"$a11oy_connector"; then
+              echo "Canonical upstream fixes are present."
+              break
+            fi
+            if [ "$attempt" -eq 36 ]; then
+              echo "::error::Canonical platform/a11oy fixes did not reach protected main within the bounded wait."
+              exit 1
+            fi
+            sleep 20
+          done
+      - name: Refresh vendored platform payload at exact main SHA
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          platform_sha="$(git ls-remote https://github.com/szl-holdings/platform.git refs/heads/main | awk '{print $1}')"
+          test "${#platform_sha}" -eq 40
+          python - "$platform_sha" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          path = pathlib.Path('vendor.manifest.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          data['pin'] = sys.argv[1]
+          path.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
+          PY
+          bash scripts/sync_from_monorepo.sh sync --strict-headers
+          bash scripts/sync_from_monorepo.sh check --strict-headers
+          grep -R -n -F 'szlholdings.ai' SUPPORT.md SECURITY.md .well-known/security.txt && {
+            echo "::error::dead contact domain remains in trust surfaces"
+            exit 1
+          } || true
+          grep -Fq 'contact@szlholdings.com' szl_connectors/base.py
+      - name: Commit exact upstream convergence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          rm .github/workflows/temporary-upstream-convergence-348.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "chore(vendor): converge canonical support and connector sources" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/p0-1-dead-security-contact
