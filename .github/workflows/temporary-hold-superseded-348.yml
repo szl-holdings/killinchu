@@ -1,0 +1,32 @@
+name: temporary-hold-superseded-348
+
+on:
+  push:
+    branches:
+      - ops/protected-merge-controller-20260830
+    paths:
+      - .github/workflows/temporary-hold-superseded-348.yml
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  hold:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Create hold label, disable auto-merge, and label original
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          gh api --method POST "repos/$repo/labels" \
+            -f name='hold' \
+            -f color='B60205' \
+            -f description='Explicitly held from automated merge' >/dev/null 2>&1 || true
+          gh pr merge 348 --repo "$repo" --disable-auto >/dev/null 2>&1 || true
+          gh issue edit 348 --repo "$repo" --add-label hold
+          gh pr comment 348 --repo "$repo" --body 'Automated merge is disabled and the hold label is enforced. Current-main successor #349 is the only authorized merge path.'
