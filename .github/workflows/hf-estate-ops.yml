@@ -69,7 +69,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_EVENT_NAME" = workflow_dispatch
-          test "$GITHUB_REPOSITORY" = szl-holdings/.github
+          test "$GITHUB_REPOSITORY" = szl-holdings/killinchu
           test "$GITHUB_REF" = refs/heads/main
 
       - name: Run estate op
