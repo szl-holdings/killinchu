@@ -1,0 +1,53 @@
+name: temporary-vendor-sync-348
+
+on:
+  push:
+    branches:
+      - fix/p0-1-dead-security-contact
+    paths:
+      - .github/workflows/temporary-vendor-sync-348.yml
+
+permissions:
+  contents: write
+
+jobs:
+  converge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/p0-1-dead-security-contact
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Refresh canonical vendor bytes and verify security contacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('vendor.manifest.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          data['pin'] = '543e4b52572b73ed3a5f1b0f6d7b71c80b2ef695'
+          path.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
+          PY
+          bash scripts/sync_from_monorepo.sh sync --strict-headers
+          bash scripts/sync_from_monorepo.sh check --strict-headers
+          grep -R "szlholdings\.ai" \
+            .well-known/security.txt SECURITY.md SUPPORT.md \
+            deploy/space/serve.py szl_connectors/base.py \
+            killinchu_elite_console.py killinchu_anatomy.py && {
+              echo "::error::dead contact domain remains in an active trust surface"; exit 1;
+            } || true
+          grep -q "security@szlholdings.com" SUPPORT.md
+          grep -q "contact@szlholdings.com" szl_connectors/base.py
+          python -m py_compile deploy/space/serve.py szl_connectors/base.py killinchu_elite_console.py killinchu_anatomy.py
+          rm .github/workflows/temporary-vendor-sync-348.yml
+          git add -A
+          git commit \
+            -m "chore(vendor): converge security contacts with canonical platform source" \
+            -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/p0-1-dead-security-contact
