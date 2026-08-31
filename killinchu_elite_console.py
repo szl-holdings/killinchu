@@ -434,7 +434,7 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   <span class="dot"></span> Investor view
 </a>
 
-<div id="szl-ceo" role="dialog" aria-modal="true" aria-label="killinchu — investor view">
+<div id="szl-ceo" role="dialog" aria-modal="true" aria-label="killinchu — investor view" aria-hidden="true" tabindex="-1">
   <div class="szl-ceo-wrap">
     <div class="szl-ceo-top">
       <div>
@@ -536,6 +536,44 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   if(!fab||!panel) return;
   var initialFocus=panel.querySelector("[data-szl-initial-focus]");
   var jsonLoaded=false, badgesDone=false;
+  var returnFocus=null, backgroundState=[], previousOverflow="";
+
+  function focusableNodes(){
+    var selector='a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),details > summary,[tabindex]:not([tabindex="-1"])';
+    return Array.prototype.slice.call(panel.querySelectorAll(selector)).filter(function(node){
+      if(node.getAttribute&&node.getAttribute("aria-hidden")==="true") return false;
+      if(node.closest&&node.closest('[hidden],[inert],[aria-hidden="true"]')) return false;
+      if(node.getClientRects&&node.getClientRects().length===0) return false;
+      return true;
+    });
+  }
+
+  function setBackgroundIsolation(isolated){
+    if(!document.body) return;
+    if(isolated){
+      backgroundState=[];
+      Array.prototype.slice.call(document.body.children||[]).forEach(function(node){
+        if(node===panel||/^(SCRIPT|STYLE|LINK)$/.test(node.tagName||"")) return;
+        backgroundState.push({
+          node:node,
+          hadAriaHidden:node.hasAttribute("aria-hidden"),
+          ariaHidden:node.getAttribute("aria-hidden"),
+          hadInert:node.hasAttribute("inert")
+        });
+        node.setAttribute("aria-hidden","true");
+        node.setAttribute("inert","");
+      });
+      return;
+    }
+    backgroundState.forEach(function(state){
+      var node=state.node;
+      if(state.hadAriaHidden) node.setAttribute("aria-hidden",state.ariaHidden);
+      else if(node.removeAttribute) node.removeAttribute("aria-hidden");
+      if(state.hadInert) node.setAttribute("inert","");
+      else if(node.removeAttribute) node.removeAttribute("inert");
+    });
+    backgroundState=[];
+  }
 
   function paintBadges(){
     if(badgesDone) return;
@@ -575,13 +613,27 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
       .catch(function(){ pre.textContent="live manifest unreachable right now — not fabricating a value. Try /api/killinchu/v1/borrowed-powers directly."; jsonLoaded=false; });
   }
 
-  function open(){ panel.classList.add("on"); fab.setAttribute("aria-expanded","true");
+  function open(){
+    if(panel.classList.contains("on")) return;
+    returnFocus=document.activeElement;
+    previousOverflow=document.documentElement.style.overflow||"";
+    panel.classList.add("on"); panel.setAttribute("aria-hidden","false");
+    fab.setAttribute("aria-expanded","true");
     document.documentElement.style.overflow="hidden"; paintBadges();
     if(initialFocus&&typeof initialFocus.focus==="function") initialFocus.focus();
-    else { if(!panel.hasAttribute("tabindex")) panel.setAttribute("tabindex","-1"); panel.focus(); } }
-  function close(){ panel.classList.remove("on"); fab.setAttribute("aria-expanded","false");
-    document.documentElement.style.overflow="";
-    if(typeof fab.focus==="function") fab.focus(); }
+    else panel.focus();
+    setBackgroundIsolation(true);
+  }
+  function close(){
+    if(!panel.classList.contains("on")) return;
+    setBackgroundIsolation(false);
+    panel.classList.remove("on"); panel.setAttribute("aria-hidden","true");
+    fab.setAttribute("aria-expanded","false");
+    document.documentElement.style.overflow=previousOverflow;
+    var focusTarget=(returnFocus&&typeof returnFocus.focus==="function")?returnFocus:fab;
+    returnFocus=null;
+    if(focusTarget&&typeof focusTarget.focus==="function") focusTarget.focus();
+  }
 
   fab.addEventListener("click", function(e){ if(e&&e.preventDefault) e.preventDefault(); open(); });
   // Honor deep-links: /elite#szl-ceo opens the investor section directly.
@@ -593,7 +645,27 @@ _CEO_OVERLAY_HTML = r"""<!-- __SZL_CEO_OVERLAY__ : light CEO/investor overlay (a
   });
   var det=panel.querySelector("details");
   if(det){ det.addEventListener("toggle", function(){ if(det.open) loadJSON(); }); }
-  document.addEventListener("keydown", function(e){ if(e.key==="Escape"&&panel.classList.contains("on")) close(); });
+  document.addEventListener("keydown", function(e){
+    if(!panel.classList.contains("on")) return;
+    if(e.key==="Escape"){
+      if(e.preventDefault) e.preventDefault();
+      close(); return;
+    }
+    if(e.key==="Tab"){
+      var nodes=focusableNodes();
+      if(!nodes.length){ e.preventDefault(); panel.focus(); return; }
+      var first=nodes[0], last=nodes[nodes.length-1], active=document.activeElement;
+      var inside=typeof panel.contains==="function"&&panel.contains(active);
+      if(e.shiftKey&&(!inside||active===first)){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey&&(!inside||active===last)){ e.preventDefault(); first.focus(); }
+    }
+  });
+  document.addEventListener("focusin", function(e){
+    if(!panel.classList.contains("on")) return;
+    if(typeof panel.contains==="function"&&panel.contains(e.target)) return;
+    var nodes=focusableNodes();
+    (nodes[0]||panel).focus();
+  });
 })();
 </script>
 """
@@ -1812,6 +1884,42 @@ window.toggleSide=toggleSide;
       if(tries>40||(window.go&&window.go.__demoReveal))clearInterval(w);
     },120);
   })();
+})();
+/* Keyboard and current-view semantics for every route item, including the
+   R&D items injected after first paint. Routing remains owned by each item's
+   existing click handler and go(). */
+(function szlNavA11y(){
+  function bind(item){
+    if(item.dataset.szlA11yBound)return;
+    item.dataset.szlA11yBound='1';
+    item.setAttribute('role','button');
+    item.setAttribute('tabindex','0');
+    item.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){
+        e.preventDefault();
+        item.click();
+      }
+    });
+  }
+  function sync(activeView){
+    document.querySelectorAll('.nav-item[data-view]').forEach(function(item){
+      bind(item);
+      var current=activeView?item.dataset.view===activeView:item.classList.contains('active');
+      if(current)item.setAttribute('aria-current','page');
+      else item.removeAttribute('aria-current');
+    });
+  }
+  window.__szlSyncNavA11y=sync;
+  function init(){
+    sync();
+    var side=document.querySelector('.side');
+    if(side&&window.MutationObserver){
+      var observer=new MutationObserver(function(){sync();});
+      observer.observe(side,{childList:true,subtree:true,attributes:true,attributeFilter:['class','data-view']});
+      window.__szlNavA11yObserver=observer;
+    }
+  }
+  if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();
 // dag-mode 3d force graph (hash-chain hero)
 function dag3d(id,nodes,links,opts){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';opts=opts||{};
@@ -9525,6 +9633,7 @@ function go(view){
     var _surf=_alias.s, _sub=_alias.k;
     tearDownAll();
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===_surf));
+    try{window.__szlSyncNavA11y(_surf);}catch(_na){}
     var _sv=VIEWS[_surf];
     if(_sv){
       var _cc=el('content');
@@ -9543,6 +9652,7 @@ function go(view){
   // Tear down EVERYTHING from the previous view: Chart.js, ECharts, 3d-force-graph, globe.gl, cytoscape + timers.
   tearDownAll();
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
+  try{window.__szlSyncNavA11y(view);}catch(_na){}
   const v = VIEWS[view];
   if(!v){return;}
   const c = el('content');

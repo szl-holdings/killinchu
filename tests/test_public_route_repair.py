@@ -1056,7 +1056,7 @@ class PublicRouteRepairTests(unittest.TestCase):
         )
 
         for contract in (
-            "reusable-hf-deploy.yml@391f67e28dd966d9e42f88c6e3f852f3c63add84",
+            "reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da",
             "hf-repo: SZLHOLDINGS/killinchu",
             "ref: ${{ github.sha }}",
             "require-default-branch-tip: true",

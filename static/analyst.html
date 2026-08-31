@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="A read-only Killinchu analyst workspace for reviewing observation provenance, feed availability, honesty disclosures, and receipt-verification state.">
+  <title>Killinchu · Defensive analyst workspace</title>
+  <link rel="stylesheet" href="/vendor/fonts/fonts.css">
+  <link rel="stylesheet" href="/static/analyst.css">
+  <script src="/static/analyst.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to evidence workspace</a>
+
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="/" aria-label="Killinchu home">
+        <span class="brand-mark" aria-hidden="true">K</span>
+        <span>killinchu</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a aria-current="page" href="/static/analyst.html">Analyst workspace</a>
+        <a href="/elite">Operator console</a>
+        <a href="/api/killinchu/v1/honest">Raw disclosure</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="workspace" class="shell" tabindex="-1" aria-busy="true">
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Defensive analyst · read only</p>
+        <h1 id="page-title">Evidence before interpretation.</h1>
+        <p class="lede">Review what the runtime actually observed, where each claim came from, how old it is, and whether a receipt is independently verified. This surface never dispatches, targets, jams, spoofs, or actuates anything.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="refresh-evidence" class="button" type="button">Refresh evidence</button>
+        <p id="refresh-status" class="refresh-status" role="status" aria-live="polite">Loading current evidence…</p>
+      </div>
+    </section>
+
+    <aside class="boundary" aria-label="Evidence boundary">
+      <strong>Interpretation boundary</strong>
+      <span>ADS-B and Remote ID are unauthenticated broadcast claims. An observation is not a confirmed threat. An HTTP 200 is not proof of a valid signature.</span>
+    </aside>
+
+    <section class="summary-grid" aria-label="Runtime evidence summary">
+      <article class="metric">
+        <p class="metric-label">Observation mode</p>
+        <p id="feed-mode" class="metric-value status" data-tone="neutral">UNAVAILABLE</p>
+        <p id="feed-age" class="metric-note">Age not reported</p>
+      </article>
+      <article class="metric">
+        <p class="metric-label">Observations</p>
+        <p id="observation-count" class="metric-value">—</p>
+        <p id="observation-source" class="metric-note">Source not reported</p>
+      </article>
+      <article class="metric">
+        <p class="metric-label">Feed inventory</p>
+        <p id="feed-count" class="metric-value">—</p>
+        <p id="feed-inventory" class="metric-note">Status unavailable</p>
+      </article>
+      <article class="metric">
+        <p class="metric-label">Receipt evidence</p>
+        <p id="receipt-state" class="metric-value status" data-tone="neutral">UNAVAILABLE</p>
+        <p id="receipt-note" class="metric-note">Verification not reported</p>
+      </article>
+    </section>
+
+    <section class="workspace-grid" aria-labelledby="observations-title">
+      <div class="observation-panel panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Canonical track batch</p>
+            <h2 id="observations-title">Observed air picture</h2>
+          </div>
+          <span id="batch-authentication" class="status" data-tone="neutral">UNAVAILABLE</span>
+        </div>
+
+        <div class="filters" role="search">
+          <label for="observation-search">
+            Search observations
+            <input id="observation-search" type="search" autocomplete="off" placeholder="Track, model, source, or status">
+          </label>
+          <label for="mode-filter">
+            Evidence mode
+            <select id="mode-filter">
+              <option value="ALL">All modes</option>
+              <option value="LIVE">Live claims</option>
+              <option value="CACHED">Cached claims</option>
+              <option value="UNLABELLED">Unlabelled evidence</option>
+              <option value="UNAVAILABLE">Unavailable</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <caption id="observation-caption">Loading observation evidence…</caption>
+            <thead>
+              <tr>
+                <th scope="col">Observation</th>
+                <th scope="col">Status</th>
+                <th scope="col">Age</th>
+                <th scope="col">Position</th>
+                <th scope="col">Trust</th>
+              </tr>
+            </thead>
+            <tbody id="observation-rows"></tbody>
+          </table>
+        </div>
+        <p id="observation-empty" class="empty-state" hidden>No observations match the current filters.</p>
+        <p id="batch-honesty" class="batch-note">Waiting for the observation endpoint's own evidence label.</p>
+      </div>
+
+      <aside class="inspector panel" aria-labelledby="inspector-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Provenance inspector</p>
+            <h2 id="inspector-title">Select an observation</h2>
+          </div>
+        </div>
+        <p id="inspector-empty" class="inspector-intro">Choose an observation to inspect the source, timestamps, authentication boundary, and payload digest.</p>
+        <dl id="inspector-fields" hidden>
+          <div><dt>Track ID</dt><dd id="detail-track-id">—</dd></div>
+          <div><dt>Model / label</dt><dd id="detail-model">—</dd></div>
+          <div><dt>Mode</dt><dd id="detail-mode">—</dd></div>
+          <div><dt>Authentication</dt><dd id="detail-authentication">—</dd></div>
+          <div><dt>Trust</dt><dd id="detail-trust">—</dd></div>
+          <div><dt>Observed at</dt><dd id="detail-observed-at">—</dd></div>
+          <div><dt>Received at</dt><dd id="detail-received-at">—</dd></div>
+          <div><dt>Sensor</dt><dd id="detail-sensor">—</dd></div>
+          <div><dt>Payload SHA-256</dt><dd id="detail-digest" class="digest">—</dd></div>
+          <div><dt>Upstream source</dt><dd><a id="detail-source" href="#" hidden>Open named source</a><span id="detail-source-text">—</span></dd></div>
+        </dl>
+        <details id="raw-evidence" hidden>
+          <summary>Raw normalized observation</summary>
+          <pre id="detail-raw" tabindex="0"></pre>
+        </details>
+      </aside>
+    </section>
+
+    <section class="evidence-grid" aria-labelledby="evidence-title">
+      <div class="panel">
+        <p class="eyebrow">Runtime disclosure</p>
+        <h2 id="evidence-title">What this runtime says about itself</h2>
+        <p id="honesty-summary">Disclosure unavailable.</p>
+        <ul id="honesty-list" class="disclosure-list"></ul>
+      </div>
+      <div class="panel">
+        <p class="eyebrow">Direct evidence</p>
+        <h2>Inspect the source JSON</h2>
+        <p>These same-origin links expose the unmodified API responses used by this workspace.</p>
+        <ul class="endpoint-list">
+          <li><a href="/api/killinchu/v1/threats/active">Observation batch</a><code>GET</code></li>
+          <li><a href="/api/killinchu/v1/feeds/status">Feed status</a><code>GET</code></li>
+          <li><a href="/api/killinchu/v1/honest">Honest disclosure</a><code>GET</code></li>
+          <li><a href="/api/killinchu/v1/receipt/export">Receipt export</a><code>GET</code></li>
+          <li><a href="/api/killinchu/v1/defensive-intake/tools">Defensive intake registry</a><code>GET</code></li>
+        </ul>
+      </div>
+    </section>
+
+    <noscript>
+      <p class="noscript">JavaScript is required to read the runtime evidence endpoints. The direct evidence links above remain available.</p>
+    </noscript>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-inner">
+      <span>Killinchu defensive analyst workspace</span>
+      <span>Read-only · evidence-labelled · no actuation</span>
+    </div>
+  </footer>
+</body>
+</html>
