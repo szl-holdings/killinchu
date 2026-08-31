@@ -206,14 +206,13 @@ jobs:
                   "timeout": 7200,
               }
               s, b = call(token, "POST", "/api/jobs/SZLHOLDINGS", job_payload)
-              print(f"launch {profile}: POST /api/jobs HTTP {s}")
+              print(f"launch {profile}: HTTP {s}")
               if s in (200, 201):
-                  try:
-                      print(f"job id: {json.loads(b).get('id')}")
-                  except Exception:
-                      print("job created (id not parsed)")
+                  jid = (json.loads(b) or {}).get("id", "unparsed")
+                  print(f"::notice title=job-launched::{profile} {jid}")
+                  print(f"job id: {jid}")
               else:
-                  print(f"response: {b[:200]}")
+                  print(f"::error title=job-launch-failed::{profile} HTTP {s} {b[:120]}")
                   raise SystemExit(1)
               raise SystemExit(0)
 
