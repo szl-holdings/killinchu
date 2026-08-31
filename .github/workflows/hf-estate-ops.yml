@@ -192,11 +192,10 @@ jobs:
                   "--seed $SEED --r 8 --max-seq 1536"
               )
               job_payload = {
-                  "namespace": ORG,
                   "flavor": "a10g-small",
-                  "image": "huggingface/transformers-pytorch-gpu:latest",
+                  "dockerImage": "huggingface/transformers-pytorch-gpu:latest",
                   "command": ["bash", "-lc", cmd],
-                  "env": {
+                  "environment": {
                       "PROFILE": p["profile"],
                       "BASE_MODEL": p["base"],
                       "DATASET": p["data"],
@@ -205,9 +204,8 @@ jobs:
                   },
                   "secrets": {"HF_TOKEN": token},
                   "timeout": 7200,
-                  "labels": {"lane": "szl-estate-ops", "profile": p["profile"]},
               }
-              s, b = call(token, "POST", "/api/jobs", job_payload)
+              s, b = call(token, "POST", "/api/jobs/SZLHOLDINGS", job_payload)
               print(f"launch {profile}: POST /api/jobs HTTP {s}")
               if s in (200, 201):
                   try:
