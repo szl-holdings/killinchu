@@ -119,7 +119,7 @@ class ControlDockCopRouteContractTests(unittest.TestCase):
             'aria-label="Open the Killinchu investor view"',
             "data-szl-initial-focus",
             'initialFocus.focus==="function"',
-            'fab.focus==="function"',
+            'focusTarget.focus==="function"',
         ):
             self.assertIn(token, source)
 

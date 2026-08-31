@@ -1543,6 +1543,35 @@ except Exception as _os_e:
     _tb_os.print_exc()
 # ── end OSINT verticals ──────────────────────────────────────────────────────
 
+# ── Defensive IOC intake + inert scanner planning (ADDITIVE) ────────────
+# Clean-room, offline-only boundary for analyst-supplied indicators:
+#   GET  /api/killinchu/v1/defensive-intake/tools
+#   POST /api/killinchu/v1/defensive-intake/plan
+# The fixed allowlist contains metadata-only report-review adapters. This organ
+# cannot connect to targets, resolve DNS, fetch content, launch a binary/shell,
+# access secrets, or write files. It emits an honest UNSIGNED sha256 content
+# receipt; integrity only, never authenticity or evidence a scan occurred.
+try:
+    import killinchu_defensive_intake as _killinchu_defensive_intake
+    _killinchu_defensive_intake_status = _killinchu_defensive_intake.register(
+        app, ns="killinchu"
+    )
+    import sys as _sys_defensive_intake
+    print(
+        "[killinchu] defensive intake registered: "
+        f"{_killinchu_defensive_intake_status}",
+        file=_sys_defensive_intake.stderr,
+    )
+except Exception as _defensive_intake_error:
+    import sys as _sys_defensive_intake, traceback as _tb_defensive_intake
+    print(
+        "[killinchu] defensive intake NOT registered: "
+        f"{_defensive_intake_error}",
+        file=_sys_defensive_intake.stderr,
+    )
+    _tb_defensive_intake.print_exc()
+# ── end defensive IOC intake ───────────────────────────────────────
+
 # ===========================================================================
 # CORS LOCKDOWN (SAFE-NOW hardening, freeze June 20) — killinchu-only.
 # ---------------------------------------------------------------------------

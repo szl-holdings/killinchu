@@ -17,7 +17,7 @@
   "entry_file": null,
   "file_sha256": {
     "README.md": "dd5ea13595bdbc987c856542c649c8ac0af537dac2218c25439310349b8cbeb8",
-    "static/index.html": "5acb009085b96b13dbcf72d49bc251c4c00c2d0338ad47338311418f7d0a35e7",
+    "static/index.html": "4acf26671e4f68b2175bfc4edf245e7f62ce71e3c102290a335ed76de4356b4c",
     "static/szl-universal-frontend.css": "2f869cd9a9808c8dc8c05278118d26b16c5b3a798cc8ee3b2a1100c359a65027"
   },
   "framework": "static",

@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "fbd3ca5dfe1ec9f3ed0fc734c9cc79ab0e1c2f6e911b713b3d4a8bfdfe2d79a5"
+    "sha256": "0878ba17f049b48cdcec8d55ed739e8998334f7d7f782f2d421712706df17331"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "fbd3ca5dfe1ec9f3ed0fc734c9cc79ab0e1c2f6e911b713b3d4a8bfdfe2d79a5"
+    "sha256": "0878ba17f049b48cdcec8d55ed739e8998334f7d7f782f2d421712706df17331"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -43,6 +43,7 @@
     "killinchu_cannonico.py",
     "killinchu_cop_fusion.py",
     "killinchu_cot_interop.py",
+    "killinchu_defensive_intake.py",
     "killinchu_drone_routes.py",
     "killinchu_edge_console.py",
     "killinchu_edge_formulas.py",
@@ -310,6 +311,7 @@
     "killinchu_cannonico",
     "killinchu_cop_fusion",
     "killinchu_cot_interop",
+    "killinchu_defensive_intake",
     "killinchu_drone_routes",
     "killinchu_edge_console",
     "killinchu_edge_formulas",
