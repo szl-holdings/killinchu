@@ -12,7 +12,7 @@
 from __future__ import annotations
 import sys as _ftr_sys
 from datetime import datetime, timezone
-from fastapi import Request, Query
+from fastapi import Request
 from fastapi.responses import JSONResponse as _FJSON
 from fastapi.routing import APIRoute as _AR
 

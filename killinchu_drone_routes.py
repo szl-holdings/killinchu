@@ -20,8 +20,6 @@ from __future__ import annotations
 
 import hashlib
 import json as _json
-import os
-import time
 import urllib.request as _urlreq
 import uuid
 from collections import deque

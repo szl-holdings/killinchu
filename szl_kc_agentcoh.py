@@ -49,7 +49,6 @@ Pure stdlib. Defensive: a compute failure NEVER raises out of a handler.
 from __future__ import annotations
 
 import json as _json
-import math as _math
 from datetime import datetime, timezone
 
 DOCTRINE_VERSION = "v11"

@@ -31,7 +31,6 @@ import json
 import math
 import os
 import sys
-import time
 from datetime import datetime, timezone
 
 # Path bootstrap: vendored package sits at repo root (WORKDIR /app) next to this file.

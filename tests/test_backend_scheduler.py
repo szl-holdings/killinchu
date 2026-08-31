@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import os
 import sqlite3
 import threading
 import time

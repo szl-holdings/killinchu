@@ -9,7 +9,7 @@ import os
 from src.killinchu.edge import EdgeNode, Telemetry
 from src.killinchu.dsse import verify_envelope, public_key_pem
 from src.killinchu.lambda_calc import (
-    compute_lambda, lambda_aggregate, pac_bayes_penalty, kl_inverse_upper,
+    lambda_aggregate, pac_bayes_penalty, kl_inverse_upper,
 )
 
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "telemetry_otlp_sample.json")

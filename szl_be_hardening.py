@@ -430,7 +430,6 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     report: Dict[str, Any] = {"organ": organ, "registered": []}
 
     try:
-        from fastapi import FastAPI
         from fastapi.exceptions import RequestValidationError
         from starlette.exceptions import HTTPException as StarletteHTTPException
     except Exception as exc:  # FastAPI not importable -> nothing to do

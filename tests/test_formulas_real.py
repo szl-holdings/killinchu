@@ -52,7 +52,7 @@ def test_dsse_receipt_verifies():
     out = edge.edge_verdict({"sensors": _real_sensors(), "track": _real_track()})
     receipt = out["dsse_receipt"]
     assert receipt["signed"] is True, receipt
-    claim = {
+    {
         "organ": "killinchu", "lambda": out["lambda"], "lambda_floor": out["lambda_floor"],
         "decision": out["decision"], "axes": out["axes"],
         "ts": None, "formulas": None,

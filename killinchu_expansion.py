@@ -17,13 +17,12 @@ from __future__ import annotations
 
 import hashlib
 import json as _json
-import math
 import os as _os
 import threading as _threading
 import time
 import urllib.error as _uerr
 import urllib.request as _ureq
-from typing import Any, Callable
+from typing import Callable
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -576,7 +575,7 @@ def register_expansion(app, *, drones: list, emit_receipt: Callable, haversine: 
             return JSONResponse({"ok": False, "decision": "REFUSED",
                                  "reason": "Forensic pull is OWN-fleet only. We do not exfiltrate from third-party drones.",
                                  "doctrine": doctrine}, status_code=403)
-        body = await json_body(request)
+        await json_body(request)
         artifacts = ["flight_logs.bin", "sensor_traces.parquet", "execution_graph.json", "imu_raw.bin"]
         manifest = [{"artifact": a, "sha256": _sha(drone_id, a)} for a in artifacts]
         bundle_hash = _sha(*[m["sha256"] for m in manifest])

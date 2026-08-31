@@ -41,8 +41,7 @@ Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 from __future__ import annotations
 
 import hashlib
-import math
-from typing import Any, Sequence
+from typing import Sequence
 
 try:
     from starlette.requests import Request
@@ -718,7 +717,6 @@ def self_test() -> dict:
 def register(app, ns: str = "killinchu") -> str:
     from starlette.routing import Route
     from starlette.responses import JSONResponse
-    from starlette.requests import Request as _Req
 
     base = f"/api/{ns}/v1/wave910"
 

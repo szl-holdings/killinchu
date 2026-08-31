@@ -36,12 +36,10 @@ Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a th
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import os
 import threading
-import time
 import urllib.request as _urllib_request
 from datetime import datetime, timezone
 from typing import Any

@@ -37,12 +37,10 @@ Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import os
 import sys
-from typing import Any
 
 # --- vendored yarqa (SZL clean-room, Apache-2.0) ----------------------------
 # Make ./vendor_yarqa importable without polluting global sys.path order.

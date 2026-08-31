@@ -43,9 +43,8 @@ Pure stdlib. Defensive: a compute failure NEVER raises out of a handler.
 from __future__ import annotations
 
 import json as _json
-import math as _math
 import os as _os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 MODELED_LABEL = "MODELED"
 DOCTRINE_VERSION = "v11"
@@ -472,7 +471,7 @@ def flower_bloom(seed: int = 42, K: int = 10) -> Dict[str, Any]:
     edges = _valid_edges(nodes)
     pof = _petal_of(nodes)
     ids = [n["id"] for n in nodes]
-    tier = {n["id"]: n["tier"] for n in nodes}
+    {n["id"]: n["tier"] for n in nodes}
     petal = {n["id"]: n["petal"] for n in nodes}
     w = {n["id"]: _TIER_W[n["tier"]] for n in nodes}
     is_pistil = {n["id"]: n["is_pistil"] for n in nodes}

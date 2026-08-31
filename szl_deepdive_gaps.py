@@ -33,7 +33,6 @@ import hashlib
 import json
 import os
 import sys
-import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -517,7 +516,7 @@ def register(app: FastAPI, flagship: str) -> dict:
             geofence_radius_m = float(body.get("geofence_radius_m", 500))
             lat = float(telemetry.get("lat", 0))
             lon = float(telemetry.get("lon", 0))
-            alt_m = float(telemetry.get("alt_m", 0))
+            float(telemetry.get("alt_m", 0))
             speed_ms = float(telemetry.get("speed_ms", 0))
             import math
             dist_from_center = math.sqrt(lat**2 + lon**2) * 111000  # rough meters
@@ -580,7 +579,6 @@ def register(app: FastAPI, flagship: str) -> dict:
             return JSONResponse(result)
         registered.append(f"{prefix}/geofence")
 
-    import sys
     print(f"[szl_deepdive_gaps] {flagship}: {len(registered)} Series-A gap endpoints registered", file=sys.stderr)
     return {"flagship": flagship, "routes_registered": registered}
 

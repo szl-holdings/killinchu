@@ -393,7 +393,7 @@ def _herotq_snapshot(seed: int = 42, size: int = 32, bits: int = 3) -> dict:
     order = sorted(range(len(eigs)), key=lambda i: eigs[i], reverse=True)
     eigs_sorted = [eigs[i] for i in order]
     lam_max_before = eigs_sorted[0] if eigs_sorted else 0.0
-    lam_min = min((e for e in eigs if e > 1e-12), default=1e-12)
+    min((e for e in eigs if e > 1e-12), default=1e-12)
     # median eigenvalue used as the compression reference scale
     lam_med = sorted(e for e in eigs if e > 0.0)
     lam_med = lam_med[len(lam_med) // 2] if lam_med else 1.0
