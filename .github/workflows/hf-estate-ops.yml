@@ -24,6 +24,7 @@ on:
           - apply-archive
           - restart-space
           - launch-train-job
+          - publish-provenance
         default: probe
       group:
         description: Consolidation group (D-K from the merged plan)
@@ -81,6 +82,10 @@ jobs:
           test "$GITHUB_EVENT_NAME" = workflow_dispatch
           test "$GITHUB_REPOSITORY" = szl-holdings/killinchu
           test "$GITHUB_REF" = refs/heads/main
+
+      - name: Checkout
+        if: inputs.op == 'publish-provenance'
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
       - name: Run estate op
         shell: bash
@@ -152,6 +157,35 @@ jobs:
               raise SystemExit(1)
           tname, token = chosen
           print(f"acting with {tname}")
+
+          if op == "publish-provenance":
+              import base64
+              content = open("estate/SPACE_PROVENANCE_OBSERVATION.json", "rb").read()
+              nd = "\n".join([
+                  json.dumps({"key": "header", "value": {
+                      "summary": "provenance: companion observation post-consolidation (2026-08-31)",
+                      "description": "Additive observation; sealed SPACE_PROVENANCE_FRONTIER.json untouched."}}),
+                  json.dumps({"key": "file", "value": {
+                      "path": "SPACE_PROVENANCE_OBSERVATION.json",
+                      "encoding": "base64",
+                      "content": base64.b64encode(content).decode()}}),
+              ]) + "\n"
+              req = urllib.request.Request(
+                  "https://huggingface.co/api/spaces/SZLHOLDINGS/szl-khipu/commit/main",
+                  method="POST",
+                  headers={"Authorization": f"Bearer {token}",
+                           "Content-Type": "application/x-ndjson"},
+                  data=nd.encode())
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as resp:
+                      print(f"commit HTTP {resp.status}")
+              except urllib.error.HTTPError as e:
+                  print(f"commit HTTP {e.code} {e.read().decode()[:200]}")
+                  raise SystemExit(1)
+              s, b = call(token, "GET", "/api/spaces/SZLHOLDINGS/szl-khipu/tree/main")
+              names = [f.get("path") for f in (json.loads(b) if s == 200 else [])]
+              print("verify file present:", "SPACE_PROVENANCE_OBSERVATION.json" in names)
+              raise SystemExit(0)
 
           if op == "launch-train-job":
               profile = os.environ.get("INPUT_PROFILE", "")

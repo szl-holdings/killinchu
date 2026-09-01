@@ -1,0 +1,44 @@
+{
+  "schema": "szl.provenance_observation.v1",
+  "relation_to": "SZLHOLDINGS/szl-khipu · SPACE_PROVENANCE_FRONTIER.json (sealed, reject-on-drift — deliberately NOT modified)",
+  "repository": "SZLHOLDINGS/szl-khipu",
+  "repository_type": "space",
+  "observed_at_utc": "2026-08-31T22:48:00Z",
+  "observed_by": "Perplexity Computer on behalf of SZL Holdings (Stephen P. Lutar Jr.) — fine-grained HF_TOKEN via killinchu estate-ops lane",
+  "visibility_after_consolidation": {
+    "public_spaces_verified_200": [
+      "a11oy",
+      "killinchu",
+      "immune",
+      "szl-khipu",
+      "szl-atelier",
+      "governed-receipt-verifier"
+    ],
+    "protected_spaces_verified_unlisted": {
+      "method": "public API returns 401 (unlisted), direct *.hf.space URL returns 200 (serving)",
+      "spaces": [
+        "immune-lattice",
+        "khipu-lab",
+        "lyte-services",
+        "counsel",
+        "szl-real-estate",
+        "holographic",
+        "nexus"
+      ]
+    },
+    "consolidation_executed_via": "killinchu hf-estate-ops.yml apply-archive waves D/F/G/H/I/K; HF archive endpoint deprecated, visibility=protected is the executed substitute"
+  },
+  "correction_to_sealed_manifest": {
+    "sealed_visibility_field": "PUBLIC",
+    "sealed_runtime_observed": "PAUSED",
+    "current_verified_visibility": "PUBLIC (szl-khipu remains one of the six public Spaces)",
+    "current_verified_runtime": "RUNNING (HTTP 200 on https://szlholdings-szl-khipu.hf.space at observation time)",
+    "note": "This file is an observation, not a decree. The sealed manifest stands as its historical record."
+  },
+  "sota_upgrade_lane": {
+    "base_model_frontier": "Qwen/Qwen3.8 (flagship Aug 2026); Qwen/Qwen3.5-2B = current smallest new dense base above the 0.8B adapters",
+    "flagship_lineage_still_on": "Qwen/Qwen2.5-1.5B-Instruct (SZL-Khipu-1.5B) and Qwen/Qwen2.5-1.5B (SZL-Forge-1.5B-ReceiptAgent)",
+    "upgrade_path": "receipted Unsloth QLoRA retrains to NEW repos (khipu-frontier-35-2b / forge-frontier-35-2b / willay-3); canonical 1.5B line never overwritten (receipts does_not_overwrite guard)",
+    "do_not_retrain_from": "szl-training-scripts (estate own note); retrains dispatched via killinchu estate-ops lane judge.read() gates"
+  }
+}
