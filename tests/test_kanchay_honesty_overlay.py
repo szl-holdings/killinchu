@@ -85,9 +85,16 @@ class KanchayHonestyOverlayTests(unittest.TestCase):
         self.assertIn("no tensors", self.landing)
         self.assertIn("frames SKIP", self.landing)
         self.assertIn("Conjecture 1, never a theorem", self.landing)
-        self.assertIn("#080c14", self.landing)
-        self.assertIn("#3af4c8", self.landing)
-        self.assertIn("#d7b96b", self.landing)
+        # The front door migrated to the SZL monochrome "genius" design system:
+        # black / white / warm off-white + a neutral grey ramp, NO color pop.
+        # The KANCHAY house palette stays authoritative for the overlay CSS
+        # (asserted above against szl-kanchay-overlay.css); the landing page
+        # itself must now carry the monochrome tokens instead, and must NOT
+        # reintroduce a decorative accent hue.
+        for token in ("#000000", "#f0eee6", "#0d0d0f", "#2a2a2e"):
+            self.assertIn(token, self.landing)
+        for accent in ("#3af4c8", "#d7b96b", "#5b8dee"):
+            self.assertNotIn(accent, self.landing)
         self.assertNotIn("command demonstration", self.landing)
         self.assertNotIn("from_pretrained", self.landing)
 
