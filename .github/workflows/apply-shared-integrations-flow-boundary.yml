@@ -1,0 +1,176 @@
+name: Apply Shared Integrations Flow Boundary
+
+on:
+  push:
+    branches:
+      - "fix/shared-integrations-flow-boundary-20260901"
+    paths:
+      - ".github/workflows/apply-shared-integrations-flow-boundary.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-shared-integrations-flow-boundary-killinchu
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/shared-integrations-flow-boundary-20260901
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Apply namespace-scoped runtime binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("szl_connectors_serve.py")
+          text = path.read_text(encoding="utf-8")
+
+          old = "    from fastapi.responses import JSONResponse, FileResponse\n"
+          new = "    from fastapi.responses import JSONResponse, FileResponse, HTMLResponse\n"
+          if old not in text:
+              raise SystemExit("FastAPI response import anchor not found")
+          text = text.replace(old, new, 1)
+
+          old = "    Request = object  # type: ignore\n\nimport szl_connectors as sc\n"
+          new = "    Request = object  # type: ignore\n    HTMLResponse = object  # type: ignore\n\nimport szl_connectors as sc\n"
+          if old not in text:
+              raise SystemExit("import-guard anchor not found")
+          text = text.replace(old, new, 1)
+
+          anchor = '_INDEX_HTML = Path("/app/static/index.html")\n'
+          helper = '''_INDEX_HTML = Path("/app/static/index.html")
+_FLOW_STYLE = '<link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />'
+_FLOW_SCRIPT = '<script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>'
+
+
+def _with_a11oy_flow_shell(text: str) -> str:
+    """Bind the product-only Flow Shell without mutating shared source bytes."""
+    style_count = text.count('data-szl-flow-asset="style"')
+    script_count = text.count('data-szl-flow-asset="script"')
+    if style_count > 1 or script_count > 1:
+        raise ValueError("duplicate Flow Shell marker")
+    if style_count == 0:
+        index = text.lower().rfind("</head>")
+        if index < 0:
+            raise ValueError("integrations document has no closing head")
+        text = text[:index] + "  " + _FLOW_STYLE + "\\n" + text[index:]
+    if script_count == 0:
+        index = text.lower().rfind("</body>")
+        if index < 0:
+            raise ValueError("integrations document has no closing body")
+        text = text[:index] + "  " + _FLOW_SCRIPT + "\\n" + text[index:]
+    return text
+'''
+          if anchor not in text:
+              raise SystemExit("page-root anchor not found")
+          text = text.replace(anchor, helper, 1)
+
+          old = '''        if f.is_file():
+            return FileResponse(f, media_type="text/html")
+        if _INDEX_HTML.is_file():
+'''
+          new = '''        if f.is_file():
+            if ns == "a11oy":
+                try:
+                    page = _with_a11oy_flow_shell(f.read_text(encoding="utf-8"))
+                except (OSError, UnicodeError, ValueError) as error:
+                    return JSONResponse(
+                        {"error": "integrations page unavailable", "detail": type(error).__name__},
+                        status_code=500,
+                    )
+                return HTMLResponse(page, media_type="text/html")
+            return FileResponse(f, media_type="text/html")
+        if _INDEX_HTML.is_file():
+'''
+          if old not in text:
+              raise SystemExit("integrations route anchor not found")
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding="utf-8", newline="\n")
+
+          test = Path("tests/test_integrations_flow_boundary.py")
+          test.write_text('''#!/usr/bin/env python3
+"""Regression contract for the shared integrations source boundary."""
+from __future__ import annotations
+
+import ast
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+MODULE = ROOT / "szl_connectors_serve.py"
+PAGE = ROOT / "pages" / "integrations.html"
+STYLE_MARKER = 'data-szl-flow-asset="style"'
+SCRIPT_MARKER = 'data-szl-flow-asset="script"'
+
+
+class IntegrationsFlowBoundaryContract(unittest.TestCase):
+    def _helper(self):
+        source = MODULE.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        wanted = []
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                names = {target.id for target in node.targets if isinstance(target, ast.Name)}
+                if names & {"_FLOW_STYLE", "_FLOW_SCRIPT"}:
+                    wanted.append(node)
+            elif isinstance(node, ast.FunctionDef) and node.name == "_with_a11oy_flow_shell":
+                wanted.append(node)
+        namespace = {}
+        module = ast.Module(body=wanted, type_ignores=[])
+        ast.fix_missing_locations(module)
+        exec(compile(module, str(MODULE), "exec"), namespace)
+        return namespace["_with_a11oy_flow_shell"]
+
+    def test_helper_is_idempotent_and_exact(self) -> None:
+        bind = self._helper()
+        original = "<html><head><title>x</title></head><body>y</body></html>"
+        bound = bind(original)
+        self.assertEqual(bound.count(STYLE_MARKER), 1)
+        self.assertEqual(bound.count(SCRIPT_MARKER), 1)
+        self.assertEqual(bind(bound), bound)
+
+    def test_shared_page_remains_product_asset_free(self) -> None:
+        page = PAGE.read_text(encoding="utf-8")
+        self.assertNotIn(STYLE_MARKER, page)
+        self.assertNotIn(SCRIPT_MARKER, page)
+
+    def test_route_binds_only_the_a11oy_namespace(self) -> None:
+        source = MODULE.read_text(encoding="utf-8")
+        self.assertIn('if ns == "a11oy":', source)
+        self.assertIn("return HTMLResponse(page, media_type=\"text/html\")", source)
+        self.assertIn("return FileResponse(f, media_type=\"text/html\")", source)
+
+
+if __name__ == "__main__":
+    unittest.main()
+''', encoding="utf-8", newline="\n")
+          PY
+      - name: Verify focused boundary contract
+        run: |
+          python -m py_compile szl_connectors_serve.py tests/test_integrations_flow_boundary.py
+          python tests/test_integrations_flow_boundary.py -v
+          git diff --check
+      - name: Retire bounded workflow and commit exact repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-shared-integrations-flow-boundary.yml
+          git config user.name "SZL Shared Source Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --quiet && { echo "No repair diff produced"; exit 1; }
+          git commit -s -m "fix(shared): scope integrations Flow Shell to A11oy runtime"
+          git push origin HEAD:fix/shared-integrations-flow-boundary-20260901
