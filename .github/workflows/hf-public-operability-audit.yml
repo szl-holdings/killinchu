@@ -5,7 +5,7 @@ on:
     branches:
       - ops/hf-stalled-recovery-20260902
     paths:
-      - .github/scripts/audit_hf_public_operability.py
+      - .github/scripts/audit_hf_public_operability_v2.py
       - .github/workflows/hf-public-operability-audit.yml
 
 permissions:
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   audit:
-    name: Verify runtime, entrypoint, and public origin independently
+    name: Verify runtime, entrypoint, and authoritative public origin
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -49,12 +49,12 @@ jobs:
           "requests==2.32.5"
           "PyYAML==6.0.3"
 
-      - name: Audit all Space entrypoints and origins
+      - name: Audit all Space entrypoints and provider origins
         id: audit
         shell: bash
         run: |
           set +e
-          python .github/scripts/audit_hf_public_operability.py \
+          python .github/scripts/audit_hf_public_operability_v2.py \
             --org SZLHOLDINGS \
             --output "$REPORT_PATH"
           code=$?
