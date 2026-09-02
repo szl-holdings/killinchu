@@ -1,6 +1,7 @@
 name: Audit SZLHOLDINGS public operability
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - ops/hf-stalled-recovery-20260902
