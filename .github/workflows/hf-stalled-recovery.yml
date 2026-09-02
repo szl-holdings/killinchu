@@ -1,0 +1,95 @@
+name: Recover stalled SZLHOLDINGS Spaces
+
+on:
+  push:
+    branches:
+      - ops/hf-stalled-recovery-20260902
+    paths:
+      - .github/scripts/recover_hf_stalled_spaces.py
+      - .github/workflows/hf-stalled-recovery.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-provider-mutation-szlholdings
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: Inventory, restart, rebuild, and verify stalled Spaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      REPORT_PATH: /tmp/hf-stalled-recovery.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact recovery source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact Hugging Face control clients
+        run: >-
+          python -m pip install --disable-pip-version-check
+          "huggingface_hub==1.23.0"
+          "requests==2.32.5"
+
+      - name: Prove recovery classification offline
+        run: >-
+          python .github/scripts/recover_hf_stalled_spaces.py
+          --output /tmp/self-test-unused.json
+          --self-test
+
+      - name: Recover every non-static stalled Space
+        id: recovery
+        shell: bash
+        run: |
+          set +e
+          python .github/scripts/recover_hf_stalled_spaces.py \
+            --org SZLHOLDINGS \
+            --output "$REPORT_PATH" \
+            --settle-seconds 75 \
+            --poll-seconds 15 \
+            --normal-timeout-seconds 600 \
+            --factory-timeout-seconds 900
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload secret-free recovery receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-stalled-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_PATH }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce terminal estate state
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.recovery.outputs.exit_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$REPORT_PATH"
+          code="${EXIT_CODE:-3}"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::SZLHOLDINGS recovery retained one or more exact residual blockers (exit ${code})."
+            exit "$code"
+          fi
+          echo "All non-static, non-deprecated SZLHOLDINGS Spaces are terminally healthy."
