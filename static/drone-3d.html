@@ -77,6 +77,7 @@
   @keyframes sp{to{transform:rotate(360deg)}}
   .topwx{display:flex;gap:8px}
 </style>
+  <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
 </head>
 <body>
 <div class="app">
@@ -305,5 +306,6 @@ document.getElementById('stationIn').onchange=(e)=>{STATION=e.target.value.toUpp
 document.getElementById('liveSel').onchange=(e)=>{LIVE=e.target.value;refresh();};
 initThree(); refresh(); setInterval(refresh, 60000);
 </script>
+  <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
 </body>
 </html>

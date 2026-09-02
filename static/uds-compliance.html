@@ -67,6 +67,7 @@
   .load{color:var(--faint);font-size:12px}
   footer{grid-column:1/-1;border-top:1px solid var(--line2);padding:16px 34px;color:var(--faint);font-size:11px}
 </style>
+  <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
 </head>
 <body>
 <div class="app">
@@ -232,5 +233,6 @@ $('#raw-pick').onchange=async e=>{$('#raw-out').textContent='…';const j=await 
 (async()=>{try{await loadStig();await loadBB();await loadTW();await loadFW();
   $('#raw-out').textContent=JSON.stringify(await get("stig/scan-report/killinchu"),null,2);}catch(e){console.error(e);}})();
 </script>
+  <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
 </body>
 </html>
