@@ -1,0 +1,86 @@
+name: Audit SZLHOLDINGS public operability
+
+on:
+  push:
+    branches:
+      - ops/hf-stalled-recovery-20260902
+    paths:
+      - .github/scripts/audit_hf_public_operability.py
+      - .github/workflows/hf-public-operability-audit.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-provider-observation-szlholdings
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Verify runtime, entrypoint, and public origin independently
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      REPORT_PATH: /tmp/hf-public-operability.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact audit source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install bounded audit clients
+        run: >-
+          python -m pip install --disable-pip-version-check
+          "huggingface_hub==1.23.0"
+          "requests==2.32.5"
+          "PyYAML==6.0.3"
+
+      - name: Audit all Space entrypoints and origins
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          python .github/scripts/audit_hf_public_operability.py \
+            --org SZLHOLDINGS \
+            --output "$REPORT_PATH"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload secret-free operability receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-public-operability-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_PATH }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce honest public-state verdict
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.audit.outputs.exit_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$REPORT_PATH"
+          code="${EXIT_CODE:-3}"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::One or more Spaces are running but not operational under their declared visibility/entrypoint contract."
+            exit "$code"
+          fi
+          echo "Every Space satisfies its declared runtime and visibility contract."
