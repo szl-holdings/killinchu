@@ -1,8 +1,11 @@
-/* SZL Holdings / KANCHAY brand bridge v1.0.0 — Apache-2.0 — ORCID 0009-0001-0110-4173
-   ADDITIVE, CSS-ONLY. Loaded AFTER each Space's own stylesheet so it only re-points
-   existing custom properties at canonical KANCHAY tokens. It does NOT touch markup,
-   the HF banner, hero avatars, animated emojis, fonts, or any layout — variables only.
+/* SZL Holdings / KANCHAY brand bridge v1.1.0 — Apache-2.0 — ORCID 0009-0001-0110-4173
+   ADDITIVE. Loaded AFTER each Space's own stylesheet. It re-points existing custom
+   properties at canonical KANCHAY tokens and imports the product-owned Public
+   Experience v4 geometry layer. The hash-owned universal frontend adapter remains
+   byte-identical and independently verifiable.
    Requires brand-tokens.css to be loaded first (defines the --color-* canonical tokens). */
+
+@import url("./public-experience-v4.css");
 
 :root {
   /* --- a11oy landing local vars (style.css) re-pointed at canonical tokens --- */
