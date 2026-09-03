@@ -37,4 +37,5 @@ jobs:
         run: |
           python policy/scripts/check_public_experience_v4.py \
             target/static/index.html \
-            target/static/szl-universal-frontend.css
+            target/static/szl-universal-frontend.css \
+            target/static/public-experience-v4.css
