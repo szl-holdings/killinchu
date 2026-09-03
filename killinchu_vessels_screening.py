@@ -22,7 +22,7 @@ from __future__ import annotations
 import hashlib
 import time
 from collections import defaultdict, deque
-from typing import Any, Deque, Dict, List, Optional, Tuple
+from typing import Any, Deque, Dict, List, Tuple
 
 # ----------------------------- receipt chain -------------------------------
 
