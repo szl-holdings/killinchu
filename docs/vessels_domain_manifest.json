@@ -1,58 +1,117 @@
 {
+  "schema": "szl.killinchu.vessels-domain/v2",
+  "canonical_vertical": "killinchu",
   "domain": "vessels",
-  "parent_vertical": "killinchu",
-  "parent_repo": "https://github.com/szl-holdings/killinchu",
-  "status": "retired-into-killinchu",
-  "declaration": {
-    "date": "2026-09-03",
-    "retired_date": "2026-09-03",
-    "declared_by": "betterwithage",
-    "scope": "counter-UAS (air) + vessels (sea) in one governed operator picture",
-    "doctrine": "v11 LOCKED"
+  "standalone_product": false,
+  "doctrine": {
+    "version": "v11",
+    "locked_proven_formula_ids": [
+      "F1",
+      "F4",
+      "F7",
+      "F11",
+      "F12",
+      "F18",
+      "F19",
+      "F22"
+    ],
+    "lambda_uniqueness": "Conjecture 1 — OPEN"
   },
-  "retirement": {
-    "standalone_github_repo": "szl-holdings/vessels - deleted from organization",
-    "standalone_hf_space": "SZLHOLDINGS/vessels - probe shell, retirement pending owner action (connector cannot write pre-existing Spaces)",
-    "sole_maritime_surface": "szl-holdings/killinchu"
+  "runtime": {
+    "module": "killinchu_fleet_vessels.py",
+    "contract_route": "/api/killinchu/v1/vertical/contract",
+    "runtime_route": "/api/killinchu/v1/vertical/runtime",
+    "current_voyage_risk_route": "/api/killinchu/v1/fleet/voyage-risk/current",
+    "compatibility_sample_route": "/api/killinchu/v1/fleet/voyage-risk"
   },
-  "modules": {
-    "maritime_globe": {"file": "killinchu_maritime_globe.py", "bytes": 122502},
-    "maritime_intel": {"file": "killinchu_maritime_intel.py", "bytes": 46417},
-    "maritime_risk": {"file": "killinchu_maritime_risk.py", "bytes": 41961},
-    "maritime_view": {"file": "killinchu_maritime_view.py", "bytes": 49782},
-    "fleet_vessels": {"file": "killinchu_fleet_vessels.py", "bytes": 11533},
-    "fleet_vessels_data": {"file": "fleet_vessels_data.json", "bytes": 61896},
-    "ais_aug2024": {"file": "killinchu_ais_aug2024.py", "bytes": 17588},
-    "ais_connector": {"file": "szl_connectors/data_sources/ais_noaa_aug2024.py"},
-    "maritime_air_connector": {"file": "szl_connectors/data_sources/maritime_air.py"},
-    "asw": {"file": "killinchu_asw.py", "bytes": 37050},
-    "naval_haps": {"file": "killinchu_naval_haps.py", "bytes": 15182},
-    "vessels_screening": {"file": "killinchu_vessels_screening.py", "bytes": 9519, "added": "2026-09-03", "capabilities": ["sanctions screening (operator-supplied lists, fail-closed, MEASURED)", "ownership graph with effective-pct beneficial-owner walk (REPORTED)", "combined vessel risk (MODELED)", "SHA-256 hash-chained receipts"]},
-    "tests": {"file": "test_maritime_overlays.py"}
+  "current_data": {
+    "ais": {
+      "implementation": "killinchu_feeds_realdata.py",
+      "chain": [
+        {
+          "source": "AISStream.io",
+          "credential": "optional-secret",
+          "coverage": "configured global theaters"
+        },
+        {
+          "source": "Fintraffic Digitraffic",
+          "credential": "none",
+          "coverage": "Finland/Baltic"
+        },
+        {
+          "source": "Kystverket/Kystdatahuset",
+          "credential": "none",
+          "coverage": "Norwegian waters"
+        },
+        {
+          "source": "Marinesia",
+          "credential": "optional-secret",
+          "coverage": "provider plan"
+        },
+        {
+          "source": "bundled replay",
+          "state": "SAMPLE"
+        }
+      ]
+    },
+    "historical_ais": {
+      "source": "NOAA MarineCadastre",
+      "window": "2024-08",
+      "state": "HISTORICAL_SAMPLE"
+    },
+    "sanctions": {
+      "source": "UN Security Council 1718 via OpenSanctions",
+      "state_on_success": "LIVE_OR_CACHED",
+      "state_on_failure": "UNAVAILABLE",
+      "clearance_claimed": false
+    }
   },
-  "capabilities": {
-    "dark_vessel_detection": "killinchu_maritime_risk.py",
-    "voyage_analytics": "killinchu_maritime_intel.py",
-    "fleet_view": ["killinchu_fleet_vessels.py", "killinchu_maritime_globe.py"],
-    "ais_ingest": ["killinchu_ais_aug2024.py", "szl_connectors/data_sources/ais_noaa_aug2024.py"],
-    "sanctions_screening": "killinchu_vessels_screening.py (operator-supplied lists only; no live sanctions feed claimed)",
-    "ownership_graph": "killinchu_vessels_screening.py (declarations REPORTED, not independently verified)"
+  "formula_bindings": [
+    {
+      "name": "lambda_aggregate",
+      "use": "measured operational-sufficiency proxies only"
+    },
+    {
+      "name": "lambda_bounded",
+      "use": "aggregate bound guard"
+    },
+    {
+      "name": "khipu_merkle_root",
+      "use": "downstream receipt integrity"
+    },
+    {
+      "name": "dsse_envelope",
+      "use": "real signing path only"
+    }
+  ],
+  "second_brain": {
+    "contract": "szl.brain.navigator-context/v1",
+    "content_access": "HANDLES_ONLY",
+    "score_is_correctness": false
   },
-  "gaps": {},
-  "wiring": {
-    "required_before_live": ["register routes in serve.py", "COPY killinchu_vessels_screening.py in Space Dockerfile"],
-    "ref": "KNOWN_GOTCHAS.md organ-wiring pattern"
+  "anatomy_organs": [
+    "EYES_EARS",
+    "IMMUNE",
+    "BRAIN",
+    "SKELETON",
+    "HEART",
+    "HANDS",
+    "MEMORY"
+  ],
+  "gaps": {
+    "beneficial_ownership_graph": "UNAVAILABLE_IN_PUBLIC_RUNTIME",
+    "operator_reported_ownership_helper": "SOURCE_ONLY_NOT_RUNTIME_BOUND",
+    "class_society_current_status": "UNAVAILABLE",
+    "keyless_global_current_ais": "PARTIAL",
+    "statistical_voyage_forecast": "NOT_MODELLED"
   },
-  "transitional_engine": {
-    "space": "SZLHOLDINGS/vertical-services",
-    "url": "https://szlholdings-vertical-services.hf.space",
-    "routes": ["/vessels/healthz", "/vessels/v1/positions", "/vessels/v1/vessel/risk", "/vessels/v1/fleet/risk"],
-    "source": "szl-holdings/vertical-services",
-    "note": "transitional; killinchu is the product surface"
-  },
-  "provenance": {
-    "module_inventory_ref": "commit fa81186c6141e57e17b33b9d9ea5ab7647afacff",
-    "declared_via": "perplexity connector",
-    "truth_labels": "MEASURED | REPORTED | MODELED"
-  }
+  "truth_states": [
+    "LIVE",
+    "MIXED",
+    "CACHED",
+    "SAMPLE",
+    "HISTORICAL_SAMPLE",
+    "UNAVAILABLE"
+  ],
+  "production_rule": "exact-source deploy receipt plus live route probes required"
 }
