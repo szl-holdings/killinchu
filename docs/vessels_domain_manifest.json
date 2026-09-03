@@ -1,0 +1,46 @@
+{
+  "domain": "vessels",
+  "parent_vertical": "killinchu",
+  "parent_repo": "https://github.com/szl-holdings/killinchu",
+  "declaration": {
+    "date": "2026-09-03",
+    "declared_by": "betterwithage",
+    "scope": "counter-UAS (air) + vessels (sea) in one governed operator picture",
+    "doctrine": "v11 LOCKED"
+  },
+  "modules": {
+    "maritime_globe": {"file": "killinchu_maritime_globe.py", "bytes": 122502},
+    "maritime_intel": {"file": "killinchu_maritime_intel.py", "bytes": 46417},
+    "maritime_risk": {"file": "killinchu_maritime_risk.py", "bytes": 41961},
+    "maritime_view": {"file": "killinchu_maritime_view.py", "bytes": 49782},
+    "fleet_vessels": {"file": "killinchu_fleet_vessels.py", "bytes": 11533},
+    "fleet_vessels_data": {"file": "fleet_vessels_data.json", "bytes": 61896},
+    "ais_aug2024": {"file": "killinchu_ais_aug2024.py", "bytes": 17588},
+    "ais_connector": {"file": "szl_connectors/data_sources/ais_noaa_aug2024.py"},
+    "maritime_air_connector": {"file": "szl_connectors/data_sources/maritime_air.py"},
+    "asw": {"file": "killinchu_asw.py", "bytes": 37050},
+    "naval_haps": {"file": "killinchu_naval_haps.py", "bytes": 15182},
+    "tests": {"file": "test_maritime_overlays.py"}
+  },
+  "capabilities": {
+    "dark_vessel_detection": "killinchu_maritime_risk.py",
+    "voyage_analytics": "killinchu_maritime_intel.py",
+    "fleet_view": ["killinchu_fleet_vessels.py", "killinchu_maritime_globe.py"],
+    "ais_ingest": ["killinchu_ais_aug2024.py", "szl_connectors/data_sources/ais_noaa_aug2024.py"]
+  },
+  "gaps": {
+    "sanctions_screening": "not ported - remains in szl-holdings/vessels only",
+    "ownership_graph": "not ported - remains in szl-holdings/vessels only"
+  },
+  "standalone_engine": {
+    "space": "SZLHOLDINGS/vertical-services",
+    "url": "https://szlholdings-vertical-services.hf.space",
+    "routes": ["/vessels/healthz", "/vessels/v1/positions", "/vessels/v1/vessel/risk", "/vessels/v1/fleet/risk"],
+    "source": "szl-holdings/vertical-services"
+  },
+  "provenance": {
+    "module_inventory_ref": "commit fa81186c6141e57e17b33b9d9ea5ab7647afacff",
+    "declared_via": "perplexity connector",
+    "truth_labels": "MEASURED | REPORTED | MODELED"
+  }
+}
