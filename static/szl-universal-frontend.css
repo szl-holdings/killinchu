@@ -5,10 +5,6 @@
   --szl-touch-target: 44px;
   --szl-gutter: clamp(14px, 3vw, 28px);
   --szl-content-max: 1440px;
-  --szl-safe-top: env(safe-area-inset-top, 0px);
-  --szl-safe-right: env(safe-area-inset-right, 0px);
-  --szl-safe-bottom: env(safe-area-inset-bottom, 0px);
-  --szl-safe-left: env(safe-area-inset-left, 0px);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -17,13 +13,7 @@ body, #root, .gradio-container, .stApp, [data-testid="stAppViewContainer"] {
   max-width: 100%;
   min-width: 0;
 }
-body {
-  margin: 0;
-  overflow-x: clip;
-  padding-left: var(--szl-safe-left);
-  padding-right: var(--szl-safe-right);
-  padding-bottom: var(--szl-safe-bottom);
-}
+body { margin: 0; overflow-x: clip; }
 
 main, section, article, header, footer, nav, form,
 .row, .column, .grid, .container, .wrap, .panel, .card,
@@ -73,16 +63,10 @@ input, select, textarea { max-width: 100%; min-height: var(--szl-touch-target); 
   width: min(100%, var(--szl-content-max));
   margin-inline: auto;
 }
-.gradio-container {
-  padding-left: calc(var(--szl-gutter) + var(--szl-safe-left)) !important;
-  padding-right: calc(var(--szl-gutter) + var(--szl-safe-right)) !important;
-  padding-bottom: var(--szl-safe-bottom) !important;
-}
+.gradio-container { padding-inline: var(--szl-gutter) !important; }
 [data-testid="stAppViewContainer"] .block-container {
   max-width: var(--szl-content-max);
-  padding-left: calc(var(--szl-gutter) + var(--szl-safe-left));
-  padding-right: calc(var(--szl-gutter) + var(--szl-safe-right));
-  padding-bottom: var(--szl-safe-bottom);
+  padding-inline: var(--szl-gutter);
 }
 
 @media (max-width: 768px) {
@@ -91,8 +75,7 @@ input, select, textarea { max-width: 100%; min-height: var(--szl-touch-target); 
   }
   .gradio-container,
   [data-testid="stAppViewContainer"] .block-container {
-    padding-left: calc(var(--szl-gutter) + var(--szl-safe-left)) !important;
-    padding-right: calc(var(--szl-gutter) + var(--szl-safe-right)) !important;
+    padding-inline: var(--szl-gutter) !important;
   }
 }
 
@@ -108,8 +91,8 @@ input, select, textarea { max-width: 100%; min-height: var(--szl-touch-target); 
     max-width: 100%;
   }
   dialog, [role="dialog"], .modal, [class*="modal"] {
-    max-width: calc(100vw - 28px - var(--szl-safe-left) - var(--szl-safe-right));
-    max-height: calc(100dvh - 28px - var(--szl-safe-top) - var(--szl-safe-bottom));
+    max-width: calc(100vw - 28px);
+    max-height: calc(100dvh - 28px);
     overflow: auto;
   }
 }
