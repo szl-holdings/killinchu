@@ -79,7 +79,7 @@ DEFAULT_POLICY_ID = "killinchu-cuas-engagement-policy/v11"
 import base64 as _base64
 import dataclasses as _dc
 import json as _json
-import struct as _struct
+# (struct import removed with the B-08 legacy PAE)
 
 _IN_TOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
 _DEFAULT_PREDICATE_TYPE = "https://a-11-oy.com/attest/szl-receipt/v0.1"
@@ -96,11 +96,13 @@ def _v_canonical_json(obj: object) -> bytes:
 
 
 def _v_pae(payload_type: str, body: bytes) -> bytes:
-    def _enc(s: bytes) -> bytes:
-        return _struct.pack("<Q", len(s)) + s
-
+    # DSSE v1 spec-exact PAE (ASCII decimal lengths over the decoded bytes),
+    # cosign-compatible. Replaces the pre-migration B-08 little-endian form so
+    # vendored sign/verify interoperate with the installed szl_receipt package.
     pt = payload_type.encode("utf-8")
-    return b"DSSEv1 " + _enc(pt) + b" " + _enc(body)
+    return b" ".join(
+        (b"DSSEv1", str(len(pt)).encode("ascii"), pt, str(len(body)).encode("ascii"), body)
+    )
 
 
 def _v_body_digest(body: object) -> str:

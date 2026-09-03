@@ -38,6 +38,12 @@ import pytest
 pytest.importorskip("starlette.testclient")
 from fastapi.testclient import TestClient  # noqa: E402
 
+# serve.py binds _APP_ROOT from KILLINCHU_ROOT at import time. This is the
+# earliest collection-time serve import in the suite, so pin the repo root
+# before the import; otherwise the app caches without the static mount and
+# later TestClient suites (kanchay overlay et al.) see 404s.
+os.environ.setdefault("KILLINCHU_ROOT", str(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 import serve  # noqa: E402
 
 client = TestClient(serve.app)
