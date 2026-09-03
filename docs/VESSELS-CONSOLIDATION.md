@@ -21,7 +21,7 @@ The standalone Vessels vertical is consolidated into **Killinchu**, the governed
 ## Honest boundaries
 
 - Sample-data demonstrations stay labeled as demonstrations. No live AIS feed is claimed.
-- The `SZLHOLDINGS/vessels` Space card carries a pointer here once its card update lands; the Space is retained as a historical record, not deleted.
+- The staged replacement card for the `SZLHOLDINGS/vessels` Space lives at `docs/hf-cards/SZLHOLDINGS-vessels.README.md` and applies via the HF UI or a write-scoped HF token (the session OAuth credential lacks org-Space write scope). The Space is retained as a historical record, not deleted.
 - `vertical-services` remains the deployable engine source; this document governs the public narrative, not the code path.
 
 References szl-holdings/.github#606 (public-surface rollout).
