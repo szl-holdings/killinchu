@@ -13,6 +13,22 @@ from pathlib import Path
 os.environ.setdefault("KILLINCHU_ROOT", str(Path(__file__).resolve().parents[1]))
 os.environ.setdefault("KILLINCHU_LEDGER_MODE", "EPHEMERAL")
 
+# This suite drives the real app through TestClient. The osint/archive suites
+# install a tuple-route fastapi STUB in sys.modules for their own isolation;
+# if one of them was collected first, the stub is resident and the real
+# package import below would explode at collection time. Detect the stub (a
+# plain module, never a package) and evict it plus everything bound to it.
+import sys as _sys
+import importlib as _importlib
+
+_resident = _sys.modules.get("fastapi")
+if _resident is not None and not hasattr(_resident, "__path__"):
+    for _name in [m for m in list(_sys.modules) if m == "fastapi" or m.startswith("fastapi.")]:
+        del _sys.modules[_name]
+    _sys.modules.pop("killinchu_osint", None)
+    _sys.modules.pop("serve", None)
+    _importlib.import_module("fastapi")
+
 from fastapi.testclient import TestClient
 
 from serve import app  # noqa: E402

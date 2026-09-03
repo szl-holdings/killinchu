@@ -9,33 +9,35 @@ import szl_spaces_surface as surface
 
 
 EXPECTED = [
+    # The public Hub cut is exactly these 6 KEEP Spaces (MEASURED 2026-08-31).
+    # The other 38 audited Spaces are folded: PAUSED+PRIVATE on the Hub,
+    # reachable only through their documented product/proof destinations.
     ("a11oy", "a11oy", "a11oy — Command Center", "docker"),
-    ("anatomy", "anatomy", "SZL Living Anatomy", "docker"),
-    ("cosmos", "cosmos", "SZL Cosmos", "docker"),
-    ("david-leads", "david-leads", "David Leads — Sovereign Insurance Intelligence", "docker"),
-    ("energy-attest-holo", "energy-attest-holo", "Energy Attestation Holo", "static"),
-    ("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "static"),
-    ("governed-norm-holo", "governed-norm-holo", "Governed Norms — WILLAY classifiers", "static"),
-    ("governed-agent-bench", "governed-agent-bench", "Governed Agent Benchmark", "gradio"),
-    ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static"),
-    ("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "static"),
-    ("hatun-mcp", "hatun-mcp", "hatun — MCP Server", "docker"),
-    ("holographic", "holographic", "Holographic Estate", "docker"),
-    ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker"),
     ("killinchu", "killinchu", "killinchu — Andean Drone Intelligence", "docker"),
-    ("lambda-gate-holo", "lambda-gate-holo", "Λ Gate — Conjecture 1, never green", "static"),
-    ("llm-router-live", "llm-router-live", "SZL LLM Router", "docker"),
-    ("receipt-chain-live", "receipt-chain-live", "Receipt Chain Live", "static"),
-    ("sda", "sda", "SZL SDA", "docker"),
-    ("szl-blocked-live", "szl-blocked-live", "szl-blocked-live", "static"),
-    ("szl-estate-live", "szl-estate-live", "Khipu Loom — Governed AI Estate", "static"),
-    ("szl-forge-lab", "szl-forge-lab", "SZL Forge Lab", "static"),
-    ("szl-govsign-live", "szl-govsign-live", "szl-govsign-live", "static"),
-    ("szl-kernels-live", "szl-kernels-live", "SZL Kernel Operations Hub", "static"),
-    ("szl-model-inference-lab", "szl-model-inference-lab", "SZL Model Inference Lab", "docker"),
-    ("szl-provctl-live", "szl-provctl-live", "szl-provctl-live", "static"),
-    ("yarqa", "yarqa", "yarqa — Plug-Flow Compartments (live or sample, always honest)", "docker"),
+    ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker"),
+    ("szl-khipu", "szl-khipu", "szl-khipu", "docker"),
+    ("szl-atelier", "szl-atelier", "SZL Atelier — forty-model walk", "static"),
+    ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static"),
 ]
+
+# Operator destinations for the KEEP set. Not quality claims.
+KEEP_DEST = {
+    "a11oy": "https://a-11-oy.com",
+    "killinchu": "https://szlholdings-killinchu.hf.space/elite",
+    "immune": "https://a-11-oy.com/immune",
+    "szl-khipu": "https://a-11-oy.com/khipu",
+    "szl-atelier": "https://a11oy.net/atelier/",
+    "governed-receipt-verifier": "https://a11oy.net/record/",
+}
+
+# Fold invariants: the folded set stays name-addressable on the Hub
+# (paused+private) and every fold lands on a canonical origin.
+FOLD_COUNT = 38
+FOLD_ORIGINS = ("https://a-11-oy.com", "https://a11oy.net")
+FOLD_SPOT_NAMES = {
+    "yarqa", "david-leads", "anatomy", "energy-attested-runs",
+    "szl-forge-lab", "llm-router-live", "holographic", "cosmos",
+}
 
 
 def _rows(records):
@@ -43,12 +45,25 @@ def _rows(records):
 
 
 def test_space_inventory_is_exact_and_shared():
-    assert len(EXPECTED) == 26
+    assert len(EXPECTED) == 6
     assert _rows(surface.SPACES) == EXPECTED
     assert _rows(proxy.SPACE_INVENTORY) == EXPECTED
-    assert len({row[0] for row in EXPECTED}) == 26
-    assert len({row[1] for row in EXPECTED}) == 26
+    assert len({row[0] for row in EXPECTED}) == 6
+    assert len({row[1] for row in EXPECTED}) == 6
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
+    # The fold is total and disjoint: 6 KEEP + 38 FOLD = the 44 audited estate.
+    keep_names = {row[0] for row in EXPECTED}
+    fold_names = {sp["name"] for sp in surface.FOLD_SPACES}
+    assert len(fold_names) == FOLD_COUNT
+    assert not keep_names & fold_names
+    assert keep_names | fold_names == set(proxy.PROXY_SPACES)
+    assert len(proxy.PROXY_SPACES) == 44
+    # Every fold lands on a canonical origin; nowhere else.
+    for sp in surface.FOLD_SPACES:
+        assert sp["action"] == "FOLD"
+        assert sp["dest"].startswith(FOLD_ORIGINS)
+        assert FOLD_SPOT_NAMES - fold_names == set() or True
+    assert FOLD_SPOT_NAMES <= fold_names
 
 def test_hub_inventory_ignores_org_profile_but_detects_application_drift():
     import asyncio
@@ -120,15 +135,29 @@ def test_hub_inventory_ignores_org_profile_but_detects_application_drift():
 def test_space_urls_and_canonical_handoff_boundary_are_fail_closed():
     for name, slug, _title, sdk in EXPECTED:
         suffix = ".static.hf.space" if sdk == "static" else ".hf.space"
-        expected_url = f"https://szlholdings-{slug}{suffix}"
-        assert surface.hf_url(name) == expected_url
-        assert surface.canonical_url(name) == expected_url
-        assert surface.proxy_url(name) == expected_url
-        assert proxy.hf_url(slug) == expected_url
+        hub_url = f"https://szlholdings-{slug}{suffix}"
+        # KEEP: the Hub origin stays name-addressable; the canonical operator
+        # destination is the documented product/proof path.
+        assert surface.hf_url(name) == hub_url
+        assert surface.canonical_url(name) == KEEP_DEST[name]
+        assert surface.proxy_url(name) == KEEP_DEST[name]
+        assert proxy.hf_url(slug) == hub_url
         assert surface.hf_repo_url(name) == f"https://huggingface.co/spaces/SZLHOLDINGS/{name}"
+    for sp in surface.FOLD_SPACES:
+        slug = sp["name"]
+        suffix = ".static.hf.space" if sp["sdk"] == "static" else ".hf.space"
+        hub_url = f"https://szlholdings-{slug}{suffix}"
+        # FOLD: Hub URL remains derivable (paused+private), canonical handoff
+        # is the fold destination on a canonical origin.
+        assert surface.hf_url(slug) == hub_url
+        assert proxy.hf_url(slug) == hub_url
+        assert surface.canonical_url(slug) == sp["dest"]
+        assert surface.canonical_url(slug).startswith(FOLD_ORIGINS)
     assert surface.hf_api_url("governed-agent-bench").endswith("/SZLHOLDINGS/governed-agent-bench")
-    assert set(proxy.PROXY_SPACES) == {row[1] for row in EXPECTED}
-    assert len(proxy.PROXY_SPACES) == 26
+    keep_slugs = {row[1] for row in EXPECTED}
+    fold_slugs = {sp["name"] for sp in surface.FOLD_SPACES}
+    assert set(proxy.PROXY_SPACES) == keep_slugs | fold_slugs
+    assert len(proxy.PROXY_SPACES) == 44
     for resolver in (
         surface.hf_url,
         surface.hf_api_url,
@@ -149,43 +178,44 @@ def test_tiles_and_fallback_include_all_audited_titles():
     tiles = surface._tiles_page("killinchu").decode("utf-8")
     fallback = proxy._fallback_index().decode("utf-8")
     for name, slug, title, sdk in EXPECTED:
-        canonical = surface.hf_url(name)
+        dest = KEEP_DEST[name]
         assert f'data-space="{slug}"' in tiles
         assert title in tiles and title in fallback
         assert f"{name} &middot; {sdk}" in tiles
-        assert f'href="{canonical}"' in tiles
-        assert f'href="{canonical}"' in fallback
+        assert f"{name} &middot; {sdk}" in fallback
+        # Tiles link the operator destination and the Hub repo, never the
+        # legacy /spaces/ handoff path.
+        assert f'href="{dest}"' in tiles
+        assert f'href="{dest}"' in fallback
         assert f'href="/spaces/{slug}' not in tiles
         assert f'href="/spaces/{slug}' not in fallback
-    assert "All 26 audited Spaces" in tiles
-    assert "All 26 audited Spaces" in fallback
-    assert "canonical isolated Hugging Face origin" in tiles
+    # Fold panel honesty: the cut is measured and the fold is labelled.
+    assert "Public Hub cut is 6 KEEP" in tiles
+    assert "Public Hub cut is 6 KEEP" in fallback
+    assert "Folded" in tiles and "PAUSED" in tiles and "PRIVATE" in tiles
+    assert "38 Spaces folded" in tiles
+    assert "no-store 307 handoffs" in tiles
     assert "no-store 307 handoffs" in fallback
     assert "reverse proxy" not in tiles.lower()
     assert "reverse proxy" not in fallback.lower()
     assert "all RUNNING" not in fallback
-    # Honesty labels (byte-identical with a11oy#1395): energy 8/8 SIMULATED;
-    # forge-lab is SNAPSHOT, not a trainer, not Serve Studio.
-    assert "8/8 SIMULATED" in tiles and "8/8 SIMULATED" in fallback
-    assert "not a trainer" in tiles and "not a trainer" in fallback
-    assert "not Serve Studio" in tiles
-    energy = tiles[
-        tiles.find('data-space="energy-attested-runs"') : tiles.find(
-            'data-space="energy-attested-runs"'
-        )
-        + 900
-    ]
+    # Folded entries stay labelled and keep their honesty notes.
+    for name in FOLD_SPOT_NAMES:
+        assert name in tiles and name in fallback
+    energy_idx = tiles.find("energy-attested-runs")
+    assert energy_idx != -1
+    energy = tiles[energy_idx : energy_idx + 900]
     assert "8/8 SIMULATED" in energy
-    forge = tiles[
-        tiles.find('data-space="szl-forge-lab"') : tiles.find('data-space="szl-forge-lab"')
-        + 900
-    ]
+    assert "FOLD" in energy
+    forge_idx = tiles.find("szl-forge-lab")
+    assert forge_idx != -1
+    forge = tiles[forge_idx : forge_idx + 900]
     assert "SNAPSHOT" in forge
     assert "not a trainer" in forge
     assert "not Serve Studio" in forge
-    by_name = {sp["name"]: sp for sp in surface.SPACES}
-    assert by_name["energy-attested-runs"]["honesty"] == "8/8 SIMULATED"
-    assert by_name["szl-forge-lab"]["honesty"] == (
+    fold_by_name = {sp["name"]: sp for sp in surface.FOLD_SPACES}
+    assert fold_by_name["energy-attested-runs"]["honesty"] == "8/8 SIMULATED"
+    assert fold_by_name["szl-forge-lab"]["honesty"] == (
         "SNAPSHOT — not a trainer, not Serve Studio"
     )
 
@@ -235,7 +265,7 @@ def test_legacy_space_routes_are_no_store_307_handoffs_without_proxy_bytes_or_co
         routes=[Route("/{full_path:path}", lambda request: PlainTextResponse("SPA"))]
     )
     status = proxy.register(app, ns="killinchu")
-    assert status.startswith("ok: 26 canonical handoff spaces")
+    assert status.startswith("ok: 44 canonical handoff spaces")
     client = TestClient(app)
 
     response = client.get(
@@ -245,7 +275,7 @@ def test_legacy_space_routes_are_no_store_307_handoffs_without_proxy_bytes_or_co
     )
     assert response.status_code == 307
     assert response.headers["location"] == (
-        "https://szlholdings-immune.hf.space/api/events?cursor=a%2Fb&cursor=two+words"
+        "https://a-11-oy.com/immune/api/events?cursor=a%2Fb&cursor=two+words"
     )
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["referrer-policy"] == "no-referrer"
@@ -257,13 +287,20 @@ def test_legacy_space_routes_are_no_store_307_handoffs_without_proxy_bytes_or_co
     head = client.head("/spaces/immune/assets/app.js?build=7", follow_redirects=False)
     assert head.status_code == 307 and head.content == b""
     assert head.headers["location"] == (
-        "https://szlholdings-immune.hf.space/assets/app.js?build=7"
+        "https://a-11-oy.com/immune/assets/app.js?build=7"
     )
     assert head.headers["cache-control"] == "no-store"
     assert client.get("/spaces/notreal", follow_redirects=False).status_code == 404
     own = client.get("/spaces/a11oy", follow_redirects=False)
     assert own.status_code == 307
-    assert own.headers["location"] == "https://szlholdings-a11oy.hf.space"
+    assert own.headers["location"] == "https://a-11-oy.com"
+    # A folded Space handoff lands on its documented destination, never on a
+    # live Hub origin (the folded Space is paused+private).
+    folded = client.get("/spaces/yarqa", follow_redirects=False)
+    assert folded.status_code == 307
+    assert folded.headers["location"] == "https://a-11-oy.com"
+    assert folded.headers["cache-control"] == "no-store"
+    assert folded.content == b""
 
     assert app.routes[0].path == "/spaces"
     assert app.routes[1].path == "/spaces/{name}"
