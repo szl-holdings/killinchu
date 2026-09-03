@@ -7,6 +7,58 @@
   var BAND_ID = "killinchu-track-truth";
   var lastBatch = null;
 
+  /*
+   * Public Experience v3 root-shell repair.
+   *
+   * This controller is already loaded by both public shells. Keep the change
+   * presentation-only and fail closed: it adds the audit marker, promotes the
+   * exact measured brand control to 44px, and lets the status bar wrap at high
+   * zoom. It does not alter a track, evidence label, endpoint, or claim class.
+   */
+  function installPublicExperienceV3() {
+    var html = document.documentElement;
+    html.setAttribute("data-szl-public-experience-v3", "true");
+    html.style.maxWidth = "100%";
+    html.style.overflowX = "clip";
+
+    if (!document.body) return;
+    document.body.style.maxWidth = "100%";
+    document.body.style.overflowX = "clip";
+
+    var topbar = document.querySelector(".topbar");
+    if (topbar) {
+      topbar.style.maxWidth = "100%";
+      topbar.style.overflowX = "clip";
+    }
+
+    var shell = document.querySelector(".topbar__in");
+    if (shell) {
+      shell.style.width = "100%";
+      shell.style.maxWidth = "100%";
+      shell.style.flexWrap = "wrap";
+    }
+
+    var brand = document.querySelector(".topbar .brand");
+    if (brand) {
+      brand.style.display = "inline-flex";
+      brand.style.minWidth = "44px";
+      brand.style.minHeight = "44px";
+      brand.style.maxWidth = "100%";
+      brand.style.flexWrap = "wrap";
+      brand.style.overflowWrap = "anywhere";
+      brand.style.touchAction = "manipulation";
+    }
+
+    var meta = document.querySelector(".topbar__meta");
+    if (meta) {
+      meta.style.minWidth = "0";
+      meta.style.maxWidth = "100%";
+      meta.style.whiteSpace = "normal";
+      meta.style.overflowWrap = "anywhere";
+      meta.style.flex = "1 1 14rem";
+    }
+  }
+
   function text(value) {
     return value == null ? "unknown" : String(value);
   }
@@ -104,8 +156,16 @@
       });
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", refresh);
-  else refresh();
+  installPublicExperienceV3();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () {
+      installPublicExperienceV3();
+      refresh();
+    });
+  } else {
+    refresh();
+  }
+
   var root = document.getElementById("root");
   if (root && window.MutationObserver) {
     new MutationObserver(function () {
@@ -114,5 +174,9 @@
     }).observe(root, { childList: true, subtree: true });
   }
   window.setInterval(refresh, 15000);
-  window.KillinchuTruthCOP = { render: render, refresh: refresh };
+  window.KillinchuTruthCOP = {
+    render: render,
+    refresh: refresh,
+    installPublicExperienceV3: installPublicExperienceV3
+  };
 })();
