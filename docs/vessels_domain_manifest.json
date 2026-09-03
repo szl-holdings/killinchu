@@ -2,11 +2,18 @@
   "domain": "vessels",
   "parent_vertical": "killinchu",
   "parent_repo": "https://github.com/szl-holdings/killinchu",
+  "status": "retired-into-killinchu",
   "declaration": {
     "date": "2026-09-03",
+    "retired_date": "2026-09-03",
     "declared_by": "betterwithage",
     "scope": "counter-UAS (air) + vessels (sea) in one governed operator picture",
     "doctrine": "v11 LOCKED"
+  },
+  "retirement": {
+    "standalone_github_repo": "szl-holdings/vessels - deleted from organization",
+    "standalone_hf_space": "SZLHOLDINGS/vessels - probe shell, retirement pending owner action (connector cannot write pre-existing Spaces)",
+    "sole_maritime_surface": "szl-holdings/killinchu"
   },
   "modules": {
     "maritime_globe": {"file": "killinchu_maritime_globe.py", "bytes": 122502},
@@ -20,23 +27,28 @@
     "maritime_air_connector": {"file": "szl_connectors/data_sources/maritime_air.py"},
     "asw": {"file": "killinchu_asw.py", "bytes": 37050},
     "naval_haps": {"file": "killinchu_naval_haps.py", "bytes": 15182},
+    "vessels_screening": {"file": "killinchu_vessels_screening.py", "bytes": 9519, "added": "2026-09-03", "capabilities": ["sanctions screening (operator-supplied lists, fail-closed, MEASURED)", "ownership graph with effective-pct beneficial-owner walk (REPORTED)", "combined vessel risk (MODELED)", "SHA-256 hash-chained receipts"]},
     "tests": {"file": "test_maritime_overlays.py"}
   },
   "capabilities": {
     "dark_vessel_detection": "killinchu_maritime_risk.py",
     "voyage_analytics": "killinchu_maritime_intel.py",
     "fleet_view": ["killinchu_fleet_vessels.py", "killinchu_maritime_globe.py"],
-    "ais_ingest": ["killinchu_ais_aug2024.py", "szl_connectors/data_sources/ais_noaa_aug2024.py"]
+    "ais_ingest": ["killinchu_ais_aug2024.py", "szl_connectors/data_sources/ais_noaa_aug2024.py"],
+    "sanctions_screening": "killinchu_vessels_screening.py (operator-supplied lists only; no live sanctions feed claimed)",
+    "ownership_graph": "killinchu_vessels_screening.py (declarations REPORTED, not independently verified)"
   },
-  "gaps": {
-    "sanctions_screening": "not ported - remains in szl-holdings/vessels only",
-    "ownership_graph": "not ported - remains in szl-holdings/vessels only"
+  "gaps": {},
+  "wiring": {
+    "required_before_live": ["register routes in serve.py", "COPY killinchu_vessels_screening.py in Space Dockerfile"],
+    "ref": "KNOWN_GOTCHAS.md organ-wiring pattern"
   },
-  "standalone_engine": {
+  "transitional_engine": {
     "space": "SZLHOLDINGS/vertical-services",
     "url": "https://szlholdings-vertical-services.hf.space",
     "routes": ["/vessels/healthz", "/vessels/v1/positions", "/vessels/v1/vessel/risk", "/vessels/v1/fleet/risk"],
-    "source": "szl-holdings/vertical-services"
+    "source": "szl-holdings/vertical-services",
+    "note": "transitional; killinchu is the product surface"
   },
   "provenance": {
     "module_inventory_ref": "commit fa81186c6141e57e17b33b9d9ea5ab7647afacff",
