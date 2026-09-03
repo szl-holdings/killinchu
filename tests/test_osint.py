@@ -70,23 +70,6 @@ _STREAM = "naval"
 
 def _clear_mem() -> None:
     """Reset the module's in-memory global state (does NOT touch disk)."""
-
-import importlib.util as _ilu
-
-# Single-process full-suite safety: this file installs a tuple-route fastapi
-# stub in sys.modules at import time (for the lean per-file CI runner, which
-# installs only pytest). When the real fastapi package is installed — e.g. the
-# org base-python-ci gate, which installs requirements.txt — the stub would
-# poison real-fastapi suites collected after this module, and this suite's own
-# tuple assertions would fail against real Route objects. The full-stack
-# serve-based suites cover the same module in that environment, so skip
-# honestly here instead of forcing import-order tricks.
-if _ilu.find_spec("fastapi") is not None:
-    pytest.skip(
-        "stub-mode suite: real fastapi present; covered by full-stack serve suites",
-        allow_module_level=True,
-    )
-
     ko._CORPUS.clear()
     ko._META.clear()
     ko._CHAIN_HEAD.clear()
