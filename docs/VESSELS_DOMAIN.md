@@ -1,65 +1,110 @@
-# Vessels Domain — Consolidated into Killinchu
+# Vessels Domain — Canonical Killinchu Runtime
 
-**Status:** RETIRED-INTO-KILLINCHU · **Date:** 2026-09-03 · **Doctrine:** v11 LOCKED · **Truth labels:** MEASURED / REPORTED / MODELED
+**Canonical vertical:** `killinchu`  
+**Domain:** `vessels`  
+**Doctrine:** v11; locked-proven formula IDs `{F1,F4,F7,F11,F12,F18,F19,F22}`  
+**Λ uniqueness:** Conjecture 1 — open, never presented as a theorem
 
-## Declaration
+## Product boundary
 
-Killinchu is the SZL Holdings defense vertical: **counter-UAS (air) + vessels (sea) in one governed operator picture.** The vessels vertical is consolidated here as a domain of killinchu, not a separate product. This charter makes the product story match the code that already ships in this repository.
+Vessels is no longer a standalone SZL Holdings product. It is the sea-domain
+operating picture inside **Killinchu**, alongside the counter-UAS/air domain.
 
-## Retirement (2026-09-03)
+Historical Vessels artifacts and seed datasets remain for compatibility and
+reproducible demonstrations. They are not an independent production authority.
 
-The standalone vessels vertical is **retired**:
+## Canonical runtime routes
 
-- `szl-holdings/vessels` (GitHub) — deleted from the organization.
-- `SZLHOLDINGS/vessels` (Hugging Face Space) — probe shell, to be retired by the owner (connector tokens cannot write or delete pre-existing Spaces).
-- All vessels capability now lives here, in killinchu.
-
-With this retirement, the former capability gaps are closed:
-
-| Capability | Status | Where |
-|---|---|---|
-| Dark-vessel detection | SHIPPED | `killinchu_maritime_risk.py` |
-| Voyage analytics | SHIPPED | `killinchu_maritime_intel.py` |
-| Fleet view | SHIPPED | `killinchu_fleet_vessels.py` + `killinchu_maritime_globe.py` |
-| AIS ingest | SHIPPED | `killinchu_ais_aug2024.py` + connectors |
-| Sanctions screening | SHIPPED (2026-09-03) | `killinchu_vessels_screening.py` — operator-supplied lists, fail-closed, MEASURED list-match. No live OFAC/EU/UN feed is connected or claimed. |
-| Ownership graph analysis | SHIPPED (2026-09-03) | `killinchu_vessels_screening.py` — declared-ownership graph with effective-percentage beneficial-owner walk, REPORTED. Declarations are operator-supplied and not independently verified. |
-
-**Wire-up note:** `killinchu_vessels_screening.py` requires registration in `serve.py` and a `COPY` line in the Space Dockerfile before it serves on the live surface (see KNOWN_GOTCHAS.md). Until wired, it is validated source, not a live endpoint.
-
-## Existing maritime modules (MEASURED — in this repo today)
-
-| Module | Role |
+| Route | Contract |
 |---|---|
-| `killinchu_maritime_globe.py` (122.5 KB) | Maritime globe visualization surface |
-| `killinchu_maritime_intel.py` (46.4 KB) | Maritime intelligence / voyage analytics |
-| `killinchu_maritime_risk.py` (42.0 KB) | Maritime risk assessment, dark-vessel detection |
-| `killinchu_maritime_view.py` (49.8 KB) | Maritime operator view |
-| `killinchu_fleet_vessels.py` (11.5 KB) | Fleet vessel surface |
-| `fleet_vessels_data.json` (61.9 KB) | Fleet vessel dataset |
-| `killinchu_ais_aug2024.py` (17.6 KB) | AIS ingestion (NOAA Aug 2024 corpus) |
-| `szl_connectors/data_sources/ais_noaa_aug2024.py` | AIS data-source connector |
-| `szl_connectors/data_sources/maritime_air.py` | Maritime/air fused data source |
-| `killinchu_asw.py` (37.0 KB) | Anti-submarine warfare surface |
-| `killinchu_naval_haps.py` (15.2 KB) | Naval HAPS (high-altitude platform) surface |
-| `test_maritime_overlays.py` | Maritime overlay regression tests |
-| `killinchu_vessels_screening.py` (9.5 KB) | Sanctions screening + ownership graph (retirement close-out) |
+| `GET /api/killinchu/v1/vertical/contract` | Static product/data/formula/Anatomy/Second-Brain contract |
+| `GET /api/killinchu/v1/vertical/runtime` | Request-level runtime state with explicit degraded organs |
+| `GET /api/killinchu/v1/fleet/voyage-risk/current` | Current AIS + sanctions + formula + grounded-handle assessment |
+| `GET /api/killinchu/v1/fleet/voyage-risk` | Compatibility **SAMPLE/REPLAY** decision loop |
+| `GET /api/killinchu/v1/feeds/vessels` | TRACK-normalized AIS redundancy chain |
+| `GET /api/killinchu/v1/feeds/vessels/stats` | Per-theater current/sample coverage rollup |
+| `GET /api/killinchu/v1/osint/intel?vertical=sanctioned_vessels` | Public UN 1718 designated-vessel collection |
 
-## Standalone vessels engine (transitional)
+## Data plane
 
-The standalone vessels API engine (position ingestion, haversine implied-speed anomalies, >1h dark-activity gaps, low-SOG loitering, fleet risk ranking) remains available at the [SZLHOLDINGS/vertical-services Space](https://huggingface.co/spaces/SZLHOLDINGS/vertical-services) under `/vessels/*`:
+The current AIS route uses the source chain already implemented in
+`killinchu_feeds_realdata.py`:
 
-- `GET /vessels/healthz`
-- `POST /vessels/v1/positions`
-- `GET /vessels/v1/vessel/risk?imo=...`
-- `GET /vessels/v1/fleet/risk`
+1. AISStream.io websocket when an authorized secret is present.
+2. Fintraffic Digitraffic AIS, no key, geographically bounded to Finnish/Baltic coverage.
+3. Norwegian Coastal Administration/Kystverket AIS, no key, geographically bounded.
+4. Marinesia only when an authorized credential is present.
+5. Bundled sample/replay only when no current source returns in-theater records.
 
-Source: `szl-holdings/vertical-services` (GitHub canonical, Hub mirror). This is a transitional engine; the killinchu surface above is the product.
+Every track must carry `source`, `source_url`, `provenance`, `ts`, and `live`.
+A sample record can never satisfy the current-data `LIVE` state.
 
-## Provenance
+NOAA MarineCadastre August 2024 records are real historical rows, but remain
+`HISTORICAL_SAMPLE`; they are not current AIS.
 
-- Charter declared 2026-09-03 by betterwithage via connector.
-- Retirement declared 2026-09-03 by betterwithage via connector.
-- Module inventory measured from the repository file listing at commit `fa81186`.
-- Screening/ownership module logic validated by test before commit (list-match, fail-closed, effective-pct walk, combined risk drivers).
-- Λ = Conjecture 1 (advisory). Nothing here claims a proven Λ.
+The sanctions plane uses the public UN Security Council 1718 designated-vessel
+dataset through OpenSanctions. It fails closed. `NO_EXACT_MATCH` is not
+regulatory clearance, and identity transliteration, beneficial ownership, and
+non-vessel sanctions still require human compliance review.
+
+## Governed decision loop
+
+The current endpoint implements the observable sequence:
+
+`INGEST → TRANSFORM → ANALYZE → DECIDE → APPROVE → EXECUTE → VERIFY → AUDIT → DELIVER`
+
+Execution authority is always `NONE` in the public runtime. The endpoint emits
+an advisory recommendation, a rollback path, and a mandatory human-approval
+gate. It does not authorize routing, detention, interdiction, engagement, or a
+counterparty decision.
+
+## Math and formula binding
+
+The Vessels domain applies formulas only where their inputs are defensible:
+
+- `lambda_aggregate` aggregates measured operational-sufficiency proxies.
+- `lambda_bounded` verifies the aggregate remains bounded by measured inputs.
+- `khipu_merkle_root` is reserved for downstream receipt integrity.
+- `dsse_envelope` is reserved for a real signing path.
+
+The runtime publishes all 13 Yuyay axes, but unmeasured axes remain `null` and
+are excluded from the aggregate. The result is named
+`partial_operational_lambda`; a full Yuyay-13 score is never inferred.
+
+## Second Brain and Anatomy
+
+The BRAIN organ prefers the local `second_brain` package and otherwise calls the
+allowlisted public SZL Second Brain navigator. It receives handles and evidence
+digests only. Retrieval scores are lexical overlap, never correctness.
+
+Runtime organs are reported individually:
+
+- `EYES_EARS` — current AIS sensing
+- `IMMUNE` — sanctions/anomaly screening
+- `BRAIN` — handles-only grounded retrieval
+- `SKELETON` — formula/doctrine contract
+- `HEART` — governed recommendation loop
+- `HANDS` — human-only execution boundary
+- `MEMORY` — evidence digest and receipt binding
+
+Any unavailable dependency degrades the Anatomy state; no fabricated calm.
+
+## Explicit gaps
+
+| Capability | State | Rule |
+|---|---|---|
+| Beneficial-ownership graph | `UNAVAILABLE` in the public runtime | An operator-reported helper exists in source, but do not claim current ownership until an authenticated, runtime-bound and independently sourced graph is attached |
+| Current class-society status | `UNAVAILABLE` | Do not infer from sample certificates |
+| Keyless global current AIS | `PARTIAL` | No-key sources are geographically bounded |
+| Statistical voyage forecast | `NOT_MODELLED` | Current deterministic assessment is not a casualty/delay prediction |
+
+## Verification
+
+```bash
+pytest -q tests/test_killinchu_vertical_runtime.py
+curl -fsS http://localhost:7860/api/killinchu/v1/vertical/contract | python -m json.tool
+curl -fsS "http://localhost:7860/api/killinchu/v1/fleet/voyage-risk/current?theater=baltic&limit=20" | python -m json.tool
+```
+
+Production readiness still requires an exact-source deployment receipt and
+post-deployment probes of the canonical routes.
