@@ -51,6 +51,13 @@ _BARE_SURFACE_REDIRECTS = {
     "/organism": "/elite/organism",
     "/active-flux": "/elite/active-flux",
     "/platform-dynamics": "/elite/platform-dynamics",
+    # Cyber-resilience product convergence: Vessels and Aegis are no
+    # longer separate public products. These same-origin aliases land
+    # on Killinchu's existing source-native operator surfaces.
+    "/resilience": "/elite",
+    "/vessels": "/elite/maritime",
+    "/maritime": "/elite/maritime",
+    "/airspace": "/elite#cuas_lab",
 }
 
 # ---------------------------------------------------------------------------
