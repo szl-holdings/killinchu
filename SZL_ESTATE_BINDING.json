@@ -1,0 +1,13 @@
+{
+  "schema":"szl.estate.binding/v1",
+  "organ":"killinchu",
+  "role":"public-cyber-physical-resilience-body",
+  "canonical_contract":"https://github.com/szl-holdings/.github/blob/main/estate/alignment.v1.json",
+  "public_front_door":"https://a-11-oy.com",
+  "hub_surface":"SZLHOLDINGS/killinchu",
+  "capability_planes":["aegis","sentra-defend","immune","vessels-maritime","counter-uas-airspace"],
+  "inherits":["a11oy-governance","hatun-policy-veto","second-brain-memory","szl-serve","szl-kernels","szl-receipt","szl-frontier"],
+  "effectors":"SIMULATED-unless-separately-proven",
+  "human_authorization":true,
+  "production_requires":"live-runtime-evidence-and-receipt"
+}
