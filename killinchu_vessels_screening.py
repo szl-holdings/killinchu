@@ -4,8 +4,8 @@ Consolidated from the retired vessels vertical (2026-09-03). Killinchu is now
 the sole SZL maritime surface (see docs/VESSELS_DOMAIN.md).
 
 Honest by design:
-- Screening results are MEASURED list-matches against operator-supplied lists.
-  No live sanctions feed (OFAC/EU/UN) is connected or claimed.
+- Screening results are MEASURED exact list-matches. List assertions remain
+  REPORTED with explicit operator or official-public source provenance.
 - Ownership data is REPORTED as declared by the operator; the graph walk is
   exact, the declarations are not independently verified.
 - Combined risk scores are MODELED, not measurements.
@@ -47,19 +47,46 @@ def _chain(step: str, payload: str) -> Dict[str, Any]:
 
 # ----------------------------- screening lists -----------------------------
 
-# operator-supplied screening lists: name -> {"source", "entities": set()}
+# screening lists: name -> explicit source provenance + normalized entities
 _LISTS: Dict[str, Dict[str, Any]] = {}
 
 
-def load_screening_list(name: str, entries: List[str]) -> Dict[str, Any]:
-    """Load an operator-supplied screening list. Normalization is exact-fold:
-    casefold + whitespace collapse. No fuzzy matching is claimed."""
-    norm = {" ".join(e.split()).casefold() for e in entries if e and e.strip()}
-    _LISTS[name] = {"source": "operator-supplied", "entities": norm,
-                    "loaded_ts": time.time(), "count": len(norm)}
-    return {"list": name, "entries": len(norm), "truth_label": "REPORTED",
-            "note": "operator-supplied list; not a live sanctions feed"}
+def load_screening_list(
+    name: str,
+    entries: List[str],
+    *,
+    source: str = "operator-supplied",
+    truth_label: str = "REPORTED",
+) -> Dict[str, Any]:
+    """Load an exact-fold screening list with explicit source provenance.
 
+    The list contents remain REPORTED assertions from the named source; only
+    normalization and later membership comparison are measured.  The default
+    preserves the original operator-supplied behavior.
+    """
+    clean_name = " ".join(str(name or "").split())[:200]
+    clean_source = " ".join(str(source or "").split())[:1000]
+    if not clean_name:
+        raise ValueError("list name is required")
+    if not clean_source:
+        clean_source = "operator-supplied"
+    if truth_label != "REPORTED":
+        raise ValueError("screening-list assertions must remain REPORTED")
+    norm = {" ".join(e.split()).casefold() for e in entries if e and e.strip()}
+    _LISTS[clean_name] = {
+        "source": clean_source,
+        "entities": norm,
+        "loaded_ts": time.time(),
+        "count": len(norm),
+        "truth_label": truth_label,
+    }
+    return {
+        "list": clean_name,
+        "entries": len(norm),
+        "source": clean_source,
+        "truth_label": truth_label,
+        "note": "source assertions are reported; exact normalization is measured",
+    }
 
 def _norm(s: str) -> str:
     return " ".join(s.split()).casefold()
@@ -218,5 +245,5 @@ def healthz() -> Dict[str, Any]:
     return {"status": "ok", "service": "killinchu-vessels-screening",
             "lists": len(_LISTS), "vessels_tracked": len(_OWNERSHIP),
             "receipt_chain": len(_RECEIPTS),
-            "sources": "operator-supplied lists only; no live sanctions feed",
+            "sources": sorted({str(row.get("source", "unknown")) for row in _LISTS.values()}),
             "truth_label": "MEASURED"}

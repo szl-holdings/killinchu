@@ -1,0 +1,154 @@
+{
+  "action_authority": "NONE",
+  "policy": {
+    "authority": {
+      "action_authority": "NONE",
+      "automated_enforcement": false,
+      "automated_targeting": false,
+      "human_review_required": true
+    },
+    "content": {
+      "active_force_geolocation": "PROHIBITED",
+      "credentials_or_personal_dossiers": "PROHIBITED",
+      "cyber_scope": "DEFENSIVE_METADATA_AND_MITIGATION_ONLY",
+      "dark_web_collection": "PROHIBITED",
+      "leaked_or_stolen_data": "PROHIBITED",
+      "malware_or_exploit_payloads": "PROHIBITED",
+      "public_official_sources_only": true,
+      "sanctions_scope": "COMPLIANCE_AND_MANUAL_REVIEW_ONLY",
+      "target_or_strike_packages": "PROHIBITED"
+    },
+    "network": {
+      "arbitrary_url_input": false,
+      "authentication_bypass": false,
+      "credential_use": false,
+      "method": "GET_ONLY",
+      "protected_resources": false,
+      "redirects": "EXPLICIT_HOST_ALLOWLIST",
+      "response_size_bounded": true,
+      "timeouts_bounded": true
+    }
+  },
+  "research_verified_date": "2026-09-03",
+  "schema": "szl.killinchu.public-source-fabric/v1",
+  "source_count": 8,
+  "source_documentation": {
+    "cert-ua-advisories": "https://cert.gov.ua/articles",
+    "china-cac-notices": "https://www.cac.gov.cn/",
+    "cia-public-stories": "https://www.cia.gov/stories",
+    "cia-world-factbook-status": "https://www.cia.gov/the-world-factbook/about/archives/2022/countries/clipperton-island/flag",
+    "cisa-kev": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+    "nsa-advisories": "https://www.nsa.gov/Cybersecurity/Cybersecurity-Advisories-Guidance/",
+    "ofac-sdn": "https://ofac.treasury.gov/sanctions-list-service",
+    "ukraine-open-data-metadata": "https://data.gov.ua/pages/dokumentatsiia-api-iedynoho-derzhavnoho-veb-portalu-vidkrytykh-danykh",
+    "un-dprk-1718": "https://main.un.org/securitycouncil/en/sanctions/1718/materials"
+  },
+  "sources": [
+    {
+      "authority": "Computer Emergency Response Team of Ukraine",
+      "classification": "DEFENSIVE_CYBER_ADVISORY_INDEX",
+      "jurisdiction": "Ukraine",
+      "max_bytes": 4000000,
+      "max_items": 250,
+      "name": "CERT-UA Public Cyber Advisories",
+      "note": "Only the public article/recommendation index is collected. Contact/reporting channels and operational location reports are explicitly excluded.",
+      "parser": "cert-ua-index",
+      "source_id": "cert-ua-advisories",
+      "ttl_seconds": 3600,
+      "url": "https://cert.gov.ua/articles"
+    },
+    {
+      "authority": "Cyberspace Administration of China",
+      "classification": "PUBLIC_REGULATORY_NOTICE_INDEX",
+      "jurisdiction": "China",
+      "max_bytes": 5000000,
+      "max_items": 250,
+      "name": "Cyberspace Administration of China Public Notices",
+      "note": "Public regulatory notices and publication metadata only.",
+      "parser": "cac-index",
+      "source_id": "china-cac-notices",
+      "ttl_seconds": 7200,
+      "url": "https://www.cac.gov.cn/"
+    },
+    {
+      "authority": "Central Intelligence Agency",
+      "classification": "PUBLIC_AGENCY_NEWS_INDEX",
+      "jurisdiction": "United States",
+      "max_bytes": 4000000,
+      "max_items": 200,
+      "name": "CIA Public News and Stories",
+      "note": "Public stories only. The CIA World Factbook was sunset on 2026-02-04.",
+      "parser": "cia-stories",
+      "source_id": "cia-public-stories",
+      "ttl_seconds": 7200,
+      "url": "https://www.cia.gov/stories"
+    },
+    {
+      "authority": "Cybersecurity and Infrastructure Security Agency",
+      "classification": "DEFENSIVE_VULNERABILITY_METADATA",
+      "jurisdiction": "United States",
+      "max_bytes": 12000000,
+      "max_items": 10000,
+      "name": "CISA Known Exploited Vulnerabilities Catalog",
+      "note": "Prioritization metadata only; no exploit payloads or scanning.",
+      "parser": "cisa-kev",
+      "source_id": "cisa-kev",
+      "ttl_seconds": 3600,
+      "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    },
+    {
+      "authority": "National Security Agency",
+      "classification": "DEFENSIVE_CYBER_ADVISORY_INDEX",
+      "jurisdiction": "United States",
+      "max_bytes": 4000000,
+      "max_items": 250,
+      "name": "NSA Cybersecurity Advisories and Guidance",
+      "note": "Public index metadata only. Access-controlled cyber.mil resources are excluded.",
+      "parser": "nsa-index",
+      "source_id": "nsa-advisories",
+      "ttl_seconds": 3600,
+      "url": "https://www.nsa.gov/Cybersecurity/Cybersecurity-Advisories-Guidance/"
+    },
+    {
+      "authority": "U.S. Department of the Treasury, Office of Foreign Assets Control",
+      "classification": "SANCTIONS_COMPLIANCE_LIST",
+      "jurisdiction": "United States",
+      "max_bytes": 40000000,
+      "max_items": 50000,
+      "name": "OFAC Specially Designated Nationals List",
+      "note": "Exact-name compliance support; matches require manual review.",
+      "parser": "ofac-sdn",
+      "source_id": "ofac-sdn",
+      "ttl_seconds": 21600,
+      "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML"
+    },
+    {
+      "authority": "Unified State Web Portal of Open Data",
+      "classification": "PUBLIC_OPEN_DATA_METADATA_ONLY",
+      "jurisdiction": "Ukraine",
+      "max_bytes": 8000000,
+      "max_items": 50,
+      "name": "Ukraine Open Data Catalog — bounded metadata search",
+      "note": "Catalog metadata only; resource files are never downloaded. Active-force, location, movement, personnel, and personal-data records are excluded.",
+      "parser": "ckan-metadata",
+      "source_id": "ukraine-open-data-metadata",
+      "ttl_seconds": 7200,
+      "url": "https://data.gov.ua/api/3/action/package_search?q=%D0%BA%D1%96%D0%B1%D0%B5%D1%80%D0%B1%D0%B5%D0%B7%D0%BF%D0%B5%D0%BA%D0%B0%20OR%20%D1%81%D0%B0%D0%BD%D0%BA%D1%86%D1%96%D1%97%20OR%20%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D1%96%D0%B2%D0%BB%D1%96&rows=50"
+    },
+    {
+      "authority": "United Nations Security Council",
+      "classification": "SANCTIONS_COMPLIANCE_LIST",
+      "jurisdiction": "International",
+      "max_bytes": 15000000,
+      "max_items": 5000,
+      "name": "UN Security Council 1718 Sanctions List",
+      "note": "DPRK sanctions compliance data; not a targeting dataset.",
+      "parser": "un-sanctions",
+      "source_id": "un-dprk-1718",
+      "ttl_seconds": 21600,
+      "url": "https://scsanctions.un.org/xml/en/dprk"
+    }
+  ],
+  "state": "DECLARED",
+  "version": "1.0.0"
+}

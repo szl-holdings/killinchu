@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "0878ba17f049b48cdcec8d55ed739e8998334f7d7f782f2d421712706df17331"
+    "sha256": "0b5fd34f18c4e46cf0265539cc875ab769b67edebe75873fef19762707bbba6e"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "0878ba17f049b48cdcec8d55ed739e8998334f7d7f782f2d421712706df17331"
+    "sha256": "0b5fd34f18c4e46cf0265539cc875ab769b67edebe75873fef19762707bbba6e"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -82,6 +82,7 @@
     "killinchu_posture_topology.py",
     "killinchu_protocols.py",
     "killinchu_public_route_repair.py",
+    "killinchu_public_source_fabric.py",
     "killinchu_receipt_export.py",
     "killinchu_research_sources.py",
     "killinchu_restraint_tile.py",
@@ -89,6 +90,7 @@
     "killinchu_szl_pqc_sign.py",
     "killinchu_track_contract.py",
     "killinchu_v3.py",
+    "killinchu_vessels_screening.py",
     "killinchu_warhacker_demos.py",
     "killinchu_wave910.py",
     "knowledge.json",
@@ -347,6 +349,7 @@
     "killinchu_platform_dynamics",
     "killinchu_posture_topology",
     "killinchu_public_route_repair",
+    "killinchu_public_source_fabric",
     "killinchu_research_sources",
     "killinchu_restraint_tile",
     "killinchu_resweep_ops",
