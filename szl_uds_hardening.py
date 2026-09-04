@@ -6,7 +6,9 @@ Killinchu UDS HARDENING — REAL-DATA endpoints for the /api/killinchu/uds/v1/*
 namespace. ADDITIVE, registered BEFORE killinchu_fusion so the fusion module's
 honest *synthetic* stubs DEFER to these real-data routes via its _claim() guard.
 
-Every endpoint here is backed by REAL artifacts committed to .compliance/:
+The original hardening endpoints are backed by REAL artifacts committed to
+.compliance/. Wave 5 additionally accepts an inline operator-supplied SBOM and
+explicit component-to-CVE findings; those associations are never inferred:
   - scap-reports/scan_summary.json   -> real OpenSCAP oscap 1.4.2 DISA STIG output
   - scap-reports/ubi9_stig_fails.json-> the actual failing rules (severity-ranked)
   - iron_bank_parity.json            -> real Dockerfile base-image audit
@@ -22,9 +24,12 @@ secret is absent — NEVER a fabricated signature):
   GET  /api/killinchu/uds/v1/big-bang/parity
   GET  /api/killinchu/uds/v1/tradewinds/listing
   GET  /api/killinchu/uds/v1/hardening/index   (manifest of all real artifacts)
+  GET  /api/killinchu/uds/v1/sbom/exposure/schema
+  POST /api/killinchu/uds/v1/sbom/exposure/evaluate
 
 Honesty: real oscap numbers only; Iron Bank images not pushed (creds required);
-Big Bang chart lints/renders clean (verified). No fabrication.
+Big Bang chart lints/renders clean (verified). SBOM/CVE associations are
+operator supplied and official-source gaps remain explicit. No fabrication.
 
 Author: Yachay <yachay@szlholdings.dev>. Perplexity Computer Agent. DCO signed.
 """

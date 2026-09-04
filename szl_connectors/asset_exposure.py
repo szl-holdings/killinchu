@@ -18,6 +18,7 @@ from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import re
 from typing import Any, Callable, Iterable
 
@@ -43,6 +44,7 @@ _EXPOSURE_VALUES = {
     "internet": 1.0,
 }
 _LANE_ORDER = {"P0": 0, "P1": 1, "P2": 2, "P3": 3, "REVIEW": 4}
+_SOURCE_PRIORITIES = {"IMMEDIATE", "HIGH", "ELEVATED", "ROUTINE"}
 
 
 class ExposureInputError(ValueError):
@@ -108,6 +110,7 @@ def _canonical_bytes(value: Any) -> bytes:
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,
+        allow_nan=False,
     ).encode("utf-8")
 
 
@@ -662,7 +665,7 @@ def _score(value: Any) -> float | None:
         number = float(value)
     except (TypeError, ValueError):
         return None
-    if number < 0.0 or number > 0.99:
+    if not math.isfinite(number) or number < 0.0 or number > 0.99:
         return None
     return number
 
@@ -730,20 +733,32 @@ def compose_report(
                 "coverage": "NONE",
                 "note": "resolver returned evidence for a different CVE",
             }
+        source_score = _score((record or {}).get("priority_score"))
+        source_priority = str(
+            (record or {}).get("priority") or "UNAVAILABLE"
+        ).upper()
+        if record is not None and (
+            source_score is None or source_priority not in _SOURCE_PRIORITIES
+        ):
+            record = None
+            source_score = None
+            source_priority = "UNAVAILABLE"
+            meta = {
+                **meta,
+                "state": "ERROR",
+                "coverage": "NONE",
+                "note": "resolver returned an invalid priority record",
+            }
         if meta["state"] == "CONNECTED" and record is not None:
             connected += 1
-        if meta["coverage"] == "FULL":
+        if meta["coverage"] == "FULL" and record is not None:
             full += 1
 
-        source_score = _score((record or {}).get("priority_score"))
         asset_score = (
             round(min(0.99, source_score * multiplier), 4)
             if source_score is not None
             else None
         )
-        source_priority = str(
-            (record or {}).get("priority") or "UNAVAILABLE"
-        ).upper()
         lane = _lane(source_priority, asset_score)
         row = {
             **finding,

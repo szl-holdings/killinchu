@@ -177,6 +177,15 @@ validation, VEX closure, request bounds, deterministic evidence hashes, formula
 bounds, honest unavailable states, and source scans proving that the Wave 5
 module has no direct HTTP, socket, subprocess, or shell primitive.
 
+### Production witness
+
+After governed Hugging Face publication, the `Asset Exposure Wave 5 Live
+Witness` submits only a fixed synthetic SBOM, verifies that the running build
+matches protected GitHub `main`, checks every authority boundary, and uploads
+an immutable response-hash artifact. It runs after successful publication and
+every six hours. `MEASURED`, `PARTIAL`, and honest `UNAVAILABLE` source states
+are distinguished; the witness never converts an upstream outage into evidence.
+
 ## Safety boundary
 
 Wave 5 is not a vulnerability scanner, package intelligence crawler, exploit

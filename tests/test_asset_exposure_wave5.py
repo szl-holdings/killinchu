@@ -336,6 +336,30 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(row["remediation_lane"], "REVIEW")
         self.assertIsNone(row["asset_priority_score"])
 
+    def test_invalid_priority_records_are_rejected(self) -> None:
+        prepared = prepare_payload(cyclonedx_payload())
+        cases = (
+            (float("nan"), "IMMEDIATE"),
+            (0.50, "URGENT"),
+        )
+        for score, priority in cases:
+            with self.subTest(score=score, priority=priority):
+                invalid = fusion(
+                    cve="CVE-2021-44228",
+                    score=score,
+                    priority=priority,
+                )
+                report = compose_report(
+                    prepared,
+                    {"CVE-2021-44228": invalid},
+                    observed_at="2026-09-04T00:00:00+00:00",
+                )
+                row = report["remediation_queue"][0]
+                self.assertEqual(report["state"], "UNAVAILABLE")
+                self.assertEqual(row["source_state"], "ERROR")
+                self.assertEqual(row["remediation_lane"], "REVIEW")
+                self.assertIsNone(row["asset_priority_score"])
+
     def test_evidence_digest_excludes_observation_time(self) -> None:
         prepared = prepare_payload(cyclonedx_payload())
         resolved = {"CVE-2021-44228": fusion(cve="CVE-2021-44228")}
