@@ -59,6 +59,13 @@ _BARE_SURFACE_REDIRECTS = {
     "/airspace": "/elite#cuas_lab",
 }
 
+# Source-native planes are real routes registered by their capability
+# modules. Listing them here makes the navigation contract explicit while
+# deliberately avoiding a self-redirect loop.
+_SOURCE_NATIVE_PLANES = frozenset({
+    "/defend",
+})
+
 # ---------------------------------------------------------------------------
 # ADDITIVE (tab-fold wave, 2026-07-02): fold the thin bare SPA pages
 #   /counter-uas  /drones  /map

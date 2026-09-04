@@ -20,6 +20,7 @@ def test_retired_mission_pack_names_resolve_same_origin_inside_killinchu() -> No
 
 
 def test_defend_and_resilience_are_real_routes_not_presentation_redirects() -> None:
+    assert routes._SOURCE_NATIVE_PLANES == {"/defend"}
     assert "/resilience" not in routes._BARE_SURFACE_REDIRECTS
     assert "/defend" not in routes._BARE_SURFACE_REDIRECTS
     assert "/immune" not in routes._BARE_SURFACE_REDIRECTS
