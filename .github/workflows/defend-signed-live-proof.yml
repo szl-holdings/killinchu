@@ -1,0 +1,411 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Defend signed live proof
+
+"on":
+  push:
+    branches: [ops/defend-signed-live-proof-20260904]
+    paths:
+      - .github/workflows/defend-signed-live-proof.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: defend-signed-live-proof
+  cancel-in-progress: false
+
+jobs:
+  prove:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      SPACE_ID: SZLHOLDINGS/killinchu
+      SPACE_BASE_URL: https://szlholdings-killinchu.hf.space
+      KILLINCHU_SOURCE_SHA: c797b4d1ea336c02f08ddaf72c01b152f3c04d4d
+      HF_HUB_DISABLE_TELEMETRY: "1"
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout operator source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Install exact provider and probe clients
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "huggingface_hub==1.19.0" \
+            "requests==2.32.5"
+          python -m pip check
+
+      - name: Require exact protected-main deployment before mutation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HF_TOKEN:-}" || { echo '::error::HF_ORG_TOKEN/HF_TOKEN is unavailable'; exit 2; }
+          echo "::add-mask::$HF_TOKEN"
+          current_main="$(
+            curl --fail --silent --show-error \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/commits/main" \
+            | python -c 'import json,sys; print(json.load(sys.stdin)["sha"])'
+          )"
+          test "$current_main" = "$KILLINCHU_SOURCE_SHA"
+          python - <<'PY'
+          import json
+          import os
+          import requests
+
+          base = os.environ["SPACE_BASE_URL"].rstrip("/")
+          expected = os.environ["KILLINCHU_SOURCE_SHA"]
+          response = requests.get(base + "/api/build-info", timeout=30)
+          response.raise_for_status()
+          body = response.json()
+          observed = str((body.get("build") or {}).get("revision") or "")
+          if observed != expected:
+              raise SystemExit(
+                  f"live Killinchu revision mismatch before secret mutation: {observed} != {expected}"
+              )
+          print(json.dumps({"live_revision": observed, "state": "SOURCE_BOUND"}, sort_keys=True))
+          PY
+
+      - name: Preserve or create the write-only Defend signing secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          import secrets
+          from huggingface_hub import HfApi
+
+          token = os.environ["HF_TOKEN"].rstrip("\r\n")
+          repo_id = os.environ["SPACE_ID"]
+          api = HfApi(token=token)
+          api.auth_check(repo_id=repo_id, repo_type="space", write=True)
+          metadata = api.get_space_secrets(repo_id)
+          if isinstance(metadata, dict):
+              keys = set(metadata)
+          elif isinstance(metadata, list):
+              keys = {
+                  str(item.get("key") if isinstance(item, dict) else getattr(item, "key", ""))
+                  for item in metadata
+              }
+          else:
+              raise SystemExit("unexpected Space secret metadata shape")
+          keys.discard("")
+
+          accepted = ("KILLINCHU_DEFEND_SIGNING_KEY", "SENTRA_SIGNING_KEY")
+          existing = next((name for name in accepted if name in keys), None)
+          if existing:
+              selected = existing
+              action = "PRESERVED_EXISTING_WRITE_ONLY_SECRET"
+          else:
+              selected = "KILLINCHU_DEFEND_SIGNING_KEY"
+              api.add_space_secret(
+                  repo_id=repo_id,
+                  key=selected,
+                  value=secrets.token_hex(32),
+                  description=(
+                      "Persistent HMAC-SHA256 key for Killinchu Defend receipt integrity; "
+                      "generated once by governed CI and never printed or written to disk."
+                  ),
+              )
+              action = "CREATED_WRITE_ONLY_SECRET"
+
+          api.restart_space(repo_id)
+          receipt = {
+              "schema": "szl.killinchu.defend-signing-secret/v1",
+              "space": repo_id,
+              "selected_key_name": selected,
+              "action": action,
+              "secret_value_read": False,
+              "secret_value_printed": False,
+              "secret_value_recorded": False,
+              "runtime_restart_requested": True,
+          }
+          with open("artifacts/defend-secret-metadata.json", "w", encoding="utf-8") as handle:
+              json.dump(receipt, handle, indent=2, sort_keys=True)
+              handle.write("\n")
+          print(json.dumps(receipt, sort_keys=True))
+          PY
+
+      - name: Wait for exact restarted runtime and prove signed workflow
+        env:
+          GITHUB_RUN_ID_VALUE: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import time
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          import requests
+
+          base = os.environ["SPACE_BASE_URL"].rstrip("/")
+          expected_sha = os.environ["KILLINCHU_SOURCE_SHA"]
+          run_id = os.environ["GITHUB_RUN_ID_VALUE"]
+          session = f"defend-live-proof-{run_id}-0123456789abcdef"
+          headers = {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache",
+              "X-SZL-Session": session,
+              "User-Agent": "szl-defend-signed-live-proof/1.0",
+          }
+
+          def get(path: str) -> dict:
+              response = requests.get(base + path, headers=headers, timeout=30)
+              response.raise_for_status()
+              value = response.json()
+              if not isinstance(value, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return value
+
+          def post(path: str, body: dict) -> dict:
+              response = requests.post(base + path, headers=headers, json=body, timeout=30)
+              if response.status_code != 200:
+                  raise RuntimeError(
+                      f"{path} returned {response.status_code}: {response.text[:1000]}"
+                  )
+              value = response.json()
+              if not isinstance(value, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return value
+
+          deadline = time.monotonic() + 900
+          last: dict = {}
+          while time.monotonic() < deadline:
+              try:
+                  build = get("/api/build-info")
+                  status = get("/api/defend/status")
+                  last = {"build": build, "status": status}
+                  if (
+                      (build.get("build") or {}).get("revision") == expected_sha
+                      and status.get("state") == "READY"
+                      and status.get("workflow_operational") is True
+                      and status.get("production_receipts_ready") is True
+                      and (status.get("signing") or {}).get("state") == "HMAC_SHA256_READY"
+                  ):
+                      break
+              except (requests.RequestException, ValueError, RuntimeError):
+                  pass
+              time.sleep(10)
+          else:
+              raise SystemExit(
+                  "restarted Killinchu did not become source-bound with signed Defend receipts: "
+                  + json.dumps(last, sort_keys=True)[:3000]
+              )
+
+          source = get("/api/defend/source")
+          if (source.get("source") or {}).get("revision") != "e3483562a440e72cfbde4c25cffef339545778d3":
+              raise SystemExit("Defend capability source revision drifted")
+          if source.get("public_space") != "SZLHOLDINGS/killinchu":
+              raise SystemExit("Defend public-space binding drifted")
+
+          event = {
+              "source_event_id": f"live-proof-{run_id}",
+              "event_type": "vulnerability.known_exploited",
+              "asset_ref": f"asset/live-proof-{run_id}",
+              "actor_id": "sensor/github-actions",
+              "severity": "CRITICAL",
+              "summary": "Source-bound live verification event for the public Defend approval and receipt workflow.",
+              "requested_by": "live-verifier",
+              "indicators": {
+                  "source_authenticated": True,
+                  "asset_owner_known": True,
+                  "rollback_available": True,
+                  "known_exploited": True,
+                  "public_exposure": True,
+                  "privilege_escalation": False,
+                  "agent_tool_policy_violation": False,
+                  "destructive_capability": False,
+                  "evidence_count": 2,
+              },
+          }
+          analysis = post("/api/defend/analyze", event)
+          proposal = analysis.get("proposal") or {}
+          analysis_receipt = analysis.get("receipt") or {}
+          if analysis.get("decision") != "PROPOSED" or proposal.get("state") != "PROPOSED":
+              raise SystemExit("live Defend analysis did not produce a reviewable proposal")
+          if proposal.get("can_execute") is not False:
+              raise SystemExit("public Defend proposal gained execution authority")
+          if not str(analysis_receipt.get("signature_state") or "").startswith("HMAC_SHA256:"):
+              raise SystemExit("analysis receipt is not HMAC signed")
+          if analysis_receipt.get("signature_present") is not True:
+              raise SystemExit("analysis receipt lacks a signature")
+
+          proposal_id = str(proposal.get("id") or "")
+          approval = post(
+              "/api/defend/approve",
+              {"proposal_id": proposal_id, "approver": "independent-approver"},
+          )
+          if approval.get("proposal_state") != "APPROVED_FOR_REHEARSAL":
+              raise SystemExit("independent approval state did not close")
+          if approval.get("can_execute_external_action") is not False:
+              raise SystemExit("approval gained external execution authority")
+
+          rehearsal = post("/api/defend/rehearse", {"proposal_id": proposal_id})
+          simulation = rehearsal.get("rehearsal") or {}
+          receipt = rehearsal.get("receipt") or {}
+          if rehearsal.get("proposal_state") != "REHEARSED":
+              raise SystemExit("bounded rehearsal did not complete")
+          if simulation.get("mode") != "DETERMINISTIC_REHEARSAL":
+              raise SystemExit("Defend returned an unexpected execution mode")
+          if simulation.get("external_calls") != 0 or simulation.get("external_effectors") is not False:
+              raise SystemExit("public Defend rehearsal attempted an external effect")
+          if not simulation.get("rollback_plan"):
+              raise SystemExit("Defend rehearsal lacks a rollback plan")
+          if not str(receipt.get("signature_state") or "").startswith("HMAC_SHA256:"):
+              raise SystemExit("rehearsal receipt is not HMAC signed")
+          if receipt.get("signature_present") is not True:
+              raise SystemExit("rehearsal receipt lacks a signature")
+
+          receipt_id = str(receipt.get("id") or "")
+          verification = post("/api/defend/verify", {"receipt_id": receipt_id})
+          if verification.get("integrity_verified") is not True:
+              raise SystemExit("receipt chain integrity did not verify")
+          if verification.get("predecessor_verified") is not True:
+              raise SystemExit("receipt predecessor did not verify")
+          if verification.get("signature_verified") is not True:
+              raise SystemExit("receipt HMAC did not independently verify")
+
+          cases = get("/api/defend/cases?limit=5")
+          if not any(
+              item.get("state") == "REHEARSED_AND_VERIFIED"
+              for item in cases.get("cases", [])
+              if isinstance(item, dict)
+          ):
+              raise SystemExit("verified case state was not observable in the caller session")
+
+          proof = {
+              "schema": "szl.killinchu.defend-live-proof/v1",
+              "captured_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+              "space": os.environ["SPACE_ID"],
+              "space_source_revision": expected_sha,
+              "defend_source_revision": (source.get("source") or {}).get("revision"),
+              "workflow_run_id": run_id,
+              "status": {
+                  "state": status.get("state"),
+                  "workflow_operational": status.get("workflow_operational"),
+                  "production_receipts_ready": status.get("production_receipts_ready"),
+                  "signing_state": (status.get("signing") or {}).get("state"),
+                  "secret_value_exposed": (status.get("signing") or {}).get("secret_value_exposed"),
+              },
+              "analysis": {
+                  "decision": analysis.get("decision"),
+                  "proposal_id": proposal_id,
+                  "action_type": proposal.get("action_type"),
+                  "can_execute": proposal.get("can_execute"),
+                  "receipt_id": analysis_receipt.get("id"),
+                  "signature_state": analysis_receipt.get("signature_state"),
+                  "signature_present": analysis_receipt.get("signature_present"),
+              },
+              "approval": {
+                  "state": approval.get("proposal_state"),
+                  "authority": (approval.get("approval") or {}).get("authority"),
+                  "can_execute_external_action": approval.get("can_execute_external_action"),
+              },
+              "rehearsal": {
+                  "state": rehearsal.get("proposal_state"),
+                  "mode": simulation.get("mode"),
+                  "external_calls": simulation.get("external_calls"),
+                  "external_effectors": simulation.get("external_effectors"),
+                  "rollback_steps": len(simulation.get("rollback_plan") or []),
+                  "receipt_id": receipt_id,
+                  "signature_state": receipt.get("signature_state"),
+                  "signature_present": receipt.get("signature_present"),
+              },
+              "verification": verification,
+              "session_token_recorded": False,
+              "secret_value_read": False,
+              "secret_value_recorded": False,
+              "truth_label": "MEASURED",
+              "complete": True,
+          }
+          Path("artifacts/defend-signed-live-proof.json").write_text(
+              json.dumps(proof, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(proof, indent=2, sort_keys=True))
+          PY
+
+      - name: Record persistent secret-free live proof
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          import requests
+
+          proof = json.loads(Path("artifacts/defend-signed-live-proof.json").read_text(encoding="utf-8"))
+          title = "chore(defend): signed live proof " + proof["space_source_revision"][:12]
+          body = "\n".join(
+              [
+                  "## Killinchu Defend signed live proof",
+                  "",
+                  f"- Space: `{proof['space']}`",
+                  f"- Killinchu source: `{proof['space_source_revision']}`",
+                  f"- Defensive-control source: `{proof['defend_source_revision']}`",
+                  f"- Runtime: `{proof['status']['state']}`",
+                  f"- Receipt signing: `{proof['status']['signing_state']}`",
+                  f"- Analysis: `{proof['analysis']['decision']}`",
+                  f"- Approval: `{proof['approval']['state']}` / `{proof['approval']['authority']}`",
+                  f"- Rehearsal: `{proof['rehearsal']['mode']}` with `{proof['rehearsal']['external_calls']}` external calls",
+                  f"- Receipt integrity: `{proof['verification']['integrity_verified']}`",
+                  f"- Receipt signature verified: `{proof['verification']['signature_verified']}`",
+                  "- Secret value read or recorded: `false`",
+                  "- External effectors: `false`",
+                  "",
+                  f"Workflow run: `{proof['workflow_run_id']}`",
+              ]
+          )
+          response = requests.post(
+              os.environ["GITHUB_API_URL"].rstrip("/") + f"/repos/{os.environ['GITHUB_REPOSITORY']}/issues",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+              json={"title": title, "body": body},
+              timeout=30,
+          )
+          response.raise_for_status()
+          print(response.json()["html_url"])
+          PY
+
+      - name: Upload immutable live proof
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: defend-signed-live-proof-${{ github.run_id }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 180
