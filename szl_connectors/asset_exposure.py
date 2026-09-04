@@ -68,6 +68,10 @@ def _strict_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return value
 
 
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
 def loads_strict(raw: bytes) -> dict[str, Any]:
     """Decode bounded, duplicate-key-rejecting UTF-8 JSON."""
 
@@ -81,8 +85,9 @@ def loads_strict(raw: bytes) -> dict[str, Any]:
         value = json.loads(
             raw.decode("utf-8"),
             object_pairs_hook=_strict_object,
+            parse_constant=_reject_json_constant,
         )
-    except (UnicodeDecodeError, json.JSONDecodeError, DuplicateKeyError) as exc:
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
         raise ExposureInputError(
             "INVALID_JSON",
             f"strict UTF-8 JSON required: {type(exc).__name__}",
@@ -124,6 +129,11 @@ def _bounded_text(
     if not isinstance(value, str):
         raise ExposureInputError("INVALID_FIELD", f"{field} must be a string")
     normalized = value.strip()
+    if any(ord(character) < 0x20 for character in normalized):
+        raise ExposureInputError(
+            "INVALID_FIELD",
+            f"{field} contains a control character",
+        )
     if required and not normalized:
         raise ExposureInputError("MISSING_FIELD", f"{field} is required")
     if len(normalized) > maximum:
@@ -247,7 +257,9 @@ def _walk_cyclonedx(rows: Any) -> Iterable[dict[str, Any]]:
             "INVALID_SBOM",
             "CycloneDX components must be an array",
         )
-    for row in rows:
+    stack = list(reversed(rows))
+    while stack:
+        row = stack.pop()
         if not isinstance(row, dict):
             raise ExposureInputError(
                 "INVALID_SBOM",
@@ -256,7 +268,12 @@ def _walk_cyclonedx(rows: Any) -> Iterable[dict[str, Any]]:
         yield row
         nested = row.get("components")
         if nested is not None:
-            yield from _walk_cyclonedx(nested)
+            if not isinstance(nested, list):
+                raise ExposureInputError(
+                    "INVALID_SBOM",
+                    "nested CycloneDX components must be an array",
+                )
+            stack.extend(reversed(nested))
 
 
 def _parse_cyclonedx(sbom: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -268,9 +285,26 @@ def _parse_cyclonedx(sbom: dict[str, Any]) -> tuple[dict[str, Any], list[dict[st
     )
     assert spec_version is not None
 
+    metadata = (
+        sbom.get("metadata")
+        if isinstance(sbom.get("metadata"), dict)
+        else {}
+    )
+    root_component = (
+        metadata.get("component")
+        if isinstance(metadata.get("component"), dict)
+        else {}
+    )
+    rows: list[dict[str, Any]] = []
+    if root_component and (
+        root_component.get("bom-ref") or root_component.get("purl")
+    ):
+        rows.append(root_component)
+    rows.extend(_walk_cyclonedx(sbom.get("components", [])))
+
     components: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for row in _walk_cyclonedx(sbom.get("components", [])):
+    for row in rows:
         ref = row.get("bom-ref") or row.get("purl")
         if not ref:
             raise ExposureInputError(
@@ -297,12 +331,6 @@ def _parse_cyclonedx(sbom: dict[str, Any]) -> tuple[dict[str, Any], list[dict[st
                 f"SBOM exceeds {MAX_COMPONENTS} components",
             )
 
-    metadata = sbom.get("metadata") if isinstance(sbom.get("metadata"), dict) else {}
-    root_component = (
-        metadata.get("component")
-        if isinstance(metadata.get("component"), dict)
-        else {}
-    )
     identity = {
         "format": "CycloneDX",
         "version": spec_version,
@@ -453,7 +481,7 @@ def _normalize_findings(
         )
 
     findings: list[dict[str, Any]] = []
-    seen: set[tuple[str, str, str]] = set()
+    seen: set[tuple[str, str]] = set()
     for index, row in enumerate(raw):
         if not isinstance(row, dict):
             raise ExposureInputError(
@@ -523,9 +551,12 @@ def _normalize_findings(
                 maximum=512,
             ),
         }
-        key = (component_ref, cve, status)
+        key = (component_ref, cve)
         if key in seen:
-            continue
+            raise ExposureInputError(
+                "DUPLICATE_FINDING",
+                f"findings repeats component/CVE pair: {component_ref} / {cve}",
+            )
         seen.add(key)
         findings.append(normalized)
 
@@ -689,6 +720,16 @@ def compose_report(
 
         fusion_raw = fusion_results.get(finding["cve"])
         record, meta = _fusion_record(fusion_raw)
+        if record is not None and (
+            str(record.get("cve") or "").upper() != finding["cve"]
+        ):
+            record = None
+            meta = {
+                **meta,
+                "state": "ERROR",
+                "coverage": "NONE",
+                "note": "resolver returned evidence for a different CVE",
+            }
         if meta["state"] == "CONNECTED" and record is not None:
             connected += 1
         if meta["coverage"] == "FULL":

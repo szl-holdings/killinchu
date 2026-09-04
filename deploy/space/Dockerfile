@@ -609,6 +609,7 @@ COPY deploy/uds-package.yaml ./deploy/uds-package.yaml
 # fails and /api/killinchu/connectors + /integrations 404. Shared byte-identical w/ a11oy.
 # Cache-bust: szl-connectors-2026-06-10
 COPY szl_connectors/__init__.py ./szl_connectors/__init__.py
+COPY szl_connectors/asset_exposure.py ./szl_connectors/asset_exposure.py
 COPY szl_connectors/base.py ./szl_connectors/base.py
 COPY szl_connectors/bindings.py ./szl_connectors/bindings.py
 COPY szl_connectors/comms/__init__.py ./szl_connectors/comms/__init__.py

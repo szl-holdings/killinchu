@@ -152,6 +152,21 @@ class InputContractTests(unittest.TestCase):
         component = prepared["component_map"]["SPDXRef-Package-openssl"]
         self.assertEqual(component["purl"], "pkg:generic/openssl@3.0.0")
 
+    def test_cyclonedx_root_component_is_addressable(self) -> None:
+        payload = cyclonedx_payload()
+        root = {
+            "type": "application",
+            "bom-ref": "pkg:generic/payments-api@1.0.0",
+            "name": "payments-api",
+            "version": "1.0.0",
+        }
+        payload["sbom"]["metadata"]["component"] = root
+        payload["sbom"]["components"] = []
+        payload["findings"][0]["component_ref"] = root["bom-ref"]
+        prepared = prepare_payload(payload)
+        self.assertEqual(prepared["sbom"]["component_count"], 1)
+        self.assertIn(root["bom-ref"], prepared["component_map"])
+
     def test_unknown_component_fails_closed(self) -> None:
         payload = cyclonedx_payload()
         payload["findings"][0]["component_ref"] = "missing"
@@ -179,6 +194,15 @@ class InputContractTests(unittest.TestCase):
         prepared = prepare_payload(payload)
         self.assertEqual(prepared["active_cves"], [])
 
+    def test_duplicate_component_cve_is_rejected(self) -> None:
+        payload = cyclonedx_payload()
+        duplicate = dict(payload["findings"][0])
+        duplicate["status"] = "under_investigation"
+        payload["findings"].append(duplicate)
+        with self.assertRaises(ExposureInputError) as caught:
+            prepare_payload(payload)
+        self.assertEqual(caught.exception.code, "DUPLICATE_FINDING")
+
     def test_active_cve_bound_is_enforced(self) -> None:
         payload = cyclonedx_payload()
         component = payload["sbom"]["components"][0]["bom-ref"]
@@ -197,6 +221,11 @@ class InputContractTests(unittest.TestCase):
     def test_strict_json_rejects_duplicate_keys(self) -> None:
         with self.assertRaises(ExposureInputError) as caught:
             loads_strict(b'{"asset":{},"asset":{}}')
+        self.assertEqual(caught.exception.code, "INVALID_JSON")
+
+    def test_nonstandard_json_constant_is_rejected(self) -> None:
+        with self.assertRaises(ExposureInputError) as caught:
+            loads_strict(b'{"asset": NaN}')
         self.assertEqual(caught.exception.code, "INVALID_JSON")
 
     def test_body_size_is_bounded(self) -> None:
@@ -290,6 +319,20 @@ class ReportTests(unittest.TestCase):
         )
         row = report["remediation_queue"][0]
         self.assertEqual(report["state"], "UNAVAILABLE")
+        self.assertEqual(row["remediation_lane"], "REVIEW")
+        self.assertIsNone(row["asset_priority_score"])
+
+    def test_mismatched_resolver_record_is_rejected(self) -> None:
+        prepared = prepare_payload(cyclonedx_payload())
+        wrong = fusion(cve="CVE-2024-0001")
+        report = compose_report(
+            prepared,
+            {"CVE-2021-44228": wrong},
+            observed_at="2026-09-04T00:00:00+00:00",
+        )
+        row = report["remediation_queue"][0]
+        self.assertEqual(report["state"], "UNAVAILABLE")
+        self.assertEqual(row["source_state"], "ERROR")
         self.assertEqual(row["remediation_lane"], "REVIEW")
         self.assertIsNone(row["asset_priority_score"])
 

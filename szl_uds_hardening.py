@@ -45,6 +45,11 @@ except Exception:  # pragma: no cover
 _PAYLOAD_TYPE = "application/vnd.szl.uds.hardening+json"
 _FLAGSHIPS = ["a11oy", "amaru", "sentra", "rosie", "killinchu", "vessels", "hatun-mcp"]
 
+try:
+    from szl_connectors import asset_exposure as _asset_exposure
+except Exception:  # pragma: no cover - guarded runtime integration
+    _asset_exposure = None
+
 
 def _root() -> Path:
     return Path(os.environ.get("KILLINCHU_ROOT", "/app"))
@@ -195,6 +200,28 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
             return JSONResponse(_sign(data))
     # registered.append(base + "/fedramp/posture")  # REMOVED: charter violation
 
+    # ---- Asset inventory + SBOM exposure correlation (Wave 5) ----
+    exposure_registration: dict[str, Any] = {
+        "module": "szl_connectors.asset_exposure",
+        "state": "UNAVAILABLE",
+        "registered": [],
+        "registered_count": 0,
+        "honesty": "asset exposure module did not import; no route fabricated",
+    }
+    if _asset_exposure is not None:
+        try:
+            exposure_registration = _asset_exposure.register(app, ns)
+            registered.extend(exposure_registration.get("registered", []))
+        except Exception as exc:  # keep the existing app available
+            exposure_registration = {
+                "module": "szl_connectors.asset_exposure",
+                "state": "ERROR",
+                "registered": [],
+                "registered_count": 0,
+                "error": type(exc).__name__,
+                "honesty": "Wave 5 registration failed closed; no success claimed",
+            }
+
     # ---- Hardening index (manifest of every real artifact) ----
     @app.get(base + "/hardening/index")
     async def uds_hardening_index() -> JSONResponse:
@@ -204,6 +231,7 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
                   "compliance_dir": str(c),
                   "artifacts": artifacts,
                   "endpoints": registered,
+                  "asset_exposure": exposure_registration,
                   "real_data_source": "UDS HARDENING agent (Yachay) — OpenSCAP oscap 1.4.2 + helm 3.21 + Dockerfile audit",
                   "honesty": "These routes serve REAL committed artifacts. They register BEFORE "
                              "killinchu_fusion so its synthetic STIG/parity stubs defer to this real data."}
@@ -212,4 +240,5 @@ def register(app, ns: str = "killinchu") -> dict[str, Any]:
 
     return {"module": "szl_uds_hardening", "registered_count": len(registered),
             "registered": registered, "flagships": _FLAGSHIPS,
+            "asset_exposure": exposure_registration,
             "signing": bool(_dsse and _dsse.signing_available())}
