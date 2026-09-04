@@ -1,0 +1,959 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Build Defensive Fusion Wave 4
+
+on:
+  push:
+    branches:
+      - feat/defensive-fusion-wave4-20260904
+    paths:
+      - .github/workflows/build-defensive-fusion-wave4.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-defensive-fusion-wave4
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out wave branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/defensive-fusion-wave4-20260904
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Build source-bound defensive fusion
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+          security_path = root / 'szl_connectors/data_sources/security.py'
+          bindings_path = root / 'szl_connectors/bindings.py'
+          builder_path = root / '.github/workflows/build-defensive-fusion-wave4.yml'
+
+          fusion = r'''
+
+# ── Killinchu Defensive CVE Fusion ──────────────────────────────────────────
+# Correlates three official defensive sources for one exact CVE. This is a
+# prioritization instrument, not exploit guidance, asset scanning, or action
+# authority. Missing source evidence is omitted from the weighted denominator
+# rather than silently treated as a zero-risk observation.
+@register
+class DefensiveFusionConnector(Connector):
+    id = "defensive_fusion"
+    label = "Killinchu Defensive CVE Fusion"
+    category = "vuln"
+    auth_kind = "none"
+    free_tier = True
+    provider_base = "source-bound:CISA-KEV+NIST-NVD-2.0+FIRST-EPSS"
+    docs_url = "https://github.com/szl-holdings/killinchu/blob/main/docs/DEFENSIVE_FUSION_WAVE4.md"
+    schema_preview = [
+        "cve",
+        "priority",
+        "priority_score",
+        "coverage",
+        "known_exploited",
+        "known_ransomware_use",
+        "cvss",
+        "epss",
+        "epss_percentile",
+        "recommended_action",
+        "normalized_evidence_sha256",
+    ]
+
+    _cve_pattern = r"^CVE-\d{4}-\d{4,}$"
+    _weights = {
+        "cvss": 0.35,
+        "epss": 0.30,
+        "known_exploited": 0.30,
+        "known_ransomware_use": 0.05,
+    }
+
+    @classmethod
+    def _normalize_cve(cls, value: Any) -> str | None:
+        import re
+
+        candidate = str(value or "").strip().upper()
+        return candidate if re.fullmatch(cls._cve_pattern, candidate) else None
+
+    @staticmethod
+    def _as_probability(value: Any) -> float | None:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        if number < 0.0 or number > 1.0:
+            return None
+        return number
+
+    @staticmethod
+    def _as_cvss(value: Any) -> float | None:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        if number < 0.0 or number > 10.0:
+            return None
+        return number
+
+    @staticmethod
+    def _nvd_record(raw: Any, cve_id: str) -> dict[str, Any] | None:
+        if not isinstance(raw, dict):
+            return None
+        for wrapper in raw.get("vulnerabilities", []) or []:
+            if not isinstance(wrapper, dict):
+                continue
+            cve = wrapper.get("cve")
+            if not isinstance(cve, dict) or str(cve.get("id") or "").upper() != cve_id:
+                continue
+            metrics = cve.get("metrics") if isinstance(cve.get("metrics"), dict) else {}
+            score = severity = vector = version = None
+            for metric_name, metric_version in (
+                ("cvssMetricV40", "4.0"),
+                ("cvssMetricV31", "3.1"),
+                ("cvssMetricV30", "3.0"),
+                ("cvssMetricV2", "2.0"),
+            ):
+                rows = metrics.get(metric_name) or []
+                if not rows or not isinstance(rows[0], dict):
+                    continue
+                data = rows[0].get("cvssData") or {}
+                if not isinstance(data, dict):
+                    continue
+                score = DefensiveFusionConnector._as_cvss(data.get("baseScore"))
+                severity = data.get("baseSeverity") or rows[0].get("baseSeverity")
+                vector = data.get("vectorString")
+                version = metric_version
+                if score is not None:
+                    break
+            weaknesses: list[str] = []
+            for weakness in cve.get("weaknesses", []) or []:
+                if not isinstance(weakness, dict):
+                    continue
+                for description in weakness.get("description", []) or []:
+                    if not isinstance(description, dict):
+                        continue
+                    value = str(description.get("value") or "").strip().upper()
+                    if value.startswith("CWE-") and value not in weaknesses:
+                        weaknesses.append(value[:40])
+            return {
+                "id": cve_id,
+                "cvss": score,
+                "severity": str(severity or "UNAVAILABLE").upper(),
+                "vector": str(vector or "")[:160] or None,
+                "cvss_version": version,
+                "weaknesses": weaknesses[:20],
+                "published": str(cve.get("published") or "")[:32] or None,
+                "last_modified": str(cve.get("lastModified") or "")[:32] or None,
+                "vuln_status": str(cve.get("vulnStatus") or "UNAVAILABLE")[:80],
+            }
+        return None
+
+    @staticmethod
+    def _epss_record(raw: Any, cve_id: str) -> dict[str, Any] | None:
+        if not isinstance(raw, dict):
+            return None
+        for row in raw.get("data", []) or []:
+            if not isinstance(row, dict) or str(row.get("cve") or "").upper() != cve_id:
+                continue
+            score = DefensiveFusionConnector._as_probability(row.get("epss"))
+            percentile = DefensiveFusionConnector._as_probability(row.get("percentile"))
+            return {
+                "cve": cve_id,
+                "epss": score,
+                "percentile": percentile,
+                "date": str(row.get("date") or "")[:32] or None,
+            }
+        return None
+
+    @classmethod
+    def _priority(
+        cls,
+        *,
+        cvss: float | None,
+        epss: float | None,
+        kev_observed: bool,
+        known_exploited: bool,
+        ransomware_observed: bool,
+        ransomware_known: bool,
+    ) -> tuple[float | None, str, dict[str, float]]:
+        observed: dict[str, float] = {}
+        if cvss is not None:
+            observed["cvss"] = cvss / 10.0
+        if epss is not None:
+            observed["epss"] = epss
+        if kev_observed:
+            observed["known_exploited"] = 1.0 if known_exploited else 0.0
+        if ransomware_observed:
+            observed["known_ransomware_use"] = 1.0 if ransomware_known else 0.0
+        denominator = sum(cls._weights[key] for key in observed)
+        if denominator <= 0.0:
+            return None, "UNAVAILABLE", observed
+        score = sum(cls._weights[key] * value for key, value in observed.items()) / denominator
+        score = min(0.99, max(0.0, score))
+        if known_exploited or ransomware_known or score >= 0.85:
+            priority = "IMMEDIATE"
+        elif score >= 0.65:
+            priority = "HIGH"
+        elif score >= 0.40:
+            priority = "ELEVATED"
+        else:
+            priority = "ROUTINE"
+        return round(score, 4), priority, observed
+
+    @staticmethod
+    def _recommendation(priority: str) -> str:
+        return {
+            "IMMEDIATE": (
+                "Confirm affected assets, apply the vendor or CISA mitigation, reduce exposure, "
+                "and verify remediation under an approved defensive change process."
+            ),
+            "HIGH": (
+                "Schedule accelerated remediation, validate compensating controls, and verify "
+                "the affected inventory against the vendor advisory."
+            ),
+            "ELEVATED": (
+                "Prioritize owner review, patch planning, and exposure validation in the next "
+                "defensive maintenance window."
+            ),
+            "ROUTINE": (
+                "Track the CVE through normal vulnerability management and re-evaluate when "
+                "official KEV, CVSS, or EPSS evidence changes."
+            ),
+        }.get(priority, "No defensive priority can be computed until official evidence is available.")
+
+    def _probe(self):
+        # A cheap exact-CVE EPSS lookup proves the composite transport without
+        # downloading the full KEV catalogue or ATT&CK bundle.
+        st, _ = http_json(EpssConnector.provider_base + "?cve=CVE-2021-44228")
+        return (st == 200), f"Defensive fusion EPSS dependency HTTP {st}"
+
+    def read(self, query: dict | None = None) -> Records:
+        import hashlib
+        import json
+        import urllib.parse as up
+
+        requested = (query or {}).get("cve") or (query or {}).get("q") or ""
+        cve_id = self._normalize_cve(requested)
+        if cve_id is None:
+            return Records(
+                connector_id=self.id,
+                category=self.category,
+                state=State.READY,
+                records=[],
+                source=self.provider_base,
+                live=False,
+                note="provide one exact CVE identifier, for example q=CVE-2021-44228",
+                schema_preview=list(self.schema_preview),
+            )
+
+        cache_key = f"defensive-fusion:{cve_id}"
+        cached = _cached(cache_key, 300)
+        if cached:
+            return cached
+
+        source_states = {
+            "cisa_kev": "UNAVAILABLE",
+            "nvd_cve": "UNAVAILABLE",
+            "epss": "UNAVAILABLE",
+        }
+
+        kev_entry: dict[str, Any] | None = None
+        kev_records = CisaKevConnector().read({"limit": 10000})
+        if kev_records.state == State.CONNECTED:
+            source_states["cisa_kev"] = "MEASURED"
+            kev_entry = next(
+                (
+                    row
+                    for row in kev_records.records
+                    if str(row.get("cveID") or "").upper() == cve_id
+                ),
+                None,
+            )
+
+        nvd_status, nvd_raw = http_json(
+            NvdCveConnector.provider_base
+            + "?"
+            + up.urlencode({"cveId": cve_id, "resultsPerPage": 1})
+        )
+        nvd = self._nvd_record(nvd_raw, cve_id) if nvd_status == 200 else None
+        if nvd_status == 200 and isinstance(nvd_raw, dict):
+            source_states["nvd_cve"] = "MEASURED"
+
+        epss_status, epss_raw = http_json(
+            EpssConnector.provider_base + "?" + up.urlencode({"cve": cve_id, "limit": 1})
+        )
+        epss = self._epss_record(epss_raw, cve_id) if epss_status == 200 else None
+        if epss_status == 200 and isinstance(epss_raw, dict):
+            source_states["epss"] = "MEASURED"
+
+        measured = sum(value == "MEASURED" for value in source_states.values())
+        coverage = "FULL" if measured == 3 else "PARTIAL" if measured else "NONE"
+        known_exploited = kev_entry is not None
+        ransomware_value = str(
+            (kev_entry or {}).get("knownRansomwareCampaignUse") or ""
+        ).strip()
+        ransomware_observed = kev_entry is not None and bool(ransomware_value)
+        ransomware_known = ransomware_value.casefold() in {
+            "known",
+            "yes",
+            "true",
+            "known ransomware campaign use",
+        }
+        cvss = nvd.get("cvss") if nvd else None
+        epss_score = epss.get("epss") if epss else None
+        priority_score, priority, components = self._priority(
+            cvss=cvss,
+            epss=epss_score,
+            kev_observed=source_states["cisa_kev"] == "MEASURED",
+            known_exploited=known_exploited,
+            ransomware_observed=ransomware_observed,
+            ransomware_known=ransomware_known,
+        )
+
+        evidence_core = {
+            "cve": cve_id,
+            "source_states": source_states,
+            "kev": {
+                "known_exploited": known_exploited,
+                "date_added": (kev_entry or {}).get("dateAdded"),
+                "ransomware_use": ransomware_value or None,
+            },
+            "nvd": nvd,
+            "epss": epss,
+            "formula": {
+                "id": "killinchu.defensive-priority/v1",
+                "weights": self._weights,
+                "observed_components": components,
+                "missing_evidence_is_zero": False,
+                "maximum_score": 0.99,
+            },
+        }
+        digest = hashlib.sha256(
+            json.dumps(
+                evidence_core,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+        ).hexdigest()
+
+        if measured == 0:
+            result = Records(
+                connector_id=self.id,
+                category=self.category,
+                state=State.ERROR,
+                records=[],
+                source=self.provider_base,
+                live=False,
+                note="all three official defensive sources are unavailable; no priority fabricated",
+                schema_preview=list(self.schema_preview),
+            )
+            _put(cache_key, result)
+            return result
+
+        record = {
+            "cve": cve_id,
+            "priority": priority,
+            "priority_score": priority_score,
+            "coverage": coverage,
+            "sources_measured": measured,
+            "sources_expected": 3,
+            "source_states": source_states,
+            "known_exploited": known_exploited,
+            "known_ransomware_use": ransomware_known,
+            "ransomware_source_value": ransomware_value or None,
+            "cisa_date_added": (kev_entry or {}).get("dateAdded"),
+            "cisa_required_action": (kev_entry or {}).get("requiredAction"),
+            "cvss": cvss,
+            "cvss_severity": nvd.get("severity") if nvd else None,
+            "cvss_version": nvd.get("cvss_version") if nvd else None,
+            "cvss_vector": nvd.get("vector") if nvd else None,
+            "weaknesses": nvd.get("weaknesses", []) if nvd else [],
+            "nvd_published": nvd.get("published") if nvd else None,
+            "nvd_last_modified": nvd.get("last_modified") if nvd else None,
+            "epss": epss_score,
+            "epss_percentile": epss.get("percentile") if epss else None,
+            "epss_date": epss.get("date") if epss else None,
+            "recommended_action": self._recommendation(priority),
+            "formula": evidence_core["formula"],
+            "normalized_evidence_sha256": digest,
+            "truth_label": "MEASURED_DEFENSIVE_CORRELATION",
+            "action_authority": "DEFENSIVE_PRIORITIZATION_ONLY",
+            "human_approval_required": True,
+            "exploit_content_included": False,
+            "asset_scanning_performed": False,
+        }
+        result = Records(
+            connector_id=self.id,
+            category=self.category,
+            state=State.CONNECTED,
+            records=[record],
+            source="CISA KEV + NIST NVD CVE 2.0 + FIRST EPSS",
+            live=True,
+            note=(
+                f"{coverage.lower()} official-source coverage · deterministic defensive "
+                "prioritization only · no exploit content or execution authority"
+            ),
+            schema_preview=list(self.schema_preview),
+        )
+        _put(cache_key, result)
+        return result
+'''
+
+          security = security_path.read_text(encoding='utf-8')
+          if 'class DefensiveFusionConnector' in security:
+              raise SystemExit('DefensiveFusionConnector already exists; refusing duplicate build')
+          prefix, separator, _tail = security.rpartition('\n\n__all__ = ')
+          if not separator:
+              raise SystemExit('security.py __all__ boundary not found')
+          security = (
+              prefix
+              + fusion
+              + '\n\n__all__ = ["CisaKevConnector", "NvdCveConnector", "EpssConnector",\n'
+              + '           "MitreAttackConnector", "GithubConnector",\n'
+              + '           "DefensiveFusionConnector"]\n'
+          )
+          security_path.write_text(security, encoding='utf-8', newline='\n')
+
+          bindings = bindings_path.read_text(encoding='utf-8')
+          old = '    "vuln":      ["nvd_cve", "cisa_kev", "epss"],'
+          new = '    "vuln":      ["nvd_cve", "cisa_kev", "epss", "defensive_fusion"],'
+          if old not in bindings:
+              raise SystemExit('vulnerability binding boundary not found')
+          bindings_path.write_text(bindings.replace(old, new, 1), encoding='utf-8', newline='\n')
+
+          (root / 'docs/DEFENSIVE_FUSION_WAVE4.md').write_text(r'''# Killinchu Defensive Fusion — Wave 4
+
+## Purpose
+
+Defensive Fusion converts three existing, official, public cyber-defense sources
+into one bounded CVE-prioritization instrument:
+
+1. **CISA Known Exploited Vulnerabilities** — observed catalogue membership,
+   required defensive action, date added, and the catalogue's ransomware-use field.
+2. **NIST NVD CVE API 2.0** — exact CVE status, CVSS score/vector/version,
+   publication dates, and CWE identifiers.
+3. **FIRST EPSS** — the current probability estimate and percentile for the exact CVE.
+
+The official references are:
+
+- https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+- https://nvd.nist.gov/developers/vulnerabilities
+- https://www.first.org/epss/data.html
+
+## Public interface
+
+The capability is part of Killinchu's existing connector mesh; it does not create
+another service or Space.
+
+```text
+GET /api/killinchu/v1/connectors/defensive_fusion/health
+GET /api/killinchu/v1/connectors/defensive_fusion/read?q=CVE-2021-44228&limit=1
+```
+
+Only an exact identifier matching `CVE-YYYY-NNNN...` is admitted. There is no URL,
+host, asset, IP address, hostname, credential, payload, or command parameter.
+
+## Formula
+
+`killinchu.defensive-priority/v1` uses:
+
+```text
+0.35 × normalized CVSS
++ 0.30 × EPSS
++ 0.30 × CISA KEV membership
++ 0.05 × CISA known-ransomware-use
+```
+
+The denominator contains only **observed** components. Missing source evidence is
+not silently interpreted as zero risk. The score is capped at `0.99`; it is a
+triage signal, not probability of compromise, proof of exploitation, or certainty.
+
+Priority labels are deterministic:
+
+- `IMMEDIATE`: KEV membership, known ransomware use, or score ≥ 0.85;
+- `HIGH`: score ≥ 0.65;
+- `ELEVATED`: score ≥ 0.40;
+- `ROUTINE`: score below 0.40;
+- `UNAVAILABLE`: no official component is available.
+
+## Authority boundary
+
+Every result declares:
+
+```json
+{
+  "action_authority": "DEFENSIVE_PRIORITIZATION_ONLY",
+  "human_approval_required": true,
+  "exploit_content_included": false,
+  "asset_scanning_performed": false
+}
+```
+
+The connector does not scan assets, determine whether a specific organization is
+vulnerable, retrieve exploit code, provide intrusion instructions, execute a
+change, or authorize action against any third party. Recommended actions are
+limited to inventory confirmation, vendor/CISA mitigation, exposure reduction,
+change approval, and remediation verification.
+
+## Evidence
+
+Each record includes per-source `MEASURED`/`UNAVAILABLE` state, source coverage,
+the observed formula components, and SHA-256 over the normalized retained
+evidence. That digest is not represented as a hash of the original upstream bytes.
+EPSS is an estimate and is never described as certainty.
+''', encoding='utf-8', newline='\n')
+
+          (root / 'tests/test_defensive_fusion_wave4.py').write_text(r'''# SPDX-License-Identifier: Apache-2.0
+"""Network-free contract tests for Killinchu Defensive Fusion Wave 4."""
+from __future__ import annotations
+
+from unittest import mock
+
+from szl_connectors.base import Records, State
+from szl_connectors import REGISTRY
+from szl_connectors import bindings
+from szl_connectors.data_sources import security
+
+
+CVE = "CVE-2026-12345"
+
+
+def cisa_records(*, connected: bool = True, hit: bool = True) -> Records:
+    rows = []
+    if hit:
+        rows.append(
+            {
+                "cveID": CVE,
+                "vendorProject": "Example Vendor",
+                "product": "Example Product",
+                "vulnerabilityName": "Example memory safety vulnerability",
+                "dateAdded": "2026-09-01",
+                "knownRansomwareCampaignUse": "Known",
+                "requiredAction": "Apply vendor mitigations.",
+            }
+        )
+    return Records(
+        connector_id="cisa_kev",
+        category="vuln",
+        state=State.CONNECTED if connected else State.READY,
+        records=rows,
+        source="fixture",
+        live=connected,
+    )
+
+
+def nvd_payload() -> dict:
+    return {
+        "vulnerabilities": [
+            {
+                "cve": {
+                    "id": CVE,
+                    "published": "2026-08-30T00:00:00.000",
+                    "lastModified": "2026-09-03T00:00:00.000",
+                    "vulnStatus": "Analyzed",
+                    "metrics": {
+                        "cvssMetricV31": [
+                            {
+                                "cvssData": {
+                                    "baseScore": 9.8,
+                                    "baseSeverity": "CRITICAL",
+                                    "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                                }
+                            }
+                        ]
+                    },
+                    "weaknesses": [
+                        {"description": [{"lang": "en", "value": "CWE-416"}]}
+                    ],
+                }
+            }
+        ]
+    }
+
+
+def epss_payload() -> dict:
+    return {
+        "data": [
+            {
+                "cve": CVE,
+                "epss": "0.910000",
+                "percentile": "0.998000",
+                "date": "2026-09-04",
+            }
+        ]
+    }
+
+
+def fake_http(url: str, *args, **kwargs):
+    if "services.nvd.nist.gov" in url:
+        assert "cveId=CVE-2026-12345" in url
+        return 200, nvd_payload()
+    if "api.first.org" in url:
+        assert "cve=CVE-2026-12345" in url
+        return 200, epss_payload()
+    raise AssertionError(url)
+
+
+def test_connector_is_registered_and_bound_without_replacing_live_feeds():
+    assert "defensive_fusion" in REGISTRY
+    assert bindings.TAB_BINDINGS["vuln"] == [
+        "nvd_cve",
+        "cisa_kev",
+        "epss",
+        "defensive_fusion",
+    ]
+
+
+def test_exact_cve_full_coverage_is_deterministic_and_defensive_only():
+    security._CACHE.clear()
+    with mock.patch.object(security.CisaKevConnector, "read", return_value=cisa_records()), mock.patch.object(
+        security, "http_json", side_effect=fake_http
+    ):
+        result = security.DefensiveFusionConnector().read({"q": CVE})
+    assert result.state == State.CONNECTED
+    assert result.live is True
+    assert len(result.records) == 1
+    row = result.records[0]
+    assert row["cve"] == CVE
+    assert row["coverage"] == "FULL"
+    assert row["priority"] == "IMMEDIATE"
+    assert 0.0 <= row["priority_score"] <= 0.99
+    assert row["known_exploited"] is True
+    assert row["known_ransomware_use"] is True
+    assert row["cvss"] == 9.8
+    assert row["epss"] == 0.91
+    assert row["action_authority"] == "DEFENSIVE_PRIORITIZATION_ONLY"
+    assert row["human_approval_required"] is True
+    assert row["exploit_content_included"] is False
+    assert row["asset_scanning_performed"] is False
+    assert row["formula"]["missing_evidence_is_zero"] is False
+    assert len(row["normalized_evidence_sha256"]) == 64
+    assert "mitigation" in row["recommended_action"].casefold()
+
+
+def test_missing_source_is_partial_not_silently_scored_as_zero():
+    security._CACHE.clear()
+
+    def partial_http(url: str, *args, **kwargs):
+        if "services.nvd.nist.gov" in url:
+            return 503, {}
+        if "api.first.org" in url:
+            return 200, epss_payload()
+        raise AssertionError(url)
+
+    with mock.patch.object(
+        security.CisaKevConnector, "read", return_value=cisa_records(hit=False)
+    ), mock.patch.object(security, "http_json", side_effect=partial_http):
+        result = security.DefensiveFusionConnector().read({"cve": CVE})
+    row = result.records[0]
+    assert row["coverage"] == "PARTIAL"
+    assert row["source_states"]["nvd_cve"] == "UNAVAILABLE"
+    assert "cvss" not in row["formula"]["observed_components"]
+    assert row["priority_score"] is not None
+
+
+def test_invalid_query_returns_no_record_and_no_network_call():
+    security._CACHE.clear()
+    with mock.patch.object(security, "http_json") as request:
+        result = security.DefensiveFusionConnector().read(
+            {"q": "https://example.invalid/CVE-2026-12345"}
+        )
+    assert result.state == State.READY
+    assert result.records == []
+    assert result.live is False
+    assert "exact CVE" in result.note
+    request.assert_not_called()
+
+
+def test_all_sources_unavailable_fails_closed_without_priority():
+    security._CACHE.clear()
+    with mock.patch.object(
+        security.CisaKevConnector,
+        "read",
+        return_value=cisa_records(connected=False, hit=False),
+    ), mock.patch.object(security, "http_json", return_value=(503, {})):
+        result = security.DefensiveFusionConnector().read({"q": CVE})
+    assert result.state == State.ERROR
+    assert result.records == []
+    assert result.live is False
+    assert "no priority fabricated" in result.note
+
+
+def test_source_contains_no_scanner_command_or_exploit_channel():
+    source = __import__("pathlib").Path(security.__file__).read_text(encoding="utf-8")
+    fusion = source.split("class DefensiveFusionConnector", 1)[1]
+    for forbidden in (
+        "subprocess.",
+        "os.system(",
+        "socket.create_connection",
+        "paramiko",
+        "nmap",
+        'method="POST"',
+        'method="PUT"',
+        'method="DELETE"',
+        "exploit_payload",
+    ):
+        assert forbidden not in fusion
+''', encoding='utf-8', newline='\n')
+
+          (root / 'scripts/defensive_fusion_live_witness.py').write_text(r'''#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+"""Credential-free exact-source witness for Defensive Fusion Wave 4."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+BASE = "https://szlholdings-killinchu.hf.space"
+GITHUB_API = "https://api.github.com/repos/szl-holdings/killinchu/commits/main"
+FUSION_PATH = "/api/killinchu/v1/connectors/defensive_fusion/read?limit=1&q=CVE-2021-44228"
+MAX_BYTES = 2_000_000
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def get_json(url: str, timeout: int = 30) -> tuple[int, dict[str, Any], bytes]:
+    if not (url.startswith(BASE + "/") or url == GITHUB_API):
+        raise ValueError("URL outside fixed witness allowlist")
+    headers = {"Accept": "application/json", "User-Agent": "szl-defensive-fusion-witness/1.0"}
+    if url == GITHUB_API and os.environ.get("GITHUB_TOKEN"):
+        headers["Authorization"] = "Bearer " + os.environ["GITHUB_TOKEN"]
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
+    request = urllib.request.Request(url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            status = response.status
+            raw = response.read(MAX_BYTES + 1)
+    except urllib.error.HTTPError as error:
+        status = error.code
+        raw = error.read(MAX_BYTES + 1)
+    if len(raw) > MAX_BYTES:
+        raise RuntimeError("witness response exceeded limit")
+    payload = json.loads(raw.decode("utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError("witness response is not an object")
+    return status, payload, raw
+
+
+def expected_revision() -> str:
+    status, payload, _ = get_json(GITHUB_API, 20)
+    if status != 200:
+        raise RuntimeError(f"GitHub main returned {status}")
+    sha = str(payload.get("sha") or "").lower()
+    if len(sha) != 40:
+        raise RuntimeError("main revision is not exact")
+    return sha
+
+
+def observe() -> dict[str, Any]:
+    expected = expected_revision()
+    status, build, build_raw = get_json(BASE + "/api/build-info", 25)
+    if status != 200:
+        raise RuntimeError(f"build-info returned {status}")
+    observed = str((build.get("build") or {}).get("revision") or "").lower()
+    if observed != expected:
+        raise RuntimeError(f"source mismatch expected={expected} observed={observed}")
+
+    fusion_status, fusion, fusion_raw = get_json(BASE + FUSION_PATH, 45)
+    if fusion_status != 200:
+        raise RuntimeError(f"fusion route returned {fusion_status}")
+    if fusion.get("connector_id") != "defensive_fusion":
+        raise RuntimeError("wrong connector identity")
+    state = str(fusion.get("state") or "")
+    if state not in {"connected", "error", "ready"}:
+        raise RuntimeError(f"unexpected honest state {state!r}")
+    records = fusion.get("records") or []
+    if state == "connected":
+        if len(records) != 1:
+            raise RuntimeError("connected fusion must return one exact-CVE record")
+        row = records[0]
+        assert row["cve"] == "CVE-2021-44228"
+        assert row["coverage"] in {"FULL", "PARTIAL"}
+        assert row["action_authority"] == "DEFENSIVE_PRIORITIZATION_ONLY"
+        assert row["human_approval_required"] is True
+        assert row["exploit_content_included"] is False
+        assert row["asset_scanning_performed"] is False
+        assert float(row["priority_score"]) <= 0.99
+        assert len(row["normalized_evidence_sha256"]) == 64
+        safe_result = {
+            "cve": row["cve"],
+            "priority": row["priority"],
+            "coverage": row["coverage"],
+            "sources_measured": row["sources_measured"],
+            "normalized_evidence_sha256": row["normalized_evidence_sha256"],
+            "action_authority": row["action_authority"],
+        }
+    else:
+        if records:
+            raise RuntimeError("non-connected state must not fabricate records")
+        safe_result = {"state": state, "record_count": 0, "note": fusion.get("note")}
+
+    return {
+        "schema": "szl.killinchu.defensive-fusion-live-witness/v1",
+        "status": "PASS",
+        "observed_at": now(),
+        "expected_source_revision": expected,
+        "observed_source_revision": observed,
+        "authority": "READ_ONLY_WITNESS",
+        "build_response_sha256": hashlib.sha256(build_raw).hexdigest(),
+        "fusion_response_sha256": hashlib.sha256(fusion_raw).hexdigest(),
+        "fusion": safe_result,
+    }
+
+
+def run(output: Path, retry_seconds: int) -> dict[str, Any]:
+    deadline = time.monotonic() + max(0, retry_seconds)
+    last = "NO_ATTEMPT"
+    while True:
+        try:
+            evidence = observe()
+            output.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            return evidence
+        except Exception as error:
+            last = f"{type(error).__name__}: {error}"
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(10)
+    failure = {"schema": "szl.killinchu.defensive-fusion-live-witness/v1", "status": "FAIL", "observed_at": now(), "last_error": last}
+    output.write_text(json.dumps(failure, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    raise RuntimeError(last)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=Path, default=Path("defensive-fusion-live-witness.json"))
+    parser.add_argument("--retry-seconds", type=int, default=600)
+    args = parser.parse_args()
+    print(json.dumps(run(args.output, args.retry_seconds), sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+''', encoding='utf-8', newline='\n')
+
+          (root / '.github/workflows/defensive-fusion-live-witness.yml').write_text(r'''# SPDX-License-Identifier: Apache-2.0
+name: Defensive Fusion Live Witness
+
+on:
+  workflow_run:
+    workflows:
+      - Sync to HuggingFace Space
+    types:
+      - completed
+  push:
+    branches: [main]
+    paths:
+      - szl_connectors/data_sources/security.py
+      - szl_connectors/bindings.py
+      - scripts/defensive_fusion_live_witness.py
+      - tests/test_defensive_fusion_wave4.py
+      - .github/workflows/defensive-fusion-live-witness.yml
+  schedule:
+    - cron: "41 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: killinchu-defensive-fusion-live-witness
+  cancel-in-progress: true
+
+jobs:
+  witness:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - name: Check out protected main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+      - name: Verify exact deployed source and defensive-only contract
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/defensive_fusion_live_witness.py
+          --output defensive-fusion-live-witness.json
+          --retry-seconds 600
+      - name: Upload immutable witness
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: defensive-fusion-live-witness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: defensive-fusion-live-witness.json
+          if-no-files-found: error
+          retention-days: 90
+''', encoding='utf-8', newline='\n')
+
+          builder_path.unlink()
+          PY
+
+      - name: Run focused deterministic gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir pytest
+          python -m py_compile \
+            szl_connectors/data_sources/security.py \
+            szl_connectors/bindings.py \
+            scripts/defensive_fusion_live_witness.py \
+            tests/test_defensive_fusion_wave4.py
+          python -m pytest -q tests/test_defensive_fusion_wave4.py
+          git diff --check
+          test ! -e .github/workflows/build-defensive-fusion-wave4.yml
+
+      - name: Commit the completed wave and remove the builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git commit -m "feat(defend): add exact-CVE defensive fusion wave 4" \
+            -m "Correlate CISA KEV, NIST NVD, and FIRST EPSS into one deterministic, fail-closed defensive-prioritization connector with no scanner, exploit content, arbitrary target, or execution authority. Add focused tests, documentation, product binding, and an exact-source public deployment witness." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:feat/defensive-fusion-wave4-20260904
