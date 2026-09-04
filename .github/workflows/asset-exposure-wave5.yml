@@ -7,6 +7,9 @@ on:
       - "szl_uds_hardening.py"
       - "tests/test_asset_exposure_wave5.py"
       - "docs/ASSET_EXPOSURE_WAVE5.md"
+      - "Dockerfile"
+      - "deploy/space/Dockerfile"
+      - "deploy/image-contract.json"
       - ".github/workflows/asset-exposure-wave5.yml"
   push:
     branches:
@@ -16,6 +19,9 @@ on:
       - "szl_uds_hardening.py"
       - "tests/test_asset_exposure_wave5.py"
       - "docs/ASSET_EXPOSURE_WAVE5.md"
+      - "Dockerfile"
+      - "deploy/space/Dockerfile"
+      - "deploy/image-contract.json"
       - ".github/workflows/asset-exposure-wave5.yml"
   workflow_dispatch:
 
@@ -50,10 +56,12 @@ jobs:
       - name: Run network-free Wave 5 contract tests
         run: python -m unittest -v tests.test_asset_exposure_wave5
 
-      - name: Prove runtime registration and Docker inclusion
+      - name: Prove runtime registration and exact image inclusion
         run: |
           python - <<'PY'
           from pathlib import Path
+          import hashlib
+          import json
 
           hardening = Path("szl_uds_hardening.py").read_text(encoding="utf-8")
           required = (
@@ -65,9 +73,28 @@ jobs:
               if token not in hardening:
                   raise SystemExit(f"missing Wave 5 hardening integration: {token}")
 
-          dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
-          if "COPY szl_connectors/ ./szl_connectors/" not in dockerfile:
-              raise SystemExit("Dockerfile does not include the connector package")
+          copy_line = (
+              "COPY szl_connectors/asset_exposure.py "
+              "./szl_connectors/asset_exposure.py"
+          )
+          canonical = Path("Dockerfile").read_bytes()
+          derived = Path("deploy/space/Dockerfile").read_bytes()
+          if copy_line.encode() not in canonical:
+              raise SystemExit("canonical Dockerfile omits asset_exposure.py")
+          if canonical != derived:
+              raise SystemExit("derived HF Dockerfile drifted from canonical Dockerfile")
+
+          contract = json.loads(
+              Path("deploy/image-contract.json").read_text(encoding="utf-8")
+          )
+          source = "szl_connectors/asset_exposure.py"
+          if source not in contract.get("local_copy_sources", []):
+              raise SystemExit("image contract omits asset_exposure.py")
+          digest = hashlib.sha256(canonical).hexdigest()
+          if contract["canonical_dockerfile"]["sha256"] != digest:
+              raise SystemExit("canonical Dockerfile digest is stale")
+          if contract["hf_deploy_dockerfile"]["sha256"] != digest:
+              raise SystemExit("derived Dockerfile digest is stale")
           PY
 
       - name: Prove no direct target, network, or command primitive
