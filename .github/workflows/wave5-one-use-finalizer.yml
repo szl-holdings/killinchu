@@ -61,8 +61,14 @@ jobs:
                   raise SystemExit(f"missing final numerical guard: {token}")
 
           disclosure = Path("szl_uds_hardening.py").read_text(encoding="utf-8")
-          if "SBOM/CVE associations are operator supplied" not in disclosure:
-              raise SystemExit("hardening disclosure did not converge")
+          disclosure_tokens = (
+              "SBOM/CVE associations are",
+              "operator supplied",
+              "official-source gaps remain explicit",
+          )
+          for token in disclosure_tokens:
+              if token not in disclosure:
+                  raise SystemExit(f"hardening disclosure missing: {token}")
           PY
           git diff --check
 
