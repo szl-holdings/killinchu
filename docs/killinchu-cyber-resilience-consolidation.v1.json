@@ -1,0 +1,122 @@
+{
+  "schema": "szl.killinchu.cyber-resilience-consolidation/v1",
+  "effective_date": "2026-09-04",
+  "decision_owner": "Stephen Lutar",
+  "status": "ACCEPTED_FOR_IMPLEMENTATION",
+  "public_product": {
+    "name": "Killinchu",
+    "positioning": "Cyber-Physical Resilience Command",
+    "github_repository": "szl-holdings/killinchu",
+    "huggingface_space": "SZLHOLDINGS/killinchu",
+    "public_runtime_count": 1
+  },
+  "portfolio": {
+    "internal_name": "Aegis",
+    "external_product": false,
+    "separate_space_allowed": false
+  },
+  "platform_boundary": {
+    "name": "A11oy",
+    "role": "horizontal governed-AI command fabric and cross-product orchestration",
+    "separate_from_killinchu_product": true
+  },
+  "capability_planes": [
+    {
+      "id": "sentra",
+      "public_label": "Defend",
+      "role": "defensive-control-plane",
+      "source_repository": "szl-holdings/szl-defensive-control-plane",
+      "target_routes": [
+        "/defend",
+        "/api/defend"
+      ],
+      "legacy_spaces": [
+        "SZLHOLDINGS/sentra"
+      ],
+      "retirement_state": "MIGRATION_REQUIRED"
+    },
+    {
+      "id": "immune",
+      "public_label": "Immune",
+      "role": "agent-and-ai-safety",
+      "source_repository": "szl-holdings/immune",
+      "target_routes": [
+        "/immune",
+        "/api/immune"
+      ],
+      "legacy_spaces": [
+        "SZLHOLDINGS/immune",
+        "SZLHOLDINGS/immune-lattice"
+      ],
+      "retirement_state": "MIGRATION_REQUIRED"
+    },
+    {
+      "id": "vessels",
+      "public_label": "Maritime",
+      "role": "maritime-resilience-mission-pack",
+      "source_repository": "szl-holdings/killinchu",
+      "transitional_engine_repository": "szl-holdings/vertical-services",
+      "target_routes": [
+        "/vessels",
+        "/api/vessels"
+      ],
+      "legacy_spaces": [
+        "SZLHOLDINGS/vessels"
+      ],
+      "retirement_state": "REFERENCE_CLEANUP_REQUIRED"
+    },
+    {
+      "id": "counter-uas",
+      "public_label": "Airspace",
+      "role": "counter-uas-mission-pack",
+      "source_repository": "szl-holdings/killinchu",
+      "target_routes": [
+        "/airspace",
+        "/elite"
+      ],
+      "legacy_spaces": [],
+      "retirement_state": "LIVE"
+    },
+    {
+      "id": "evidence",
+      "public_label": "Evidence",
+      "role": "cross-plane-receipts-and-provenance",
+      "source_repository": "szl-holdings/killinchu",
+      "target_routes": [
+        "/evidence"
+      ],
+      "legacy_spaces": [],
+      "retirement_state": "INTEGRATION_REQUIRED"
+    }
+  ],
+  "thin_adapters": [
+    {
+      "id": "aegis-assurance",
+      "space": "SZLHOLDINGS/aegis-assurance",
+      "state": "DELETE_READY_AFTER_REFERENCE_CLEANUP",
+      "unique_runtime": false
+    }
+  ],
+  "retirement_gates": [
+    "source_captured",
+    "product_captured",
+    "evidence_captured",
+    "publisher_removed",
+    "replacement_verified",
+    "no_unique_secret_dependency"
+  ],
+  "deletion_policy": {
+    "irreversible": true,
+    "delete_only_after_all_gates": true,
+    "replacement_space": "SZLHOLDINGS/killinchu",
+    "secret_free_receipt_required": true,
+    "recreation_forbidden": true
+  },
+  "truth_boundary": {
+    "defensive_only": true,
+    "arbitrary_command_execution": false,
+    "civilian_targeting": false,
+    "simulated_range_must_be_labeled": true,
+    "live_connectors_require_current_observation": true
+  }
+}
