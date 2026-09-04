@@ -126,6 +126,28 @@ jobs:
               )
           PY
 
+      - name: Prove streamed transport and bounded resolver pressure
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path("szl_connectors/asset_exposure.py").read_text(
+              encoding="utf-8"
+          )
+          required = (
+              "async for chunk in request.stream()",
+              "MAX_PARALLEL_RESOLVERS = 3",
+              "MAX_GLOBAL_RESOLVERS = 4",
+              "threading.BoundedSemaphore",
+              "resolver violated the defensive evidence boundary",
+          )
+          for token in required:
+              if token not in source:
+                  raise SystemExit(f"Wave 5 transport guard drifted: {token}")
+          if "await request.body()" in source:
+              raise SystemExit("Wave 5 regressed to unbounded body buffering")
+          PY
+
       - name: Prove production witness is fixed-origin and synthetic
         run: |
           python - <<'PY'
