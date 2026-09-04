@@ -5,8 +5,8 @@
 The initial staging commit preserved the complete generator, but YAML could not
 parse unindented lines inside Python raw strings. The current workflow is small
 and valid; this runner reads the original payload from its immutable Git commit,
-normalizes only the YAML indentation, executes it, applies two fail-closed
-hardening edits, and removes both temporary builder files.
+dedents only the outer generator, executes it, applies two fail-closed hardening
+edits, and removes both temporary builder files.
 """
 from __future__ import annotations
 
@@ -36,10 +36,20 @@ def _extract_generator(text: str) -> str:
     if start < 0 or end < 0:
         raise RuntimeError("reviewed generator markers are missing from staging commit")
     block = text[start:end]
-    normalized = [
-        line[10:] if line.startswith("          ") else line
-        for line in block.splitlines()
-    ]
+    normalized: list[str] = []
+    inside_raw_template = False
+    for line in block.splitlines():
+        if inside_raw_template:
+            normalized.append(line)
+            if line.count("'''") % 2 == 1:
+                inside_raw_template = False
+            continue
+        outer = line[10:] if line.startswith("          ") else line
+        normalized.append(outer)
+        if outer.count("'''") % 2 == 1:
+            inside_raw_template = True
+    if inside_raw_template:
+        raise RuntimeError("unterminated raw source template in staging payload")
     code = "\n".join(normalized) + "\n"
     compile(code, f"{STAGING_COMMIT}:{STAGING_PATH}", "exec")
     return code
