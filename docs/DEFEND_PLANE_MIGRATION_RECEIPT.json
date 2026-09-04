@@ -1,0 +1,33 @@
+{
+  "schema": "szl.defend-plane-migration/v1",
+  "public_product": "Killinchu",
+  "portfolio_name": "Aegis",
+  "capability_source_name": "Sentra",
+  "source_repository": "szl-holdings/szl-defensive-control-plane",
+  "source_revision": "e3483562a440e72cfbde4c25cffef339545778d3",
+  "integration_mode": "SOURCE_BOUND_PORT",
+  "public_routes": [
+    "/resilience",
+    "/defend",
+    "/aegis",
+    "/sentra",
+    "/api/defend/status",
+    "/api/defend/source"
+  ],
+  "real_runtime_contracts": [
+    "schema-validation",
+    "deterministic-detection",
+    "case-formation",
+    "bounded-proposal",
+    "independent-human-approval",
+    "simulation-only-containment-rehearsal",
+    "rollback-plan",
+    "append-only-receipt-chain",
+    "receipt-verification"
+  ],
+  "effectors_enabled": false,
+  "arbitrary_command_execution": false,
+  "human_approval_required": true,
+  "former_space": "SZLHOLDINGS/sentra",
+  "former_space_state": "RETIRE_ONLY_AFTER_LIVE_PARITY_PROOF"
+}
