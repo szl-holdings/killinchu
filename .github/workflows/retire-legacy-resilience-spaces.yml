@@ -1,0 +1,232 @@
+name: Retire legacy resilience Spaces
+
+# Irreversible provider mutation is sequenced only after the canonical Killinchu
+# Space has deployed, source-bound, and completed its exact-source release
+# receipt. The Python operator has a hard-coded two-Space allowlist and refuses
+# Sentra/IMMUNE until their component migrations are independently proven.
+on:
+  workflow_run:
+    workflows: ["Sync to HuggingFace Space"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: retire-legacy-resilience-spaces
+  cancel-in-progress: false
+
+jobs:
+  retire:
+    name: Snapshot, gate, delete, and verify exact legacy Spaces
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact Killinchu deployment source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: killinchu
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout current A11oy provider policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/a11oy
+          ref: main
+          path: a11oy
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout exact hash-locked Hugging Face client closure
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          path: shared-hf-publisher
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Require current protected Killinchu main
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git -C killinchu rev-parse HEAD)" = "$SOURCE_SHA"
+          current_main="$(
+            curl --fail --silent --show-error \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/commits/main" \
+            | python -c 'import json,sys; print(json.load(sys.stdin)["sha"])'
+          )"
+          test "$current_main" = "$SOURCE_SHA"
+          test "$(git -C shared-hf-publisher rev-parse HEAD)" = \
+            e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          test "$(git -C shared-hf-publisher rev-parse HEAD:requirements/hf-publisher.lock)" = \
+            9cc19359ddd5e77556740b66201096b812ef48d9
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Install exact hash-locked provider client
+        shell: bash
+        run: |
+          set -euo pipefail
+          venv="$RUNNER_TEMP/hf-retirement-venv"
+          test ! -e "$venv"
+          python -I -m venv "$venv"
+          "$venv/bin/python" -I -P -m pip install \
+            --disable-pip-version-check --require-hashes --only-binary=:all: \
+            --ignore-installed -r shared-hf-publisher/requirements/hf-publisher.lock
+          "$venv/bin/python" -I -P -c \
+            'import importlib.metadata as m, huggingface_hub as h, requests; assert m.version("huggingface-hub") == "1.19.0" == h.__version__; assert requests.__version__ == "2.32.5"'
+          echo "HF_RETIREMENT_PYTHON=$venv/bin/python" >> "$GITHUB_ENV"
+
+      - name: Validate operator syntax and exact immutable allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$HF_RETIREMENT_PYTHON" -I -P -m py_compile \
+            killinchu/scripts/retire_legacy_resilience_spaces.py
+          "$HF_RETIREMENT_PYTHON" -I -P - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          path = Path("killinchu/scripts/retire_legacy_resilience_spaces.py")
+          spec = importlib.util.spec_from_file_location("retire", path)
+          assert spec is not None and spec.loader is not None
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          assert module.RETIREMENT_TARGETS == {
+              "SZLHOLDINGS/vessels": "/vessels",
+              "SZLHOLDINGS/aegis-assurance": "/resilience",
+          }
+          assert module.PROTECTED_MIGRATIONS == {
+              "SZLHOLDINGS/sentra",
+              "SZLHOLDINGS/immune",
+              "SZLHOLDINGS/immune-lattice",
+          }
+          assert not set(module.RETIREMENT_TARGETS) & set(module.PROTECTED_MIGRATIONS)
+          PY
+
+      - name: Snapshot, retire, and verify legacy provider repositories
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HF_TOKEN:-}" || {
+            echo '::error::HF_ORG_TOKEN/HF_TOKEN is not configured.'
+            exit 2
+          }
+          mkdir -p retirement-evidence/snapshots
+          cd killinchu
+          "$HF_RETIREMENT_PYTHON" -I -P scripts/retire_legacy_resilience_spaces.py \
+            --killinchu-root . \
+            --a11oy-root ../a11oy \
+            --source-sha "$SOURCE_SHA" \
+            --output ../retirement-evidence/receipt.json \
+            --archive-root ../retirement-evidence/snapshots
+
+      - name: Record persistent secret-free retirement issue
+        if: success()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          "$HF_RETIREMENT_PYTHON" -I -P - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          import requests
+
+          receipt = json.loads(
+              Path("retirement-evidence/receipt.json").read_text(encoding="utf-8")
+          )
+          deleted = [
+              row for row in receipt.get("results", []) if row.get("deleted") is True
+          ]
+          if not deleted:
+              print("No new provider deletion; persistent issue is unchanged.")
+              raise SystemExit(0)
+
+          lines = [
+              "## Verified Hugging Face Space retirement",
+              "",
+              f"- Killinchu source: `{receipt['source_revision']}`",
+              f"- A11oy policy: `{receipt['a11oy_policy_revision']}`",
+              f"- Replacement: `{receipt['replacement_space']}`",
+              f"- Workflow run: `{os.environ['GITHUB_RUN_ID']}`",
+              "",
+              "| Legacy Space | State | Replacement | Snapshot SHA-256 |",
+              "|---|---|---|---|",
+          ]
+          for row in receipt["results"]:
+              snapshot = row.get("source_snapshot") or {}
+              lines.append(
+                  "| `{}` | `{}` | `{}` | `{}` |".format(
+                      row["repo_id"],
+                      row["state"],
+                      row["replacement_route"],
+                      snapshot.get("archive_sha256", "n/a"),
+                  )
+              )
+          lines.extend(
+              [
+                  "",
+                  "Sentra, IMMUNE, and IMMUNE lattice were protected and were not deleted.",
+                  "Secret values were never read or recorded.",
+              ]
+          )
+          response = requests.post(
+              os.environ["GITHUB_API_URL"].rstrip("/")
+              + f"/repos/{os.environ['GITHUB_REPOSITORY']}/issues",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+              json={
+                  "title": (
+                      "chore(hf): verified legacy resilience Space retirement "
+                      + receipt["source_revision"][:12]
+                  ),
+                  "body": "\n".join(lines),
+              },
+              timeout=20,
+          )
+          response.raise_for_status()
+          print(response.json()["html_url"])
+          PY
+
+      - name: Upload source snapshots and immutable retirement receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-legacy-resilience-retirement-${{ github.run_id }}
+          path: retirement-evidence
+          if-no-files-found: warn
+          retention-days: 180
