@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Sentra retirement source contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/retire_sentra_space.py
+      - tests/test_retire_sentra_space.py
+      - .github/workflows/retire-sentra-space.yml
+      - .github/workflows/sentra-retirement-contract.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/retire_sentra_space.py
+      - tests/test_retire_sentra_space.py
+      - .github/workflows/retire-sentra-space.yml
+      - .github/workflows/sentra-retirement-contract.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  exact-target-safety:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+      - name: Compile and prove static destructive boundary
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir pytest
+          python -m py_compile scripts/retire_sentra_space.py tests/test_retire_sentra_space.py
+          python -m pytest -q tests/test_retire_sentra_space.py
+          git diff --check
