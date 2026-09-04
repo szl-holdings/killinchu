@@ -1,0 +1,305 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Materialize Vessels-only retirement once
+
+on:
+  push:
+    branches:
+      - fix/hf-vessels-terminal-retirement-20260904
+    paths:
+      - .github/workflows/materialize-vessels-only-retirement-once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: materialize-vessels-only-retirement-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-vessels-terminal-retirement-20260904
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reconcile current Killinchu main without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          main_sha="$(git rev-parse origin/main)"
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            git merge --no-ff origin/main \
+              -m "chore(hf): reconcile current Killinchu main ${main_sha:0:12}" \
+              -m "Preserve every current resilience capability before narrowing the irreversible legacy-Space allowlist." \
+              -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          fi
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git merge-base --is-ancestor "$main_sha" HEAD
+
+      - name: Rewrite the irreversible boundary to Vessels only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          script_path = Path('scripts/retire_legacy_resilience_spaces.py')
+          test_path = Path('tests/test_legacy_resilience_space_retirement.py')
+          workflow_path = Path('.github/workflows/retire-legacy-resilience-spaces.yml')
+          for path in (script_path, test_path, workflow_path):
+              if not path.is_file():
+                  raise SystemExit(f'missing expected retirement source: {path}')
+
+          source = script_path.read_text(encoding='utf-8')
+          source = source.replace(
+              '* ``SZLHOLDINGS/vessels``\n* ``SZLHOLDINGS/aegis-assurance``',
+              '* ``SZLHOLDINGS/vessels``',
+          )
+          source = source.replace(
+              'The only provider\nrepositories it can mutate are the two exact thin/legacy public surfaces whose\nuseful capability and source history have already moved into Killinchu:',
+              'The only provider repository it can mutate is the exact legacy maritime\nSpace whose useful capability and source history have already moved into Killinchu:',
+          )
+          source = source.replace(
+              'Sentra and IMMUNE are explicitly protected until their component engines pass',
+              'Sentra, Aegis assurance, and IMMUNE are explicitly protected. Sentra is the\nAssurance Command under the 2026-09-04 owner directive; Aegis is absorbed there.\nIMMUNE remains migration-gated until its component engines pass',
+          )
+
+          source, count = re.subn(
+              r'RETIREMENT_TARGETS: dict\[str, str\] = \{.*?\n\}',
+              'RETIREMENT_TARGETS: dict[str, str] = {\n    "SZLHOLDINGS/vessels": "/vessels",\n}',
+              source,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('could not replace retirement target allowlist')
+
+          source, count = re.subn(
+              r'PROTECTED_MIGRATIONS = frozenset\(\n    \{.*?\n    \}\n\)',
+              'PROTECTED_MIGRATIONS = frozenset(\n    {\n        "SZLHOLDINGS/sentra",\n        "SZLHOLDINGS/aegis-assurance",\n        "SZLHOLDINGS/immune",\n        "SZLHOLDINGS/immune-lattice",\n    }\n)',
+              source,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('could not replace protected migration set')
+
+          start = source.index('def verify_source_policies(')
+          end = source.index('\ndef _build_revision(', start)
+          replacement = '''def verify_source_policies(killinchu_root: Path, a11oy_root: Path) -> dict[str, Any]:
+    architecture = (
+        killinchu_root / "docs" / "killinchu-cyber-resilience-consolidation.v1.json"
+    )
+    decision = killinchu_root / "docs" / "KILLINCHU-CYBER-RESILIENCE-CONSOLIDATION.md"
+    vessels = killinchu_root / "docs" / "VESSELS-CONSOLIDATION.md"
+    owner_directive = (
+        a11oy_root
+        / "governance"
+        / "owner-directives"
+        / "2026-09-04-sentra.yaml"
+    )
+    for path in (architecture, decision, vessels, owner_directive):
+        if not path.is_file():
+            raise RuntimeError(f"required estate authority is missing: {path}")
+
+    contract = json.loads(architecture.read_text(encoding="utf-8"))
+    if contract.get("public_product", {}).get("huggingface_space") != KILLINCHU_SPACE:
+        raise RuntimeError("Killinchu consolidation contract names the wrong replacement")
+    if set(contract.get("retirement_gates", ())) != (
+        REQUIRED_RETIREMENT_GATES - {"secret_free_retirement_receipt"}
+    ):
+        raise RuntimeError("Killinchu retirement-gate contract drifted")
+    deletion = contract.get("deletion_policy", {})
+    if deletion.get("delete_only_after_all_gates") is not True:
+        raise RuntimeError("Killinchu contract no longer requires all deletion gates")
+    if deletion.get("recreation_forbidden") is not True:
+        raise RuntimeError("Killinchu contract no longer forbids legacy recreation")
+
+    directive_text = owner_directive.read_text(encoding="utf-8").lower()
+    for marker in ("sentra", "assurance command", "aegis", "absorbed", "killinchu"):
+        if marker not in directive_text:
+            raise RuntimeError(f"owner directive lacks marker: {marker}")
+
+    keep_path = a11oy_root / "docs" / "series-a" / "hf-space-keep-list.yaml"
+    keep_text = keep_path.read_text(encoding="utf-8")
+    try:
+        keep_section, retire_section = keep_text.split("retire_into_killinchu:", 1)
+    except ValueError as exc:
+        raise RuntimeError("A11oy keep policy lacks Killinchu retirement authority") from exc
+    if "- id: SZLHOLDINGS/vessels" in keep_section:
+        raise RuntimeError("Vessels remains in the active public keeper set")
+    if "- id: SZLHOLDINGS/vessels" not in retire_section:
+        raise RuntimeError("Vessels is absent from the Killinchu retirement policy")
+    if "- id: SZLHOLDINGS/sentra" not in keep_text:
+        raise RuntimeError("Sentra disappeared from the estate policy")
+
+    flagship_path = a11oy_root / "scripts" / "hf_publish_vertical_flagships_v4.py"
+    flagship_source = flagship_path.read_text(encoding="utf-8")
+    public = tuple(_assignment_literal(flagship_source, "PUBLIC_FLAGSHIP_SLUGS"))
+    folded = tuple(_assignment_literal(flagship_source, "FOLDED_INTO_KILLINCHU"))
+    if "vessels" in public:
+        raise RuntimeError("Vessels remains reachable by the public flagship writer")
+    if "vessels" not in folded:
+        raise RuntimeError("Vessels is not recorded as folded into Killinchu")
+    if "sentra" in folded:
+        raise RuntimeError("Sentra is incorrectly folded into Killinchu after owner directive")
+
+    packet_path = a11oy_root / ".github" / "scripts" / "publish_packet8_vertical_spaces.py"
+    packet_source = packet_path.read_text(encoding="utf-8")
+    if 'RETIRED_SPACE_IDS = frozenset({"SZLHOLDINGS/aegis-assurance"})' not in packet_source:
+        raise RuntimeError("Packet 8 no longer prevents Aegis adapter recreation")
+    active_packet = packet_source.split("SPACES = [", 1)[1].split("]", 1)[0]
+    if "SZLHOLDINGS/aegis-assurance" in active_packet:
+        raise RuntimeError("Packet 8 can still recreate Aegis assurance")
+
+    return {
+        "killinchu_policy_sha256": hashlib.sha256(architecture.read_bytes()).hexdigest(),
+        "a11oy_keep_policy_sha256": hashlib.sha256(keep_path.read_bytes()).hexdigest(),
+        "sentra_owner_directive_sha256": hashlib.sha256(owner_directive.read_bytes()).hexdigest(),
+        "a11oy_public_vertical_spaces": list(public),
+        "folded_into_killinchu": list(folded),
+        "vessels_recreation_forbidden": True,
+        "aegis_mutation_authority": False,
+    }
+'''
+          source = source[:start] + replacement + source[end:]
+          script_path.write_text(source, encoding='utf-8', newline='\n')
+
+          tests = test_path.read_text(encoding='utf-8')
+          tests, count = re.subn(
+              r'assert module\.RETIREMENT_TARGETS == \{.*?\n    \}',
+              'assert module.RETIREMENT_TARGETS == {\n        "SZLHOLDINGS/vessels": "/vessels",\n    }',
+              tests,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('could not patch target assertion')
+          tests, count = re.subn(
+              r'assert module\.PROTECTED_MIGRATIONS == \{.*?\n    \}',
+              'assert module.PROTECTED_MIGRATIONS == {\n        "SZLHOLDINGS/sentra",\n        "SZLHOLDINGS/aegis-assurance",\n        "SZLHOLDINGS/immune",\n        "SZLHOLDINGS/immune-lattice",\n    }',
+              tests,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('could not patch protected assertion')
+          tests = tests.replace(
+              '"SZLHOLDINGS/aegis-assurance": "/resilience",\n',
+              '',
+          )
+          test_path.write_text(tests, encoding='utf-8', newline='\n')
+
+          workflow = workflow_path.read_text(encoding='utf-8')
+          workflow = workflow.replace(
+              'Snapshot, gate, delete, and verify exact legacy Spaces',
+              'Snapshot, gate, delete, and verify the exact Vessels Space',
+          )
+          workflow = workflow.replace(
+              'The Python operator has a hard-coded two-Space allowlist and refuses\n# Sentra/IMMUNE until their component migrations are independently proven.',
+              'The Python operator has a hard-coded one-Space allowlist for Vessels.\n# Sentra, Aegis assurance, and IMMUNE remain outside deletion authority.',
+          )
+          workflow = workflow.replace(
+              '"SZLHOLDINGS/aegis-assurance": "/resilience",\n',
+              '',
+          )
+          workflow = workflow.replace(
+              '"SZLHOLDINGS/immune",\n              "SZLHOLDINGS/immune-lattice",',
+              '"SZLHOLDINGS/aegis-assurance",\n              "SZLHOLDINGS/immune",\n              "SZLHOLDINGS/immune-lattice",',
+          )
+          workflow = workflow.replace(
+              'Sentra, IMMUNE, and IMMUNE lattice were protected and were not deleted.',
+              'Sentra, Aegis assurance, IMMUNE, and IMMUNE lattice were protected and were not deleted.',
+          )
+          workflow_path.write_text(workflow, encoding='utf-8', newline='\n')
+
+          doc = Path('docs/VESSELS-TERMINAL-RETIREMENT.md')
+          doc.write_text('''# Vessels terminal Hugging Face retirement
+
+Effective 2026-09-04, `SZLHOLDINGS/vessels` is the only legacy Space in this
+irreversible retirement lane. Its useful maritime capability is native to
+`SZLHOLDINGS/killinchu` at `/vessels` and `/elite/maritime`.
+
+The 2026-09-04 owner directive separately makes Sentra the Assurance Command and
+absorbs Aegis there. Therefore this lane has no mutation authority over
+`SZLHOLDINGS/sentra`, `SZLHOLDINGS/aegis-assurance`, `SZLHOLDINGS/immune`, or
+`SZLHOLDINGS/immune-lattice`.
+
+Deletion remains gated by exact-source Killinchu deployment, same-origin route
+proof, publisher anti-recreation proof, zero unique Space-secret metadata, no
+persistent storage, a complete source snapshot, provider absence readback, and
+a secret-free immutable receipt.
+''', encoding='utf-8', newline='\n')
+          PY
+
+      - name: Prove exact Vessels-only authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir "pytest==8.3.5"
+          python -m py_compile scripts/retire_legacy_resilience_spaces.py
+          python -m pytest -q \
+            tests/test_legacy_resilience_space_retirement.py \
+            tests/test_resilience_route_convergence.py
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          path = Path('scripts/retire_legacy_resilience_spaces.py')
+          spec = importlib.util.spec_from_file_location('retire', path)
+          assert spec and spec.loader
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          assert module.RETIREMENT_TARGETS == {'SZLHOLDINGS/vessels': '/vessels'}
+          assert module.PROTECTED_MIGRATIONS == {
+              'SZLHOLDINGS/sentra',
+              'SZLHOLDINGS/aegis-assurance',
+              'SZLHOLDINGS/immune',
+              'SZLHOLDINGS/immune-lattice',
+          }
+          assert not set(module.RETIREMENT_TARGETS) & set(module.PROTECTED_MIGRATIONS)
+          source = path.read_text(encoding='utf-8')
+          assert source.count('api.delete_repo(') == 1
+          assert '--repo-id' not in source and '--space-id' not in source
+          PY
+          git diff --check
+
+      - name: Remove materializer, push clean branch, and open exact PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/materialize-vessels-only-retirement-once.yml
+          git add -A
+          git diff --cached --check
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -s -m "fix(hf): restrict terminal retirement to Vessels"
+          final_sha="$(git rev-parse HEAD)"
+          git push origin HEAD:fix/hf-vessels-terminal-retirement-20260904
+          url="$(gh pr list --repo szl-holdings/killinchu --head fix/hf-vessels-terminal-retirement-20260904 --state open --json url --jq '.[0].url // ""')"
+          if [ -z "$url" ]; then
+            url="$(gh pr create --repo szl-holdings/killinchu \
+              --base main \
+              --head fix/hf-vessels-terminal-retirement-20260904 \
+              --title "fix(hf): restrict terminal retirement to Vessels" \
+              --body "## Correct irreversible authority\n\nThe latest owner directive keeps Sentra as the Assurance Command and absorbs Aegis there. This repair narrows the legacy-Space deletion operator to `SZLHOLDINGS/vessels` only. Sentra, Aegis assurance, IMMUNE, and IMMUNE lattice are explicitly protected.\n\nVessels deletion still requires exact-source Killinchu deployment, same-origin `/vessels` proof, anti-recreation proof, zero unique secret/storage dependency, a complete source snapshot, provider absence readback, and a secret-free receipt.\n\nSigned-off-by: Stephen Lutar <stephenlutar2@gmail.com>")"
+          fi
+          gh pr merge --repo szl-holdings/killinchu "$url" \
+            --auto --squash --match-head-commit "$final_sha"
