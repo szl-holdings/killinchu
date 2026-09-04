@@ -1,0 +1,38 @@
+{
+  "capability": "puriq",
+  "type": "horizontal-doctrine-capability",
+  "declaration": {
+    "date": "2026-09-03",
+    "declared_by": "betterwithage",
+    "rule": "consumed, not contained - verticals cite puriq receipts; no vertical embeds the corpus",
+    "doctrine": "v11 LOCKED"
+  },
+  "hosts": {
+    "corpus": {"repo": "https://github.com/szl-holdings/killinchu", "path": "corpus/"},
+    "execution": {"repo": "https://github.com/szl-holdings/puriq-live", "note": "symmetric vs Egyptian Lambda, maxAgg counterexample, fail-closed Yuyay-13"}
+  },
+  "artifacts": {
+    "doctrine_doc": {"file": "corpus/doctrine/docs-site__docs__doctrine__puriq.md", "bytes": 7886},
+    "doctrine_lineage": {"file": "corpus/doctrine/docs-site__docs__doctrine__v11-v12.md", "bytes": 6634},
+    "formula_corpus": {"file": "corpus/formulas/a11oy__szl_puriq_formulas.py", "bytes": 31153},
+    "formula_family": {"file": "corpus/formulas/a11oy__a11oy_v4_formulas.py", "bytes": 61605},
+    "gates_manifest": {"file": "corpus/formulas/a11oy__gates_manifest.json", "bytes": 53529},
+    "cuas_formulas": {"file": "szl_cuas_formulas.py", "bytes": 54902}
+  },
+  "consumers": {
+    "a11oy": "governed execution fabric",
+    "hatun-mcp": "16 tools under PURIQ governance (Yuyay-13 gate, Khipu receipts, DSSE-signed)",
+    "killinchu": "organs under the shared gate family",
+    "puriq-live": "live execution surface",
+    "david-leads": "PLANNED - Decision Trace PurIQ-governed receipts (spec on szl-holdings/a11oy)"
+  },
+  "retired": {
+    "puriq_markets_space": "SZLHOLDINGS/puriq-markets - deleted"
+  },
+  "provenance": {
+    "inventory_ref": "killinchu Space listing at commit fa81186c6141e57e17b33b9d9ea5ab7647afacff",
+    "declared_via": "perplexity connector",
+    "sibling_charter": {"name": "vessels", "doc": "docs/VESSELS_DOMAIN.md", "commit": "985b8a30"},
+    "truth_labels": "MEASURED | REPORTED | MODELED"
+  }
+}
