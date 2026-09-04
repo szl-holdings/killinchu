@@ -1126,6 +1126,10 @@ def register(
 ) -> dict[str, Any]:
     """Register the read-only Wave 5 schema and evaluation routes."""
 
+    # FastAPI resolves postponed request annotations from the module globals.
+    # Keep the dependency lazy while making ``request: Request`` resolvable
+    # before the route decorator builds its dependency model.
+    global Request
     from fastapi import Request
     from fastapi.responses import JSONResponse
 
