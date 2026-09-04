@@ -2,14 +2,20 @@
 name: Public Source Fabric Live Witness
 
 # Credential-free, read-only verification of the deployed Killinchu public-source
-# fabric. This workflow never scans arbitrary hosts, sends a mutating request,
-# supplies third-party credentials, or treats source content as action authority.
+# fabric. The operator has fixed origins, performs GET only, records no source
+# bodies, and never grants targeting, enforcement, or third-party write authority.
 on:
   workflow_run:
     workflows:
       - Sync to HuggingFace Space
     types:
       - completed
+  push:
+    branches: [main]
+    paths:
+      - scripts/public_source_live_witness.py
+      - tests/test_public_source_live_witness_contract.py
+      - .github/workflows/public-source-live-witness.yml
   schedule:
     - cron: "23 */6 * * *"
   workflow_dispatch: {}
@@ -35,286 +41,27 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
       - name: Verify exact source and fail-closed public contracts
         env:
           GITHUB_TOKEN: ${{ github.token }}
           WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           EVENT_NAME: ${{ github.event_name }}
-          SPACE_BASE_URL: https://szlholdings-killinchu.hf.space
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from __future__ import annotations
-
-          import hashlib
-          import json
-          import os
-          import time
-          import urllib.error
-          import urllib.parse
-          import urllib.request
-          from datetime import datetime, timezone
-          from pathlib import Path
-          from typing import Any
-
-          BASE = os.environ["SPACE_BASE_URL"].rstrip("/")
-          SCHEMA = "szl.killinchu.public-source-fabric/v1"
-          SOURCE_IDS = {
-              "cisa-kev",
-              "nsa-advisories",
-              "cia-public-stories",
-              "ofac-sdn",
-              "un-dprk-1718",
-              "cert-ua-advisories",
-              "ukraine-open-data-metadata",
-              "china-cac-notices",
-          }
-          USER_AGENT = "szl-killinchu-public-source-live-witness/1.0"
-
-          def utc_now() -> str:
-              return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-          def request_json(url: str, timeout: int = 45) -> tuple[int, dict[str, Any], bytes]:
-              request = urllib.request.Request(
-                  url,
-                  headers={
-                      "Accept": "application/json",
-                      "Cache-Control": "no-cache",
-                      "User-Agent": USER_AGENT,
-                  },
-                  method="GET",
-              )
-              try:
-                  with urllib.request.urlopen(request, timeout=timeout) as response:
-                      status = int(response.status)
-                      raw = response.read(5_000_001)
-              except urllib.error.HTTPError as error:
-                  status = int(error.code)
-                  raw = error.read(5_000_001)
-              if len(raw) > 5_000_000:
-                  raise RuntimeError(f"response exceeded witness limit: {url}")
-              try:
-                  payload = json.loads(raw.decode("utf-8"))
-              except Exception as error:
-                  raise RuntimeError(f"non-JSON response from {url}: {type(error).__name__}") from error
-              if not isinstance(payload, dict):
-                  raise RuntimeError(f"non-object JSON from {url}")
-              return status, payload, raw
-
-          def current_main() -> str:
-              api_url = os.environ.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
-              repository = os.environ["GITHUB_REPOSITORY"]
-              request = urllib.request.Request(
-                  f"{api_url}/repos/{repository}/commits/main",
-                  headers={
-                      "Accept": "application/vnd.github+json",
-                      "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
-                      "X-GitHub-Api-Version": "2022-11-28",
-                      "User-Agent": USER_AGENT,
-                  },
-              )
-              with urllib.request.urlopen(request, timeout=20) as response:
-                  payload = json.load(response)
-              revision = str(payload.get("sha") or "").lower()
-              if len(revision) != 40 or any(c not in "0123456789abcdef" for c in revision):
-                  raise RuntimeError("GitHub did not return an exact main revision")
-              return revision
-
-          expected = str(os.environ.get("WORKFLOW_HEAD_SHA") or "").lower()
-          if os.environ.get("EVENT_NAME") != "workflow_run" or len(expected) != 40:
-              expected = current_main()
-          elif expected != current_main():
-              raise RuntimeError(
-                  "refusing stale post-deployment witness: "
-                  f"workflow_head={expected} current_main={current_main()}"
-              )
-
-          # The deploy controller may complete while the public edge is still
-          # swapping routes. Retry the complete contract as one atomic witness.
-          deadline = time.monotonic() + 420
-          last_error = "NO_ATTEMPT"
-          while time.monotonic() < deadline:
-              try:
-                  build_status, build, build_raw = request_json(f"{BASE}/api/build-info", 25)
-                  if build_status != 200:
-                      raise RuntimeError(f"build-info HTTP {build_status}")
-                  live_revision = str((build.get("build") or {}).get("revision") or "").lower()
-                  if live_revision != expected:
-                      raise RuntimeError(
-                          f"live revision mismatch: expected={expected} observed={live_revision}"
-                      )
-
-                  policy_status, policy, policy_raw = request_json(
-                      f"{BASE}/api/killinchu/v1/osint/public/policy", 25
-                  )
-                  sources_status, sources, sources_raw = request_json(
-                      f"{BASE}/api/killinchu/v1/osint/public/sources", 25
-                  )
-                  health_status, health, health_raw = request_json(
-                      f"{BASE}/api/killinchu/v1/osint/public/health", 25
-                  )
-                  cisa_status, cisa, cisa_raw = request_json(
-                      f"{BASE}/api/killinchu/v1/osint/public/source/cisa-kev?limit=1",
-                      45,
-                  )
-                  sanctions_query = urllib.parse.urlencode(
-                      {"name": "SZL PUBLIC SOURCE WITNESS NONMATCH"}
-                  )
-                  sanctions_status, sanctions, sanctions_raw = request_json(
-                      f"{BASE}/api/killinchu/v1/osint/public/sanctions/screen?{sanctions_query}",
-                      90,
-                  )
-
-                  assert policy_status == 200
-                  assert sources_status == 200
-                  assert health_status == 200
-                  assert policy.get("schema") == SCHEMA
-                  assert sources.get("schema") == SCHEMA
-                  assert health.get("schema") == SCHEMA
-                  assert policy.get("state") == "DECLARED"
-                  assert policy.get("action_authority") == "NONE"
-                  policy_body = policy.get("policy") or {}
-                  network = policy_body.get("network") or {}
-                  content = policy_body.get("content") or {}
-                  authority = policy_body.get("authority") or {}
-                  assert network.get("method") == "GET_ONLY"
-                  assert network.get("arbitrary_url_input") is False
-                  assert network.get("authentication_bypass") is False
-                  assert network.get("credential_use") is False
-                  assert network.get("protected_resources") is False
-                  for key in (
-                      "active_force_geolocation",
-                      "target_or_strike_packages",
-                      "leaked_or_stolen_data",
-                      "credentials_or_personal_dossiers",
-                      "malware_or_exploit_payloads",
-                      "dark_web_collection",
-                  ):
-                      assert content.get(key) == "PROHIBITED", (key, content.get(key))
-                  assert authority.get("action_authority") == "NONE"
-                  assert authority.get("automated_targeting") is False
-                  assert authority.get("automated_enforcement") is False
-                  assert authority.get("human_review_required") is True
-
-                  observed_ids = {
-                      str(row.get("source_id"))
-                      for row in (sources.get("sources") or [])
-                      if isinstance(row, dict)
-                  }
-                  assert sources.get("source_count") == 8
-                  assert observed_ids == SOURCE_IDS, (observed_ids, SOURCE_IDS)
-                  assert all(
-                      str(row.get("url") or "").startswith("https://")
-                      and row.get("action_authority") == "NONE"
-                      for row in sources.get("sources") or []
-                  )
-                  assert health.get("total_sources") == 8
-                  assert health.get("state") in {"UNTESTED", "CACHED"}
-                  assert health.get("action_authority") == "NONE"
-
-                  assert cisa_status in {200, 503}
-                  assert cisa.get("schema") == SCHEMA
-                  assert cisa.get("source_id") == "cisa-kev"
-                  assert cisa.get("mode") in {"LIVE", "CACHED", "UNAVAILABLE"}
-                  assert cisa.get("action_authority") == "NONE"
-                  assert len(cisa.get("items") or []) <= 1
-                  if cisa.get("mode") in {"LIVE", "CACHED"}:
-                      assert cisa_status == 200
-                      assert len(str(cisa.get("content_sha256") or "")) == 64
-                  else:
-                      assert cisa_status == 503
-                      assert not (cisa.get("items") or [])
-
-                  assert sanctions_status in {200, 503}
-                  assert sanctions.get("verdict") in {
-                      "POSSIBLE_MATCH",
-                      "NO_EXACT_MATCH",
-                      "BLOCKED_PENDING",
-                  }
-                  assert sanctions.get("verdict") != "CLEAR"
-                  assert sanctions.get("action_authority") == "NONE"
-                  assert sanctions.get("manual_review_required") is True
-                  if sanctions.get("verdict") == "BLOCKED_PENDING":
-                      assert sanctions_status == 503
-                  else:
-                      assert sanctions_status == 200
-
-                  evidence = {
-                      "schema": "szl.killinchu.public-source-live-witness/v1",
-                      "observed_at": utc_now(),
-                      "space": "SZLHOLDINGS/killinchu",
-                      "origin": BASE,
-                      "expected_source_revision": expected,
-                      "observed_source_revision": live_revision,
-                      "status": "PASS",
-                      "authority": "READ_ONLY_WITNESS",
-                      "action_authority": "NONE",
-                      "contracts": {
-                          "build": {
-                              "http": build_status,
-                              "sha256": hashlib.sha256(build_raw).hexdigest(),
-                          },
-                          "policy": {
-                              "http": policy_status,
-                              "sha256": hashlib.sha256(policy_raw).hexdigest(),
-                          },
-                          "sources": {
-                              "http": sources_status,
-                              "source_ids": sorted(observed_ids),
-                              "sha256": hashlib.sha256(sources_raw).hexdigest(),
-                          },
-                          "health": {
-                              "http": health_status,
-                              "state": health.get("state"),
-                              "tested_sources": health.get("tested_sources"),
-                              "sha256": hashlib.sha256(health_raw).hexdigest(),
-                          },
-                          "cisa_kev": {
-                              "http": cisa_status,
-                              "mode": cisa.get("mode"),
-                              "item_count": cisa.get("item_count"),
-                              "returned_item_count": cisa.get("returned_item_count"),
-                              "content_sha256": cisa.get("content_sha256"),
-                              "response_sha256": hashlib.sha256(cisa_raw).hexdigest(),
-                          },
-                          "sanctions_screen": {
-                              "http": sanctions_status,
-                              "verdict": sanctions.get("verdict"),
-                              "coverage": sanctions.get("coverage"),
-                              "sources_available": sanctions.get("sources_available"),
-                              "receipt_sha256": sanctions.get("receipt_sha256"),
-                              "response_sha256": hashlib.sha256(sanctions_raw).hexdigest(),
-                          },
-                      },
-                      "prohibited_capabilities_observed": [],
-                  }
-                  Path("public-source-live-witness.json").write_text(
-                      json.dumps(evidence, indent=2, sort_keys=True) + "\n",
-                      encoding="utf-8",
-                  )
-                  print(json.dumps(evidence, sort_keys=True))
-                  break
-              except Exception as error:
-                  last_error = f"{type(error).__name__}: {error}"
-                  time.sleep(10)
-          else:
-              failure = {
-                  "schema": "szl.killinchu.public-source-live-witness/v1",
-                  "observed_at": utc_now(),
-                  "space": "SZLHOLDINGS/killinchu",
-                  "origin": BASE,
-                  "expected_source_revision": expected,
-                  "status": "FAIL",
-                  "last_error": last_error,
-                  "action_authority": "NONE",
-              }
-              Path("public-source-live-witness.json").write_text(
-                  json.dumps(failure, indent=2, sort_keys=True) + "\n",
-                  encoding="utf-8",
-              )
-              raise SystemExit(last_error)
-          PY
+        run: >-
+          python scripts/public_source_live_witness.py
+          --output public-source-live-witness.json
+          --retry-seconds 420
 
       - name: Upload immutable public-source witness
         if: always()
