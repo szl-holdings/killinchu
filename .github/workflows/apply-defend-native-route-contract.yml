@@ -1,0 +1,100 @@
+name: Apply Defend source-native route contract
+
+on:
+  push:
+    branches:
+      - feat/defend-plane-final-20260904
+    paths:
+      - .github/workflows/apply-defend-native-route-contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - name: Checkout exact Defend branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/defend-plane-final-20260904
+          fetch-depth: 1
+
+      - name: Declare the real source-native Defend plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          nav = Path("killinchu_nav_wireup.py")
+          text = nav.read_text(encoding="utf-8")
+          old = '''    "/airspace": "/elite#cuas_lab",
+          }
+
+          # ---------------------------------------------------------------------------
+          # ADDITIVE (tab-fold wave, 2026-07-02):'''
+          new = '''    "/airspace": "/elite#cuas_lab",
+          }
+
+          # Source-native planes are real routes registered by their capability
+          # modules. Listing them here makes the navigation contract explicit while
+          # deliberately avoiding a self-redirect loop.
+          _SOURCE_NATIVE_PLANES = frozenset({
+              "/defend",
+          })
+
+          # ---------------------------------------------------------------------------
+          # ADDITIVE (tab-fold wave, 2026-07-02):'''
+          if text.count(old) != 1:
+              raise SystemExit("navigation precondition failed")
+          nav.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+
+          test = Path("tests/test_resilience_route_convergence.py")
+          text = test.read_text(encoding="utf-8")
+          old = '''def test_defend_and_resilience_are_real_routes_not_presentation_redirects() -> None:
+              assert "/resilience" not in routes._BARE_SURFACE_REDIRECTS
+              assert "/defend" not in routes._BARE_SURFACE_REDIRECTS
+              assert "/immune" not in routes._BARE_SURFACE_REDIRECTS
+          '''
+          new = '''def test_defend_and_resilience_are_real_routes_not_presentation_redirects() -> None:
+              assert routes._SOURCE_NATIVE_PLANES == {"/defend"}
+              assert "/resilience" not in routes._BARE_SURFACE_REDIRECTS
+              assert "/defend" not in routes._BARE_SURFACE_REDIRECTS
+              assert "/immune" not in routes._BARE_SURFACE_REDIRECTS
+          '''
+          if text.count(old) != 1:
+              raise SystemExit("test precondition failed")
+          test.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+
+          Path(".github/workflows/apply-defend-native-route-contract.yml").unlink()
+          PY
+
+      - name: Prove the exact route and regression contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "fastapi==0.137.2" "starlette==1.3.1" "httpx==0.28.1" -r requirements-test.txt
+          python -m py_compile killinchu_nav_wireup.py killinchu_defend_plane.py
+          python -m pytest -q \
+            tests/test_killinchu_defend_plane.py \
+            tests/test_resilience_route_convergence.py
+          grep -Fq 'KILLINCHU_DEFEND_PLANE_V1' serve.py
+          grep -Fq 'COPY killinchu_defend_plane.py ./killinchu_defend_plane.py' Dockerfile
+          grep -Fq '"/defend"' killinchu_nav_wireup.py
+          git diff --check
+
+      - name: Commit deterministic contract repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "szl-defend-operator[bot]"
+          git config user.email "szl-defend-operator[bot]@users.noreply.github.com"
+          git add killinchu_nav_wireup.py tests/test_resilience_route_convergence.py \
+            .github/workflows/apply-defend-native-route-contract.yml
+          git diff --cached --check
+          git commit -m "fix(defend): declare the source-native plane" \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:feat/defend-plane-final-20260904
