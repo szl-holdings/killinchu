@@ -82,7 +82,7 @@ def _harden_generated_files() -> None:
         exact_evidence_observed = any(
             value is not None for value in (kev_entry, nvd, epss)
         )
-        if not exact_evidence_observed:
+        if measured > 0 and not exact_evidence_observed:
             result = Records(
                 connector_id=self.id,
                 category=self.category,
