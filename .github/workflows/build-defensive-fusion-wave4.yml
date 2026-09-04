@@ -56,14 +56,24 @@ jobs:
           test ! -e .github/workflows/build-defensive-fusion-wave4.yml
           test ! -e scripts/build_defensive_fusion_wave4.py
 
-      - name: Commit the completed wave and remove builders
+      - name: Push source payload; workflow replacement is owner-controlled
         shell: bash
         run: |
           set -euo pipefail
+          # GitHub's workflow token intentionally lacks the separate workflows
+          # scope. Restore the current builder and omit the generated witness
+          # workflow from this push; the owner-authorized GitHub API installs
+          # that workflow after the tested source commit exists.
+          git checkout HEAD -- .github/workflows/build-defensive-fusion-wave4.yml
+          rm -f .github/workflows/defensive-fusion-live-witness.yml
+          test -e .github/workflows/build-defensive-fusion-wave4.yml
+          test ! -e .github/workflows/defensive-fusion-live-witness.yml
+          test ! -e scripts/build_defensive_fusion_wave4.py
+
           git config user.name "Stephen Lutar"
           git config user.email "stephenlutar2@gmail.com"
           git add -A
           git commit -m "feat(defend): add exact-CVE defensive fusion wave 4" \
-            -m "Correlate CISA KEV, NIST NVD, and FIRST EPSS into one deterministic, fail-closed defensive-prioritization connector with no scanner, exploit content, arbitrary target, or execution authority. Add focused tests, documentation, product binding, and an exact-source public deployment witness." \
+            -m "Correlate CISA KEV, NIST NVD, and FIRST EPSS into one deterministic, fail-closed defensive-prioritization connector with no scanner, exploit content, arbitrary target, or execution authority. Add focused tests, documentation, product binding, and exact-source witness code." \
             -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
           git push origin HEAD:feat/defensive-fusion-wave4-20260904
