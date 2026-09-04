@@ -20,6 +20,7 @@ import hashlib
 import json
 import math
 import re
+import threading
 from typing import Any, Callable, Iterable
 
 
@@ -31,9 +32,17 @@ MAX_BODY_BYTES = 2_000_000
 MAX_COMPONENTS = 1_000
 MAX_FINDINGS = 50
 MAX_ACTIVE_CVES = 10
+MAX_PARALLEL_RESOLVERS = 3
+MAX_GLOBAL_RESOLVERS = 4
+RESOLVER_SLOT_TIMEOUT_SECONDS = 1.0
+
+_GLOBAL_RESOLUTION_SLOTS = threading.BoundedSemaphore(
+    MAX_GLOBAL_RESOLVERS
+)
 
 _ASSET_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
 _CVE_RE = re.compile(r"CVE-\d{4}-\d{4,}")
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _ACTIVE_STATUSES = {"affected", "under_investigation"}
 _CLOSED_STATUSES = {"fixed", "not_affected"}
 _ALLOWED_STATUSES = _ACTIVE_STATUSES | _CLOSED_STATUSES
@@ -102,6 +111,62 @@ def loads_strict(raw: bytes) -> dict[str, Any]:
             status_code=400,
         )
     return value
+
+
+async def _read_bounded_body(request: Any) -> bytes:
+    """Read JSON incrementally so the byte limit is enforced in transit."""
+
+    content_type = str(request.headers.get("content-type") or "")
+    media_type = content_type.split(";", 1)[0].strip().casefold()
+    if media_type != "application/json" and not media_type.endswith("+json"):
+        raise ExposureInputError(
+            "UNSUPPORTED_MEDIA_TYPE",
+            "Content-Type must be application/json or application/*+json",
+            status_code=415,
+        )
+
+    content_length = request.headers.get("content-length")
+    if content_length not in (None, ""):
+        try:
+            declared = int(content_length)
+        except (TypeError, ValueError) as exc:
+            raise ExposureInputError(
+                "INVALID_CONTENT_LENGTH",
+                "Content-Length must be a non-negative integer",
+                status_code=400,
+            ) from exc
+        if declared < 0:
+            raise ExposureInputError(
+                "INVALID_CONTENT_LENGTH",
+                "Content-Length must be a non-negative integer",
+                status_code=400,
+            )
+        if declared > MAX_BODY_BYTES:
+            raise ExposureInputError(
+                "BODY_TOO_LARGE",
+                f"request body exceeds {MAX_BODY_BYTES} bytes",
+                status_code=413,
+            )
+
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in request.stream():
+        if not isinstance(chunk, (bytes, bytearray)):
+            raise ExposureInputError(
+                "INVALID_BODY_STREAM",
+                "request body stream yielded a non-byte chunk",
+                status_code=400,
+            )
+        size += len(chunk)
+        if size > MAX_BODY_BYTES:
+            raise ExposureInputError(
+                "BODY_TOO_LARGE",
+                f"request body exceeds {MAX_BODY_BYTES} bytes",
+                status_code=413,
+            )
+        if chunk:
+            chunks.append(bytes(chunk))
+    return b"".join(chunks)
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -214,7 +279,7 @@ def _normalize_asset(raw: Any) -> dict[str, Any]:
 
 def _component_record(
     *,
-    ref: str,
+    ref: Any,
     name: Any,
     version: Any,
     purl: Any = None,
@@ -315,7 +380,7 @@ def _parse_cyclonedx(sbom: dict[str, Any]) -> tuple[dict[str, Any], list[dict[st
                 "each CycloneDX component requires bom-ref or purl",
             )
         item = _component_record(
-            ref=str(ref),
+            ref=ref,
             name=row.get("name"),
             version=row.get("version"),
             purl=row.get("purl"),
@@ -670,6 +735,28 @@ def _score(value: Any) -> float | None:
     return number
 
 
+def _fusion_boundary_valid(
+    raw: Any,
+    record: dict[str, Any],
+    meta: dict[str, Any],
+) -> bool:
+    digest = record.get("normalized_evidence_sha256")
+    return (
+        isinstance(raw, dict)
+        and raw.get("connector_id") == "defensive_fusion"
+        and meta.get("state") == "CONNECTED"
+        and meta.get("live") is True
+        and meta.get("coverage") in {"FULL", "PARTIAL"}
+        and record.get("action_authority")
+        == "DEFENSIVE_PRIORITIZATION_ONLY"
+        and record.get("human_approval_required") is True
+        and record.get("exploit_content_included") is False
+        and record.get("asset_scanning_performed") is False
+        and isinstance(digest, str)
+        and _SHA256_RE.fullmatch(digest) is not None
+    )
+
+
 def _lane(
     source_priority: str,
     asset_score: float | None,
@@ -748,6 +835,18 @@ def compose_report(
                 "state": "ERROR",
                 "coverage": "NONE",
                 "note": "resolver returned an invalid priority record",
+            }
+        if record is not None and not _fusion_boundary_valid(
+            fusion_raw, record, meta
+        ):
+            record = None
+            source_score = None
+            source_priority = "UNAVAILABLE"
+            meta = {
+                **meta,
+                "state": "ERROR",
+                "coverage": "NONE",
+                "note": "resolver violated the defensive evidence boundary",
             }
         if meta["state"] == "CONNECTED" and record is not None:
             connected += 1
@@ -878,6 +977,52 @@ def compose_report(
     }
 
 
+def _resolve_one_bounded(
+    resolver: Callable[[str], dict[str, Any]],
+    cve: str,
+) -> dict[str, Any]:
+    acquired = _GLOBAL_RESOLUTION_SLOTS.acquire(
+        timeout=RESOLVER_SLOT_TIMEOUT_SECONDS
+    )
+    if not acquired:
+        return {
+            "connector_id": "defensive_fusion",
+            "state": "error",
+            "records": [],
+            "live": False,
+            "note": "global defensive-fusion capacity is temporarily unavailable",
+        }
+    try:
+        return resolver(cve)
+    except Exception as exc:
+        return {
+            "connector_id": "defensive_fusion",
+            "state": "error",
+            "records": [],
+            "live": False,
+            "note": f"resolver failed closed: {type(exc).__name__}",
+        }
+    finally:
+        _GLOBAL_RESOLUTION_SLOTS.release()
+
+
+async def _resolve_fusion_batch(
+    cves: list[str],
+    resolver: Callable[[str], dict[str, Any]],
+) -> dict[str, Any]:
+    semaphore = asyncio.Semaphore(MAX_PARALLEL_RESOLVERS)
+
+    async def resolve_one(cve: str) -> tuple[str, dict[str, Any]]:
+        async with semaphore:
+            result = await asyncio.to_thread(
+                _resolve_one_bounded, resolver, cve
+            )
+            return cve, result
+
+    pairs = await asyncio.gather(*(resolve_one(cve) for cve in cves))
+    return dict(pairs)
+
+
 def _resolve_live_fusion(cve: str) -> dict[str, Any]:
     from .data_sources.security import DefensiveFusionConnector
 
@@ -954,6 +1099,8 @@ def contract() -> dict[str, Any]:
             "components": MAX_COMPONENTS,
             "findings": MAX_FINDINGS,
             "active_cves": MAX_ACTIVE_CVES,
+            "parallel_resolvers_per_request": MAX_PARALLEL_RESOLVERS,
+            "global_resolver_slots": MAX_GLOBAL_RESOLVERS,
         },
         "authority": "DEFENSIVE_REMEDIATION_PLANNING_ONLY",
         "network_boundary": (
@@ -992,7 +1139,7 @@ def register(
     @app.post(base + "/evaluate")
     async def sbom_exposure_evaluate(request: Request) -> JSONResponse:
         try:
-            payload = loads_strict(await request.body())
+            payload = loads_strict(await _read_bounded_body(request))
             prepared = prepare_payload(payload)
         except ExposureInputError as exc:
             return JSONResponse(
@@ -1006,13 +1153,10 @@ def register(
                 status_code=exc.status_code,
             )
 
-        fusion_results: dict[str, Any] = {}
         try:
-            for cve in prepared["active_cves"]:
-                fusion_results[cve] = await asyncio.to_thread(
-                    live_resolver,
-                    cve,
-                )
+            fusion_results = await _resolve_fusion_batch(
+                prepared["active_cves"], live_resolver
+            )
             report = compose_report(prepared, fusion_results)
         except Exception as exc:
             return JSONResponse(
@@ -1046,6 +1190,8 @@ def register(
 __all__ = [
     "ExposureInputError",
     "SCHEMA",
+    "_read_bounded_body",
+    "_resolve_fusion_batch",
     "compose_report",
     "contract",
     "loads_strict",

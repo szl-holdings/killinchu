@@ -159,10 +159,16 @@ Request body:        2,000,000 bytes
 SBOM components:    1,000
 Findings:           50
 Unique active CVEs: 10
+Parallel resolvers per request: 3
+Global resolver slots per process: 4
 ```
 
-The active-CVE bound limits upstream load and prevents the public route from
-becoming an unbounded bulk-query mechanism.
+The request body is read incrementally and rejected as soon as it crosses the
+byte bound; a declared oversized `Content-Length` is rejected before body
+streaming begins. Only JSON media types are accepted. Active CVEs resolve with
+bounded concurrency, individual resolver failures remain isolated as explicit
+unavailable evidence, and a process-wide slot limit caps upstream pressure
+across concurrent requests.
 
 ## Verification
 

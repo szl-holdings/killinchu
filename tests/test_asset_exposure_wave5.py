@@ -4,12 +4,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
+import threading
+import time
 import unittest
 
 from szl_connectors.asset_exposure import (
     ExposureInputError,
+    MAX_BODY_BYTES,
+    MAX_PARALLEL_RESOLVERS,
+    _read_bounded_body,
+    _resolve_fusion_batch,
     compose_report,
     contract,
     loads_strict,
@@ -119,6 +126,10 @@ def fusion(
                 "epss": 0.94,
                 "recommended_action": "Apply the approved vendor mitigation.",
                 "normalized_evidence_sha256": "a" * 64,
+                "action_authority": "DEFENSIVE_PRIORITIZATION_ONLY",
+                "human_approval_required": True,
+                "exploit_content_included": False,
+                "asset_scanning_performed": False,
             }
         ]
         if state.casefold() == "connected"
@@ -127,6 +138,26 @@ def fusion(
         "live": state.casefold() == "connected",
         "note": "test evidence",
     }
+
+
+class FakeRequest:
+    def __init__(
+        self,
+        chunks: list[bytes],
+        *,
+        content_type: str = "application/json",
+        content_length: str | None = None,
+    ) -> None:
+        self._chunks = chunks
+        self.stream_started = False
+        self.headers = {"content-type": content_type}
+        if content_length is not None:
+            self.headers["content-length"] = content_length
+
+    async def stream(self):
+        self.stream_started = True
+        for chunk in self._chunks:
+            yield chunk
 
 
 class InputContractTests(unittest.TestCase):
@@ -227,6 +258,38 @@ class InputContractTests(unittest.TestCase):
         with self.assertRaises(ExposureInputError) as caught:
             loads_strict(b'{"asset": NaN}')
         self.assertEqual(caught.exception.code, "INVALID_JSON")
+
+    def test_non_string_cyclonedx_reference_is_rejected(self) -> None:
+        payload = cyclonedx_payload()
+        payload["sbom"]["components"][0]["bom-ref"] = 42
+        payload["findings"][0]["component_ref"] = "42"
+        with self.assertRaises(ExposureInputError) as caught:
+            prepare_payload(payload)
+        self.assertEqual(caught.exception.code, "INVALID_FIELD")
+
+    def test_declared_oversize_body_is_rejected_before_streaming(self) -> None:
+        request = FakeRequest(
+            [b"{}"],
+            content_length=str(MAX_BODY_BYTES + 1),
+        )
+        with self.assertRaises(ExposureInputError) as caught:
+            asyncio.run(_read_bounded_body(request))
+        self.assertEqual(caught.exception.code, "BODY_TOO_LARGE")
+        self.assertFalse(request.stream_started)
+
+    def test_chunked_oversize_body_is_stopped_in_transit(self) -> None:
+        request = FakeRequest([b"a" * MAX_BODY_BYTES, b"b"])
+        with self.assertRaises(ExposureInputError) as caught:
+            asyncio.run(_read_bounded_body(request))
+        self.assertEqual(caught.exception.code, "BODY_TOO_LARGE")
+        self.assertTrue(request.stream_started)
+
+    def test_non_json_media_type_is_rejected(self) -> None:
+        request = FakeRequest([b"{}"], content_type="text/plain")
+        with self.assertRaises(ExposureInputError) as caught:
+            asyncio.run(_read_bounded_body(request))
+        self.assertEqual(caught.exception.code, "UNSUPPORTED_MEDIA_TYPE")
+        self.assertEqual(caught.exception.status_code, 415)
 
     def test_body_size_is_bounded(self) -> None:
         with self.assertRaises(ExposureInputError) as caught:
@@ -359,6 +422,46 @@ class ReportTests(unittest.TestCase):
                 self.assertEqual(row["source_state"], "ERROR")
                 self.assertEqual(row["remediation_lane"], "REVIEW")
                 self.assertIsNone(row["asset_priority_score"])
+
+    def test_wave4_authority_boundary_is_required(self) -> None:
+        prepared = prepare_payload(cyclonedx_payload())
+        invalid = fusion(cve="CVE-2021-44228")
+        invalid["records"][0]["action_authority"] = "UNBOUNDED"
+        report = compose_report(
+            prepared,
+            {"CVE-2021-44228": invalid},
+            observed_at="2026-09-04T00:00:00+00:00",
+        )
+        row = report["remediation_queue"][0]
+        self.assertEqual(report["state"], "UNAVAILABLE")
+        self.assertEqual(row["source_state"], "ERROR")
+        self.assertEqual(row["remediation_lane"], "REVIEW")
+
+    def test_batch_resolution_is_bounded_and_fail_isolated(self) -> None:
+        lock = threading.Lock()
+        active = 0
+        peak = 0
+
+        def resolver(cve: str) -> dict:
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            try:
+                time.sleep(0.02)
+                if cve.endswith("1002"):
+                    raise RuntimeError("synthetic resolver failure")
+                return fusion(cve=cve)
+            finally:
+                with lock:
+                    active -= 1
+
+        cves = [f"CVE-2026-{1000 + index}" for index in range(6)]
+        results = asyncio.run(_resolve_fusion_batch(cves, resolver))
+        self.assertEqual(set(results), set(cves))
+        self.assertLessEqual(peak, MAX_PARALLEL_RESOLVERS)
+        self.assertEqual(results["CVE-2026-1002"]["state"], "error")
+        self.assertEqual(results["CVE-2026-1000"]["state"], "connected")
 
     def test_evidence_digest_excludes_observation_time(self) -> None:
         prepared = prepare_payload(cyclonedx_payload())
