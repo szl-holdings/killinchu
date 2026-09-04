@@ -4,23 +4,23 @@ from __future__ import annotations
 import killinchu_nav_wireup as routes
 
 
-EXPECTED = {
-    "/resilience": "/elite",
+EXPECTED_REDIRECTS = {
     "/vessels": "/elite/maritime",
     "/maritime": "/elite/maritime",
     "/airspace": "/elite#cuas_lab",
 }
 
 
-def test_retired_product_names_resolve_same_origin_inside_killinchu() -> None:
-    for source, target in EXPECTED.items():
+def test_retired_mission_pack_names_resolve_same_origin_inside_killinchu() -> None:
+    for source, target in EXPECTED_REDIRECTS.items():
         assert routes._BARE_SURFACE_REDIRECTS[source] == target
         assert source.startswith("/")
         assert target.startswith("/")
         assert "://" not in target
 
 
-def test_unmigrated_engines_are_not_falsely_redirected() -> None:
+def test_defend_and_resilience_are_real_routes_not_presentation_redirects() -> None:
+    assert "/resilience" not in routes._BARE_SURFACE_REDIRECTS
     assert "/defend" not in routes._BARE_SURFACE_REDIRECTS
     assert "/immune" not in routes._BARE_SURFACE_REDIRECTS
 
