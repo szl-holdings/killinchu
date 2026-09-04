@@ -72,23 +72,23 @@ jobs:
           grep -Fq '/api/defend/status' .github/workflows/hf-sync.yml
           git diff --check
 
-      - name: Commit the generated integration diff
+      - name: Commit only generated runtime integration files
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet; then
-            echo "Wiring already exact; no commit required."
-            exit 0
-          fi
           git config user.name "Lutar, Stephen P."
           git config user.email "stephenlutar2@gmail.com"
           git add \
             serve.py deploy/space/serve.py \
             Dockerfile deploy/space/Dockerfile \
             killinchu_nav_wireup.py \
-            tests/test_resilience_route_convergence.py \
-            .github/workflows/ci.yml \
-            .github/workflows/hf-sync.yml
+            tests/test_resilience_route_convergence.py
+          if git diff --cached --quiet; then
+            echo "Runtime wiring already exact; no commit required."
+            git restore .github/workflows/ci.yml .github/workflows/hf-sync.yml
+            exit 0
+          fi
           git diff --cached --check
           git commit --signoff -m "feat(defend): wire the source-bound plane into Killinchu"
+          git restore .github/workflows/ci.yml .github/workflows/hf-sync.yml
           git push origin "HEAD:${GITHUB_REF_NAME}"
