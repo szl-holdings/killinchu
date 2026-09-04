@@ -1525,6 +1525,29 @@ except Exception as _rk_e:
 # | unreachable. NOT the staged UDS mesh modules; provenance = sha256 chain, NOT
 # a signature; routing/entities/correlate are heuristic·advisory. Pure stdlib
 # urllib. Registered EARLY (before the /{full_path:path} catch-all). Sign: Forge.
+# SZL PUBLIC SOURCE FABRIC V1
+# Deliberately public official sources only: fixed HTTPS allowlist, GET-only,
+# bounded cache/provenance, no arbitrary URL, no targeting or action authority.
+try:
+    import killinchu_public_source_fabric as _killinchu_public_source_fabric
+    _killinchu_public_source_routes = _killinchu_public_source_fabric.register(
+        app, ns="killinchu"
+    )
+    _killinchu_public_source_warming = (
+        _killinchu_public_source_fabric.start_warmer()
+    )
+    print(
+        "[killinchu] public-source fabric registered: "
+        f"routes={len(_killinchu_public_source_routes)} "
+        f"warmer={_killinchu_public_source_warming}",
+        file=__import__("sys").stderr,
+    )
+except Exception as _public_source_e:  # pragma: no cover - fail-closed startup
+    print(
+        f"[killinchu] public-source fabric NOT registered: {_public_source_e!r}",
+        file=__import__("sys").stderr,
+    )
+
 try:
     import killinchu_osint as _killinchu_osint
     _killinchu_osint_status = _killinchu_osint.register(app, ns="killinchu")
