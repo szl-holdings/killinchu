@@ -137,6 +137,34 @@ _OTEL_ENABLED = False
 
 app = FastAPI(title="Killinchu — Andean Drone Intelligence", version="1.0.0")
 
+
+# KILLINCHU_DEFEND_PLANE_V1 — same-origin Aegis/Sentra consolidation.
+# The module ports the bounded defensive-control contract from the exact source
+# revision named by /api/defend/source.  It is registered before the SPA
+# catch-all so /defend and /api/defend/* are real routes, not presentation-only
+# links.  Failure is visible through deployment smoke probes; no silent fallback
+# can satisfy those probes.
+try:
+    import killinchu_defend_plane as _killinchu_defend_plane
+
+    _killinchu_defend_status = _killinchu_defend_plane.register(
+        app,
+        ns="killinchu",
+    )
+    print(
+        f"[killinchu] Defend plane wired ({_killinchu_defend_status})",
+        file=sys.stderr,
+    )
+except Exception as _killinchu_defend_error:
+    _killinchu_defend_status = (
+        f"defend-plane-not-wired:{_killinchu_defend_error!r}"
+    )
+    print(
+        f"[killinchu] Defend plane NOT mounted "
+        f"({_killinchu_defend_error!r})",
+        file=sys.stderr,
+    )
+
 # ── Evidence & Research layer (evidence-research-185) — curated + live arXiv/GitHub citations.
 # Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
 try:
