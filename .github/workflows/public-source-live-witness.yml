@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Public Source Fabric Live Witness
+
+# Credential-free, read-only verification of the deployed Killinchu public-source
+# fabric. The operator has fixed origins, performs GET only, records no source
+# bodies, and never grants targeting, enforcement, or third-party write authority.
+on:
+  workflow_run:
+    workflows:
+      - Sync to HuggingFace Space
+    types:
+      - completed
+  push:
+    branches: [main]
+    paths:
+      - scripts/public_source_live_witness.py
+      - tests/test_public_source_live_witness_contract.py
+      - .github/workflows/public-source-live-witness.yml
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: killinchu-public-source-live-witness
+  cancel-in-progress: true
+
+jobs:
+  witness:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Verify exact source and fail-closed public contracts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: >-
+          python scripts/public_source_live_witness.py
+          --output public-source-live-witness.json
+          --retry-seconds 420
+
+      - name: Upload immutable public-source witness
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-source-live-witness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: public-source-live-witness.json
+          if-no-files-found: error
+          retention-days: 90
