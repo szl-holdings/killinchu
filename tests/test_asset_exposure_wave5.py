@@ -21,6 +21,7 @@ from szl_connectors.asset_exposure import (
     contract,
     loads_strict,
     prepare_payload,
+    register,
 )
 
 
@@ -296,6 +297,24 @@ class InputContractTests(unittest.TestCase):
             loads_strict(b" " * 2_000_001)
         self.assertEqual(caught.exception.code, "BODY_TOO_LARGE")
         self.assertEqual(caught.exception.status_code, 413)
+
+
+class RouteRegistrationTests(unittest.TestCase):
+    def test_json_body_binds_to_asgi_request(self) -> None:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        app = FastAPI()
+        register(app, resolver=lambda cve: fusion(cve=cve))
+
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/killinchu/uds/v1/sbom/exposure/evaluate",
+                json=cyclonedx_payload(),
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["state"], "MEASURED")
 
 
 class ReportTests(unittest.TestCase):
