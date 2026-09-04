@@ -7,6 +7,8 @@ on:
       - "szl_uds_hardening.py"
       - "tests/test_asset_exposure_wave5.py"
       - "docs/ASSET_EXPOSURE_WAVE5.md"
+      - "scripts/asset_exposure_live_witness.py"
+      - ".github/workflows/asset-exposure-live-witness.yml"
       - "Dockerfile"
       - "deploy/space/Dockerfile"
       - "deploy/image-contract.json"
@@ -19,6 +21,8 @@ on:
       - "szl_uds_hardening.py"
       - "tests/test_asset_exposure_wave5.py"
       - "docs/ASSET_EXPOSURE_WAVE5.md"
+      - "scripts/asset_exposure_live_witness.py"
+      - ".github/workflows/asset-exposure-live-witness.yml"
       - "Dockerfile"
       - "deploy/space/Dockerfile"
       - "deploy/image-contract.json"
@@ -46,12 +50,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile Wave 5 source and integration
+      - name: Compile Wave 5 source, integration, and witness
         run: |
           python -m py_compile \
             szl_connectors/asset_exposure.py \
             szl_uds_hardening.py \
-            tests/test_asset_exposure_wave5.py
+            tests/test_asset_exposure_wave5.py \
+            scripts/asset_exposure_live_witness.py
 
       - name: Run network-free Wave 5 contract tests
         run: python -m unittest -v tests.test_asset_exposure_wave5
@@ -119,4 +124,28 @@ jobs:
               raise SystemExit(
                   "forbidden Wave 5 primitive(s): " + ", ".join(present)
               )
+          PY
+
+      - name: Prove production witness is fixed-origin and synthetic
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path("scripts/asset_exposure_live_witness.py").read_text(
+              encoding="utf-8"
+          )
+          required = (
+              'BASE = "https://szlholdings-killinchu.hf.space"',
+              'WITNESS_ASSET = "witness:synthetic:wave5"',
+              'WITNESS_CVE = "CVE-2021-44228"',
+              '(EXPOSURE_URL, "POST")',
+              '"asset_scanning_performed"',
+              '"component_vulnerability_inference_performed"',
+          )
+          for token in required:
+              if token not in source:
+                  raise SystemExit(f"live witness contract drifted: {token}")
+          for token in ('--base', 'os.environ.get("BASE")', "os.environ['BASE']"):
+              if token in source:
+                  raise SystemExit(f"live witness gained a variable target: {token}")
           PY
