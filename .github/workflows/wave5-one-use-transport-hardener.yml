@@ -31,9 +31,10 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/wave5_transport_hardener.py
-          rm -f \
-            scripts/wave5_transport_hardener.py \
-            .github/workflows/wave5-one-use-transport-hardener.yml
+          # The GitHub Actions token cannot write workflow files. Preserve the
+          # permanent CI workflow here; it is promoted separately through the
+          # authenticated contents API after source qualification succeeds.
+          git checkout -- .github/workflows/asset-exposure-wave5.yml
 
       - name: Requalify complete Wave 5 contract
         run: |
@@ -67,11 +68,14 @@ jobs:
           PY
           git diff --check
 
-      - name: Commit hardened Wave 5 branch
+      - name: Commit source-only hardening
         run: |
           set -euo pipefail
           git config user.name "Stephen Lutar"
           git config user.email "stephenlutar2@gmail.com"
-          git add -A
+          git add \
+            szl_connectors/asset_exposure.py \
+            tests/test_asset_exposure_wave5.py \
+            docs/ASSET_EXPOSURE_WAVE5.md
           git commit -s -m "fix(defend): bound Wave 5 transport and source pressure"
           git push origin HEAD:"feat/asset-sbom-exposure-wave5-20260904"
