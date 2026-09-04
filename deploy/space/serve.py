@@ -104,6 +104,34 @@ _OTEL_ENABLED = False
 
 app = FastAPI(title="Killinchu — Andean Drone Intelligence", version="1.0.0")
 
+
+# KILLINCHU_DEFEND_PLANE_V1 — same-origin Aegis/Sentra consolidation.
+# The module ports the bounded defensive-control contract from the exact source
+# revision named by /api/defend/source.  It is registered before the SPA
+# catch-all so /defend and /api/defend/* are real routes, not presentation-only
+# links.  Failure is visible through deployment smoke probes; no silent fallback
+# can satisfy those probes.
+try:
+    import killinchu_defend_plane as _killinchu_defend_plane
+
+    _killinchu_defend_status = _killinchu_defend_plane.register(
+        app,
+        ns="killinchu",
+    )
+    print(
+        f"[killinchu] Defend plane wired ({_killinchu_defend_status})",
+        file=sys.stderr,
+    )
+except Exception as _killinchu_defend_error:
+    _killinchu_defend_status = (
+        f"defend-plane-not-wired:{_killinchu_defend_error!r}"
+    )
+    print(
+        f"[killinchu] Defend plane NOT mounted "
+        f"({_killinchu_defend_error!r})",
+        file=sys.stderr,
+    )
+
 # ── BE hardening (Greene) — szl_be_hardening ──
 # Backend hardening: pydantic validation, 60/min/IP rate limit, real OpenAPI at
 # /api/killinchu/openapi.json, /healthz + /readyz (Khipu chain check), JSON logs
