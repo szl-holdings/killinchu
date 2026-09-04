@@ -1,0 +1,162 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Wire Defend into current Killinchu main once
+
+on:
+  push:
+    branches: [feat/defend-plane-current-main-20260904]
+    paths:
+      - .github/workflows/zz-wire-defend-current-main-once.yml
+      - killinchu_defend_plane.py
+      - tests/test_killinchu_defend_plane.py
+      - tests/test_resilience_route_convergence.py
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wire-defend-current-main-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  wire-and-prove:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Require expected source branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = feat/defend-plane-current-main-20260904
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = 52b49b1f429331e4d4aad5bc826aac6b7e75923f
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Apply idempotent same-origin integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          registration = '''
+
+# KILLINCHU_DEFEND_PLANE_V1 — same-origin Aegis/Sentra consolidation.
+# This source-bound module registers before the SPA catch-all. Failure remains
+# visible through protected deployment smoke probes; no presentation fallback
+# can satisfy the API contract.
+try:
+    import killinchu_defend_plane as _killinchu_defend_plane
+
+    _killinchu_defend_status = _killinchu_defend_plane.register(
+        app,
+        ns="killinchu",
+    )
+    print(
+        f"[killinchu] Defend plane wired ({_killinchu_defend_status})",
+        file=sys.stderr,
+    )
+except Exception as _killinchu_defend_error:
+    _killinchu_defend_status = (
+        f"defend-plane-not-wired:{_killinchu_defend_error!r}"
+    )
+    print(
+        f"[killinchu] Defend plane NOT mounted "
+        f"({_killinchu_defend_error!r})",
+        file=sys.stderr,
+    )
+'''
+          app_anchor = 'app = FastAPI(title="Killinchu — Andean Drone Intelligence", version="1.0.0")\n'
+          for name in ("serve.py", "deploy/space/serve.py"):
+              path = Path(name)
+              text = path.read_text(encoding="utf-8")
+              if "KILLINCHU_DEFEND_PLANE_V1" not in text:
+                  if text.count(app_anchor) != 1:
+                      raise SystemExit(f"{name}: expected one FastAPI anchor")
+                  text = text.replace(app_anchor, app_anchor + registration, 1)
+                  path.write_text(text, encoding="utf-8")
+                  print(f"updated {name}")
+
+          copy_block = (
+              "# Consolidated Aegis/Sentra capability plane — real same-origin UI, API, state and receipts.\n"
+              "COPY killinchu_defend_plane.py ./killinchu_defend_plane.py\n"
+          )
+          docker_anchor = "# Shared Spaces modules (Dev2+3)"
+          for name in ("Dockerfile", "deploy/space/Dockerfile"):
+              path = Path(name)
+              text = path.read_text(encoding="utf-8")
+              if "COPY killinchu_defend_plane.py ./killinchu_defend_plane.py" not in text:
+                  if text.count(docker_anchor) != 1:
+                      raise SystemExit(f"{name}: expected one Shared Spaces anchor")
+                  text = text.replace(docker_anchor, copy_block + docker_anchor, 1)
+                  path.write_text(text, encoding="utf-8")
+                  print(f"updated {name}")
+
+          nav = Path("killinchu_nav_wireup.py")
+          text = nav.read_text(encoding="utf-8")
+          obsolete = '    "/resilience": "/elite",\n'
+          if obsolete in text:
+              if text.count(obsolete) != 1:
+                  raise SystemExit("unexpected duplicate resilience redirect")
+              text = text.replace(obsolete, "", 1)
+              nav.write_text(text, encoding="utf-8")
+              print("updated killinchu_nav_wireup.py")
+          PY
+
+      - name: Install focused test closure
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "fastapi==0.137.2" "starlette==1.3.1" "httpx==0.28.1" \
+            -r requirements-test.txt
+          python -m pip check
+
+      - name: Prove source, route, workflow, and image contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile killinchu_defend_plane.py serve.py deploy/space/serve.py
+          python -m pytest -q \
+            tests/test_killinchu_defend_plane.py \
+            tests/test_resilience_route_convergence.py
+          grep -Fq 'KILLINCHU_DEFEND_PLANE_V1' serve.py
+          grep -Fq 'KILLINCHU_DEFEND_PLANE_V1' deploy/space/serve.py
+          grep -Fq 'COPY killinchu_defend_plane.py ./killinchu_defend_plane.py' Dockerfile
+          grep -Fq 'COPY killinchu_defend_plane.py ./killinchu_defend_plane.py' deploy/space/Dockerfile
+          git diff --check
+
+      - name: Commit only runtime integration files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- \
+            serve.py deploy/space/serve.py \
+            Dockerfile deploy/space/Dockerfile \
+            killinchu_nav_wireup.py; then
+            echo "Runtime integration is already exact."
+            exit 0
+          fi
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            serve.py deploy/space/serve.py \
+            Dockerfile deploy/space/Dockerfile \
+            killinchu_nav_wireup.py
+          git diff --cached --check
+          git commit --signoff -m "feat(defend): wire source-bound plane into current Killinchu"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
