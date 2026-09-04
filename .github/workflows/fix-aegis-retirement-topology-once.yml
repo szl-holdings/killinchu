@@ -1,0 +1,214 @@
+name: Correct Aegis retirement authority once
+
+on:
+  push:
+    branches:
+      - ops/fix-aegis-retirement-topology-bootstrap-20260904
+    paths:
+      - .github/workflows/fix-aegis-retirement-topology-once.yml
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: fix-aegis-retirement-topology-once
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout bootstrap source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/fix-aegis-retirement-topology-bootstrap-20260904
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Create current-main repair branch without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          branch=fix/aegis-retirement-sentra-topology-20260904
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "::error::Repair branch already exists; refusing to force-push."
+            exit 3
+          fi
+          git switch --detach origin/main
+          git switch -c "$branch"
+          echo "REPAIR_BRANCH=$branch" >> "$GITHUB_ENV"
+
+      - name: Limit Killinchu retirement authority to Vessels
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          script = Path('scripts/retire_legacy_resilience_spaces.py')
+          source = script.read_text(encoding='utf-8')
+          target = '    "SZLHOLDINGS/aegis-assurance": "/resilience",\n'
+          if source.count(target) != 1:
+              raise SystemExit('expected one active Aegis deletion target')
+          source = source.replace(target, '', 1)
+          source = source.replace(
+              '* ``SZLHOLDINGS/aegis-assurance``\n',
+              '',
+              1,
+          )
+          protected_anchor = '        "SZLHOLDINGS/immune-lattice",\n'
+          if '        "SZLHOLDINGS/aegis-assurance",\n' not in source:
+              if source.count(protected_anchor) != 1:
+                  raise SystemExit('protected migration anchor drifted')
+              source = source.replace(
+                  protected_anchor,
+                  protected_anchor + '        "SZLHOLDINGS/aegis-assurance",\n',
+                  1,
+              )
+          source = source.replace(
+              'Sentra and IMMUNE are explicitly protected until their component engines pass',
+              'Sentra and IMMUNE are explicitly protected until their component engines pass',
+              1,
+          )
+          script.write_text(source, encoding='utf-8', newline='\n')
+
+          test = Path('tests/test_legacy_resilience_space_retirement.py')
+          text = test.read_text(encoding='utf-8')
+          expected_target = '        "SZLHOLDINGS/aegis-assurance": "/resilience",\n'
+          if text.count(expected_target) < 1:
+              raise SystemExit('test target anchor drifted')
+          text = text.replace(expected_target, '')
+          protected_test = '        "SZLHOLDINGS/immune-lattice",\n'
+          if '        "SZLHOLDINGS/aegis-assurance",\n' not in text:
+              if text.count(protected_test) < 1:
+                  raise SystemExit('test protected anchor drifted')
+              text = text.replace(
+                  protected_test,
+                  protected_test + '        "SZLHOLDINGS/aegis-assurance",\n',
+                  1,
+              )
+          text = text.replace(
+              '        \'"SZLHOLDINGS/aegis-assurance": "/resilience"\',\n',
+              '',
+          )
+          test.write_text(text, encoding='utf-8', newline='\n')
+
+          workflow = Path('.github/workflows/retire-legacy-resilience-spaces.yml')
+          text = workflow.read_text(encoding='utf-8')
+          workflow_target = '              "SZLHOLDINGS/aegis-assurance": "/resilience",\n'
+          if text.count(workflow_target) != 1:
+              raise SystemExit('workflow target anchor drifted')
+          text = text.replace(workflow_target, '', 1)
+          protected_workflow = '              "SZLHOLDINGS/immune-lattice",\n'
+          if '              "SZLHOLDINGS/aegis-assurance",\n' not in text:
+              if text.count(protected_workflow) != 1:
+                  raise SystemExit('workflow protected anchor drifted')
+              text = text.replace(
+                  protected_workflow,
+                  protected_workflow + '              "SZLHOLDINGS/aegis-assurance",\n',
+                  1,
+              )
+          text = text.replace(
+              '# Space has deployed, source-bound, and completed its exact-source release\n# receipt. The Python operator has a hard-coded two-Space allowlist and refuses\n# Sentra/IMMUNE until their component migrations are independently proven.\n',
+              '# Space has deployed, source-bound, and completed its exact-source release\n# receipt. The Python operator has a hard-coded Vessels-only allowlist. Aegis is\n# owned by Sentra under the final owner directive; Sentra/IMMUNE remain protected.\n',
+              1,
+          )
+          workflow.write_text(text, encoding='utf-8', newline='\n')
+
+          directive = Path('docs/OWNER-DIRECTIVE-SENTRA-AEGIS-20260904.md')
+          directive.write_text(
+              '# Sentra / Aegis owner directive — 2026-09-04\n\n'
+              'The final owner topology supersedes the earlier Killinchu portfolio draft.\n\n'
+              '- **Sentra is the sole Assurance Command.**\n'
+              '- **Aegis is absorbed into Sentra.**\n'
+              '- **Killinchu remains the cyber-physical resilience product.**\n'
+              '- **Vessels / Maritime remains a Killinchu capability plane.**\n'
+              '- **IMMUNE remains migration-gated until its signed admission, tripwire, ledger, and evidence contracts are preserved.**\n\n'
+              'Therefore the Killinchu retirement operator may delete only `SZLHOLDINGS/vessels` after exact replacement proof. It must never delete `SZLHOLDINGS/aegis-assurance`; that retirement belongs to a future Sentra source-bound migration receipt.\n',
+              encoding='utf-8',
+              newline='\n',
+          )
+          PY
+
+      - name: Prove exact Vessels-only authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/retire_legacy_resilience_spaces.py tests/test_legacy_resilience_space_retirement.py
+          python -m pytest -q tests/test_legacy_resilience_space_retirement.py
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          path = Path('scripts/retire_legacy_resilience_spaces.py')
+          spec = importlib.util.spec_from_file_location('retire', path)
+          assert spec is not None and spec.loader is not None
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          assert module.RETIREMENT_TARGETS == {'SZLHOLDINGS/vessels': '/vessels'}
+          assert 'SZLHOLDINGS/aegis-assurance' in module.PROTECTED_MIGRATIONS
+          assert 'SZLHOLDINGS/sentra' in module.PROTECTED_MIGRATIONS
+          assert not set(module.RETIREMENT_TARGETS) & set(module.PROTECTED_MIGRATIONS)
+          PY
+          git grep -n 'SZLHOLDINGS/aegis-assurance' -- \
+            scripts/retire_legacy_resilience_spaces.py \
+            tests/test_legacy_resilience_space_retirement.py \
+            .github/workflows/retire-legacy-resilience-spaces.yml \
+            docs/OWNER-DIRECTIVE-SENTRA-AEGIS-20260904.md
+          git diff --check
+
+      - name: Commit and push exact repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            scripts/retire_legacy_resilience_spaces.py \
+            tests/test_legacy_resilience_space_retirement.py \
+            .github/workflows/retire-legacy-resilience-spaces.yml \
+            docs/OWNER-DIRECTIVE-SENTRA-AEGIS-20260904.md
+          git diff --cached --check
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -s -m "fix(hf): bind Aegis retirement to Sentra authority"
+          git push origin "HEAD:$REPAIR_BRANCH"
+
+      - name: Open repair PR and arm protected auto-merge
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="$(gh pr create \
+            --base main \
+            --head "$REPAIR_BRANCH" \
+            --title "fix(hf): bind Aegis retirement to Sentra authority" \
+            --body $'## Final owner topology correction\n\nThe Killinchu provider deleter is reduced from a two-Space target to a Vessels-only target. `SZLHOLDINGS/aegis-assurance` is moved into the protected set because Aegis is now absorbed into Sentra, not Killinchu.\n\nThe change preserves the Vessels snapshot, secret-metadata, storage, exact-source, same-origin, deletion, and receipt gates. It introduces no new provider mutation.\n\nSigned-off-by: Stephen Lutar <stephenlutar2@gmail.com>')"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          gh pr merge "$url" --auto --squash
+
+      - name: Dispatch Vessels-only retirement after protected merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 120); do
+            merged="$(gh pr view "$PR_URL" --json mergedAt --jq '.mergedAt // ""')"
+            if [ -n "$merged" ]; then
+              gh workflow run retire-legacy-resilience-spaces.yml --ref main
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Auto-merge remains armed; Vessels retirement was not dispatched before timeout."
