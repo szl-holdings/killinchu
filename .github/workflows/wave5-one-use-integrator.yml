@@ -1,0 +1,389 @@
+name: Wave 5 one-use integrator
+
+on:
+  push:
+    branches:
+      - "feat/asset-sbom-exposure-wave5-20260904"
+    paths:
+      - ".github/workflows/wave5-one-use-integrator.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out Wave 5 branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: "feat/asset-sbom-exposure-wave5-20260904"
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+
+      - name: Harden Wave 5 and patch exact runtime registration
+        run: |
+          set -euo pipefail
+          expected_hardening_blob="52a0bc0173cbe6f53b0d45ee7ce7e750c523856e"
+          expected_asset_blob="f6c1592978364b2eb32f4f04ed56384e2d70bb38"
+          expected_test_blob="d37dced10f3c87bc526f03752c9bd038ee640d26"
+          test "$(git hash-object szl_uds_hardening.py)" = "$expected_hardening_blob"
+          test "$(git hash-object szl_connectors/asset_exposure.py)" = "$expected_asset_blob"
+          test "$(git hash-object tests/test_asset_exposure_wave5.py)" = "$expected_test_blob"
+
+          python - <<'PY'
+          from pathlib import Path
+
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label} anchor count is {count}, expected 1")
+              return text.replace(old, new, 1)
+
+
+          asset_path = Path("szl_connectors/asset_exposure.py")
+          asset = asset_path.read_text(encoding="utf-8")
+
+          asset = replace_once(
+              asset,
+              "    return value\n\n\ndef loads_strict(raw: bytes) -> dict[str, Any]:\n",
+              "    return value\n\n\ndef _reject_json_constant(value: str) -> None:\n"
+              "    raise ValueError(f\"non-standard JSON constant: {value}\")\n\n\n"
+              "def loads_strict(raw: bytes) -> dict[str, Any]:\n",
+              "strict JSON constant guard",
+          )
+          asset = replace_once(
+              asset,
+              "            object_pairs_hook=_strict_object,\n"
+              "        )\n"
+              "    except (UnicodeDecodeError, json.JSONDecodeError, DuplicateKeyError) as exc:\n",
+              "            object_pairs_hook=_strict_object,\n"
+              "            parse_constant=_reject_json_constant,\n"
+              "        )\n"
+              "    except (UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:\n",
+              "strict JSON parser",
+          )
+          asset = replace_once(
+              asset,
+              "    normalized = value.strip()\n"
+              "    if required and not normalized:\n",
+              "    normalized = value.strip()\n"
+              "    if any(ord(character) < 0x20 for character in normalized):\n"
+              "        raise ExposureInputError(\n"
+              "            \"INVALID_FIELD\",\n"
+              "            f\"{field} contains a control character\",\n"
+              "        )\n"
+              "    if required and not normalized:\n",
+              "control-character guard",
+          )
+          asset = replace_once(
+              asset,
+              "def _walk_cyclonedx(rows: Any) -> Iterable[dict[str, Any]]:\n"
+              "    if rows is None:\n"
+              "        return\n"
+              "    if not isinstance(rows, list):\n"
+              "        raise ExposureInputError(\n"
+              "            \"INVALID_SBOM\",\n"
+              "            \"CycloneDX components must be an array\",\n"
+              "        )\n"
+              "    for row in rows:\n"
+              "        if not isinstance(row, dict):\n"
+              "            raise ExposureInputError(\n"
+              "                \"INVALID_SBOM\",\n"
+              "                \"every CycloneDX component must be an object\",\n"
+              "            )\n"
+              "        yield row\n"
+              "        nested = row.get(\"components\")\n"
+              "        if nested is not None:\n"
+              "            yield from _walk_cyclonedx(nested)\n",
+              "def _walk_cyclonedx(rows: Any) -> Iterable[dict[str, Any]]:\n"
+              "    if rows is None:\n"
+              "        return\n"
+              "    if not isinstance(rows, list):\n"
+              "        raise ExposureInputError(\n"
+              "            \"INVALID_SBOM\",\n"
+              "            \"CycloneDX components must be an array\",\n"
+              "        )\n"
+              "    stack = list(reversed(rows))\n"
+              "    while stack:\n"
+              "        row = stack.pop()\n"
+              "        if not isinstance(row, dict):\n"
+              "            raise ExposureInputError(\n"
+              "                \"INVALID_SBOM\",\n"
+              "                \"every CycloneDX component must be an object\",\n"
+              "            )\n"
+              "        yield row\n"
+              "        nested = row.get(\"components\")\n"
+              "        if nested is not None:\n"
+              "            if not isinstance(nested, list):\n"
+              "                raise ExposureInputError(\n"
+              "                    \"INVALID_SBOM\",\n"
+              "                    \"nested CycloneDX components must be an array\",\n"
+              "                )\n"
+              "            stack.extend(reversed(nested))\n",
+              "iterative CycloneDX traversal",
+          )
+          asset = replace_once(
+              asset,
+              "    components: list[dict[str, Any]] = []\n"
+              "    seen: set[str] = set()\n"
+              "    for row in _walk_cyclonedx(sbom.get(\"components\", [])):\n",
+              "    metadata = (\n"
+              "        sbom.get(\"metadata\")\n"
+              "        if isinstance(sbom.get(\"metadata\"), dict)\n"
+              "        else {}\n"
+              "    )\n"
+              "    root_component = (\n"
+              "        metadata.get(\"component\")\n"
+              "        if isinstance(metadata.get(\"component\"), dict)\n"
+              "        else {}\n"
+              "    )\n"
+              "    rows: list[dict[str, Any]] = []\n"
+              "    if root_component and (\n"
+              "        root_component.get(\"bom-ref\") or root_component.get(\"purl\")\n"
+              "    ):\n"
+              "        rows.append(root_component)\n"
+              "    rows.extend(_walk_cyclonedx(sbom.get(\"components\", [])))\n\n"
+              "    components: list[dict[str, Any]] = []\n"
+              "    seen: set[str] = set()\n"
+              "    for row in rows:\n",
+              "CycloneDX root component",
+          )
+          asset = replace_once(
+              asset,
+              "    metadata = sbom.get(\"metadata\") if isinstance(sbom.get(\"metadata\"), dict) else {}\n"
+              "    root_component = (\n"
+              "        metadata.get(\"component\")\n"
+              "        if isinstance(metadata.get(\"component\"), dict)\n"
+              "        else {}\n"
+              "    )\n"
+              "    identity = {\n",
+              "    identity = {\n",
+              "CycloneDX duplicate metadata block",
+          )
+          asset = replace_once(
+              asset,
+              "    seen: set[tuple[str, str, str]] = set()\n",
+              "    seen: set[tuple[str, str]] = set()\n",
+              "finding identity type",
+          )
+          asset = replace_once(
+              asset,
+              "        key = (component_ref, cve, status)\n"
+              "        if key in seen:\n"
+              "            continue\n"
+              "        seen.add(key)\n",
+              "        key = (component_ref, cve)\n"
+              "        if key in seen:\n"
+              "            raise ExposureInputError(\n"
+              "                \"DUPLICATE_FINDING\",\n"
+              "                f\"findings repeats component/CVE pair: {component_ref} / {cve}\",\n"
+              "            )\n"
+              "        seen.add(key)\n",
+              "duplicate finding rejection",
+          )
+          asset = replace_once(
+              asset,
+              "        fusion_raw = fusion_results.get(finding[\"cve\"])\n"
+              "        record, meta = _fusion_record(fusion_raw)\n"
+              "        if meta[\"state\"] == \"CONNECTED\" and record is not None:\n",
+              "        fusion_raw = fusion_results.get(finding[\"cve\"])\n"
+              "        record, meta = _fusion_record(fusion_raw)\n"
+              "        if record is not None and (\n"
+              "            str(record.get(\"cve\") or \"\").upper() != finding[\"cve\"]\n"
+              "        ):\n"
+              "            record = None\n"
+              "            meta = {\n"
+              "                **meta,\n"
+              "                \"state\": \"ERROR\",\n"
+              "                \"coverage\": \"NONE\",\n"
+              "                \"note\": \"resolver returned evidence for a different CVE\",\n"
+              "            }\n"
+              "        if meta[\"state\"] == \"CONNECTED\" and record is not None:\n",
+              "exact resolver binding",
+          )
+          asset_path.write_text(asset, encoding="utf-8", newline="\n")
+
+          test_path = Path("tests/test_asset_exposure_wave5.py")
+          tests = test_path.read_text(encoding="utf-8")
+          tests = replace_once(
+              tests,
+              "    def test_unknown_component_fails_closed(self) -> None:\n",
+              "    def test_cyclonedx_root_component_is_addressable(self) -> None:\n"
+              "        payload = cyclonedx_payload()\n"
+              "        root = {\n"
+              "            \"type\": \"application\",\n"
+              "            \"bom-ref\": \"pkg:generic/payments-api@1.0.0\",\n"
+              "            \"name\": \"payments-api\",\n"
+              "            \"version\": \"1.0.0\",\n"
+              "        }\n"
+              "        payload[\"sbom\"][\"metadata\"][\"component\"] = root\n"
+              "        payload[\"sbom\"][\"components\"] = []\n"
+              "        payload[\"findings\"][0][\"component_ref\"] = root[\"bom-ref\"]\n"
+              "        prepared = prepare_payload(payload)\n"
+              "        self.assertEqual(prepared[\"sbom\"][\"component_count\"], 1)\n"
+              "        self.assertIn(root[\"bom-ref\"], prepared[\"component_map\"])\n\n"
+              "    def test_unknown_component_fails_closed(self) -> None:\n",
+              "root component test",
+          )
+          tests = replace_once(
+              tests,
+              "    def test_active_cve_bound_is_enforced(self) -> None:\n",
+              "    def test_duplicate_component_cve_is_rejected(self) -> None:\n"
+              "        payload = cyclonedx_payload()\n"
+              "        duplicate = dict(payload[\"findings\"][0])\n"
+              "        duplicate[\"status\"] = \"under_investigation\"\n"
+              "        payload[\"findings\"].append(duplicate)\n"
+              "        with self.assertRaises(ExposureInputError) as caught:\n"
+              "            prepare_payload(payload)\n"
+              "        self.assertEqual(caught.exception.code, \"DUPLICATE_FINDING\")\n\n"
+              "    def test_active_cve_bound_is_enforced(self) -> None:\n",
+              "duplicate finding test",
+          )
+          tests = replace_once(
+              tests,
+              "    def test_body_size_is_bounded(self) -> None:\n",
+              "    def test_nonstandard_json_constant_is_rejected(self) -> None:\n"
+              "        with self.assertRaises(ExposureInputError) as caught:\n"
+              "            loads_strict(b'{\"asset\": NaN}')\n"
+              "        self.assertEqual(caught.exception.code, \"INVALID_JSON\")\n\n"
+              "    def test_body_size_is_bounded(self) -> None:\n",
+              "non-standard JSON test",
+          )
+          tests = replace_once(
+              tests,
+              "    def test_evidence_digest_excludes_observation_time(self) -> None:\n",
+              "    def test_mismatched_resolver_record_is_rejected(self) -> None:\n"
+              "        prepared = prepare_payload(cyclonedx_payload())\n"
+              "        wrong = fusion(cve=\"CVE-2024-0001\")\n"
+              "        report = compose_report(\n"
+              "            prepared,\n"
+              "            {\"CVE-2021-44228\": wrong},\n"
+              "            observed_at=\"2026-09-04T00:00:00+00:00\",\n"
+              "        )\n"
+              "        row = report[\"remediation_queue\"][0]\n"
+              "        self.assertEqual(report[\"state\"], \"UNAVAILABLE\")\n"
+              "        self.assertEqual(row[\"source_state\"], \"ERROR\")\n"
+              "        self.assertEqual(row[\"remediation_lane\"], \"REVIEW\")\n"
+              "        self.assertIsNone(row[\"asset_priority_score\"])\n\n"
+              "    def test_evidence_digest_excludes_observation_time(self) -> None:\n",
+              "resolver mismatch test",
+          )
+          test_path.write_text(tests, encoding="utf-8", newline="\n")
+
+          hardening_path = Path("szl_uds_hardening.py")
+          hardening = hardening_path.read_text(encoding="utf-8")
+          import_anchor = (
+              '_FLAGSHIPS = ["a11oy", "amaru", "sentra", "rosie", '
+              '"killinchu", "vessels", "hatun-mcp"]\n'
+          )
+          import_block = import_anchor + (
+              "\n"
+              "try:\n"
+              "    from szl_connectors import asset_exposure as _asset_exposure\n"
+              "except Exception:  # pragma: no cover - guarded runtime integration\n"
+              "    _asset_exposure = None\n"
+          )
+          hardening = replace_once(
+              hardening,
+              import_anchor,
+              import_block,
+              "Wave 5 import",
+          )
+
+          route_anchor = (
+              "    # ---- Hardening index (manifest of every real artifact) ----\n"
+          )
+          route_block = (
+              "    # ---- Asset inventory + SBOM exposure correlation (Wave 5) ----\n"
+              "    exposure_registration: dict[str, Any] = {\n"
+              '        "module": "szl_connectors.asset_exposure",\n'
+              '        "state": "UNAVAILABLE",\n'
+              '        "registered": [],\n'
+              '        "registered_count": 0,\n'
+              '        "honesty": "asset exposure module did not import; no route fabricated",\n'
+              "    }\n"
+              "    if _asset_exposure is not None:\n"
+              "        try:\n"
+              "            exposure_registration = _asset_exposure.register(app, ns)\n"
+              '            registered.extend(exposure_registration.get("registered", []))\n'
+              "        except Exception as exc:  # keep the existing app available\n"
+              "            exposure_registration = {\n"
+              '                "module": "szl_connectors.asset_exposure",\n'
+              '                "state": "ERROR",\n'
+              '                "registered": [],\n'
+              '                "registered_count": 0,\n'
+              '                "error": type(exc).__name__,\n'
+              '                "honesty": "Wave 5 registration failed closed; no success claimed",\n'
+              "            }\n"
+              "\n"
+              + route_anchor
+          )
+          hardening = replace_once(
+              hardening,
+              route_anchor,
+              route_block,
+              "Wave 5 route registration",
+          )
+          hardening = replace_once(
+              hardening,
+              '                  "endpoints": registered,\n',
+              '                  "endpoints": registered,\n'
+              '                  "asset_exposure": exposure_registration,\n',
+              "Wave 5 hardening index",
+          )
+          hardening = replace_once(
+              hardening,
+              '    return {"module": "szl_uds_hardening", "registered_count": len(registered),\n'
+              '            "registered": registered, "flagships": _FLAGSHIPS,\n'
+              '            "signing": bool(_dsse and _dsse.signing_available())}\n',
+              '    return {"module": "szl_uds_hardening", "registered_count": len(registered),\n'
+              '            "registered": registered, "flagships": _FLAGSHIPS,\n'
+              '            "asset_exposure": exposure_registration,\n'
+              '            "signing": bool(_dsse and _dsse.signing_available())}\n',
+              "Wave 5 return summary",
+          )
+          hardening_path.write_text(hardening, encoding="utf-8", newline="\n")
+          PY
+
+          rm .github/workflows/wave5-one-use-integrator.yml
+
+      - name: Verify integrated Wave 5 branch
+        run: |
+          python -m py_compile \
+            szl_connectors/asset_exposure.py \
+            szl_uds_hardening.py \
+            tests/test_asset_exposure_wave5.py
+          python -m unittest -v tests.test_asset_exposure_wave5
+          python - <<'PY'
+          from pathlib import Path
+
+          hardening = Path("szl_uds_hardening.py").read_text(encoding="utf-8")
+          required = (
+              "from szl_connectors import asset_exposure as _asset_exposure",
+              "_asset_exposure.register(app, ns)",
+              '"asset_exposure": exposure_registration',
+          )
+          for token in required:
+              if token not in hardening:
+                  raise SystemExit(f"missing runtime integration: {token}")
+          if "COPY szl_connectors/ ./szl_connectors/" not in Path("Dockerfile").read_text(encoding="utf-8"):
+              raise SystemExit("Dockerfile omits szl_connectors package")
+          PY
+          git diff --check
+
+      - name: Commit the integrated Wave 5 branch
+        run: |
+          set -euo pipefail
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git commit -s -m "feat(defend): integrate asset SBOM exposure wave 5"
+          git push origin HEAD:"feat/asset-sbom-exposure-wave5-20260904"
