@@ -1,0 +1,15 @@
+{
+  "schema": "szl.killinchudefend.routes/v1",
+  "canonical": {
+    "overview": "/resilience",
+    "workspace": "/defend",
+    "status": "/api/defend/status",
+    "source": "/api/defend/source"
+  },
+  "aliases": {
+    "/aegis": "/defend",
+    "/sentra": "/defend"
+  },
+  "external_runtime_dependency": false,
+  "former_space": "SZLHOLDINGS/sentra"
+}
