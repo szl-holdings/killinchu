@@ -1,0 +1,97 @@
+name: Sync final runtime payload from a11oy once
+
+on:
+  push:
+    branches:
+      - sync/runtime-boundary-1994
+    paths:
+      - .github/workflows/_sync_runtime_payload_from_a11oy_once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-runtime-payload-killinchu
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: fbe693fbdd2d85f80b92f242e8a454a56bde4b9e
+  MANIFEST_SHA256: 8b80511a5f8d10ea0c7b0cdb4e0b9358e72f8df47045b2a0fff5bdf5b41d9ca0
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact peer branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: sync/runtime-boundary-1994
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Retrieve exact reviewed payload bytes
+        run: |
+          set -euo pipefail
+          root="https://raw.githubusercontent.com/szl-holdings/a11oy/${SOURCE_SHA}"
+          curl --fail --silent --show-error --location \
+            "${root}/szl_agentic_loop.py" --output szl_agentic_loop.py
+          curl --fail --silent --show-error --location \
+            "${root}/szl_immune.py" --output szl_immune.py
+          curl --fail --silent --show-error --location \
+            "${root}/.github/shared-source-payload-manifest.json" \
+            --output .github/shared-source-payload-manifest.json
+          git diff --check
+
+      - name: Verify content-addressed payload independently
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          manifest_path = Path(".github/shared-source-payload-manifest.json")
+          actual_manifest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+          assert actual_manifest == os.environ["MANIFEST_SHA256"], (
+              actual_manifest,
+              os.environ["MANIFEST_SHA256"],
+          )
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          assert manifest["payload_id"] == "runtime-boundary-1994"
+          assert manifest["schema"] == "szl-shared-source-payload/v1"
+          assert set(manifest["files"]) == {"szl_agentic_loop.py", "szl_immune.py"}
+          for path, expected in manifest["files"].items():
+              actual = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+              assert actual == expected, (path, actual, expected)
+          PY
+
+      - name: Prove Python syntax and blocking Ruff rules
+        run: |
+          set -euo pipefail
+          python -m pip install ruff==0.16.6
+          ruff check szl_agentic_loop.py szl_immune.py --select E9,F
+          python -m py_compile szl_agentic_loop.py szl_immune.py
+
+      - name: Commit permanent payload and self-remove
+        run: |
+          set -euo pipefail
+          rm .github/workflows/_sync_runtime_payload_from_a11oy_once.yml
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            .github/shared-source-payload-manifest.json \
+            .github/workflows/_sync_runtime_payload_from_a11oy_once.yml \
+            szl_agentic_loop.py \
+            szl_immune.py
+          git commit -m "fix(shared): import final reviewed runtime payload
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:sync/runtime-boundary-1994
