@@ -86,9 +86,9 @@ def test_policy_proof_blocks_space_recreation() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
     for marker in (
         'PUBLIC_FLAGSHIP_SLUGS',
-        '("terra", "counsel", "finance", "lyte")',
+        '("terra", "sentra", "counsel", "finance", "lyte")',
         'FOLDED_INTO_KILLINCHU',
-        '("sentra", "vessels")',
+        '("vessels",)',
         'RETIRED_SPACE_IDS = frozenset({"SZLHOLDINGS/aegis-assurance"})',
         "legacy Space remains in active keeper set",
         "Packet 8 can still recreate Aegis assurance",
@@ -114,3 +114,10 @@ def test_workflow_runs_only_after_successful_exact_source_deploy() -> None:
         assert marker in text
     assert "environment:" not in text
     assert "delete_repo" not in text
+
+def test_v8_topology_keeps_sentra_public_and_only_vessels_folded() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert 'public != ("terra", "sentra", "counsel", "finance", "lyte")' in source
+    assert 'folded != ("vessels",)' in source
+    assert '"SZLHOLDINGS/sentra"' in source
+    assert '"SZLHOLDINGS/vessels": "/vessels"' in source
