@@ -55,7 +55,7 @@ def main() -> int:
     addition = '''\n\ndef test_v8_topology_keeps_sentra_public_and_only_vessels_folded() -> None:\n    source = SCRIPT.read_text(encoding="utf-8")\n    assert 'public != ("terra", "sentra", "counsel", "finance", "lyte")' in source\n    assert 'folded != ("vessels",)' in source\n    assert '"SZLHOLDINGS/sentra"' in source\n    assert '"SZLHOLDINGS/vessels": "/vessels"' in source\n'''
     if "test_v8_topology_keeps_sentra_public_and_only_vessels_folded" in tests:
         raise RuntimeError("v8 topology test already exists")
-    TEST.write_text(tests.rstrip() + addition + "\n", encoding="utf-8")
+    TEST.write_text(tests.rstrip() + addition.rstrip() + "\n", encoding="utf-8")
     return 0
 
 
