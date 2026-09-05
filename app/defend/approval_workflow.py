@@ -1,10 +1,18 @@
-"""Defend approval workflow — killinchu #399 §3 per spec #401.
+"""Defend approval workflow — killinchu #399 §3 per spec #401, solo policy.
 
-Durable, fail-closed approvals. Two-person rule: high-blast-radius scopes
-require two distinct approvers, and no approver may be the requester.
-Approvals carry a 5-minute TTL consumed by the effector guard; expired
-approvals never authorize. Denials and expirations are terminal — a denied
-request must be re-requested, not re-voted.
+Durable, fail-closed approvals. Two policy modes:
+
+- team (default): high-blast-radius scopes require two distinct approvers;
+  nobody approves their own request.
+- solo: an explicit operator-declared posture for single-operator builds.
+  One approver suffices and self-approval is permitted — anything else
+  would deadlock a solo operator. The mode is stamped on every request and
+  carried into receipts, so the relaxed posture is always visible in audit.
+
+Both modes share the invariants that never relax: justification required,
+denials and expirations terminal, 5-minute TTL enforced, and
+`authorization_for_guard` returns None for anything but a fresh APPROVED
+request — the guard denies on None.
 """
 
 from __future__ import annotations
@@ -14,8 +22,13 @@ import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 
-APPROVAL_TTL_SECONDS = 300  # consumed by the effector guard freshness check
+APPROVAL_TTL_SECONDS = 300
 HIGH_BLAST_RADIUS = {"host.quarantine", "net.segment", "account.disable"}
+
+
+class PolicyMode(str, Enum):
+    TEAM = "team"
+    SOLO = "solo"
 
 
 class RequestState(str, Enum):
@@ -32,6 +45,7 @@ class ApprovalRequest:
     scope: str
     justification: str
     created_at_epoch: float
+    policy_mode: PolicyMode
     approvers: list[str] = field(default_factory=list)
     denier: str | None = None
     state: RequestState = RequestState.PENDING
@@ -41,14 +55,18 @@ class ApprovalRequest:
         return self.scope in HIGH_BLAST_RADIUS
 
     def required_approvers(self) -> int:
+        if self.policy_mode == PolicyMode.SOLO:
+            return 1
         return 2 if self.high_blast_radius else 1
 
 
 class ApprovalWorkflow:
     """Fail-closed approval lifecycle: request -> approve/deny -> consume."""
 
-    def __init__(self, ttl_seconds: int = APPROVAL_TTL_SECONDS):
+    def __init__(self, ttl_seconds: int = APPROVAL_TTL_SECONDS,
+                 policy_mode: PolicyMode = PolicyMode.TEAM):
         self.ttl = ttl_seconds
+        self.policy_mode = PolicyMode(policy_mode)
         self._requests: dict[str, ApprovalRequest] = {}
 
     def request(self, *, requester: str, scope: str, justification: str,
@@ -57,7 +75,8 @@ class ApprovalWorkflow:
             raise ValueError("approval requests require a justification")
         req = ApprovalRequest(request_id=str(uuid.uuid4()), requester=requester,
                               scope=scope, justification=justification,
-                              created_at_epoch=time.time() if now is None else now)
+                              created_at_epoch=time.time() if now is None else now,
+                              policy_mode=self.policy_mode)
         self._requests[req.request_id] = req
         return req
 
@@ -78,8 +97,8 @@ class ApprovalWorkflow:
             raise ValueError(f"request is {req.state.value}; re-request instead")
         if req.state == RequestState.APPROVED:
             raise ValueError("request already approved")
-        if approver == req.requester:
-            raise ValueError("requester cannot approve their own request")
+        if approver == req.requester and self.policy_mode != PolicyMode.SOLO:
+            raise ValueError("requester cannot approve their own request in team mode")
         if approver in req.approvers:
             raise ValueError("approver has already voted on this request")
         req.approvers.append(approver)
@@ -99,11 +118,7 @@ class ApprovalWorkflow:
         return req
 
     def authorization_for_guard(self, request_id: str, now: float | None = None):
-        """Emit the guard-consumable approval, or None when not authorized.
-
-        Fail-closed: anything other than a fresh APPROVED request yields None,
-        and the guard denies on None.
-        """
+        """Emit the guard-consumable approval, or None when not authorized."""
         from app.defend.effector_guard import Approval
 
         now = time.time() if now is None else now
