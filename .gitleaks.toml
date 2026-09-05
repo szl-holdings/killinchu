@@ -53,6 +53,9 @@ regexes = [
   # Front-end API base-URL constants are route paths, not credentials:
   #   const API="/api/killinchu/uds/v1";
   '''(?i)const\s+API\s*=\s*["']/[a-z0-9/_.-]+["']''',
+  # Content-addressed public source digest, not a credential. Keep this bound
+  # to the single gdw_auth manifest row; other 64-hex values remain scanned.
+  '''^\s*"gdw_auth\.py"\s*:\s*"[0-9a-f]{64}",?\s*$''',
 ]
 
 # Test fixtures legitimately carry mock key identifiers and stub signatures.
