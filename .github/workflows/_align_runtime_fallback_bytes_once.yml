@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Align runtime fallback bytes once
+
+on:
+  push:
+    branches:
+      - fix/runtime-fallback-attribution-current-main-20260905
+    paths:
+      - .github/workflows/_align_runtime_fallback_bytes_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: align-runtime-fallback-bytes-once
+  cancel-in-progress: false
+
+jobs:
+  align:
+    if: github.repository == 'szl-holdings/killinchu' && github.ref == 'refs/heads/fix/runtime-fallback-attribution-current-main-20260905'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact coordinated branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/runtime-fallback-attribution-current-main-20260905
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.10'
+
+      - name: Copy the exact reviewed A11oy shared runtime bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_sha=39079362c14f2d01970519cf65932677965072d8
+          expected_immune_sha=6047e4c3ac016650789a07405464a0c3bfedd14dac0cac3cc8e7327857b8893d
+          curl --fail --silent --show-error --location \
+            "https://raw.githubusercontent.com/szl-holdings/a11oy/${source_sha}/szl_immune.py" \
+            --output /tmp/szl_immune.py
+          test "$(sha256sum /tmp/szl_immune.py | cut -d' ' -f1)" = "$expected_immune_sha"
+          test "$(sha256sum szl_agentic_loop.py | cut -d' ' -f1)" = \
+            '2d3805007919a677637bf9750869a2a29c5639feeb9da586534848f677de426c'
+          mv /tmp/szl_immune.py szl_immune.py
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          files = {
+              relative: hashlib.sha256(Path(relative).read_bytes()).hexdigest()
+              for relative in ('szl_agentic_loop.py', 'szl_immune.py')
+          }
+          manifest = {
+              'files': dict(sorted(files.items())),
+              'payload_id': 'runtime-boundary-1994-v2',
+              'schema': 'szl-shared-source-payload/v1',
+          }
+          raw = (json.dumps(manifest, separators=(',', ':'), ensure_ascii=True) + '\n').encode()
+          Path('.github/shared-source-payload-manifest.json').write_bytes(raw)
+          assert hashlib.sha256(raw).hexdigest() == '6bbd2b7a85af455337600a42e081b920c5c0fc363554275df3288ca7de542f23'
+          PY
+
+      - name: Prove focused parity and attribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            'fastapi==0.116.1' \
+            'pytest==9.0.2' \
+            'cryptography==46.0.3'
+          python -m py_compile szl_agentic_loop.py szl_immune.py tests/test_runtime_boundary_fallback_attribution.py
+          python -m pytest -q tests/test_runtime_boundary_fallback_attribution.py
+          python .github/validate-shared-payload.py . . \
+            --expected-manifest-sha256=6bbd2b7a85af455337600a42e081b920c5c0fc363554275df3288ca7de542f23
+          git diff --check
+
+      - name: Commit exact permanent bytes and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=fix/runtime-fallback-attribution-current-main-20260905
+          test "$(git ls-remote origin refs/heads/$branch | cut -f1)" = "$GITHUB_SHA"
+          git rm -- .github/workflows/_align_runtime_fallback_bytes_once.yml
+          git add -- .github/shared-source-payload-manifest.json szl_immune.py
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -s -m 'fix(shared): align fallback attribution bytes with A11oy'
+          git push origin "HEAD:refs/heads/$branch"
