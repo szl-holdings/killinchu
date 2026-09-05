@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Materialize runtime boundary peer once
+
+"on":
+  push:
+    branches:
+      - sync/runtime-boundary-1994
+    paths:
+      - .github/workflows/sync-runtime-boundary-1994-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-runtime-boundary-1994-once
+  cancel-in-progress: true
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact Killinchu branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: sync/runtime-boundary-1994
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Checkout exact reviewed A11oy source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/a11oy
+          ref: 7ff7c1ef6193cdffe02753f165bb951ff5edd1fa
+          path: .peer/a11oy
+          persist-credentials: false
+
+      - name: Copy exact shared modules and create canonical manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .peer/a11oy/szl_agentic_loop.py szl_agentic_loop.py
+          cp .peer/a11oy/szl_immune.py szl_immune.py
+          cmp -s szl_agentic_loop.py .peer/a11oy/szl_agentic_loop.py
+          cmp -s szl_immune.py .peer/a11oy/szl_immune.py
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          files = {}
+          for relative in ("szl_agentic_loop.py", "szl_immune.py"):
+              files[relative] = hashlib.sha256(Path(relative).read_bytes()).hexdigest()
+          document = {
+              "files": files,
+              "payload_id": "runtime-boundary-1994",
+              "schema": "szl-shared-source-payload/v1",
+          }
+          path = Path(".github/shared-source-payload-manifest.json")
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(
+              json.dumps(document, ensure_ascii=False, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          print(path.read_text(encoding="utf-8"), end="")
+          print("manifest_sha256=" + hashlib.sha256(path.read_bytes()).hexdigest())
+          PY
+
+      - name: Prove exact bytes and syntax before commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile szl_agentic_loop.py szl_immune.py
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          manifest_path = Path(".github/shared-source-payload-manifest.json")
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          assert list(manifest) == ["files", "payload_id", "schema"]
+          assert list(manifest["files"]) == sorted(manifest["files"])
+          assert manifest["schema"] == "szl-shared-source-payload/v1"
+          assert manifest["payload_id"] == "runtime-boundary-1994"
+          for relative, expected in manifest["files"].items():
+              assert hashlib.sha256(Path(relative).read_bytes()).hexdigest() == expected
+              assert Path(relative).read_bytes() == Path(".peer/a11oy", relative).read_bytes()
+          print("manifest_sha256=" + hashlib.sha256(manifest_path.read_bytes()).hexdigest())
+          PY
+          git diff --check
+
+      - name: Commit synchronized peer and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .peer
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git rm .github/workflows/sync-runtime-boundary-1994-once.yml
+          git add \
+            .github/shared-source-payload-manifest.json \
+            szl_agentic_loop.py \
+            szl_immune.py
+          git diff --cached --check
+          git commit -s -m "fix(shared): synchronize runtime boundary repairs"
+          git push origin HEAD:sync/runtime-boundary-1994
