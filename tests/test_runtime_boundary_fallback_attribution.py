@@ -54,7 +54,7 @@ def test_fallback_reports_channel_a_and_preserves_primary_failure() -> None:
     assert result["channel"] == "A"
     assert result["space"] == "SZLHOLDINGS/immune"
     assert result["contract"] == "/api/immune/state"
-    assert result["url"].endswith("/api/immune/state")
+    assert result["url"] == calls[1]
     assert result["cell_count"] == 1
     assert result["ledger"] == {"count": 7}
     assert result["fallback_from"] == {
