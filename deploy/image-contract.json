@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "adbdf5380d7bf506c85b5356bed6c411f9d34d81d56cc1661e0434713b66e7c3"
+    "sha256": "932fb840a0d9e65673758517874d365e2ffef89f51723479e63a6cddbfd255fa"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "adbdf5380d7bf506c85b5356bed6c411f9d34d81d56cc1661e0434713b66e7c3"
+    "sha256": "932fb840a0d9e65673758517874d365e2ffef89f51723479e63a6cddbfd255fa"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -32,6 +32,7 @@
     "deploy/uds-package.yaml",
     "drones_db.json",
     "fleet_vessels_data.json",
+    "gdw_auth.py",
     "killinchu_active_flux.py",
     "killinchu_ais_aug2024.py",
     "killinchu_anatomy.py",
@@ -43,6 +44,7 @@
     "killinchu_cannonico.py",
     "killinchu_cop_fusion.py",
     "killinchu_cot_interop.py",
+    "killinchu_defend_plane.py",
     "killinchu_defensive_intake.py",
     "killinchu_drone_routes.py",
     "killinchu_edge_console.py",
@@ -314,6 +316,7 @@
     "killinchu_cannonico",
     "killinchu_cop_fusion",
     "killinchu_cot_interop",
+    "killinchu_defend_plane",
     "killinchu_defensive_intake",
     "killinchu_drone_routes",
     "killinchu_edge_console",
