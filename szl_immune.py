@@ -663,7 +663,11 @@ def _field(now: Optional[float] = None, probe=_probe_json) -> dict:
             else None
         ),
         "channel": "A" if fallback_state else "B",
-        "space": "SZLHOLDINGS/immune" if fallback_state else "SZLHOLDINGS/immune-lattice",
+        "space": (
+            "SZLHOLDINGS/immune"
+            if fallback_state
+            else "SZLHOLDINGS/immune-lattice"
+        ),
         "contract": "/api/immune/state" if fallback_state else "/api/field",
         "url": state_url if fallback_state else field_url,
         "product_tab": "/immune",
