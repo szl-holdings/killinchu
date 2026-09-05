@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Repair Killinchu retirement v8 topology once
+
+on:
+  push:
+    branches:
+      - fix/retirement-v8-topology-20260904
+    paths:
+      - .github/workflows/zz-repair-retirement-v8-topology-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-killinchu-retirement-v8-topology-once
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: align irreversible retirement guard with exact v8 topology
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/retirement-v8-topology-20260904
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Check out current A11oy topology authority
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/a11oy
+          ref: main
+          path: a11oy-current
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Apply exact v8 topology repair
+        run: python tools/patch_retirement_v8_topology.py
+
+      - name: Prove syntax, immutable allowlist, and current cross-repo policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/retire_legacy_resilience_spaces.py \
+            tests/test_legacy_resilience_space_retirement.py
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          test_path = Path("tests/test_legacy_resilience_space_retirement.py")
+          spec = importlib.util.spec_from_file_location("retirement_tests", test_path)
+          assert spec is not None and spec.loader is not None
+          tests = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(tests)
+          selected = sorted(
+              name for name in dir(tests)
+              if name.startswith("test_") and callable(getattr(tests, name))
+          )
+          for name in selected:
+              getattr(tests, name)()
+          print(f"{len(selected)} retirement safety contracts passed")
+
+          script_path = Path("scripts/retire_legacy_resilience_spaces.py")
+          script_spec = importlib.util.spec_from_file_location("retire", script_path)
+          assert script_spec is not None and script_spec.loader is not None
+          retire = importlib.util.module_from_spec(script_spec)
+          script_spec.loader.exec_module(retire)
+          proof = retire.verify_source_policies(Path("."), Path("a11oy-current"))
+          assert proof["a11oy_public_vertical_spaces"] == [
+              "terra", "sentra", "counsel", "finance", "lyte"
+          ]
+          assert proof["folded_into_killinchu"] == ["vessels"]
+          assert retire.RETIREMENT_TARGETS == {
+              "SZLHOLDINGS/vessels": "/vessels",
+              "SZLHOLDINGS/aegis-assurance": "/resilience",
+          }
+          assert not set(retire.RETIREMENT_TARGETS) & set(retire.PROTECTED_MIGRATIONS)
+          print("current A11oy v8 topology accepted without broadening deletion authority")
+          PY
+          git diff --check
+
+      - name: Commit only durable policy and regression changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf a11oy-current
+          git rm tools/patch_retirement_v8_topology.py
+          git rm .github/workflows/zz-repair-retirement-v8-topology-once.yml
+          git add \
+            scripts/retire_legacy_resilience_spaces.py \
+            tests/test_legacy_resilience_space_retirement.py
+          git config user.name "SZL Killinchu Retirement Policy Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit \
+            -m "fix(hf): align retirement guard with v8 vertical topology" \
+            -m "Recognize Sentra as an independent public flagship and Vessels as the sole folded vertical while retaining the exact two-Space retirement allowlist and all protected migration exclusions." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/retirement-v8-topology-20260904
