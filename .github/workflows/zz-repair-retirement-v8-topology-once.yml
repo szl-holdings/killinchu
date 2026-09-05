@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
+# Retry 2: generated regression file now has one canonical trailing newline.
 name: Repair Killinchu retirement v8 topology once
 
 on:
