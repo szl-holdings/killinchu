@@ -39,8 +39,9 @@ RETIREMENT_TARGETS: dict[str, str] = {
     "SZLHOLDINGS/aegis-assurance": "/resilience",
 }
 
-# These names are architecturally folded into Killinchu but remain migration
-# sources. The deleter must never mutate them.
+# These names remain protected migration/provider sources. Sentra is now an
+# independent public flagship, while IMMUNE surfaces remain migration inputs.
+# The legacy deleter must never mutate any of them.
 PROTECTED_MIGRATIONS = frozenset(
     {
         "SZLHOLDINGS/sentra",
@@ -138,9 +139,9 @@ def verify_source_policies(killinchu_root: Path, a11oy_root: Path) -> dict[str, 
     flagship_source = flagship_path.read_text(encoding="utf-8")
     public = tuple(_assignment_literal(flagship_source, "PUBLIC_FLAGSHIP_SLUGS"))
     folded = tuple(_assignment_literal(flagship_source, "FOLDED_INTO_KILLINCHU"))
-    if public != ("terra", "counsel", "finance", "lyte"):
+    if public != ("terra", "sentra", "counsel", "finance", "lyte"):
         raise RuntimeError(f"unexpected active vertical publisher inventory: {public!r}")
-    if folded != ("sentra", "vessels"):
+    if folded != ("vessels",):
         raise RuntimeError(f"unexpected folded vertical inventory: {folded!r}")
 
     packet_path = a11oy_root / ".github" / "scripts" / "publish_packet8_vertical_spaces.py"
