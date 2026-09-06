@@ -58,11 +58,15 @@ def test_approved_path_allows_once_and_audits():
     assert plane.chain._events[-1].event_type == "EFFECTOR_ALLOWED"
 
 
-def test_unregistered_scope_denied_through_plane():
+def test_unregistered_scope_denied_after_valid_approval():
     plane = _plane()
+    req = plane.approvals.request(requester="alice", scope="host.reimage",
+                                  justification="validate deny-by-default", now=NOW)
+    plane.approvals.approve(req.request_id, "bob", now=NOW)
     d = handle_effector_request(plane, principal="alice", scope="host.reimage",
                                 idempotency_key="w3", request_body={},
-                                approval_request_id=None, effector=_eff, now=NOW)
+                                approval_request_id=req.request_id, effector=_eff,
+                                now=NOW)
     assert d.denial == Denial.SCOPE_DENIED
 
 
