@@ -93,6 +93,7 @@ class ConflictDetector:
         if not approval_authorized:
             raise PermissionError("truce resolution requires human approval")
         self._frozen.discard(scope)
+        self._recent.pop(scope, None)
         self.chain.append("TRUCE_RESOLVED", {"scope": scope, "actor": actor},
                           now=now)
 
