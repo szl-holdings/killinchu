@@ -55,6 +55,11 @@ class PersistentAuditChain:
             "SELECT event_hash FROM audit_events ORDER BY seq DESC LIMIT 1").fetchone()
         return row[0] if row else GENESIS
 
+    @property
+    def head(self) -> str:
+        """Return the durable chain head, or the genesis hash when empty."""
+        return self._head(self._conn)
+
     def append(self, event_type: str, payload: dict,
                now: float | None = None) -> dict:
         now = time.time() if now is None else now
