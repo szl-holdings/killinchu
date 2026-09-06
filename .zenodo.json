@@ -1,0 +1,13 @@
+{
+  "title": "Killinchu — governed counter-UAS reference (tracks, fusion, ROE, BFT, DSSE)",
+  "upload_type": "software",
+  "description": "Counter-UAS reference surface: tracks, fusion, rules of engagement, BFT consensus, and a DSSE receipt per interdiction. Public synthetic — no public effector. Effectful requests pass the merged effector-guard choke point (#411): kill switch, approval freshness, scope allowlist, rate limit, durable idempotency, deny by default with a receipt on every path. Λ = Conjecture 1. Doctrine v11.",
+  "creators": [{"name": "Lutar, Stephen P., Jr."}],
+  "license": {"id": "Apache-2.0"},
+  "keywords": ["counter-uas", "governed-ai", "dsse", "bft", "doctrine-v11", "szl-holdings"],
+  "related_identifiers": [
+    {"identifier": "10.5281/zenodo.19944926", "relation": "isSupplementTo", "scheme": "doi"},
+    {"identifier": "https://github.com/szl-holdings/a11oy", "relation": "isSupplementTo", "scheme": "url"}
+  ],
+  "notes": "NEW work per the szl-papers deposit policy. Mint via GitHub release after enabling this repo in the owner's Zenodo account."
+}
