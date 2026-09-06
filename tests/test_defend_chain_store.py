@@ -6,7 +6,6 @@ persisted row breaks verification.
 """
 
 import json
-import time
 
 from app.defend.chain_store import GENESIS, PersistentAuditChain
 
