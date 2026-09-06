@@ -18,7 +18,7 @@ import hashlib
 import json
 import time
 
-from app.defend.chain_store import GENESIS, PersistentAuditChain
+from app.defend.chain_store import PersistentAuditChain
 
 
 def _snapshot(chain: PersistentAuditChain) -> dict:
