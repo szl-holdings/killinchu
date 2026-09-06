@@ -58,10 +58,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile killinchu_defend_plane.py serve.py deploy/space/serve.py
+          python -m py_compile \
+            killinchu_defend_plane.py \
+            serve.py \
+            deploy/space/serve.py \
+            app/defend/*.py
           python -m pytest -q \
             tests/test_killinchu_defend_plane.py \
-            tests/test_resilience_route_convergence.py
+            tests/test_resilience_route_convergence.py \
+            tests/test_defend_*.py
           grep -Fq 'KILLINCHU_DEFEND_PLANE_V1' serve.py
           grep -Fq 'KILLINCHU_DEFEND_PLANE_V1' deploy/space/serve.py
           grep -Fq 'COPY killinchu_defend_plane.py ./killinchu_defend_plane.py' Dockerfile
