@@ -8,93 +8,45 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: public-experience-host-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   public-experience-contract:
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
     steps:
-      - name: Checkout exact candidate
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c
+        with:
+          egress-policy: audit
+      - name: Checkout candidate integration result
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.12"
-      - name: Verify additive responsive controller and source binding
-        shell: bash
-        env:
-          SZL_HOLO_ENTRYPOINT: "static/index.html"
+      - name: Install exact focused test runtime
+        run: python -m pip install --disable-pip-version-check 'pytest==9.0.3'
+      - name: Verify host, pure presentation, and generated source ownership
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          import os
-          import subprocess
-
-          css_path = Path("static/szl-universal-frontend.css")
-          js_path = Path("static/truth-cop.js")
-          for path in (css_path, js_path):
-              if not path.is_file():
-                  raise SystemExit(f"missing declared frontend asset: {path}")
-
-          # Universal frontend v1 remains separately generator/hash owned.  This
-          # gate proves compatibility; it must not turn that incumbent asset into
-          # a second v3 writer.
-          css = css_path.read_text(encoding="utf-8")
-          for marker in (
-              "--szl-touch-target: 44px",
-              "overflow-x: clip",
-              "overflow-wrap: anywhere",
-              "@media (max-width: 560px)",
-              "@media (prefers-reduced-motion: reduce)",
-          ):
-              if marker not in css:
-                  raise SystemExit(f"{css_path}: missing universal contract marker {marker}")
-          if any(item in css for item in ("@import", "cdn.", "unpkg.", "jsdelivr.")):
-              raise SystemExit(f"{css_path}: external runtime asset")
-          if css.count("{") != css.count("}"):
-              raise SystemExit(f"{css_path}: unbalanced CSS braces")
-
-          # truth-cop.js is a product-owned live data controller and correctly
-          # contains fetch().  Audit only the additive Public Experience v3.1
-          # block for the rollout's no-network/no-storage presentation invariant.
-          js = js_path.read_text(encoding="utf-8")
-          block_marker = "SZL Public Experience v3.1"
-          marker_index = js.rfind(block_marker)
-          if marker_index < 0:
-              raise SystemExit(f"{js_path}: missing {block_marker}")
-          presentation = js[marker_index:]
-          for marker in (
-              "__SZL_PUBLIC_EXPERIENCE_V3__",
-              "SZLPublicExperience",
-              "szlPublicExperienceV3",
-              "szlViewportTier",
-              "visualViewport",
-              "requestAnimationFrame",
-              "prefers-reduced-motion",
-              "forced-colors",
-              "min-width:1440px",
-              "min-width:1920px",
-          ):
-              if marker not in presentation:
-                  raise SystemExit(f"{js_path}: additive block missing {marker}")
-          prohibited = (
-              "fetch(", "XMLHttpRequest", "sendBeacon", "localStorage",
-              "sessionStorage", "document.cookie",
-          )
-          if any(item in presentation for item in prohibited):
-              raise SystemExit(f"{js_path}: additive presentation block has prohibited client behavior")
-          subprocess.run(["node", "--check", str(js_path)], check=True)
-
-          entrypoint = os.environ.get("SZL_HOLO_ENTRYPOINT", "")
-          target = Path(entrypoint)
-          if not target.is_file():
-              raise SystemExit(f"missing entrypoint: {entrypoint}")
-          app = target.read_text(encoding="utf-8")
-          if "truth-cop.js" not in app:
-              raise SystemExit(f"{entrypoint}: product controller binding missing")
-          if "szl-universal-frontend.css" not in app:
-              raise SystemExit(f"{entrypoint}: universal CSS binding missing")
-          PY
+          git rev-parse HEAD
+          python -m py_compile scripts/apply_hf_universal_frontend_v1.py scripts/verify_public_experience_host.py
+          python scripts/apply_hf_universal_frontend_v1.py --check
+          mkdir -p artifacts
+          python scripts/verify_public_experience_host.py | tee artifacts/public-experience-host.json
+          python -m pytest -q tests/test_hf_universal_frontend_v1.py tests/test_public_experience_host.py
           git diff --check
+          git diff --exit-code -- README.md static/index.html static/truth-cop.js static/szl-universal-frontend.css docs/hf-universal-frontend-v1.json design/szl-public-experience-v3.css
+      - name: Retain source contract evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: public-experience-host-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/public-experience-host.json
+          if-no-files-found: warn
+          retention-days: 30
