@@ -128,6 +128,13 @@ input, select, textarea { max-width: 100%; min-height: var(--szl-touch-target); 
 """
 
 
+# Keep the reviewed responsive extension in source, not only in generated CSS.
+# Native --apply must reproduce the same byte-checked stylesheet as the rollout.
+# The extension is selector-gated and does not replace product layout or behavior.
+RESPONSIVE_CSS_SOURCE = ROOT / "design" / "szl-public-experience-v3.css"
+UNIVERSAL_CSS += "\n" + RESPONSIVE_CSS_SOURCE.read_text(encoding="utf-8")
+
+
 class AdapterError(RuntimeError):
     pass
 
