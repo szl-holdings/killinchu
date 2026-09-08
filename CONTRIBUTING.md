@@ -18,12 +18,13 @@ and reference under the terms in [`LICENSE`](./LICENSE). It is governed by
 
 ## Pull requests
 
-1. Sign your commits with the Developer Certificate of Origin
-   (`git commit -s`). The DCO check enforces a `Signed-off-by` trailer whose
-   author matches the commit author.
+1. Ensure the commit author and source-rights representation are accurate. This
+   solo-maintainer repository does not require DCO or `Signed-off-by` trailers;
+   GitHub-authenticated authorship, pull-request history, exact-head checks, and
+   the immutable merge record provide repository provenance.
 2. Keep changes additive and minimal; do not alter Doctrine-locked numbers.
-3. Ensure all CI workflows pass (CI, CodeQL, Scorecard, SBOM, DCO) before
-   requesting review.
+3. Ensure all applicable CI workflows pass, including CI, CodeQL, Scorecard,
+   SBOM, doctrine, secret, dependency, and source-drift gates.
 
 ## Governance pre-flight
 
@@ -81,7 +82,7 @@ deliberate, documented exceptions live in `.github/shared-file-drift-allow.txt`.
 Guards run on every PR and push to `main`. Key ones: `doctrine.yml` (banned-token /
 overclaim), `shared-file-drift.yml` (shared modules identical), `copy-sync-lockstep-guard.yml`
 (every imported module is in the Dockerfile COPY set + HF mirror set), `gitleaks.yml`,
-`dco.yml` (sign-off), `ci.yml`, `codeql.yml`, `scorecard.yml`, `sbom.yml`. If a guard trips
-on a comment or doc you added, **fix your text — never weaken the gate.**
+`ci.yml`, `codeql.yml`, `scorecard.yml`, and `sbom.yml`. If a guard trips on a comment or
+doc you added, **fix your text — never weaken the gate.**
 
 — killinchu maintainers
