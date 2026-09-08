@@ -180,7 +180,7 @@ def test_payload_exposes_homogeneous_manifest_without_relicensing_raw_rows():
         archive_revision="a" * 40,
         shards=[
             {
-                "path": "intel/day.ndjson",
+                "path": "intel/2026-07-30.ndjson",
                 "bytes": 123,
                 "git_blob_id": "b" * 40,
                 "git_blob_hash_algorithm": "sha1",
@@ -197,6 +197,10 @@ def test_payload_exposes_homogeneous_manifest_without_relicensing_raw_rows():
     }
     row = json.loads(payloads["viewer/archive_manifest.jsonl"])
     provenance = json.loads(payloads["DATASET_PROVENANCE.json"])
+    assert set(row) == publisher.VIEWER_ROW_FIELDS
+    assert type(row["bytes"]) is int
+    assert type(row["training_eligible"]) is bool
+    assert all(type(row[field]) is str for field in set(row) - {"bytes", "training_eligible"})
     assert row["training_eligible"] is False
     assert provenance["license"]["blanket_training_rights"] is False
     assert provenance["claims"]["reproducible_historical_generation"] == "NOT_CLAIMED"
@@ -206,10 +210,74 @@ def test_payload_exposes_homogeneous_manifest_without_relicensing_raw_rows():
     assert "archive_manifest" in payloads["README.md"].decode("utf-8")
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("path", "intel/latest.ndjson", "invalid path"),
+        ("bytes", "123", "positive integer"),
+        ("bytes", True, "positive integer"),
+        ("git_blob_id", "not-a-git-blob", "lowercase SHA-1"),
+        ("git_blob_hash_algorithm", "sha256", "must be sha1"),
+        ("rights_status", "UNKNOWN", "governed value"),
+        ("training_eligible", True, "training-ineligible"),
+    ],
+)
+def test_viewer_manifest_rejects_mixed_or_ungoverned_values(field, value, message):
+    shard = {
+        "path": "intel/2026-07-30.ndjson",
+        "bytes": 123,
+        "git_blob_id": "b" * 40,
+        "git_blob_hash_algorithm": "sha1",
+        "rights_status": publisher.VIEWER_RIGHTS_STATUS,
+        "training_eligible": False,
+    }
+    shard[field] = value
+
+    with pytest.raises(publisher.PublicationError, match=message):
+        publisher.build_payloads(
+            source_revision="c" * 40,
+            archive_revision="a" * 40,
+            shards=[shard],
+        )
+
+
+def test_viewer_manifest_rejects_duplicate_paths_and_sorts_rows():
+    first = {
+        "path": "intel/2026-07-30.ndjson",
+        "bytes": 123,
+        "git_blob_id": "b" * 40,
+        "git_blob_hash_algorithm": "sha1",
+        "rights_status": publisher.VIEWER_RIGHTS_STATUS,
+        "training_eligible": False,
+    }
+    second = {
+        **first,
+        "path": "intel/2026-07-31.ndjson",
+        "git_blob_id": "d" * 40,
+    }
+    payloads = publisher.build_payloads(
+        source_revision="c" * 40,
+        archive_revision="a" * 40,
+        shards=[second, first],
+    )
+    rows = [
+        json.loads(line)
+        for line in payloads[publisher.VIEWER_MANIFEST_PATH].splitlines()
+    ]
+    assert [row["path"] for row in rows] == [first["path"], second["path"]]
+
+    with pytest.raises(publisher.PublicationError, match="duplicate path"):
+        publisher.build_payloads(
+            source_revision="c" * 40,
+            archive_revision="a" * 40,
+            shards=[first, dict(first)],
+        )
+
+
 def test_unchanged_source_and_shards_are_noop_eligible():
     shards = [
         {
-            "path": "intel/day.ndjson",
+            "path": "intel/2026-07-30.ndjson",
             "bytes": 123,
             "git_blob_id": "b" * 40,
             "git_blob_hash_algorithm": "sha1",
