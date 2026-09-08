@@ -30,6 +30,24 @@ REPO_ID = "SZLHOLDINGS/killinchu-osint-corpus"
 SOURCE_REPOSITORY = "szl-holdings/killinchu"
 DEFAULT_BRANCH = "main"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+VIEWER_SHARD_PATH = re.compile(r"^intel/\d{4}-\d{2}-\d{2}\.ndjson$")
+VIEWER_MANIFEST_PATH = "viewer/archive_manifest.jsonl"
+VIEWER_ROW_SCHEMA = "szl.killinchu-archive-shard/v1"
+VIEWER_RIGHTS_STATUS = "MIXED_SOURCE_ROW_LEVEL_RIGHTS_NOT_ESTABLISHED"
+VIEWER_SHARD_FIELDS = frozenset(
+    {
+        "path",
+        "bytes",
+        "git_blob_id",
+        "git_blob_hash_algorithm",
+        "rights_status",
+        "training_eligible",
+    }
+)
+VIEWER_ROW_FIELDS = VIEWER_SHARD_FIELDS | {
+    "schema",
+    "observed_archive_revision",
+}
 GITHUB_TIMEOUT_SECONDS = 10.0
 MAX_GITHUB_RESPONSE_BYTES = 65_536
 GITHUB_READ_CHUNK_BYTES = 8_192
@@ -51,6 +69,55 @@ def exact_revision(value: Any, *, field: str) -> str:
     if not isinstance(value, str) or FULL_SHA.fullmatch(value) is None:
         raise PublicationError(f"{field} must be an exact lowercase 40-character Git SHA")
     return value
+
+
+def validated_viewer_shards(
+    *, archive_revision: Any, shards: Any
+) -> tuple[str, list[dict[str, Any]]]:
+    """Return deterministic shards only when every Viewer column is homogeneous."""
+    archive_revision = exact_revision(archive_revision, field="archive revision")
+    if not isinstance(shards, list) or not shards:
+        raise PublicationError("viewer shards must be a non-empty list")
+
+    normalized: list[dict[str, Any]] = []
+    paths: set[str] = set()
+    for index, shard in enumerate(shards):
+        if not isinstance(shard, dict) or set(shard) != VIEWER_SHARD_FIELDS:
+            raise PublicationError(
+                f"viewer shard {index} must contain exactly the governed fields"
+            )
+        path = shard.get("path")
+        if not isinstance(path, str) or VIEWER_SHARD_PATH.fullmatch(path) is None:
+            raise PublicationError(f"viewer shard {index} has an invalid path")
+        if path in paths:
+            raise PublicationError(f"viewer manifest contains duplicate path {path}")
+        paths.add(path)
+
+        byte_count = shard.get("bytes")
+        if type(byte_count) is not int or byte_count <= 0:
+            raise PublicationError(
+                f"viewer shard {index} bytes must be a positive integer"
+            )
+        blob_id = shard.get("git_blob_id")
+        if not isinstance(blob_id, str) or FULL_SHA.fullmatch(blob_id) is None:
+            raise PublicationError(
+                f"viewer shard {index} git blob id must be lowercase SHA-1"
+            )
+        if shard.get("git_blob_hash_algorithm") != "sha1":
+            raise PublicationError(
+                f"viewer shard {index} git blob hash algorithm must be sha1"
+            )
+        if shard.get("rights_status") != VIEWER_RIGHTS_STATUS:
+            raise PublicationError(
+                f"viewer shard {index} rights status is not the governed value"
+            )
+        if shard.get("training_eligible") is not False:
+            raise PublicationError(
+                f"viewer shard {index} must remain training-ineligible"
+            )
+        normalized.append(dict(shard))
+
+    return archive_revision, sorted(normalized, key=lambda item: item["path"])
 
 
 def github_default_branch_tip(
@@ -243,13 +310,13 @@ def archive_snapshot(api: HfApi) -> tuple[str, list[dict[str, Any]]]:
                 "bytes": sibling.size,
                 "git_blob_id": blob_id,
                 "git_blob_hash_algorithm": "sha1",
-                "rights_status": "MIXED_SOURCE_ROW_LEVEL_RIGHTS_NOT_ESTABLISHED",
+                "rights_status": VIEWER_RIGHTS_STATUS,
                 "training_eligible": False,
             }
         )
     if not shards:
         raise PublicationError("archive contains no intel NDJSON shards")
-    return info.sha, sorted(shards, key=lambda item: item["path"])
+    return validated_viewer_shards(archive_revision=info.sha, shards=shards)
 
 
 def build_payloads(
@@ -258,10 +325,13 @@ def build_payloads(
     source_revision = source_revision.lower()
     if FULL_SHA.fullmatch(source_revision) is None:
         raise PublicationError("source revision must be an exact 40-character Git SHA")
+    archive_revision, shards = validated_viewer_shards(
+        archive_revision=archive_revision, shards=shards
+    )
     manifest_rows = [
         json.dumps(
             {
-                "schema": "szl.killinchu-archive-shard/v1",
+                "schema": VIEWER_ROW_SCHEMA,
                 "observed_archive_revision": archive_revision,
                 **shard,
             },
@@ -303,7 +373,7 @@ def build_payloads(
         },
         "viewer": {
             "config": "archive_manifest",
-            "path": "viewer/archive_manifest.jsonl",
+            "path": VIEWER_MANIFEST_PATH,
             "raw_ndjson_coerced_into_one_table": False,
         },
         "claims": {
@@ -316,7 +386,7 @@ def build_payloads(
     return {
         "README.md": card.render_card().encode("utf-8"),
         "LICENSE.md": card.render_license().encode("utf-8"),
-        "viewer/archive_manifest.jsonl": manifest,
+        VIEWER_MANIFEST_PATH: manifest,
         "DATASET_PROVENANCE.json": canonical_json(provenance),
     }
 
