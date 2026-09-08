@@ -74,9 +74,10 @@ curl -s https://szlholdings-<flagship>.hf.space/api/<flagship>/v1/lambda | pytho
 **Resolution:**
 1. Identify the commit that introduced the violation via HF commit log
 2. Check: is `DOCTRINE = "v10"` or any other non-v11 value in serve.py/app.py?
-3. Fix: Update DOCTRINE constant; commit with DCO trailers
-4. Push via GitHub → HF sync or `huggingface_hub.upload_file()`
-5. CRITICAL: Never change `749/14/163` — these are LOCKED
+3. Fix the Doctrine constant on a minimal branch and open a pull request
+4. Let exact-head CI and protected admission bind the repair to GitHub history
+5. Push through the GitHub → HF sync path
+6. CRITICAL: Never change `749/14/163` — these are LOCKED
 
 ---
 
@@ -93,8 +94,9 @@ gh run view <run-id> --repo szl-holdings/<flagship> --log-failed
 **Common CI failures:**
 - `gitleaks`: Secret detected → do NOT push fix to public; rotate credential immediately
 - `trivy/grype`: HIGH/CRITICAL CVE in base image → update base image pinning
-- `dco`: Commit missing `Signed-off-by:` → rebase + amend with `-s`
 - `doctrine-grep`: Doctrine violation pattern detected → fix inline
+- `shared-file-drift`: Shared source changed in one flagship only → apply the byte-identical change to the sibling repository
+- `copy-sync-lockstep`: Imported source is missing from Docker/HF publication sets → restore manifest parity
 
 ---
 
@@ -109,12 +111,11 @@ gh run view <run-id> --repo szl-holdings/<flagship> --log-failed
 | Medium | Single flagship 404 on CTO endpoint | On-call team | 4 hours |
 | Low | CI failing but prod OK | Team | Next business day |
 
-## Required DCO on All Fix Commits
+## Solo-Maintainer Provenance
 
-```
-Signed-off-by: Yachay <yachay@szlholdings.ai>
-Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-```
+DCO and `Signed-off-by` trailers are not required. Preserve attribution and reviewability through:
 
-**Signed-off-by: Yachay <yachay@szlholdings.ai>**  
-**Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>**
+- GitHub-authenticated authorship;
+- pull-request and exact-head history;
+- protected admission and immutable merge records;
+- source, security, doctrine, provenance, and deployment-readback gates.

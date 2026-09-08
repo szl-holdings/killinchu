@@ -131,7 +131,7 @@ edit in the sibling repo in the same change — including comment and docstring 
 | gitleaks / secret health | `gitleaks.yml` | never commit a key or secret |
 | Shared-source drift | `shared-file-drift.yml` | shared modules stay byte-identical across a11oy + killinchu |
 | copy-sync lockstep | `copy-sync-lockstep-guard.yml` | every module `serve.py` imports is in the Dockerfile COPY set and the HF mirror set |
-| DCO sign-off | `dco.yml` | every commit carries a `Signed-off-by` trailer matching the author |
+| Source provenance | GitHub protected admission | authenticated authorship, exact-head checks, pull-request history, and immutable merge records; no DCO trailer required |
 | Honest-label discipline | overclaim / honesty guards | MEASURED / SAMPLE / MODELED / PLACEHOLDER / ROADMAP labels are accurate |
 
 ---
