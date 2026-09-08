@@ -26,7 +26,7 @@ The killinchu HuggingFace Space and its GitHub-hosted source code under `szl-hol
 
 ### Tampering
 - **T-02**: Commit that modifies DOCTRINE constant to a non-v11 value
-  - *Mitigation*: Branch protection requires CI pass; doctrine-grep.yml blocks stale doctrine patterns
+  - *Mitigation*: Protected admission requires CI pass; doctrine-grep.yml blocks stale doctrine patterns
   - *DREAD*: D=9, R=4, E=3, A=9, D=5 → **DREAD=6.0**
 - **T-03**: HF Space race condition overwrites correct serve.py
   - *Mitigation*: Lesson learned — use 5-min wait between same-Space pushes; git pull before commit
@@ -34,7 +34,7 @@ The killinchu HuggingFace Space and its GitHub-hosted source code under `szl-hol
 
 ### Repudiation
 - **T-04**: Agent denies which commit introduced a doctrine violation
-  - *Mitigation*: DCO trailers on every commit; GitHub audit log; Sigstore transparency log
+  - *Mitigation*: GitHub-authenticated authorship; immutable pull-request and merge history; exact-head checks; Sigstore transparency log
   - *DREAD*: D=5, R=5, E=3, A=6, D=4 → **DREAD=4.6**
 
 ### Information Disclosure
@@ -63,10 +63,7 @@ The killinchu HuggingFace Space and its GitHub-hosted source code under `szl-hol
 ## Mitigations in Place
 
 - Doctrine-grep CI blocks SLSA overclaims, supply-chain compliance overclaims, FedRAMP claims
-- Branch protection on main (1 reviewer required on PRs)
-- DCO enforcement via dco.yml
+- Protected pull-request or merge-queue admission with current-base and exact-head checks
+- GitHub-authenticated solo-maintainer authorship and immutable commit/merge history; DCO trailers are not required
 - TruffleHog on HF Space
 - Section 889 compliance verified (5 vendors listed, no prohibited components)
-
-**Signed-off-by: Yachay <yachay@szlholdings.ai>**  
-**Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>**
