@@ -5,15 +5,7 @@ on:
     - cron: "17 */6 * * *"
   pull_request:
     branches: [main]
-    paths:
-      - killinchu_osint.py
-      - killinchu_intel_archive_card.py
-      - killinchu_intel_archive_publish.py
-      - datasets/killinchu-osint-corpus/**
-      - tests/test_killinchu_intel_archive_card.py
-      - tests/test_killinchu_intel_archive_publish.py
-      - Dockerfile
-      - .github/workflows/publish-intel-archive-card.yml
+    # Required branch check: validate every PR, including shared-source-only fixes.
   push:
     branches: [main]
     paths:
