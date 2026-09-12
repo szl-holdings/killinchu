@@ -49,9 +49,14 @@ on:
         description: Exact Space for restart-space, e.g. SZLHOLDINGS/governed-receipt-verifier
         type: string
         required: false
+      training_manifest:
+        description: Concrete szl.training.v1 JSON bound to this exact main SHA; training only
+        type: string
+        required: false
 
 permissions:
   contents: read
+  checks: read
 
 concurrency:
   group: hf-provider-mutation-szlholdings
@@ -60,11 +65,13 @@ concurrency:
 jobs:
   hf-estate-ops:
     name: HF estate ops
+    if: inputs.op != 'launch-train-job'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Naming an environment here is only a source control. Required reviewers
+    # and deployment protection rules must be verified in GitHub before use.
+    environment: hf-provider-mutation
     env:
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
       INPUT_OP: ${{ inputs.op }}
       INPUT_GROUP: ${{ inputs.group }}
       INPUT_REPO_ID: ${{ inputs.repo_id }}
@@ -89,6 +96,9 @@ jobs:
 
       - name: Run estate op
         shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
         run: |
           python3 <<'PYEOF'
           import json, os, urllib.request, urllib.error
@@ -120,6 +130,16 @@ jobs:
           op = os.environ["INPUT_OP"]
           group = os.environ["INPUT_GROUP"]
           repo_id_input = (os.environ.get("INPUT_REPO_ID") or "").strip()
+          allowed_ops = {
+              "probe", "plan-archive", "apply-archive", "restart-space",
+              "publish-provenance",
+          }
+          if op not in allowed_ops:
+              print("::error::unsupported operation")
+              raise SystemExit(1)
+          if op in {"plan-archive", "apply-archive"} and group not in GROUPS:
+              print("::error::unsupported consolidation group")
+              raise SystemExit(1)
           tokens = {k: v for k, v in {
               "HF_ORG_TOKEN": os.environ.get("HF_ORG_TOKEN") or "",
               "HF_TOKEN": os.environ.get("HF_TOKEN") or "",
@@ -131,11 +151,13 @@ jobs:
               raise SystemExit(1)
 
           if op == "probe":
+              authenticated = False
               for name, tok in tokens.items():
                   status, body = call(tok, "GET", "/api/whoami-v2")
                   if status != 200:
                       print(f"{name}: whoami HTTP {status}")
                       continue
+                  authenticated = True
                   data = json.loads(body)
                   auth = data.get("auth", {}) or {}
                   acc = auth.get("accessToken", {}) or {}
@@ -143,7 +165,9 @@ jobs:
                           for o in data.get("orgs", [])]
                   print(f"{name}: type={data.get('type')} auth_type={auth.get('type')} "
                         f"role={acc.get('role')} orgs={orgs}")
-              raise SystemExit(0)
+              if not authenticated:
+                  print("::error::no token authentication was observed")
+              raise SystemExit(0 if authenticated else 1)
 
           # pick the first authenticating token
           chosen = None
@@ -159,12 +183,21 @@ jobs:
           print(f"acting with {tname}")
 
           if op == "publish-provenance":
-              import base64
+              import base64, hashlib, re
               content = open("estate/SPACE_PROVENANCE_OBSERVATION.json", "rb").read()
+              head_status, head_body = call(token, "GET", "/api/spaces/SZLHOLDINGS/szl-khipu")
+              try:
+                  parent_commit = json.loads(head_body).get("sha") if head_status == 200 else None
+              except (AttributeError, TypeError, ValueError):
+                  parent_commit = None
+              if not isinstance(parent_commit, str) or re.fullmatch(r"[0-9a-f]{40}", parent_commit) is None:
+                  print("::error::could not bind provenance publication to an exact parent")
+                  raise SystemExit(1)
               nd = "\n".join([
                   json.dumps({"key": "header", "value": {
                       "summary": "provenance: companion observation post-consolidation (2026-08-31)",
-                      "description": "Additive observation; sealed SPACE_PROVENANCE_FRONTIER.json untouched."}}),
+                      "description": "Additive observation; sealed SPACE_PROVENANCE_FRONTIER.json untouched.",
+                      "parentCommit": parent_commit}}),
                   json.dumps({"key": "file", "value": {
                       "path": "SPACE_PROVENANCE_OBSERVATION.json",
                       "encoding": "base64",
@@ -179,76 +212,39 @@ jobs:
               try:
                   with urllib.request.urlopen(req, timeout=60) as resp:
                       print(f"commit HTTP {resp.status}")
+                      response_body = resp.read().decode()
               except urllib.error.HTTPError as e:
-                  print(f"commit HTTP {e.code} {e.read().decode()[:200]}")
+                  print(f"commit HTTP {e.code}")
                   raise SystemExit(1)
-              s, b = call(token, "GET", "/api/spaces/SZLHOLDINGS/szl-khipu/tree/main")
-              names = [f.get("path") for f in (json.loads(b) if s == 200 else [])]
-              print("verify file present:", "SPACE_PROVENANCE_OBSERVATION.json" in names)
-              raise SystemExit(0)
-
-          if op == "launch-train-job":
-              profile = os.environ.get("INPUT_PROFILE", "")
-              payloads = {
-                  "khipu-frontier-35-2b": {
-                      "profile": "khipu-frontier-35-2b",
-                      "base": "Qwen/Qwen3.5-2B",
-                      "data": "SZLHOLDINGS/szl-1-doctrine-sft",
-                      "out_repo": "SZLHOLDINGS/khipu-frontier-35-2b",
-                      "seed": 20260721, "r": 8, "lr": 5e-05, "max_steps": 80,
-                      "max_seq": 1536,
-                  },
-                  "forge-frontier-35-2b": {
-                      "profile": "forge-frontier-35-2b",
-                      "base": "Qwen/Qwen3.5-2B",
-                      "data": "SZLHOLDINGS/szl-1-doctrine-sft",
-                      "out_repo": "SZLHOLDINGS/forge-frontier-35-2b",
-                      "seed": 20260721, "r": 8, "lr": 5e-05, "max_steps": 80,
-                      "max_seq": 1536,
-                  },
-                  "willay-3": {
-                      "profile": "willay-3",
-                      "base": "Qwen/Qwen3.5-2B",
-                      "data": "SZLHOLDINGS/szl-1-doctrine-sft",
-                      "out_repo": "SZLHOLDINGS/willay-3",
-                      "seed": 20260721, "r": 8, "lr": 1e-04, "max_steps": 160,
-                      "max_seq": 1024,
-                  },
-              }
-              p = payloads.get(profile)
-              if not p:
-                  print(f"::error::unknown profile {profile}")
+              try:
+                  commit_oid = json.loads(response_body).get("commitOid")
+              except (AttributeError, TypeError, ValueError):
+                  commit_oid = None
+              if not isinstance(commit_oid, str) or re.fullmatch(r"[0-9a-f]{40}", commit_oid) is None:
+                  print("::error::provenance publication outcome is unknown")
                   raise SystemExit(1)
-              cmd = (
-                  "pip install -q unsloth trl peft && "
-                  "curl -s https://huggingface.co/SZLHOLDINGS/szl-training-scripts/raw/main/train_receipted_unsloth.py -o /tmp/train.py && "
-                  "python /tmp/train.py --base $BASE_MODEL --data $DATASET --out /out "
-                  "--seed $SEED --r 8 --max-seq 1536"
+              s, b = call(token, "GET", f"/api/spaces/SZLHOLDINGS/szl-khipu/tree/{commit_oid}")
+              try:
+                  entries = json.loads(b) if s == 200 else []
+              except (TypeError, ValueError):
+                  entries = []
+              expected_oid = hashlib.sha1(
+                  b"blob " + str(len(content)).encode("ascii") + b"\0" + content
+              ).hexdigest()
+              matches = [
+                  item for item in entries
+                  if isinstance(item, dict)
+                  and item.get("path") == "SPACE_PROVENANCE_OBSERVATION.json"
+              ]
+              verified = (
+                  len(matches) == 1
+                  and matches[0].get("type") == "file"
+                  and matches[0].get("size") == len(content)
+                  and matches[0].get("oid") == expected_oid
+                  and not matches[0].get("lfs")
               )
-              job_payload = {
-                  "flavor": "zero-a10g",
-                  "dockerImage": "huggingface/transformers-pytorch-gpu:latest",
-                  "command": ["bash", "-lc", cmd],
-                  "environment": {
-                      "PROFILE": p["profile"],
-                      "BASE_MODEL": p["base"],
-                      "DATASET": p["data"],
-                      "OUT_REPO": p["out_repo"],
-                      "SEED": str(p["seed"]),
-                  },
-                  "secrets": {"HF_TOKEN": token},
-                  "timeout": 7200,
-              }
-              s, b = call(token, "POST", "/api/jobs/SZLHOLDINGS", job_payload)
-              print(f"launch {profile}: HTTP {s}")
-              if s in (200, 201):
-                  jid = (json.loads(b) or {}).get("id", "unparsed")
-                  print(f"::notice title=job-launched::{profile} {jid}")
-                  print(f"job id: {jid}")
-              else:
-                  print(f"::error title=job-launch-failed::{profile} HTTP {s} {b[:120]}")
-                  raise SystemExit(1)
-              raise SystemExit(0)
+              print(f"verify exact provenance blob at commit: {verified}")
+              raise SystemExit(0 if verified else 1)
 
           if op == "restart-space":
               if not repo_id_input.startswith(f"{ORG}/"):
@@ -278,16 +274,60 @@ jobs:
               if op == "plan-archive":
                   print(f"{space}: PLAN would set visibility=protected")
                   continue
+              if op != "apply-archive":
+                  print("::error::archive mutation requires apply-archive")
+                  raise SystemExit(1)
               vis = info.get("visibility") or ("private" if info.get("private") else "public")
               if vis == "protected":
                   print(f"{space}: already protected")
                   continue
               s1, b1 = call(token, "PUT", f"/api/spaces/{rid}/settings",
                             {"visibility": "protected"})
-              print(f"{space}: visibility=protected PUT -> {s1} {b1[:160]}")
+              print(f"{space}: visibility=protected PUT -> HTTP {s1}")
               s3, b3 = call(token, "GET", f"/api/spaces/{rid}")
               ok = s3 == 200 and json.loads(b3).get("visibility") == "protected"
               print(f"{space}: verify protected={ok}")
               exit_code = exit_code or (0 if ok else 1)
           raise SystemExit(exit_code)
           PYEOF
+
+  receipt-training:
+    name: Source-bound receipt-model training
+    if: inputs.op == 'launch-train-job'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 270
+    environment: hf-training
+    env:
+      INPUT_PROFILE: ${{ inputs.profile }}
+      INPUT_TRAINING_MANIFEST: ${{ inputs.training_manifest }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        with:
+          egress-policy: audit
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12.10'
+      - name: Install pinned dispatch SDK
+        run: |
+          python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r .github/requirements-dispatch.lock
+          python -m pip check
+      - name: Reserve, submit, monitor and verify candidate
+        env:
+          HF_TOKEN: ${{ secrets.TRAINING_HF_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python -m scripts.dispatch_receipt_training --submit --receipt-dir training-receipts
+      - name: Retain sanitized phase receipts, including failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: training-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: training-receipts/*.json
+          if-no-files-found: error
+          retention-days: 90
