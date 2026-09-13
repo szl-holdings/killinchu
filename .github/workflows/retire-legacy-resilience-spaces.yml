@@ -1,15 +1,19 @@
 name: Retire legacy resilience Spaces
 
-# Irreversible provider mutation is sequenced only after the canonical Killinchu
-# Space has deployed, source-bound, and completed its exact-source release
-# receipt. The Python operator has a hard-coded two-Space allowlist and refuses
-# Sentra/IMMUNE until their component migrations are independently proven.
+# Destructive retirement is a separate operator action, never a release side
+# effect. Existing source, snapshot, replacement and secret/storage gates remain.
 on:
-  workflow_run:
-    workflows: ["Sync to HuggingFace Space"]
-    types: [completed]
-    branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      confirm_retirement:
+        description: 'Explicitly authorize the existing two-Space retirement plan'
+        type: boolean
+        required: true
+        default: false
+      expected_source_sha:
+        description: 'Exact reviewed main SHA whose deployed replacement is verified'
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -23,13 +27,14 @@ jobs:
   retire:
     name: Snapshot, gate, delete, and verify exact legacy Spaces
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.confirm_retirement == true &&
+      inputs.expected_source_sha == github.sha
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      SOURCE_SHA: ${{ github.sha }}
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
 
     steps:

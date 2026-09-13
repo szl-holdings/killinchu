@@ -96,21 +96,31 @@ def test_policy_proof_blocks_space_recreation() -> None:
         assert marker in source
 
 
-def test_workflow_runs_only_after_successful_exact_source_deploy() -> None:
+def test_workflow_requires_explicit_manual_retirement_at_exact_main() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    required = (
-        'workflows: ["Sync to HuggingFace Space"]',
-        "types: [completed]",
-        "branches: [main]",
-        "github.event.workflow_run.conclusion == 'success'",
-        "github.event.workflow_run.head_branch == 'main'",
-        "SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}",
+    trigger = text.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+    assert trigger.count("  workflow_dispatch:") == 1
+    for forbidden in ("workflow_run:", "push:", "pull_request:", "schedule:", "repository_dispatch:"):
+        assert forbidden not in trigger
+    assert "type: boolean\n        required: true\n        default: false" in trigger
+    assert "expected_source_sha:" in trigger
+    assert "type: string\n        required: true" in trigger
+    condition = text.split("    if: >-\n", 1)[1].split("    runs-on:", 1)[0]
+    assert " ".join(condition.split()) == (
+        "github.event_name == 'workflow_dispatch' && "
+        "github.ref == 'refs/heads/main' && "
+        "inputs.confirm_retirement == true && "
+        "inputs.expected_source_sha == github.sha"
+    )
+    for marker in (
+        "SOURCE_SHA: ${{ github.sha }}",
         "ref: ${{ env.SOURCE_SHA }}",
+        'test "$current_main" = "$SOURCE_SHA"',
         "repository: szl-holdings/a11oy",
         "scripts/retire_legacy_resilience_spaces.py",
+        "--require-hashes --only-binary=:all:",
         "hf-legacy-resilience-retirement-${{ github.run_id }}",
-    )
-    for marker in required:
+    ):
         assert marker in text
     assert "environment:" not in text
     assert "delete_repo" not in text
