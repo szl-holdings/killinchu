@@ -14,6 +14,7 @@ factory. Chain bytes and verification are identical in both modes.
 
 from __future__ import annotations
 
+import calendar
 import hashlib
 import json
 import sqlite3
@@ -129,7 +130,8 @@ class PersistentAuditChain:
             "SELECT MAX(created_at) FROM backup_events").fetchone()
         if not row or not row[0]:
             return None
-        latest = time.mktime(time.strptime(row[0], "%Y-%m-%dT%H:%M:%SZ"))
+        # record_backup persists UTC (gmtime + Z), never the host's local time.
+        latest = calendar.timegm(time.strptime(row[0], "%Y-%m-%dT%H:%M:%SZ"))
         return (now - latest) / 3600
 
     def __len__(self) -> int:

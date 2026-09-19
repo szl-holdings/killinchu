@@ -11,6 +11,9 @@ EXACT_PATHS = frozenset({
     "killinchu_intel_archive_publish.py", "Dockerfile",
     "tests/test_killinchu_intel_archive_card.py",
     "tests/test_killinchu_intel_archive_publish.py",
+    "tests/test_intel_card_workflow_failclosed.py",
+    "tests/test_intel_card_publication_scope.py",
+    "scripts/intel_card_publication_scope.py",
     ".github/workflows/publish-intel-archive-card.yml",
 })
 SHA = re.compile(r"[0-9a-f]{40}\Z")

@@ -6,7 +6,11 @@ persisted row breaks verification.
 """
 
 import json
+from datetime import datetime
 
+import pytest
+
+from app.defend import chain_store
 from app.defend.chain_store import GENESIS, PersistentAuditChain
 
 NOW = 1_760_000_000.0
@@ -45,6 +49,39 @@ def test_backup_event_is_chained_and_age_computed():
     assert abs(chain.latest_backup_age_hours(now=NOW + 3600) - 1.0) < 0.01
     assert chain.latest_backup_age_hours(now=NOW + 40 * 3600) > 36
     assert chain.verify()[0]
+
+
+@pytest.mark.parametrize(
+    "created_at",
+    ("2026-01-15T12:00:00Z", "2026-07-15T12:00:00Z"),
+)
+def test_backup_age_uses_persisted_utc_without_local_timezone_or_rewrite(
+    tmp_path, monkeypatch, created_at,
+):
+    def forbid_local_time_conversion(*args):
+        raise AssertionError("UTC backup timestamps must not use time.mktime")
+
+    monkeypatch.setattr(chain_store.time, "mktime", forbid_local_time_conversion)
+    epoch = datetime.fromisoformat(created_at.replace("Z", "+00:00")).timestamp()
+    path = str(tmp_path / "audit.db")
+    original = PersistentAuditChain(path)
+    receipt = original.record_backup("ab" * 32, now=epoch)
+    assert original._conn.execute(
+        "SELECT created_at FROM backup_events"
+    ).fetchone()[0] == created_at
+    original_dump = tuple(original._conn.iterdump())
+    original._conn.close()
+
+    reopened = PersistentAuditChain(path)
+    try:
+        assert reopened.latest_backup_age_hours(now=epoch + 4500) == 1.25
+        assert reopened.latest_backup_age_hours(now=epoch + 40 * 3600) == 40.0
+        assert reopened.head == receipt["event_hash"]
+        assert reopened.verify() == (True, None)
+        # Reading age must preserve the stored schema, timestamps and chain.
+        assert tuple(reopened._conn.iterdump()) == original_dump
+    finally:
+        reopened._conn.close()
 
 
 def test_persisted_tamper_and_deletion_are_detected():
