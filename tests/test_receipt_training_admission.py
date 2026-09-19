@@ -209,6 +209,149 @@ def test_equal_count_check_replacement_between_full_reads_fails_closed():
         )
 
 
+def repeated_check_reader(manifest):
+    _, checks = check_reader(manifest, extra=0)
+    name = "Canonical mixed-source card contract"
+    first = next(check for check in checks if check["name"] == name)
+    first.update(check_suite={"id": 101}, started_at="2026-09-19T06:00:00Z")
+    second = copy.deepcopy(first)
+    second.update(id=100_001, check_suite={"id": 102},
+                  started_at="2026-09-19T12:00:00Z")
+    checks.append(second)
+    workflows = {
+        suite_id: {
+            "id": 200_000 + suite_id,
+            "check_suite_id": suite_id,
+            "workflow_id": 1234,
+            "run_number": suite_id,
+            "run_attempt": 1,
+            "path": dispatcher.REPEATED_CHECK_WORKFLOWS[name],
+            "head_sha": manifest["source"]["revision"],
+            "head_branch": "main",
+            "event": "schedule",
+            "repository": {"full_name": dispatcher.REPOSITORY},
+        }
+        for suite_id in (101, 102)
+    }
+
+    def get(path):
+        if "/actions/runs?" in path:
+            suite_id = int(path.split("check_suite_id=")[1].split("&")[0])
+            return {"total_count": 1, "workflow_runs": [copy.deepcopy(workflows[suite_id])]}
+        assert "/check-runs?filter=latest&" in path
+        page = int(path.rsplit("page=", 1)[1])
+        start = (page - 1) * dispatcher.CHECK_RUNS_PER_PAGE
+        return {"total_count": len(checks), "check_runs": copy.deepcopy(
+            checks[start:start + dispatcher.CHECK_RUNS_PER_PAGE])}
+
+    return mock.Mock(side_effect=get), checks, workflows, first, second
+
+
+def test_repeated_scheduled_contract_selects_newer_success_after_older_failure():
+    manifest = make_manifest()
+    get, checks, _, older, _ = repeated_check_reader(manifest)
+    older["conclusion"] = "failure"
+    checks.reverse()  # Provider order does not select the winning execution.
+    dispatcher.verify_required_source_checks(manifest, get=get)
+    assert sum("/check-runs?" in c.args[0] for c in get.call_args_list) == 3
+    assert sum("/actions/runs?" in c.args[0] for c in get.call_args_list) == 4
+
+
+@pytest.mark.parametrize("status,conclusion", [
+    ("queued", None), ("in_progress", None), ("completed", "failure"),
+    ("completed", "cancelled"), ("completed", "skipped"), ("completed", "neutral"),
+])
+def test_newer_repeat_cannot_hide_behind_an_older_success(status, conclusion):
+    manifest = make_manifest()
+    get, _, _, _, newer = repeated_check_reader(manifest)
+    newer.update(status=status, conclusion=conclusion)
+    with pytest.raises(dispatcher.DispatchError, match="SOURCE_CHECK_NOT_SUCCESSFUL"):
+        dispatcher.verify_required_source_checks(manifest, get=get)
+
+
+def test_late_retry_of_older_workflow_number_is_the_newest_invocation():
+    manifest = make_manifest()
+    get, _, workflows, older, _ = repeated_check_reader(manifest)
+    older.update(started_at="2026-09-19T18:00:00Z", conclusion="failure")
+    workflows[101]["run_attempt"] = 2
+    with pytest.raises(dispatcher.DispatchError, match="SOURCE_CHECK_NOT_SUCCESSFUL"):
+        dispatcher.verify_required_source_checks(manifest, get=get)
+
+
+def test_same_second_failure_cannot_be_masked_by_larger_successful_id():
+    manifest = make_manifest()
+    get, _, _, older, newer = repeated_check_reader(manifest)
+    older.update(started_at=newer["started_at"], conclusion="failure")
+    with pytest.raises(dispatcher.DispatchError, match="SOURCE_CHECK_NOT_SUCCESSFUL"):
+        dispatcher.verify_required_source_checks(manifest, get=get)
+
+
+@pytest.mark.parametrize("change", [
+    {"path": ".github/workflows/untrusted.yml"}, {"workflow_id": 999},
+    {"head_sha": "9" * 40}, {"head_branch": "feature"},
+    {"event": "pull_request"}, {"check_suite_id": 999},
+    {"repository": {"full_name": "other/repository"}},
+    {"run_number": True}, {"run_attempt": 0}, {"id": -1},
+])
+def test_repeat_requires_one_bound_main_workflow_identity(change):
+    manifest = make_manifest()
+    get, _, workflows, _, _ = repeated_check_reader(manifest)
+    workflows[102].update(change)
+    with pytest.raises(dispatcher.DispatchError, match="SOURCE_CHECK_WORKFLOW_UNVERIFIED"):
+        dispatcher.verify_required_source_checks(manifest, get=get)
+
+
+@pytest.mark.parametrize("value", [None, "yesterday", "2026-02-30T12:00:00Z"])
+def test_repeat_timestamp_uncertainty_fails_closed(value):
+    manifest = make_manifest()
+    get, _, _, _, newer = repeated_check_reader(manifest)
+    newer["started_at"] = value
+    with pytest.raises(dispatcher.DispatchError, match="SOURCE_CHECK_INVOCATION_INVALID"):
+        dispatcher.verify_required_source_checks(manifest, get=get)
+
+
+def test_repeat_metadata_readback_movement_fails_closed():
+    manifest = make_manifest()
+    original, _, workflows, _, _ = repeated_check_reader(manifest)
+    reads = 0
+
+    def get(path):
+        nonlocal reads
+        if "/actions/runs?" in path:
+            reads += 1
+            if reads == 3:
+                workflows[101]["run_attempt"] = 2
+        return original(path)
+
+    with pytest.raises(dispatcher.DispatchError, match="SOURCE_CHECK_SNAPSHOT_CHANGED"):
+        dispatcher.verify_required_source_checks(manifest, get=get)
+
+
+def test_repeat_final_check_snapshot_detects_a_new_attempt_during_metadata_reads():
+    manifest = make_manifest()
+    original, _, _, _, newer = repeated_check_reader(manifest)
+
+    def get(path):
+        result = original(path)
+        if "/actions/runs?" in path:
+            newer["status"] = "in_progress"
+            newer["conclusion"] = None
+        return result
+
+    with pytest.raises(dispatcher.DispatchError, match="SOURCE_CHECK_SNAPSHOT_CHANGED"):
+        dispatcher.verify_required_source_checks(manifest, get=get)
+
+
+def test_non_allowlisted_required_name_still_rejects_duplicates():
+    manifest = make_manifest()
+    get, checks = check_reader(manifest, extra=0)
+    duplicate = copy.deepcopy(next(check for check in checks if check["name"] == "offline-contract"))
+    duplicate["id"] = 100_001
+    checks.append(duplicate)
+    with pytest.raises(dispatcher.DispatchError, match="SOURCE_CHECK_MISSING_OR_DUPLICATE"):
+        dispatcher.verify_required_source_checks(manifest, get=get)
+
+
 class AdmissionSink:
     def __init__(self):
         self.records = []

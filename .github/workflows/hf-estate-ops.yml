@@ -57,6 +57,7 @@ on:
 permissions:
   contents: read
   checks: read
+  actions: read
 
 concurrency:
   group: hf-provider-mutation-szlholdings
