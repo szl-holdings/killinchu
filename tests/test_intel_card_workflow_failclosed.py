@@ -94,3 +94,12 @@ def test_missing_validation_result_blocks_publication(tmp_path):
         env=env, capture_output=True, text=True, timeout=20,
     )
     assert result.returncode == 2
+
+
+def test_validation_only_runs_cannot_cancel_provider_write_or_readback():
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert "\nconcurrency:" not in workflow
+    validate, publish = workflow.split("\n  publish:\n", 1)
+    assert "concurrency:" not in validate
+    assert "if: needs.validate.outputs.publish_required == 'true'" in publish
+    assert "    concurrency:\n      group: publish-killinchu-intel-archive-card-provider\n      cancel-in-progress: false" in publish
