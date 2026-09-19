@@ -3,9 +3,9 @@
 The default mode is explicitly EPHEMERAL. Setting
 ``KILLINCHU_LEDGER_MODE=DURABLE_EXTERNAL`` selects an external adapter through
 the non-secret ``KILLINCHU_LEDGER_ADAPTER=module:factory`` configuration. This
-module deliberately ships no external-store implementation and accepts no
-credentials. A durable claim is emitted only after adapter startup, replay,
-local hash-chain verification, and adapter integrity verification all succeed.
+module accepts no credentials. An optional, separately provisioned SQLite
+adapter is available in killinchu_ledger_sqlite. External readiness requires
+startup, replay, local hash-chain verification, and adapter integrity verification.
 
 An external adapter must implement:
 
@@ -13,7 +13,9 @@ An external adapter must implement:
 * ``replay() -> Sequence[Mapping]``
 * ``append(node)`` (idempotent by node digest)
 * ``verify_integrity(nodes) -> Mapping`` with ``verified is True``
-* ``readiness() -> Mapping`` with ``ready is True``
+* ``readiness() -> Mapping`` with ``ready is True``; an optional
+  ``production_ready`` field must be exactly True to permit a production claim.
+  An omitted field retains the legacy contract, not provider persistence proof.
 """
 
 from __future__ import annotations
@@ -243,14 +245,26 @@ class LedgerRuntime:
 
             adapter_ready = True
             adapter_state = "NOT_APPLICABLE"
+            adapter_production_ready = False
+            production_basis = "NOT_APPLICABLE"
+            persistence_scope = "PROCESS_MEMORY" if self._mode == EPHEMERAL else "UNSPECIFIED"
             if self._mode == DURABLE_EXTERNAL and self._ready:
                 try:
                     report = dict(self._adapter.readiness())
                     adapter_ready = report.get("ready") is True
                     adapter_state = "READY" if adapter_ready else "UNAVAILABLE"
+                    adapter_production_ready = report.get("production_ready", True) is True
+                    production_basis = (
+                        "EXPLICIT_ADAPTER_CONTRACT" if "production_ready" in report
+                        else "LEGACY_ADAPTER_CONTRACT"
+                    )
+                    if report.get("persistence_scope") in {"LOCAL_FILESYSTEM", "EXTERNAL_SERVICE"}:
+                        persistence_scope = report["persistence_scope"]
                 except Exception:
                     adapter_ready = False
                     adapter_state = "UNAVAILABLE"
+                if not adapter_ready:
+                    self._fail("external ledger readiness failed; replay is required")
             elif self._mode == DURABLE_EXTERNAL:
                 adapter_ready = False
                 adapter_state = "UNAVAILABLE"
@@ -264,7 +278,9 @@ class LedgerRuntime:
                 "durability_state": durability_state,
                 "requested_mode": self._mode,
                 "ready": ready,
-                "production_ready": ready and durability_state == DURABLE_EXTERNAL,
+                "production_ready": ready and durability_state == DURABLE_EXTERNAL and adapter_production_ready,
+                "production_readiness_basis": production_basis,
+                "persistence_scope": persistence_scope,
                 "startup_state": self._startup_state,
                 "adapter_configured": self._adapter is not None,
                 "adapter_state": adapter_state,

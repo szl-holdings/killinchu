@@ -106,6 +106,14 @@ def build_receipt_export(
             }
         )
 
+    if ledger_truth.get("persistence_scope") == "LOCAL_FILESYSTEM":
+        durability_limits.append(
+            {
+                "code": "LOCAL_FILESYSTEM_ONLY",
+                "detail": "Local file persistence does not prove survival of provider container replacement, backups, or production readiness.",
+            }
+        )
+
     if ledger_size == 0:
         out.update(
             {
@@ -122,13 +130,13 @@ def build_receipt_export(
                 "verification": {
                     "state": "NOT_APPLICABLE",
                     "verified": False,
-                    "reason": "no receipt exists in the in-memory ledger",
+                    "reason": "no receipt exists in the selected ledger",
                 },
                 "verify_offline": [],
                 "limits": [
                     {
                         "code": "NO_RECEIPTS",
-                        "detail": "No receipt has been emitted since this runtime started.",
+                        "detail": "The selected ledger contains no receipts.",
                     },
                     *durability_limits,
                 ],
