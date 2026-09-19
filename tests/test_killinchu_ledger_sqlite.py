@@ -416,6 +416,15 @@ class SQLiteLedgerTests(unittest.TestCase):
         self.assertNotIn("Traceback", refused.stderr)
         self.assertEqual(adapter.replay(), [node])
 
+    def test_image_manifest_binds_both_dockerfiles_and_adapter(self):
+        canonical = (ROOT / "Dockerfile").read_bytes()
+        self.assertEqual(canonical, (ROOT / "deploy/space/Dockerfile").read_bytes())
+        manifest = json.loads((ROOT / "deploy/image-contract.json").read_text(encoding="utf-8"))
+        digest = hashlib.sha256(canonical).hexdigest()
+        self.assertEqual(manifest["canonical_dockerfile"]["sha256"], digest)
+        self.assertEqual(manifest["hf_deploy_dockerfile"]["sha256"], digest)
+        self.assertIn("killinchu_ledger_sqlite.py", manifest["local_copy_sources"])
+
 
 if __name__ == "__main__":
     unittest.main()
