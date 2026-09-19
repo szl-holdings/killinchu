@@ -2,9 +2,14 @@
 """Network-free contract tests for the consolidated Killinchu Defend plane."""
 from __future__ import annotations
 
+from html.parser import HTMLParser
+from urllib.parse import urlsplit
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
+
+import pytest
 
 import killinchu_defend_plane as defend
 
@@ -95,6 +100,80 @@ def test_product_tabs_are_visible_and_legacy_names_redirect(tmp_path, monkeypatc
         response = c.get(alias, follow_redirects=False)
         assert response.status_code == 308
         assert response.headers["location"] == "/defend"
+
+
+class PlaneTabsParser(HTMLParser):
+    """Inspect only this module's navigation, not links inside other pages."""
+
+    def __init__(self):
+        super().__init__()
+        self.in_tabs = False
+        self.links = []
+        self.unavailable = {}
+        self.pending_route = None
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if tag == "nav" and attributes.get("data-killinchu-plane-tabs") == "v1":
+            self.in_tabs = True
+        if not self.in_tabs:
+            return
+        if tag == "a":
+            self.links.append(attributes.get("href"))
+        if "data-unavailable-route" in attributes:
+            assert tag == "span"
+            assert not any(name in attributes for name in ("href", "onclick", "tabindex"))
+            assert attributes.get("role") not in {"button", "link"}
+            self.pending_route = attributes["data-unavailable-route"]
+            self.unavailable[self.pending_route] = ""
+
+    def handle_data(self, data):
+        if self.pending_route:
+            self.unavailable[self.pending_route] += data
+
+    def handle_endtag(self, tag):
+        if tag == "span":
+            self.pending_route = None
+        if tag == "nav":
+            self.in_tabs = False
+
+
+@pytest.mark.parametrize("page_path", ("/defend", "/resilience", "/existing"))
+def test_navigation_exposes_only_existing_page_destinations(
+    tmp_path, monkeypatch, page_path,
+):
+    # Register the actual page owners. GETs below render HTML only; they neither
+    # execute browser JavaScript nor call detection, signing or external APIs.
+    import killinchu_elite_console
+    import killinchu_maritime_view
+
+    c = client(tmp_path, monkeypatch)
+    killinchu_elite_console.register(c.app)
+    killinchu_maritime_view.register(c.app)
+    response = c.get(page_path)
+    assert response.status_code == 200
+    tabs = PlaneTabsParser()
+    tabs.feed(response.text)
+    assert tabs.links == ["/resilience", "/defend", "/elite/maritime", "/elite#cuas_lab"]
+    assert tabs.unavailable == {
+        "/immune": "Immune · migration pending",
+        "/khipu": "Evidence page · unavailable",
+    }
+    for destination in tabs.links:
+        target = c.get(urlsplit(destination).path, follow_redirects=False)
+        assert target.status_code == 200, destination
+        assert target.headers["content-type"].startswith("text/html"), destination
+
+
+@pytest.mark.parametrize("missing_path", ("/immune", "/khipu"))
+def test_navigation_repair_does_not_fabricate_missing_routes(
+    tmp_path, monkeypatch, missing_path,
+):
+    c = client(tmp_path, monkeypatch)
+    response = c.get(missing_path, follow_redirects=False)
+    assert response.status_code == 404
+    assert "location" not in response.headers
+    assert missing_path not in {route.path for route in defend._routes("killinchu")}
 
 
 def test_complete_detection_approval_rehearsal_and_verification_loop(
