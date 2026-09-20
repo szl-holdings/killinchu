@@ -59,11 +59,17 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile \
+            killinchu_ledger.py \
+            killinchu_ledger_sqlite.py \
+            killinchu_receipt_export.py \
             killinchu_defend_plane.py \
             serve.py \
             deploy/space/serve.py \
             app/defend/*.py
           python -m pytest -q \
+            tests/test_killinchu_ledger_runtime.py \
+            tests/test_killinchu_ledger_sqlite.py \
+            tests/test_receipt_export_contract.py \
             tests/test_killinchu_defend_plane.py \
             tests/test_resilience_route_convergence.py \
             tests/test_defend_*.py
