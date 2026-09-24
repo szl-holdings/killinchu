@@ -9,38 +9,44 @@ name: Backend auto-crawl scheduler
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - killinchu_backend.py
-      - killinchu_elite_console.py
-      - serve.py
-      - tests/test_backend_scheduler.py
-      - tests/test_elite_operator_flow.py
-      - tests/test_operator_mutation_security.py
-      - tests/test_operational_advisories.py
-      - static/index.html
-      - killinchu_track_contract.py
-      - .github/workflows/backend-scheduler.yml
+    - killinchu_backend.py
+    - killinchu_elite_console.py
+    - serve.py
+    - tests/test_backend_scheduler.py
+    - tests/test_elite_operator_flow.py
+    - tests/test_operator_mutation_security.py
+    - tests/test_operational_advisories.py
+    - static/index.html
+    - killinchu_track_contract.py
+    - .github/workflows/backend-scheduler.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - killinchu_backend.py
-      - killinchu_elite_console.py
-      - serve.py
-      - tests/test_backend_scheduler.py
-      - tests/test_elite_operator_flow.py
-      - tests/test_operator_mutation_security.py
-      - tests/test_operational_advisories.py
-      - static/index.html
-      - killinchu_track_contract.py
-      - .github/workflows/backend-scheduler.yml
-
+    - killinchu_backend.py
+    - killinchu_elite_console.py
+    - serve.py
+    - tests/test_backend_scheduler.py
+    - tests/test_elite_operator_flow.py
+    - tests/test_operator_mutation_security.py
+    - tests/test_operational_advisories.py
+    - static/index.html
+    - killinchu_track_contract.py
+    - .github/workflows/backend-scheduler.yml
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   backend-scheduler:
