@@ -74,15 +74,63 @@ and [transaction semantics](https://www.sqlite.org/lang_transaction.html).
   labelled `LEGACY_ADAPTER_CONTRACT`; this is not new provider evidence.
 
 Back up through SQLite's supported backup facilities or a quiesced, consistent
-filesystem snapshot, never by copying a changing database alone. Restore into
-an isolated environment and compare receipt count/root and pinned store ID
-against separately retained evidence before considering activation. Do not
-reset or reprovision the configured path to hide a missing or corrupt store.
+filesystem snapshot, never by copying a changing database alone. The commands
+below use SQLite's backup API. Do not reset or reprovision the configured path
+to hide a missing or corrupt store.
+
+## Verified local backup and restore
+
+All paths below are placeholders for absolute paths. The destination must be
+new and its parent directory must exist. This is a local maintenance operation:
+its read transaction can delay other writers in rollback-journal mode.
+
+```text
+python -m killinchu_ledger_sqlite backup SOURCE_DB NEW_SNAPSHOT_DB --store-id PINNED_UUID
+```
+
+On success only, stdout contains a checkpoint with the store ID, node count,
+head, and SHA-256 over every complete canonical node, including DSSE metadata.
+Save that JSON as `EXPECTED_CHECKPOINT_JSON` and retain it separately from the
+snapshot. It is explicitly `UNSIGNED_LOCAL_CHECKPOINT`: it is not a signature,
+independent authorization, or an authenticated latest-head anchor. A checkpoint
+supplied by the same untrusted party as a snapshot does not establish trust.
+
+```text
+python -m killinchu_ledger_sqlite verify SNAPSHOT_DB --expected-checkpoint EXPECTED_CHECKPOINT_JSON
+python -m killinchu_ledger_sqlite restore SNAPSHOT_DB NEW_RESTORED_DB --expected-checkpoint EXPECTED_CHECKPOINT_JSON
+```
+
+Verification checks the schema, identity, chain and full-node content against
+the supplied checkpoint. Restore performs this comparison before creating a
+target, then uses the backup API, closes and reopens the destination, and
+verifies it again. It preserves the store identity and does not activate or
+replace the configured runtime path. Existing targets, including aliases to
+the source, are refused. Source files are opened read-only without creation.
+
+Backup and restore accept `--timeout SECONDS` (default 30, maximum 300). The
+copy's progress callback bounds SQLite's internal busy/locked retry loop;
+ordinary replay/hash scans and OS I/O are not a hard real-time deadline. An
+expired copy budget or failed verification exits nonzero without a success
+checkpoint. A failed operation can leave its newly created partial target for
+inspection; retries must use a new path, never overwrite that partial file.
+
+The checkpoint binds the entire node, not just the receipt hash, so changing
+DSSE metadata is detected against a retained checkpoint even though it is not
+part of the existing receipt hash. Its content hash is SHA-256 initialized with
+ASCII `szl.killinchu.sqlite-checkpoint/v1` followed by a zero byte, then for each
+node an unsigned 8-byte big-endian UTF-8 length and its existing sorted-key,
+default-spacing canonical JSON bytes. Empty stores hash the domain prefix only.
+
+Run restore drills into an isolated path and retain their evidence separately.
+These tools prove local content matching and replay only: they do not establish
+off-host retention, checkpoint freshness/authenticity, provider-volume survival,
+or production readiness. Do not promote a restored file into service until
+storage lifecycle, authorization, access controls, and migration are resolved.
 
 ## Verification
 
 ```text
-python -m pytest -q tests/test_killinchu_ledger_runtime.py tests/test_killinchu_ledger_sqlite.py tests/test_receipt_export_contract.py
+python -m pytest -q tests/test_killinchu_ledger_runtime.py tests/test_killinchu_ledger_sqlite.py tests/test_killinchu_ledger_recovery.py tests/test_receipt_export_contract.py
 ```
 
 Tests use temporary stores, including separate processes for append and replay,
