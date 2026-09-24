@@ -3,38 +3,40 @@ name: Asset Exposure Wave 5
 on:
   pull_request:
     paths:
-      - "szl_connectors/asset_exposure.py"
-      - "szl_uds_hardening.py"
-      - "tests/test_asset_exposure_wave5.py"
-      - "docs/ASSET_EXPOSURE_WAVE5.md"
-      - "scripts/asset_exposure_live_witness.py"
-      - ".github/workflows/asset-exposure-live-witness.yml"
-      - "Dockerfile"
-      - "deploy/space/Dockerfile"
-      - "deploy/image-contract.json"
-      - ".github/workflows/asset-exposure-wave5.yml"
+    - szl_connectors/asset_exposure.py
+    - szl_uds_hardening.py
+    - tests/test_asset_exposure_wave5.py
+    - docs/ASSET_EXPOSURE_WAVE5.md
+    - scripts/asset_exposure_live_witness.py
+    - .github/workflows/asset-exposure-live-witness.yml
+    - Dockerfile
+    - deploy/space/Dockerfile
+    - deploy/image-contract.json
+    - .github/workflows/asset-exposure-wave5.yml
   push:
     branches:
-      - main
+    - main
     paths:
-      - "szl_connectors/asset_exposure.py"
-      - "szl_uds_hardening.py"
-      - "tests/test_asset_exposure_wave5.py"
-      - "docs/ASSET_EXPOSURE_WAVE5.md"
-      - "scripts/asset_exposure_live_witness.py"
-      - ".github/workflows/asset-exposure-live-witness.yml"
-      - "Dockerfile"
-      - "deploy/space/Dockerfile"
-      - "deploy/image-contract.json"
-      - ".github/workflows/asset-exposure-wave5.yml"
-  workflow_dispatch:
-
+    - szl_connectors/asset_exposure.py
+    - szl_uds_hardening.py
+    - tests/test_asset_exposure_wave5.py
+    - docs/ASSET_EXPOSURE_WAVE5.md
+    - scripts/asset_exposure_live_witness.py
+    - .github/workflows/asset-exposure-live-witness.yml
+    - Dockerfile
+    - deploy/space/Dockerfile
+    - deploy/image-contract.json
+    - .github/workflows/asset-exposure-wave5.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 
 concurrency:
   group: asset-exposure-wave5-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   contract:

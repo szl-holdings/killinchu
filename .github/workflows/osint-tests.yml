@@ -8,30 +8,36 @@ name: OSINT engine tests
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - killinchu_osint.py
-      - killinchu_live_feeds.py
-      - szl_hf_bucket.py
-      - tests/test_osint.py
-      - tests/test_killinchu_archive.py
-      - .github/workflows/osint-tests.yml
+    - killinchu_osint.py
+    - killinchu_live_feeds.py
+    - szl_hf_bucket.py
+    - tests/test_osint.py
+    - tests/test_killinchu_archive.py
+    - .github/workflows/osint-tests.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - killinchu_osint.py
-      - killinchu_live_feeds.py
-      - szl_hf_bucket.py
-      - tests/test_osint.py
-      - tests/test_killinchu_archive.py
-      - .github/workflows/osint-tests.yml
-
+    - killinchu_osint.py
+    - killinchu_live_feeds.py
+    - szl_hf_bucket.py
+    - tests/test_osint.py
+    - tests/test_killinchu_archive.py
+    - .github/workflows/osint-tests.yml
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   osint-tests:

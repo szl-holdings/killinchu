@@ -9,24 +9,30 @@ name: Corpus auto-sync notify classification
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - .github/workflows/knowledge-corpus-autosync.yml
-      - tests/test_corpus_autosync_notify.py
-      - .github/workflows/corpus-autosync-notify.yml
+    - .github/workflows/knowledge-corpus-autosync.yml
+    - tests/test_corpus_autosync_notify.py
+    - .github/workflows/corpus-autosync-notify.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - .github/workflows/knowledge-corpus-autosync.yml
-      - tests/test_corpus_autosync_notify.py
-      - .github/workflows/corpus-autosync-notify.yml
-
+    - .github/workflows/knowledge-corpus-autosync.yml
+    - tests/test_corpus_autosync_notify.py
+    - .github/workflows/corpus-autosync-notify.yml
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   corpus-autosync-notify:
