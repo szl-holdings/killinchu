@@ -7,24 +7,30 @@ name: Watchlist NTFY anti-spam
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - killinchu_backend.py
-      - tests/test_watchlist_ntfy_edge.py
-      - .github/workflows/watchlist-ntfy-edge.yml
+    - killinchu_backend.py
+    - tests/test_watchlist_ntfy_edge.py
+    - .github/workflows/watchlist-ntfy-edge.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - killinchu_backend.py
-      - tests/test_watchlist_ntfy_edge.py
-      - .github/workflows/watchlist-ntfy-edge.yml
-
+    - killinchu_backend.py
+    - tests/test_watchlist_ntfy_edge.py
+    - .github/workflows/watchlist-ntfy-edge.yml
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   watchlist-ntfy-edge:

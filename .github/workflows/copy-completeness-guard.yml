@@ -22,31 +22,37 @@ name: COPY-Completeness Guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'serve.py'
-      - 'szl_connectors_serve.py'
-      - 'Dockerfile'
-      - '.github/scripts/copy_completeness.py'
-      - 'tests/test_copy_completeness_transitive.py'
-      - '**.py'
+    - serve.py
+    - szl_connectors_serve.py
+    - Dockerfile
+    - .github/scripts/copy_completeness.py
+    - tests/test_copy_completeness_transitive.py
+    - '**.py'
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'serve.py'
-      - 'szl_connectors_serve.py'
-      - 'Dockerfile'
-      - '.github/scripts/copy_completeness.py'
-      - 'tests/test_copy_completeness_transitive.py'
-      - '**.py'
-  workflow_dispatch:
-
+    - serve.py
+    - szl_connectors_serve.py
+    - Dockerfile
+    - .github/scripts/copy_completeness.py
+    - tests/test_copy_completeness_transitive.py
+    - '**.py'
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   import-vs-copy:

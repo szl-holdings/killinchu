@@ -12,28 +12,34 @@ name: Research & Sources guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - killinchu_research_sources.py
-      - serve.py
-      - killinchu_elite_console.py
-      - tests/test_research_sources_guard.py
-      - .github/workflows/research-sources-guard.yml
+    - killinchu_research_sources.py
+    - serve.py
+    - killinchu_elite_console.py
+    - tests/test_research_sources_guard.py
+    - .github/workflows/research-sources-guard.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - killinchu_research_sources.py
-      - serve.py
-      - killinchu_elite_console.py
-      - tests/test_research_sources_guard.py
-      - .github/workflows/research-sources-guard.yml
-
+    - killinchu_research_sources.py
+    - serve.py
+    - killinchu_elite_console.py
+    - tests/test_research_sources_guard.py
+    - .github/workflows/research-sources-guard.yml
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   research-sources-guard:

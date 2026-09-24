@@ -10,24 +10,30 @@ name: Evidence auto-refresh surface guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - killinchu_elite_console.py
-      - tests/test_evidence_autorefresh_surface.py
-      - .github/workflows/evidence-autorefresh-guard.yml
+    - killinchu_elite_console.py
+    - tests/test_evidence_autorefresh_surface.py
+    - .github/workflows/evidence-autorefresh-guard.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - killinchu_elite_console.py
-      - tests/test_evidence_autorefresh_surface.py
-      - .github/workflows/evidence-autorefresh-guard.yml
-
+    - killinchu_elite_console.py
+    - tests/test_evidence_autorefresh_surface.py
+    - .github/workflows/evidence-autorefresh-guard.yml
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   evidence-autorefresh-surface:
