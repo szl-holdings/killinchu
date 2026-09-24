@@ -822,7 +822,7 @@ def register(app, ns: str = "a11oy") -> None:
     base = "/api/%s/v1/evidence/research" % ns
 
     @app.get(base)
-    async def _evidence_index():  # noqa: ANN202
+    def _evidence_index():  # noqa: ANN202
         claims = _claims_for(ns)
         out = []
         reachable_total = src_total = 0
@@ -852,7 +852,7 @@ def register(app, ns: str = "a11oy") -> None:
         })
 
     @app.get(base + "/{claim_id}/live")
-    async def _evidence_live(claim_id: str):  # noqa: ANN202
+    def _evidence_live(claim_id: str):  # noqa: ANN202
         claim = next((c for c in _claims_for(ns) if c["id"] == claim_id), None)
         if not claim:
             return JSONResponse({"error": "unknown claim", "claim_id": claim_id}, status_code=404)
@@ -872,7 +872,7 @@ def register(app, ns: str = "a11oy") -> None:
         })
 
     @app.get(base + "/{claim_id}/sources/live")
-    async def _evidence_sources_live(claim_id: str):  # noqa: ANN202
+    def _evidence_sources_live(claim_id: str):  # noqa: ANN202
         claim = next((c for c in _claims_for(ns) if c["id"] == claim_id), None)
         if not claim:
             return JSONResponse({"error": "unknown claim", "claim_id": claim_id}, status_code=404)
@@ -890,7 +890,7 @@ def register(app, ns: str = "a11oy") -> None:
         })
 
     @app.get(base + "/refresh")
-    async def _evidence_refresh():  # noqa: ANN202
+    def _evidence_refresh():  # noqa: ANN202
         claims = _claims_for(ns)
         rows = []
         for c in claims:
