@@ -194,6 +194,7 @@
     <span class="pill">§889 · 5 vendors</span>
     <span class="sep">/</span>
     <span class="live" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="kcd-doctrine-state">UNAVAILABLE</span></span>
+    <span class="pill" id="kcd-cycle-state">CYCLE UNAVAILABLE</span>
   </div>
 
   <!-- THREAT TICKER -->
@@ -462,6 +463,38 @@
         if(document.readyState !== "loading") schedule();
         else document.addEventListener("DOMContentLoaded", schedule);
       }catch(_e){ /* additive: never break the app */ }
+    })();
+    </script>
+    <script>
+    (function(){
+      var CYCLE_URL="https://szlholdings-szl-frontier.hf.space/frontier/ouroboros-cycle.v1.json";
+      var CYCLE_SCHEMA="szl.frontier.ouroboros-cycle.v1";
+      function paintFromCycle(cycle){
+        if(!cycle) return "UNAVAILABLE";
+        if(cycle.schema!==CYCLE_SCHEMA) return "UNAVAILABLE";
+        if(cycle.productionPromotion===true) return "DENY";
+        if(cycle.lambda!=="CONJECTURE_1" || cycle.lambdaNeverATheorem!==true) return "DENY"; // never a theorem
+        if(cycle.authority!=="PROPOSAL_ONLY") return "DENY";
+        if(cycle.invariantsOk!==true) return "DENY";
+        if(cycle.shadow && cycle.shadow.executable===true) return "DENY";
+        if(cycle.verdict==="ALLOW") return "ALLOW";
+        if(["HARD_DENY","LAMBDA_VETO","DENY_DEFAULT","ESCALATE"].indexOf(cycle.verdict)>=0) return "DENY";
+        return "UNAVAILABLE";
+      }
+      function apply(paint){
+        var el=document.getElementById("kcd-cycle-state");
+        if(el) el.textContent="CYCLE "+paint;
+        var allow=paint==="ALLOW";
+        ["kcd-halt","kcd-over","kcd-esc"].forEach(function(id){
+          var b=document.getElementById(id); if(!b) return;
+          b.disabled=!allow;
+          b.title=allow?"Cycle receipt ALLOW (proposal-only)":"Governed act blocked until cycle ALLOW";
+        });
+      }
+      fetch(CYCLE_URL,{cache:"no-store",credentials:"omit",headers:{Accept:"application/json"}}).then(function(r){
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        return r.json();
+      }).then(function(j){ apply(paintFromCycle(j)); }).catch(function(){ apply("UNAVAILABLE"); });
     })();
     </script>
   </body>
