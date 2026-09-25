@@ -17,7 +17,7 @@
 #
 # HF Space requirement: listen on PORT 7860.
 
-FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf
+FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2
 
 WORKDIR /app
 
@@ -37,13 +37,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # fallback-chain safety is INTENTIONALLY KEPT: if a wheel for the pinned version is
 # ever yanked, the build still stays green and the relevant organ degrades to its
 # honest pure-python / SQLite / ROADMAP-skeleton fallback (no fabricated data).
+# PYTHON 3.14 BASE (2026-09-25): pymavlink is the one pin moved off that build log.
+# 2.4.49 publishes no cp314 wheel, and its sdist compiles a Cython extension on
+# Linux by default while -slim ships no C compiler. 2.4.50 is the first release
+# with cp314 manylinux wheels (x86_64 + aarch64).
 RUN pip install --no-cache-dir \
     "fastapi==0.137.2" \
     "uvicorn[standard]==0.49.0" \
     "httpx==0.28.1" \
     "starlette==1.3.1" \
     "pyModeS==3.3.0" \
-    "pymavlink==2.4.49"
+    "pymavlink==2.4.50"
 # BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
 RUN pip install --no-cache-dir "slowapi==0.1.10"
 
