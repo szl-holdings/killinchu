@@ -41,7 +41,7 @@
     {
       "flagship": "killinchu",
       "language": "python",
-      "current_base": "python:3.12-slim",
+      "current_base": "python:3.14-slim",
       "ironbank_target_base": "registry1.dso.mil/ironbank/redhat/ubi/ubi9-minimal:9.4",
       "ironbank_dockerfile": "Dockerfile.ironbank",
       "ironbank_image_pushed": "N",
