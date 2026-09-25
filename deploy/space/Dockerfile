@@ -21,8 +21,10 @@ FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc4243
 
 WORKDIR /app
 
+# gcc/libc6-dev: pymavlink 2.4.49 has no cp314 wheel, so pip builds from sdist.
+# HF Space 2026-09-25 BUILD_ERROR: [Errno 2] No such file or directory: 'gcc'.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates && \
+    ca-certificates gcc libc6-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies — real protocol stacks, no mocks.
