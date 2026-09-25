@@ -349,7 +349,7 @@ See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platfo
 - **Doctrine v11 LOCKED** — 749/14/163 · kernel `c7c0ba17` (never bumped)
 - **Λ = Conjecture 1** (NOT a theorem) — depends on the open CAUCHY_ND sorry + a missing symmetry axiom
 - **SLSA L1 honest · L2 build-attested** (container build-provenance via attest-build-provenance, Sigstore keyless; verify with `cosign verify-attestation`) · L3 roadmap · **Section 889 = exactly 5 vendors** (Huawei, ZTE, Hytera, Hikvision, Dahua)
-- No Iron Bank / FedRAMP / CMMC / SWFT / Mission Owner claims
+- No government accreditation, hardened-registry, or mission-owner claims
 
 ---
 
@@ -372,8 +372,8 @@ See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platfo
 | Λ-uniqueness | ⚠️ **Conjecture 1** — never a theorem |
 | SLSA L3 | ❌ Not claimed |
 | Decision layer (detect / classify / govern / sign) | ✅ LIVE — real decoders, 53 fingerprints, Λ-gate, DSSE receipts |
-| Physical effector engagement | Operator-owned — not exercised by this Space; no production ATO claimed |
-| FedRAMP / CMMC | ❌ Not claimed |
+| Physical effector engagement | Operator-owned — not exercised by this Space; no production authorization claimed |
+| Government authorization / accreditation | ❌ Not claimed |
 
 ---
 
@@ -483,9 +483,9 @@ We are a precision substrate, not a vibes company.
 
 ---
 
-> Not affiliated with Defense Unicorns. SZL mark USPTO Serial 99831122. No production ATO claimed.
+> Not affiliated with Defense Unicorns. SZL mark USPTO Serial 99831122. No production authorization claimed.
 
-<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA L1 honest · L2 build-attested (container provenance, Sigstore keyless) · L3 / FedRAMP / Iron Bank / CMMC / ATO roadmap · 8 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Khipu Conjecture 2 open · Apache-2.0</sub>
+<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA L1 honest · L2 build-attested (container provenance, Sigstore keyless) · L3 roadmap · no government authorization or accreditation claimed · 8 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Khipu Conjecture 2 open · Apache-2.0</sub>
 
 ---
 
