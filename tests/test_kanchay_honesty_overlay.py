@@ -143,7 +143,7 @@ class KanchayHonestyOverlayTests(unittest.TestCase):
         self.assertIn('id="kcd-cycle-state">CYCLE UNAVAILABLE</span>', deck)
         self.assertIn("function paintFromCycle", deck)
         self.assertIn("szl.frontier.ouroboros-cycle.v1", deck)
-        self.assertIn("lambdaNeverATheorem", deck)
+        self.assertIn("lambdaNeverATheorem", deck)  # never a theorem
         self.assertIn("b.disabled=!allow", deck)
 
     def test_elite_and_home_html_carry_overlay(self):
