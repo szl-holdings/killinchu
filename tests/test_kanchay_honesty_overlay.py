@@ -140,6 +140,11 @@ class KanchayHonestyOverlayTests(unittest.TestCase):
         self.assertIn('if(!r.ok) throw new Error("HTTP "+r.status);', deck)
         self.assertIn('classList.toggle("is-measured", measured)', cop)
         self.assertNotIn('deck.textContent = mode + " · ADS-B CLAIMS"', cop)
+        self.assertIn('id="kcd-cycle-state">CYCLE UNAVAILABLE</span>', deck)
+        self.assertIn("function paintFromCycle", deck)
+        self.assertIn("szl.frontier.ouroboros-cycle.v1", deck)
+        self.assertIn("lambdaNeverATheorem", deck)
+        self.assertIn("b.disabled=!allow", deck)
 
     def test_elite_and_home_html_carry_overlay(self):
         home = self.client.get("/")
