@@ -180,14 +180,15 @@
   function render(batch) {
     lastBatch = batch;
     var mode = safeMode(batch);
-    document.documentElement.setAttribute("data-killinchu-track-mode", mode);
+    var measured = String((batch && (batch.truth_label || batch.truth)) || "").toUpperCase() === "MEASURED";
+    document.documentElement.setAttribute("data-killinchu-track-mode", measured ? "MEASURED" : mode);
     var band = ensureBand();
     if (band) band.textContent = sentence(batch);
 
     var top = document.querySelector(".live-pill");
-    if (top) top.textContent = mode + " · ADS-B CLAIMS";
+    if (top) top.textContent = measured ? "MEASURED · ADS-B" : (mode === "UNAVAILABLE" ? "UNAVAILABLE" : "REACHABLE · ADS-B CLAIMS");
     var deck = document.querySelector(".kcd-ribbon .live");
-    if (deck) deck.textContent = mode + " · ADS-B CLAIMS";
+    if (deck) deck.classList.toggle("is-measured", measured);
     var tag = document.querySelector(".kcd-ticker .tag");
     if (tag) tag.textContent = mode === "UNAVAILABLE" ? "UNAVAILABLE" : "AIR OBS";
 
