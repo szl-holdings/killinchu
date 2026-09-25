@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-HOST_SHA256 = "f6d13c4719079750c61f2eb77405aed28a668cf4bc4962c7751845a62f097d6b"
+HOST_SHA256 = "a5a18bdde4be9ee68c83e9c1f87a2f5e16363a38cd4ed20e562b7984de14f8ce"
 BOUNDARY = b"\n/*\n * SZL Public Experience v3.1\n"
 FORBIDDEN_JS = ("fetch(", "XMLHttpRequest", "sendBeacon", "localStorage", "sessionStorage", "document.cookie")
 REQUIRED_JS = ("__SZL_PUBLIC_EXPERIENCE_V3__", "szlPublicExperienceV3", "szlViewportTier", "visualViewport", "requestAnimationFrame")
