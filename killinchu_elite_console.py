@@ -1438,7 +1438,7 @@ details.raw{margin-top:1rem;} details.raw summary{cursor:pointer;font-family:var
   <span>SZL HOLDINGS</span><span class="sep">/</span>
   <span style="color:var(--teal)">KILLINCHU</span><span class="sep">/</span>
   <span class="tb-desc">DRONES &amp; VESSELS · FIELD SURFACE</span><span class="sep">/</span>
-  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
+  <span class="live"><span class="live-dot"></span>SIMULATED · ADVISORY</span>
   <nav class="switcher" aria-label="Surfaces">
     <span class="lbl">SURFACES</span>
     <a class="flag" href="https://szlholdings-a11oy.hf.space/">Command Platform</a>

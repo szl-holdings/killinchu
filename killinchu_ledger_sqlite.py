@@ -10,16 +10,20 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
+import re
 import sqlite3
+import time
 import uuid
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 
 SCHEMA_VERSION = 1
 MAX_NODE_BYTES = 1_048_576
+CHECKPOINT_SCHEMA = "szl.killinchu.sqlite-checkpoint/v1"
 _SCHEMA = {
     "ledger_meta": "CREATE TABLE ledger_meta (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), schema_version INTEGER NOT NULL, store_id TEXT NOT NULL, node_count INTEGER NOT NULL CHECK (node_count >= 0), head TEXT)",
     "ledger_nodes": "CREATE TABLE ledger_nodes (node_index INTEGER PRIMARY KEY CHECK (node_index >= 0), digest TEXT NOT NULL UNIQUE, node_json TEXT NOT NULL)",
@@ -132,13 +136,15 @@ class SQLiteLedgerAdapter:
         self._timeout_s = timeout_s
 
     @contextmanager
-    def _transaction(self, *, write: bool = False):
+    def _transaction(self, *, write: bool = False, read_only: bool = False):
+        if write and read_only:
+            raise SQLiteLedgerError("read-only ledger cannot acquire a writer transaction")
         _path(self._path)
         if not self._path.is_file():
             raise SQLiteLedgerError("provisioned ledger file is unavailable")
         # mode=rw is important: reconnect/readiness must NEVER create a new file.
         connection = sqlite3.connect(
-            self._path.as_uri() + "?mode=rw", uri=True,
+            self._path.as_uri() + ("?mode=ro" if read_only else "?mode=rw"), uri=True,
             isolation_level=None, timeout=self._timeout_s,
         )
         try:
@@ -246,16 +252,164 @@ def from_environment() -> SQLiteLedgerAdapter:
     )
 
 
+def _checkpoint(store_id: str, nodes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    content = hashlib.sha256(CHECKPOINT_SCHEMA.encode("ascii") + b"\x00")
+    for node in nodes:
+        payload = _encode(node).encode("utf-8")
+        content.update(len(payload).to_bytes(8, "big"))
+        content.update(payload)
+    return {
+        "schema": CHECKPOINT_SCHEMA,
+        "store_id": store_id,
+        "node_count": len(nodes),
+        "head": nodes[-1]["digest"] if nodes else None,
+        "content_sha256": content.hexdigest(),
+        "evidence_class": "UNSIGNED_LOCAL_CHECKPOINT",
+    }
+
+
+def _validated_checkpoint(value: Mapping[str, Any]) -> dict[str, Any]:
+    fields = {"schema", "store_id", "node_count", "head", "content_sha256", "evidence_class"}
+    if type(value) is not dict or set(value) != fields:
+        raise SQLiteLedgerError("checkpoint fields are invalid")
+    if value["schema"] != CHECKPOINT_SCHEMA or value["evidence_class"] != "UNSIGNED_LOCAL_CHECKPOINT":
+        raise SQLiteLedgerError("checkpoint format is unsupported")
+    store_id = value["store_id"]
+    try:
+        if type(store_id) is not str or str(uuid.UUID(store_id)) != store_id:
+            raise ValueError("invalid identity")
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise SQLiteLedgerError("checkpoint identity is invalid") from exc
+    count = value["node_count"]
+    if type(count) is not int or count < 0:
+        raise SQLiteLedgerError("checkpoint count is invalid")
+    for field in ("head", "content_sha256"):
+        entry = value[field]
+        if field == "head" and count == 0 and entry is None:
+            continue
+        if type(entry) is not str or re.fullmatch(r"[0-9a-f]{64}", entry) is None:
+            raise SQLiteLedgerError("checkpoint digest is invalid")
+    if count == 0 and value["head"] is not None:
+        raise SQLiteLedgerError("empty checkpoint has a head")
+    return dict(value)
+
+
+def verify_store(source: str | Path, checkpoint: Mapping[str, Any]) -> dict[str, Any]:
+    """Compare an existing store to an independently retained, unsigned checkpoint.
+
+    This checks content equality, NOT checkpoint authenticity or freshness.
+    The complete canonical nodes, including DSSE metadata, are bound.
+    """
+    expected = _validated_checkpoint(checkpoint)
+    adapter = SQLiteLedgerAdapter(source, expected["store_id"])
+    with adapter._transaction(read_only=True) as connection:
+        observed = _checkpoint(expected["store_id"], adapter._read(connection))
+    if observed != expected:
+        raise SQLiteLedgerError("snapshot does not match the expected checkpoint")
+    return observed
+
+
+def _copy_snapshot(
+    source: str | Path, target: str | Path, store_id: str, *,
+    expected: Mapping[str, Any] | None = None, timeout_s: float = 30.0,
+) -> dict[str, Any]:
+    if type(timeout_s) not in (int, float) or not math.isfinite(timeout_s) or not 0 < timeout_s <= 300:
+        raise SQLiteLedgerError("backup timeout must be positive and at most 300 seconds")
+    deadline = time.monotonic() + timeout_s
+
+    def progress(_status: int, _remaining: int, _total: int) -> None:
+        # sqlite3.Connection.backup retries BUSY/LOCKED internally. A connection
+        # timeout alone does not bound that loop; raise from every progress call.
+        if time.monotonic() >= deadline:
+            raise SQLiteLedgerError("snapshot copy exceeded its time budget")
+
+    adapter = SQLiteLedgerAdapter(source, store_id, timeout_s=min(5.0, timeout_s))
+    destination = _path(target)
+    with adapter._transaction(read_only=True) as connection:
+        checkpoint = _checkpoint(store_id, adapter._read(connection))
+        if expected is not None and checkpoint != expected:
+            raise SQLiteLedgerError("snapshot does not match the expected checkpoint")
+        progress(0, 0, 0)
+        # Refuse every existing target, including a hardlink to the source.
+        # Failure leaves the exclusive partial target for inspection, never
+        # resets the source or emits a successful checkpoint.
+        fd = os.open(destination, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        os.close(fd)
+        with closing(sqlite3.connect(
+            destination.as_uri() + "?mode=rw", uri=True, isolation_level=None,
+            timeout=min(5.0, timeout_s),
+        )) as output:
+            if output.execute("PRAGMA journal_mode=DELETE").fetchone()[0] != "delete":
+                raise SQLiteLedgerError("rollback journaling is unavailable")
+            output.execute("PRAGMA synchronous=FULL")
+            if output.execute("PRAGMA synchronous").fetchone()[0] != 2:
+                raise SQLiteLedgerError("full synchronization is unavailable")
+            # The read transaction pins the validated source snapshot. In DELETE
+            # journal mode this maintenance operation can delay other writers.
+            connection.backup(output, pages=128, progress=progress, sleep=0.05)
+    progress(0, 0, 0)
+    # Close and reopen: a successful backup call alone is not our success gate.
+    return verify_store(destination, checkpoint)
+
+
+def backup_store(
+    source: str | Path, target: str | Path, store_id: str, *, timeout_s: float = 30.0,
+) -> dict[str, Any]:
+    """Create and verify a NEW snapshot, returning a local unsigned checkpoint."""
+    return _copy_snapshot(source, target, store_id, timeout_s=timeout_s)
+
+
+def restore_store(
+    source: str | Path, target: str | Path, checkpoint: Mapping[str, Any], *,
+    timeout_s: float = 30.0,
+) -> dict[str, Any]:
+    """Restore into a NEW file only, checking retained expectations before copying."""
+    expected = _validated_checkpoint(checkpoint)
+    return _copy_snapshot(source, target, expected["store_id"],
+                          expected=expected, timeout_s=timeout_s)
+
+
+def _load_checkpoint(path: str) -> dict[str, Any]:
+    with _path(path).open("rb") as checkpoint_file:
+        raw = checkpoint_file.read(8193)
+    if len(raw) > 8192:
+        raise SQLiteLedgerError("checkpoint exceeds the input limit")
+    return _validated_checkpoint(json.loads(raw, object_pairs_hook=_pairs))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["init"])
-    parser.add_argument("path", help="Absolute path to a new ledger file in an existing directory")
+    commands = parser.add_subparsers(dest="command", required=True)
+    initialize = commands.add_parser("init", help="Exclusively provision a new local store")
+    initialize.add_argument("path", help="Absolute path to a new ledger file in an existing directory")
+    for name in ("backup", "restore", "verify"):
+        command = commands.add_parser(name, help="Verify local content; no production or authority claim")
+        command.add_argument("source", help="Absolute path to an existing ledger or snapshot")
+        if name != "verify":
+            command.add_argument("target", help="Absolute path to a NEW file; existing targets are refused")
+            command.add_argument("--timeout", type=float, default=30.0)
+        if name == "backup":
+            command.add_argument("--store-id", required=True)
+        else:
+            command.add_argument("--expected-checkpoint", required=True,
+                                 help="Absolute path to independently retained expected checkpoint JSON")
     args = parser.parse_args()
     try:
-        store_id = provision(args.path)
-    except (SQLiteLedgerError, OSError, sqlite3.Error):
-        parser.exit(1, "Ledger provisioning failed; no existing file was overwritten.\n")
-    print(json.dumps({"store_id": store_id, "persistence_scope": "LOCAL_FILESYSTEM", "production_ready": False}))
+        if args.command == "init":
+            store_id = provision(args.path)
+            result = {"store_id": store_id, "persistence_scope": "LOCAL_FILESYSTEM", "production_ready": False}
+        elif args.command == "backup":
+            result = backup_store(args.source, args.target, args.store_id, timeout_s=args.timeout)
+        else:
+            expected = _load_checkpoint(args.expected_checkpoint)
+            result = (
+                verify_store(args.source, expected) if args.command == "verify"
+                else restore_store(args.source, args.target, expected, timeout_s=args.timeout)
+            )
+    except Exception:
+        operation = "provisioning" if args.command == "init" else "snapshot operation"
+        parser.exit(1, f"Ledger {operation} failed; no existing file was overwritten.\n")
+    print(json.dumps(result, sort_keys=True))
 
 
 if __name__ == "__main__":

@@ -123,6 +123,23 @@ class KanchayHonestyOverlayTests(unittest.TestCase):
         self.assertNotIn("szl-model-inference-lab", self.elite)
         self.assertIn("Conjecture 1", self.elite)
         self.assertIn("never a theorem", self.elite)
+        self.assertIn("SIMULATED · ADVISORY", self.elite)
+        self.assertNotIn("LIVE · RT", self.elite)
+
+    def test_readme_frontmatter_does_not_promote_killinchu_eye(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        frontmatter = readme.split("---", 2)[1]
+        self.assertNotIn("KILLINCHU-EYE", frontmatter)
+        self.assertNotIn("models:", frontmatter)
+
+    def test_command_deck_does_not_green_on_http_success(self):
+        deck = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+        cop = (ROOT / "static" / "truth-cop.js").read_text(encoding="utf-8")
+        self.assertIn('id="kcd-doctrine-state">UNAVAILABLE</span>', deck)
+        self.assertIn(".kcd-ribbon .live.is-measured", deck)
+        self.assertIn('if(!r.ok) throw new Error("HTTP "+r.status);', deck)
+        self.assertIn('classList.toggle("is-measured", measured)', cop)
+        self.assertNotIn('deck.textContent = mode + " · ADS-B CLAIMS"', cop)
 
     def test_elite_and_home_html_carry_overlay(self):
         home = self.client.get("/")
