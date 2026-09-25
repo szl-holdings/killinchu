@@ -50,9 +50,9 @@ Proof: [a11oy.net](https://a11oy.net)
 <!-- /szl:header -->
 
 > **Governed autonomy with a checkable receipt for every decision.**
-> Detect. Classify. Recommend under human authority. Detection, classification, and the governed-decision layer are LIVE. Physical effector engagement is operator-owned — gated on customer authorization and hardware integration, never exercised by this Space. A DSSE Khipu receipt binds every decision.
+> Detect. Classify. Recommend under human authority. Detection, classification, and the governed-decision layer are LIVE. Physical effector engagement is operator-owned — gated on customer authorization and hardware integration, never exercised by this Space. A hash-chained (SHA3-256) Khipu receipt binds every decision; DSSE signing is labelled separately.
 
-> **53 drone fingerprints · 13-axis Λ-gate · DSSE-signed verdicts · human-on-the-loop**
+> **53 drone fingerprints · 13-axis Λ-gate · hash-chained verdicts · human-on-the-loop**
 
 [![SLSA L1 honest · L2 build-attested · L3 roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20build--attested%20%C2%B7%20L3%20roadmap-c9b787?style=flat-square)](https://github.com/szl-holdings/killinchu)
 [![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
@@ -118,7 +118,7 @@ killinchu is a **full left-nav application** at `/elite` in the unified SZL hous
 
 ## What it does
 
-**killinchu is the counter-UAS edge tool of the SZL drones & vessels product.** Detection, classification, and the governed-decision layer are LIVE and operational: it evaluates hostile UAS tracks at machine speed, signs every engagement *decision* with a DSSE Khipu receipt, and surfaces the result to a **human operator**. Physical effector engagement is operator-owned — gated on customer authorization and hardware integration. This Space does not command a live weapon or establish production authorization.
+**killinchu is the counter-UAS edge tool of the SZL drones & vessels product.** Detection, classification, and the governed-decision layer are LIVE and operational: it evaluates hostile UAS tracks at machine speed, hash-chains every engagement *decision* (SHA3-256 Khipu receipt; DSSE signing is labelled separately), and surfaces the result to a **human operator**. Physical effector engagement is operator-owned — gated on customer authorization and hardware integration. This Space does not command a live weapon or establish production authorization.
 
 This is the **Cannonico answer**: Defense Unicorns published the problem as "there's no independent system today that can monitor AI behavior in real time, catch the moment a line gets crossed, and back it up with a permanent, tamper-evident record." killinchu is that system — deployed in one signed UDS command.
 
@@ -329,9 +329,9 @@ must *audit* the decision path, not trust a black box.
 
 ## Governed Post-Determinism (GPD)
 
-**Governed Post-Determinism (GPD)** is SZL's own framework. Classical systems demand that every correct node produce the *same bytes*; autonomous agents produce *different but still-correct* reasoning paths — so the unit of agreement shifts from "identical output" to **certified semantic admissibility**, and SZL proves that certification with a signed, Lean-anchored receipt.
+**Governed Post-Determinism (GPD)** is SZL's own framework. Classical systems demand that every correct node produce the *same bytes*; autonomous agents produce *different but still-correct* reasoning paths — so the unit of agreement shifts from "identical output" to **certified semantic admissibility**, and SZL records that admissibility decision in a hash-chained, Lean-referenced receipt.
 
-Five pillars, each mapped to a component SZL runs in production with an honest proof artifact:
+Five pillars, each mapped to a component SZL runs in its public demo Space with an honest proof artifact:
 
 - **Protocol-Bounded Execution** — governed-decision loop + YUYAY 13-axis conjunctive gate (deny-by-default). *Gate soundness proven over the locked F-set.*
 - **Verifiable Intent-to-Execution** — DSSE-signed receipt chain + Lean-theorem trace. *ECDSA-P256 signed, SHA-256 hash-chained, tamper-evident.*
@@ -491,7 +491,7 @@ We are a precision substrate, not a vibes company.
 
 ## ◇ Part of the SZL Holdings estate — *governed AI you can prove*
 
-One sovereign substrate, many organs — every decision carries a signed, checkable receipt.
+One sovereign substrate, many organs — every decision carries a hash-chained, checkable receipt.
 
 **[a-11-oy.com — the estate front-door](https://a-11-oy.com)** — the live estate hub (a11oy flagship). killinchu's own live face is its HF Space `/elite` below.
 
