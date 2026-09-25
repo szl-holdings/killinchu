@@ -8,23 +8,12 @@ on:
     # Required branch check: validate every PR, including shared-source-only fixes.
   push:
     branches: [main]
-    paths:
-      - killinchu_osint.py
-      - killinchu_intel_archive_card.py
-      - killinchu_intel_archive_publish.py
-      - datasets/killinchu-osint-corpus/**
-      - tests/test_killinchu_intel_archive_card.py
-      - tests/test_killinchu_intel_archive_publish.py
-      - Dockerfile
-      - .github/workflows/publish-intel-archive-card.yml
+    # Required validation must exist on every source revision. Publication
+    # retains its path filter in the scope step below.
   workflow_dispatch: {}
 
 permissions:
   contents: read
-
-concurrency:
-  group: publish-killinchu-intel-archive-card-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   HF_REPO: SZLHOLDINGS/killinchu-osint-corpus
@@ -35,11 +24,13 @@ jobs:
     name: Canonical mixed-source card contract
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      publish_required: ${{ steps.scope.outputs.publish_required }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 1
+          fetch-depth: 2
       - name: Checkout exact shared publisher source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,6 +42,9 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12.10'
+      - name: Determine existing provider publication scope
+        id: scope
+        run: python scripts/intel_card_publication_scope.py
       - name: Install exact shared hash-locked publisher closure
         env:
           SHARED_PUBLISHER_SHA: e3ec47ad2e99a535839afe0f30fefbd8973d52da
@@ -75,22 +69,28 @@ jobs:
         id: validation
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           mkdir -p "$EVIDENCE_DIR/rendered"
-          {
+          set +e
+          (
+            set -euo pipefail
             set -x
             python -m py_compile \
               killinchu_intel_archive_card.py \
               killinchu_intel_archive_publish.py \
               tests/test_killinchu_intel_archive_card.py \
-              tests/test_killinchu_intel_archive_publish.py
+              tests/test_killinchu_intel_archive_publish.py \
+              tests/test_intel_card_workflow_failclosed.py \
+              tests/test_intel_card_publication_scope.py
             python killinchu_intel_archive_card.py \
               --card-out "$EVIDENCE_DIR/rendered/README.md" \
               --license-out "$EVIDENCE_DIR/rendered/LICENSE.md"
             python -m pip install --disable-pip-version-check pytest
             PYTHONPATH="$HF_PUBLISHER_SITE${PYTHONPATH:+:$PYTHONPATH}" python -m pytest -q \
               tests/test_killinchu_intel_archive_card.py \
-              tests/test_killinchu_intel_archive_publish.py
+              tests/test_killinchu_intel_archive_publish.py \
+              tests/test_intel_card_workflow_failclosed.py \
+              tests/test_intel_card_publication_scope.py
             python - <<'PY'
           from pathlib import Path
           for path in Path('reports/killinchu-intel-archive-card/rendered').iterdir():
@@ -99,8 +99,13 @@ jobs:
                   raise SystemExit(f'unresolved template marker: {path}')
           PY
             git diff --check
-          } 2>&1 | tee "$EVIDENCE_DIR/validation.log"
-          code=${PIPESTATUS[0]}
+          ) 2>&1 | tee "$EVIDENCE_DIR/validation.log"
+          validation_status=("${PIPESTATUS[@]}")
+          set -e
+          code=${validation_status[0]}
+          if [ "$code" -eq 0 ] && [ "${validation_status[1]}" -ne 0 ]; then
+            code=${validation_status[1]}
+          fi
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
       - name: Upload complete prerelease evidence
@@ -124,10 +129,15 @@ jobs:
 
   publish:
     name: Publish one HF commit and verify immutable bytes
-    if: github.event_name != 'pull_request'
+    if: needs.validate.outputs.publish_required == 'true' && github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Validation-only runs must never cancel a provider write or its readback.
+    # Only admitted publication jobs participate in the single-writer group.
+    concurrency:
+      group: publish-killinchu-intel-archive-card-provider
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

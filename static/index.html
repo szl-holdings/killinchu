@@ -67,8 +67,11 @@
     .kcd-ribbon .sep{color:var(--kc-border)}
     .kcd-ribbon .pill{padding:2px 8px;border:1px solid var(--kc-border);border-radius:999px;
       color:var(--kc-teal);background:rgba(92,196,191,.07)}
-    .kcd-ribbon .live{display:inline-flex;align-items:center;gap:6px;color:var(--kc-green)}
-    .kcd-ribbon .live .dot{width:7px;height:7px;border-radius:50%;background:var(--kc-green);
+    .kcd-ribbon .live{display:inline-flex;align-items:center;gap:6px;color:var(--kc-ghost)}
+    .kcd-ribbon .live .dot{width:7px;height:7px;border-radius:50%;background:var(--kc-ghost);
+      box-shadow:none;animation:none}
+    .kcd-ribbon .live.is-measured{color:var(--kc-green)}
+    .kcd-ribbon .live.is-measured .dot{background:var(--kc-green);
       box-shadow:0 0 0 0 rgba(63,178,127,.6);animation:kcdpulse 2.2s infinite}
     @keyframes kcdpulse{0%{box-shadow:0 0 0 0 rgba(63,178,127,.5)}70%{box-shadow:0 0 0 8px rgba(63,178,127,0)}100%{box-shadow:0 0 0 0 rgba(63,178,127,0)}}
     /* threat ticker */
@@ -190,7 +193,7 @@
     <span class="pill">SLSA L1 honest</span>
     <span class="pill">§889 · 5 vendors</span>
     <span class="sep">/</span>
-    <span class="live" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="kcd-doctrine-state">CHECKING DOCTRINE GATES</span></span>
+    <span class="live" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="kcd-doctrine-state">UNAVAILABLE</span></span>
   </div>
 
   <!-- THREAT TICKER -->
@@ -325,13 +328,26 @@
     }
 
     function loadThreats(){
-      fetch(API+"/threats/active").then(function(r){return r.json();}).then(renderThreats)
+      fetch(API+"/threats/active").then(function(r){
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        return r.json();
+      }).then(renderThreats)
         .catch(function(){var b=el("kcd-threats");if(b)b.innerHTML='<div class="kcd-loading">Threat feed unavailable.</div>';});
     }
     function loadDoctrine(){
-      fetch(API+"/honest").then(function(r){return r.json();}).then(function(d){
-        if(d&&d.declarations){var s=el("kcd-doctrine-state"); if(s) s.textContent="v"+d.doctrine.replace("v","")+" · "+d.declarations+"/"+d.axioms_unique+"/"+d.sorries_total+" LOCKED";}
+      fetch(API+"/honest").then(function(r){
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        return r.json();
+      }).then(function(d){
+        var s=el("kcd-doctrine-state");
+        if(!s) return;
+        if(d&&d.kernel_commit&&d.declarations){
+          s.textContent="v"+String(d.doctrine||"").replace("v","")+" · "+d.declarations+"/"+d.axioms_unique+"/"+d.sorries_total+" REPORTED";
+        } else {
+          s.textContent="UNAVAILABLE";
+        }
       }).catch(function(){
+        var s=el("kcd-doctrine-state"); if(s) s.textContent="UNAVAILABLE";
         renderThreats({mode:"UNAVAILABLE",availability:"UNAVAILABLE",total_tracks:0,active_threats:0,threats:[]});
       });
       fetch(API+"/drones/database").then(function(r){return r.json();}).then(function(d){

@@ -22,7 +22,6 @@ tags:
 ecosystem-stage: "operational"
 fullWidth: true
 header: mini
-models: [SZLHOLDINGS/KILLINCHU-EYE]
 datasets: [SZLHOLDINGS/killinchu-osint-corpus, SZLHOLDINGS/szl-lake]
 ---
 

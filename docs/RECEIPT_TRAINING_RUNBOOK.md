@@ -55,11 +55,19 @@ attested image digest and its exact dependency/flavor contract.
    - `overclaim / Governed surfaces are honest (Theorem U citation rule)`
    - `offline-contract`
 
-   Each exact name must occur once in the bounded latest-check snapshot, bind
-   the manifest's exact head SHA, report `completed`/`success`, and identify the
-   GitHub Actions app with app ID `15368`. Legacy commit statuses are not
-   accepted as substitutes. Each gate reads the full bounded latest-check
-   snapshot twice and requires the two canonical snapshots to be identical.
+   Each check must bind the manifest's exact head SHA, report
+   `completed`/`success`, and identify GitHub Actions app `15368`. Names must
+   occur once, except the scheduled canonical card contract: repeated runs
+   must all bind through their check suites to the same approved main workflow,
+   repository and source SHA. Admission selects the latest invocation by its
+   start time, including retries. Pending repeats block, and any failure tied
+   for latest blocks. Other duplicated names remain rejected. Legacy commit
+   statuses are not accepted as substitutes. Each gate reads the full bounded
+   latest-check snapshot twice and requires identical results. For repeats,
+   it also reads workflow identity twice and closes with a third complete
+   check snapshot. This requires `actions: read` alongside contents/checks.
+   Canonical validation runs on every main push; provider publication retains
+   its original path filter and scheduled/manual behavior.
    The dispatcher then runs that app-bound gate twice: once before provider
    preflight and reservation, and again after the durable reservation
    immediately before paid submission. It also verifies the signed current

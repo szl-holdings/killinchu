@@ -11,21 +11,27 @@ name: Formula-Graph Brain doctrine verifier
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "szl_fgbrain.py"
-      - "verify_fgbrain.py"
-      - ".github/workflows/fgbrain-doctrine-verify.yml"
+    - szl_fgbrain.py
+    - verify_fgbrain.py
+    - .github/workflows/fgbrain-doctrine-verify.yml
   pull_request:
-    branches: [main]
-  workflow_dispatch:
-
+    branches:
+    - main
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   fgbrain-doctrine-verify:

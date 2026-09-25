@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import base64
 import contextlib
+from datetime import datetime
 import functools
 import hashlib
 import json
@@ -42,6 +43,9 @@ RESULT_PREFIX = "SZL_TRAINING_RESULT="
 GITHUB_ACTIONS_APP_ID = 15368
 CHECK_RUNS_PER_PAGE = 50
 MAX_CHECK_RUN_PAGES = 20
+REPEATED_CHECK_WORKFLOWS = {
+    "Canonical mixed-source card contract": ".github/workflows/publish-intel-archive-card.yml",
+}
 # This is the protected-main policy read back on 2026-09-12 plus the
 # provider-free receipt-training contract introduced by this change. Required
 # evidence must be an exact-name GitHub Check Run from the GitHub Actions app;
@@ -142,7 +146,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def github_json(path: str) -> dict:
-    # The workflow token needs only contents:read and checks:read. Legacy commit
+    # The workflow token needs contents:read, checks:read and actions:read. Legacy commit
     # statuses are not admission evidence because their origin cannot be bound
     # to the trusted GitHub Actions app id.
     headers = {
@@ -249,6 +253,8 @@ def verify_required_source_checks(manifest: dict, get=github_json) -> None:
             status = run.get("status")
             conclusion = run.get("conclusion")
             head_sha = run.get("head_sha")
+            suite = run.get("check_suite")
+            started = run.get("started_at")
             if (
                 not isinstance(app, dict)
                 or type(app.get("id")) is not int
@@ -256,6 +262,8 @@ def verify_required_source_checks(manifest: dict, get=github_json) -> None:
                 or type(status) is not str
                 or (conclusion is not None and type(conclusion) is not str)
                 or type(head_sha) is not str
+                or (suite is not None and not isinstance(suite, dict))
+                or (started is not None and not isinstance(started, str))
             ):
                 raise DispatchError("SOURCE_CHECK_RESPONSE_INVALID")
             snapshot.append(
@@ -266,6 +274,8 @@ def verify_required_source_checks(manifest: dict, get=github_json) -> None:
                     conclusion,
                     head_sha,
                     app["id"],
+                    started,
+                    (suite or {}).get("id"),
                 )
             )
         return tuple(sorted(snapshot))
@@ -284,9 +294,25 @@ def verify_required_source_checks(manifest: dict, get=github_json) -> None:
         if run["name"] != expected:
             raise DispatchError("SOURCE_CHECK_NAME_AMBIGUOUS")
         matches[expected].append(run)
-    if any(len(runs) != 1 for runs in matches.values()):
+    if any(not runs for runs in matches.values()):
         raise DispatchError("SOURCE_CHECK_MISSING_OR_DUPLICATE")
-    for run in (matches[name][0] for name in REQUIRED_SOURCE_CHECKS):
+    selected = []
+    repeated = False
+    for name in sorted(REQUIRED_SOURCE_CHECKS):
+        runs = matches[name]
+        if len(runs) == 1:
+            selected.append(runs[0])
+            continue
+        repeated = True
+        selected.append(_select_repeated_check(name, runs, revision, get=get))
+    # Workflow metadata lookups extend the admission window. Close it with a
+    # fresh full check snapshot; a new attempt, pending state or suite cannot be
+    # hidden by the successful observation made before those lookups.
+    if repeated and canonical_snapshot(first) != canonical_snapshot(
+        _read_exact_sha_check_runs(revision, get=get)
+    ):
+        raise DispatchError("SOURCE_CHECK_SNAPSHOT_CHANGED")
+    for run in selected:
         if run.get("head_sha") != revision:
             raise DispatchError("SOURCE_CHECK_SHA_MISMATCH")
         app = run.get("app")
@@ -295,6 +321,86 @@ def verify_required_source_checks(manifest: dict, get=github_json) -> None:
             raise DispatchError("SOURCE_CHECK_APP_UNTRUSTED")
         if run.get("status") != "completed" or run.get("conclusion") != "success":
             raise DispatchError("SOURCE_CHECK_NOT_SUCCESSFUL")
+
+
+def _select_repeated_check(name: str, checks: list[dict], revision: str,
+                           get=github_json) -> dict:
+    """Admit repeated executions only from an explicitly named main workflow.
+
+    GitHub's filter=latest retains one check per suite, so scheduled runs can
+    repeat a required name for one source SHA. started_at orders invocations,
+    including retries of an older workflow run. Pending checks always block;
+    failures tied at the newest timestamp also block rather than being hidden
+    behind a successful check with a larger numeric ID.
+    """
+    workflow_path = REPEATED_CHECK_WORKFLOWS.get(name)
+    if workflow_path is None:
+        raise DispatchError("SOURCE_CHECK_MISSING_OR_DUPLICATE")
+    suite_ids = set()
+    for check in checks:
+        suite = check.get("check_suite")
+        if (not isinstance(suite, dict) or type(suite.get("id")) is not int
+                or suite["id"] <= 0 or suite["id"] in suite_ids):
+            raise DispatchError("SOURCE_CHECK_MISSING_OR_DUPLICATE")
+        suite_ids.add(suite["id"])
+        if check.get("head_sha") != revision:
+            raise DispatchError("SOURCE_CHECK_SHA_MISMATCH")
+        if check.get("app", {}).get("id") != GITHUB_ACTIONS_APP_ID:
+            raise DispatchError("SOURCE_CHECK_APP_UNTRUSTED")
+        if check.get("status") != "completed":
+            raise DispatchError("SOURCE_CHECK_NOT_SUCCESSFUL")
+        started = check.get("started_at")
+        try:
+            if not isinstance(started, str) or not re.fullmatch(
+                r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", started
+            ):
+                raise ValueError
+            datetime.strptime(started, "%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            raise DispatchError("SOURCE_CHECK_INVOCATION_INVALID") from None
+
+    def workflow_snapshot() -> tuple[tuple, ...]:
+        observations = []
+        workflow_ids = set()
+        run_ids = set()
+        run_numbers = set()
+        for suite_id in sorted(suite_ids):
+            document = get(
+                f"/repos/{REPOSITORY}/actions/runs"
+                f"?check_suite_id={suite_id}&per_page=2"
+            )
+            runs = document.get("workflow_runs") if isinstance(document, dict) else None
+            if (not isinstance(document, dict) or type(document.get("total_count")) is not int
+                    or document["total_count"] != 1 or not isinstance(runs, list)
+                    or len(runs) != 1 or not isinstance(runs[0], dict)):
+                raise DispatchError("SOURCE_CHECK_WORKFLOW_UNVERIFIED")
+            run = runs[0]
+            if (any(type(run.get(key)) is not int or run[key] <= 0 for key in
+                    ("id", "workflow_id", "run_number", "run_attempt", "check_suite_id"))
+                    or run["check_suite_id"] != suite_id
+                    or run.get("path") != workflow_path
+                    or run.get("head_sha") != revision or run.get("head_branch") != "main"
+                    or run.get("event") not in {"push", "schedule", "workflow_dispatch"}
+                    or not isinstance(run.get("repository"), dict)
+                    or run["repository"].get("full_name") != REPOSITORY
+                    or run["id"] in run_ids or run["run_number"] in run_numbers):
+                raise DispatchError("SOURCE_CHECK_WORKFLOW_UNVERIFIED")
+            workflow_ids.add(run["workflow_id"])
+            run_ids.add(run["id"])
+            run_numbers.add(run["run_number"])
+            observations.append((suite_id, run["id"], run["workflow_id"],
+                                 run["run_number"], run["run_attempt"]))
+        if len(workflow_ids) != 1:
+            raise DispatchError("SOURCE_CHECK_WORKFLOW_UNVERIFIED")
+        return tuple(observations)
+
+    if workflow_snapshot() != workflow_snapshot():
+        raise DispatchError("SOURCE_CHECK_SNAPSHOT_CHANGED")
+    newest = max(check["started_at"] for check in checks)
+    candidates = [check for check in checks if check["started_at"] == newest]
+    if any(check.get("conclusion") != "success" for check in candidates):
+        raise DispatchError("SOURCE_CHECK_NOT_SUCCESSFUL")
+    return max(candidates, key=lambda check: check["id"])
 
 
 def verify_admitted_source(manifest: dict, worker_bytes: bytes, get=github_json) -> None:
