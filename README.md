@@ -62,7 +62,7 @@ Proof: [a11oy.net](https://a11oy.net)
 [![Khipu Conjecture 2](https://img.shields.io/badge/Khipu%20BFT-Conjecture%202%20(Wave23%20conditional)-B79BD6?style=flat-square)](https://github.com/szl-holdings/khipu-consensus)
 
 **LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
-**Proof posture (two-tier):** 8 locked-proven `{F1, F4, F7, F11, F12, F18, F19, F22}` + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · ~1323 decls / 22 unique axioms — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1**; Byzantine BFT safety is **Khipu Conjecture 2 (open)**. Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
+**Proof posture (two-tier):** 8 locked-proven `{F1, F4, F7, F11, F12, F18, F19, F22}` + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · lutar-lean `main` @ `75a4a311`, measured 2026-09-25 with the canonical `lean_numbers.py` line-count method: 2119 declarations / 33 unique axioms (34 raw) / 430 `sorry` raw — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1**; Byzantine BFT safety is **Khipu Conjecture 2 (open)**. Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
 [Live demo](#live) · [What it does](#what-it-does) · [Quickstart](#quickstart) · [Verify](#verify-it-yourself) · [Cookbook](#try-the-cookbook) · [Architecture](#architecture) · [Repo map](#repo-map) · [API surface](#api-surface) · [Parity vs. leaders](#parity-vs-leaders) · [Why vs Anduril](#why-killinchu-vs-anduril-lattice) · [Honest status](#honest-status) · [Cite](#citation)
 
