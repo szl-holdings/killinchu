@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # killinchu runtime deps. Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1.
 # NOTE: killinchu's primary deps are pinned in the Dockerfile (HF Space build).
-# This file declares the cross-pod tracing dependency for the mesh wire-up.
-# vsp-otel is also vendored per-file COPY under ./vsp_otel/ so the import
-# resolves offline (no PyPI dependency at build time) — honest, no-mock.
-vsp-otel>=0.1
+# Every line here must resolve in a clean venv (.github/workflows/install-check.yml).
+# vsp-otel is intentionally NOT listed: serve.py's cross-pod tracing wire-up
+# (`from vsp_otel.middleware import install`) uses the vendored copy under
+# ./vsp_otel/, which resolves from the repo root with no install step. vsp-otel
+# is not on PyPI and its v0.1.0 tag contains no Python package, so the former
+# `vsp-otel>=0.1` line made `pip install -r requirements.txt` fail outright.
 # Safe parsing for untrusted Cursor-on-Target XML. DTDs and entity expansion
 # are disabled before the CoT schema-shape validator sees a document.
 defusedxml==0.7.1
