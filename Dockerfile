@@ -21,10 +21,8 @@ FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc4243
 
 WORKDIR /app
 
-# gcc/libc6-dev: pymavlink 2.4.49 has no cp314 wheel, so pip builds from sdist.
-# HF Space 2026-09-25 BUILD_ERROR: [Errno 2] No such file or directory: 'gcc'.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates gcc libc6-dev && \
+    ca-certificates && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies — real protocol stacks, no mocks.
@@ -39,13 +37,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # fallback-chain safety is INTENTIONALLY KEPT: if a wheel for the pinned version is
 # ever yanked, the build still stays green and the relevant organ degrades to its
 # honest pure-python / SQLite / ROADMAP-skeleton fallback (no fabricated data).
+# pymavlink 2.4.50 (not the 2.4.49 build-log pin): first release with a cp314
+# manylinux x86_64 wheel, so python:3.14-slim needs no compiler (no gcc here).
 RUN pip install --no-cache-dir \
     "fastapi==0.137.2" \
     "uvicorn[standard]==0.49.0" \
     "httpx==0.28.1" \
     "starlette==1.3.1" \
     "pyModeS==3.3.0" \
-    "pymavlink==2.4.49"
+    "pymavlink==2.4.50"
 # BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
 RUN pip install --no-cache-dir "slowapi==0.1.10"
 
