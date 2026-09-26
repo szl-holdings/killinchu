@@ -8,7 +8,14 @@ name: Dockerfile build-file guard
 #
 # The lightweight static check (copy-sources) runs on every push/PR to main.
 # A full `docker build` runs weekly (and on manual dispatch) to catch deeper
-# breakage the static parser cannot see.
+# breakage the static parser cannot see. It also runs on every PR that changes
+# a file that defines the image build (the Dockerfile, its generated HF mirror,
+# .dockerignore, or this workflow). COPY sources are checked statically by
+# copy-sources; widen the path list in image-inputs if a RUN step ever executes
+# copied repo files. If image-inputs fails, the PR build runs anyway (fails
+# closed). #452 (python 3.12-slim -> 3.14-slim) and #459 (gcc for pymavlink on
+# 3.14) both merged with this job SKIPPED, so no PR check built either image
+# before merge.
 
 on:
   push:
@@ -40,9 +47,52 @@ jobs:
       - name: Verify every Dockerfile COPY/ADD source exists
         run: python3 .github/dockerfile-copy-check.py Dockerfile .
 
+  image-inputs:
+    name: Detect image-input changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - name: Checkout PR merge commit and its base parent
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: List image inputs changed by this PR
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          # HEAD is the PR test-merge commit and HEAD^1 is the base-branch tip,
+          # so this lists exactly what the PR would change on main.
+          # --no-renames lists both sides of a rename, so moving a Dockerfile
+          # away still counts as a change to it.
+          git diff --no-renames --name-only HEAD^1 HEAD > "$RUNNER_TEMP/pr-files.txt"
+          changed=false
+          while IFS= read -r path; do
+            case "$path" in
+              Dockerfile|deploy/space/Dockerfile|.dockerignore|.github/workflows/dockerfile-copy-guard.yml)
+                echo "Image input changed: $path"
+                changed=true
+                ;;
+            esac
+          done < "$RUNNER_TEMP/pr-files.txt"
+          if [ "$changed" = false ]; then
+            echo "No image input changed; the full docker build is skipped for this PR."
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
   docker-build:
-    name: Full docker build (scheduled)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: Full docker build
+    needs: image-inputs
+    # On a PR, only an explicit changed=false from image-inputs skips the
+    # build. A failed detector leaves the output empty, so the build runs.
+    if: >-
+      ${{ !cancelled() && (github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      needs.image-inputs.outputs.changed != 'false')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
