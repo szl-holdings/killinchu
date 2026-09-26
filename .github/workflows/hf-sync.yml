@@ -32,6 +32,7 @@ jobs:
       include-readme: true
       prune: true
       wait-running: 1200
+      restart-space: true
       source-revision-variable: SZL_GIT_SHA
       source-revision-probe-path: /api/build-info
       smoke-paths: '["/","/api/killinchu/healthz","/api/build-info","/console","/defend","/resilience","/api/defend/status","/api/defend/readyz","/api/defend/source","/api/killinchu/v1/code/capabilities","/static/analyst.html","/api/killinchu/v1/defensive-intake/tools"]'
