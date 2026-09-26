@@ -9,30 +9,38 @@ import szl_spaces_surface as surface
 
 
 EXPECTED = [
-    # The public Hub cut is exactly these 6 KEEP Spaces (MEASURED 2026-08-31).
-    # The other 38 audited Spaces are folded: PAUSED+PRIVATE on the Hub,
-    # reachable only through their documented product/proof destinations.
+    # The public Hub cut is exactly these 5 KEEP FLOCK doors, in lockstep with
+    # a11oy tests/test_szl_spaces_inventory.py (a11oy#2130). Folded and Unify
+    # Spaces are destination ledger only; their provider state is not observed.
     ("a11oy", "a11oy", "a11oy — Command Center", "docker"),
-    ("killinchu", "killinchu", "killinchu — Andean Drone Intelligence", "docker"),
+    ("killinchu", "killinchu", "killinchu — Counter-UAS", "docker"),
     ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker"),
-    ("szl-khipu", "szl-khipu", "szl-khipu", "docker"),
-    ("szl-atelier", "szl-atelier", "SZL Atelier — forty-model walk", "static"),
-    ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static"),
+    ("lyte", "lyte", "LYTE lattice", "docker"),
+    ("vertical-services", "vertical-services", "Vertical Services", "docker"),
 ]
 
 # Operator destinations for the KEEP set. Not quality claims.
 KEEP_DEST = {
-    "a11oy": "https://a-11-oy.com",
+    "a11oy": "https://a-11-oy.com/console",
     "killinchu": "https://szlholdings-killinchu.hf.space/elite",
     "immune": "https://a-11-oy.com/immune",
-    "szl-khipu": "https://a-11-oy.com/khipu",
-    "szl-atelier": "https://a11oy.net/atelier/",
-    "governed-receipt-verifier": "https://a11oy.net/record/",
+    "lyte": "https://a-11-oy.com/lyte",
+    "vertical-services": "https://a-11-oy.com/spaces#verticals",
 }
 
-# Fold invariants: the folded set stays name-addressable on the Hub
-# (paused+private) and every fold lands on a canonical origin.
-FOLD_COUNT = 38
+# Unify stragglers: planned to fold into a11oy /console. Not KEEP, not FOLD.
+UNIFY_EXPECTED = (
+    "szl-command-lab",
+    "szl-model-inference-lab",
+    "szl-frontier",
+    "szl-constellation",
+)
+UNIFY_DEST = "https://a-11-oy.com/console"
+
+# Fold invariants: the folded set stays name-addressable on the Hub and every
+# fold lands on a canonical origin. 5 KEEP + 42 FOLD + 4 UNIFY = 51 handoffs.
+FOLD_COUNT = 42
+HANDOFF_COUNT = 51
 FOLD_ORIGINS = ("https://a-11-oy.com", "https://a11oy.net")
 FOLD_SPOT_NAMES = {
     "yarqa", "david-leads", "anatomy", "energy-attested-runs",
@@ -45,24 +53,31 @@ def _rows(records):
 
 
 def test_space_inventory_is_exact_and_shared():
-    assert len(EXPECTED) == 6
+    assert len(EXPECTED) == 5
+    assert surface.KEEP_TARGET == 5
     assert _rows(surface.SPACES) == EXPECTED
     assert _rows(proxy.SPACE_INVENTORY) == EXPECTED
-    assert len({row[0] for row in EXPECTED}) == 6
-    assert len({row[1] for row in EXPECTED}) == 6
+    assert len({row[0] for row in EXPECTED}) == 5
+    assert len({row[1] for row in EXPECTED}) == 5
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
-    # The fold is total and disjoint: 6 KEEP + 38 FOLD = the 44 audited estate.
+    # The handoff estate is total and disjoint: 5 KEEP + 42 FOLD + 4 UNIFY.
     keep_names = {row[0] for row in EXPECTED}
     fold_names = {sp["name"] for sp in surface.FOLD_SPACES}
+    unify_names = {sp["name"] for sp in surface.UNIFY_SPACES}
+    assert tuple(sp["slug"] for sp in surface.UNIFY_SPACES) == UNIFY_EXPECTED
+    assert surface.UNIFY_TARGET == 4
     assert len(fold_names) == FOLD_COUNT
     assert not keep_names & fold_names
-    assert keep_names | fold_names == set(proxy.PROXY_SPACES)
-    assert len(proxy.PROXY_SPACES) == 44
+    assert not (keep_names | fold_names) & unify_names
+    assert keep_names | fold_names | unify_names == set(proxy.PROXY_SPACES)
+    assert len(proxy.PROXY_SPACES) == HANDOFF_COUNT
     # Every fold lands on a canonical origin; nowhere else.
     for sp in surface.FOLD_SPACES:
         assert sp["action"] == "FOLD"
         assert sp["dest"].startswith(FOLD_ORIGINS)
-        assert FOLD_SPOT_NAMES - fold_names == set() or True
+    for sp in surface.UNIFY_SPACES:
+        assert sp["action"] == "UNIFY"
+        assert sp["dest"] == UNIFY_DEST
     assert FOLD_SPOT_NAMES <= fold_names
 
 def test_hub_inventory_ignores_org_profile_but_detects_application_drift():
@@ -153,11 +168,16 @@ def test_space_urls_and_canonical_handoff_boundary_are_fail_closed():
         assert proxy.hf_url(slug) == hub_url
         assert surface.canonical_url(slug) == sp["dest"]
         assert surface.canonical_url(slug).startswith(FOLD_ORIGINS)
+    for slug in UNIFY_EXPECTED:
+        # UNIFY: Hub URL remains derivable; canonical handoff is a11oy /console.
+        assert surface.hf_url(slug) == f"https://szlholdings-{slug}.hf.space"
+        assert proxy.hf_url(slug) == f"https://szlholdings-{slug}.hf.space"
+        assert surface.canonical_url(slug) == UNIFY_DEST
     assert surface.hf_api_url("governed-agent-bench").endswith("/SZLHOLDINGS/governed-agent-bench")
     keep_slugs = {row[1] for row in EXPECTED}
     fold_slugs = {sp["name"] for sp in surface.FOLD_SPACES}
-    assert set(proxy.PROXY_SPACES) == keep_slugs | fold_slugs
-    assert len(proxy.PROXY_SPACES) == 44
+    assert set(proxy.PROXY_SPACES) == keep_slugs | fold_slugs | set(UNIFY_EXPECTED)
+    assert len(proxy.PROXY_SPACES) == HANDOFF_COUNT
     for resolver in (
         surface.hf_url,
         surface.hf_api_url,
@@ -189,11 +209,15 @@ def test_tiles_and_fallback_include_all_audited_titles():
         assert f'href="{dest}"' in fallback
         assert f'href="/spaces/{slug}' not in tiles
         assert f'href="/spaces/{slug}' not in fallback
-    # Fold panel honesty: the cut is measured and the fold is labelled.
-    assert "Public Hub cut is 6 KEEP" in tiles
-    assert "Public Hub cut is 6 KEEP" in fallback
-    assert "Folded" in tiles and "PAUSED" in tiles and "PRIVATE" in tiles
-    assert "38 Spaces folded" in tiles
+    # Fold panel honesty: the cut is labelled and the fold is a plan whose
+    # provider state (Hub visibility/runtime) is not observed by the ledger.
+    assert "Public Hub cut is 5 KEEP" in tiles
+    assert "Public Hub cut is 5 KEEP" in fallback
+    assert "Folded" in tiles and "Fold plan · provider state UNOBSERVED" in tiles
+    assert f"{FOLD_COUNT} planned folds" in tiles
+    assert "Unify stragglers" in tiles
+    for slug in UNIFY_EXPECTED:
+        assert f'data-unify="{slug}"' in tiles
     assert "no-store 307 handoffs" in tiles
     assert "no-store 307 handoffs" in fallback
     assert "reverse proxy" not in tiles.lower()
@@ -265,7 +289,7 @@ def test_legacy_space_routes_are_no_store_307_handoffs_without_proxy_bytes_or_co
         routes=[Route("/{full_path:path}", lambda request: PlainTextResponse("SPA"))]
     )
     status = proxy.register(app, ns="killinchu")
-    assert status.startswith("ok: 44 canonical handoff spaces")
+    assert status.startswith(f"ok: {HANDOFF_COUNT} canonical handoff spaces")
     client = TestClient(app)
 
     response = client.get(
@@ -293,7 +317,10 @@ def test_legacy_space_routes_are_no_store_307_handoffs_without_proxy_bytes_or_co
     assert client.get("/spaces/notreal", follow_redirects=False).status_code == 404
     own = client.get("/spaces/a11oy", follow_redirects=False)
     assert own.status_code == 307
-    assert own.headers["location"] == "https://a-11-oy.com"
+    assert own.headers["location"] == "https://a-11-oy.com/console"
+    unify = client.get("/spaces/szl-frontier", follow_redirects=False)
+    assert unify.status_code == 307
+    assert unify.headers["location"] == UNIFY_DEST
     # A folded Space handoff lands on its documented destination, never on a
     # live Hub origin (the folded Space is paused+private).
     folded = client.get("/spaces/yarqa", follow_redirects=False)
@@ -378,4 +405,4 @@ if __name__ == "__main__":
     test_spaces_health_aggregate_is_row_derived_and_cache_is_explicit_copy()
     test_killinchu_related_nav_links_public_ecosystem_and_anatomy_v5()
     test_crawler_surface_never_presents_stopped_or_failed_as_healthy()
-    print("test_ecosystem_alignment: 8 focused offline tests passed")
+    print("test_ecosystem_alignment: 9 focused offline tests passed")
