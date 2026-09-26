@@ -30,4 +30,7 @@ permissions:
 jobs:
   anatomy-map-drift:
     uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@f7231270c8a4f227301bfee544f848938b71f14d  # main
-    secrets: inherit
+    # Pass only the one (optional) secret the reusable workflow declares,
+    # not every repo secret; its reads are public and github.token suffices.
+    secrets:
+      SZL_GITHUB_TOKEN: ${{ secrets.SZL_GITHUB_TOKEN }}

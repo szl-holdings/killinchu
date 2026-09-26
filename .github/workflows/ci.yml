@@ -80,3 +80,39 @@ jobs:
           grep -Fq 'COPY killinchu_defend_plane.py ./killinchu_defend_plane.py' deploy/space/Dockerfile
           grep -Fq '"/defend"' killinchu_defend_plane.py
           git diff --check
+
+  mavlink-decoder:
+    name: MAVLink decoder — CRC rejection contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      # Same pin the runtime image installs; the grep keeps the two in lockstep.
+      - name: Install the image's pymavlink pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq '"pymavlink==2.4.50"' Dockerfile
+          grep -Fq '"pymavlink==2.4.50"' deploy/space/Dockerfile
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "pymavlink==2.4.50" \
+            -r requirements-test.txt
+          python -m pip check
+
+      - name: Prove bad-CRC frames are rejected, never decoded
+        run: python -m pytest -q tests/test_mavlink_parse_crc_honesty.py

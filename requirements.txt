@@ -13,7 +13,9 @@ defusedxml==0.7.1
 # PCGI proof-carrying engagement receipts (killinchu_engagement_receipt.py). The
 # module PREFERS this installed lib and falls back to a byte-identical vendored
 # implementation of the same shapes when the install is blocked (offline edge).
-szl-receipt @ git+https://github.com/szl-holdings/szl-receipt.git@v0.2.0
+# Pinned to the commit the annotated v0.2.0 tag points at (tag object b33ce876),
+# so a moved or re-created tag cannot change what installs.
+szl-receipt @ git+https://github.com/szl-holdings/szl-receipt.git@54a44e9e7826ffe591083c4cda3007c2058834a1
 # ADDITIVE (szl-substrate repoint, Wave J Dev 2): the shared substrate package is
 # the single source of truth for modules duplicated across a11oy + killinchu
 # (szl-holdings/szl-substrate). killinchu's serve.py registration call sites now
