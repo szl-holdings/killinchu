@@ -272,6 +272,7 @@ def mavlink_parse(hexstr: str) -> dict[str, Any]:
 
     import io
     msgs = []
+    rejected = []
     try:
         # Import kept inside the guarded path so a missing/odd pymavlink build
         # degrades to an HONEST 4xx-style JSON body, never a raw 500.
@@ -280,6 +281,12 @@ def mavlink_parse(hexstr: str) -> dict[str, Any]:
         mav.robust_parsing = True
         parsed = mav.parse_buffer(bytearray(raw)) or []
         for m in parsed:
+            # robust_parsing turns a CRC or framing failure into a BAD_DATA
+            # pseudo-message. That is a rejection, never a decoded frame.
+            if isinstance(m, mavlink2.MAVLink_bad_data):
+                rejected.append({"reason": str(m.reason or "invalid MAVLink data"),
+                                 "bytes": len(m.data)})
+                continue
             d = m.to_dict()
             msgs.append({
                 "type": m.get_type(),
@@ -292,6 +299,14 @@ def mavlink_parse(hexstr: str) -> dict[str, Any]:
         _log_exc("mavlink_parse:decode", e)
         return {"ok": False, "protocol": f"MAVLink v{version}",
                 "error": "could not decode MAVLink frame", "start_marker": f"0x{magic:02X}"}
+    if rejected:
+        # Fail closed: any rejected frame makes the whole parse not-ok. Frames
+        # that did verify are still shown, but never as a clean decode.
+        return {"ok": False, "protocol": f"MAVLink v{version}",
+                "error": f"{len(rejected)} MAVLink frame(s) rejected (bad CRC or invalid data)",
+                "start_marker": f"0x{magic:02X}", "bytes": len(raw),
+                "frame_count": len(msgs), "messages": msgs,
+                "rejected_count": len(rejected), "rejected": rejected}
     if not msgs:
         return {"ok": False, "protocol": f"MAVLink v{version}",
                 "error": "no complete MAVLink message decoded (truncated frame or bad CRC)",

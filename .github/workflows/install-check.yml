@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: Apache-2.0
+name: install-check
+
+# Proves the plain `pip install -r requirements.txt` works from a clean
+# interpreter, and that what it is meant to provide actually imports.
+# Regression guard: requirements.txt once named vsp-otel, which is on no package
+# index, so the install died with "No matching distribution found for
+# vsp-otel>=0.1". The vsp_otel package serve.py imports is the vendored copy
+# under ./vsp_otel/; requirements.txt is a partial list (primary runtime deps
+# are pinned in the Dockerfile), so this gate does not import serve.py.
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  requirements:
+    name: Fresh venv - pip install -r requirements.txt (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: pip install -r requirements.txt in a fresh venv
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/req-venv"
+          "$RUNNER_TEMP/req-venv/bin/python" -m pip install \
+            --disable-pip-version-check --no-cache-dir -r requirements.txt
+          "$RUNNER_TEMP/req-venv/bin/python" -m pip check
+
+      - name: Import smoke test
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/req-venv/bin/python" - <<'PY'
+          import importlib.metadata as md
+          import pathlib
+          import sys
+
+          # serve.py runs from the repo root (Dockerfile WORKDIR /app).
+          root = pathlib.Path.cwd().resolve()
+          sys.path.insert(0, str(root))
+
+          # 1. serve.py's `from vsp_otel.middleware import install` must resolve to
+          #    the vendored copy, not to anything pip put in site-packages.
+          import vsp_otel
+          import vsp_otel.middleware as vsp_mw
+
+          origin = pathlib.Path(vsp_otel.__file__).resolve()
+          assert origin.parent == root / "vsp_otel", f"vsp_otel resolved to {origin}"
+          assert callable(vsp_mw.install)
+          tp = vsp_mw.make_traceparent()
+          parsed = vsp_mw.parse_traceparent(tp)
+          assert parsed and parsed["trace_id"] == tp.split("-")[1], tp
+
+          # 2. szl-receipt is the installed package killinchu_engagement_receipt
+          #    prefers; exercise a real sign/verify round trip.
+          import szl_receipt
+
+          priv, pub = szl_receipt.generate_keypair()
+          env = szl_receipt.sign_receipt(
+              szl_receipt.Receipt("install-check", {"ok": True}), priv, organ="killinchu"
+          )
+          ok, why = szl_receipt.verify_receipt(env, pub)
+          assert ok, why
+
+          # 3. defusedxml backs killinchu_cot_interop, which imports with only
+          #    requirements.txt installed (its FastAPI import is guarded).
+          from defusedxml.common import DefusedXmlException  # noqa: F401
+          import killinchu_cot_interop  # noqa: F401
+
+          print("vsp_otel (vendored)", vsp_otel.__version__, "->", origin)
+          print("szl-receipt", md.version("szl-receipt"), "->", szl_receipt.__file__)
+          print("defusedxml", md.version("defusedxml"))
+          PY
