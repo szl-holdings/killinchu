@@ -1,491 +1,266 @@
 ---
-title: "killinchu — Andean Drone Intelligence"
-emoji: "🦅"
-thumbnail: "https://huggingface.co/spaces/SZLHOLDINGS/killinchu/resolve/main/static/og-card.png"
-colorFrom: gray
-colorTo: indigo
+title: "a11oy — Command Center"
+emoji: "🛡️"
+thumbnail: "https://a-11-oy.com/og-card.png"
+colorFrom: indigo
+colorTo: gray
 sdk: docker
 app_port: 7860
 pinned: true
 license: apache-2.0
-short_description: Governed autonomous-systems command surface
+short_description: "a11oy source — product origin a-11-oy.com, proof a11oy.net"
 tags:
-  - doctrine-v11
-  - defense
-  - drone-intelligence
-  - counter-uas
-  - szl-holdings
+  - governance
   - agentic-ai
-  - dsse
+  - doctrine-v11
+  - a11oy
   - slsa-l1
   - apache-2.0
 ecosystem-stage: "operational"
-fullWidth: true
-header: mini
-datasets: [SZLHOLDINGS/killinchu-osint-corpus, SZLHOLDINGS/szl-lake]
+models: [SZLHOLDINGS/SZL-Khipu-1.5B, SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent]
+datasets: [SZLHOLDINGS/a11oy-verifiable-corpus, SZLHOLDINGS/szl-lake]
 ---
 
-<!-- SZL-ESTATE-CARD:v2:START -->
-<p align="center"><a href="https://a-11-oy.com/"><img src="https://huggingface.co/spaces/SZLHOLDINGS/README/resolve/main/assets/estate-banner-v2.svg" alt="SZL Holdings — governed, receipted, verifiable" width="100%"></a></p>
-<p align="center">
-  <a href="https://github.com/szl-holdings/.github/tree/main/doctrine"><img src="https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square" alt="doctrine v11"></a>
-  <a href="https://a-11-oy.com/"><img src="https://img.shields.io/badge/evidence%20wall-LIVE%20%C2%B7%20verify%20in%20browser-3AF4C8?style=flat-square" alt="live evidence wall"></a>
-  <a href="https://huggingface.co/datasets/SZLHOLDINGS/szl-lake"><img src="https://img.shields.io/badge/szl--lake-offline%20verifiable-C9B787?style=flat-square" alt="szl-lake offline verifiable"></a>
-  <a href="https://huggingface.co/spaces/SZLHOLDINGS/holographic"><img src="https://img.shields.io/badge/estate%20map-holographic-5B8DEE?style=flat-square" alt="holographic estate map"></a>
-</p>
-<p align="center"><sub>Part of the <a href="https://huggingface.co/SZLHOLDINGS">SZL Holdings</a> governed estate — claims are designed to carry checkable receipts. Verification proves integrity &amp; origin, never accuracy or performance.</sub></p>
-<!-- SZL-ESTATE-CARD:v2:END -->
+<!--
+  a11oy README lead · 2026-09-04 honest runtime URLs
+  This repository is SOURCE for the product origin https://a-11-oy.com
+  Proof lives at https://a11oy.net
+  Never a11oy.com
+  receipts.in ≡ receipts.out
+  Canonical: lutar-lean Doctrine v11 count @ c7c0ba17 (not main); locked-8 in ProvedFormulas.lean @ 3a886349
+  Honesty doctrine LOCKED. DCO + Conventional Commits.
+-->
 
-# killinchu 🦅
-<!-- szl:header v1 -->
-<!-- badges: add this repo's CI / release / status badges here -->
-[![org: szl-holdings](https://img.shields.io/badge/org-szl--holdings-black)](https://github.com/szl-holdings)
-[![doctrine](https://img.shields.io/badge/doctrine-control%20before%20action%20%C2%B7%20evidence%20after-blue)](https://a-11-oy.com)
+# a11oy
 
-**Control before action. Evidence after.**
+This repository is the **source** for the product origin
+[https://a-11-oy.com](https://a-11-oy.com).
+Proof lives at [https://a11oy.net](https://a11oy.net).
 
-Part of the [szl-holdings](https://github.com/szl-holdings) estate ·
-Product: [a-11-oy.com](https://a-11-oy.com) ·
-Proof: [a11oy.net](https://a11oy.net)
-<!-- /szl:header -->
+`a11oy.com` is not a surface of this project.
 
-> **Governed autonomy with a checkable receipt for every decision.**
-> Detect. Classify. Recommend under human authority. Detection, classification, and the governed-decision layer are LIVE. Physical effector engagement is operator-owned — gated on customer authorization and hardware integration, never exercised by this Space. A hash-chained (SHA3-256) Khipu receipt binds every decision; DSSE signing is labelled separately.
+a11oy is a governed-AI Command Center: deny-by-default policy, trust
+ceiling 0.97, and a hash-chained receipt for every decision (DSSE signing
+PARTIAL — see Honest status). This tree is
+that system's source. It is not the proof registry.
 
-> **53 drone fingerprints · 13-axis Λ-gate · hash-chained verdicts · human-on-the-loop**
+## Invariant
 
-[![SLSA L1 honest · L2 build-attested · L3 roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20build--attested%20%C2%B7%20L3%20roadmap-c9b787?style=flat-square)](https://github.com/szl-holdings/killinchu)
-[![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
-[![CI](https://github.com/szl-holdings/killinchu/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/killinchu/actions)
-[![License](https://img.shields.io/badge/license-Apache--2.0-5fb3a3?style=flat-square)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Λ Conjecture 1](https://img.shields.io/badge/%CE%9B-Conjecture%201%20(conditional%20Theorem%20U)-B79BD6?style=flat-square)](https://github.com/szl-holdings/lutar-lean/blob/main/BOUNTY.md)
-[![Khipu Conjecture 2](https://img.shields.io/badge/Khipu%20BFT-Conjecture%202%20(Wave23%20conditional)-B79BD6?style=flat-square)](https://github.com/szl-holdings/khipu-consensus)
+**receipts.in ≡ receipts.out**
 
-**LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
-**Proof posture (two-tier):** 8 locked-proven `{F1, F4, F7, F11, F12, F18, F19, F22}` + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · lutar-lean `main` @ `75a4a311`, measured 2026-09-25 with the canonical `lean_numbers.py` line-count method: 2119 declarations / 33 unique axioms (34 raw) / 430 `sorry` raw — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1**; Byzantine BFT safety is **Khipu Conjecture 2 (open)**. Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
+A governed action is admitted only as a signed receipt and leaves only
+as that same signed receipt. The two sides are identical. A mismatch
+is a failed verification, not a display error.
 
-[Live demo](#live) · [What it does](#what-it-does) · [Quickstart](#quickstart) · [Verify](#verify-it-yourself) · [Cookbook](#try-the-cookbook) · [Architecture](#architecture) · [Repo map](#repo-map) · [API surface](#api-surface) · [Parity vs. leaders](#parity-vs-leaders) · [Why vs Anduril](#why-killinchu-vs-anduril-lattice) · [Honest status](#honest-status) · [Cite](#citation)
+| Pin | Value |
+|---|---|
+| Product origin | [a-11-oy.com](https://a-11-oy.com) |
+| Proof registry | [a11oy.net](https://a11oy.net) |
+| Runtime location | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space/) |
+| Source | this repository |
+| Doctrine | v11 LOCKED |
+| Λ | Conjecture 1 (OPEN — not a theorem) |
+| Kernel | `c7c0ba17` (Doctrine v11 count 749/14/163) |
+| Formulas | locked-8 (lutar-lean `ProvedFormulas.lean` @ `3a886349`, not present at `c7c0ba17`) · never authority |
+| Trust ceiling | 0.97 |
+| SLSA | L1 honest · L2 build-attested · L3 roadmap |
+| License | Apache-2.0 |
 
----
+## Live surfaces
 
-## Live
+Measured 2026-09-04: the apex `a-11-oy.com` serves the Space runtime
+(`server=szl`, `x-szl-space: a11oy`). Hugging Face `runtime.domains`
+lists `a-11-oy.com` as **READY**. HTTP 200 is reachability, not a
+production certificate. `www.a-11-oy.com` TLS is **UNAVAILABLE**.
 
-**HF Space (one-click, no login):** [![Open in Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Open%20in%20Spaces-killinchu-FF9D00?style=flat-square)](https://huggingface.co/spaces/SZLHOLDINGS/killinchu)
+| Surface | URL | Class |
+|---|---|---|
+| Command Center | [a-11-oy.com/console](https://a-11-oy.com/console) | MEASURED reachable |
+| Interactive verify | [a-11-oy.com/verify](https://a-11-oy.com/verify) | MEASURED reachable |
+| Doctrine posture | [a-11-oy.com/api/a11oy/v1/honest](https://a-11-oy.com/api/a11oy/v1/honest) | MEASURED runtime JSON |
+| Space twin | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space/) | MEASURED reachable |
+| Proof registry | [a11oy.net](https://a11oy.net) | static RECORD |
 
-- **Primary face — the full application:** https://szlholdings-killinchu.hf.space/elite
-- Space URL: https://szlholdings-killinchu.hf.space
-- Health: `curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
-- Runtime source identity: https://szlholdings-killinchu.hf.space/api/build-info
-- Conditional public-risk contract: https://szlholdings-killinchu.hf.space/api/public-risk-status
-  (`build.state=OBSERVED` only for a valid `SZL_GIT_SHA`; the deploy workflow requires
-  `build.revision` to equal the exact GitHub commit being deployed)
-- Runtime source attestation: https://szlholdings-killinchu.hf.space/.well-known/szl-source.json
-  (startup-captured deployed Git revision plus the GitHub OIDC receipt reference
-  when available; Hugging Face repository revision remains explicitly unclaimed)
-- Edge Verdict Console: https://szlholdings-killinchu.hf.space/console
-- Compatibility entries: `/code` and `/chat` return HTTP 302 to the existing `/console`;
-  they are aliases, not separate code or chat products
-- OpenAPI: https://szlholdings-killinchu.hf.space/openapi.json
-- Spaces registry: https://szlholdings-killinchu.hf.space/spaces
-  (apps open on canonical isolated HF origins; legacy `/spaces/<slug>` links are no-store 307 handoffs)
-- Docs: https://szl-holdings.github.io/docs-site/flagships/killinchu
-- Release: [v1.0.0](https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0)
+[a11oy-factory](https://github.com/szl-holdings/a11oy-factory) is a bind
+of this source. It is not a second flagship.
 
----
-
-## The application
-
-killinchu is a **full left-nav application** at `/elite` in the unified SZL house style (dark ground, gold `#c9b787` + teal `#5fb3a3`, Space Grotesk + JetBrains Mono), with a **product switcher** in the top ribbon between the two live SZL products (a11oy · killinchu).
-
-**Primary app file:** [`killinchu_elite_console.py`](killinchu_elite_console.py) · **served at** `/elite`.
-
-**44 views** in the left navigation, plus **7 maritime/drone live demos** and a **live 3D health twin** (real-time WebGL organism view). Representative views:
-
-| View | View | View | View |
-|---|---|---|---|
-| Live Track Board | Sensor-Fusion | Multi-Track Priority | ROE Editor |
-| 13-axis Λ | 3-of-4 BFT | Beyond/Autonomy | Engagement Audit |
-| DSSE Verifier | PQC Signing | Protocol Decoders | Geofence |
-| Swarm Topology | Threat Class DB | Cross-Flagship | Mesh |
-| Maritime Track | Vessel Fusion | Drone Demo Suite | **3D Health Twin** |
-
-- **7 maritime/drone demos** — scripted live scenarios (interdiction, swarm, vessel track, geofence breach, BFT quorum, ROE deny, receipt replay).
-- **Live 3D health twin** — real-time WebGL rendering of the killinchu organism, organs pulsing with live receipt/formula flow.
-
-**Verify-it-yourself surface:** the app publishes its cosign public key at [`/cosign.pub`](https://szlholdings-killinchu.hf.space/cosign.pub) and exports verifiable DSSE receipts at `/api/killinchu/v1/receipt/export` — receipts are **real-DSSE-or-honestly-UNSIGNED**, never silently fabricated.
+Archive: [Warhacker v1.0.0](https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0) is ARCHIVED.
 
 ---
 
-## What it does
+<!-- LEAD END. Existing README continues from ## The proof backbone. Do not rewrite past this marker in the lead-only PR. -->
 
-**killinchu is the counter-UAS edge tool of the SZL drones & vessels product.** Detection, classification, and the governed-decision layer are LIVE and operational: it evaluates hostile UAS tracks at machine speed, hash-chains every engagement *decision* (SHA3-256 Khipu receipt; DSSE signing is labelled separately), and surfaces the result to a **human operator**. Physical effector engagement is operator-owned — gated on customer authorization and hardware integration. This Space does not command a live weapon or establish production authorization.
+## The proof backbone
 
-This is the **Cannonico answer**: Defense Unicorns published the problem as "there's no independent system today that can monitor AI behavior in real time, catch the moment a line gets crossed, and back it up with a permanent, tamper-evident record." killinchu is that system — deployed in one signed UDS command.
+The trust math behind a11oy is pinned in **Lean 4** and checked by a proof machine:
 
-Key capabilities:
-- **Real protocol decoders (no mocks)** — Remote ID (ASTM F3411-22a), ADS-B (Mode-S 1090ES via pyModeS), MAVLink v1/v2 (pymavlink)
-- **13-axis Λ-gate** — haversine geofence breach check fused with `yuyay_v3` score; decisions emit DSSE Khipu receipts in a real SHA-256 Merkle DAG
-- **53 drone fingerprints** — pre-loaded drone signature library
-- **ROE / policy endpoint** — `/roe/policy`, `/counter-uas/evaluate` (Anduril parity, live HTTP 200)
-- **Named public contracts (MEASURED HTTP 200 on declared routes)** — `/roe/policy`, `/counter-uas/evaluate`. Not competitive parity. Not an exclusivity claim.
+- **8 formulas locked-proven** in lutar-lean [`Lutar/Puriq/Formulas/ProvedFormulas.lean` @ `3a886349`](https://github.com/szl-holdings/lutar-lean/blob/3a8863491f688956f2fae7796e31404d6b21c8a6/Lutar/Puriq/Formulas/ProvedFormulas.lean) (file added 2026-06-04, last changed 2026-06-10; not present at `c7c0ba17`). What they state: pure-function replay determinism (F1, `f x = f x`), acyclicity kept when backward-pointing edges are appended to a Khipu DAG (F4), FIFO drain order on a list-modelled queue (F7), integer add-then-subtract cancellation (F11), `Nat` distributivity (F12), RS(10,6) parity-count arithmetic (F18, `10 − 6 = 4`), `Nat` additive monotonicity (F19), and strictly increasing indices in a `List.range` sequence log (F22). They do not prove receipt-replay integrity or Reed–Solomon recovery. The Doctrine v11 figure 749/14/163 @ `c7c0ba17` is a separate count: its 163 counts `sorry` text including comments, and the 149 variant drops only lines that start with `--`, so neither is a count of open proof holes.
+- **Λ unconditional uniqueness = Conjecture 1** — machine-checked false (we found a counterexample). Conditional uniqueness is proven axiom-free (Theorem U). We say both out loud.
+- **SLSA L1 honest · L2 build-attested · L3 roadmap**. No government authorization or accreditation is claimed.
 
-**Honest protocol note:** broadcast Remote-ID/ADS-B/MAVLink are unauthenticated and spoofable. Every decoded field is a *claim*, never ground truth. This is stated explicitly in `/v1/honest`.
-
----
-
-## Quickstart
-
-```bash
-pip install "szl-killinchu"                     # PyPI
-# or run the live, signed container:
-docker run --rm -p 7860:7860 ghcr.io/szl-holdings/killinchu:uds-v0.2.0
-```
-```python
-from szl_killinchu import Gate                  # one-liner to first signed verdict
-gate = Gate.from_doctrine("v11")             # loads the LOCKED 749/14/163 posture
-verdict = gate.evaluate(receipt)             # -> signed verdict + receipt id
-```
-
-> Prefer zero-install? Hit the **[live Space](https://szlholdings-killinchu.hf.space)** or run the [Verify](#verify-it-yourself) block below — no credentials required.
+Full proof library: **[szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean)**
 
 ---
 
 ## Verify it yourself
 
 ```bash
-# 1. Confirm live doctrine posture
-curl -s https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest | jq .kernel_commit
-# => "c7c0ba17"
+# Verify the build attestation
+gh attestation verify oci://ghcr.io/szl-holdings/a11oy:latest --repo szl-holdings/a11oy
 
-# 2. Observe the source revision reported by the running process
-curl -s https://szlholdings-killinchu.hf.space/api/build-info \
-  | jq '{state: .build.state, revision: .build.revision, source: .build.revision_source}'
-# The source-bound deploy fails unless state=OBSERVED and revision equals its GitHub SHA.
-
-# 3. Verify image signature + build-provenance attestation. SLSA L1 honest ·
-#    L2 build-attested: container provenance via attest-build-provenance
-#    (Sigstore keyless, Fulcio + Rekor). Verify with `cosign verify-attestation`.
-#    SLSA L3 is roadmap; we do NOT claim L3 today.
-cosign verify \
-  ghcr.io/szl-holdings/killinchu:uds-v0.2.0 \
-  --certificate-identity-regexp='^https://github.com/szl-holdings/' \
-  --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
-
-# 4. Inspect the public transparency-log entry for this image (Sigstore Rekor).
-#    Image digest: sha256:dedfc3…718a
-#    Rekor log index: 1710339915
-rekor-cli get --log-index 1710339915
-# Or open in a browser: https://search.sigstore.dev/?logIndex=1710339915
-
-# 5. Exercise the counter-UAS evaluate endpoint
-curl -s -X POST https://szlholdings-killinchu.hf.space/api/killinchu/counter-uas/evaluate \
-  -H 'content-type: application/json' \
-  -d '{"track":{"lat":32.71,"lon":-117.15,"alt_m":120,"vel_ms":25}}'
-# => {"verdict":"CLASSIFY","lambda_score":0.73,"receipt_signed":true}
-
-# 6. Deploy as part of the signed mesh bundle
-uds-cli bundle deploy oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.0 --confirm
+# Check live doctrine posture on the product apex (Space-backed as of 2026-09-04)
+curl -s https://a-11-oy.com/api/a11oy/v1/honest | jq .doctrine_lock.lambda
+# → "Conjecture 1" when the runtime answers that contract
 ```
 
-> Honest note: rule-engine receipts are now wired to the **real cosign DSSE** signer
-> (`szl_dsse`). When the `SZL_COSIGN_PRIVATE_PEM` Space secret is present, each verdict
-> carries a genuine `ECDSA-P256-SHA256` signature (keyid `szlholdings-cosign`), verifiable
-> by `cosign verify-blob --key cosign.pub` and `POST /khipu/verify`. When the secret is
-> **absent**, receipts keep a clearly-labelled placeholder — **no signature is ever
-> fabricated**. The `/v1/honest` endpoint is the authoritative live posture probe.
+---
 
-**Full guide:** [developers/VERIFY.md](https://github.com/szl-holdings/developers/blob/main/VERIFY.md)
+## Runtime API surfaces
 
-### Sign a verdict and verify it (real DSSE round-trip)
+These paths exist on the Space and, as of 2026-09-04, on the apex.
 
-```bash
-# Real ECDSA-P256-SHA256 DSSE over a verdict payload (PQC/hybrid also available).
-curl -s -X POST 'https://szlholdings-killinchu.hf.space/khipu/sign?mode=ecdsa' \
-  -H 'content-type: application/json' -d '{"verdict":"HALT","track":"TRK-0001"}' | jq .verified
-# => true
+| Surface | URL |
+|---|---|
+| Command Center | [a-11-oy.com/console](https://a-11-oy.com/console) |
+| Governance | [a-11-oy.com/governance](https://a-11-oy.com/governance) |
+| Energy ledger | [a-11-oy.com/api/a11oy/v1/energy/ledger](https://a-11-oy.com/api/a11oy/v1/energy/ledger) |
+| Doctrine posture | [a-11-oy.com/api/a11oy/v1/honest](https://a-11-oy.com/api/a11oy/v1/honest) |
+| WILLAY classifiers | [a-11-oy.com/api/a11oy/v1/willay/classifiers](https://a-11-oy.com/api/a11oy/v1/willay/classifiers) |
+| Space twin | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space/) |
 
-# Cosign DSSE path (keyed) → cosign-CLI verifiable:
-curl -s -X POST 'https://szlholdings-killinchu.hf.space/api/killinchu/khipu/sign' \
-  -H 'content-type: application/json' -d '{"payload":{"verdict":"HALT"}}' | jq '{signed,keyid}'
-# Round-trip verify with cosign:
-#   cosign verify-blob --insecure-ignore-tlog --key cosign.pub --signature <sig> <pae-blob>
+### Persistent receipt storage (HF Space)
+
+The protected deployment workflow attaches the existing
+`SZLHOLDINGS/szl-evidence` Storage Bucket read-write at `/data`, preserving any
+other attached volumes and failing closed if another volume already claims that
+mount. The Series-A database is namespaced at:
+
+```
+A11OY_SERIES_A_DB=/data/a11oy/series-a/control-plane.sqlite3
 ```
 
-**Public proof:** cosign keyless cert (Fulcio) + Rekor transparency log entry
-[`#1710339915`](https://search.sigstore.dev/?logIndex=1710339915) for image `ghcr.io/szl-holdings/killinchu:uds-v0.2.0` (`sha256:dedfc3…718a`).
+Production also sets `A11OY_REQUIRE_PERSISTENT_STORAGE=1`,
+`A11OY_SERIES_A_REQUIRE_MOUNT=/data`, and the network-filesystem-safe SQLite
+rollback journal. If the bucket is detached or the database path escapes the
+mount, Series-A registration fails closed instead of falling back to `/tmp`.
+The unified Khipu and energy ledgers use separate `/data/a11oy/*` paths.
 
----
+**Required HF Space secrets for full signing integrity:**
+- `SZL_COSIGN_PRIVATE_PEM` — canonical ECDSA P-256 private PEM shared by all
+  receipt surfaces. The deployment sets `A11OY_REQUIRE_PERSISTENT_SIGNING=1`,
+  so an absent or malformed key disables signing instead of minting a
+  replacement identity.
 
-## Try the cookbook
+Check current signing and storage status at `GET /api/a11oy/v1/signing-status`
+and `GET /api/a11oy/v1/series-a/status` on the product origin.
 
-New here? The **[SZL Cookbook](https://github.com/szl-holdings/szl-cookbook)** has runnable recipes for your use case:
-
-- **[Recipe 04 — Drone counter-UAS verdict](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/04-drone-counter-uas-verdict.md)**
-- **[Recipe 11 — Kitaev surface drift detection](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/11-kitaev-surface-drift-detection.md)**
-- **[Recipe 14 — Replicate the Walrus α-gap measurement](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/14-replicate-walrus-alpha-gap.md)**
-
-Full index: [szl-cookbook/recipes](https://github.com/szl-holdings/szl-cookbook/tree/main/recipes).
-
----
-
-## Architecture
-
-```mermaid
-graph TD
-    RID[Remote ID\nASTM F3411-22a] --> DEC[Protocol decoder\nno mocks]
-    ADS[ADS-B\nMode-S 1090ES] --> DEC
-    MAV[MAVLink v1/v2] --> DEC
-    DEC --> FP[53 drone fingerprints\nclassification]
-    FP --> GATE[13-axis Λ-gate\nyuyay_v3\nhaversine geofence]
-    GATE --> VRD[DSSE Khipu receipt\nP-256 signed\nMerkle DAG node]
-    VRD --> ROE[ROE policy check\n/roe/policy\nsigned deny/allow]
-    ROE --> OP[Operator console\nhuman-on-the-loop\nconfirm + authorize]
-    VRD --> A11[a11oy Khipu DAG\nreceipts.in = receipts.out]
-```
-
-Full layout, the `register()` pattern, and the doctrine CI hard-gates →
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-
----
-
-## Repo map
-
-killinchu is **flat-rooted** — most modules live beside `serve.py` (the boot entry +
-route assembly). The table below is a **logical** "where things live" guide; the modules
-listed already exist and run live. A user-visible surface is a self-contained module that
-exposes `register(app, ns="killinchu")` and is registered **before** the SPA catch-all
-(FastAPI matches routes in declaration order). Full table in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-
-| Layer | Role | Representative modules |
-|---|---|---|
-| **entry** | boot + route assembly + SPA mount | `serve.py` |
-| **showcase console** | the `/elite` operator console (44 views) + view pages | `killinchu_elite_console`, `killinchu_elite_wiring`, `*_view`, `killinchu_nav_wireup` |
-| **decoders** | real protocol parsers (no mocks) | `killinchu_protocols`, `killinchu_kalman`, `killinchu_fusion`, `build_drone_db` |
-| **counter-UAS logic** | geofence + 13-axis Λ-gate + ROE | `killinchu_drone_routes`, `killinchu_autonomy`, `killinchu_ops_control`, `szl_cuas_formulas` |
-| **maritime / intel** | maritime risk, OSINT, globe surfaces | `killinchu_maritime_*`, `killinchu_osint`, `killinchu_mosaic` |
-| **provenance** | signed receipts (audit fiber) | `szl_dsse`, `szl_khipu_consensus`, `szl_provenance`, `szl_rekor` |
-| **governance** | doctrine gate + restraint / Λ + guards | `szl_qhawaq`, `szl_restraint`, `szl_codename_gate`, `szl_unay` |
-| **shared substrate** | **byte-identical** across a11oy + killinchu (CI-enforced) | `szl_*.py`, `a11oy_hf_assets.py` |
-
----
-
-## API surface
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/build-info` | GET, HEAD | Allowlisted runtime source revision; `UNKNOWN` unless `SZL_GIT_SHA` is a valid 40-hex SHA |
-| `/api/public-risk-status` | GET, HEAD | Dated Option A public-Space exception, enforced controls, startup-captured source identity, and explicit exceptions |
-| `/api/killinchu/healthz` | GET | Liveness |
-| `/api/killinchu/readyz` | GET | Readiness (DB + decoders loaded) |
-| `/api/killinchu/v1/honest` | GET | Doctrine v11 honesty disclosure |
-| `/api/killinchu/v1/version` | GET | Build + version metadata |
-| `/api/killinchu/v1/remote-id/decode` | POST | Decode OpenDroneID / ASTM F3411 hex |
-| `/api/killinchu/v1/counter-uas/evaluate` | POST | Geofence + 13-axis Λ-gate + receipt |
-| `/api/killinchu/v1/lambda` | GET | Λ-gate axis definitions |
-| `/console` | GET | Existing Edge Verdict Console |
-| `/code`, `/chat` | GET, HEAD | Explicit HTTP 302 aliases to `/console`; no SPA soft-404 fallthrough |
-
-The full, canonical endpoint list is on the [docs site](https://szl-holdings.github.io/docs-site/flagships/killinchu) and the [API reference](https://szl-holdings.github.io/docs-site/api/).
-
----
-
-## Parity vs. leaders
-
-| Capability | Anduril | killinchu | Differentiator |
-|---|---|---|---|
-| UAS track classification | ✅ | ✅ 53 fingerprints, 13-axis | — |
-| Protocol decoders | ✅ (proprietary) | ✅ **open-source** (ASTM/ADS-B/MAVLink) | Open, auditable |
-| Signed verdicts per interdiction | — | ✅ **DSSE receipt per decision** | Each block is a verifiable artifact |
-| Human-on-the-loop gate | ✅ | ✅ operator confirmation | — |
-| Supply-chain provenance | — | ✅ **cosign keyless + build-attested (SLSA L1 honest · L2 build-attested)** | container provenance via attest-build-provenance, Rekor-anchored; SLSA L3 roadmap |
-| Air-gap deployment | ✅ | ✅ **UDS bundle** | Open-source |
-| BFT receipt quorum | — | ✅ | — |
-
----
-
-## Why killinchu vs Anduril Lattice
-
-Lattice is a closed, proprietary autonomy OS. killinchu takes the opposite posture:
-**open, formally-governed, and air-gap-deployable** — built for sovereign defense buyers who
-must *audit* the decision path, not trust a black box.
-
-| Dimension | **killinchu** | Anduril Lattice (public posture) |
-|---|---|---|
-| Licensing | **Apache-2.0, fully open source** | Proprietary, closed |
-| Decision governance | **13-axis Λ-gate, formally specified (Lean); Λ = Conjecture 1, never overclaimed** | ML autonomy, internal |
-| Verdict provenance | **DSSE-signed receipts in a SHA-256 Khipu DAG; `cosign verify-blob`** | Vendor-internal logging |
-| Supply-chain attestation | **SLSA L1 honest · L2 build-attested (container provenance, Sigstore keyless); `cosign verify-attestation`; L3 roadmap** | Not publicly verifiable |
-| Human authority | **Human-on-the-loop required; defensive scope locked in doctrine** | Human-on-the-loop |
-| Protocol decoders | **Real ASTM F3411 RID / Mode-S ADS-B / MAVLink (no mocks)** | Proprietary sensor fusion |
-| Honest posture | **`/honest` self-discloses every claim limit + unsigned/placeholder state** | Marketing-led |
-| Deployment | **Single signed OCI image · Zarf/UDS air-gap bundle** | Appliance / cloud |
-| Banned vendors | **Section 889 = exactly 5 (Huawei, ZTE, Hytera, Hikvision, Dahua)** | Compliant |
-
-> killinchu is a **precision substrate**, not a turnkey weapon system. The decision layer is LIVE.
-> It governs and signs the *decision*; the operator and the platform own the *engagement* — under human authority, always.
-
----
-
-## Governed Post-Determinism (GPD)
-
-**Governed Post-Determinism (GPD)** is SZL's own framework. Classical systems demand that every correct node produce the *same bytes*; autonomous agents produce *different but still-correct* reasoning paths — so the unit of agreement shifts from "identical output" to **certified semantic admissibility**, and SZL records that admissibility decision in a hash-chained, Lean-referenced receipt.
-
-Five pillars, each mapped to a component SZL runs in its public demo Space with an honest proof artifact:
-
-- **Protocol-Bounded Execution** — governed-decision loop + YUYAY 13-axis conjunctive gate (deny-by-default). *Gate soundness proven over the locked F-set.*
-- **Verifiable Intent-to-Execution** — DSSE-signed receipt chain + Lean-theorem trace. *ECDSA-P256 signed, SHA-256 hash-chained, tamper-evident.*
-- **Bounded-Recursion Control Plane** — Ouroboros bounded-recursion loop (P1–P6), following the estate's canonical bounded-loop pattern ([`ouroboros/src/loop-kernel.ts`](https://github.com/szl-holdings/ouroboros/blob/main/src/loop-kernel.ts) `runLoop`) and instilled here as the governed agent loop ([`szl_agentic_loop.py`](szl_agentic_loop.py), registered identically in a11oy + killinchu). *Loop invariants proven.*
-- **Semantic Quorum Assurance** — Khipu BFT quorum + Wave23 conditional safety theorem (`khipu_quorum_safety_conditional`, agreement under non-equivocation). *Conditional theorem; unconditional Byzantine safety = Conjecture 2 (open).*
-- **Epistemic State Replication** — YAWAR append-only receipt bus + deterministic replay + Verifiable Semantic Rollback. *Receipts/replay live; full ESR semantics = open R&D (roadmap).*
-
-**Honest posture:** locked-proven = exactly 8 {F1, F4, F7, F11, F12, F18, F19, F22}; Λ (trust score) = **Conjecture 1** (unconditional uniqueness machine-checked false; conditional uniqueness holds); Semantic Quorum Assurance safety = Wave23 **conditional** (unconditional = Conjecture 2); full Epistemic State Replication = **open R&D**.
-
-**Foundation — SZL's own prior art only (no external citation):** *The Loop Is the Product* v1/v2 ([Zenodo 19867281](https://doi.org/10.5281/zenodo.19867281), [19934129](https://doi.org/10.5281/zenodo.19934129)), *Lineage-Aware RAG / Prisca-GraphRAG v5* ([20020846](https://doi.org/10.5281/zenodo.20020846)), *Sealed Constitutional Guardrails v6* ([20020845](https://doi.org/10.5281/zenodo.20020845)), *The Lutar Omega Formalism v4* ([20020841](https://doi.org/10.5281/zenodo.20020841)), *SZL Doctrine v2 — 9 Canonical Axes* ([20174600](https://doi.org/10.5281/zenodo.20174600)) — all Stephen P. Lutar, ORCID 0009-0001-0110-4173.
-
-See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platform/blob/main/docs/GOVERNED_POST_DETERMINISM.md) (platform repo) for the full write-up.
-
-## Doctrine
-- **Doctrine v11 LOCKED** — 749/14/163 · kernel `c7c0ba17` (never bumped)
-- **Λ = Conjecture 1** (NOT a theorem) — depends on the open CAUCHY_ND sorry + a missing symmetry axiom
-- **SLSA L1 honest · L2 build-attested** (container build-provenance via attest-build-provenance, Sigstore keyless; verify with `cosign verify-attestation`) · L3 roadmap · **Section 889 = exactly 5 vendors** (Huawei, ZTE, Hytera, Hikvision, Dahua)
-- No government accreditation, hardened-registry, or mission-owner claims
+`GET /api/a11oy/v1/attest/manifest` and `GET /api/a11oy/v1/attest/verify`
+are read-only inspections: they do not sign, submit to Rekor, or append ledger
+receipts, even when those providers are configured. The manifest reports
+`UNSIGNED-READ-ONLY` and `lake.status=READ_ONLY`; requiring unavailable
+transparency evidence returns `UNKNOWN`. Explicit write callers can use the
+existing signing and receipt functions. Source tests cover this contract;
+deployment still requires the canonical publisher and live readback.
 
 ---
 
 ## Honest status
 
-**Label legend (a-11-oy tab standard):** **MEASURED** = independently verified live this session · **REPORTED** = self-disclosed by the running app at [`/v1/honest`](https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest) · **UNKNOWN** = not independently verifiable here. Live probe 2026-07-09: HF Space `/elite` → **MEASURED HTTP 200** (page title `killinchu — Counter-UAS Governance · SZL Holdings`).
-
 | Claim | Status |
 |---|---|
-| Live HF Space (HTTP 200) | ✅ |
-| SLSA **L1 honest · L2 build-attested** | ✅ — cosign keyless-signed image + container build-provenance attestation (attest-build-provenance, Sigstore keyless), Rekor-anchored, verifiable via `cosign verify-attestation`. |
-| SLSA **L3** | 🛣️ **Roadmap** — hardened/isolated builder + non-falsifiable provenance. **Not claimed as achieved today.** |
-| cosign keyless signed | ✅ (GitHub Sigstore instance) |
-| 53 drone fingerprints | ✅ |
-| Real protocol decoders | ✅ — ASTM F3411-22a / pyModeS / pymavlink (no mocks) |
-| Spoofing vulnerability | ⚠️ **Explicit** — broadcast protocols are unauthenticated; every field is a claim, not ground truth |
-| Lean 749/14/163 @ `c7c0ba17` | ✅ |
-| Locked-proven PURIQ formulas | ✅ Exactly **8** — F1, F4, F7, F11, F12, F18, F19, F22 (Lean 4; the count is the no-axiom theorem `locked_count_eight`; F4 Khipu DAG acyclicity, F7 Chaski FIFO ordering, F22 Khipu emit append-only monotonicity newly proven) |
-| Experimental theorems (main `@c7c0ba17`) | ✅ CI-green, **~185 machine-checked theorems** across **Waves 11–22** (+ agentic P1–P6 + coder; all `#print axioms ⊆ {propext, Classical.choice, Quot.sound}`). **NOT** in the locked count. Wave 11 CF-1/2/3/5; Wave 12 CUT-2 + CF-13 + CF-17; Wave 13 replay-root + single-valued NON-Byzantine vote (BFT safety stays Conjecture 2) + HM-bottleneck; Waves 14–22 incl. CF-18/19/20/21 (CF-19 RS-MDS lower bound only). Λ-uniqueness CONDITIONAL on separability (CUT-2, axiom-free); unconditional = Conjecture 1. Khipu BFT safety = Conjecture 2. Key: M2 tamper-evidence. |
-| Λ-uniqueness | ⚠️ **Conjecture 1** — never a theorem |
-| SLSA L3 | ❌ Not claimed |
-| Decision layer (detect / classify / govern / sign) | ✅ LIVE — real decoders, 53 fingerprints, Λ-gate, DSSE receipts |
-| Physical effector engagement | Operator-owned — not exercised by this Space; no production authorization claimed |
-| Government authorization / accreditation | ❌ Not claimed |
+| Signed receipts on every governed action | **PARTIAL — healthz signer ABSENT; HMAC placeholder; non_repudiation false** |
+| 8 formulas locked-proven (Lean 4) | **LOCKED · lutar-lean `ProvedFormulas.lean` @ `3a886349` (not present at c7c0ba17)** |
+| Λ uniqueness | **Conjecture 1** (conditional Theorem U proven axiom-free) |
+| SLSA supply chain | **L1 honest · L2 build-attested · L3 roadmap** |
+| Apex `/console` on a-11-oy.com | **MEASURED reachable 2026-09-04 · Space front** |
+| HF custom domain `a-11-oy.com` | **READY** (provider row; not DSSE-LIVE) |
+| `www.a-11-oy.com` | **UNAVAILABLE** (TLS alert) |
+| Government authorization / accreditation | **ROADMAP — none claimed** |
+| EXECUTION guard | **ROADMAP** |
 
 ---
 
-## SLSA L1 honest · L2 build-attested provenance (verify)
+## Truth gates
 
-Every `ghcr.io/szl-holdings/killinchu` image is cosign keyless-signed and carries a container build-provenance attestation (attest-build-provenance, Sigstore keyless — Fulcio + Rekor). SLSA L1 honest · L2 build-attested. SLSA L3 (hardened/isolated builder) is roadmap; not claimed. Verify the attestation:
+Round-10 payload wiring: three stdlib-first gates plus the 12-step acceptance
+demo, run by the `truth-gates` workflow on every PR and push.
 
 ```bash
-gh attestation verify oci://ghcr.io/szl-holdings/killinchu:uds-v0.2.0 --owner szl-holdings
+python3 tools/docs_lexicon_gate.py       # docs language gate: banned phrases, empty truth states
+python3 tools/commercial_release_gate.py # commercial truth gate: COMMERCIAL_LEDGER + claims-ledger
+python3 tools/demo_harness.py --conformance evidence/conformance/eu-ai-act-article-12.v1.yaml
 ```
 
-SLSA L3 (hardened/isolated builder + non-falsifiable provenance) is roadmap; not claimed.
+Expected first-run exit codes: `docs_lexicon_gate.py` **1** and
+`commercial_release_gate.py` **1** — those failures are intended. The lexicon
+output is the Week 1 documentation fix list; the release-gate output is the 24
+raise-blocking COMMERCIAL_LEDGER rows still `UNKNOWN` (the real work, per the
+funding discipline). `demo_harness.py` must stay **0** (12/12 steps) on every
+PR. The two observe-mode gates run `continue-on-error` until their finding
+lists reach zero; flip procedure: `docs/RUNBOOK_WEEK1.md`.
+
+Naming note (no file was overwritten): `tools/lexicon_gate.py` and
+`tools/release_gate.py` already exist here as the round-5 gates, so the
+round-10 gates are wired under the names above; both generations run. The
+v1 Article 12 logging conformance profile lives at
+`evidence/conformance/eu-ai-act-article-12.v1.yaml` because the CANON path is
+occupied by an older, structurally different artifact. Fresh scaffolds are
+created non-destructively with `python3 tools/szl_master_bootstrap.py --run`.
 
 ---
 
-## 🔌 UDS Mesh — the nervous system
+## Shared modules (must not drift)
 
-This product is part of the **SZL UDS mesh**: a trace + receipt substrate. Only two
-products ship (a11oy, killinchu); the other nodes are roadmap **roles** (the retired
-codenames map to the honest roles **Operator / Policy / Provenance Anchor** and
-surface inside a11oy — they are not standalone live products).
+`a11oy_agent_loop.py`, `a11oy_mcp_client.py`, and `operator_shell_v4.py` are **SHARED
+byte-identical** with the sibling [killinchu](https://github.com/szl-holdings/killinchu)
+deployment and must not drift. An in-repo ratchet pins their SHA-256 in
+`.shared_module_hashes.json`; the `Shared-module hash lock` workflow fails if any of
+them changes without the lock being regenerated. When a change is intentional,
+regenerate the lock in the same PR and mirror the edit to killinchu (cross-repo
+enforcement is a follow-up):
 
-```mermaid
-flowchart LR
-    classDef live fill:#0f3a2e,stroke:#5ad1c0,color:#e8eef7;
-    classDef inproc fill:#2a3550,stroke:#7aa2ff,color:#e8eef7;
-    classDef roadmap fill:#3a2f0f,stroke:#e0c060,color:#e8eef7;
-    OPERATOR["🧠 Operator role<br/>(in a11oy)"]:::roadmap -->|Wire C| A11OY["❤️ a11oy<br/>heart / fabric"]:::live
-    A11OY -->|Wire B| POLICY["🛡️ Policy role<br/>(in a11oy)"]:::roadmap
-    A11OY -->|Wire E| PROVENANCE["🩸 Provenance Anchor role<br/>(in a11oy)"]:::roadmap
-    A11OY -->|Wire F| VESSELS["🦴 vessels<br/>skeleton"]:::roadmap
-    KILLINCHU["📡 killinchu<br/>courier"]:::roadmap -.->|relay| RECEIPTS["📜 receipts<br/>DSSE Khipu"]:::inproc
-    A11OY -->|traceparent embedded| RECEIPTS
-    WIRES["🔌 wires / W3C traceparent"]:::live -.-> A11OY
 ```
-
-**Honest mesh status (verified 2026-06-03):** every organ emits **real W3C trace
-context** (`traceparent` / `tracestate` / `x-szl-wire-d: LIVE`) and a11oy binds it into
-**DSSE Khipu receipts** — this is **LIVE in-process**. Spans are **not** yet OTLP-exported,
-DSSE receipts are currently **unsigned**, and cross-pod organ routing is **roadmap (v0.4.0)**.
-Honesty over checklist.
-
-→ Full diagram + wire-status table: **[docs-site / mesh](https://szl-holdings.github.io/docs-site/mesh)**
-
-<sub>Λ Conjecture 1 (not a theorem) · 749/14/163 v11 LOCKED · SLSA L1 honest · L2 build-attested · L3 roadmap · Section 889 = 5 vendors</sub>
-
----
-
-## Real-edge formulas (real-edge-v2)
-
-Killinchu, the edge organ, runs five thesis-v22 formulas at the courier edge — each with a real
-thesis citation and a real Lean theorem/obligation permalinked into `szl-holdings/lutar-lean`.
-No mocks: every endpoint operates on caller-supplied telemetry; the verdict carries a real
-DSSE-v1 ECDSA-P256 receipt.
-
-| Formula | Edge role | Lean theorem (permalink) |
-|---|---|---|
-| **PAC-Bayes (Catoni)** | high-prob. upper bound on verdict risk → honest confidence | [`pacBayesBound_eq_add_slack`](https://github.com/szl-holdings/lutar-lean/blob/abd58d159f1bdb79a017d71a6b94ab160ead8d9d/Lutar/PACBayes.lean#L165) |
-| **Kalman (numpy)** | constant-velocity smoothing of noisy drone telemetry | [`gain_in_unit_interval`](https://github.com/szl-holdings/lutar-lean/blob/f3153a684e7d9b77462d58185bd1eae0aeacd1bc/Lutar/Innovations/round11/FrontierKalmanGain.lean#L72) |
-| **Byzantine quorum** | n≥3f+1 over 5 sensors, tolerate 1 byzantine fault | [`faultyCount` / Conjecture 2](https://github.com/szl-holdings/lutar-lean/blob/abd58d159f1bdb79a017d71a6b94ab160ead8d9d/Lutar/KhipuConsensus.lean#L116) |
-| **Welford** | online variance for streaming Λ / z-score gate | [`welford_mean_exact`](https://github.com/szl-holdings/lutar-lean/blob/f3153a684e7d9b77462d58185bd1eae0aeacd1bc/Lutar/Innovations/round11/FrontierWelfordVariance.lean#L89) |
-| **Bloom filter** | fast threat-signature membership (FN-free) | [`query_after_insert`](https://github.com/szl-holdings/lutar-lean/blob/f3153a684e7d9b77462d58185bd1eae0aeacd1bc/Lutar/Innovations/round11/FrontierBloomCacheBypass.lean#L77) |
-
-**Endpoints**
-- `POST /api/killinchu/v1/edge/verdict` — real telemetry → Λ ∈ [0,1] + DSSE receipt
-- `POST /api/killinchu/v1/edge/track-smooth` — Kalman smoothing of a trajectory
-- `GET  /api/killinchu/v1/edge/quorum-status` — Byzantine quorum on sensor fusion (5 sensors, f=1)
-- `GET  /api/killinchu/v1/formulas/index` — wired formulas + thesis citation + Lean permalink
-
-**Tests** — `tests/test_formulas_real.py` feeds real numpy-generated telemetry and asserts
-Λ ∈ [0,1] and that every DSSE receipt verifies in-process; `tests/test_no_mock.py` greps the
-non-test formula sources for `mock|fake|stub|dummy` and FAILS if found.
-
----
-
-## License + DOI
-
-- **License:** Apache-2.0 (OSS across all SZL Holdings repos).
-- **Concept DOI:** [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276) — cite the archived release on Zenodo.
-
-## Built with / learned from
-
-This repository's structure and documentation conventions were learned from open-source
-publication leaders — we adapted their *patterns*, not their words. Inspired by patterns from
-**Polymathic AI** ([the_well](https://github.com/PolymathicAI/the_well), [walrus](https://github.com/PolymathicAI/walrus)),
-**Anthropic**, **OpenAI** ([whisper](https://github.com/openai/whisper)), **Stripe** (docs craft),
-Google DeepMind ([alphafold3](https://github.com/google-deepmind/alphafold3)),
-Meta FAIR ([segment-anything](https://github.com/facebookresearch/segment-anything)),
-EleutherAI ([lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness)),
-and Hugging Face ([transformers](https://github.com/huggingface/transformers)).
-We are a precision substrate, not a vibes company.
-
-## Citation
-
-```bibtex
-@software{szl_killinchu_2026,
-  author    = {Lutar, Stephen P.},
-  title     = {killinchu: Andean drone intelligence},
-  year      = {2026},
-  publisher = {SZL Holdings},
-  version   = {v1.0.0},
-  url       = {https://github.com/szl-holdings/killinchu},
-  doi       = {10.5281/zenodo.20434276},
-  note      = {Doctrine v11 LOCKED 749/14/163, kernel c7c0ba17}
-}
+python3 .github/shared-module-hash-check.py --update
 ```
 
 ---
 
-> Not affiliated with Defense Unicorns. SZL mark USPTO Serial 99831122. No production authorization claimed.
+## Governed Delta Workspace
 
-<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA L1 honest · L2 build-attested (container provenance, Sigstore keyless) · L3 roadmap · no government authorization or accreditation claimed · 8 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Khipu Conjecture 2 open · Apache-2.0</sub>
+> Runtime write status is configuration-bound. GDW reports `REAL` only when its
+> secret-managed credential registry, canonical governance gates, verified
+> persistent storage, exact schema, and a fresh generation-bound supervised
+> outbox pass are ready.
+> Otherwise it reports `UNAVAILABLE` and writes fail closed.
+>
+> The public deployment remains `UNAVAILABLE` until this corrective source is
+> protected-merged, exact-source relocked, and the production credential and
+> persistence contracts are observed live. Source tests are not deployment
+> evidence.
+
+> GDW Frontier Push Pack is a MODELED instrumentation and verification extension for the Governed Delta Workspace. It provides load testing, operator validation, hybrid scheduling research hooks, KDA-vs-MLA memory benchmarking, and Lean-oriented proof export. It does not claim frontier benchmark superiority, proprietary activation access, or production-scale guarantees beyond the measured harness outputs.
+
+The authenticated runtime, Postman collection, load tools, offline dashboard,
+memory benchmark, proof-input bridge, and fail-closed readiness conditions are documented in
+[`docs/gdw-frontier.md`](docs/gdw-frontier.md). A checked theorem is reported
+separately from an exported theorem input, and every throughput result is scoped
+to its captured run.
+
+## Learn more
+
+- [WILLAY API reference](https://github.com/szl-holdings/developers/blob/main/WILLAY_API.md)
+- [Governed run-loop recipe](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/02-willay-gated-turn.md)
+- [Proof library — lutar-lean](https://github.com/szl-holdings/lutar-lean)
+- [Associated research-program concept DOI — 10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+- [Existing formal-artifact record — 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
+- [A11oy software releases](https://github.com/szl-holdings/a11oy/releases) — the v1.1.0 software-version DOI stays `PENDING_ZENODO_READBACK` until Zenodo resolves the immutable release
+- [Canonical product surface](https://a-11-oy.com) · [runtime Space](https://szlholdings-a11oy.hf.space/) · [public proof registry `a11oy.net`](https://a11oy.net)
+
+---
+
+<div align="center">
+<sub>SZL Holdings · a11oy · Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1 honest · L2 build-attested · L3 roadmap · Not affiliated with Defense Unicorns · No production authorization claimed · trust never 100%</sub>
+</div>
 
 ---
 
@@ -493,27 +268,13 @@ We are a precision substrate, not a vibes company.
 
 One sovereign substrate, many organs — every decision carries a hash-chained, checkable receipt.
 
-**[a-11-oy.com — the estate front-door](https://a-11-oy.com)** — the live estate hub (a11oy flagship). killinchu's own live face is its HF Space `/elite` below.
-
-**[◇ Holographic Estate — the showcase](https://szlholdings-holographic.hf.space)** ·
+**[◇ SZL Atlas — the estate map](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab)** ·
 [🛡️ a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ·
-[🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
 [🦅 killinchu](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) ·
-[🫀 anatomy](https://huggingface.co/spaces/SZLHOLDINGS/anatomy) ·
-[🌌 cosmos](https://huggingface.co/spaces/SZLHOLDINGS/cosmos) ·
-[🛰️ SDA](https://huggingface.co/spaces/SZLHOLDINGS/sda) ·
+[🔀 SZL Router](https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live) ·
+[🪢 SZL Khipu](https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu) ·
+[🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
 [🌊 yarqa](https://huggingface.co/spaces/SZLHOLDINGS/yarqa) ·
 [🤗 all Spaces](https://huggingface.co/SZLHOLDINGS)
 
-**Governed-receipt cluster** — the open receipt format, an offline verifier, and a conformance bench (the DSSE Khipu receipts killinchu emits conform to this spec):
-[📐 governed-receipt-spec](https://github.com/szl-holdings/governed-receipt-spec) ·
-[✅ receipt verifier](https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier) ·
-[📦 receipts bench](https://huggingface.co/datasets/SZLHOLDINGS/governed-receipts-bench)
-
-**Formula provenance** — killinchu's edge formulas and 13-axis Λ-gate are machine-checked in the estate's formula ledger and Lean corpus (honest ledger; Λ = Conjecture 1, never proven):
-[🧮 szl-formula-ledger](https://github.com/szl-holdings/szl-formula-ledger) ·
-[📐 lutar-lean](https://github.com/szl-holdings/lutar-lean)
-
 <sub>Doctrine v11 · Λ = Conjecture 1, never green · honest by design · public data only.</sub>
-
-Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
