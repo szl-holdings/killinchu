@@ -236,7 +236,7 @@ def execute_transfer(
     normalized_token = token.rstrip("\r\n")
     if not normalized_token or "\r" in normalized_token or "\n" in normalized_token:
         evidence["preconditions"]["credential"] = "REFUSED"
-        return _fail(evidence, "HF_WRITE_TOKEN_INVALID")
+        return _fail(evidence, "HF_TOKEN_INVALID")
     evidence["preconditions"]["credential"] = "PRESENT"
 
     if attempts < 1 or interval_seconds < 0:
@@ -396,7 +396,7 @@ def _write_evidence(evidence: dict[str, Any]) -> None:
 def main() -> int:
     try:
         evidence = execute_transfer(
-            token=os.environ.get("HF_WRITE_TOKEN", ""),
+            token=os.environ.get("HF_TOKEN", ""),
             confirmation=os.environ.get("HF_CAPACITY_TRANSFER_CONFIRMATION", ""),
             api_factory=_create_hf_api,
         )

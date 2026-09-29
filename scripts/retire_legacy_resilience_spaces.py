@@ -8,10 +8,14 @@ useful capability and source history have already moved into Killinchu:
 * ``SZLHOLDINGS/vessels``
 * ``SZLHOLDINGS/aegis-assurance``
 
-Sentra and IMMUNE are explicitly protected until their component engines pass
-source-provenance and runtime-parity migrations. Secret values are never read;
-secret *key metadata* must be empty before deletion. Every existing Space is
-snapshotted and hashed before the irreversible provider call.
+Live Spaces are protected by their runtime state, not by a typed list of names:
+the script reads each target's runtime stage from the Hub and refuses to touch
+any Space that is serving or about to serve (RUNNING, BUILDING, SLEEPING, an
+unknown stage, ...). An operator must pause a legacy Space before it can be
+retired, and the stage is read again immediately before the delete call.
+Secret values are never read; secret *key metadata* must be empty before
+deletion. Every existing Space is snapshotted and hashed before the
+irreversible provider call.
 """
 from __future__ import annotations
 
@@ -39,14 +43,19 @@ RETIREMENT_TARGETS: dict[str, str] = {
     "SZLHOLDINGS/aegis-assurance": "/resilience",
 }
 
-# These names remain protected migration/provider sources. Sentra is now an
-# independent public flagship, while IMMUNE surfaces remain migration inputs.
-# The legacy deleter must never mutate any of them.
-PROTECTED_MIGRATIONS = frozenset(
+# The only runtime stages in which a legacy Space may be deleted. Each one means
+# the Space is not serving traffic and will not start serving without an
+# operator action. Every other stage -- RUNNING, RUNNING_BUILDING,
+# RUNNING_APP_STARTING, APP_STARTING, BUILDING, SLEEPING, a new stage the Hub
+# adds later, or no stage at all -- is refused (fail closed).
+DELETABLE_STAGES = frozenset(
     {
-        "SZLHOLDINGS/sentra",
-        "SZLHOLDINGS/immune",
-        "SZLHOLDINGS/immune-lattice",
+        "PAUSED",
+        "STOPPED",
+        "BUILD_ERROR",
+        "RUNTIME_ERROR",
+        "CONFIG_ERROR",
+        "NO_APP_FILE",
     }
 )
 
@@ -131,9 +140,6 @@ def verify_source_policies(killinchu_root: Path, a11oy_root: Path) -> dict[str, 
             raise RuntimeError(f"legacy Space remains in active keeper set: {target}")
         if f"- id: {target}" not in retire_section:
             raise RuntimeError(f"legacy Space is absent from retirement policy: {target}")
-    for protected in PROTECTED_MIGRATIONS:
-        if f"- id: {protected}" not in retire_section:
-            raise RuntimeError(f"protected migration disappeared from policy: {protected}")
 
     flagship_path = a11oy_root / "scripts" / "hf_publish_vertical_flagships_v4.py"
     flagship_source = flagship_path.read_text(encoding="utf-8")
@@ -295,6 +301,30 @@ def _runtime_storage(runtime: Any) -> Any:
     return None
 
 
+def runtime_stage(runtime: Any) -> str | None:
+    """Return the Hub runtime stage as an upper-case string, or ``None``."""
+    if runtime is None:
+        return None
+    value = runtime.get("stage") if isinstance(runtime, dict) else getattr(runtime, "stage", None)
+    # huggingface_hub returns a ``SpaceStage`` str-enum; the public API a string.
+    value = getattr(value, "value", value)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return value.strip().upper()
+
+
+def require_not_serving(repo_id: str, runtime: Any) -> str:
+    """Refuse any Space whose live runtime stage is not an explicit idle stage."""
+    stage = runtime_stage(runtime)
+    if stage not in DELETABLE_STAGES:
+        raise RuntimeError(
+            f"refusing to delete {repo_id}; live runtime stage is {stage or 'UNKNOWN'}. "
+            "Pause the Space and confirm its replacement first; deletable stages are "
+            + ", ".join(sorted(DELETABLE_STAGES))
+        )
+    return stage
+
+
 def _has_persistent_storage(value: Any) -> bool:
     if value is None or value is False:
         return False
@@ -381,8 +411,6 @@ def retire_targets(
     api = HfApi(token=token)
     results: list[dict[str, Any]] = []
     for repo_id, replacement_route in RETIREMENT_TARGETS.items():
-        if repo_id in PROTECTED_MIGRATIONS:
-            raise RuntimeError(f"protected migration entered deletion allowlist: {repo_id}")
         record: dict[str, Any] = {
             "repo_id": repo_id,
             "replacement_space": KILLINCHU_SPACE,
@@ -404,6 +432,11 @@ def retire_targets(
             results.append(record)
             continue
 
+        # A live Space is never a deletion candidate. Read the runtime first,
+        # before any other provider call, and refuse unless it is idle.
+        runtime = api.get_space_runtime(repo_id=repo_id)
+        record["runtime_stage_before"] = require_not_serving(repo_id, runtime)
+
         info = api.space_info(repo_id=repo_id)
         record["provider_revision_before"] = getattr(info, "sha", None)
         record["private_before"] = bool(getattr(info, "private", False))
@@ -416,7 +449,6 @@ def retire_targets(
                 f"refusing to delete {repo_id}; Space secret metadata is not empty: {secret_keys}"
             )
 
-        runtime = api.get_space_runtime(repo_id=repo_id)
         storage = _runtime_storage(runtime)
         record["persistent_storage_metadata"] = None if storage is None else str(storage)
         if _has_persistent_storage(storage):
@@ -437,6 +469,11 @@ def retire_targets(
             results.append(record)
             continue
 
+        # Re-read the stage: the Space may have been restarted while the
+        # snapshot was taken. Refuse if it is serving now.
+        record["runtime_stage_at_delete"] = require_not_serving(
+            repo_id, api.get_space_runtime(repo_id=repo_id)
+        )
         api.delete_repo(
             repo_id=repo_id,
             repo_type="space",
@@ -485,7 +522,7 @@ def main() -> int:
         "source_revision": args.source_sha,
         "replacement_space": KILLINCHU_SPACE,
         "retirement_targets": dict(RETIREMENT_TARGETS),
-        "protected_migrations": sorted(PROTECTED_MIGRATIONS),
+        "deletable_runtime_stages": sorted(DELETABLE_STAGES),
         "required_gates": sorted(REQUIRED_RETIREMENT_GATES),
         "dry_run": bool(args.dry_run),
         "complete": False,

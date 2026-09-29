@@ -10,8 +10,11 @@ on:
         required: true
         type: string
 
+# Writes two Spaces (it pauses SZLHOLDINGS/llm-router-live and restarts
+# SZLHOLDINGS/killinchu), so the workflow takes the org-wide Hub write lock and
+# the transfer job also takes the killinchu Space lock it shares with hf-sync.
 concurrency:
-  group: killinchu-hf-cpu-basic-capacity-transfer
+  group: hf-write/org/SZLHOLDINGS
   cancel-in-progress: false
 
 permissions:
@@ -22,6 +25,9 @@ jobs:
     name: Transfer fixed cpu-basic slot with rollback
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    concurrency:
+      group: hf-write/space/SZLHOLDINGS/killinchu
+      cancel-in-progress: false
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -155,7 +161,7 @@ jobs:
 
       - name: Execute fixed governed capacity transfer
         env:
-          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_CAPACITY_TRANSFER_CONFIRMATION: ${{ inputs.confirmation }}
         shell: bash
         run: |

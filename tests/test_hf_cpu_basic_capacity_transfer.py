@@ -206,14 +206,15 @@ def test_manual_workflow_is_fixed_scope_locked_and_protected_main_only() -> None
     for contract in (
         "workflow_dispatch:",
         CONFIRMATION,
-        "group: killinchu-hf-cpu-basic-capacity-transfer",
+        "group: hf-write/org/SZLHOLDINGS",
+        "      group: hf-write/space/SZLHOLDINGS/killinchu",
         "cancel-in-progress: false",
         "EXPECTED_GITHUB_REF: refs/heads/main",
         "GITHUB_REF_PROTECTED: ${{ github.ref_protected }}",
         'os.environ["OBSERVED_GITHUB_REF"]\n              == os.environ["EXPECTED_GITHUB_REF"]',
         "SHARED_PUBLISHER_SHA: e3ec47ad2e99a535839afe0f30fefbd8973d52da",
         "SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9",
-        "HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}",
+        "HF_TOKEN: ${{ secrets.HF_TOKEN }}",
         "HF_CAPACITY_TRANSFER_CONFIRMATION: ${{ inputs.confirmation }}",
     ):
         assert contract in workflow

@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import sys
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,18 +23,23 @@ def load_module():
     return module
 
 
-def test_deletion_allowlist_is_exact_and_excludes_live_migrations() -> None:
+def test_deletion_allowlist_is_exact_and_live_spaces_are_guarded_by_state() -> None:
     module = load_module()
     assert module.RETIREMENT_TARGETS == {
         "SZLHOLDINGS/vessels": "/vessels",
         "SZLHOLDINGS/aegis-assurance": "/resilience",
     }
-    assert module.PROTECTED_MIGRATIONS == {
-        "SZLHOLDINGS/sentra",
-        "SZLHOLDINGS/immune",
-        "SZLHOLDINGS/immune-lattice",
+    # Live Spaces are protected by their runtime stage, not by a typed list of
+    # names that drifts from the Hub.
+    assert not hasattr(module, "PROTECTED_MIGRATIONS")
+    assert module.DELETABLE_STAGES == {
+        "PAUSED",
+        "STOPPED",
+        "BUILD_ERROR",
+        "RUNTIME_ERROR",
+        "CONFIG_ERROR",
+        "NO_APP_FILE",
     }
-    assert not set(module.RETIREMENT_TARGETS) & set(module.PROTECTED_MIGRATIONS)
     assert module.KILLINCHU_SPACE == "SZLHOLDINGS/killinchu"
 
 
@@ -56,12 +65,15 @@ def test_script_has_no_arbitrary_repository_selector() -> None:
 
 def test_source_snapshot_secrets_and_storage_precede_deletion() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
-    secrets = source.index("fetch_secret_key_metadata(repo_id, token)")
-    storage = source.index("api.get_space_runtime(repo_id=repo_id)")
-    snapshot = source.index("snapshot_space(repo_id, token, archive_root)")
-    deletion = source.index("api.delete_repo(")
-    absence = source.index("if not api.repo_exists(repo_id=repo_id, repo_type=\"space\")")
-    assert secrets < storage < snapshot < deletion < absence
+    body = source.split("def retire_targets(", 1)[1]
+    stage = body.index("require_not_serving(repo_id, runtime)")
+    secrets = body.index("fetch_secret_key_metadata(repo_id, token)")
+    storage = body.index("_runtime_storage(runtime)")
+    snapshot = body.index("snapshot_space(repo_id, token, archive_root)")
+    recheck = body.index("repo_id, api.get_space_runtime(repo_id=repo_id)")
+    deletion = body.index("api.delete_repo(")
+    absence = body.index("if not api.repo_exists(repo_id=repo_id, repo_type=\"space\")")
+    assert stage < secrets < storage < snapshot < recheck < deletion < absence
     assert "refusing to delete an unsnapshotted Space" in source
     assert "Space secret metadata is not empty" in source
     assert "persistent storage is present" in source
@@ -129,5 +141,145 @@ def test_v8_topology_keeps_sentra_public_and_only_vessels_folded() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
     assert 'public != ("terra", "sentra", "counsel", "finance", "lyte")' in source
     assert 'folded != ("vessels",)' in source
-    assert '"SZLHOLDINGS/sentra"' in source
     assert '"SZLHOLDINGS/vessels": "/vessels"' in source
+    # The deleter names no live Space id at all.
+    for live in ("SZLHOLDINGS/sentra", "SZLHOLDINGS/immune", "SZLHOLDINGS/immune-lattice"):
+        assert f'"{live}"' not in source
+
+
+class FakeHubApi:
+    """Offline stand-in for ``huggingface_hub.HfApi``; records every call."""
+
+    def __init__(self, stages: list[object]) -> None:
+        self.stages = list(stages)
+        self.calls: list[str] = []
+        self.deleted: list[str] = []
+
+    def repo_exists(self, repo_id: str, repo_type: str) -> bool:
+        self.calls.append(f"repo_exists:{repo_id}")
+        return repo_id not in self.deleted
+
+    def get_space_runtime(self, repo_id: str) -> SimpleNamespace:
+        self.calls.append(f"get_space_runtime:{repo_id}")
+        stage = self.stages.pop(0) if len(self.stages) > 1 else self.stages[0]
+        return SimpleNamespace(stage=stage, storage=None)
+
+    def space_info(self, repo_id: str) -> SimpleNamespace:
+        self.calls.append(f"space_info:{repo_id}")
+        return SimpleNamespace(sha="a" * 40, private=False)
+
+    def delete_repo(self, repo_id: str, repo_type: str, missing_ok: bool) -> None:
+        self.calls.append(f"delete_repo:{repo_id}")
+        self.deleted.append(repo_id)
+
+
+def _install_fake_hub(monkeypatch, module, api: FakeHubApi) -> list[str]:
+    snapshots: list[str] = []
+    monkeypatch.setitem(
+        sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda token: api)
+    )
+    monkeypatch.setattr(module, "fetch_secret_key_metadata", lambda repo_id, token: [])
+
+    def fake_snapshot(repo_id, token, archive_root):
+        snapshots.append(repo_id)
+        return {"archive_sha256": "0" * 64}
+
+    monkeypatch.setattr(module, "snapshot_space", fake_snapshot)
+    return snapshots
+
+
+class _Stage(str):
+    """Mimics huggingface_hub's ``SpaceStage`` str-enum (``.value``)."""
+
+    @property
+    def value(self) -> str:
+        return str(self)
+
+
+@pytest.mark.parametrize(
+    "stage",
+    [
+        "RUNNING",
+        _Stage("RUNNING"),
+        "running",
+        "RUNNING_BUILDING",
+        "RUNNING_APP_STARTING",
+        "APP_STARTING",
+        "BUILDING",
+        "SLEEPING",
+        "SOME_FUTURE_STAGE",
+        None,
+        "",
+    ],
+)
+def test_retire_refuses_a_running_or_unknown_space_before_any_other_call(
+    monkeypatch, tmp_path, stage
+) -> None:
+    module = load_module()
+    api = FakeHubApi([stage])
+    snapshots = _install_fake_hub(monkeypatch, module, api)
+
+    with pytest.raises(
+        RuntimeError,
+        match="refusing to delete SZLHOLDINGS/vessels; live runtime stage",
+    ):
+        module.retire_targets("synthetic-token", tmp_path, dry_run=False)
+
+    # Refused on the runtime read: no metadata, snapshot or delete call happened.
+    assert api.calls == [
+        "repo_exists:SZLHOLDINGS/vessels",
+        "get_space_runtime:SZLHOLDINGS/vessels",
+    ]
+    assert snapshots == []
+    assert api.deleted == []
+
+
+def test_retire_refuses_a_space_restarted_during_the_snapshot(monkeypatch, tmp_path) -> None:
+    module = load_module()
+    # PAUSED when first read, RUNNING again at the pre-delete re-check.
+    api = FakeHubApi(["PAUSED", "RUNNING"])
+    snapshots = _install_fake_hub(monkeypatch, module, api)
+
+    with pytest.raises(RuntimeError, match="live runtime stage is RUNNING"):
+        module.retire_targets("synthetic-token", tmp_path, dry_run=False)
+
+    assert snapshots == ["SZLHOLDINGS/vessels"]
+    assert api.deleted == []
+
+
+def test_retire_only_deletes_an_idle_space(monkeypatch, tmp_path) -> None:
+    module = load_module()
+    api = FakeHubApi(["PAUSED"])
+    _install_fake_hub(monkeypatch, module, api)
+
+    results = module.retire_targets("synthetic-token", tmp_path, dry_run=False)
+
+    assert [row["state"] for row in results] == ["DELETED_VERIFIED", "DELETED_VERIFIED"]
+    assert all(row["runtime_stage_before"] == "PAUSED" for row in results)
+    assert all(row["runtime_stage_at_delete"] == "PAUSED" for row in results)
+    assert api.deleted == list(module.RETIREMENT_TARGETS)
+
+
+def test_retire_dry_run_on_running_space_is_also_refused(monkeypatch, tmp_path) -> None:
+    module = load_module()
+    api = FakeHubApi(["RUNNING"])
+    snapshots = _install_fake_hub(monkeypatch, module, api)
+
+    with pytest.raises(RuntimeError, match="live runtime stage is RUNNING"):
+        module.retire_targets("synthetic-token", tmp_path, dry_run=True)
+    assert snapshots == []
+    assert api.deleted == []
+
+
+def test_absent_legacy_space_is_reported_without_runtime_or_delete_calls(
+    monkeypatch, tmp_path
+) -> None:
+    module = load_module()
+    api = FakeHubApi(["RUNNING"])
+    api.deleted = list(module.RETIREMENT_TARGETS)
+    _install_fake_hub(monkeypatch, module, api)
+
+    results = module.retire_targets("synthetic-token", tmp_path, dry_run=False)
+
+    assert [row["state"] for row in results] == ["ABSENT_ALREADY", "ABSENT_ALREADY"]
+    assert all(call.startswith("repo_exists:") for call in api.calls)

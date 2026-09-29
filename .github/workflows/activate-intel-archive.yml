@@ -11,8 +11,10 @@ on:
 permissions:
   contents: read
 
+# Writes Space variables/secrets on SZLHOLDINGS/killinchu and restarts it, so it
+# shares the canonical per-asset lock with the Space deploy (hf-sync.yml).
 concurrency:
-  group: activate-killinchu-intel-archive
+  group: hf-write/space/SZLHOLDINGS/killinchu
   cancel-in-progress: false
 
 jobs:
@@ -89,10 +91,10 @@ jobs:
       - name: Activate and verify Space controls
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          HF_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
-          test -n "${HF_TOKEN:-}" || { echo "::error::HF_WRITE_TOKEN is not configured"; exit 1; }
+          test -n "${HF_TOKEN:-}" || { echo "::error::HF_TOKEN is not configured"; exit 1; }
           "$HF_PUBLISHER_PYTHON" -I -P - <<'PY'
           import json
           import os

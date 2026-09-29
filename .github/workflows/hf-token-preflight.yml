@@ -1,14 +1,32 @@
 # Copyright 2026 SZL Holdings
 # SPDX-License-Identifier: Apache-2.0
 #
-# hf-token-preflight — fail LOUDLY when the HuggingFace write credential is missing.
+# hf-token-preflight — fail LOUDLY when the Hugging Face credential is missing
+# or cannot write to SZLHOLDINGS.
 #
 # WHY
-#   The Space sync (hf-sync.yml) needs the HF_WRITE_TOKEN repo secret. If it is
-#   absent the Space card silently stops updating and eventually drifts. This
-#   preflight runs on every push to main and on demand; it does NOT skip when the
-#   secret is missing — it fails the run with a precise founder action so a
-#   missing credential is impossible to miss. The secret VALUE is never printed.
+#   Every HF workflow in this repository authenticates with one secret,
+#   HF_TOKEN: hf-sync.yml (the Space deploy), activate-intel-archive.yml,
+#   publish-intel-archive-card.yml, hf-cpu-basic-capacity-transfer.yml,
+#   retire-legacy-resilience-spaces.yml, hf-estate-ops.yml and
+#   hf-drift-check.yml. The only exception is the receipt-training job, which
+#   uses the least-privilege, environment-scoped TRAINING_HF_TOKEN
+#   (docs/RECEIPT_TRAINING_RUNBOOK.md). If HF_TOKEN is absent or cannot write,
+#   the Space deploy fails mid-run and the Space card drifts.
+#
+#   This preflight runs on every push to main that touches the Space card or an
+#   HF workflow, on pull requests that change an HF workflow (so a credential
+#   change is proven before it merges), and on demand. It never skips silently
+#   when it runs: a missing or under-scoped token fails the run with a precise
+#   owner action. The secret VALUE is never printed; only whoami metadata
+#   (token role, org role, granted permission names) is reported. Pull requests
+#   from forks and from Dependabot receive no repository secrets, so the job is
+#   skipped for them (reported as SKIPPED, not as a pass).
+#
+# LOCK
+#   Read-only: it never writes the Hub, so it must not join a hf-write/* group
+#   (a queued read-only run could otherwise displace a queued writer). It uses
+#   its own per-ref group instead.
 
 name: hf-token-preflight
 
@@ -17,54 +35,131 @@ on:
     branches: [main]
     paths:
       - "README.md"
-      - ".github/workflows/hf-sync.yml"
-      - ".github/workflows/hf-token-preflight.yml"
+      - ".github/workflows/hf-*.yml"
+      - ".github/workflows/activate-intel-archive.yml"
+      - ".github/workflows/publish-intel-archive-card.yml"
+      - ".github/workflows/retire-legacy-resilience-spaces.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/hf-*.yml"
+      - ".github/workflows/activate-intel-archive.yml"
+      - ".github/workflows/publish-intel-archive-card.yml"
+      - ".github/workflows/retire-legacy-resilience-spaces.yml"
   workflow_dispatch: {}
 
 permissions:
   contents: read
 
+concurrency:
+  group: hf-token-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   assert-hf-token:
-    name: Assert HF_WRITE_TOKEN present (loud-fail, no silent skip)
+    name: Assert HF_TOKEN is present and can write SZLHOLDINGS
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Fail loudly if HF_WRITE_TOKEN is unset
+      - name: Fail loudly if HF_TOKEN is unset
         env:
-          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${HF_WRITE_TOKEN:-}" ]; then
-            echo "::error title=HF_WRITE_TOKEN missing::The HF_WRITE_TOKEN repo secret is NOT set on szl-holdings/killinchu."
-            echo "::error::hf-sync.yml CANNOT push the Space card without it; the HuggingFace Space SZLHOLDINGS/killinchu will drift."
-            echo "::error::FOUNDER ACTION: add repo secret HF_WRITE_TOKEN — a HuggingFace WRITE token with org-write to SZLHOLDINGS."
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error title=HF_TOKEN missing::The HF_TOKEN repo secret is NOT set on szl-holdings/killinchu."
+            echo "::error::hf-sync.yml CANNOT deploy the Space without it; the Hugging Face Space SZLHOLDINGS/killinchu will drift."
+            echo "::error::OWNER ACTION: add repo secret HF_TOKEN, a Hugging Face token with write access to SZLHOLDINGS."
             echo "::error::URL: https://github.com/szl-holdings/killinchu/settings/secrets/actions/new"
             {
               echo "### hf-token-preflight: FAILED"
-              echo "Secret **HF_WRITE_TOKEN** is missing. hf-sync would fail mid-run."
+              echo "Secret **HF_TOKEN** is missing. hf-sync would fail mid-run."
               echo ""
-              echo "**Founder action:** add repo secret \`HF_WRITE_TOKEN\` (HF write token, org-write to \`SZLHOLDINGS\`) at"
+              echo "**Owner action:** add repo secret \`HF_TOKEN\` (Hugging Face token with write access to \`SZLHOLDINGS\`) at"
               echo "<https://github.com/szl-holdings/killinchu/settings/secrets/actions/new>"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          echo "HF_WRITE_TOKEN is present (value not printed). hf-sync can proceed."
-          {
-            echo "### hf-token-preflight: OK"
-            echo "Secret \`HF_WRITE_TOKEN\` is present. hf-sync to \`SZLHOLDINGS/killinchu\` is unblocked."
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "HF_TOKEN is present (value not printed)."
 
-      - name: Validate token can reach HuggingFace (non-fatal probe)
-        if: success()
+      - name: Prove HF_TOKEN authenticates and can write SZLHOLDINGS
         env:
-          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_ORG: SZLHOLDINGS
+          # Every Hub repository a workflow in this repository writes.
+          HF_WRITE_TARGETS: >-
+            SZLHOLDINGS/killinchu
+            SZLHOLDINGS/killinchu-osint-corpus
+            SZLHOLDINGS/llm-router-live
         run: |
           set -euo pipefail
-          code=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${HF_WRITE_TOKEN}" \
-            https://huggingface.co/api/whoami-v2 || echo "000")
-          if [ "$code" = "200" ]; then
-            echo "HF token validated (whoami-v2 200)."
-          else
-            echo "::warning::HF whoami-v2 returned $code — token present but could not be validated (non-fatal)."
-          fi
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          org = os.environ["HF_ORG"]
+          targets = set(os.environ["HF_WRITE_TARGETS"].split())
+          request = urllib.request.Request(
+              "https://huggingface.co/api/whoami-v2",
+              headers={"Authorization": "Bearer " + os.environ["HF_TOKEN"].strip()},
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  data = json.load(response)
+          except urllib.error.HTTPError as error:
+              print(f"::error::whoami-v2 returned HTTP {error.code}: HF_TOKEN is invalid or revoked.")
+              sys.exit(1)
+          except (urllib.error.URLError, TimeoutError, ValueError) as error:
+              print(f"::error::whoami-v2 could not be read ({type(error).__name__}).")
+              sys.exit(1)
+
+          access = (data.get("auth") or {}).get("accessToken") or {}
+          role = access.get("role")
+          org_role = next(
+              (o.get("roleInOrg") for o in data.get("orgs") or [] if o.get("name") == org),
+              None,
+          )
+          member_can_write = org_role in {"admin", "write", "contributor"}
+          grants = []
+          if role in {"write", "admin"}:
+              covered = member_can_write
+              basis = f"classic token role={role}"
+          elif role == "fineGrained":
+              writable = set()
+              for entry in (access.get("fineGrained") or {}).get("scoped") or []:
+                  entity = entry.get("entity") or {}
+                  permissions = entry.get("permissions") or []
+                  grants.append(f"{entity.get('type')}:{entity.get('name')}={sorted(permissions)}")
+                  if "repo.write" in permissions:
+                      writable.add(entity.get("name"))
+              covered = member_can_write and (org in writable or targets <= writable)
+              basis = "fine-grained repo.write on " + (
+                  org if org in writable else ", ".join(sorted(writable & targets)) or "nothing"
+              )
+          else:
+              covered = False
+              basis = f"token role={role}"
+
+          print(f"token role={role} org={org} org_role={org_role} basis: {basis}")
+          for grant in grants:
+              print(f"  scoped grant {grant}")
+          if not covered:
+              print(
+                  f"::error::HF_TOKEN authenticates but cannot be shown to write {org} "
+                  f"(role={role}, org_role={org_role}). OWNER ACTION: grant repo.write on {org}."
+              )
+              sys.exit(1)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(
+                  "### hf-token-preflight: OK\n"
+                  f"`HF_TOKEN` authenticates (role `{role}`, `{org}` role `{org_role}`) "
+                  f"and holds write scope: {basis}.\n"
+              )
+          PY

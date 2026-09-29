@@ -592,6 +592,10 @@ class HFProvider:
         image = manifest["runtime"]["image"]
         if image == NON_RUNNABLE_TEST_RUNTIME or image not in APPROVED_RUNTIMES:
             raise DispatchError("RUNTIME_NOT_APPROVED_FOR_SUBMISSION")
+        # Output repos are never created by this lane. An absent target is an
+        # owner decision: fail closed before any other provider read or write.
+        if self.api.repo_exists(manifest["output"]["repo_id"], repo_type="model") is not True:
+            raise DispatchError("OUTPUT_REPO_ABSENT")
         for field, kind in (("base_model", "model"), ("dataset", "dataset")):
             spec = manifest[field]
             info = self.api.repo_info(spec["repo_id"], repo_type=kind, revision=spec["revision"])

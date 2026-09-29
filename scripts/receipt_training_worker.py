@@ -23,6 +23,9 @@ import unicodedata
 import uuid
 
 
+# Output model repo for each profile. This code never creates one: existence is
+# read live on every run (dispatcher preflight, then worker), and an absent
+# target fails closed with OUTPUT_REPO_ABSENT until the owner creates it.
 PROFILES = {
     "khipu-frontier-35-2b": "SZLHOLDINGS/khipu-frontier-35-2b",
     "forge-frontier-35-2b": "SZLHOLDINGS/forge-frontier-35-2b",
@@ -448,7 +451,11 @@ class HubBackend:
         self.api = HfApi(endpoint="https://huggingface.co", token=os.environ["HF_TOKEN"])
 
     def output_head(self, manifest):
-        return self.api.model_info(manifest["output"]["repo_id"], revision="main").sha
+        repo_id = manifest["output"]["repo_id"]
+        # This worker never creates a repository. An absent output target is an
+        # owner decision, so fail closed before reading or writing anything.
+        _require(self.api.repo_exists(repo_id, repo_type="model") is True, "OUTPUT_REPO_ABSENT")
+        return self.api.model_info(repo_id, revision="main").sha
 
     def _read_file(self, repo_id, revision, name, max_bytes, repo_type):
         from huggingface_hub import hf_hub_download

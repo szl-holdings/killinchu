@@ -1,0 +1,7 @@
+# Hash-locked addition for the HF workflow contract (CPython 3.12, Linux x86_64).
+# Installed together with .github/requirements-training-contract.lock (the
+# pytest==8.4.2 closure). PyYAML parses the workflow files in the census test.
+# Digest checked against the public PyPI JSON on 2026-09-29.
+
+pyyaml==6.0.3 \
+    --hash=sha256:ba1cc08a7ccde2d2ec775841541641e4548226580ab850948cbfda66a1befcdc

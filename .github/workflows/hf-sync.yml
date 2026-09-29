@@ -5,6 +5,12 @@ name: Sync to HuggingFace Space
 # GitHub commit, and refuses a running deployment whose /api/build-info response
 # does not expose that same revision. Every protected-main commit triggers a
 # serialized run so a newer main tip always supersedes a stale queued deploy.
+#
+# Lock: every job in this repository that writes the Space SZLHOLDINGS/killinchu
+# (this deploy, activate-intel-archive, hf-cpu-basic-capacity-transfer) shares
+# the canonical group hf-write/space/SZLHOLDINGS/killinchu. Auth: the one Hub
+# credential used by every HF workflow here is secrets.HF_TOKEN; its presence
+# and SZLHOLDINGS write scope are proven by hf-token-preflight.yml.
 
 on:
   push:
@@ -12,7 +18,7 @@ on:
   workflow_dispatch: {}
 
 concurrency:
-  group: killinchu-hf-release-receipt
+  group: hf-write/space/SZLHOLDINGS/killinchu
   cancel-in-progress: false
 
 permissions:
@@ -35,9 +41,9 @@ jobs:
       restart-space: true
       source-revision-variable: SZL_GIT_SHA
       source-revision-probe-path: /api/build-info
-      smoke-paths: '["/","/api/killinchu/healthz","/api/build-info","/console","/defend","/resilience","/api/defend/status","/api/defend/readyz","/api/defend/source","/api/killinchu/v1/code/capabilities","/static/analyst.html","/api/killinchu/v1/defensive-intake/tools"]'
+      smoke-paths: '["/","/healthz","/api/killinchu/healthz","/api/build-info","/console","/defend","/resilience","/api/defend/status","/api/defend/readyz","/api/defend/source","/api/killinchu/v1/code/capabilities","/static/analyst.html","/api/killinchu/v1/defensive-intake/tools"]'
     secrets:
-      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
   verify-risk-status-fails-closed:
     name: Verify public risk status is intentionally unavailable
@@ -162,7 +168,7 @@ jobs:
 
       - name: Publish receipt reference and verify restarted runtime
         env:
-          HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ github.sha }}
           MANIFEST_SHA256: ${{ steps.manifest.outputs.sha256 }}

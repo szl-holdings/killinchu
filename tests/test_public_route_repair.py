@@ -1070,7 +1070,7 @@ class PublicRouteRepairTests(unittest.TestCase):
             "https://szlholdings-killinchu.hf.space/api/public-risk-status",
             '"/console"',
             '"/api/killinchu/v1/code/capabilities"',
-            "HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}",
+            "HF_TOKEN: ${{ secrets.HF_TOKEN }}",
             "verify-risk-status-fails-closed:",
             'test "$code" = "503"',
             'payload["state"] == "UNAVAILABLE"',

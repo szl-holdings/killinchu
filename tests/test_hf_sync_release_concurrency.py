@@ -7,7 +7,7 @@ def test_release_receipt_publication_is_serialized_and_rejects_stale_source() ->
     ).read_text(encoding="utf-8")
 
     for contract in (
-        "group: killinchu-hf-release-receipt",
+        "group: hf-write/space/SZLHOLDINGS/killinchu",
         "cancel-in-progress: false",
         "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da",
         "require-default-branch-tip: true",
