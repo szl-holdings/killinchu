@@ -1,0 +1,83 @@
+name: HF workflow contract
+
+# Provider-free regressions for every workflow and script in this repository
+# that writes the Hugging Face Hub. No secret is available to this workflow,
+# and nothing here calls the Hub.
+#   * tests/test_hf_workflow_census.py: one Hub credential (secrets.HF_TOKEN),
+#     a canonical hf-write/<type>/SZLHOLDINGS/<id> lock on every writing job,
+#     and one pinned Hub client, read from the workflow files themselves.
+#   * tests/test_legacy_resilience_space_retirement.py: the legacy-Space
+#     retirer refuses any RUNNING (or unknown-stage) Space before any other
+#     provider call.
+#   * the capacity-transfer and Space-deploy lock contracts.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/requirements-hf-workflow-contract.lock"
+      - ".github/requirements-training-contract.lock"
+      - "scripts/retire_legacy_resilience_spaces.py"
+      - "scripts/hf_cpu_basic_capacity_transfer.py"
+      - "tests/test_hf_workflow_census.py"
+      - "tests/test_legacy_resilience_space_retirement.py"
+      - "tests/test_hf_cpu_basic_capacity_transfer.py"
+      - "tests/test_hf_sync_release_concurrency.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - ".github/requirements-hf-workflow-contract.lock"
+      - ".github/requirements-training-contract.lock"
+      - "scripts/retire_legacy_resilience_spaces.py"
+      - "scripts/hf_cpu_basic_capacity_transfer.py"
+      - "tests/test_hf_workflow_census.py"
+      - "tests/test_legacy_resilience_space_retirement.py"
+      - "tests/test_hf_cpu_basic_capacity_transfer.py"
+      - "tests/test_hf_sync_release_concurrency.py"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-workflow-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: HF workflow census and retirement guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.10'
+
+      - name: Install hash-locked test closure
+        run: |
+          python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: \
+            -r .github/requirements-training-contract.lock \
+            -r .github/requirements-hf-workflow-contract.lock
+          python -m pip check
+
+      - name: HF workflow census, retirement guard and lock contracts
+        run: >-
+          python -m pytest -q
+          tests/test_hf_workflow_census.py
+          tests/test_legacy_resilience_space_retirement.py
+          tests/test_hf_cpu_basic_capacity_transfer.py
+          tests/test_hf_sync_release_concurrency.py
+
+      - name: Compile scripts and check patch whitespace
+        run: |
+          python -m py_compile scripts/retire_legacy_resilience_spaces.py scripts/hf_cpu_basic_capacity_transfer.py
+          git diff --check

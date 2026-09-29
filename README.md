@@ -31,7 +31,7 @@ datasets: [SZLHOLDINGS/killinchu-osint-corpus, SZLHOLDINGS/szl-lake]
   <a href="https://github.com/szl-holdings/.github/tree/main/doctrine"><img src="https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square" alt="doctrine v11"></a>
   <a href="https://a-11-oy.com/"><img src="https://img.shields.io/badge/evidence%20wall-LIVE%20%C2%B7%20verify%20in%20browser-3AF4C8?style=flat-square" alt="live evidence wall"></a>
   <a href="https://huggingface.co/datasets/SZLHOLDINGS/szl-lake"><img src="https://img.shields.io/badge/szl--lake-offline%20verifiable-C9B787?style=flat-square" alt="szl-lake offline verifiable"></a>
-  <a href="https://huggingface.co/spaces/SZLHOLDINGS/holographic"><img src="https://img.shields.io/badge/estate%20map-holographic-5B8DEE?style=flat-square" alt="holographic estate map"></a>
+  <a href="https://huggingface.co/SZLHOLDINGS"><img src="https://img.shields.io/badge/estate-all%20Spaces-5B8DEE?style=flat-square" alt="SZL Holdings Spaces on Hugging Face"></a>
 </p>
 <p align="center"><sub>Part of the <a href="https://huggingface.co/SZLHOLDINGS">SZL Holdings</a> governed estate — claims are designed to carry checkable receipts. Verification proves integrity &amp; origin, never accuracy or performance.</sub></p>
 <!-- SZL-ESTATE-CARD:v2:END -->
@@ -194,7 +194,7 @@ uds-cli bundle deploy oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.0 --con
 > **absent**, receipts keep a clearly-labelled placeholder — **no signature is ever
 > fabricated**. The `/v1/honest` endpoint is the authoritative live posture probe.
 
-**Full guide:** [developers/VERIFY.md](https://github.com/szl-holdings/developers/blob/main/VERIFY.md)
+**Verify it yourself:** release signatures per [RELEASE.md § Verifying a release](https://github.com/szl-holdings/killinchu/blob/main/RELEASE.md#verifying-a-release); the estate proof registry is [a11oy.net/record](https://a11oy.net/record/).
 
 ### Sign a verdict and verify it (real DSSE round-trip)
 
@@ -218,13 +218,13 @@ curl -s -X POST 'https://szlholdings-killinchu.hf.space/api/killinchu/khipu/sign
 
 ## Try the cookbook
 
-New here? The **[SZL Cookbook](https://github.com/szl-holdings/szl-cookbook)** has runnable recipes for your use case:
+New here? killinchu ships its own defense cookbook. The recipes live in this repository and the live Space serves the same index:
 
-- **[Recipe 04 — Drone counter-UAS verdict](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/04-drone-counter-uas-verdict.md)**
-- **[Recipe 11 — Kitaev surface drift detection](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/11-kitaev-surface-drift-detection.md)**
-- **[Recipe 14 — Replicate the Walrus α-gap measurement](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/14-replicate-walrus-alpha-gap.md)**
+- **[Counter-UAS: sense, evidence, report](https://github.com/szl-holdings/killinchu/blob/main/static/cookbook/recipes/recipe-counter-uas-sense.md)** (we do not take control of third-party drones)
+- **[Decode a Remote-ID broadcast (ASTM F3411-22a)](https://github.com/szl-holdings/killinchu/blob/main/static/cookbook/recipes/recipe-decode-remote-id.md)**
+- **[DSSE-sign a drone command and verify it](https://github.com/szl-holdings/killinchu/blob/main/static/cookbook/recipes/recipe-sign-mission-command.md)**
 
-Full index: [szl-cookbook/recipes](https://github.com/szl-holdings/szl-cookbook/tree/main/recipes).
+Full index: [static/cookbook/recipes](https://github.com/szl-holdings/killinchu/tree/main/static/cookbook/recipes) · live: [`/api/killinchu/v2/cookbook`](https://szlholdings-killinchu.hf.space/api/killinchu/v2/cookbook).
 
 ---
 
@@ -335,7 +335,7 @@ Five pillars, each mapped to a component SZL runs in its public demo Space with 
 
 - **Protocol-Bounded Execution** — governed-decision loop + YUYAY 13-axis conjunctive gate (deny-by-default). *Gate soundness proven over the locked F-set.*
 - **Verifiable Intent-to-Execution** — DSSE-signed receipt chain + Lean-theorem trace. *ECDSA-P256 signed, SHA-256 hash-chained, tamper-evident.*
-- **Bounded-Recursion Control Plane** — Ouroboros bounded-recursion loop (P1–P6), following the estate's canonical bounded-loop pattern ([`ouroboros/src/loop-kernel.ts`](https://github.com/szl-holdings/ouroboros/blob/main/src/loop-kernel.ts) `runLoop`) and instilled here as the governed agent loop ([`szl_agentic_loop.py`](szl_agentic_loop.py), registered identically in a11oy + killinchu). *Loop invariants proven.*
+- **Bounded-Recursion Control Plane** — Ouroboros bounded-recursion loop (P1–P6), following the estate's canonical bounded-loop pattern ([`platform/…/vendor_ouroboros/loop-kernel.ts`](https://github.com/szl-holdings/platform/blob/main/packages/unified-kernel/src/loop/vendor_ouroboros/loop-kernel.ts) `runLoop`) and instilled here as the governed agent loop ([`szl_agentic_loop.py`](szl_agentic_loop.py), registered identically in a11oy + killinchu). *Loop invariants proven.*
 - **Semantic Quorum Assurance** — Khipu BFT quorum + Wave23 conditional safety theorem (`khipu_quorum_safety_conditional`, agreement under non-equivocation). *Conditional theorem; unconditional Byzantine safety = Conjecture 2 (open).*
 - **Epistemic State Replication** — YAWAR append-only receipt bus + deterministic replay + Verifiable Semantic Rollback. *Receipts/replay live; full ESR semantics = open R&D (roadmap).*
 
@@ -495,23 +495,17 @@ One sovereign substrate, many organs — every decision carries a hash-chained, 
 
 **[a-11-oy.com — the estate front-door](https://a-11-oy.com)** — the live estate hub (a11oy flagship). killinchu's own live face is its HF Space `/elite` below.
 
-**[◇ Holographic Estate — the showcase](https://szlholdings-holographic.hf.space)** ·
 [🛡️ a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ·
 [🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
 [🦅 killinchu](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) ·
-[🫀 anatomy](https://huggingface.co/spaces/SZLHOLDINGS/anatomy) ·
-[🌌 cosmos](https://huggingface.co/spaces/SZLHOLDINGS/cosmos) ·
-[🛰️ SDA](https://huggingface.co/spaces/SZLHOLDINGS/sda) ·
 [🌊 yarqa](https://huggingface.co/spaces/SZLHOLDINGS/yarqa) ·
 [🤗 all Spaces](https://huggingface.co/SZLHOLDINGS)
 
-**Governed-receipt cluster** — the open receipt format, an offline verifier, and a conformance bench (the DSSE Khipu receipts killinchu emits conform to this spec):
+**Governed-receipt cluster** — the open receipt format and a conformance bench (the DSSE Khipu receipts killinchu emits conform to this spec):
 [📐 governed-receipt-spec](https://github.com/szl-holdings/governed-receipt-spec) ·
-[✅ receipt verifier](https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier) ·
 [📦 receipts bench](https://huggingface.co/datasets/SZLHOLDINGS/governed-receipts-bench)
 
-**Formula provenance** — killinchu's edge formulas and 13-axis Λ-gate are machine-checked in the estate's formula ledger and Lean corpus (honest ledger; Λ = Conjecture 1, never proven):
-[🧮 szl-formula-ledger](https://github.com/szl-holdings/szl-formula-ledger) ·
+**Formula provenance** — killinchu's edge formulas and 13-axis Λ-gate are machine-checked in the estate's Lean corpus, the canonical home of the archived formula ledger (Λ = Conjecture 1, never proven):
 [📐 lutar-lean](https://github.com/szl-holdings/lutar-lean)
 
 <sub>Doctrine v11 · Λ = Conjecture 1, never green · honest by design · public data only.</sub>

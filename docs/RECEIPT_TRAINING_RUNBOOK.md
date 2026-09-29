@@ -96,17 +96,23 @@ attested image digest and its exact dependency/flavor contract.
 
    Secret presence does not prove that those permissions are correct. Provider
    preflight and readback provide the first operational evidence.
-5. The workflow's org-wide provider-mutation concurrency group remains enabled
-   with `cancel-in-progress: false`. This serializes this workflow with other
-   mutations using the same group; it is not a universal lock on every possible
-   Hugging Face writer.
+5. The workflow's org-wide Hub write lock `hf-write/org/SZLHOLDINGS` remains
+   enabled with `cancel-in-progress: false`, and the training job also holds
+   the output model's lock `hf-write/model/SZLHOLDINGS/<profile>`. This
+   serializes this workflow with the other writers in this repository that use
+   the same groups; GitHub scopes groups to one repository, so it is not a
+   universal lock on every possible Hugging Face writer.
 6. The separate estate-operations job names a GitHub Environment called
    `hf-provider-mutation`. That environment also requires actual configured and
    currently read-back deployment protections; the YAML name is not proof of
    reviewers, branch restrictions, token isolation, or provider authority.
-7. The dispatcher installation uses a 13-wheel, direct-and-transitive closure
-   pinned in `.github/requirements-dispatch.lock` for CPython 3.12/Linux x86-64.
-   Installation requires hashes and binary wheels, then runs `pip check`.
+7. The dispatcher installation uses the same shared direct-and-transitive Hub
+   client closure as every other HF workflow in this repository:
+   `requirements/hf-publisher.lock` (blob `9cc19359`, `huggingface-hub==1.19.0`)
+   from `szl-holdings/.github` at the exact commit
+   `e3ec47ad2e99a535839afe0f30fefbd8973d52da`, for CPython 3.12.10/Linux x86-64.
+   Installation verifies that commit and blob, requires hashes and binary
+   wheels, then runs `pip check`.
    The provider-free `offline-contract` source-admission job separately installs
    its five-wheel `pytest==8.4.2` closure from
    `.github/requirements-training-contract.lock` with the same hash-required,

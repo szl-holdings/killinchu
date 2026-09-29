@@ -102,4 +102,4 @@ def test_validation_only_runs_cannot_cancel_provider_write_or_readback():
     validate, publish = workflow.split("\n  publish:\n", 1)
     assert "concurrency:" not in validate
     assert "if: needs.validate.outputs.publish_required == 'true'" in publish
-    assert "    concurrency:\n      group: publish-killinchu-intel-archive-card-provider\n      cancel-in-progress: false" in publish
+    assert "    concurrency:\n      group: hf-write/dataset/SZLHOLDINGS/killinchu-osint-corpus\n      cancel-in-progress: false" in publish

@@ -19,8 +19,10 @@ permissions:
   contents: read
   issues: write
 
+# Deletes Spaces other than this repo's own, so it takes the org-wide Hub
+# write lock shared by every multi-asset writer in this repository.
 concurrency:
-  group: retire-legacy-resilience-spaces
+  group: hf-write/org/SZLHOLDINGS
   cancel-in-progress: false
 
 jobs:
@@ -35,7 +37,7 @@ jobs:
     timeout-minutes: 30
     env:
       SOURCE_SHA: ${{ github.sha }}
-      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
     steps:
       - name: Harden runner
@@ -129,12 +131,16 @@ jobs:
               "SZLHOLDINGS/vessels": "/vessels",
               "SZLHOLDINGS/aegis-assurance": "/resilience",
           }
-          assert module.PROTECTED_MIGRATIONS == {
-              "SZLHOLDINGS/sentra",
-              "SZLHOLDINGS/immune",
-              "SZLHOLDINGS/immune-lattice",
+          assert module.DELETABLE_STAGES == {
+              "PAUSED",
+              "STOPPED",
+              "BUILD_ERROR",
+              "RUNTIME_ERROR",
+              "CONFIG_ERROR",
+              "NO_APP_FILE",
           }
-          assert not set(module.RETIREMENT_TARGETS) & set(module.PROTECTED_MIGRATIONS)
+          assert "RUNNING" not in module.DELETABLE_STAGES
+          assert not hasattr(module, "PROTECTED_MIGRATIONS")
           PY
 
       - name: Snapshot, retire, and verify legacy provider repositories
@@ -142,7 +148,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${HF_TOKEN:-}" || {
-            echo '::error::HF_ORG_TOKEN/HF_TOKEN is not configured.'
+            echo '::error::HF_TOKEN is not configured.'
             exit 2
           }
           mkdir -p retirement-evidence/snapshots
@@ -202,7 +208,7 @@ jobs:
           lines.extend(
               [
                   "",
-                  "Sentra, IMMUNE, and IMMUNE lattice were protected and were not deleted.",
+                  "Only idle (non-serving) Spaces were eligible; any serving Space was refused.",
                   "Secret values were never read or recorded.",
               ]
           )

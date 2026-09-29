@@ -2,12 +2,14 @@ name: HF estate ops (manual)
 
 # Dispatch-only operator workflow for the SZLHOLDINGS Hugging Face estate.
 # Executes the archive waves from docs/HF_SPACES_CONSOLIDATION.md and performs
-# Space restarts, using the repo/org HF token secrets. Conventions match the
-# lifecycle controller: fail-closed, status-only logging, tokens never printed,
-# single org-wide provider-mutation concurrency group.
+# Space restarts, using the repo's one Hub credential (secrets.HF_TOKEN).
+# Conventions match the lifecycle controller: fail-closed, status-only logging,
+# tokens never printed. Every run takes the org-wide Hub write lock
+# hf-write/org/SZLHOLDINGS; jobs that write one exact asset also take that
+# asset's canonical lock (hf-write/<type>/SZLHOLDINGS/<id>).
 #
 # Ops:
-#   probe         - report each token's auth type/role + orgs (read-only)
+#   probe         - report the token's auth type/role + orgs (read-only)
 #   plan-archive  - list the group's Spaces with sdk/visibility/archive state
 #   apply-archive - archive the group's Spaces, verifying state after each
 #   restart-space - restart one exact Space (repo_id input), report runtime stage
@@ -60,7 +62,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: hf-provider-mutation-szlholdings
+  group: hf-write/org/SZLHOLDINGS
   cancel-in-progress: false
 
 jobs:
@@ -69,6 +71,11 @@ jobs:
     if: inputs.op != 'launch-train-job'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # restart-space writes one exact Space, so it also takes that Space's lock
+    # (the same group the Space's own deployer holds when it lives here).
+    concurrency:
+      group: ${{ inputs.op == 'restart-space' && format('hf-write/space/{0}', inputs.repo_id) || format('hf-estate-ops/{0}', github.run_id) }}
+      cancel-in-progress: false
     # Naming an environment here is only a source control. Required reviewers
     # and deployment protection rules must be verified in GitHub before use.
     environment: hf-provider-mutation
@@ -99,7 +106,6 @@ jobs:
         shell: bash
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
         run: |
           python3 <<'PYEOF'
           import json, os, urllib.request, urllib.error
@@ -142,7 +148,6 @@ jobs:
               print("::error::unsupported consolidation group")
               raise SystemExit(1)
           tokens = {k: v for k, v in {
-              "HF_ORG_TOKEN": os.environ.get("HF_ORG_TOKEN") or "",
               "HF_TOKEN": os.environ.get("HF_TOKEN") or "",
           }.items() if v}
           print(f"op={op} group={group} tokens_present={sorted(tokens)}")
@@ -297,6 +302,10 @@ jobs:
     if: inputs.op == 'launch-train-job'
     runs-on: ubuntu-24.04
     timeout-minutes: 270
+    # Writes only the profile's output model repo (reservation + candidate).
+    concurrency:
+      group: hf-write/model/SZLHOLDINGS/${{ inputs.profile }}
+      cancel-in-progress: false
     environment: hf-training
     env:
       INPUT_PROFILE: ${{ inputs.profile }}
@@ -315,15 +324,44 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12.10'
-      - name: Install pinned dispatch SDK
+      - name: Checkout exact shared publisher source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: szl-holdings/.github
+          ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          path: shared-hf-publisher
+          persist-credentials: false
+          fetch-depth: 1
+      # Same hash-locked Hub client closure as every other HF workflow in this
+      # repository (huggingface-hub 1.19.0), installed before any secret exists.
+      - name: Install exact shared hash-locked Hub client
+        env:
+          SHARED_PUBLISHER_SHA: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
+          PUBLISHER_VENV: ${{ runner.temp }}/hf-training-dispatch-venv
+        shell: bash
         run: |
-          python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r .github/requirements-dispatch.lock
-          python -m pip check
+          set -euo pipefail
+          test "$(git -C shared-hf-publisher rev-parse HEAD)" = "$SHARED_PUBLISHER_SHA"
+          test "$(git -C shared-hf-publisher rev-parse HEAD:requirements/hf-publisher.lock)" = "$SHARED_LOCK_BLOB"
+          test ! -e "$PUBLISHER_VENV"
+          python -I -m venv "$PUBLISHER_VENV"
+          PUBLISHER_PYTHON="$PUBLISHER_VENV/bin/python"
+          test "$("$PUBLISHER_PYTHON" -I -P -c 'import platform; print(platform.python_version())')" = "3.12.10"
+          "$PUBLISHER_PYTHON" -I -P -m pip install \
+            --disable-pip-version-check --require-hashes --only-binary=:all: \
+            --ignore-installed -r shared-hf-publisher/requirements/hf-publisher.lock
+          "$PUBLISHER_PYTHON" -I -P -m pip check
+          "$PUBLISHER_PYTHON" -I -P -c \
+            'import importlib.metadata as m, huggingface_hub as h; assert m.version("huggingface-hub") == "1.19.0" == h.__version__'
+          echo "HF_PUBLISHER_PYTHON=$PUBLISHER_PYTHON" >> "$GITHUB_ENV"
       - name: Reserve, submit, monitor and verify candidate
         env:
+          # Deliberately separate from HF_TOKEN: a least-privilege token scoped
+          # to the hf-training environment (docs/RECEIPT_TRAINING_RUNBOOK.md).
           HF_TOKEN: ${{ secrets.TRAINING_HF_TOKEN }}
           GH_TOKEN: ${{ github.token }}
-        run: python -m scripts.dispatch_receipt_training --submit --receipt-dir training-receipts
+        run: '"$HF_PUBLISHER_PYTHON" -E -s -m scripts.dispatch_receipt_training --submit --receipt-dir training-receipts'
       - name: Retain sanitized phase receipts, including failures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

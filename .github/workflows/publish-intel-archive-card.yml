@@ -134,9 +134,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Validation-only runs must never cancel a provider write or its readback.
-    # Only admitted publication jobs participate in the single-writer group.
+    # Only admitted publication jobs take the canonical per-asset Hub lock for
+    # the dataset they write.
     concurrency:
-      group: publish-killinchu-intel-archive-card-provider
+      group: hf-write/dataset/SZLHOLDINGS/killinchu-osint-corpus
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -186,7 +187,7 @@ jobs:
       - name: Publish and independently read back the exact revision
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
           test -n "${HF_TOKEN:-}" || { echo '::error::HF write token is not configured'; exit 2; }

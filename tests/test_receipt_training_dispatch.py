@@ -363,6 +363,34 @@ def test_preflight_failure_prevents_any_mutation(setup_dispatch):
     assert sink.records == []
 
 
+def test_preflight_absent_output_repo_fails_closed_before_any_other_call(monkeypatch):
+    image = "registry.example.test/receipt-training@sha256:" + "9" * 64
+    monkeypatch.setattr(dispatcher, "APPROVED_RUNTIMES", {image: {}})
+    manifest = make_manifest()
+    manifest["runtime"]["image"] = image
+    provider = dispatcher.HFProvider.__new__(dispatcher.HFProvider)
+    provider.token = "synthetic-test-token"
+    provider.api = mock.Mock(spec=["repo_exists"])
+    provider.api.repo_exists.return_value = False
+    with pytest.raises(dispatcher.DispatchError, match="OUTPUT_REPO_ABSENT"):
+        provider.preflight(manifest)
+    provider.api.repo_exists.assert_called_once_with(
+        "SZLHOLDINGS/khipu-frontier-35-2b", repo_type="model"
+    )
+
+
+def test_dispatcher_source_never_creates_a_hub_repository():
+    import ast
+    from pathlib import Path
+
+    tree = ast.parse(Path(dispatcher.__file__).read_text(encoding="utf-8"))
+    called = {
+        node.func.attr for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
+    assert not called & {"create_repo", "duplicate_space", "create_branch", "move_repo"}
+
+
 def test_reservation_intent_must_be_durable_before_reservation(setup_dispatch):
     _, provider, sink, _, _ = setup_dispatch
     sink.fail_state = "RESERVATION_INTENT"

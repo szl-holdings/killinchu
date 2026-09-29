@@ -365,6 +365,44 @@ def test_hub_publication_uses_reservation_cas_and_candidate_only(monkeypatch, tm
     assert params["operations"][0]["path_in_repo"] == name
 
 
+class _AbsentOutputAPI:
+    """Hub stand-in where the profile's output repo does not exist."""
+
+    def __init__(self):
+        self.calls = []
+
+    def repo_exists(self, repo_id, repo_type=None):
+        self.calls.append(("repo_exists", repo_id, repo_type))
+        return False
+
+    def __getattr__(self, name):
+        # Any other provider call (model_info, create_repo, create_commit, ...)
+        # would be a fail-open path.
+        raise AssertionError(f"unexpected provider call after absent target: {name}")
+
+
+@pytest.mark.parametrize("profile", sorted(worker.PROFILES))
+def test_absent_output_repo_fails_closed_without_creating_it(profile):
+    manifest = make_manifest()
+    manifest["profile"] = profile
+    manifest["output"]["repo_id"] = worker.PROFILES[profile]
+    backend = worker.HubBackend()
+    backend.api = _AbsentOutputAPI()
+    with pytest.raises(ValueError, match="OUTPUT_REPO_ABSENT"):
+        backend.output_head(manifest)
+    assert backend.api.calls == [("repo_exists", worker.PROFILES[profile], "model")]
+
+
+def test_worker_source_never_creates_a_hub_repository():
+    import ast
+    tree = ast.parse(WORKER_PATH.read_text(encoding="utf-8"))
+    called = {
+        node.func.attr for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
+    assert not called & {"create_repo", "duplicate_space", "create_branch", "move_repo"}
+
+
 def test_cli_failure_logs_no_exception_data(monkeypatch, capsys):
     manifest = make_manifest()
     monkeypatch.setenv("TRAINING_MANIFEST_JSON", json.dumps(manifest))
