@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failed refreshes, and expired cached observations cannot count as ready.
   This check does not grant operational authority or validate research claims.
 
+### Fixed - shared public Space HTTP diagnostic consistency
+- Apply the byte-identical A11oy diagnostic repair: retain HTTP error status
+  without reading the body, close the response, and require 2xx for application
+  liveness with either adapter. Retry, circuit and cache policy are unchanged.
+- Bind the paired contribution through the existing reciprocal content-addressed
+  shared-source protocol. This changes no domain, provider, hardware, actuation
+  route or claimed model capability.
+
 ### Changed - Hub Spaces public cut is 7 KEEP
 - Shared `szl_spaces_surface.py` / `szl_spaces_proxy.py` match a11oy: public
   Hub estate is 7 KEEP, not 26 tiles. Folded Spaces 307 to product and proof
