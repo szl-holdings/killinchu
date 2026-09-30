@@ -15,12 +15,23 @@ Parity gap-closing surfaces registered here (ADDITIVE — never clobbers existin
   POST /api/killinchu/v1/roe/evaluate               — evaluate a telemetry object against active ROE
   GET  /api/killinchu/v1/engagements/audit-log      — paginated, filterable engagement audit log
   POST /api/killinchu/v1/engagements/record         — record a completed engagement action
+  GET  /api/killinchu/v1/roe/decisions              — paginated ROE gate-decision audit feed
   GET  /api/killinchu/v1/sensor-fusion/status       — sensor-fusion sensor health + weights
   POST /api/killinchu/v1/sensor-fusion/fuse         — multi-sensor track fusion (weighted centroid)
 
 Every ROE decision and engagement record is emitted as a DSSE-signed Khipu receipt —
 killinchu's key differentiator: every interdiction is cryptographically gated, signed,
 and receipted. No competitor signs every interdiction.
+
+EVIDENCE-FIRST (feat/evidence-first-console):
+  * Every /roe/evaluate gate evaluation is PERSISTED to an in-memory ring with
+    its receipt coordinates (index + digest + signed state) so the ROE audit
+    view and after-action bundles can replay every gate decision with its
+    evidence. In-memory: resets on Space restart — labelled, never hidden.
+  * Every /engagements/record closes under a genuine 3-of-4 witness quorum
+    (khipu-consensus pattern over a dedicated in-process MeshHarness(4), REAL
+    ECDSA-P256 vote signatures). Witnesses are SIMULATED in-process mesh
+    nodes — a genuine protocol run, NOT cross-organ production signers.
 
 Honest framing
 --------------
@@ -36,6 +47,8 @@ Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import uuid
 from collections import deque
@@ -112,6 +125,120 @@ _ROE_POLICY: Dict[str, Any] = {
 # Engagement audit log
 _AUDIT_LOG: Deque[Dict[str, Any]] = deque(maxlen=5000)
 
+# ROE gate-decision log (EVIDENCE-FIRST). Every /roe/evaluate evaluation lands
+# here with its Khipu receipt coordinates so an auditor can replay: what did
+# the gate decide, under which policy hash, and where is the receipt? Same
+# honest posture as the audit log: in-memory, resets on Space restart.
+_ROE_DECISIONS: Deque[Dict[str, Any]] = deque(maxlen=2000)
+
+# ── Multi-witness engagement closure (SIMULATED, honestly labelled) ─────────
+# khipu-consensus 3-of-4 pattern over a DEDICATED in-process MeshHarness(4)
+# (the shared default harness seeds 3 nodes; an honest 3-of-4 needs a real 4th
+# witness — same pattern as killinchu_cop_fusion). Witnesses are SIMULATED
+# in-process mesh nodes holding REAL ECDSA-P256 keys: a genuine quorum protocol
+# run with verifiable per-vote signatures, NOT cross-organ production signers.
+try:
+    import killinchu_mesh as _kc_mesh
+except Exception:  # pragma: no cover - mesh unavailable: quorum reports UNAVAILABLE
+    _kc_mesh = None
+
+_CLOSURE_HARNESS = None
+_CLOSURE_HARNESS_ERR: Optional[str] = None
+
+
+def _closure_harness():
+    """Lazy dedicated 4-witness harness for engagement-closure quorums.
+
+    Falls back to the shared harness (possibly 3-node — the result is labelled
+    with the real witness count). Returns None when no harness can start; the
+    caller then reports UNAVAILABLE and NEVER fabricates a certificate.
+    """
+    global _CLOSURE_HARNESS, _CLOSURE_HARNESS_ERR
+    if _kc_mesh is None:
+        _CLOSURE_HARNESS_ERR = "killinchu_mesh import unavailable"
+        return None
+    if _CLOSURE_HARNESS is not None:
+        return _CLOSURE_HARNESS
+    try:
+        _CLOSURE_HARNESS = _kc_mesh.MeshHarness(4)
+    except Exception as e:
+        _CLOSURE_HARNESS_ERR = type(e).__name__
+        try:
+            _CLOSURE_HARNESS = _kc_mesh.get_harness()
+        except Exception:  # pragma: no cover
+            _CLOSURE_HARNESS = None
+    return _CLOSURE_HARNESS
+
+
+def _canonical_bytes(obj: Any) -> bytes:
+    """Deterministic canonical JSON bytes (sorted keys, tight separators)."""
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"),
+                      default=str).encode("utf-8")
+
+
+def _engagement_closure_quorum(record_core: Dict[str, Any]) -> Dict[str, Any]:
+    """Run the 3-of-4 witness quorum over an engagement-closure record hash.
+
+    Returns an honestly-labelled quorum result: CANONICAL / REJECTED per the
+    real vote count, or UNAVAILABLE (no certificate fabricated) when the mesh
+    harness cannot run in this runtime.
+    """
+    record_hash = hashlib.sha256(_canonical_bytes(record_core)).hexdigest()
+    harness = _closure_harness()
+    if harness is None:
+        return {
+            "state": "UNAVAILABLE",
+            "record_hash": record_hash,
+            "honesty": ("Witness quorum unavailable in this runtime "
+                        f"({_CLOSURE_HARNESS_ERR or 'harness not running'}); no "
+                        "certificate fabricated."),
+        }
+    try:
+        q = harness.run_quorum({"action": {
+            "op": "engagement_close",
+            "record_hash": record_hash,
+            "record_id": record_core.get("record_id"),
+        }})
+    except Exception as e:  # pragma: no cover - honest degrade, never crash record
+        return {
+            "state": "UNAVAILABLE",
+            "record_hash": record_hash,
+            "honesty": f"Witness quorum run failed ({type(e).__name__}); no "
+                       "certificate fabricated.",
+        }
+    cert = q.get("certificate") or {}
+    votes = q.get("votes") or []
+    signed_votes = len([v for v in votes if v.get("signed")])
+    return {
+        "state": "CANONICAL" if cert.get("canonical") else "REJECTED",
+        "quorum_mode": "SIMULATED_IN_PROCESS",
+        "record_hash": record_hash,
+        "action_hash": cert.get("action_hash"),
+        "allow_count": cert.get("allow_count"),
+        "threshold": cert.get("threshold"),
+        "n": cert.get("n"),
+        "witness_count": signed_votes,
+        "certificate": cert,
+        "certificate_preimage_sha256": q.get("certificate_preimage_sha256"),
+        "votes": votes,
+        "dsse": q.get("dsse"),
+        "honesty": ("SIMULATED witnesses — in-process mesh nodes with REAL "
+                    "ECDSA-P256 keys; a genuine quorum protocol run with "
+                    "offline-verifiable per-vote signatures, NOT cross-organ "
+                    "production signers. Khipu BFT safety is Conjecture 2 "
+                    "(OPEN) — never claimed proven."),
+    }
+
+
+def roe_decisions_snapshot() -> List[Dict[str, Any]]:
+    """Copy of the persisted ROE gate decisions in chronological (append) order."""
+    return list(reversed(_ROE_DECISIONS))
+
+
+def audit_log_snapshot() -> List[Dict[str, Any]]:
+    """Copy of the engagement audit log in chronological (append) order."""
+    return list(reversed(_AUDIT_LOG))
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -122,6 +249,26 @@ def _ts() -> str:
 
 def _fresh_id() -> str:
     return uuid.uuid4().hex[:16]
+
+
+def _telemetry_summary(telemetry: Dict[str, Any]) -> Dict[str, Any]:
+    """Bounded telemetry summary persisted with each ROE gate decision.
+
+    Keeps the decision log self-contained (auditable without the ingest ring)
+    while capping untrusted input size. Fields absent from the frame are
+    reported as None (audited UNKNOWN), never invented.
+    """
+    rid = telemetry.get("remote_id") or ""
+    return {
+        "track_id": telemetry.get("track_id") or telemetry.get("id"),
+        "lat": telemetry.get("latitude") or telemetry.get("lat"),
+        "lon": telemetry.get("longitude") or telemetry.get("lon"),
+        "alt_m": telemetry.get("altitude_m") or telemetry.get("alt_m"),
+        "speed_m_s": telemetry.get("speed_m_s") or telemetry.get("ground_speed_m_s"),
+        "classification": telemetry.get("classification"),
+        "vendor": telemetry.get("vendor"),
+        "remote_id_present": bool(rid),
+    }
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -567,9 +714,38 @@ def register(
             "track_id": telemetry.get("track_id"),
         })
 
+        # EVIDENCE-FIRST: persist the gate evaluation with its receipt so the
+        # ROE audit view and after-action bundles can replay every decision.
+        decision_id = f"ROE-{_fresh_id().upper()}"
+        policy_hash = hashlib.sha256(
+            _canonical_bytes(effective_policy.get("rules", {}))
+        ).hexdigest()
+        _ROE_DECISIONS.appendleft({
+            "decision_id": decision_id,
+            "ts_utc": _ts(),
+            "track_id": telemetry.get("track_id") or telemetry.get("id"),
+            "verdict": result["verdict"],
+            "flags": result["flags"],
+            "reasons": result["reasons"],
+            "effector_rec": result["effector_rec"],
+            "lambda_required": result["lambda_required"],
+            "policy_version": _ROE_POLICY.get("version"),
+            "policy_hash": policy_hash,
+            "policy_override_used": bool(policy_override),
+            "telemetry_summary": _telemetry_summary(telemetry),
+            "receipt": {
+                "index": receipt_node["index"],
+                "digest": receipt_node["digest"],
+                "signed": receipt_node.get("signed"),
+                "keyid": (receipt_node.get("dsse") or {}).get("keyid"),
+            },
+            "doctrine": _DOCTRINE,
+        })
+
         return JSONResponse({
             "ok": True,
             **result,
+            "decision_id": decision_id,
             "roe_receipt": {
                 "index": receipt_node["index"],
                 "digest": receipt_node["digest"],
@@ -579,6 +755,48 @@ def register(
         })
 
     registered.append(f"POST {base}/roe/evaluate")
+
+    # ------------------------------------------------------------------
+    # ROE gate-decision audit feed
+    # ------------------------------------------------------------------
+
+    @app.get(f"{base}/roe/decisions")
+    async def roe_decisions(
+        limit: int = 50,
+        offset: int = 0,
+        verdict: Optional[str] = None,
+        track_id: Optional[str] = None,
+    ) -> JSONResponse:
+        """Paginated, filterable feed of every persisted ROE gate evaluation.
+
+        Each record carries the verdict, flags, reasons, policy hash and the
+        Khipu receipt coordinates (index + digest + signed state) minted for
+        that decision — the ROE audit view renders this feed directly.
+        Query params: limit, offset, verdict (ALLOW/SUSPECT/ENGAGE/REVIEW),
+        track_id.
+        """
+        limit = min(max(1, limit), 500)
+        offset = max(0, offset)
+        records = list(_ROE_DECISIONS)
+        if verdict:
+            records = [r for r in records if r.get("verdict", "").upper() == verdict.upper()]
+        if track_id:
+            records = [r for r in records if r.get("track_id") == track_id]
+        total = len(records)
+        page = records[offset: offset + limit]
+        return JSONResponse({
+            "ok": True,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "decisions": page,
+            "doctrine": _DOCTRINE,
+            "honesty": "ROE decision log is in-memory (deque maxlen=2000); resets on "
+                       "Space restart. Receipt digests resolve against the Khipu "
+                       "ledger while both live in the same runtime.",
+        })
+
+    registered.append(f"GET {base}/roe/decisions")
 
     # ------------------------------------------------------------------
     # Engagement audit log
@@ -644,6 +862,16 @@ def register(
             "lambda_at_decision": body.get("lambda_at_decision"),
             "doctrine": _DOCTRINE,
         }
+
+        # EVIDENCE-FIRST: close the engagement under a genuine 3-of-4 witness
+        # quorum (khipu-consensus pattern). SIMULATED in-process witnesses with
+        # REAL ECDSA-P256 vote signatures — the certificate is attached to the
+        # record and bound into the Khipu receipt payload below. UNAVAILABLE
+        # (never fabricated) when the mesh harness cannot run.
+        record_core = {k: record[k] for k in (
+            "record_id", "ts_utc", "track_id", "verdict", "effector", "operator_id")}
+        record["witness_quorum"] = _engagement_closure_quorum(record_core)
+
         _AUDIT_LOG.appendleft(record)
 
         # DSSE receipt — killinchu differentiator: every engagement is receipted
@@ -653,6 +881,9 @@ def register(
             "verdict": record["verdict"],
             "effector": record["effector"],
             "operator_id": record["operator_id"],
+            "quorum_state": record["witness_quorum"].get("state"),
+            "quorum_action_hash": record["witness_quorum"].get("action_hash"),
+            "quorum_allow_count": record["witness_quorum"].get("allow_count"),
         })
         record["receipt"] = {
             "index": receipt_node["index"],

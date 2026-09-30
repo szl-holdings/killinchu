@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "cd2e00d93b3d8666056516fb5651d46f1ee2c019fcae9b469d693fe29b9f60f6"
+    "sha256": "85c2fd5b8b4f3505f2a9d94da1656e9a658c7b6c5b848f9654c18f1242739314"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "cd2e00d93b3d8666056516fb5651d46f1ee2c019fcae9b469d693fe29b9f60f6"
+    "sha256": "85c2fd5b8b4f3505f2a9d94da1656e9a658c7b6c5b848f9654c18f1242739314"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -34,6 +34,7 @@
     "fleet_vessels_data.json",
     "gdw_auth.py",
     "killinchu_active_flux.py",
+    "killinchu_after_action.py",
     "killinchu_ais_aug2024.py",
     "killinchu_anatomy.py",
     "killinchu_asw.py",
@@ -283,6 +284,7 @@
     "szl_waqay.py",
     "szl_warhacker_aliases.py",
     "szl_yupay.py",
+    "tools/killinchu_verify_after_action.py",
     "vsp_otel/__init__.py",
     "vsp_otel/middleware.py",
     "web/autoreview.html",
@@ -310,6 +312,7 @@
     "a11oy_waqay_nav",
     "a11oy_yupay_nav",
     "killinchu_active_flux",
+    "killinchu_after_action",
     "killinchu_ais_aug2024",
     "killinchu_anatomy",
     "killinchu_asw",
