@@ -15,14 +15,19 @@ import szl_immune as immune
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_A11OY_COMMIT = "5c554a243364b6629a4c41a5d07d355241ac16d6"
+SOURCE_A11OY_COMMIT = "3831b4475ed16d78efc337496a87847a6320b06c"
 EXPECTED_MANIFEST_SHA256 = (
-    "3197110a3061ee92e5cf051a632a63aaf12255a03c751360488a4c084950ad28"
+    "d459bbb271014a22e855ddd3053a4537a5a7f9f1cd23eaf9873cfd4a158c7637"
 )
 EXPECTED_SHA256 = {
+    "a11oy_code_engine.py": "73f79731902dedca156ad31e551cb3b852d528e6668fa820a36a0f3a4540dbbc",
     "gdw_auth.py": "c692593e02873f7b71b9a108fa42a9c2ae7f29d455596d9dd0a4236145297e89",
-    "szl_agentic_loop.py": "84b29cbe7db8b8931afcf79c58d8b14f7457dee48c66cb906726dbeb65b74849",
-    "szl_immune.py": "acd3cb1d72cd87e812c80ff25349268b9e46256a1ce4ddd017c28cf9c3805378",
+    "szl_agentic_loop.py": "4cfd1b8703ac3f1a9b0fe6a31a99e8d1f5caec608f947fe9a4a3d6107eaee596",
+    "szl_immune.py": "6047e4c3ac016650789a07405464a0c3bfedd14dac0cac3cc8e7327857b8893d",
+    "szl_ken.py": "6c0f1da763fa94a75f4e5cefb01461d9f7e62be92f6681b0bacf671d75a39f26",
+    "szl_operator_auth.py": "7a356e6423ae65d1e399e36bfeb3f941c93dcd8c980b1d11afabc8dc12dba8dc",
+    "vsp_otel/__init__.py": "c474f6461efede971bdc7e00684b246eee036e7293c5e9ba37e85fd173dadd58",
+    "vsp_otel/middleware.py": "93f1d16fa2d4ec0e9e29417ea7b1f5b33534520d99f2c8c41a27d951f1ac8f63",
 }
 TOKEN = "test-killinchu-runtime-operator"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
@@ -97,11 +102,13 @@ def test_operator_auth_dependency_is_in_the_runtime_image() -> None:
         }
         assert "szl_agentic_loop.py" in copied_sources
         assert "gdw_auth.py" in copied_sources
+        assert "szl_operator_auth.py" in copied_sources
 
     image_contract = json.loads(
         (ROOT / "deploy/image-contract.json").read_text(encoding="utf-8")
     )
     assert "gdw_auth.py" in image_contract["local_copy_sources"]
+    assert "szl_operator_auth.py" in image_contract["local_copy_sources"]
 
 
 def test_gitleaks_exception_is_bound_to_the_public_auth_digest_row() -> None:
