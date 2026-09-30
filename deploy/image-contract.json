@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "d69ab76f38f564d49ba6c1087fbdda0698bee3e07d9cc54b54fc40c1126643bf"
+    "sha256": "cd2e00d93b3d8666056516fb5651d46f1ee2c019fcae9b469d693fe29b9f60f6"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "d69ab76f38f564d49ba6c1087fbdda0698bee3e07d9cc54b54fc40c1126643bf"
+    "sha256": "cd2e00d93b3d8666056516fb5651d46f1ee2c019fcae9b469d693fe29b9f60f6"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -251,6 +251,7 @@
     "szl_neuroplasticity.py",
     "szl_nvfp4.py",
     "szl_opera.py",
+    "szl_operator_auth.py",
     "szl_provenance.py",
     "szl_qhawaq.py",
     "szl_quant_qbio_holo.py",
@@ -282,6 +283,8 @@
     "szl_waqay.py",
     "szl_warhacker_aliases.py",
     "szl_yupay.py",
+    "vsp_otel/__init__.py",
+    "vsp_otel/middleware.py",
     "web/autoreview.html",
     "web/console.html",
     "web/console.js",

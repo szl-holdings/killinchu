@@ -21,6 +21,12 @@ FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc4243
 
 WORKDIR /app
 
+# Imported by serve.py; retain the shared package in the immutable COPY set.
+COPY vsp_otel/__init__.py vsp_otel/middleware.py ./vsp_otel/
+
+# Shared handlers resolve operator identity from headers before protected work.
+COPY szl_operator_auth.py ./
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
