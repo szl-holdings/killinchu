@@ -3564,6 +3564,36 @@ except Exception as _elite_e:
 # ── end ELITE ────────────────────────────────────────────────────────────────
 
 # ===========================================================================
+# ADDITIVE (evidence-first console, 2026-09-30): AFTER-ACTION RECEIPT BUNDLES.
+# One self-contained, offline-verifiable JSON per engagement: the closure
+# record (with its SIMULATED 3-of-4 witness quorum certificate), every
+# persisted ROE gate decision for the track, the track timeline, the ROE
+# policy hash and the FULL in-memory Khipu receipt chain (GENESIS→head) so an
+# auditor re-checks digests + links + DSSE signatures without trusting the
+# operator:
+#   GET /api/killinchu/v1/engagements/after-action?track_id=…
+#   GET /api/killinchu/v1/engagements/{record_id}/after-action
+# Offline verify: python tools/killinchu_verify_after_action.py bundle.json.
+# Effectors SIMULATED. Witnesses SIMULATED (in-process, REAL ECDSA-P256 keys).
+# Doctrine v11 LOCKED · law 4: missing evidence => INCOMPLETE, never PASS.
+# ===========================================================================
+try:
+    import killinchu_after_action as _after_action
+    _aar_status = _after_action.register(
+        app,
+        emit_receipt=_emit_receipt,
+        ns="killinchu",
+        ledger_readiness=_LEDGER_RUNTIME.readiness,
+        ledger_snapshot=_LEDGER_RUNTIME.snapshot,
+    )
+    print(f"[killinchu] After-action export registered: {_aar_status['registered']}", file=sys.stderr)
+except Exception as _aar_e:
+    import traceback as _aar_tb
+    print(f"[killinchu] After-action export NOT registered: {_aar_e!r}", file=sys.stderr)
+    _aar_tb.print_exc()
+# ── end AFTER-ACTION ──────────────────────────────────────────────────────────
+
+# ===========================================================================
 # ADDITIVE (DEV 3): killinchu COMMON OPERATING PICTURE (COP) fusion surface.
 # A defense-leader-grade fused COP at /elite/cop — Anduril Lattice ENTITY MESH
 # (typed threat tracks → genuine ECDSA-P256 signed entity-state transitions via

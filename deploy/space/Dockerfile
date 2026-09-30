@@ -136,6 +136,11 @@ COPY killinchu_edge_console.py szl_agentic_loop.py gdw_auth.py szl_anatomy_route
 # szl_agentic_loop. Root-cause fix (add the COPY, never weaken the guard). The
 # new transitive COPY-completeness guard now catches this class in CI.
 COPY killinchu_cop_fusion.py killinchu_engagement_receipt.py szl_agent_loop_banach.py ./
+# After-action evidence export (feat/evidence-first-console): the bundle builder.
+COPY killinchu_after_action.py ./
+# Offline after-action bundle verifier — ships inside the Space so the export
+# points at a working, co-deployed verifier (never a page-only promise).
+COPY tools/killinchu_verify_after_action.py ./tools/killinchu_verify_after_action.py
 # Wave 15 frontier organs (Dynamic Linear Attention, Context-Ready Transformer, OPERA perplexity-reward).
 COPY szl_dla.py szl_ctxready.py szl_opera.py ./
 # Wave 16: Formula-Graph Brain organ on its OWN dedicated COPY layer (self-repair /repair
