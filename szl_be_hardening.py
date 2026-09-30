@@ -750,15 +750,16 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                                 "git_sha": os.getenv("SZL_GIT_SHA", "unknown")}
         try:
             import szl_dsse as _dsse
+            public_key_pem = _dsse.active_public_key_pem().strip()
             info.update({
                 "data_kind": "live",
                 "algorithm": "ECDSA-P256-SHA256 over DSSE PAE (cosign-compatible)",
                 "signing_available": bool(_dsse.signing_available()),
-                "public_key_fingerprint_sha256": _dsse.public_key_fingerprint(),
-                "public_key_pem": _dsse.COSIGN_PUBLIC_PEM.strip(),
+                "public_key_fingerprint_sha256": _dsse.keyid_for_public_pem(public_key_pem),
+                "public_key_pem": public_key_pem,
                 "private_key_source": ("runtime secret only "
                                        "(SZL_COSIGN_PRIVATE_KEY_PEM); never committed"),
-                "honesty": ("the embedded public key verifies signatures offline "
+                "honesty": ("the active runtime public key verifies signatures offline "
                             "(cosign verify-blob). Signing is REAL only when the cosign "
                             "private-key secret is present in this runtime — "
                             "signing_available reports that truthfully; never faked."),
