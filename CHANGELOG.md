@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Passive readiness now separates transport reachability from successful health
+  and research JSON contracts. Missing routes, HTML responses, invalid payloads,
+  failed refreshes, and expired cached observations cannot count as ready.
+  This check does not grant operational authority or validate research claims.
+
 ### Changed - Hub Spaces public cut is 7 KEEP
 - Shared `szl_spaces_surface.py` / `szl_spaces_proxy.py` match a11oy: public
   Hub estate is 7 KEEP, not 26 tiles. Folded Spaces 307 to product and proof
