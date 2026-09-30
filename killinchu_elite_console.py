@@ -4405,6 +4405,24 @@ const VIEWS = {
         <div id="audit-summary" class="mono dim" style="font-size:12px;margin-bottom:.5rem">— click to record —</div>
         <details class="raw"><summary>raw /engagements/record</summary><pre class="out" id="audit-out">—</pre></details></div>
       <details class="raw"><summary>raw /engagements/audit-log</summary><pre class="out" id="audit-raw">—</pre></details>
+      <!-- ── EVIDENCE-FIRST (feat/evidence-first-console): ROE gate-decision audit
+           over the PERSISTED /roe/decisions feed — every gate evaluation shown with
+           the receipt it was chained into. In-memory; resets on restart. ── -->
+      <div class="card"><div class="card-h"><span class="card-t">ROE Gate Decisions — every evaluation, with its receipt</span><span class="card-ep">persisted /roe/decisions · receipt-bound · in-memory</span></div>
+        <div class="mono dim" style="font-size:11px;margin-bottom:.5rem">Every <code>/roe/evaluate</code> call lands here with its verdict, flags, policy hash and the Khipu receipt coordinates (index + digest + signed state) minted for that decision — Zero-Bandaid: empty shows an audited 0, never a blank.</div>
+        <div id="roe-decision-list"><div class="row mono dim">0 gate decisions recorded (demo memory, resets on restart)</div></div>
+      </div>
+      <!-- ── EVIDENCE-FIRST: after-action receipt bundle — one self-contained JSON
+           per engagement, offline-verifiable. Effectors + witnesses SIMULATED. ── -->
+      <div class="card"><div class="card-h"><span class="card-t">After-Action Receipt Bundle — offline-verifiable</span><span class="card-ep">effectors SIMULATED · witnesses SIMULATED · check without trusting us</span></div>
+        <div class="mono dim" style="font-size:11px;margin-bottom:.5rem">Exports one JSON per engagement: the closure (with its <b>SIMULATED 3-of-4 witness quorum</b> certificate — REAL per-vote ECDSA-P256 signatures), every ROE gate decision for the track, the track timeline, the ROE policy hash and the <b>full signed receipt chain GENESIS→head</b>. Verify it offline: <code>python tools/killinchu_verify_after_action.py bundle.json</code> — recomputes every digest and hash link; needs no trust in this Space. A signature proves integrity of the record, never that the decision was right. <b>Effector SIMULATED; killinchu does not fly anything.</b></div>
+        <div class="btns">
+          <button class="btn teal" onclick="aar_export('TRK-0001')">⇩ Build bundle for TRK-0001</button>
+          <span id="aar-download" style="align-self:center"></span>
+        </div>
+        <div id="aar-summary" class="mono dim" style="font-size:11px;margin:.4rem 0">— click to assemble the evidence bundle —</div>
+        <details class="raw"><summary>raw /engagements/after-action</summary><pre class="out" id="aar-out">—</pre></details>
+      </div>
       <!-- ── Folded-in DSSE “Verify Signed Receipt” panel (was the separate Verify Signed Receipt tab) — same /receipt/ledger + /receipt/export + /cosign.pub path. Merged here so the signed-receipt verify lives next to the signed audit log it backs. ── -->
       <div class="card"><div class="card-h"><span class="card-t">Verify a signed receipt — in your browser</span><span class="card-ep">ECDSA P-256 · WebCrypto · no trust in us required</span></div>
         <div class="kpis" style="margin-bottom:.6rem">
@@ -4487,6 +4505,8 @@ const VIEWS = {
           else elS('au-sankey').innerHTML='<div class="row mono dim">no active tracks to govern</div>';
         }catch(e){const h=el('au-sankey');if(h)h.innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>';}
       })();
+      // EVIDENCE-FIRST: load the persisted ROE gate-decision feed (with receipts).
+      load_roe_decisions('roe-decision-list');
       try{
         const d = await getJSON(API+'/engagements/audit-log?limit=50');
         setOut('audit-raw',d);
@@ -6059,6 +6079,58 @@ async function roe_eval(){
   }catch(e){setOut('roe-out','retry: '+e.message); if(el('roe-verdict'))elS('roe-verdict').textContent='retry: '+e.message;}
 }
 
+// ── EVIDENCE-FIRST (feat/evidence-first-console) ──────────────────────────────
+// Renders the persisted ROE gate-decision feed. Zero-Bandaid: empty renders an
+// audited 0-state line; errors render a retry line; rows are never fabricated.
+async function load_roe_decisions(targetId){
+  const h = el(targetId); if(!h) return;
+  try{
+    const d = await getJSON(API+'/roe/decisions?limit=50');
+    const ds = d.decisions || [];
+    if(!ds.length){ h.innerHTML='0 gate decisions recorded (demo memory, resets on restart)'.replace(/^/,'<div class="row mono dim">').replace(/$/,'</div>'); return; }
+    h.innerHTML='';
+    ds.forEach(dec=>{
+      const r = dec.receipt || {};
+      const signed = r.signed === true;
+      const sigBadge = signed ? '<span class="badge b-live">SIGNED</span>' : '<span class="badge b-warn">UNSIGNED-HONEST</span>';
+      h.insertAdjacentHTML('beforeend','<div class="row" title="'+esc((dec.reasons||[]).join(' — '))+'">'
+        +'<span class="badge '+verdictClass(dec.verdict)+'">'+esc(dec.verdict)+'</span>'
+        +'<span class="mono" style="font-size:11px">'+esc(dec.track_id||'UNKNOWN')+'</span>'
+        +'<span class="mono dim" style="font-size:10px">'+esc((dec.flags||[]).join(' ')||'no flags')+'</span>'
+        +'<span class="spacer mono dim" style="font-size:10px">'
+        +sigBadge+' #'+esc(r.index!=null?String(r.index):'?')+' · '+esc((r.digest||'').slice(0,12))+'… · '+esc((dec.ts_utc||'').slice(0,19))
+        +'</span></div>');
+    });
+  }catch(e){ h.innerHTML='<div class="row mono dim">retry: '+esc(e.message)+'</div>'; }
+}
+
+// Assemble the after-action evidence bundle for a track and offer it as a
+// download. The bundle is exactly what tools/killinchu_verify_after_action.py
+// checks offline — the console never asks the auditor to trust the export.
+async function aar_export(trackId){
+  const sum = el('aar-summary'), dl = el('aar-download');
+  try{
+    if(sum) sum.textContent='assembling bundle for '+trackId+'…';
+    const d = await getJSON(API+'/engagements/after-action?track_id='+encodeURIComponent(trackId));
+    setOut('aar-out', d);
+    const ts = d.truth_states || {};
+    const eng = d.engagement || {};
+    if(sum) sum.innerHTML='<span class="badge '+(eng.latest_closure_state==='CANONICAL'?'b-live':'b-warn')+'">'+esc(eng.latest_closure_state||'NO CLOSURE')+'</span>'
+      +' closures='+(eng.closure_count||0)+' · witnesses '+esc(String(eng.witness_allow_count!=null?eng.witness_allow_count:'—'))+'/'+esc(String(eng.witness_threshold!=null?eng.witness_threshold:'—'))
+      +' · effectors '+esc(ts.effectors||'SIMULATED')+' · witnesses '+esc(ts.witnesses||'SIMULATED_IN_PROCESS')
+      +' · operator '+esc(ts.operator||'UNKNOWN')+' · signing '+esc(ts.signing||'UNKNOWN');
+    if(dl){
+      const blob = new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      dl.innerHTML='<a class="btn" style="min-height:36px;font-size:11px" download="killinchu-after-action-'+esc(trackId)+'.json" href="'+url+'">⇩ download bundle.json</a>';
+    }
+  }catch(e){
+    setOut('aar-out', String(e.message||e));
+    if(sum) sum.textContent='retry: '+(e.message||e)+' (no closures yet for this track in this runtime)';
+  }
+}
+// ── end EVIDENCE-FIRST ────────────────────────────────────────────────────────
+
 async function audit_record(){
   try{
     setOut('audit-out','recording…');
@@ -6068,6 +6140,12 @@ async function audit_record(){
     });
     setOut('audit-out',d);
     if(el('audit-summary')) elS('audit-summary').innerHTML='<span class="badge b-live">RECORDED</span> signed &amp; chained '+(d.signed||(d.receipt&&d.receipt.signed)?'(signature attached)':'');
+    // EVIDENCE-FIRST: surface the SIMULATED witness-quorum closure state.
+    const wq=(d.record&&d.record.witness_quorum)||{};
+    if(wq && wq.state && el('audit-summary'))
+      elS('audit-summary').innerHTML+=' · closure <b>'+esc(wq.state)+'</b> (witnesses '+(wq.allow_count!=null?wq.allow_count:'—')+'/'+(wq.threshold!=null?wq.threshold:'—')+'; SIMULATED in-process)';
+    // EVIDENCE-FIRST: refresh the ROE gate-decision panel (if mounted).
+    load_roe_decisions('roe-decision-list');
     // Refresh audit log count + the signed-chain list (the ROE Sankey is driven by the live picture, not the demo log)
     const r = await getJSON(API+'/engagements/audit-log?limit=50');
     if(el('k-audit')) el('k-audit').textContent = r.total ?? 0;
