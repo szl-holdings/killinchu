@@ -1,13 +1,36 @@
 # SPDX-License-Identifier: Apache-2.0
 """Offline regression of the shared public HTTP diagnostic boundary."""
 import asyncio
+import hashlib
 import io
+import json
+from pathlib import Path
 from types import SimpleNamespace
 import urllib.error
 import urllib.request
 
 import pytest
 import szl_spaces_surface as surface
+
+
+def test_current_shared_http_payload_is_content_bound():
+    root = Path(__file__).resolve().parents[1]
+    raw = (root / ".github/shared-source-payload-manifest.json").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == (
+        "4722f453e17d53e192ebcfcc8ae65b18b42d8bb80926baa2dedacb48dfa69ec1"
+    )
+    payload = json.loads(raw)
+    assert payload == {
+        "files": {
+            "szl_spaces_surface.py":
+                "a4f00e960ceeeb5bbec308da338b658ff622c1d8dbd3002dadea2a35ff2edf8c",
+        },
+        "payload_id": "space-http-diagnostics-20260930-v1",
+        "schema": "szl-shared-source-payload/v1",
+    }
+    assert hashlib.sha256((root / "szl_spaces_surface.py").read_bytes()).hexdigest() == (
+        payload["files"]["szl_spaces_surface.py"]
+    )
 
 
 @pytest.mark.parametrize("status", [301, 401, 403, 404, 429, 500, 503])

@@ -80,7 +80,9 @@ def _operator_registry(monkeypatch):
 
 def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
     assert len(SOURCE_A11OY_COMMIT) == 40
-    assert _digest(ROOT / ".github/shared-source-payload-manifest.json") == (
+    # Each new paired contribution replaces the active admission manifest.
+    # Keep this earlier runtime proof immutable instead of pinning that slot.
+    assert _digest(ROOT / ".github/shared-source-payloads/runtime-boundary-1994-v2.json") == (
         EXPECTED_MANIFEST_SHA256
     )
     assert {

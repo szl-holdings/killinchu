@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bind the paired contribution through the existing reciprocal content-addressed
   shared-source protocol. This changes no domain, provider, hardware, actuation
   route or claimed model capability.
+- Preserve the preceding runtime-boundary payload at its immutable historical
+  digest and keep all eight source guards. Check the new active HTTP payload
+  separately, so replacing the admission slot cannot erase the earlier proof.
 
 ### Changed - Hub Spaces public cut is 7 KEEP
 - Shared `szl_spaces_surface.py` / `szl_spaces_proxy.py` match a11oy: public
