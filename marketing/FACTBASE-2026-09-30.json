@@ -1,0 +1,27 @@
+{
+  "generated": "2026-09-30",
+  "source": "live API pull, never typed from memory",
+  "github": {
+    "repos": 120,
+    "archived": 28,
+    "stars_total": 8
+  },
+  "hf": {
+    "models": 50,
+    "top_model": {
+      "id": "SZLHOLDINGS/chaski",
+      "downloads": 3070
+    },
+    "datasets": 34,
+    "top_dataset": {
+      "id": "SZLHOLDINGS/killinchu-osint-corpus",
+      "downloads": 74157
+    },
+    "spaces": 27,
+    "headline": {
+      "id": "SZLHOLDINGS/killinchu-osint-corpus",
+      "downloads": 74157
+    }
+  }
+}
+factbase locked 2026-09-30 — headline artifact: SZLHOLDINGS/killinchu-osint-corpus (74,157 dl)
