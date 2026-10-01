@@ -103,7 +103,7 @@ jobs:
               echo "- manifest SHA-256: \`${PAYLOAD_SHA256}\`"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Checkout a11oy (verified sibling, pull request evidence)
+      - name: Checkout a11oy (verified sibling)
         # Pull-request context only: the resolved peer ref may point at an open
         # a11oy PR head and is validated above. It is never checked out in the
         # default-branch (push/schedule/dispatch) context, which closes CodeQL's
