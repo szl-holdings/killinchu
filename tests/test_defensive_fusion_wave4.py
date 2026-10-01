@@ -79,11 +79,16 @@ def epss_payload() -> dict:
     }
 
 
+def _host(url: str) -> str:
+    from urllib.parse import urlsplit
+    return (urlsplit(url).hostname or "").lower()
+
+
 def fake_http(url: str, *args, **kwargs):
-    if "services.nvd.nist.gov" in url:
+    if _host(url) == "services.nvd.nist.gov":
         assert "cveId=CVE-2026-12345" in url
         return 200, nvd_payload()
-    if "api.first.org" in url:
+    if _host(url) == "api.first.org":
         assert "cve=CVE-2026-12345" in url
         return 200, epss_payload()
     raise AssertionError(url)
@@ -130,9 +135,9 @@ def test_missing_source_is_partial_not_silently_scored_as_zero():
     security._CACHE.clear()
 
     def partial_http(url: str, *args, **kwargs):
-        if "services.nvd.nist.gov" in url:
+        if _host(url) == "services.nvd.nist.gov":
             return 503, {}
-        if "api.first.org" in url:
+        if _host(url) == "api.first.org":
             return 200, epss_payload()
         raise AssertionError(url)
 
@@ -195,9 +200,9 @@ def test_measured_transports_without_exact_cve_do_not_create_a_priority():
     security._CACHE.clear()
 
     def empty_http(url: str, *args, **kwargs):
-        if "services.nvd.nist.gov" in url:
+        if _host(url) == "services.nvd.nist.gov":
             return 200, {"vulnerabilities": []}
-        if "api.first.org" in url:
+        if _host(url) == "api.first.org":
             return 200, {"data": []}
         raise AssertionError(url)
 
