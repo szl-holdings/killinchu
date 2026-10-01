@@ -104,10 +104,23 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Checkout a11oy (verified sibling)
+        # Pull-request context only: the resolved peer ref may point at an open
+        # a11oy PR head and is validated above. It is never checked out in the
+        # default-branch (push/schedule/dispatch) context, which closes CodeQL's
+        # actions/cache-poisoning/poisonable-step finding.
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ steps.peer.outputs.repository }}
           ref: ${{ steps.content_peer.outputs.ref || steps.peer.outputs.ref }}
+          path: sibling
+          persist-credentials: false
+      - name: Checkout a11oy (main, default-branch context)
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/a11oy
+          ref: main
           path: sibling
           persist-credentials: false
       - name: Validate content-addressed shared payload
