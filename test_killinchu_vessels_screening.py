@@ -17,7 +17,8 @@ def test_list_load_and_hit():
 
 
 def test_clear_and_fail_closed():
-    assert vs.screen_entity("Innocent Maritime Ltd")["result"] == "CLEAR"
+    vs.load_screening_list("op-list", ["Shadow Fleet Co"])
+    assert vs.screen_entity("Innocent Maritime Ltd")["result"] == "NO_EXACT_MATCH"
     assert vs.screen_entity("")["result"] == "BLOCKED_PENDING"
 
 

@@ -34,6 +34,7 @@ import asyncio
 import hashlib
 import ipaddress
 import json
+import math
 import os
 import re
 import threading
@@ -1259,14 +1260,37 @@ def screen_sanctions(name: str) -> dict[str, Any]:
     source_results = [fetch_source("ofac-sdn"), fetch_source("un-dprk-1718")]
     matches: list[dict[str, Any]] = []
     available = 0
+    available_ids: set[str] = set()
     source_hashes: dict[str, str | None] = {}
+    coverage_issues: dict[str, str] = {}
+    now = time.time()
     for result in source_results:
         source_id = str(result.get("source_id"))
         source_hashes[source_id] = result.get("content_sha256")
-        if result.get("mode") in {MODE_LIVE, MODE_CACHED}:
-            available += 1
-        for record in result.get("items") or []:
+        fetched = result.get("fetched_epoch")
+        items = result.get("items")
+        source_hash = result.get("content_sha256")
+        fresh = (not isinstance(fetched, bool) and isinstance(fetched, (int, float))
+                 and math.isfinite(fetched) and 0 <= now - fetched <= 21600)
+        valid_items = (isinstance(items, list) and bool(items)
+                       and all(isinstance(record, dict)
+                               and isinstance(record.get("names"), list)
+                               and bool(record["names"])
+                               and all(isinstance(n, str) and n.strip() for n in record["names"])
+                               for record in items))
+        valid_hash = isinstance(source_hash, str) and bool(re.fullmatch(r"[0-9a-f]{64}", source_hash))
+        if (source_id in {"ofac-sdn", "un-dprk-1718"}
+                and result.get("mode") in {MODE_LIVE, MODE_CACHED}
+                and fresh and valid_items and valid_hash):
+            available_ids.add(source_id)
+        else:
+            coverage_issues[source_id] = "source missing, stale, empty, malformed, or without a content hash"
+        for record in items if isinstance(items, list) else []:
+            if not isinstance(record, dict):
+                continue
             names = record.get("names") or []
+            if not isinstance(names, list):
+                continue
             matched_names = [
                 candidate
                 for candidate in names
@@ -1284,10 +1308,11 @@ def screen_sanctions(name: str) -> dict[str, Any]:
                         "matched_names": matched_names,
                     }
                 )
+    available = len(available_ids)
     coverage = "FULL" if available == 2 else "PARTIAL" if available else "NONE"
     if matches:
         verdict = "POSSIBLE_MATCH"
-    elif available:
+    elif coverage == "FULL" and len(source_hashes) == 2:
         verdict = "NO_EXACT_MATCH"
     else:
         verdict = "BLOCKED_PENDING"
@@ -1296,6 +1321,7 @@ def screen_sanctions(name: str) -> dict[str, Any]:
         "coverage": coverage,
         "verdict": verdict,
         "source_hashes": source_hashes,
+        "coverage_issues": coverage_issues,
         "matches": matches,
     }
     return {
@@ -1304,6 +1330,8 @@ def screen_sanctions(name: str) -> dict[str, Any]:
         "coverage": coverage,
         "sources_available": available,
         "sources_expected": 2,
+        "coverage_issues": coverage_issues,
+        "coverage_scope": "CONFIGURED_OFAC_SDN_AND_UN_DPRK_ONLY",
         "matches": matches,
         "receipt_sha256": _sha256(_canonical_json(receipt_body)),
         "truth_label": "MEASURED_LIST_MATCH",

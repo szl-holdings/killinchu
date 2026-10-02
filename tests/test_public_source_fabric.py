@@ -279,6 +279,7 @@ class PublicSourceFabricContract(unittest.TestCase):
             "ofac-sdn": {
                 "source_id": "ofac-sdn",
                 "mode": "LIVE",
+                "fetched_epoch": time.time(),
                 "content_sha256": "a" * 64,
                 "items": [
                     {
@@ -293,8 +294,9 @@ class PublicSourceFabricContract(unittest.TestCase):
             "un-dprk-1718": {
                 "source_id": "un-dprk-1718",
                 "mode": "LIVE",
+                "fetched_epoch": time.time(),
                 "content_sha256": "c" * 64,
-                "items": [],
+                "items": [{"names": ["Other Entity"]}],
             },
         }
         with mock.patch.object(psf, "fetch_source", side_effect=lambda source_id: fixtures[source_id]):

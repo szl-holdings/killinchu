@@ -20,6 +20,7 @@ Space Dockerfile before enabling on the live surface (KNOWN_GOTCHAS pattern).
 from __future__ import annotations
 
 import hashlib
+import math
 import time
 from collections import defaultdict, deque
 from typing import Any, Deque, Dict, List, Tuple
@@ -72,7 +73,9 @@ def load_screening_list(
         clean_source = "operator-supplied"
     if truth_label != "REPORTED":
         raise ValueError("screening-list assertions must remain REPORTED")
-    norm = {" ".join(e.split()).casefold() for e in entries if e and e.strip()}
+    if not isinstance(entries, list) or any(not isinstance(e, str) for e in entries):
+        raise ValueError("screening entries must be a list of strings")
+    norm = {" ".join(e.split()).casefold() for e in entries if e.strip()}
     _LISTS[clean_name] = {
         "source": clean_source,
         "entities": norm,
@@ -94,22 +97,34 @@ def _norm(s: str) -> str:
 
 def screen_entity(name: str) -> Dict[str, Any]:
     """Screen one entity/vessel name against every loaded list. Fail closed."""
-    if not name or not name.strip():
+    if not isinstance(name, str) or not name.strip():
         return {"name": name, "result": "BLOCKED_PENDING",
-                "reason": "empty query", "truth_label": "MEASURED"}
+                "reason": "empty or malformed query", "truth_label": "MEASURED",
+                "manual_review_required": True, "action_authority": "NONE"}
     if not _LISTS:
         return {"name": name, "result": "BLOCKED_PENDING",
                 "reason": "no screening lists loaded",
-                "truth_label": "MEASURED"}
+                "truth_label": "MEASURED",
+                "manual_review_required": True, "action_authority": "NONE"}
     n = _norm(name)
     hits: List[Dict[str, Any]] = []
+    incomplete: List[str] = []
+    now = time.time()
     for lname, ldata in _LISTS.items():
+        loaded = ldata.get("loaded_ts")
+        if (not ldata.get("entities") or isinstance(loaded, bool)
+                or not isinstance(loaded, (int, float)) or not math.isfinite(loaded)
+                or not 0 <= now - loaded <= 21600):
+            incomplete.append(lname)
         if n in ldata["entities"]:
             hits.append({"list": lname, "source": ldata["source"]})
-    result = "HIT" if hits else "CLEAR"
+    result = "HIT" if hits else "BLOCKED_PENDING" if incomplete else "NO_EXACT_MATCH"
     receipt = _chain("screen.entity", f"{name}|{result}|{len(hits)}")
     return {"name": name, "result": result, "hits": hits,
             "lists_checked": len(_LISTS), "receipt": receipt,
+            "incomplete_lists": incomplete, "coverage_scope": "LOADED_LISTS_ONLY",
+            "freshness_scope": "LOCAL_LOAD_TIME_ONLY",
+            "manual_review_required": True, "action_authority": "NONE",
             "truth_label": "MEASURED"}
 
 
