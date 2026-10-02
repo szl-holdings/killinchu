@@ -92,6 +92,30 @@ class ScreeningIntegrity(unittest.TestCase):
         self.assertTrue(result["matches"])
         self.assertTrue(result["manual_review_required"])
 
+    def test_successful_304_refreshes_downstream_but_failed_fetch_does_not(self):
+        source_id = "ofac-sdn"
+        spec = psf.SOURCES[source_id]
+        cached = self.source(source_id)
+        cached["fetched_epoch"] = 0
+        cached["etag"] = '"fixture"'
+        vs.load_screening_list("official:" + source_id, ["Example Entity"])
+        vs._LISTS["official:" + source_id]["loaded_ts"] = 0
+        response = psf.FetchBytes(body=b"", status=304, final_url=spec.url,
+                                  content_type="application/xml", etag='"fixture"',
+                                  last_modified=None)
+        with mock.patch.object(psf, "_read_cache", return_value=cached), \
+                mock.patch.object(psf, "_write_cache"), \
+                mock.patch.object(psf, "_fetch_bytes", return_value=response):
+            psf.fetch_source(source_id, force=True)
+        self.assertEqual(vs._LISTS["official:" + source_id]["loaded_ts"], 100000)
+        self.assertEqual(vs.screen_entity("Unlisted Example")["result"], "NO_EXACT_MATCH")
+        vs._LISTS["official:" + source_id]["loaded_ts"] = 0
+        with mock.patch.object(psf, "_read_cache", return_value=cached), \
+                mock.patch.object(psf, "_fetch_bytes", side_effect=OSError("offline")):
+            psf.fetch_source(source_id, force=True)
+        self.assertEqual(vs._LISTS["official:" + source_id]["loaded_ts"], 0)
+        self.assertEqual(vs.screen_entity("Unlisted Example")["result"], "BLOCKED_PENDING")
+
 
 if __name__ == "__main__":
     unittest.main()

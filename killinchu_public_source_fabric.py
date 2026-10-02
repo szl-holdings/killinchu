@@ -1158,6 +1158,10 @@ def fetch_source(source_id: str, *, force: bool = False) -> dict[str, Any]:
                 cached["fetched_at"] = _utc_now()
                 cached["etag"] = fetched.etag
                 cached["last_modified"] = fetched.last_modified
+                if spec.classification == "SANCTIONS_COMPLIANCE_LIST":
+                    cached["downstream_screening"] = _publish_sanctions_to_vessels(
+                        spec, cached.get("items") or []
+                    )
                 _write_cache(source_id, cached)
                 return _cache_view(cached)
 
