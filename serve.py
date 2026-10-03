@@ -3774,33 +3774,70 @@ except Exception as _opw_kc_e:  # never crash the app — additive only
 # Additive, try/except-guarded, registered BEFORE the SPA catch-all.
 # ===========================================================================
 try:
-    try:  # substrate-repoint: prefer the extracted szl-substrate package, fall back to local vendored byte-copy
-        from szl_substrate import szl_restraint as _szl_restraint  # single source of truth
-    except Exception:
-        import szl_restraint as _szl_restraint  # fall back to local vendored copy
+    # This image ships the reviewed shared route gate. An older optional package
+    # must not replace it with an unguarded signing handler.
+    import szl_restraint as _szl_restraint
+
+    def _kc_restraint_identity():
+        """Read current signer identity without signing or exposing key material."""
+        if _szl_dsse is None:
+            return None
+        try:
+            private_key = _szl_dsse._load_private_key()
+            if private_key is None:
+                return None
+            public_pem = _szl_dsse._public_pem_for_private_key(private_key)
+            keyid = _szl_dsse.keyid_for_public_pem(public_pem)
+            active_keyid = _szl_dsse.keyid_for_public_pem(
+                _szl_dsse.active_public_key_pem())
+            if keyid != active_keyid:
+                return None
+            return {"keyid": keyid}
+        except Exception:
+            return None
 
     def _kc_restraint_sign(_obj):
         # Reuse the SAME real cosign DSSE signer killinchu uses elsewhere. HONEST:
         # if the private-key secret is absent, szl_dsse returns an explicitly
         # UNSIGNED envelope (no fabricated signature) so /honest stays truthful.
+        # Bind the expected key identity INSIDE the signed decision payload.
         if _szl_dsse is None:
             return {"signed": False, "signatures": [],
                     "honesty": "UNSIGNED — szl_dsse unavailable in this runtime"}
         try:
-            return _szl_dsse.sign_payload(_obj, "application/vnd.szl.receipt+json")
+            if not isinstance(_obj, dict):
+                raise TypeError("restraint receipt payload must be an object")
+            keyid = _szl_dsse.keyid_for_public_pem(_szl_dsse.active_public_key_pem())
+            signed_obj = {**_obj, "_signing_identity": {"keyid": keyid}}
+            return _szl_dsse.sign_payload(signed_obj, "application/vnd.szl.receipt+json")
         except Exception as _e:
             return {"signed": False, "signatures": [],
                     "honesty": "UNSIGNED — signer raised: %r" % (_e,)}
 
     def _kc_restraint_verify(_env):
         if _szl_dsse is None:
-            return {"verified": False, "reason": "szl_dsse unavailable"}
-        return _szl_dsse.verify_envelope(_env)
+            return {"signature_valid": False, "reason": "szl_dsse unavailable"}
+        try:
+            verdict = _szl_dsse.verify_envelope(_env)
+            if not isinstance(verdict, dict) or verdict.get("verified") is not True:
+                return {"signature_valid": False}
+            rows = verdict.get("signatures")
+            if not isinstance(rows, list):
+                return {"signature_valid": False}
+            for row in rows:
+                if (isinstance(row, dict) and row.get("verified") is True
+                        and isinstance(row.get("keyid"), str) and row["keyid"]
+                        and row.get("verified_by_keyid") == row["keyid"]):
+                    return {"signature_valid": True, "keyid_verified": row["keyid"]}
+        except Exception:
+            pass
+        return {"signature_valid": False}
 
     # killinchu is NOT sovereign metal: no on-box NVML exporter, so the joules
     # label honestly stays "sample" (exporter_sample_fn=None). Never fabricate it.
     _kc_restraint_status = _szl_restraint.register(
         app, ns="killinchu", sign_fn=_kc_restraint_sign, verify_fn=_kc_restraint_verify,
+        identity_fn=_kc_restraint_identity,
         signer_label="killinchu in-image cosign key (szl_dsse)", exporter_sample_fn=None)
     print(f"[killinchu] Restraint frugality gate registered: {_kc_restraint_status}", file=sys.stderr)
 except Exception as _kc_restraint_e:  # pragma: no cover — additive, never crash

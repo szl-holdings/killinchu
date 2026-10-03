@@ -29,6 +29,13 @@ EXPECTED_SHA256 = {
     "vsp_otel/__init__.py": "c474f6461efede971bdc7e00684b246eee036e7293c5e9ba37e85fd173dadd58",
     "vsp_otel/middleware.py": "93f1d16fa2d4ec0e9e29417ea7b1f5b33534520d99f2c8c41a27d951f1ac8f63",
 }
+# The signed successor adds the restraint operator route to the shared gate.
+# Keep the earlier source/digests immutable; only this explicit successor changes.
+CURRENT_A11OY_COMMIT = "530b0960bc8b24645cb65a132ae04254c9ae5be8"
+CURRENT_EXPECTED_SHA256 = {
+    **EXPECTED_SHA256,
+    "szl_operator_auth.py": "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2cf",
+}
 TOKEN = "test-killinchu-runtime-operator"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 
@@ -80,15 +87,25 @@ def _operator_registry(monkeypatch):
 
 def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
     assert len(SOURCE_A11OY_COMMIT) == 40
+    assert len(CURRENT_A11OY_COMMIT) == 40
     # Each new paired contribution replaces the active admission manifest.
     # Keep this earlier runtime proof immutable instead of pinning that slot.
-    assert _digest(ROOT / ".github/shared-source-payloads/runtime-boundary-1994-v2.json") == (
+    historical_manifest = ROOT / ".github/shared-source-payloads/runtime-boundary-1994-v2.json"
+    assert _digest(historical_manifest) == (
         EXPECTED_MANIFEST_SHA256
     )
+    # The historical admission manifest contains these two files; the original
+    # independent eight-file runtime proof above retains its wider scope.
+    assert json.loads(historical_manifest.read_text(encoding="utf-8")) == {
+        "files": {relative: EXPECTED_SHA256[relative]
+                  for relative in ("szl_agentic_loop.py", "szl_immune.py")},
+        "payload_id": "runtime-boundary-1994-v2",
+        "schema": "szl-shared-source-payload/v1",
+    }
     assert {
         relative: _digest(ROOT / relative)
-        for relative in EXPECTED_SHA256
-    } == EXPECTED_SHA256
+        for relative in CURRENT_EXPECTED_SHA256
+    } == CURRENT_EXPECTED_SHA256
 
 
 def test_operator_auth_dependency_is_in_the_runtime_image() -> None:
