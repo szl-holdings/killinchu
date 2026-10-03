@@ -8671,7 +8671,7 @@ window.evidence_render=async function(c){
       h+='<div class="dim" style="margin:.45rem 0 .25rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">Cited sources <button class="btn ev-recheck-btn" data-ev="'+esc(cl.id)+'" title="re-probe these source URLs now" style="font-size:10px;padding:.12rem .5rem">⟳ Re-check sources</button></div>';
       h+='<div id="ev-sources-'+esc(cl.id)+'">';
       (cl.sources||[]).forEach(function(s){ h+=window.ev_source_row(s); });
-      if(cl.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">last observed reachable (within 5 min): '+esc(String(cl.sources_reachable))+'/'+esc(String(cl.sources_total))+'</div>';
+      if(cl.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">last observed reachable (within 15 min): '+esc(String(cl.sources_reachable))+'/'+esc(String(cl.sources_total))+'</div>';
       h+='</div>';
       h+='<div style="margin-top:.55rem"><button class="btn ev-live-btn" data-ev="'+esc(cl.id)+'">⟳ Load live arXiv + GitHub</button></div>';
       h+='<div id="ev-live-'+esc(cl.id)+'" style="margin-top:.5rem"></div></div>';
