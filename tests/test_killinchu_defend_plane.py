@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from html.parser import HTMLParser
+import json
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI
@@ -254,6 +255,66 @@ def test_complete_detection_approval_rehearsal_and_verification_loop(
     assert receipt.status_code == 200
     assert receipt.json()["receipt"]["id"] == receipt_id
     assert receipt.json()["receipt"]["signature_present"] is True
+
+
+@pytest.mark.parametrize("second_name", ("approver", r"approv\u0065r"))
+def test_approval_rejects_duplicate_decoded_members(
+    tmp_path, monkeypatch, second_name,
+):
+    c = client(tmp_path, monkeypatch)
+    detected = c.post("/api/defend/analyze", headers=HEADERS, json=event_payload())
+    assert detected.status_code == 200
+    proposal_id = detected.json()["proposal"]["id"]
+
+    raw = (
+        f'{{"proposal_id":"{proposal_id}",'
+        f'"approver":"operator/requester",'
+        f'"{second_name}":"operator/independent-reviewer"}}'
+    )
+    duplicate = c.post(
+        "/api/defend/approve",
+        headers={**HEADERS, "Content-Type": "application/json"},
+        content=raw,
+    )
+    assert duplicate.status_code == 422
+    assert duplicate.json() == {
+        "error": "INVALID_REQUEST",
+        "detail": "duplicate JSON member",
+    }
+
+    valid = c.post(
+        "/api/defend/approve",
+        headers=HEADERS,
+        json={"proposal_id": proposal_id, "approver": "operator/independent-reviewer"},
+    )
+    assert valid.status_code == 200
+    assert valid.json()["proposal_state"] == "APPROVED_FOR_REHEARSAL"
+    assert valid.json()["can_execute_external_action"] is False
+
+
+def test_analysis_rejects_nested_duplicate_decoded_members(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    raw = json.dumps(event_payload(), separators=(",", ":"))
+    raw = raw.replace(
+        '"indicators":{"source_authenticated":true',
+        '"indicators":{"source_authenticated":false,"source_authenticated":true',
+        1,
+    )
+    duplicate = c.post(
+        "/api/defend/analyze",
+        headers={**HEADERS, "Content-Type": "application/json"},
+        content=raw,
+    )
+    assert duplicate.status_code == 422
+    assert duplicate.json() == {
+        "error": "INVALID_REQUEST",
+        "detail": "duplicate JSON member",
+    }
+
+    valid = c.post("/api/defend/analyze", headers=HEADERS, json=event_payload())
+    assert valid.status_code == 200
+    assert valid.json()["decision"] == "PROPOSED"
+    assert valid.json()["external_effectors_enabled"] is False
 
 
 def test_event_id_collision_is_quarantined_and_receipted(tmp_path, monkeypatch):

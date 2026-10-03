@@ -984,6 +984,15 @@ def _rollback_plan(action: str, target: str) -> list[str]:
     return shared + action_steps + ["Mint a post-condition verification receipt."]
 
 
+def _reject_duplicate_json_members(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    values = {}
+    for key, value in pairs:
+        if key in values:
+            raise ValueError("duplicate JSON member")
+        values[key] = value
+    return values
+
+
 async def _json_body(request: Request) -> Any:
     length = request.headers.get("content-length")
     if length and length.isdigit() and int(length) > MAX_REQUEST_BYTES:
@@ -992,7 +1001,9 @@ async def _json_body(request: Request) -> Any:
     if len(raw) > MAX_REQUEST_BYTES:
         raise ValueError(f"request exceeds {MAX_REQUEST_BYTES} bytes")
     try:
-        return json.loads(raw.decode("utf-8"))
+        return json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_json_members
+        )
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("request body must be valid UTF-8 JSON") from exc
 
