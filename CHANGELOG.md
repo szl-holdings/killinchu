@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- The Evidence & Research index now returns curated citations with last-observed
+  source badges without waiting on third-party sites. Fresh per-claim checks and
+  the background sweep remain available; UNAVAILABLE and stale results are explicit.
+  Passive readiness still requires a fresh valid evidence JSON response.
 - Passive readiness now separates transport reachability from successful health
   and research JSON contracts. Missing routes, HTML responses, invalid payloads,
   failed refreshes, and expired cached observations cannot count as ready.
