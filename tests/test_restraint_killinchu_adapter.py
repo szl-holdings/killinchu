@@ -13,6 +13,7 @@ import ast
 import base64
 import json
 import os
+import secrets
 import sys
 import types
 import unittest
@@ -32,7 +33,7 @@ import szl_restraint as restraint  # noqa: E402
 
 
 PATH = "/api/killinchu/v1/restraint/evaluate"
-OPERATOR = "synthetic-killinchu-operator-not-real"
+OPERATOR = secrets.token_urlsafe(32)
 HEADERS = {"Authorization": f"Bearer {OPERATOR}"}
 
 
