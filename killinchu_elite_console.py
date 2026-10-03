@@ -8561,10 +8561,9 @@ window.__ev_ns="killinchu";
 window.ev_livebadge=function(lv){
   if(!lv) return '<span class="badge" style="border:1px solid #6b6b6b;color:#9a9a9a" title="liveness not checked">… checking</span>';
   var st=(lv.http_status!=null)?(' '+lv.http_status):'';
-  if(lv.reachable){
-    if(lv.mode==='cached') return '<span class="badge" style="border:1px solid #5aa0d0;color:#7ab8e6" title="reachable (from cache · '+esc(lv.checked_at||'')+')">● cached'+esc(st)+'</span>';
-    return '<span class="badge" style="border:1px solid #4fb37f;color:#5fe39a" title="reachable now ('+esc(lv.checked_at||'')+')">● live'+esc(st)+'</span>';
-  }
+  if(lv.mode==='unavailable') return '<span class="badge" style="border:1px solid #6b6b6b;color:#9a9a9a" title="no source observation yet; use Re-check sources">○ UNAVAILABLE</span>';
+  if(lv.mode==='cached') return '<span class="badge" style="border:1px solid #5aa0d0;color:#7ab8e6" title="last observed '+(lv.reachable?'reachable':'unreachable')+(lv.stale?' (stale)':'')+' · '+esc(lv.checked_at||'')+'">● cached'+esc(st)+(lv.stale?' · stale':'')+'</span>';
+  if(lv.reachable) return '<span class="badge" style="border:1px solid #4fb37f;color:#5fe39a" title="reachable now ('+esc(lv.checked_at||'')+')">● live'+esc(st)+'</span>';
   return '<span class="badge" style="border:1px solid #c06a5a;color:#ff7b6b" title="unreachable: '+esc(lv.error||'no HTTP response')+' ('+esc(lv.checked_at||'')+')">● unreachable</span>';
 };
 /* relative "checked Xm ago" from an ISO timestamp — honest, empty when no real timestamp */
@@ -8656,24 +8655,23 @@ window.ev_sweep=async function(){
 };
 window.evidence_render=async function(c){
   window.ev_ensure_style();
-  c.innerHTML='<div class="card"><div class="dim">loading curated evidence — probing live arXiv + GitHub sources (can take ~15–20s)…</div></div>';
+  c.innerHTML='<div class="card"><div class="dim">loading curated evidence and last-observed source status…</div></div>';
   try{
-    // timeout-guarded fetch: a hung request must degrade to an honest retry, never an
-    // indefinite "loading…" (evidence-tab-hang-fix). 12s ceiling, then surface the state.
+    // Timeout-guarded fetch: a hung request must degrade to an honest retry.
     var _ev_ctl=('AbortController' in window)?new AbortController():null;
-    var _ev_to=setTimeout(function(){ try{ _ev_ctl&&_ev_ctl.abort(); }catch(_){} },28000); // evidence does live arXiv+GitHub calls server-side (~16s); generous ceiling so it completes, never hangs
+    var _ev_to=setTimeout(function(){ try{ _ev_ctl&&_ev_ctl.abort(); }catch(_){} },28000); // safety cap if the index cannot answer
     var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research', _ev_ctl?{signal:_ev_ctl.signal}:undefined);
     clearTimeout(_ev_to);
     if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json(); var h='';
     if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
-    h+='<div id="ev-autostat" class="dim" style="display:flex;align-items:center;gap:.45rem;font-size:11px;margin:.15rem 0 .55rem" title="Source reachability badges are silently re-probed in the background every '+Math.round((window.__EV_RECHECK_MS||180000)/1000)+'s while this tab is visible — honest live/cached/unreachable labels are unchanged."><span class="ev-autodot"></span><span class="ev-autolbl">auto-refreshing</span></div>';
+    h+='<div id="ev-autostat" class="dim" style="display:flex;align-items:center;gap:.45rem;font-size:11px;margin:.15rem 0 .55rem" title="Source reachability is re-probed every '+Math.round((window.__EV_RECHECK_MS||180000)/1000)+'s while this tab is visible; badges distinguish live, cached, stale, and UNAVAILABLE."><span class="ev-autodot"></span><span class="ev-autolbl">auto-refreshing</span></div>';
     (d.claims||[]).forEach(function(cl){
       h+='<div class="card"><div><b>'+esc(cl.claim||'')+'</b>'+(cl.maturity?(' <span class="badge">'+esc(cl.maturity)+'</span>'):'')+(cl.tab?(' <span class="dim">→ '+esc(cl.tab)+' tab</span>'):'')+'</div>';
       h+='<div class="dim" style="margin:.45rem 0 .25rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">Cited sources <button class="btn ev-recheck-btn" data-ev="'+esc(cl.id)+'" title="re-probe these source URLs now" style="font-size:10px;padding:.12rem .5rem">⟳ Re-check sources</button></div>';
       h+='<div id="ev-sources-'+esc(cl.id)+'">';
       (cl.sources||[]).forEach(function(s){ h+=window.ev_source_row(s); });
-      if(cl.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">source liveness: '+esc(String(cl.sources_reachable))+'/'+esc(String(cl.sources_total))+' reachable</div>';
+      if(cl.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">last observed reachable (within 5 min): '+esc(String(cl.sources_reachable))+'/'+esc(String(cl.sources_total))+'</div>';
       h+='</div>';
       h+='<div style="margin-top:.55rem"><button class="btn ev-live-btn" data-ev="'+esc(cl.id)+'">⟳ Load live arXiv + GitHub</button></div>';
       h+='<div id="ev-live-'+esc(cl.id)+'" style="margin-top:.5rem"></div></div>';

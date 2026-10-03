@@ -2,6 +2,7 @@
 
 import asyncio
 import threading
+import time
 
 import httpx
 import pytest
@@ -14,7 +15,6 @@ import szl_evidence_research as evidence
 @pytest.mark.parametrize(
     "path",
     [
-        "/api/killinchu/v1/evidence/research",
         "/api/killinchu/v1/evidence/research/claim/live",
         "/api/killinchu/v1/evidence/research/claim/sources/live",
         "/api/killinchu/v1/evidence/research/refresh",
@@ -67,3 +67,58 @@ async def test_slow_evidence_source_does_not_block_health(path, monkeypatch):
             timer.cancel()
             response = await asyncio.wait_for(evidence_task, timeout=2)
             assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_index_uses_observations_without_network(monkeypatch):
+    """The summary must answer promptly on a cold cache and mark unknown probes."""
+    claim = {
+        "id": "claim",
+        "claim": "A source-bound claim",
+        "sources": [{"kind": "official", "title": "Source", "url": "https://example.org"}],
+        "github": [],
+    }
+    monkeypatch.setattr(evidence, "_CACHE", {})
+    monkeypatch.setattr(evidence, "_disk_load", lambda: None)
+    monkeypatch.setattr(evidence, "_start_warmer", lambda: None)
+    monkeypatch.setattr(evidence, "_claims_for", lambda _namespace: [claim])
+
+    def forbidden_probe(_sources):
+        raise AssertionError("index performed network source checks")
+
+    monkeypatch.setattr(evidence, "_sources_live", forbidden_probe)
+    app = FastAPI()
+    evidence.register(app, ns="killinchu")
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await asyncio.wait_for(
+            client.get("/api/killinchu/v1/evidence/research"), timeout=1.0
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 1
+    assert body["sources_reachable"] == 0
+    observation = body["claims"][0]["sources"][0]["liveness"]
+    assert observation["mode"] == "unavailable"
+    assert observation["checked_at"] is None
+    assert observation["reachable"] is False
+
+
+def test_index_cache_never_renews_stale_or_malformed_observation(monkeypatch):
+    url = "https://example.org"
+    monkeypatch.setattr(evidence, "_disk_load", lambda: None)
+    monkeypatch.setattr(evidence, "_CACHE", {
+        "live:" + url: {
+            "v": {"url": url, "reachable": True, "http_status": 200},
+            "_t": time.time() - evidence._LIVENESS_TTL - 1,
+            "at": "2026-10-01T00:00:00Z",
+        }
+    })
+    stale = evidence._cached_liveness(url)
+    assert stale["mode"] == "cached"
+    assert stale["stale"] is True
+    assert stale["checked_at"] == "2026-10-01T00:00:00Z"
+    evidence._CACHE["live:" + url]["_t"] = "bad-clock"
+    invalid = evidence._cached_liveness(url)
+    assert invalid["mode"] == "unavailable"
+    assert invalid["reachable"] is False
