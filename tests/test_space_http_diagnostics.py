@@ -17,7 +17,7 @@ def test_current_shared_http_payload_is_content_bound():
     root = Path(__file__).resolve().parents[1]
     raw = (root / ".github/shared-source-payload-manifest.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
-        "aeada50bb34cac399e7019e5ad7aa902a3c815e0df3e1969b229e38b740b0983"
+        "2e3c25299edeba3996e593c5fa4ecf39c13cda935ee8d8473f5070ce5d5fdfec"
     )
     payload = json.loads(raw)
     assert payload == {
@@ -25,7 +25,7 @@ def test_current_shared_http_payload_is_content_bound():
             "szl_spaces_proxy.py":
                 "d3d79e9ca6dfe551001e4dab4d3eaa09fbcac83e5dcfc578069eb65e7992d380",
             "szl_spaces_surface.py":
-                "937f65b418205e23409fa52a7dd4798989c760af66bf21aff0808b7a18444571",
+                "b56a1225f883bc25430ab559e72b187e5eed53ffa1fefd5a69ae98fa71ba179a",
         },
         "payload_id": "space-health-policy-20261003-v1",
         "schema": "szl-shared-source-payload/v1",

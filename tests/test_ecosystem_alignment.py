@@ -9,9 +9,8 @@ import szl_spaces_surface as surface
 
 
 EXPECTED = [
-    # The public Hub cut is exactly these 5 KEEP FLOCK doors, in lockstep with
-    # a11oy tests/test_szl_spaces_inventory.py (a11oy#2130). Folded and Unify
-    # Spaces are destination ledger only; their provider state is not observed.
+    # Five configured runtime doors, in lockstep with a11oy. The current
+    # eight-org visibility keep policy is a separate scope.
     ("a11oy", "a11oy", "a11oy — Command Center", "docker"),
     ("killinchu", "killinchu", "killinchu — Counter-UAS", "docker"),
     ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker"),
@@ -37,15 +36,17 @@ UNIFY_EXPECTED = (
 )
 UNIFY_DEST = "https://a-11-oy.com/console"
 
-# Fold invariants: the folded set stays name-addressable on the Hub and every
-# fold lands on a canonical origin. 5 KEEP + 42 FOLD + 4 UNIFY = 51 handoffs.
-FOLD_COUNT = 42
-HANDOFF_COUNT = 51
+# The compatibility registry includes five current policy keepers that were
+# once called folds. They are unprobed here and hand off to isolated Hub apps.
+FOLD_COUNT = 43
+PLAN_FOLD_COUNT = 38
+HANDOFF_COUNT = 52
 FOLD_ORIGINS = ("https://a-11-oy.com", "https://a11oy.net")
 FOLD_SPOT_NAMES = {
-    "yarqa", "david-leads", "anatomy", "energy-attested-runs",
+    "yarqa", "anatomy", "energy-attested-runs",
     "szl-forge-lab", "llm-router-live", "holographic", "cosmos",
 }
+POLICY_ONLY = {"terra", "counsel", "finance", "david-leads", "szl-foundation-confirmation"}
 
 
 def _rows(records):
@@ -60,21 +61,28 @@ def test_space_inventory_is_exact_and_shared():
     assert len({row[0] for row in EXPECTED}) == 5
     assert len({row[1] for row in EXPECTED}) == 5
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
-    # The handoff estate is total and disjoint: 5 KEEP + 42 FOLD + 4 UNIFY.
-    keep_names = {row[0] for row in EXPECTED}
+    # The handoff registry is total and disjoint; its legacy fold list includes
+    # five current policy keepers, which must not be rendered as fold plans.
+    runtime_names = {row[0] for row in EXPECTED}
     fold_names = {sp["name"] for sp in surface.FOLD_SPACES}
     unify_names = {sp["name"] for sp in surface.UNIFY_SPACES}
+    assert surface.PUBLIC_ORG_KEEP_POLICY == (runtime_names & surface.PUBLIC_ORG_KEEP_POLICY) | POLICY_ONLY
+    assert {sp["name"] for sp in surface.FOLD_SPACES if sp["action"] == "KEEP_POLICY"} == POLICY_ONLY
+    assert sum(sp["action"] == "FOLD" for sp in surface.FOLD_SPACES) == PLAN_FOLD_COUNT
     assert tuple(sp["slug"] for sp in surface.UNIFY_SPACES) == UNIFY_EXPECTED
     assert surface.UNIFY_TARGET == 4
     assert len(fold_names) == FOLD_COUNT
-    assert not keep_names & fold_names
-    assert not (keep_names | fold_names) & unify_names
-    assert keep_names | fold_names | unify_names == set(proxy.PROXY_SPACES)
+    assert not runtime_names & fold_names
+    assert not (runtime_names | fold_names) & unify_names
+    assert runtime_names | fold_names | unify_names == set(proxy.PROXY_SPACES)
     assert len(proxy.PROXY_SPACES) == HANDOFF_COUNT
-    # Every fold lands on a canonical origin; nowhere else.
+    # Fold plans land on product/proof; current policy keepers retain Hub apps.
     for sp in surface.FOLD_SPACES:
-        assert sp["action"] == "FOLD"
-        assert sp["dest"].startswith(FOLD_ORIGINS)
+        if sp["action"] == "FOLD":
+            assert sp["dest"].startswith(FOLD_ORIGINS)
+        else:
+            assert sp["action"] == "KEEP_POLICY"
+            assert sp["dest"] == surface.hf_url(sp["name"])
     for sp in surface.UNIFY_SPACES:
         assert sp["action"] == "UNIFY"
         assert sp["dest"] == UNIFY_DEST
@@ -115,7 +123,7 @@ def test_hub_inventory_ignores_org_profile_but_detects_application_drift():
         async def get(self, *_args, **_kwargs):
             return RawResponse(self._payload)
 
-    canonical = [row[0] for row in EXPECTED]
+    canonical = sorted(surface.PUBLIC_ORG_KEEP_POLICY)
     exact = asyncio.run(surface._probe_inventory(Client(canonical + ["README"])))
     drift = asyncio.run(
         surface._probe_inventory(Client(canonical[1:] + ["README", "rogue-space"]))
@@ -162,12 +170,16 @@ def test_space_urls_and_canonical_handoff_boundary_are_fail_closed():
         slug = sp["name"]
         suffix = ".static.hf.space" if sp["sdk"] == "static" else ".hf.space"
         hub_url = f"https://szlholdings-{slug}{suffix}"
-        # FOLD: Hub URL remains derivable (paused+private), canonical handoff
-        # is the fold destination on a canonical origin.
+        # The compatibility registry contains plans and five current keepers;
+        # neither record type is a runtime observation.
         assert surface.hf_url(slug) == hub_url
         assert proxy.hf_url(slug) == hub_url
         assert surface.canonical_url(slug) == sp["dest"]
-        assert surface.canonical_url(slug).startswith(FOLD_ORIGINS)
+        if sp["action"] == "FOLD":
+            assert surface.canonical_url(slug).startswith(FOLD_ORIGINS)
+        else:
+            assert sp["action"] == "KEEP_POLICY"
+            assert surface.canonical_url(slug) == hub_url
     for slug in UNIFY_EXPECTED:
         # UNIFY: Hub URL remains derivable; canonical handoff is a11oy /console.
         assert surface.hf_url(slug) == f"https://szlholdings-{slug}.hf.space"
@@ -211,10 +223,13 @@ def test_tiles_and_fallback_include_all_audited_titles():
         assert f'href="/spaces/{slug}' not in fallback
     # Fold panel honesty: the cut is labelled and the fold is a plan whose
     # provider state (Hub visibility/runtime) is not observed by the ledger.
-    assert "Public Hub cut is 5 KEEP" in tiles
-    assert "Public Hub cut is 5 KEEP" in fallback
-    assert "Folded" in tiles and "Fold plan · provider state UNOBSERVED" in tiles
-    assert f"{FOLD_COUNT} planned folds" in tiles
+    assert "5 configured runtime doors are probed" in tiles
+    assert "current organization keep policy lists 8 Spaces" in tiles
+    assert "5 configured runtime doors" in fallback
+    assert "Fold plan · provider state UNOBSERVED" in tiles
+    assert f"{PLAN_FOLD_COUNT} planned folds" in tiles
+    assert 'data-policy-keep="david-leads"' in tiles
+    assert 'data-fold="david-leads"' not in tiles
     assert "Unify stragglers" in tiles
     for slug in UNIFY_EXPECTED:
         assert f'data-unify="{slug}"' in tiles
@@ -321,8 +336,7 @@ def test_legacy_space_routes_are_no_store_307_handoffs_without_proxy_bytes_or_co
     unify = client.get("/spaces/szl-frontier", follow_redirects=False)
     assert unify.status_code == 307
     assert unify.headers["location"] == UNIFY_DEST
-    # A folded Space handoff lands on its documented destination, never on a
-    # live Hub origin (the folded Space is paused+private).
+    # A planned fold handoff lands on its documented destination.
     folded = client.get("/spaces/yarqa", follow_redirects=False)
     assert folded.status_code == 307
     assert folded.headers["location"] == "https://a-11-oy.com"
