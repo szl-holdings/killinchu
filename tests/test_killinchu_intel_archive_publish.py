@@ -13,9 +13,12 @@ import killinchu_intel_archive_publish as publisher
 
 
 class FakeApi:
-    def dataset_info(self, repo_id, files_metadata=False):
+    def dataset_info(self, repo_id, files_metadata=False, revision=None):
         assert repo_id == publisher.REPO_ID
-        assert files_metadata is True
+        if not files_metadata:
+            assert revision is None
+            return SimpleNamespace(sha="a" * 40)
+        assert revision == "a" * 40
         return SimpleNamespace(
             sha="a" * 40,
             siblings=[
@@ -45,16 +48,23 @@ class PublishingApi(FakeApi):
         self.create_calls = 0
         self.uploaded = {}
 
-    def dataset_info(self, repo_id, files_metadata=False):
+    def dataset_info(self, repo_id, files_metadata=False, revision=None):
         if files_metadata:
-            return super().dataset_info(repo_id, files_metadata=True)
+            return super().dataset_info(
+                repo_id, files_metadata=True, revision=revision
+            )
         assert repo_id == publisher.REPO_ID
-        return SimpleNamespace(sha=self.recovery)
+        assert revision is None
+        return SimpleNamespace(sha=self.recovery if self.create_calls else "a" * 40)
 
-    def create_commit(self, *, repo_id, repo_type, operations, commit_message):
+    def create_commit(
+        self, *, repo_id, repo_type, operations, commit_message, revision, parent_commit
+    ):
         assert repo_id == publisher.REPO_ID
         assert repo_type == "dataset"
         assert commit_message.startswith("Bind archive snapshot to killinchu ")
+        assert revision == publisher.DEFAULT_BRANCH
+        assert parent_commit == "a" * 40
         self.create_calls += 1
         self.uploaded = {
             operation.path_in_repo: operation.path_or_fileobj.getvalue()
@@ -521,3 +531,130 @@ def test_source_files_are_hash_bound():
         (Path(publisher.ROOT) / item["path"]).read_bytes().replace(b"\r\n", b"\n")
     )
     assert len(item["sha256"]) == 64
+
+
+def test_archive_snapshot_reads_metadata_at_the_observed_tip():
+    class AdvancingApi(FakeApi):
+        def __init__(self):
+            self.calls = []
+            self.tip = "a" * 40
+
+        def dataset_info(self, repo_id, files_metadata=False, revision=None):
+            self.calls.append((files_metadata, revision))
+            if not files_metadata:
+                observed = self.tip
+                self.tip = "e" * 40
+                return SimpleNamespace(sha=observed)
+            return super().dataset_info(
+                repo_id, files_metadata=files_metadata, revision=revision
+            )
+
+    api = AdvancingApi()
+    revision, shards = publisher.archive_snapshot(api)
+    assert api.calls == [(False, None), (True, "a" * 40)]
+    assert revision == "a" * 40
+    assert shards[0]["bytes"] == 123
+
+
+@pytest.mark.parametrize("returned_revision", ["f" * 40, None, "A" * 40])
+def test_archive_snapshot_rejects_metadata_from_a_different_revision(returned_revision):
+    class MismatchedApi(FakeApi):
+        def dataset_info(self, repo_id, files_metadata=False, revision=None):
+            info = super().dataset_info(
+                repo_id, files_metadata=files_metadata, revision=revision
+            )
+            if files_metadata:
+                info.sha = returned_revision
+            return info
+
+    with pytest.raises(publisher.PublicationError, match="observed revision"):
+        publisher.archive_snapshot(MismatchedApi())
+
+
+@pytest.mark.parametrize("observed_revision", ["main", None, "A" * 40])
+def test_archive_snapshot_rejects_nonimmutable_tip_before_metadata_read(observed_revision):
+    class InvalidTipApi:
+        def dataset_info(self, repo_id, **kwargs):
+            assert not kwargs
+            return SimpleNamespace(sha=observed_revision)
+
+    with pytest.raises(publisher.PublicationError, match="exact lowercase"):
+        publisher.archive_snapshot(InvalidTipApi())
+
+
+def test_publication_pins_provenance_and_readback_revisions(monkeypatch, tmp_path):
+    api = PublishingApi()
+    install_hf_mocks(monkeypatch, tmp_path, api)
+    original_download = publisher.hf_hub_download
+    reads = []
+
+    def download(**kwargs):
+        reads.append((kwargs["filename"], kwargs["revision"]))
+        return original_download(**kwargs)
+
+    monkeypatch.setattr(publisher, "hf_hub_download", download)
+    args = publish_args(
+        tmp_path, api, tip_sequence("c" * 40, "c" * 40, "c" * 40)
+    )
+    publisher.publish(**args)
+    assert reads[0] == ("DATASET_PROVENANCE.json", "a" * 40)
+    assert {revision for _, revision in reads[1:]} == {"d" * 40}
+    manifest = json.loads(api.uploaded[publisher.VIEWER_MANIFEST_PATH])
+    assert manifest["observed_archive_revision"] == "a" * 40
+
+
+@pytest.mark.parametrize("http_status", [409, 412])
+def test_competing_writer_rejects_stale_parent_without_retry_or_overwrite(
+    monkeypatch, tmp_path, http_status
+):
+    class CompetingWriterApi(PublishingApi):
+        def __init__(self):
+            super().__init__()
+            self.raw_shard = b"original-row\n"
+
+        def create_commit(self, **kwargs):
+            self.create_calls += 1
+            assert kwargs["parent_commit"] == "a" * 40
+            assert kwargs["revision"] == publisher.DEFAULT_BRANCH
+            # A distinct writer grows the archive between our read and commit.
+            self.raw_shard += b"competing-writer-row\n"
+            self.recovery = "e" * 40
+            response = SimpleNamespace(
+                status_code=http_status, headers={}, request=None
+            )
+            raise publisher.HfHubHTTPError(
+                "synthetic parent mismatch", response=response
+            )
+
+    api = CompetingWriterApi()
+    install_hf_mocks(monkeypatch, tmp_path, api)
+    args = publish_args(tmp_path, api, tip_sequence("c" * 40))
+    with pytest.raises(publisher.PublicationError, match="conflict.*without retry"):
+        publisher.publish(**args)
+    report = json.loads(args["report_path"].read_text(encoding="utf-8"))
+    assert api.create_calls == 1
+    assert api.uploaded == {}
+    assert api.raw_shard == b"original-row\ncompeting-writer-row\n"
+    assert report["status"] == "REJECTED_HF_PARENT_CONFLICT"
+    assert report["mutation_outcome"] == "REJECTED"
+    assert report["expected_parent_revision"] == "a" * 40
+    assert report["hf_revision_observed_after_rejection"] == "e" * 40
+    assert report["current_main_publication"] is False
+
+
+def test_other_hf_http_errors_preserve_ambiguous_mutation_evidence(monkeypatch, tmp_path):
+    response = SimpleNamespace(status_code=503, headers={}, request=None)
+    api = PublishingApi(
+        create_error=publisher.HfHubHTTPError(
+            "synthetic unavailable response", response=response
+        )
+    )
+    install_hf_mocks(monkeypatch, tmp_path, api)
+    args = publish_args(tmp_path, api, tip_sequence("c" * 40, "c" * 40))
+    with pytest.raises(publisher.PublicationError, match="outcome is unknown"):
+        publisher.publish(**args)
+    report = json.loads(args["report_path"].read_text(encoding="utf-8"))
+    assert api.create_calls == 1
+    assert report["status"] == "MUTATION_OUTCOME_UNKNOWN"
+    assert report["mutation_outcome"] == "UNKNOWN"
+    assert report["stage"] == "HF_CREATE_COMMIT_AMBIGUOUS"

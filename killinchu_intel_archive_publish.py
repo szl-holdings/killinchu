@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
-from huggingface_hub.errors import EntryNotFoundError
+from huggingface_hub.errors import EntryNotFoundError, HfHubHTTPError
 
 import killinchu_intel_archive_card as card
 
@@ -293,9 +293,16 @@ def binding_is_current(
 
 
 def archive_snapshot(api: HfApi) -> tuple[str, list[dict[str, Any]]]:
-    info = api.dataset_info(REPO_ID, files_metadata=True)
-    if FULL_SHA.fullmatch(str(info.sha)) is None:
-        raise PublicationError("Hub archive revision is not immutable")
+    archive_revision = exact_revision(
+        getattr(api.dataset_info(REPO_ID), "sha", None),
+        field="Hub archive revision",
+    )
+    # Resolve main once; every manifest input must come from that immutable tip.
+    info = api.dataset_info(
+        REPO_ID, revision=archive_revision, files_metadata=True
+    )
+    if getattr(info, "sha", None) != archive_revision:
+        raise PublicationError("Hub archive metadata did not match the observed revision")
     shards: list[dict[str, Any]] = []
     for sibling in info.siblings or []:
         path = sibling.rfilename
@@ -316,7 +323,7 @@ def archive_snapshot(api: HfApi) -> tuple[str, list[dict[str, Any]]]:
         )
     if not shards:
         raise PublicationError("archive contains no intel NDJSON shards")
-    return validated_viewer_shards(archive_revision=info.sha, shards=shards)
+    return validated_viewer_shards(archive_revision=archive_revision, shards=shards)
 
 
 def build_payloads(
@@ -519,8 +526,31 @@ def publish(
             repo_type="dataset",
             operations=operations,
             commit_message=f"Bind archive snapshot to killinchu {source_revision[:12]}",
+            revision=DEFAULT_BRANCH,
+            parent_commit=archive_revision,
         )
     except Exception as exc:
+        if isinstance(exc, HfHubHTTPError) and getattr(
+            exc.response, "status_code", None
+        ) in {409, 412}:
+            evidence = failure_evidence(
+                status="REJECTED_HF_PARENT_CONFLICT",
+                stage="HF_CREATE_COMMIT_PARENT_GUARD",
+                source_revision=source_revision,
+                archive_revision=archive_revision,
+                mutation_outcome="REJECTED",
+                failure_code="HF_PARENT_COMMIT_CONFLICT",
+                github_main_revision=pre_mutation_main,
+            )
+            evidence["expected_parent_revision"] = archive_revision
+            observed_revision = observe_hf_revision(api)
+            if observed_revision is not None:
+                evidence["hf_revision_observed_after_rejection"] = observed_revision
+            fail_with_evidence(
+                report_path=report_path,
+                evidence=evidence,
+                message="Hugging Face parent commit conflict; publication rejected without retry",
+            )
         observed_hf_revision = observe_hf_revision(api)
         ambiguous_main: str | None = None
         github_failure: str | None = None
