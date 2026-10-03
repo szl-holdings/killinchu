@@ -13,9 +13,12 @@ import pytest
 import szl_spaces_surface as surface
 
 
-def test_current_shared_http_payload_is_content_bound():
+def test_shared_http_payload_is_content_bound():
     root = Path(__file__).resolve().parents[1]
-    raw = (root / ".github/shared-source-payload-manifest.json").read_bytes()
+    # The active admission manifest changes with each paired contribution.
+    # Preserve this prior proof and every runtime digest at an immutable path.
+    raw = (root / ".github/shared-source-payloads/"
+           "restraint-active-signer-space-policy-20261003-v1.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
         "06f15a69fa4c6691e2547cdd9ed6af9459d8667134e2057e6cfe313c341a20ce"
     )
