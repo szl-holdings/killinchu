@@ -61,7 +61,7 @@ def _install_fastapi_stub() -> None:
 _install_fastapi_stub()
 
 import killinchu_osint as ko  # noqa: E402  (must follow the stub install)
-from szl_hf_bucket import HFBucket, Transport  # noqa: E402
+from szl_hf_bucket import BucketError, HFBucket, Transport  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -70,18 +70,30 @@ from szl_hf_bucket import HFBucket, Transport  # noqa: E402
 class FakeTransport(Transport):
     def __init__(self):
         self.files = {}
+        self.tip = "0" * 40
+        self.versions = {}
+        self.commits = 0
 
-    def read_file(self, path):
-        return self.files.get(path)
+    def snapshot(self):
+        self.versions[self.tip] = dict(self.files)
+        return self.tip
 
-    def list_files(self, prefix):
+    def read_file(self, path, *, revision=None):
+        return (self.versions[revision] if revision is not None else self.files).get(path)
+
+    def list_files(self, prefix, *, revision=None):
         pref = prefix.rstrip("/") + "/"
-        return sorted(p for p in self.files if p.startswith(pref))
+        files = self.versions[revision] if revision is not None else self.files
+        return sorted(p for p in files if p.startswith(pref))
 
-    def commit(self, operations, message):
+    def commit(self, operations, message, *, parent_commit):
+        if parent_commit != self.tip:
+            raise BucketError("stale parent")
         for path, blob in operations:
             self.files[path] = blob
-        return "oid"
+        self.commits += 1
+        self.tip = "%040x" % self.commits
+        return self.tip
 
 
 def _mk_bucket(tmp):
