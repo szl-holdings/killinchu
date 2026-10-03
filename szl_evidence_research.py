@@ -37,6 +37,7 @@ Endpoints (per namespace ns):
 from __future__ import annotations
 
 import json
+import math
 import os
 import sys
 import tempfile
@@ -753,6 +754,24 @@ def _sources_live(sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             for i, o in enumerate(out)]
 
 
+def _cached_liveness(url: str) -> Dict[str, Any]:
+    """Read a prior source observation without making the index wait on the web."""
+    _disk_load()
+    hit = _CACHE.get("live:" + url)
+    stamp = hit.get("_t") if isinstance(hit, dict) else None
+    at = hit.get("at") if isinstance(hit, dict) else None
+    if (isinstance(hit, dict) and isinstance(hit.get("v"), dict)
+            and type(stamp) in (int, float) and math.isfinite(stamp)
+            and isinstance(at, str) and at):
+        observed = hit["v"]
+        age = time.time() - stamp
+        return {**observed, "mode": "cached", "checked_at": at,
+                "stale": not math.isfinite(age) or age < 0 or age >= _LIVENESS_TTL}
+    return {"url": url, "reachable": False, "http_status": None,
+            "mode": "unavailable", "checked_at": None,
+            "note": "No source observation yet; use the claim's sources/live route."}
+
+
 # --- background warmer: keep every claim's papers fresh in cache -------------
 
 def _warm_loop() -> None:
@@ -801,7 +820,10 @@ _HONEST = (
     "API when arXiv rate-limits) and repo stats from the GitHub API, all "
     "labelled live/cached/unreachable; a kept-warm on-disk cache means a "
     "rate-limited upstream degrades to a real cached result, never to fabricated "
-    "figures. No synthetic numbers are introduced here."
+    "figures. The index reads last-observed source badges without blocking on "
+    "external sites; each claim's sources/live route and the background sweep "
+    "perform fresh probes. Unprobed sources are labelled unavailable. No "
+    "synthetic numbers are introduced here."
 )
 
 
@@ -827,10 +849,11 @@ def register(app, ns: str = "a11oy") -> None:
         out = []
         reachable_total = src_total = 0
         for c in claims:
-            liveness = _sources_live(c["sources"])
+            liveness = [_cached_liveness(s.get("url", "")) for s in c["sources"]]
             sources_out = [{**s, "liveness": lv}
                            for s, lv in zip(c["sources"], liveness)]
-            n_ok = sum(1 for lv in liveness if lv.get("reachable"))
+            n_ok = sum(1 for lv in liveness
+                       if lv.get("reachable") and lv.get("stale") is not True)
             reachable_total += n_ok
             src_total += len(sources_out)
             out.append({
