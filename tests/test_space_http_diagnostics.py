@@ -17,20 +17,46 @@ def test_current_shared_http_payload_is_content_bound():
     root = Path(__file__).resolve().parents[1]
     raw = (root / ".github/shared-source-payload-manifest.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
-        "4722f453e17d53e192ebcfcc8ae65b18b42d8bb80926baa2dedacb48dfa69ec1"
+        "aeada50bb34cac399e7019e5ad7aa902a3c815e0df3e1969b229e38b740b0983"
     )
     payload = json.loads(raw)
     assert payload == {
         "files": {
+            "szl_spaces_proxy.py":
+                "d3d79e9ca6dfe551001e4dab4d3eaa09fbcac83e5dcfc578069eb65e7992d380",
             "szl_spaces_surface.py":
-                "a4f00e960ceeeb5bbec308da338b658ff622c1d8dbd3002dadea2a35ff2edf8c",
+                "937f65b418205e23409fa52a7dd4798989c760af66bf21aff0808b7a18444571",
         },
-        "payload_id": "space-http-diagnostics-20260930-v1",
+        "payload_id": "space-health-policy-20261003-v1",
         "schema": "szl-shared-source-payload/v1",
     }
-    assert hashlib.sha256((root / "szl_spaces_surface.py").read_bytes()).hexdigest() == (
-        payload["files"]["szl_spaces_surface.py"]
-    )
+    for relative, digest in payload["files"].items():
+        assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
+
+
+def test_current_keep_policy_does_not_clear_extra_public_spaces():
+    expected = {
+        "a11oy", "killinchu", "terra", "counsel", "finance", "lyte",
+        "david-leads", "szl-foundation-confirmation",
+    }
+    assert surface.PUBLIC_ORG_KEEP_POLICY == expected
+    assert len(surface.SPACES) == 5
+
+    class Client:
+        async def get(self, *_args, **_kwargs):
+            return SimpleNamespace(
+                status_code=200,
+                json=lambda: [{"id": "SZLHOLDINGS/" + name}
+                              for name in sorted(expected | {"README", "extra"})],
+            )
+
+    inventory = asyncio.run(surface._probe_inventory(Client()))
+    assert inventory["canonical_count"] == 8
+    assert inventory["configured_runtime_count"] == 5
+    assert inventory["observed_count"] == 9
+    assert inventory["missing"] == []
+    assert inventory["unexpected"] == ["extra"]
+    assert inventory["state"] == "DEGRADED"
 
 
 @pytest.mark.parametrize("status", [301, 401, 403, 404, 429, 500, 503])
