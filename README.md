@@ -25,6 +25,29 @@ header: mini
 datasets: [SZLHOLDINGS/killinchu-osint-corpus, SZLHOLDINGS/szl-lake]
 ---
 
+<p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" /></a></p>
+
+# Killinchu
+
+Explore a governed command and evidence workspace for aviation, maritime and public-web observations, with source identity and receipt inspection.
+
+**Artifact:** Governed command application and source · **Stage:** Capability-specific evidence required
+
+[Explore in Command Lab](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab) · [Build](https://github.com/szl-holdings/killinchu/tree/9ff57c0e77e904835d77d0a5076846babf98a8ad) · [Evidence](https://github.com/szl-holdings/killinchu/blob/9ff57c0e77e904835d77d0a5076846babf98a8ad/README.md)
+
+## Before you use it
+
+- Sensor broadcasts and public-web reports remain unverified claims. Check current source identity and evidence before use.
+- Physical effectors remain operator-owned and require separate customer authorization and hardware integration.
+- Receipt integrity and signing state do not establish factual accuracy, measurement or production readiness.
+
+<details>
+<summary>Technical details and original evidence</summary>
+
+The retained source below is exact and may contain historical observations. Its dates, use restrictions, licenses and evidence boundaries continue to apply.
+
+<!-- SZL-PRESERVED-TECHNICAL-BODY:START -->
+
 <!-- SZL-ESTATE-CARD:v2:START -->
 <p align="center"><a href="https://a-11-oy.com/"><img src="https://huggingface.co/spaces/SZLHOLDINGS/README/resolve/main/assets/estate-banner-v2.svg" alt="SZL Holdings — governed, receipted, verifiable" width="100%"></a></p>
 <p align="center">
@@ -511,3 +534,7 @@ One sovereign substrate, many organs — every decision carries a hash-chained, 
 <sub>Doctrine v11 · Λ = Conjecture 1, never green · honest by design · public data only.</sub>
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+
+<!-- SZL-PRESERVED-TECHNICAL-BODY:END -->
+
+</details>
