@@ -31,10 +31,17 @@ EXPECTED_SHA256 = {
 }
 # The signed successor adds the restraint operator route to the shared gate.
 # Keep the earlier source/digests immutable; only this explicit successor changes.
-CURRENT_A11OY_COMMIT = "530b0960bc8b24645cb65a132ae04254c9ae5be8"
-CURRENT_EXPECTED_SHA256 = {
+RESTRAINT_A11OY_COMMIT = "530b0960bc8b24645cb65a132ae04254c9ae5be8"
+RESTRAINT_EXPECTED_SHA256 = {
     **EXPECTED_SHA256,
     "szl_operator_auth.py": "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2cf",
+}
+# The RAG successor adds the separate estate receipt route. Its source commit
+# is unsigned; byte identity is verified here without claiming a signature.
+CURRENT_A11OY_COMMIT = "74dbd5ce75bdb704168a05abceeb186fcf7f49ca"
+CURRENT_EXPECTED_SHA256 = {
+    **RESTRAINT_EXPECTED_SHA256,
+    "szl_operator_auth.py": "86ed8b445c05f26c66c8d41dba09fe889970aad0e091090efe795299b9336539",
 }
 TOKEN = "test-killinchu-runtime-operator"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
