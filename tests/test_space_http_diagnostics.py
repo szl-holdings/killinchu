@@ -37,7 +37,22 @@ def test_shared_http_payload_is_content_bound():
         "payload_id": "restraint-active-signer-space-policy-20261003-v1",
         "schema": "szl-shared-source-payload/v1",
     }
-    for relative, digest in payload["files"].items():
+    # A later paired contribution may replace a shared file. Bind that new
+    # generation explicitly while retaining this original manifest unchanged.
+    current_raw = (root / ".github/shared-source-payloads/"
+                   "estate-rag-operator-auth-20261004-v1.json").read_bytes()
+    assert hashlib.sha256(current_raw).hexdigest() == (
+        "e0b02c5a579eb8be1ca4d896f09a6a14c1a0e2796442428efa626872fbb62c61"
+    )
+    current = json.loads(current_raw)
+    assert current["schema"] == "szl-shared-source-payload/v1"
+    assert current["payload_id"] == "estate-rag-operator-auth-20261004-v1"
+    assert set(current["files"]) == {
+        "a11oy_org_rag.py", "szl_hf_bucket.py", "szl_operator_auth.py",
+        "test_szl_hf_bucket.py",
+    }
+    expected = {**payload["files"], **current["files"]}
+    for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 
 
