@@ -18,6 +18,29 @@ configs:
         path: "viewer/archive_manifest.jsonl"
 ---
 
+<p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" /></a></p>
+
+# Killinchu intelligence archive
+
+Inspect aviation and maritime observations and public-web claims through a homogeneous archive manifest, with source-specific rights and privacy boundaries.
+
+**Artifact:** Dataset and append-only archive manifest · **Stage:** Third-party claims; training not admitted
+
+[Explore in Command Lab](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab) · [Build](https://github.com/szl-holdings/killinchu/tree/9ff57c0e77e904835d77d0a5076846babf98a8ad/datasets/killinchu-osint-corpus) · [Evidence](https://github.com/szl-holdings/killinchu/blob/9ff57c0e77e904835d77d0a5076846babf98a8ad/datasets/killinchu-osint-corpus/README.md)
+
+## Before you use it
+
+- Records remain third-party claims or broadcast self-reports; publication does not attest their truth.
+- Mixed source terms and row-level rights/privacy admission apply. Raw manifest rows remain training\_eligible: false.
+- Historical backing shards are not rewritten; legacy pre-v2 rows may contain raw identifiers.
+
+<details>
+<summary>Technical details and original evidence</summary>
+
+The retained source below is exact and may contain historical observations. Its dates, use restrictions, licenses and evidence boundaries continue to apply.
+
+<!-- SZL-PRESERVED-TECHNICAL-BODY:START -->
+
 # killinchu — live intel archive
 
 Append-only, content-addressed archive of the live intelligence streams the
@@ -93,3 +116,7 @@ this card does not claim that historical backing shards were rewritten.
   are SHA-256 content addresses for deduplication and integrity, **not a DSSE / Ed25519 signature**.
 - The archive is append-only and bounded; re-observation does not imply
   independent corroboration.
+
+<!-- SZL-PRESERVED-TECHNICAL-BODY:END -->
+
+</details>

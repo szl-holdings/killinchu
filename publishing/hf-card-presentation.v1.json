@@ -1,0 +1,199 @@
+{
+  "schema": "szl.source-card-presentation/v1",
+  "spdx_license_identifier": "Apache-2.0",
+  "copyright": "2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "source_repository": "szl-holdings/killinchu",
+  "source_revision": "9ff57c0e77e904835d77d0a5076846babf98a8ad",
+  "cards": [
+    {
+      "kind": "datasets",
+      "repo_id": "SZLHOLDINGS/killinchu-osint-corpus",
+      "source_path": "datasets/killinchu-osint-corpus/README.md",
+      "source_url": "https://github.com/szl-holdings/killinchu/blob/9ff57c0e77e904835d77d0a5076846babf98a8ad/datasets/killinchu-osint-corpus/README.md",
+      "canonical_publisher": "https://github.com/szl-holdings/killinchu/blob/9ff57c0e77e904835d77d0a5076846babf98a8ad/.github/workflows/publish-intel-archive-card.yml",
+      "renderer": "killinchu_intel_archive_card.py::render_card",
+      "presentation": {
+        "title": "Killinchu intelligence archive",
+        "summary": "Inspect aviation and maritime observations and public-web claims through a homogeneous archive manifest, with source-specific rights and privacy boundaries.",
+        "artifact_type": "Dataset and append-only archive manifest",
+        "stage": "Third-party claims; training not admitted",
+        "build_url": "https://github.com/szl-holdings/killinchu/tree/9ff57c0e77e904835d77d0a5076846babf98a8ad/datasets/killinchu-osint-corpus",
+        "evidence_url": "https://github.com/szl-holdings/killinchu/blob/9ff57c0e77e904835d77d0a5076846babf98a8ad/datasets/killinchu-osint-corpus/README.md",
+        "visible_limits": [
+          "Records remain third-party claims or broadcast self-reports; publication does not attest their truth.",
+          "Mixed source terms and row-level rights/privacy admission apply. Raw manifest rows remain training_eligible: false.",
+          "Historical backing shards are not rewritten; legacy pre-v2 rows may contain raw identifiers."
+        ]
+      },
+      "publication_state": "SOURCE_REVIEW_PENDING",
+      "before_sha256": "72a53125e772e14f32d12162865e4bc18a8defdcca7af363b92ccfb6d0673865",
+      "after_sha256": "48c1b61726863ee315f09bc9580b5f10bd72769ac1f1bf779b4a92160a170581",
+      "front_matter_sha256": "d23bf6e02f76cadaa13856f5e4353d35ba120e8940e8189e53705e5f602dc487",
+      "preserved_body_sha256": "13e6fe09ab1bfb54f118b76c740f1bbd8693eb9a0181ba32e3674bc68c0dbdc1",
+      "bytes_before": 4063,
+      "bytes_after": 5633,
+      "front_matter_preserved": true,
+      "original_body_preserved": true,
+      "rendered_preservation": [
+        {
+          "parameters": {
+            "prefix": "intel",
+            "projection_schema": "killinchu.platform-projection/v2",
+            "cell_degrees": 1.0
+          },
+          "proof": {
+            "before_sha256": "cff6a5f0ae5dc694224609fec82b0176e4183bfb3ef4c3b056e82bcfd940fdd3",
+            "after_sha256": "9ed89b47d977b605157d365f389a689346f6090f96d04c9d71da7d84c97a20ce",
+            "front_matter_sha256": "d23bf6e02f76cadaa13856f5e4353d35ba120e8940e8189e53705e5f602dc487",
+            "preserved_body_sha256": "7473e364b8743ed5e210c35c73f5f71026e4540307026873e2d041c10eb9e224",
+            "bytes_before": 4036,
+            "bytes_after": 5606,
+            "front_matter_preserved": true,
+            "original_body_preserved": true
+          }
+        },
+        {
+          "parameters": {
+            "prefix": "review-test",
+            "projection_schema": "killinchu.platform-projection/v2",
+            "cell_degrees": 0.25
+          },
+          "proof": {
+            "before_sha256": "85f92f06f0028646f3165037ebeec8de43a2115b3cba48ef2f8263c0ff4acb7b",
+            "after_sha256": "256297303236ae6de5f3e7c79ce9b10260004fc78304b017ce39a9d2ee9aeb2b",
+            "front_matter_sha256": "d23bf6e02f76cadaa13856f5e4353d35ba120e8940e8189e53705e5f602dc487",
+            "preserved_body_sha256": "0ecbf4bd14c68d20fbfd2fe9b393c0076d5d23902e0422bd4eca11405613db1f",
+            "bytes_before": 4048,
+            "bytes_after": 5618,
+            "front_matter_preserved": true,
+            "original_body_preserved": true
+          }
+        },
+        {
+          "parameters": {
+            "prefix": "nested/archive",
+            "projection_schema": "killinchu.platform-projection/v2",
+            "cell_degrees": 2.5
+          },
+          "proof": {
+            "before_sha256": "01c0cc8c6e63a63b7b59abf3d3ef372ac57d84ad9f1e3a13639c91cc45e92538",
+            "after_sha256": "eb53725d06f3c4d2beb1204c4a296607a2c24903f593d75d7b7c20a8137b113e",
+            "front_matter_sha256": "d23bf6e02f76cadaa13856f5e4353d35ba120e8940e8189e53705e5f602dc487",
+            "preserved_body_sha256": "d5c1d8a5d3b26975cfe746ffe9ccfc814f6c018d323d15c42b8dc3e87e80a427",
+            "bytes_before": 4054,
+            "bytes_after": 5624,
+            "front_matter_preserved": true,
+            "original_body_preserved": true
+          }
+        }
+      ],
+      "provider_or_runtime_promotion": false,
+      "archive_data_modified": false,
+      "publication_trigger": "EXISTING_PATH_SCOPED_MAIN_PUSH_OR_SCHEDULE",
+      "publisher_footprint": [
+        "README.md",
+        "LICENSE.md",
+        "viewer/archive_manifest.jsonl",
+        "DATASET_PROVENANCE.json"
+      ],
+      "raw_archive_shards_written": false,
+      "source_after_sha256": "48c1b61726863ee315f09bc9580b5f10bd72769ac1f1bf779b4a92160a170581",
+      "expected_hub_card_sha256": "9ed89b47d977b605157d365f389a689346f6090f96d04c9d71da7d84c97a20ce",
+      "hub_card_hash_scope": "Exact render_card() default output used by build_payloads; template hashes remain separately recorded."
+    },
+    {
+      "kind": "spaces",
+      "repo_id": "SZLHOLDINGS/killinchu",
+      "source_path": "README.md",
+      "source_url": "https://github.com/szl-holdings/killinchu/blob/9ff57c0e77e904835d77d0a5076846babf98a8ad/README.md",
+      "canonical_publisher": "https://github.com/szl-holdings/killinchu/blob/9ff57c0e77e904835d77d0a5076846babf98a8ad/.github/workflows/hf-sync.yml",
+      "reusable_publisher_revision": "e3ec47ad2e99a535839afe0f30fefbd8973d52da",
+      "presentation": {
+        "title": "Killinchu",
+        "summary": "Explore a governed command and evidence workspace for aviation, maritime and public-web observations, with source identity and receipt inspection.",
+        "artifact_type": "Governed command application and source",
+        "stage": "Capability-specific evidence required",
+        "build_url": "https://github.com/szl-holdings/killinchu/tree/9ff57c0e77e904835d77d0a5076846babf98a8ad",
+        "evidence_url": "https://github.com/szl-holdings/killinchu/blob/9ff57c0e77e904835d77d0a5076846babf98a8ad/README.md",
+        "visible_limits": [
+          "Sensor broadcasts and public-web reports remain unverified claims. Check current source identity and evidence before use.",
+          "Physical effectors remain operator-owned and require separate customer authorization and hardware integration.",
+          "Receipt integrity and signing state do not establish factual accuracy, measurement or production readiness."
+        ]
+      },
+      "publication_state": "SOURCE_REVIEW_PENDING",
+      "before_sha256": "1c63b85a9fa0cc496b4f4edc0038e861e98cac922416f16eaca05665a7f7f081",
+      "after_sha256": "c7eca78574b1a577703901dfa8bbe12671fba5773395d3a8f863a4f186a48e9d",
+      "front_matter_sha256": "ae8e5110d36dc62d077000f17b38014faca69e721fca752970425ff412733896",
+      "preserved_body_sha256": "e841a4909c637ef39351b7234133e90e7b6610f8566ebc3ad7faec2653e5469f",
+      "bytes_before": 34556,
+      "bytes_after": 36055,
+      "front_matter_preserved": true,
+      "original_body_preserved": true,
+      "source_after_sha256": "c7eca78574b1a577703901dfa8bbe12671fba5773395d3a8f863a4f186a48e9d",
+      "expected_hub_card_sha256": "c7eca78574b1a577703901dfa8bbe12671fba5773395d3a8f863a4f186a48e9d",
+      "provider_or_runtime_promotion": false,
+      "publication_trigger": "EXISTING_MAIN_PUSH_COMPLETE_SPACE_DEPLOYMENT",
+      "publisher_footprint": "Existing Dockerfile COPY-derived Space deployment plus root README and source/attestation receipt; no writer changes.",
+      "runtime_guard_changes": false
+    }
+  ],
+  "protected_source_files": [
+    {
+      "path": "datasets/killinchu-osint-corpus/LICENSE.md",
+      "bytes": 3444,
+      "sha256": "4367b8c98c996309d5cc765f78ed2d1943b43df7cdf14238e91fa702757323ed",
+      "unchanged": true
+    },
+    {
+      "path": "killinchu_intel_archive_card.py",
+      "bytes": 3626,
+      "sha256": "0668f3ae539ab459c594f86c500b78a70df1d1dfdd9d117f2a3fdc150a8d9e89",
+      "unchanged": true
+    },
+    {
+      "path": "killinchu_intel_archive_publish.py",
+      "bytes": 30045,
+      "sha256": "ada50c5230ab099b5495b62d987e6b2c38df3d9244bf280e19a4f7e2d1fd2bc1",
+      "unchanged": true
+    },
+    {
+      "path": ".github/workflows/publish-intel-archive-card.yml",
+      "bytes": 9259,
+      "sha256": "e55d6e722a39c0c935f1010fd16afb077d32f6c47ec6a35a3cc77c85e2bd7114",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/intel_card_publication_scope.py",
+      "bytes": 2531,
+      "sha256": "44ab7f7d534ca0152fcd502aacf379609dbb535a46d66bf49a8eb5f29017654d",
+      "unchanged": true
+    },
+    {
+      "path": "killinchu_osint.py",
+      "bytes": 80451,
+      "sha256": "f27561fc35011365e5459bf23f5e3f11e92c33104c8813f6623c578a45ae68d6",
+      "unchanged": true
+    },
+    {
+      "path": "Dockerfile",
+      "bytes": 54404,
+      "sha256": "85c2fd5b8b4f3505f2a9d94da1656e9a658c7b6c5b848f9654c18f1242739314",
+      "unchanged": true
+    },
+    {
+      "path": ".github/workflows/hf-sync.yml",
+      "bytes": 12620,
+      "sha256": "286dfdfdf0adc5e2039d20234b839379353f43ff60d6e02c6a1514a4b5fd836c",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/image_contract.py",
+      "bytes": 13248,
+      "sha256": "62888425a61fefa833a7a9b9b170da6c4e617e4450d175396ddf010404e67413",
+      "unchanged": true
+    }
+  ],
+  "new_publisher_authority": false,
+  "provider_action_performed": false
+}
