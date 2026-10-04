@@ -51,7 +51,16 @@ def test_shared_http_payload_is_content_bound():
         "a11oy_org_rag.py", "szl_hf_bucket.py", "szl_operator_auth.py",
         "test_szl_hf_bucket.py",
     }
-    expected = {**payload["files"], **current["files"]}
+    storage_raw = (root / ".github/shared-source-payloads/"
+                   "estate-rag-operator-auth-20261004-v2.json").read_bytes()
+    assert hashlib.sha256(storage_raw).hexdigest() == (
+        "ca5e677d22c1b072b1ae5c6e404ecf063dabfac51f17f27d35fc014eecdbf7bf"
+    )
+    storage = json.loads(storage_raw)
+    assert storage["schema"] == "szl-shared-source-payload/v1"
+    assert storage["payload_id"] == "estate-rag-operator-auth-20261004-v2"
+    assert set(storage["files"]) == set(current["files"])
+    expected = {**payload["files"], **current["files"], **storage["files"]}
     for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 
