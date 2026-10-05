@@ -118,6 +118,7 @@ COPY cathedral.html knowledge.json operator_shell_v4.py serve.py killinchu_ledge
 # Consolidated Aegis/Sentra capability plane — real same-origin UI, API, state and receipts.
 COPY killinchu_defend_plane.py ./killinchu_defend_plane.py
 COPY killinchu_ledger_sqlite.py ./killinchu_ledger_sqlite.py
+COPY killinchu_ledger_attribution.py ./killinchu_ledger_attribution.py
 # Shared Spaces modules (Dev2+3) — canonical handoffs + isolated-origin tiles.
 # Per-file COPY (this Dockerfile uses no `COPY . .`) or serve.py's guarded import
 # falls back and /spaces + /api/<ns>/v1/spaces/health 404.

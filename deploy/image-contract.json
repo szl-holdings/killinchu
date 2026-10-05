@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "85c2fd5b8b4f3505f2a9d94da1656e9a658c7b6c5b848f9654c18f1242739314"
+    "sha256": "2cc4fc6dcc0ea5ca38547630d0a17a7e91bab32aaa06b14a453126de0f0fcd3d"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "85c2fd5b8b4f3505f2a9d94da1656e9a658c7b6c5b848f9654c18f1242739314"
+    "sha256": "2cc4fc6dcc0ea5ca38547630d0a17a7e91bab32aaa06b14a453126de0f0fcd3d"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -65,6 +65,7 @@
     "killinchu_health_twin.py",
     "killinchu_intel_archive_card.py",
     "killinchu_ledger.py",
+    "killinchu_ledger_attribution.py",
     "killinchu_ledger_sqlite.py",
     "killinchu_live_feeds.py",
     "killinchu_maritime_globe.py",
