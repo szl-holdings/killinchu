@@ -110,11 +110,19 @@ jobs:
           python -m pip check
 
       - name: Verify credential and real ephemeral attestations
+        env:
+          KILLINCHU_ROOT: ${{ github.workspace }}
+          KILLINCHU_LEDGER_MODE: EPHEMERAL
+          SZL_KHIPU_DIR: ${{ runner.temp }}/killinchu-passive-be
+          KILLINCHU_DB_DIR: ${{ runner.temp }}/killinchu-passive-backend
         run: >-
           python -m pytest -q
           tests/test_assurance_credential.py
           tests/test_be_hardening.py
           tests/test_killinchu_ledger_attribution.py
+          tests/test_killinchu_passive_get.py
+          tests/test_roe_decisions_api.py
+          tests/test_after_action_bundle.py
           tests/test_dsse_real_signing.py
 
   mavlink-decoder:

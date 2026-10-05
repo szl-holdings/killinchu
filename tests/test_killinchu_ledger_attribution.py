@@ -139,7 +139,7 @@ def test_explicit_external_adapter_contract_is_reported_without_get_replay(tmp_p
         def verify_integrity(self, nodes):
             return {"verified": list(nodes) == []}
 
-        def readiness(self):
+        def readiness(self, *, read_only=False):
             return {"ready": True, "production_ready": True, "persistence_scope": scope}
 
     adapter = ExplicitAdapter()
@@ -147,7 +147,7 @@ def test_explicit_external_adapter_contract_is_reported_without_get_replay(tmp_p
                             mode=DURABLE_EXTERNAL, adapter=adapter)
     runtime.startup()
     before_attempts = runtime.readiness(recover=False)["recovery"]["attempts"]
-    app, database = _app(tmp_path, lambda: runtime.readiness(recover=False))
+    app, database = _app(tmp_path, lambda: runtime.readiness(recover=False, read_only=True))
     before = database.read_bytes()
     response = TestClient(app).get(path)
     assert response.status_code == 200
@@ -157,6 +157,7 @@ def test_explicit_external_adapter_contract_is_reported_without_get_replay(tmp_p
     assert ledger["production_ready"] is True
     assert ledger["production_readiness_basis"] == "EXPLICIT_ADAPTER_CONTRACT"
     assert ledger["persistence_scope"] == scope
+    assert ledger["readiness_probe"] == "READ_ONLY"
     assert adapter.startup_calls == adapter.replay_calls == 1
     assert ledger["recovery"]["attempts"] == before_attempts
     assert database.read_bytes() == before
@@ -263,6 +264,6 @@ def test_host_wiring_uses_read_only_provider_and_both_dockerfiles_ship_it():
     assert len(calls) == 1
     provider = next(kw.value for kw in calls[0].keywords if kw.arg == "ledger_readiness")
     assert isinstance(provider, ast.Lambda)
-    assert ast.unparse(provider.body) == "_LEDGER_RUNTIME.readiness(recover=False)"
+    assert ast.unparse(provider.body) == "_LEDGER_RUNTIME.readiness(recover=False, read_only=True)"
     for dockerfile in [root / "Dockerfile", root / "deploy/space/Dockerfile"]:
         assert "COPY killinchu_ledger_attribution.py ./killinchu_ledger_attribution.py" in dockerfile.read_text(encoding="utf-8")

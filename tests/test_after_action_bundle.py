@@ -32,6 +32,43 @@ if REPO_ROOT not in sys.path:
 
 import killinchu_after_action as aar  # noqa: E402
 
+
+@pytest.mark.parametrize("failure_at", ["signing_available", "active_public_key_pem", "keyid_for_public_pem"])
+def test_public_key_failure_does_not_export_private_exception(failure_at):
+    class BrokenKey:
+        PUB_KEY_URL = "/cosign.pub"
+
+        def signing_available(self):
+            return self._step("signing_available", True)
+
+        def active_public_key_pem(self):
+            return self._step("active_public_key_pem", "SYNTHETIC-PUBLIC-PEM")
+
+        def keyid_for_public_pem(self, pem):
+            return self._step("keyid_for_public_pem", "SYNTHETIC-PUBLIC-ID")
+
+        def _step(self, name, value):
+            if name == failure_at:
+                raise RuntimeError("SYNTHETIC-PRIVATE-TEXT /private/key.pem")
+            return value
+
+    key = BrokenKey()
+    public = aar._public_key_state(key)
+    assert public == {
+        "available": False, "state": "INVALID",
+        "reason": "active signing key could not be verified in this runtime",
+        "verify_key_url": None,
+    }
+    bundle = aar.build_after_action_bundle(
+        track_id="SYNTHETIC-TRACK", engagements=[], roe_decisions=[],
+        track_updates=[], ledger_nodes=[], policy_version=None,
+        policy_hash=None, dsse_module=key,
+    )
+    body = json.dumps(bundle)
+    assert "SYNTHETIC-PRIVATE-TEXT" not in body
+    assert "/private/key.pem" not in body
+    assert "RuntimeError" not in body
+
 # Load the offline verifier by path (tools/ is not a package).
 _VERIFIER_PATH = os.path.join(REPO_ROOT, "tools", "killinchu_verify_after_action.py")
 _spec = importlib.util.spec_from_file_location("killinchu_verify_after_action", _VERIFIER_PATH)

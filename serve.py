@@ -979,7 +979,7 @@ try:
     import szl_be_hardening as _be_harden
     _be_report = harden_with_canonical_ledger(
         app, _be_harden.harden,
-        ledger_readiness=lambda: _LEDGER_RUNTIME.readiness(recover=False),
+        ledger_readiness=lambda: _LEDGER_RUNTIME.readiness(recover=False, read_only=True),
     )
     import sys as _be_sys
     print(f"[killinchu] BE hardening registered: {_be_report.get('registered')} "
@@ -1824,12 +1824,13 @@ _LEDGER_RUNTIME.startup()
 
 @app.exception_handler(LedgerUnavailable)
 async def _ledger_unavailable_handler(_: Request, exc: LedgerUnavailable) -> JSONResponse:
+    read_only = _.method in {"GET", "HEAD"}
     return JSONResponse(
         {
             "ok": False,
             "error": "receipt ledger unavailable",
             "detail": str(exc),
-            "ledger": _LEDGER_RUNTIME.readiness(),
+            "ledger": _LEDGER_RUNTIME.readiness(recover=not read_only, read_only=read_only),
         },
         status_code=503,
         headers={"cache-control": "no-store"},
@@ -1992,7 +1993,7 @@ async def healthz() -> JSONResponse:
             _be_health = _kc_backend.health_fields()
     except Exception:
         _be_health = {}
-    _ledger_health = _LEDGER_RUNTIME.readiness()
+    _ledger_health = _LEDGER_RUNTIME.readiness(recover=False, read_only=True)
     _payload = {
         "status": "ok",
         "service": "killinchu",
@@ -2026,7 +2027,7 @@ async def healthz() -> JSONResponse:
 
 @app.api_route("/api/killinchu/readyz", methods=["GET", "HEAD"])
 async def readyz() -> JSONResponse:
-    ledger = _LEDGER_RUNTIME.readiness()
+    ledger = _LEDGER_RUNTIME.readiness(recover=False, read_only=True)
     ready = ledger.get("ready") is True
     return JSONResponse(
         {
@@ -2375,7 +2376,7 @@ async def receipt_emit(request: Request) -> JSONResponse:
 
 @app.api_route("/api/killinchu/v1/receipt/ledger", methods=["GET", "HEAD"])
 async def receipt_ledger(limit: int = 100) -> JSONResponse:
-    ledger = _LEDGER_RUNTIME.readiness()
+    ledger = _LEDGER_RUNTIME.readiness(recover=False, read_only=True)
     if ledger.get("ready") is not True:
         return JSONResponse(
             {"ok": False, "nodes": [], "ledger": ledger, "error": "ledger unavailable"},
@@ -2424,7 +2425,7 @@ async def receipt_export(index: int = -1) -> JSONResponse:
     against the public key. Missing receipts or signing capability are never
     represented by a fabricated envelope.
     """
-    ledger = _LEDGER_RUNTIME.readiness()
+    ledger = _LEDGER_RUNTIME.readiness(recover=False, read_only=True)
     body, status_code = build_receipt_export(
         _LEDGER_RUNTIME.snapshot() if ledger.get("ready") is True else [],
         index=index,
@@ -2438,7 +2439,7 @@ async def receipt_export(index: int = -1) -> JSONResponse:
 
 @app.api_route("/api/killinchu/v1/receipt/ledger/readiness", methods=["GET", "HEAD"])
 async def receipt_ledger_readiness() -> JSONResponse:
-    ledger = _LEDGER_RUNTIME.readiness()
+    ledger = _LEDGER_RUNTIME.readiness(recover=False, read_only=True)
     return JSONResponse(
         ledger,
         status_code=200 if ledger.get("ready") is True else 503,
@@ -3587,8 +3588,8 @@ try:
         app,
         emit_receipt=_emit_receipt,
         ns="killinchu",
-        ledger_readiness=_LEDGER_RUNTIME.readiness,
-        ledger_snapshot=_LEDGER_RUNTIME.snapshot,
+        ledger_readiness=lambda: _LEDGER_RUNTIME.readiness(recover=False, read_only=True),
+        ledger_snapshot=lambda: _LEDGER_RUNTIME.snapshot(),
     )
     print(f"[killinchu] After-action export registered: {_aar_status['registered']}", file=sys.stderr)
 except Exception as _aar_e:
