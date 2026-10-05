@@ -82,11 +82,11 @@ def _public_key_state(dsse_module: Any) -> Dict[str, Any]:
             "keyid": dsse_module.keyid_for_public_pem(pem) if pem else None,
             "verify_key_url": getattr(dsse_module, "PUB_KEY_URL", "/cosign.pub"),
         }
-    except Exception as e:  # pragma: no cover - honest degrade
+    except Exception:
         return {
             "available": False,
             "state": "INVALID",
-            "reason": f"{type(e).__name__}: {e}",
+            "reason": "active signing key could not be verified in this runtime",
             "verify_key_url": None,
         }
 
