@@ -311,13 +311,19 @@ class DefendStore:
             finally:
                 connection.close()
 
-    def status(self) -> dict[str, Any]:
+    @staticmethod
+    def observe(path: str) -> dict[str, Any]:
+        """Read existing local demo state without creating it or taking a writer lock."""
         try:
-            connection = self.connect()
+            connection = sqlite3.connect(
+                Path(path).resolve().as_uri() + "?mode=ro",
+                uri=True,
+                timeout=0.2,
+                isolation_level=None,
+            )
             try:
+                connection.execute("PRAGMA query_only = ON")
                 integrity = str(connection.execute("PRAGMA integrity_check").fetchone()[0])
-                connection.execute("BEGIN IMMEDIATE")
-                connection.execute("ROLLBACK")
                 counts = {
                     table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
                     for table in ("events", "cases", "proposals", "approvals", "rehearsals", "receipts")
@@ -325,7 +331,7 @@ class DefendStore:
             finally:
                 connection.close()
             return {
-                "state": "WRITABLE" if integrity == "ok" else "FAILED_CLOSED",
+                "state": "READABLE" if integrity == "ok" else "FAILED_CLOSED",
                 "integrity": integrity,
                 "backend": "SQLITE_SINGLE_WRITER",
                 "path_disclosed": False,
@@ -1021,7 +1027,7 @@ def _error(exc: Exception) -> JSONResponse:
 
 
 def _status_payload() -> dict[str, Any]:
-    store = _store().status()
+    store = DefendStore.observe(_state_path())
     key, key_source = _signing_key()
     signing_ready = key is not None
     return {
@@ -1029,9 +1035,13 @@ def _status_payload() -> dict[str, Any]:
         "product": PRODUCT,
         "plane": PLANE,
         "contract_version": CONTRACT_VERSION,
-        "state": "READY" if store["state"] == "WRITABLE" and signing_ready else "DEGRADED",
-        "workflow_operational": store["state"] == "WRITABLE",
-        "production_receipts_ready": store["state"] == "WRITABLE" and signing_ready,
+        "state": "DEGRADED",
+        "workflow_operational": False,
+        "local_demo_readable": store["state"] == "READABLE",
+        "production_receipts_ready": False,
+        "production_ready": False,
+        "readiness_scope": "LOCAL_SQLITE_DEMO",
+        "production_gate": "DURABLE_STATE_AND_IDENTITY_UNVERIFIED",
         "same_origin": True,
         "source": {
             "repository": SOURCE_REPOSITORY,
@@ -1072,6 +1082,10 @@ def _status_payload() -> dict[str, Any]:
 
 async def _status(request: Request) -> JSONResponse:
     return JSONResponse(_status_payload(), status_code=200)
+
+
+async def _readyz(request: Request) -> JSONResponse:
+    return JSONResponse(_status_payload(), status_code=503)
 
 
 async def _source(request: Request) -> JSONResponse:
@@ -1322,7 +1336,7 @@ def _routes(ns: str) -> Iterable[Route]:
         Route("/aegis", _legacy_redirect, methods=["GET"], name=f"{ns}_aegis_alias"),
         Route("/sentra", _legacy_redirect, methods=["GET"], name=f"{ns}_sentra_alias"),
         Route("/api/defend/status", _status, methods=["GET"], name=f"{ns}_defend_status"),
-        Route("/api/defend/readyz", _status, methods=["GET"], name=f"{ns}_defend_ready"),
+        Route("/api/defend/readyz", _readyz, methods=["GET"], name=f"{ns}_defend_ready"),
         Route("/api/defend/source", _source, methods=["GET"], name=f"{ns}_defend_source"),
         Route("/api/defend/analyze", _analyze, methods=["POST"], name=f"{ns}_defend_analyze"),
         Route("/api/defend/approve", _approve, methods=["POST"], name=f"{ns}_defend_approve"),

@@ -66,9 +66,11 @@ def test_status_is_source_bound_and_no_effector_exists(tmp_path, monkeypatch):
     response = c.get("/api/defend/status")
     assert response.status_code == 200
     body = response.json()
-    assert body["state"] == "READY"
-    assert body["workflow_operational"] is True
-    assert body["production_receipts_ready"] is True
+    assert body["state"] == "DEGRADED"
+    assert body["workflow_operational"] is False
+    assert body["production_receipts_ready"] is False
+    assert body["production_ready"] is False
+    assert body["readiness_scope"] == "LOCAL_SQLITE_DEMO"
     assert body["source"]["revision"] == defend.SOURCE_REVISION
     assert body["source"]["repository"] == "szl-holdings/szl-defensive-control-plane"
     assert body["taxonomy"] == {

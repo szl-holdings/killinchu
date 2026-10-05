@@ -105,6 +105,15 @@ receipt-chain event.
 
 ## 6. Readiness contract
 
+The current public Defend route is a local SQLite demonstration.
+`GET /api/defend/status` is a passive observation of an existing local database and
+returns HTTP 200 even when that observation is degraded; it does not create a
+database or assert writer availability. `GET /api/defend/readyz` returns HTTP
+503 with `production_ready: false` and
+`production_gate: DURABLE_STATE_AND_IDENTITY_UNVERIFIED`. A local signing key,
+readable SQLite file, or working demo flow does not satisfy the production
+contract below. The deployment workflow checks this 503 explicitly.
+
 Production `/api/defend/readyz` returns `503` unless all of the following are
 true for the same source revision and tenant-neutral probe transaction:
 
