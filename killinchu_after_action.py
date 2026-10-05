@@ -316,9 +316,13 @@ def register(app: Any, emit_receipt: Callable, ns: str = "killinchu",
     GET /api/{ns}/v1/engagements/{record_id}/after-action
         The after-action bundle pinned to one closure record.
 
-    The export itself emits a Khipu receipt (kind=after_action_export) so even
-    the act of evidence hand-off is receipted. ``ledger_readiness`` /
-    ``ledger_snapshot`` are the host's (serve.py) ``_LEDGER_RUNTIME`` callables;
+    GET and HEAD export existing evidence without minting a new receipt.
+    ``export_receipt`` retains its object shape with null coordinates and an
+    explicit UNSIGNED_READ_ONLY state. Existing closure/decision receipt
+    references remain in their evidence sections. ``ledger_readiness`` /
+    ``ledger_snapshot`` are the host's passive ``_LEDGER_RUNTIME`` callables;
+    ``emit_receipt`` is retained for registration API compatibility, never
+    called by these read routes.
     when omitted (offline tests) the chain section degrades to the honest
     NOT_VERIFIABLE_IN_THIS_RUNTIME state.
     """
@@ -349,7 +353,7 @@ def register(app: Any, emit_receipt: Callable, ns: str = "killinchu",
         track_updates = list(reversed(track_hist.get(track_id, [])))
 
         ledger = _ledger_readiness()
-        nodes = _ledger_snapshot() if ledger.get("ready") is True else []
+        nodes = _ledger_snapshot() if ledger.get("ready") is True else None
         policy = _parity._ROE_POLICY
         bundle = build_after_action_bundle(
             track_id=track_id,
@@ -369,6 +373,13 @@ def register(app: Any, emit_receipt: Callable, ns: str = "killinchu",
             "TIME. Per-decision policy_hash values in roe_chain bind each gate "
             "evaluation to the rule bytes it was decided under."
         )
+        bundle["export_receipt"] = {
+            "index": None, "digest": None, "signed": False,
+            "state": "UNSIGNED_READ_ONLY",
+        }
+        bundle["receipt_minted"] = False
+        bundle["export_read_only"] = True
+        bundle["ledger"] = ledger
         return bundle, ledger
 
     # Ledger runtime: host-provided callables, or the honest absent state when
@@ -385,35 +396,30 @@ def register(app: Any, emit_receipt: Callable, ns: str = "killinchu",
 
     _ledger_snapshot: Callable[[], List[Dict[str, Any]]] = ledger_snapshot or _default_snapshot
 
-    @app.get(f"{base}/engagements/after-action")
+    @app.api_route(f"{base}/engagements/after-action", methods=["GET", "HEAD"])
     async def after_action(track_id: str) -> JSONResponse:
         """Export the after-action receipt bundle for one track (all closures)."""
         if not track_id:
             return JSONResponse({"ok": False, "error": "provide ?track_id="},
                                 status_code=400)
         bundle, ledger = _bundle_for(track_id)
-        node = emit_receipt("after_action_export", {
-            "track_id": track_id,
-            "closures": bundle["engagement"]["closure_count"],
-            "roe_decisions": len(bundle["sections"]["roe_chain"]["decisions"]),
-        })
-        bundle["export_receipt"] = {
-            "index": node["index"], "digest": node["digest"],
-            "signed": node.get("signed"),
-        }
-        bundle["ledger"] = ledger
+        if ledger.get("ready") is not True:
+            bundle.update(ok=False, error="receipt ledger unavailable")
+            return JSONResponse(bundle, status_code=503,
+                                headers={"cache-control": "no-store"})
         if bundle["engagement"]["closure_count"] == 0 and not bundle["sections"]["roe_chain"]["decisions"]:
             bundle["ok"] = False
             bundle["empty_state"] = (
                 f"no engagements or ROE decisions recorded for track "
                 f"'{track_id}' in this runtime (in-memory, resets on restart)"
             )
-            return JSONResponse(bundle, status_code=404)
-        return JSONResponse(bundle)
+            return JSONResponse(bundle, status_code=404,
+                                headers={"cache-control": "no-store"})
+        return JSONResponse(bundle, headers={"cache-control": "no-store"})
 
     registered.append(f"GET {base}/engagements/after-action")
 
-    @app.get(f"{base}/engagements/{{record_id}}/after-action")
+    @app.api_route(f"{base}/engagements/{{record_id}}/after-action", methods=["GET", "HEAD"])
     async def after_action_for_record(record_id: str) -> JSONResponse:
         """Export the after-action bundle pinned to one closure record."""
         match = [e for e in _parity.audit_log_snapshot()
@@ -426,16 +432,11 @@ def register(app: Any, emit_receipt: Callable, ns: str = "killinchu",
                 status_code=404)
         bundle, ledger = _bundle_for(match[0].get("track_id", "UNKNOWN"),
                                      limit_to_record=record_id)
-        node = emit_receipt("after_action_export", {
-            "record_id": record_id,
-            "track_id": match[0].get("track_id"),
-        })
-        bundle["export_receipt"] = {
-            "index": node["index"], "digest": node["digest"],
-            "signed": node.get("signed"),
-        }
-        bundle["ledger"] = ledger
-        return JSONResponse(bundle)
+        if ledger.get("ready") is not True:
+            bundle.update(ok=False, error="receipt ledger unavailable")
+            return JSONResponse(bundle, status_code=503,
+                                headers={"cache-control": "no-store"})
+        return JSONResponse(bundle, headers={"cache-control": "no-store"})
 
     registered.append(f"GET {base}/engagements/{{record_id}}/after-action")
 

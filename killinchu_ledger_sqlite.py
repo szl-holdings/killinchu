@@ -229,11 +229,12 @@ class SQLiteLedgerAdapter:
             verified = False
         return {"verified": verified}
 
-    def readiness(self) -> dict[str, Any]:
+    def readiness(self, *, read_only: bool = False) -> dict[str, Any]:
         try:
-            # Test writer-lock acquisition as well as replay. Actual append may
-            # still fail (for example disk full); LedgerRuntime handles that.
-            with self._transaction(write=True) as connection:
+            # Passive GET probes recheck schema, identity, and the entire chain
+            # through mode=ro. Explicit startup/write readiness also checks
+            # writer-lock acquisition; actual append can still fail closed.
+            with self._transaction(write=not read_only, read_only=read_only) as connection:
                 self._read(connection)
             ready = True
         except Exception:

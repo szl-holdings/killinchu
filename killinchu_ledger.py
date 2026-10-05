@@ -16,6 +16,9 @@ An external adapter must implement:
 * ``readiness() -> Mapping`` with ``ready is True``; an optional
   ``production_ready`` field must be exactly True to permit a production claim.
   An omitted field retains the legacy contract, not provider persistence proof.
+* Passive reads additionally require ``readiness(read_only=True)`` without
+  writer-lock probes, provisioning, append, signing, or recovery. Missing this
+  capability fails closed; passive reads never fall back to the writer probe.
 """
 
 from __future__ import annotations
@@ -226,13 +229,14 @@ class LedgerRuntime:
                 self._fail("external ledger startup or replay failed")
             return self.readiness(recover=False)
 
-    def readiness(self, *, recover: bool = True) -> dict[str, Any]:
+    def readiness(self, *, recover: bool = True, read_only: bool = False) -> dict[str, Any]:
         """Return a secret-free, fail-closed readiness and truth envelope."""
 
         with self._lock:
             now = time.monotonic()
             can_recover = (
                 recover
+                and not read_only
                 and self._mode == DURABLE_EXTERNAL
                 and not self._ready
                 and not self._configuration_error
@@ -250,7 +254,10 @@ class LedgerRuntime:
             persistence_scope = "PROCESS_MEMORY" if self._mode == EPHEMERAL else "UNSPECIFIED"
             if self._mode == DURABLE_EXTERNAL and self._ready:
                 try:
-                    report = dict(self._adapter.readiness())
+                    report = dict(
+                        self._adapter.readiness(read_only=True)
+                        if read_only else self._adapter.readiness()
+                    )
                     adapter_ready = report.get("ready") is True
                     adapter_state = "READY" if adapter_ready else "UNAVAILABLE"
                     adapter_production_ready = report.get("production_ready", True) is True
@@ -280,6 +287,7 @@ class LedgerRuntime:
                 "ready": ready,
                 "production_ready": ready and durability_state == DURABLE_EXTERNAL and adapter_production_ready,
                 "production_readiness_basis": production_basis,
+                "readiness_probe": "READ_ONLY" if read_only else "WRITE_CAPABILITY",
                 "persistence_scope": persistence_scope,
                 "startup_state": self._startup_state,
                 "adapter_configured": self._adapter is not None,
