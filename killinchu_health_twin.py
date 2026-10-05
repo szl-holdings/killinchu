@@ -59,6 +59,7 @@ from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
 # Reuse the proven helpers from the live-feeds module (CPA/TCPA, conformal Λ band,
 # live AIS fetch) and the YUYAY conjunctive gate from the anatomy engine. Guarded:
@@ -102,10 +103,12 @@ def _seed_axis(platform_id: str, axis: str) -> float:
 
 
 def _geo_mean(vals: list[float]) -> float:
-    vals = [max(1e-6, min(1.0, v)) for v in vals]
     if not vals:
         return 0.0
-    return math.exp(sum(math.log(v) for v in vals) / len(vals))
+    if any(type(v) not in (int, float) or not math.isfinite(v) for v in vals):
+        return 0.0
+    vals = [max(1e-6, min(0.97, v)) for v in vals]
+    return min(0.97, math.exp(sum(math.log(v) for v in vals) / len(vals)))
 
 
 # Split-conformal half-width (W5-3/W7-4) — NOT Hoeffding. Given a list of calibration
@@ -226,8 +229,11 @@ def _subsystem(platform_id: str, axis: str, signals: dict) -> dict:
         if fw < 0.55:
             status, action = "needs-upgrade", "Firmware behind current baseline; schedule OTA upgrade (advisory)."
 
-    # per-axis trust = 1 - nonconformity, floored
-    trust = round(max(0.0, 1.0 - nonconf), 4)
+    # Per-axis trust retains the doctrine ceiling, including nominal inputs.
+    trust = (
+        round(max(0.0, min(0.97, 1.0 - nonconf)), 4)
+        if type(nonconf) in (int, float) and math.isfinite(nonconf) else 0.0
+    )
     prov = _SUBSYS_PROVENANCE.get(axis, "INFERRED/SIMULATED")
     return {
         "subsystem": axis, "status": status, "metric": metric, "value": value,
@@ -248,7 +254,7 @@ def _platform_state(platform_id: str, signals: dict) -> dict:
     # Conformal band (W5-3/W7-4 — NOT Hoeffding) over the subsystem nonconformities.
     nonconf = [s["nonconformity"] for s in subs]
     q = _conformal_q(nonconf, alpha=0.1)
-    band = [round(max(0.0, lam - q), 4), round(min(1.0, lam + q), 4)]
+    band = [round(max(0.0, lam - q), 4), round(min(0.97, lam + q), 4)]
     # mark which subsystems are OUT-OF-ENVELOPE (nonconformity > q)
     for s in subs:
         s["out_of_envelope"] = bool(s["nonconformity"] > q)
@@ -271,13 +277,14 @@ def _platform_state(platform_id: str, signals: dict) -> dict:
             gate = _yuyay_score(proposal)
         except Exception:
             gate = None
+    if not isinstance(gate, dict) or type(gate.get("pass")) is not bool:
+        gate = None
     if gate is None:
-        # local fallback gate: conjunctive over (no-hacked) AND (lam ≥ 0.90)
-        passed = (not hacked) and lam >= 0.90
+        # Missing gate evidence cannot be replaced by a smaller local gate.
         gate = {
-            "pass": passed,
-            "rule": "pass = all(score[i] >= floor[i]) — CONJUNCTIVE (local fallback)",
-            "first_fail": None if passed else {"axis": "A_local", "reason": "hacked or Λ<0.90"},
+            "pass": False,
+            "rule": "DENY_BY_DEFAULT — canonical YUYAY gate evidence unavailable",
+            "first_fail": {"axis": "UNKNOWN", "reason": "canonical YUYAY gate unavailable"},
         }
 
     # ---- REAL compromise cross-reference (kinematic + KEV/NVD + OFAC SDN) ----
@@ -310,7 +317,7 @@ def _platform_state(platform_id: str, signals: dict) -> dict:
             "method": "split-conformal (W5-3/W7-4) — NOT Hoeffding",
         },
         "yuyay_gate": {
-            "authorized": bool(gate.get("pass")),
+            "authorized": gate.get("pass") is True,
             "rule": gate.get("rule"),
             "first_fail": gate.get("first_fail"),
         },
@@ -348,7 +355,7 @@ SAMPLE_DRONES = [
 ]
 
 
-def _signals_from_ais(v: dict) -> dict:
+def _signals_from_ais(v: dict, *, read_only: bool = False) -> dict:
     mmsi = str(v.get("mmsi"))
     sig = {
         "_kind": "vessel", "_label": "live", "_name": v.get("name") or f"MMSI {mmsi}",
@@ -362,7 +369,7 @@ def _signals_from_ais(v: dict) -> dict:
     if prev and v.get("lat") is not None and v.get("lon") is not None:
         sig["_jump_nm"] = _haversine_nm(prev["lat"], prev["lon"], v["lat"], v["lon"])
         sig["_age_s"] = round(now - prev["ts"], 1)
-    if v.get("lat") is not None:
+    if not read_only and v.get("lat") is not None:
         _LAST_FIX[mmsi] = {"lat": v["lat"], "lon": v["lon"], "ts": now}
     return sig
 
@@ -376,7 +383,7 @@ def _signals_from_ais(v: dict) -> dict:
 _LAST_FIX_AIR: dict[str, dict] = {}
 
 
-def _signals_from_air(a: dict) -> dict:
+def _signals_from_air(a: dict, *, read_only: bool = False) -> dict:
     """Map a live ADS-B aircraft fix → the same signal schema the formulas use.
     Honest: every value is the real ADS-B field; nothing fabricated. Aircraft do
     not broadcast AIS COG/RAIM, so we derive comms coherence from ground-track
@@ -407,7 +414,7 @@ def _signals_from_air(a: dict) -> dict:
         # track-continuity coherence proxy (large instantaneous track flip at speed = anomaly)
         if prev.get("track") is not None and track is not None:
             sig["_track_flip_deg"] = round(abs(((track - prev["track"] + 180) % 360) - 180), 1)
-    if a.get("lat") is not None:
+    if not read_only and a.get("lat") is not None:
         _LAST_FIX_AIR[hexid] = {"lat": a["lat"], "lon": a["lon"], "ts": now, "track": track}
     return sig
 
@@ -767,7 +774,7 @@ def register(app: FastAPI, ns: str = "killinchu",
             "ts_utc": datetime.now(timezone.utc).isoformat(),
         }
 
-    @app.get(f"/api/{ns}/v1/twin/state")
+    @app.api_route(f"/api/{ns}/v1/twin/state", methods=["GET", "HEAD"])
     async def twin_state(platform: str = ""):
         plats, label = _live_platforms(12)
         match = next((p for p in plats if p["id"] == platform), None)
@@ -777,24 +784,18 @@ def register(app: FastAPI, ns: str = "killinchu",
         if match is None:
             return {"error": "no platforms available", "feed_label": label}
         if "_air" in match:
-            signals = _signals_from_air(match["_air"])
+            signals = _signals_from_air(match["_air"], read_only=True)
         elif "_ais" in match:
-            signals = _signals_from_ais(match["_ais"])
+            signals = _signals_from_ais(match["_ais"], read_only=True)
         else:
             d = match["_sample"]
             signals = {"_kind": "drone", "_label": match.get("label", "sample"), "_name": d["name"], **{k: v for k, v in d.items() if not k.startswith("_") and k not in ("id", "name", "kind")}}
         state = _platform_state(match["id"], signals)
-        if emit_receipt:
-            try:
-                rcpt = emit_receipt("twin_state", {
-                    "platform_id": state["platform_id"], "headline_status": state["headline_status"],
-                    "lambda": state["lambda"], "authorized": state["yuyay_gate"]["authorized"],
-                })
-                state["receipt"] = {"index": rcpt.get("index"), "digest": rcpt.get("digest"),
-                                    "signed": rcpt.get("signed", False)}
-            except Exception:
-                pass
-        return state
+        state["receipt"] = {"index": None, "digest": None, "signed": False,
+                            "state": "UNSIGNED_READ_ONLY"}
+        state["receipt_minted"] = False
+        state["export_read_only"] = True
+        return JSONResponse(state, headers={"cache-control": "no-store"})
 
     @app.get(f"/api/{ns}/v1/twin/_self")
     async def twin_self():

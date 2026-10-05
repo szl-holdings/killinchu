@@ -156,6 +156,10 @@ class PublicRouteRepairTests(unittest.TestCase):
                 "env:SZL_GIT_SHA",
             )
             self.assertIs(response.json()["receipt_minted"], False)
+            self.assertIs(response.json()["receipt_minted_on_request"], False)
+            self.assertEqual(
+                response.json()["receipt_minted_scope"], "DEPLOYMENT_RELEASE_REFERENCE"
+            )
             self.assertEqual(
                 response.json()["release_receipt"]["state"],
                 "UNAVAILABLE",
@@ -201,12 +205,42 @@ class PublicRouteRepairTests(unittest.TestCase):
                     "RELEASE_ATTESTATION": json.dumps(receipt),
                 },
             ):
-                response = TestClient(self._app(Path(tmp) / "source.json")).get(
-                    "/api/build-info"
-                )
+                app = self._app(Path(tmp) / "source.json")
+                os.environ["SZL_GIT_SHA"] = "c" * 40
+                os.environ["RELEASE_ATTESTATION"] = "not-a-new-release"
+                # Registration captures the reference. Reads must not re-read
+                # identity, fetch an attestation, or run provider commands.
+                with patch(
+                    "killinchu_public_route_repair._release_receipt",
+                    side_effect=AssertionError("read reparsed release identity"),
+                ), patch(
+                    "killinchu_public_route_repair._source_build_identity",
+                    side_effect=AssertionError("read reparsed build identity"),
+                ), patch(
+                    "urllib.request.urlopen",
+                    side_effect=AssertionError("read fetched an attestation"),
+                ), patch(
+                    "subprocess.run",
+                    side_effect=AssertionError("read ran a provider command"),
+                ), patch(
+                    "subprocess.Popen",
+                    side_effect=AssertionError("read spawned a provider command"),
+                ):
+                    client = TestClient(app)
+                    response = client.get("/api/build-info")
+                    repeated = client.get("/api/build-info")
+                    head = client.head("/api/build-info")
 
             payload = response.json()
             self.assertIs(payload["receipt_minted"], True)
+            self.assertIs(payload["receipt_minted_on_request"], False)
+            self.assertEqual(
+                payload["receipt_minted_scope"], "DEPLOYMENT_RELEASE_REFERENCE"
+            )
+            self.assertEqual(repeated.json(), payload)
+            self.assertEqual(head.status_code, response.status_code)
+            self.assertEqual(head.content, b"")
+            self.assertEqual(head.headers["content-length"], response.headers["content-length"])
             self.assertEqual(
                 payload["release_receipt"]["state"],
                 "GITHUB_OIDC_ATTESTED",
