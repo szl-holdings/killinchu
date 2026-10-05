@@ -155,7 +155,7 @@ def test_missing_closed_store_is_not_recreated_on_read(monkeypatch, host, method
 
 
 @pytest.mark.parametrize("method", ["get", "head"])
-@pytest.mark.parametrize("state", ["absent", "uninitialized", "empty", "existing", "historical", "malformed", "nonfinite", "raises"])
+@pytest.mark.parametrize("state", ["absent", "uninitialized", "empty", "existing", "historical", "malformed", "missing-field", "empty-object", "nonfinite", "raises"])
 def test_energy_reads_only_existing_snapshot(monkeypatch, host, method, state):
     counter = {"status": 0, "get_ledger": 0, "record": 0, "operator": 0}
     snapshot = {"decisions_total": 1, "recent_decisions": [{"chosen_node": "LOCAL_TEST", "kind": "SAMPLE"}],
@@ -166,6 +166,10 @@ def test_energy_reads_only_existing_snapshot(monkeypatch, host, method, state):
         snapshot["recent_decisions"][0].update(signed=True, dsse={"declaration": "LOCAL_TEST_UNVERIFIED"})
     elif state == "malformed":
         snapshot["recent_decisions"] = [None]
+    elif state == "missing-field":
+        snapshot.pop("recent_decisions")
+    elif state == "empty-object":
+        snapshot = {}
     elif state == "nonfinite":
         snapshot["decisions_total"] = float("nan")
     original_snapshot = deepcopy(snapshot)
@@ -197,7 +201,7 @@ def test_energy_reads_only_existing_snapshot(monkeypatch, host, method, state):
     path = BASE + "/energy/cheapest-watt"
     for _ in range(2):
         response = getattr(host[1], method)(path)
-        assert response.status_code == (503 if state in {"malformed", "nonfinite", "raises"} else 200)
+        assert response.status_code == (503 if state in {"malformed", "missing-field", "empty-object", "nonfinite", "raises"} else 200)
         body = _assert_unsigned(response, method)
         if body is not None:
             expected = "EMPTY" if state == "empty" else "AVAILABLE" if state in {"existing", "historical"} else "UNAVAILABLE"

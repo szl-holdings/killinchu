@@ -888,7 +888,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                 snapshot = led.status()
                 if not isinstance(snapshot, dict):
                     raise ValueError("placement snapshot must be an object")
-                recent = snapshot.get("recent_decisions", [])
+                recent = snapshot.get("recent_decisions")
                 if not isinstance(recent, list) or any(not isinstance(r, dict) for r in recent):
                     raise ValueError("placement decisions must be objects")
                 json.dumps(snapshot, allow_nan=False)
