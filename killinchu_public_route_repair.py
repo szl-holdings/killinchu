@@ -678,6 +678,8 @@ def register(
                 "service": ns,
                 "build": build_identity,
                 "receipt_minted": receipt_minted,
+                "receipt_minted_on_request": False,
+                "receipt_minted_scope": "DEPLOYMENT_RELEASE_REFERENCE",
                 "release_receipt": release_receipt,
             },
             headers=_JSON_HEADERS,

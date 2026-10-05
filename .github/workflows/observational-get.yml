@@ -1,0 +1,43 @@
+name: Observational GET contracts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  observational-get:
+    name: Observation routes — passive reads and preserved writers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+      - name: Install focused test dependencies
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "fastapi==0.137.2" "starlette==1.3.1" "httpx==0.28.1" \
+            "cryptography==49.0.0" "pytest==9.0.3" "numpy==2.2.6"
+          python -m pip check
+      - name: Verify actual route reads and explicit writers offline
+        env:
+          KILLINCHU_ROOT: ${{ github.workspace }}
+          KILLINCHU_LEDGER_MODE: EPHEMERAL
+          SZL_READINESS_WARM: "0"
+          SZL_KHIPU_DIR: ${{ runner.temp }}/killinchu-observation-be
+          KILLINCHU_DB_DIR: ${{ runner.temp }}/killinchu-observation-backend
+        run: python -m pytest -q -p tests.observation_offline tests/test_killinchu_observational_get.py tests/test_elite_wiring.py tests/test_public_route_repair.py
