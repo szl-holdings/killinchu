@@ -64,7 +64,7 @@ jobs:
           check "a11oy console"    "https://szlholdings-a11oy.hf.space/console"
           check "killinchu /"      "https://szlholdings-killinchu.hf.space/"
           check "killinchu /elite" "https://szlholdings-killinchu.hf.space/elite"
-          check "anatomy /"        "https://szlholdings-anatomy.hf.space/"
+          check "anatomy /"        "https://betterwithage-anatomy.hf.space/"
 
           echo "PASS=$PASS FAIL=$FAIL"
           echo "pass=$PASS" >> "$GITHUB_OUTPUT"
@@ -77,6 +77,6 @@ jobs:
             exit 1
           fi
           if [ "$FAIL" -gt 0 ]; then
-            echo "::warning::$FAIL transient/probe miss (not a hard outage):$FAILURES"
+            echo "::warning::$FAIL sustained probe failure(s) below the majority failure threshold:$FAILURES"
           fi
-          echo "Smoke OK ($PASS/5 live; $FAIL soft)."
+          echo "Smoke summary: $PASS/5 HTTP 200; $FAIL sustained probe failure(s)."

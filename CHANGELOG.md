@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Probe Living Anatomy at its canonical `betterwithage/anatomy` Space.
+  Report sustained failures explicitly even below the unchanged majority
+  failure threshold; retain all five probes and the existing retry bounds.
 - The Evidence & Research index now returns curated citations with last-observed
   source badges without waiting on third-party sites. Fresh per-claim checks and
   the background sweep remain available; UNAVAILABLE and stale results are explicit.
