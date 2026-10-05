@@ -116,8 +116,9 @@ jobs:
           SZL_KHIPU_DIR: ${{ runner.temp }}/killinchu-passive-be
           KILLINCHU_DB_DIR: ${{ runner.temp }}/killinchu-passive-backend
         run: >-
-          python -m pytest -q
+          python -m pytest -q -p tests.backend_read_offline
           tests/test_assurance_credential.py
+          tests/test_backend_passive_reads.py
           tests/test_be_hardening.py
           tests/test_killinchu_ledger_attribution.py
           tests/test_killinchu_passive_get.py
