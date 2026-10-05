@@ -293,7 +293,7 @@ def register_expansion(app, *, drones: list, emit_receipt: Callable, haversine: 
         })
 
     # ---- GEOINT aggregation over a lat/lon/radius ----
-    @app.api_route("/api/killinchu/v1/geoint", methods=["GET", "POST"])
+    @app.api_route("/api/killinchu/v1/geoint", methods=["GET", "HEAD", "POST"])
     async def geoint(request: Request):
         body = await json_body(request) if request.method == "POST" else {}
         qp = request.query_params
@@ -312,15 +312,22 @@ def register_expansion(app, *, drones: list, emit_receipt: Callable, haversine: 
                 "would_detect": c["killinchu_use"],
                 "source": c["source"],
             })
-        receipt = emit_receipt("geoint_aggregation", {"lat": lat, "lon": lon, "radius_km": radius_km,
-                                                      "constellations": len(observations)})
+        if request.method == "POST":
+            receipt = emit_receipt("geoint_aggregation", {"lat": lat, "lon": lon, "radius_km": radius_km,
+                                                          "constellations": len(observations)})
+            receipt_view = {"index": receipt["index"], "digest": receipt["digest"], "khipu_root": khipu_root()}
+        else:
+            receipt_view = {"index": None, "digest": None, "khipu_root": khipu_root(),
+                            "signed": False, "state": "UNSIGNED_READ_ONLY"}
         return JSONResponse({
             "ok": True, "aoi": {"lat": lat, "lon": lon, "radius_km": radius_km},
             "observation_count": len(observations), "observations": observations,
-            "receipt": {"index": receipt["index"], "digest": receipt["digest"], "khipu_root": khipu_root()},
+            "receipt": receipt_view,
+            "receipt_minted": request.method == "POST",
+            "export_read_only": request.method != "POST",
             "doctrine": doctrine,
             "honesty": "Aggregation plan over real constellation capabilities; per-observation confidence is a planning estimate, not a live collection. WE SENSE, WE EVIDENCE.",
-        })
+        }, headers={"cache-control": "no-store"})
 
     # ---- Per-drone digital twin (Three.js scene config + telemetry) ----
     @app.get("/api/killinchu/v1/drones/{drone_id}/twin")
@@ -355,7 +362,7 @@ def register_expansion(app, *, drones: list, emit_receipt: Callable, haversine: 
         })
 
     # ---- Integrity / tamper tripwires (T11-T20) ----
-    @app.api_route("/api/killinchu/v1/drones/{drone_id}/integrity", methods=["GET", "POST"])
+    @app.api_route("/api/killinchu/v1/drones/{drone_id}/integrity", methods=["GET", "HEAD", "POST"])
     async def drone_integrity(drone_id: str, request: Request):
         d = _drone_by_id(drone_id)
         if not d:
@@ -371,17 +378,24 @@ def register_expansion(app, *, drones: list, emit_receipt: Callable, haversine: 
             results.append(entry)
             if fire:
                 fired.append(tw["id"])
-        receipt = emit_receipt("integrity_scan", {"drone_id": drone_id, "fired": fired,
-                                                  "tripwires_evaluated": len(TRIPWIRES)})
+        if request.method == "POST":
+            receipt = emit_receipt("integrity_scan", {"drone_id": drone_id, "fired": fired,
+                                                      "tripwires_evaluated": len(TRIPWIRES)})
+            receipt_view = {"index": receipt["index"], "digest": receipt["digest"], "khipu_root": khipu_root()}
+        else:
+            receipt_view = {"index": None, "digest": None, "khipu_root": khipu_root(),
+                            "signed": False, "state": "UNSIGNED_READ_ONLY"}
         return JSONResponse({
             "ok": True, "drone_id": drone_id, "tripwires_evaluated": len(TRIPWIRES),
             "fired": fired, "fired_count": len(fired),
             "verdict": "TAMPER-SUSPECTED" if fired else "ATTESTED-CLEAN",
             "tripwires": results,
-            "receipt": {"index": receipt["index"], "digest": receipt["digest"], "khipu_root": khipu_root()},
+            "receipt": receipt_view,
+            "receipt_minted": request.method == "POST",
+            "export_read_only": request.method != "POST",
             "doctrine": doctrine,
-            "honesty": "Tripwires T11-T20 extend the HUKLLA set. Each scan emits a Khipu receipt. Forced-fire is for demonstration; production evaluates real DICE/MAVLink/RF telemetry.",
-        })
+            "honesty": "Tripwires T11-T20 extend the HUKLLA set. GET/HEAD is an unsigned read-only preview; POST records a Khipu receipt. Forced-fire is for demonstration; production evaluates real DICE/MAVLink/RF telemetry.",
+        }, headers={"cache-control": "no-store"})
 
     # ---- OTA push (OWN fleet only, signed, Yuyay 2-person gate) ----
     @app.post("/api/killinchu/v1/drones/{drone_id}/ota")
