@@ -49,6 +49,15 @@ true for a historical release; it does not report a new receipt on a GET.
 explicit. Repeated GET/HEAD requests export the identity captured at
 registration without fetching or minting an attestation.
 
+The health preview requires all thirteen canonical axes, names and floors,
+finite scores in their declared range, exact boolean row results, and a
+consistent aggregate result and first failed axis. Missing or contradictory
+evidence denies authorization. The boolean axes retain their existing canonical
+floors; they are not continuous trust scores. The borrowed-powers catalogue
+reports signing capability as UNKNOWN with a null availability value. It does
+not load private keys, inspect a fingerprint, or initialize a signing-key cache
+during GET or HEAD.
+
 Local qualification command:
 
 ```text

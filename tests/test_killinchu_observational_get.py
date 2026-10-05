@@ -116,6 +116,13 @@ def _observe(monkeypatch, host, runtime, adapter):
     monkeypatch.setattr(host[0], "_receipt_signatures", forbidden_sign)
     import szl_dsse
     monkeypatch.setattr(szl_dsse, "sign_payload", forbidden_sign)
+    for name in ("signing_available", "_load_private_key", "public_key_fingerprint"):
+        monkeypatch.setattr(szl_dsse, name, forbidden_sign)
+    # The shared key helper is optional in this host. A trap also catches a
+    # future dynamic import instead of assuming the module is already present.
+    import sys
+    monkeypatch.setitem(sys.modules, "a11oy_signing_key",
+                        SimpleNamespace(load_signing_key=forbidden_sign))
     monkeypatch.setattr(storage, "provision", lambda *a, **k: pytest.fail("read provisioned storage"))
     return calls
 
@@ -151,6 +158,10 @@ def test_served_observation_does_not_mint_or_change_store(
         if site == "geoint":
             assert body["observation_count"] == len(body["observations"]) > 0
             assert "planning estimate" in body["honesty"]
+        if site == "borrowed":
+            assert body["signing"]["dsse_signing_available"] is None
+            assert body["signing"]["state"] == "UNKNOWN"
+            assert body["signing"]["fingerprint"] is None
         if site == "integrity":
             assert body["tripwires_evaluated"] == len(body["tripwires"]) > 0
         if site == "twin":
@@ -283,7 +294,7 @@ def test_missing_drone_does_not_mint(tmp_path, monkeypatch, host):
     assert calls == {name: 0 for name in calls}
 
 
-@pytest.mark.parametrize("values", [[1.0], [1.0, 1.0], [10.0, 0.98], [0.97, 0.97]])
+@pytest.mark.parametrize("values", [[1.0], [1.0, 1.0], [10.0, 0.98], [0.97, 0.97], [10**1000], [-10**1000]])
 def test_health_trust_aggregate_cannot_exceed_ceiling(host, values):
     assert 0.0 <= host[2]._geo_mean(values) <= 0.97
 
@@ -325,10 +336,63 @@ def test_subsystem_nominal_trust_retains_ceiling(host):
     assert state["conformal"]["band"][1] <= 0.97
 
 
-@pytest.mark.parametrize("gate", [None, [], True, {}, {"pass": "false"}, {"pass": 1}, {"pass": None}])
+@pytest.mark.parametrize("gate", [None, [], True, {}, {"pass": "false"}, {"pass": 1}, {"pass": None},
+    {"pass": True}, {"pass": True, "score_vector": [], "first_fail": {"axis": "A01"}}])
 def test_malformed_canonical_gate_cannot_authorize(monkeypatch, host, gate):
     monkeypatch.setattr(host[2], "_yuyay_score", lambda proposal: gate)
     response = host[1].get("/api/killinchu/v1/twin/state?platform=ADSB-LOCAL")
     assert response.status_code == 200
     assert response.json()["yuyay_gate"]["authorized"] is False
     assert response.json()["yuyay_gate"]["first_fail"]["axis"] == "UNKNOWN"
+
+
+def _canonical_gate(host):
+    import killinchu_anatomy
+    return killinchu_anatomy.yuyay_score({"confidence": 0.97, "track_id": "SYNTHETIC",
+        "source_label": "SAMPLE", "reversible": True, "severity": "low"})
+
+
+@pytest.mark.parametrize("corruption", ["short", "duplicate", "floor", "nonfinite", "row_pass",
+    "string_pass", "first_fail", "no_first_fail", "aggregate", "rule"])
+def test_inconsistent_full_gate_denies(monkeypatch, host, corruption):
+    gate = _canonical_gate(host)
+    assert gate["pass"] is True
+    if corruption == "short":
+        gate["score_vector"].pop()
+    elif corruption == "duplicate":
+        gate["score_vector"][1] = deepcopy(gate["score_vector"][0])
+    elif corruption == "floor":
+        gate["score_vector"][0]["floor"] = 0.0
+    elif corruption == "nonfinite":
+        gate["score_vector"][0]["score"] = float("nan")
+    elif corruption == "row_pass":
+        gate["score_vector"][0]["pass"] = False
+    elif corruption == "string_pass":
+        gate["score_vector"][0]["pass"] = "true"
+    elif corruption == "first_fail":
+        gate["first_fail"] = {"axis": "A01", "reason": "SYNTHETIC-FAILURE"}
+    elif corruption == "no_first_fail":
+        del gate["first_fail"]
+    elif corruption == "aggregate":
+        gate["pass"] = False
+    else:
+        gate["rule"] = ""
+    monkeypatch.setattr(host[2], "_yuyay_score", lambda proposal: gate)
+    response = host[1].get("/api/killinchu/v1/twin/state?platform=ADSB-LOCAL")
+    assert response.status_code == 200
+    assert response.json()["yuyay_gate"]["authorized"] is False
+    assert response.json()["yuyay_gate"]["first_fail"]["axis"] == "UNKNOWN"
+
+
+@pytest.mark.parametrize("deny", [False, True])
+def test_complete_canonical_gate_preserves_result(monkeypatch, host, deny):
+    import killinchu_anatomy
+    proposal = {"confidence": 0.97, "track_id": "SYNTHETIC", "source_label": "SAMPLE",
+                "reversible": True, "severity": "low", "stop": deny}
+    gate = killinchu_anatomy.yuyay_score(proposal)
+    monkeypatch.setattr(host[2], "_yuyay_score", lambda proposal: gate)
+    response = host[1].get("/api/killinchu/v1/twin/state?platform=ADSB-LOCAL")
+    assert response.status_code == 200
+    body = response.json()["yuyay_gate"]
+    assert body["authorized"] is (not deny)
+    assert body["first_fail"] == gate["first_fail"]

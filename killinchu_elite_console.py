@@ -179,15 +179,11 @@ _BORROWED: list[dict[str, Any]] = [
 
 
 def _signing_state() -> dict[str, Any]:
-    available = bool(_dsse and _dsse.signing_available())
     return {
-        "dsse_signing_available": available,
-        "honesty": (
-            "REAL — ECDSA-P256-SHA256 DSSE over cosign keypair (SZL_COSIGN_PRIVATE_PEM present)."
-            if available else
-            "PLACEHOLDER — SZL_COSIGN_PRIVATE_PEM secret absent; no signature fabricated (honest)."
-        ),
-        "fingerprint": (_dsse.public_key_fingerprint() if available else None),
+        "dsse_signing_available": None,
+        "state": "UNKNOWN",
+        "honesty": "UNKNOWN — passive reads do not load private keys or test signing capability.",
+        "fingerprint": None,
     }
 
 
@@ -273,7 +269,7 @@ def register(
     @app.api_route(f"/api/{ns}/v1/borrowed-powers", methods=["GET", "HEAD"])
     async def borrowed_powers() -> JSONResponse:
         sig = _signing_state()
-        # Reading the catalogue observes signing capability, never exercises it.
+        # Reading the catalogue never loads keys or exercises signing capability.
         receipt = {"index": None, "digest": None, "dsse": None, "signed": False,
                    "state": "UNSIGNED_READ_ONLY"}
         return JSONResponse({

@@ -63,15 +63,17 @@ from fastapi.responses import JSONResponse
 
 # Reuse the proven helpers from the live-feeds module (CPA/TCPA, conformal Λ band,
 # live AIS fetch) and the YUYAY conjunctive gate from the anatomy engine. Guarded:
-# if either is unavailable we fall back to local copies so the module never crashes.
+# Missing feeds may use previews; missing gate evidence always denies authorization.
 try:
     import killinchu_live_feeds as _lf  # _lambda_trust, _fetch_ais, _ais_to_vector
 except Exception:  # pragma: no cover
     _lf = None
 try:
-    from killinchu_anatomy import yuyay_score as _yuyay_score
+    from killinchu_anatomy import YUYAY_AXES, yuyay_score as _yuyay_score
+    _YUYAY_AXES = tuple(YUYAY_AXES)
 except Exception:  # pragma: no cover
     _yuyay_score = None
+    _YUYAY_AXES = ()
 
 # ---------------------------------------------------------------------------
 # Subsystems of a maritime/drone platform. Each maps to a 3D mesh part in the
@@ -105,10 +107,37 @@ def _seed_axis(platform_id: str, axis: str) -> float:
 def _geo_mean(vals: list[float]) -> float:
     if not vals:
         return 0.0
-    if any(type(v) not in (int, float) or not math.isfinite(v) for v in vals):
+    if any(type(v) not in (int, float) or
+           (type(v) is float and not math.isfinite(v)) for v in vals):
         return 0.0
     vals = [max(1e-6, min(0.97, v)) for v in vals]
     return min(0.97, math.exp(sum(math.log(v) for v in vals) / len(vals)))
+
+
+def _valid_yuyay_result(gate: object) -> bool:
+    """Require complete canonical axes and internally consistent gate evidence."""
+    if not isinstance(gate, dict) or type(gate.get("pass")) is not bool:
+        return False
+    vector = gate.get("score_vector")
+    if not isinstance(vector, list) or len(vector) != 13 or len(_YUYAY_AXES) != 13:
+        return False
+    if not isinstance(gate.get("rule"), str) or not gate["rule"].strip():
+        return False
+    first_fail = None
+    for row, (code, name, floor) in zip(vector, _YUYAY_AXES):
+        if not isinstance(row, dict) or row.get("axis") != code or row.get("name") != name:
+            return False
+        score = row.get("score")
+        supplied_floor = row.get("floor")
+        if (type(score) not in (int, float) or not 0 <= score <= 1 or
+                not math.isfinite(score) or type(supplied_floor) not in (int, float) or
+                supplied_floor != floor or type(row.get("pass")) is not bool or
+                row["pass"] is not (score >= floor)):
+            return False
+        if not row["pass"] and first_fail is None:
+            first_fail = {key: row[key] for key in ("axis", "name", "score", "floor")}
+    return (gate["pass"] is (first_fail is None) and
+            "first_fail" in gate and gate["first_fail"] == first_fail)
 
 
 # Split-conformal half-width (W5-3/W7-4) — NOT Hoeffding. Given a list of calibration
@@ -277,7 +306,7 @@ def _platform_state(platform_id: str, signals: dict) -> dict:
             gate = _yuyay_score(proposal)
         except Exception:
             gate = None
-    if not isinstance(gate, dict) or type(gate.get("pass")) is not bool:
+    if not _valid_yuyay_result(gate):
         gate = None
     if gate is None:
         # Missing gate evidence cannot be replaced by a smaller local gate.
