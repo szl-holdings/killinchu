@@ -177,6 +177,7 @@ def test_after_action_export_for_track(client):
         "track_id": "TRK-0001", "verdict": "HOLD", "effector": "EW_JAM",
         "operator_id": "OP-DEMO",
     })
+    before_nodes = list(ledger.nodes)
     r = c.get("/api/killinchu/v1/engagements/after-action",
               params={"track_id": "TRK-0001"})
     assert r.status_code == 200
@@ -185,19 +186,22 @@ def test_after_action_export_for_track(client):
     assert b["truth_states"]["effectors"] == "SIMULATED"
     assert b["sections"]["closure"]["records"], "closure evidence present"
     assert b["sections"]["roe_chain"]["decisions"], "ROE evidence present"
-    # the full chain GENESIS→head is embedded (incl. the export receipt's
-    # predecessors), so offline verification needs no live Space
+    # Existing decision/closure receipts remain embedded for offline checks.
     assert b["sections"]["ledger_chain"]["node_count"] >= 2
-    # exporting was itself receipted
-    assert b["export_receipt"]["digest"] in {n["digest"] for n in ledger.nodes}
+    assert b["export_receipt"] == {"index": None, "digest": None, "signed": False,
+                                    "state": "UNSIGNED_READ_ONLY"}
+    assert b["receipt_minted"] is False
+    assert b["export_read_only"] is True
+    assert ledger.nodes == before_nodes
 
 
 def test_after_action_export_pinned_record_and_404(client):
-    c, _ = client
+    c, ledger = client
     r = c.post("/api/killinchu/v1/engagements/record", json={
         "track_id": "TRK-0007", "verdict": "HOLD", "effector": "EW_JAM",
     })
     rid = r.json()["record"]["record_id"]
+    before_nodes = list(ledger.nodes)
     pinned = c.get(f"/api/killinchu/v1/engagements/{rid}/after-action")
     assert pinned.status_code == 200
     b = pinned.json()
@@ -212,3 +216,4 @@ def test_after_action_export_pinned_record_and_404(client):
                  params={"track_id": "TRK-GHOST"})
     assert none.status_code == 404
     assert none.json()["empty_state"]
+    assert ledger.nodes == before_nodes

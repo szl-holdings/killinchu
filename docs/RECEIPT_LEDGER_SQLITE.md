@@ -131,7 +131,8 @@ storage lifecycle, authorization, access controls, and migration are resolved.
 
 The existing `GET /readyz`, `/api/killinchu/v1/readyz`, `/honest`, and
 `/api/killinchu/v1/honest` routes read the same canonical ledger readiness
-provider with recovery disabled. A missing or malformed provider fails closed
+provider with recovery disabled and an explicit read-only adapter probe. A
+missing or malformed provider fails closed
 with HTTP 503. These reads do not provision, replay, append, or mint a receipt.
 Readiness describes the configured ledger's software state; an HTTP 200 does
 not establish production retention, authorization, or deployment qualification.
@@ -149,8 +150,36 @@ do not consume these former readiness fields. External readiness consumers
 must use `ledger` for canonical storage status and the nested diagnostics only
 for the backend store.
 
+Canonical health, readiness, receipt-ledger, receipt-export, and the early
+honesty/readiness aliases use `readiness(recover=False, read_only=True)`.
+Read-only probes never trigger startup or replay, even when an external ledger
+is unready. External adapters must accept `readiness(read_only=True)`; missing
+passive capability returns unavailable without calling their writer probe.
+The SQLite adapter opens `mode=ro`, begins a read transaction, and checks its
+schema, identity, and complete hash chain. It does not acquire a writer lock.
+The response identifies `readiness_probe: READ_ONLY`; this establishes readable
+integrity only and does not promise that a later write can acquire a lock or
+commit. Explicit startup/recovery and receipt writes retain the original writer
+readiness probe and fail closed if writer-lock acquisition or append fails.
+The SQLite adapter still reports local filesystem scope and production false.
+
+The two engagement after-action GET/HEAD exports also use this passive provider
+and export only existing closure/decision receipt references and ledger nodes.
+They never mint an `after_action_export` receipt. Their v1 bundle keeps the
+`export_receipt` object but now returns null `index`/`digest`, `signed: false`,
+and `state: UNSIGNED_READ_ONLY`, with `receipt_minted: false` and
+`export_read_only: true`. Existing signed receipt evidence remains in the bundle;
+the export operation itself is unsigned. An unavailable ledger returns HTTP 503
+with `NOT_VERIFIABLE_IN_THIS_RUNTIME` evidence sections; an absent track or
+record still returns HTTP 404. The existing console downloads the JSON and
+reads closure/truth-state fields; the offline verifier checks the existing
+sections, receipt chain, and witness material. Neither consumes export-receipt
+coordinates. External consumers expecting a newly minted export receipt must
+handle the explicit null coordinates. Existing POST receipt operations retain
+their writer/recovery behavior; this change adds no write endpoint.
+
 ```text
-python -m pytest -q tests/test_killinchu_ledger_attribution.py tests/test_be_hardening.py tests/test_killinchu_ledger_runtime.py tests/test_killinchu_ledger_sqlite.py tests/test_killinchu_ledger_recovery.py tests/test_receipt_export_contract.py
+python -m pytest -q tests/test_killinchu_passive_get.py tests/test_killinchu_ledger_attribution.py tests/test_be_hardening.py tests/test_killinchu_ledger_runtime.py tests/test_killinchu_ledger_sqlite.py tests/test_killinchu_ledger_recovery.py tests/test_receipt_export_contract.py tests/test_roe_decisions_api.py tests/test_after_action_bundle.py
 ```
 
 Tests use temporary stores, including separate processes for append and replay,
