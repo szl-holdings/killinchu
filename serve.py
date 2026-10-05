@@ -42,6 +42,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 import killinchu_protocols as kp
 from killinchu_ledger import LedgerRuntime, LedgerUnavailable
+from killinchu_ledger_attribution import harden_with_canonical_ledger
 from killinchu_receipt_export import build_receipt_export
 from szl_safe_static import RootedStaticFiles
 
@@ -976,7 +977,10 @@ except Exception as _szl_ct_e:  # pragma: no cover
 # can NEVER crash the host app. Per-file Dockerfile COPY adds szl_be_hardening.py.
 try:
     import szl_be_hardening as _be_harden
-    _be_report = _be_harden.harden(app, organ="killinchu")
+    _be_report = harden_with_canonical_ledger(
+        app, _be_harden.harden,
+        ledger_readiness=lambda: _LEDGER_RUNTIME.readiness(recover=False),
+    )
     import sys as _be_sys
     print(f"[killinchu] BE hardening registered: {_be_report.get('registered')} "
           f"khipu={_be_report.get('khipu_backend')}", file=_be_sys.stderr)

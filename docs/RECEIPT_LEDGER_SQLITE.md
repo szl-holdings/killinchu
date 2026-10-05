@@ -129,8 +129,28 @@ storage lifecycle, authorization, access controls, and migration are resolved.
 
 ## Verification
 
+The existing `GET /readyz`, `/api/killinchu/v1/readyz`, `/honest`, and
+`/api/killinchu/v1/honest` routes read the same canonical ledger readiness
+provider with recovery disabled. A missing or malformed provider fails closed
+with HTTP 503. These reads do not provision, replay, append, or mint a receipt.
+Readiness describes the configured ledger's software state; an HTTP 200 does
+not establish production retention, authorization, or deployment qualification.
+
+The readiness response identifies `ledger_role: CANONICAL_RECEIPT_LEDGER` and
+exposes its full readiness envelope under `ledger`. The former root-level
+`khipu_backend`, `khipu_depth`, `khipu_chain_ok`, and `khipu_first_break_seq`
+fields now appear as `backend`, `depth`, `chain_ok`, and `first_break_seq` under
+`backend_store_diagnostics`. They describe the separate backend hardening
+store, which retains its independent chain gate. Its diagnostics always report
+`provider_persistence: UNKNOWN` and `production_ready: false`; a working SQLite
+diagnostic store does not make the canonical receipt ledger durable. Existing
+browser consumers read the honesty labels or display the raw disclosure and
+do not consume these former readiness fields. External readiness consumers
+must use `ledger` for canonical storage status and the nested diagnostics only
+for the backend store.
+
 ```text
-python -m pytest -q tests/test_killinchu_ledger_runtime.py tests/test_killinchu_ledger_sqlite.py tests/test_killinchu_ledger_recovery.py tests/test_receipt_export_contract.py
+python -m pytest -q tests/test_killinchu_ledger_attribution.py tests/test_be_hardening.py tests/test_killinchu_ledger_runtime.py tests/test_killinchu_ledger_sqlite.py tests/test_killinchu_ledger_recovery.py tests/test_receipt_export_contract.py
 ```
 
 Tests use temporary stores, including separate processes for append and replay,

@@ -160,13 +160,18 @@ def test_rate_limit_enforced():
     with tempfile.TemporaryDirectory() as d:
         H.harden(app, organ="rl", khipu_path=os.path.join(d, "k.sqlite3"))
         c = TestClient(app)
-        statuses = [c.get("/api/rl/v1/ping").status_code
-                    for _ in range(H.RATE_LIMIT_PER_MIN + 5)]
-        assert 429 in statuses, \
-            f"expected at least one 429 after exceeding {H.RATE_LIMIT_PER_MIN}/min"
-        assert statuses[:H.RATE_LIMIT_PER_MIN] == [200] * H.RATE_LIMIT_PER_MIN
-        # the 429 body is the uniform error envelope
-        last = c.get("/api/rl/v1/ping")
-        assert last.status_code == 429
-        assert last.json()["error"]["code"] == "rate_limited"
-        assert last.json()["error"]["doctrine"] == "v11"
+        try:
+            statuses = [c.get("/api/rl/v1/ping").status_code
+                        for _ in range(H.RATE_LIMIT_PER_MIN + 5)]
+            assert 429 in statuses, \
+                f"expected at least one 429 after exceeding {H.RATE_LIMIT_PER_MIN}/min"
+            assert statuses[:H.RATE_LIMIT_PER_MIN] == [200] * H.RATE_LIMIT_PER_MIN
+            # the 429 body is the uniform error envelope
+            last = c.get("/api/rl/v1/ping")
+            assert last.status_code == 429
+            assert last.json()["error"]["code"] == "rate_limited"
+            assert last.json()["error"]["doctrine"] == "v11"
+        finally:
+            # Windows cannot remove a test-owned SQLite file while it is open.
+            if app.state.be_khipu._db is not None:
+                app.state.be_khipu._db.close()

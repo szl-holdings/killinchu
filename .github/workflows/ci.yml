@@ -114,6 +114,7 @@ jobs:
           python -m pytest -q
           tests/test_assurance_credential.py
           tests/test_be_hardening.py
+          tests/test_killinchu_ledger_attribution.py
           tests/test_dsse_real_signing.py
 
   mavlink-decoder:
