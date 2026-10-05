@@ -37,7 +37,7 @@ shared-file drift gate). Registers four live endpoints on the killinchu FastAPI 
         allow rules (Istio ambient). Edges = actual PeerAuthentication/allow
         rules only; empty state if none.
 
-Doctrine: trust score never 100%; Lambda = Conjecture 1; locked-proven = 5;
+Doctrine: trust ceiling 0.97; Lambda = Conjecture 1 (open); locked formulas = 8;
 honest empty / SIMULATED labels; organ public names = Quechua/honest roles
 (Operator / Provenance Anchor / Policy) with NO banned codenames in any output.
 All computation is CPU-only, 0 runtime CDN; only live DATA fetches occur.
@@ -426,7 +426,7 @@ def register(app: FastAPI, ns: str = "killinchu",
             pass
         return (_reference_snapshot(), "cached")
 
-    @app.get(f"/api/{ns}/v1/posture/drift")
+    @app.api_route(f"/api/{ns}/v1/posture/drift", methods=["GET", "HEAD"])
     async def posture_drift() -> JSONResponse:
         ref_payload = _reference_snapshot()
         live_payload, mode = _air_live()
@@ -499,14 +499,11 @@ def register(app: FastAPI, ns: str = "killinchu",
                  "url": "https://csrc.nist.gov/pubs/sp/800/207/final"},
             ],
         }
-        if emit_receipt is not None:
-            try:
-                node = emit_receipt("posture_drift_eval",
-                                    {"verdict": verdict, "n_triggers": len(triggers)})
-                out["receipt"] = {"index": node.get("index"), "digest": node.get("digest")}
-            except Exception:
-                pass
-        return JSONResponse(out)
+        out["receipt"] = {"index": None, "digest": None, "signed": False,
+                          "state": "UNSIGNED_READ_ONLY"}
+        out["receipt_minted"] = False
+        out["export_read_only"] = True
+        return JSONResponse(out, headers={"cache-control": "no-store"})
 
     @app.get(f"/api/{ns}/v1/topology/health")
     async def topology_health() -> JSONResponse:

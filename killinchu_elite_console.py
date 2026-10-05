@@ -179,15 +179,11 @@ _BORROWED: list[dict[str, Any]] = [
 
 
 def _signing_state() -> dict[str, Any]:
-    available = bool(_dsse and _dsse.signing_available())
     return {
-        "dsse_signing_available": available,
-        "honesty": (
-            "REAL — ECDSA-P256-SHA256 DSSE over cosign keypair (SZL_COSIGN_PRIVATE_PEM present)."
-            if available else
-            "PLACEHOLDER — SZL_COSIGN_PRIVATE_PEM secret absent; no signature fabricated (honest)."
-        ),
-        "fingerprint": (_dsse.public_key_fingerprint() if available else None),
+        "dsse_signing_available": None,
+        "state": "UNKNOWN",
+        "honesty": "UNKNOWN — passive reads do not load private keys or test signing capability.",
+        "fingerprint": None,
     }
 
 
@@ -270,14 +266,12 @@ def register(
     # ------------------------------------------------------------------
     # Cross-flagship borrowed-powers — REAL aggregator endpoint.
     # ------------------------------------------------------------------
-    @app.get(f"/api/{ns}/v1/borrowed-powers")
+    @app.api_route(f"/api/{ns}/v1/borrowed-powers", methods=["GET", "HEAD"])
     async def borrowed_powers() -> JSONResponse:
         sig = _signing_state()
-        # Prove the receipt substrate is live by emitting a real receipt for this query.
-        receipt = None
-        if emit_receipt is not None:
-            node = emit_receipt("borrowed_powers_query", {"siblings": [b["flagship"] for b in _BORROWED]})
-            receipt = {"index": node["index"], "digest": node["digest"], "dsse": node["dsse"]}
+        # Reading the catalogue never loads keys or exercises signing capability.
+        receipt = {"index": None, "digest": None, "dsse": None, "signed": False,
+                   "state": "UNSIGNED_READ_ONLY"}
         return JSONResponse({
             "ok": True,
             "doctrine": _DOCTRINE,
@@ -301,7 +295,9 @@ def register(
             "section_889": _SECTION_889,
             "no_fedramp_iron_bank_cmmc": True,
             "query_receipt": receipt,
-        })
+            "receipt_minted": False,
+            "export_read_only": True,
+        }, headers={"cache-control": "no-store"})
 
     registered.append(f"GET /api/{ns}/v1/borrowed-powers")
 
@@ -5327,7 +5323,7 @@ cosign verify-blob --key cosign.pub --signature sig.b64 payload.bin</pre></div>
     }},
 
   // ── DI.4 GEOINT Aggregation ─────────────────────────────────────
-  geoint:{title:'GEOINT Aggregation',badge:'AOI COLLECTION PLAN · KHIPU-RECEIPTED · LIVE',sub:'Define an area of interest and killinchu plans aggregated <b>multi-constellation collection</b> — which sensor would detect what, at what confidence, with what tasking ETA. Each plan emits a genuine <b>Khipu receipt</b>. Per-observation confidence is a <b>planning estimate, not a live collection</b>. WE SENSE, WE EVIDENCE. Live from <code>/api/killinchu/v1/geoint</code>.',
+  geoint:{title:'GEOINT Aggregation',badge:'AOI COLLECTION PREVIEW · UNSIGNED READ · MODELED',sub:'Define an area of interest and preview <b>multi-constellation collection</b> — which sensor would detect what, at what confidence, with what tasking ETA. GET is an <b>unsigned read-only preview</b>; the existing POST operation records a Khipu receipt. Per-observation confidence is a <b>planning estimate, not a live collection</b>. WE SENSE, WE EVIDENCE. Source: <code>/api/killinchu/v1/geoint</code>.',
     render:async(c)=>{
       c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Area of interest</span></div>
         <div class="grid2" style="margin-bottom:.8rem">
@@ -5452,8 +5448,7 @@ window.geoint_plan=async function(){
   try{
     const d=await getJSON(API+'/geoint?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon)+'&radius_km='+encodeURIComponent(r));
     setOut('gi-raw',d);
-    const rcpt=d.receipt||{};
-    setHTML('gi-summary','<b>'+(d.observation_count||0)+'</b> constellations would observe this AOI · Khipu receipt #'+(rcpt.index!=null?rcpt.index:'—')+' digest '+String(rcpt.digest||'').slice(0,16)+'…');
+    setHTML('gi-summary','<b>'+(d.observation_count||0)+'</b> constellation planning estimates · unsigned read-only preview · no receipt minted');
     const h=el('gi-obs'); h.innerHTML='';
     (d.observations||[]).forEach(o=>{
       h.insertAdjacentHTML('beforeend',`<div class="row" style="flex-wrap:wrap">
