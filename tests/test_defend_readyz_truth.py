@@ -66,3 +66,15 @@ def test_deploy_expects_defend_readyz_to_fail_closed():
     assert "/api/defend/readyz" not in smoke_paths
     assert "Require Defend production readiness to fail closed" in workflow
     assert 'test "$code" = "503"' in workflow
+
+
+def test_page_separates_signing_availability_from_production_qualification(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch)
+    status = client.get("/api/defend/status").json()
+    assert status["signing"]["state"] == "HMAC_SHA256_READY"
+    assert status["production_receipts_ready"] is False
+
+    page = client.get("/defend").text
+    assert "j.signing.state==='HMAC_SHA256_READY'?'available':'unavailable'" in page
+    assert "j.production_receipts_ready?'qualified':'unqualified'" in page
+    assert "j.production_receipts_ready?'signed':'unsigned'" not in page
