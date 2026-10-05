@@ -108,7 +108,10 @@ receipt-chain event.
 The current public Defend route is a local SQLite demonstration.
 `GET /api/defend/status` is a passive observation of an existing local database and
 returns HTTP 200 even when that observation is degraded; it does not create a
-database or assert writer availability. `GET /api/defend/readyz` returns HTTP
+database or assert writer availability. It reads an immutable main-file snapshot
+without creating WAL sidecars. If WAL/SHM sidecars are present or the snapshot
+changes during observation, the store observation fails closed rather than
+reporting possibly stale counts. `GET /api/defend/readyz` returns HTTP
 503 with `production_ready: false` and
 `production_gate: DURABLE_STATE_AND_IDENTITY_UNVERIFIED`. A local signing key,
 readable SQLite file, or working demo flow does not satisfy the production
