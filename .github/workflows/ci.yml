@@ -24,6 +24,25 @@ jobs:
   secrets:
     uses: szl-holdings/.github/.github/workflows/reusable-secret-scan.yml@4d38db6d5ff8c3d18c8831a4426e8dba6dc80ceb # v1 (.github main)
 
+  elite-graph-errors:
+    name: Elite graph error escaping
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify graph error escaping
+        run: node --test tests/test_elite_graph_errors.cjs
+
   defend-contract:
     name: Defend plane — source, workflow, and route contract
     runs-on: ubuntu-24.04

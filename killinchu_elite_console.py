@@ -1672,7 +1672,7 @@ function mesh3d(id,nodes,links,_try){const host=el(id);if(!host||!window.ForceGr
   setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);}catch(e){}
   /* GL pool can be momentarily exhausted on software-GL; if no WebGL canvas appeared, re-init once. */
   if(!host.querySelector('canvas')&&!_try){try{_fg&&_fg._destructor&&_fg._destructor();}catch(e2){}_fg=null;host.innerHTML='';setTimeout(()=>mesh3d(id,nodes,links,1),120);}
-  },300);}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
+  },300);}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+esc(e.message)+'</div>';}}
 
 // ===================== GENIUS VISUAL HELPERS (echarts / globe.gl / cytoscape / d3) =====================
 // killinchu inherits a11oy's brain visuals. AMBER aliases killinchu's existing WARN (#c9a05f).
@@ -1933,7 +1933,7 @@ function dag3d(id,nodes,links,opts){const host=el(id);if(!host||!window.ForceGra
     /* FRAMING: center+fit on engine settle + 1500ms fallback. */
     _fg.onEngineStop(function(){try{_fg.width(host.clientWidth).height(host.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}});
     setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600,60);}catch(e){}},1500);
-  }catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
+  }catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+esc(e.message)+'</div>';}}
 // cytoscape 2D graph in house style
 function cyGraph(id,elements,layout){const host=el(id);if(!host||!window.cytoscape)return null;killCy();host.innerHTML='';
   _cy=cytoscape({container:host,elements,wheelSensitivity:0.2,
