@@ -774,37 +774,29 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             })
         return info
 
+    @app.head(f"{abase}/attest", include_in_schema=False)
     @app.get(f"{abase}/attest", tags=["assurance"])
     async def _assurance_attest():
-        # A DSSE in-toto-style statement over the CURRENT verifiable state, signed
-        # via szl_dsse. The envelope's own "honesty" field declares REAL vs
-        # UNSIGNED — we never assert a signature that does not exist.
-        ok, depth, brk = store.verify()
+        # Current backend diagnostics are an unsigned observation, not a newly
+        # minted signature or a retrieved, verified deployment attestation.
+        with store._lock:
+            ok, depth, brk = store.verify()
+            head = store.head()
         statement = {
             "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
             "build_time": os.getenv("SZL_BUILD_TIME", "unknown"),
             "khipu_chain": {"backend": store.backend, "depth": depth,
                             "chain_ok": ok, "first_break_seq": brk,
-                            "head": store.head()},
+                            "head": head},
             "doctrine_lock": DOCTRINE_LOCK,
         }
-        try:
-            import szl_dsse as _dsse
-            env = _dsse.sign_payload(
-                statement,
-                payload_type="https://szl-holdings.dev/attestations/governance-receipt/v1",
-            )
-            return {"organ": organ, "statement": statement, "dsse": env,
-                    "data_kind": "live",
-                    "verify_hint": ("verify with the /assurance/credential "
-                                    "public_key_pem; dsse.honesty declares REAL vs "
-                                    "UNSIGNED.")}
-        except Exception as exc:
-            return {"organ": organ, "statement": statement, "dsse": None,
-                    "data_kind": "structural",
-                    "honesty": (f"szl_dsse unavailable ({type(exc).__name__}); the "
-                                "statement is REAL state but UNSIGNED/STRUCTURAL — "
-                                "never fabricated.")}
+        return JSONResponse({"organ": organ, "statement": statement,
+                             "dsse": None, "signed": False,
+                             "receipt_minted": False, "export_read_only": True,
+                             "data_kind": "live", "state": "UNSIGNED_READ_ONLY",
+                             "honesty": ("unsigned current backend diagnostics; no "
+                                         "attestation is minted or verified by this read.")},
+                            headers={"Cache-Control": "no-store"})
 
     @app.get(f"{abase}/artifact", tags=["assurance"])
     async def _assurance_artifact():
@@ -871,67 +863,51 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                         "energy_ledger is null when no ledger is reachable."),
         }
 
-    # ---- 11: cheapest-watt placement (carbon/cost-aware routing) ----------
-    # Reads the LIVE energy-operator status (per-node MEASURED joules + tokens +
-    # power_w + live grid €/MWh) and runs the cheapest-watt placement policy:
-    # pick the sovereign node minimizing energy-cost-per-token, record the decision
-    # (chosen node, €/MWh at decision time, MEASURED J/token, cheaper-than-alternative
-    # delta) into a re-hashable, hash-chained receipt, optionally DSSE-signed. Honest:
-    # with <2 comparable MEASURED nodes -> "no placement choice this tick"; a saving is
-    # MEASURED only when both legs are MEASURED; never fabricates a price or a saving.
-    def _operator_status_for_cw() -> Tuple[Optional[Dict[str, Any]], str]:
-        """Live in-process operator status (MEASURED), else persisted ledger, else
-        (None, unavailable). Read-only; reuses the same source as /forge/ledger."""
-        return _energy_ledger()
-
+    # ---- 11: existing cheapest-watt placement observations ----------------
+    # Observe only a previously initialized ledger. Loading an operator,
+    # recording a placement, and creating its signature belong to writers.
+    @app.head(f"{base}/energy/cheapest-watt", include_in_schema=False)
     @app.get(f"{base}/energy/cheapest-watt", tags=["energy"])
     async def _cheapest_watt():
-        try:
-            import szl_cheapest_watt as _cw
-        except Exception as exc:  # module not in image: STRUCTURAL-ONLY, never faked
-            return {"organ": organ, "data_kind": "structural",
-                    "honesty": (f"szl_cheapest_watt unavailable ({type(exc).__name__}); "
-                                "cheapest-watt is STRUCTURAL-ONLY — never fabricated.")}
-        status, src = _operator_status_for_cw()
-        led = _cw.get_ledger()
-        decision_receipt: Optional[Dict[str, Any]] = None
-        if status is not None:
-            # Record ONE fresh placement decision against the live status this read.
-            decision_receipt = led.record(status)
-            # Layer a REAL DSSE signature over the placement receipt when a cosign key
-            # is present; absent a key the receipt is honest-but-UNSIGNED (never faked).
-            try:
-                import szl_dsse as _dsse
-                env = _dsse.sign_payload(
-                    decision_receipt,
-                    payload_type="https://szl-holdings.dev/attestations/cheapest-watt-placement/v1",
-                )
-                decision_receipt = {**decision_receipt, "dsse": env,
-                                    "signed": True}
-            except Exception:
-                decision_receipt = {**decision_receipt, "dsse": None,
-                                    "signed": False,
-                                    "sign_note": ("no cosign private key in this runtime; "
-                                                  "receipt is REAL + re-hashable but UNSIGNED "
-                                                  "— never faked")}
-        body = led.status()
-        body.update({
+        body: Dict[str, Any] = {
             "organ": organ,
             "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
-            "operator_source": src,
-            "data_kind": "live" if status is not None else "structural",
-            "latest_decision": decision_receipt,
-            "reads": "GET re-evaluates against the live operator status and appends one decision",
-        })
-        if status is None:
-            body["honesty_no_operator"] = (
-                f"no live operator status reachable ({src}); no placement decision this "
-                "read — never fabricated.")
-        return body
+            "operator_source": "not-read",
+            "data_kind": "structural", "ledger_state": "UNAVAILABLE",
+            "latest_decision": None, "dsse": None, "signed": False,
+            "receipt_minted": False, "export_read_only": True,
+            "retained_signature_verified": False, "retained_attestation_state": "UNKNOWN",
+            "reads": "GET/HEAD observes existing placement data without recording or signing",
+            "honesty": "no existing initialized placement ledger is available; no activation on read",
+        }
+        module = sys.modules.get("szl_cheapest_watt")
+        led = getattr(module, "_LEDGER", None) if module is not None else None
+        status_code = 200
+        if led is not None:
+            try:
+                snapshot = led.status()
+                if not isinstance(snapshot, dict):
+                    raise ValueError("placement snapshot must be an object")
+                recent = snapshot.get("recent_decisions")
+                if not isinstance(recent, list) or any(not isinstance(r, dict) for r in recent):
+                    raise ValueError("placement decisions must be objects")
+                json.dumps(snapshot, allow_nan=False)
+                # Copy the existing raw decision; never imply its DSSE was retained
+                # or verified by this observation.
+                decision = dict(recent[-1]) if recent else None
+                body = {**snapshot, **body, "latest_decision": decision,
+                        "ledger_state": "AVAILABLE" if recent else "EMPTY",
+                        "data_kind": "live", "operator_source": "existing-placement-ledger",
+                        "honesty": "existing raw decision payload; this read export is unsigned and verifies no retained attestation"}
+            except Exception:
+                status_code = 503
+                body["honesty"] = "existing placement snapshot is unavailable or invalid; no recovery on read"
+        return JSONResponse(body, status_code=status_code,
+                            headers={"Cache-Control": "no-store"})
 
     # canonical path /api/<organ>/v1/energy/cheapest-watt registered above (same
     # /api/<organ>/v1/energy prefix the operator's status/ledger/projection use).
-    report["registered"].append("energy/cheapest-watt(placement+signed-receipt)")
+    report["registered"].append("energy/cheapest-watt(existing-unsigned-observation)")
 
     report["registered"].append(
         "assurance(artifact,credential,compliance,attest)+forge/ledger")
