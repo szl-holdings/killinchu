@@ -311,35 +311,54 @@ class DefendStore:
             finally:
                 connection.close()
 
-    def status(self) -> dict[str, Any]:
+    @staticmethod
+    def observe(path: str) -> dict[str, Any]:
+        """Read a stable main-file snapshot without creating WAL sidecars."""
+        def unavailable(error: str) -> dict[str, Any]:
+            return {
+                "state": "FAILED_CLOSED",
+                "integrity": "UNAVAILABLE",
+                "backend": "SQLITE_SINGLE_WRITER",
+                "path_disclosed": False,
+                "error": error,
+                "counts": {},
+            }
+
         try:
-            connection = self.connect()
+            database = Path(path).resolve(strict=True)
+            sidecars = (Path(f"{database}-wal"), Path(f"{database}-shm"))
+            if any(sidecar.exists() for sidecar in sidecars):
+                return unavailable("ACTIVE_WAL_SIDECAR")
+            before = database.stat()
+            connection = sqlite3.connect(
+                database.as_uri() + "?mode=ro&immutable=1",
+                uri=True,
+                timeout=0.2,
+                isolation_level=None,
+            )
             try:
+                connection.execute("PRAGMA query_only = ON")
                 integrity = str(connection.execute("PRAGMA integrity_check").fetchone()[0])
-                connection.execute("BEGIN IMMEDIATE")
-                connection.execute("ROLLBACK")
                 counts = {
                     table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
                     for table in ("events", "cases", "proposals", "approvals", "rehearsals", "receipts")
                 }
             finally:
                 connection.close()
+            after = database.stat()
+            if any(sidecar.exists() for sidecar in sidecars) or (
+                before.st_size, before.st_mtime_ns
+            ) != (after.st_size, after.st_mtime_ns):
+                return unavailable("SNAPSHOT_CHANGED")
             return {
-                "state": "WRITABLE" if integrity == "ok" else "FAILED_CLOSED",
+                "state": "READABLE" if integrity == "ok" else "FAILED_CLOSED",
                 "integrity": integrity,
                 "backend": "SQLITE_SINGLE_WRITER",
                 "path_disclosed": False,
                 "counts": counts,
             }
         except Exception as exc:
-            return {
-                "state": "FAILED_CLOSED",
-                "integrity": "UNAVAILABLE",
-                "backend": "SQLITE_SINGLE_WRITER",
-                "path_disclosed": False,
-                "error": type(exc).__name__,
-                "counts": {},
-            }
+            return unavailable(type(exc).__name__)
 
     @staticmethod
     def _row(row: sqlite3.Row | None) -> dict[str, Any] | None:
@@ -1021,7 +1040,7 @@ def _error(exc: Exception) -> JSONResponse:
 
 
 def _status_payload() -> dict[str, Any]:
-    store = _store().status()
+    store = DefendStore.observe(_state_path())
     key, key_source = _signing_key()
     signing_ready = key is not None
     return {
@@ -1029,9 +1048,13 @@ def _status_payload() -> dict[str, Any]:
         "product": PRODUCT,
         "plane": PLANE,
         "contract_version": CONTRACT_VERSION,
-        "state": "READY" if store["state"] == "WRITABLE" and signing_ready else "DEGRADED",
-        "workflow_operational": store["state"] == "WRITABLE",
-        "production_receipts_ready": store["state"] == "WRITABLE" and signing_ready,
+        "state": "DEGRADED",
+        "workflow_operational": False,
+        "local_demo_readable": store["state"] == "READABLE",
+        "production_receipts_ready": False,
+        "production_ready": False,
+        "readiness_scope": "LOCAL_SQLITE_DEMO",
+        "production_gate": "DURABLE_STATE_AND_IDENTITY_UNVERIFIED",
         "same_origin": True,
         "source": {
             "repository": SOURCE_REPOSITORY,
@@ -1072,6 +1095,10 @@ def _status_payload() -> dict[str, Any]:
 
 async def _status(request: Request) -> JSONResponse:
     return JSONResponse(_status_payload(), status_code=200)
+
+
+async def _readyz(request: Request) -> JSONResponse:
+    return JSONResponse(_status_payload(), status_code=503)
 
 
 async def _source(request: Request) -> JSONResponse:
@@ -1308,7 +1335,7 @@ _PAGE = r"""<!doctype html>
 <footer class="mono">SOURCE <a href="/api/defend/source">PIN</a> · STATUS <a href="/api/defend/status">JSON</a> · CASES <a href="/api/defend/cases">SESSION-SCOPED</a> · KILLINCHU / DEFEND {version}</footer>
 </main>
 <script>
-const out=document.getElementById('output');let currentProposal=null,currentReceipt=null;const key='killinchu-defend-session-v1';function token(){let v=localStorage.getItem(key);if(!v||v.length<32){const a=new Uint8Array(32);crypto.getRandomValues(a);v=Array.from(a,b=>b.toString(16).padStart(2,'0')).join('');localStorage.setItem(key,v)}return v}const headers=()=>({'Content-Type':'application/json','X-SZL-Session':token()});async function call(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?headers():{'X-SZL-Session':token()},cache:'no-store',body:body?JSON.stringify(body):undefined});let j;try{j=await r.json()}catch(e){j={error:'NON_JSON_RESPONSE',status:r.status}}if(!r.ok)throw j;return j}function show(v){out.textContent=JSON.stringify(v,null,2)}async function status(){try{const j=await call('/api/defend/status');document.getElementById('runtime-state').textContent=j.state;document.getElementById('runtime-copy').textContent=`workflow ${j.workflow_operational?'operational':'failed closed'} · receipts ${j.production_receipts_ready?'signed':'unsigned'} · ${j.store.backend}`;}catch(e){document.getElementById('runtime-state').textContent='UNAVAILABLE';document.getElementById('runtime-copy').textContent='Runtime status could not be observed.'}}document.getElementById('event-form').addEventListener('submit',async e=>{e.preventDefault();try{const now=Date.now().toString(36);const indicators={source_authenticated:source_authenticated.checked,asset_owner_known:asset_owner_known.checked,rollback_available:rollback_available.checked,known_exploited:known_exploited.checked,public_exposure:public_exposure.checked,privilege_escalation:privilege_escalation.checked,agent_tool_policy_violation:event_type.value==='agent.policy_violation',destructive_capability:false,evidence_count:Number(evidence_count.value)};const j=await call('/api/defend/analyze',{source_event_id:`browser-${now}`,event_type:event_type.value,asset_ref:asset_ref.value,actor_id:actor_id.value,severity:severity.value,summary:summary.value,requested_by:requested_by.value,indicators});currentProposal=j.proposal?.id||null;currentReceipt=j.receipt?.id||null;approve.disabled=!currentProposal||j.proposal?.state!=='PROPOSED';rehearse.disabled=true;verify.disabled=!currentReceipt;show(j)}catch(e){show(e)}});document.getElementById('approve').onclick=async()=>{const approver=prompt('Independent approver identifier','operator/approver');if(!approver)return;try{const j=await call('/api/defend/approve',{proposal_id:currentProposal,approver});currentReceipt=j.receipt.id;approve.disabled=true;rehearse.disabled=false;verify.disabled=false;show(j)}catch(e){show(e)}};document.getElementById('rehearse').onclick=async()=>{try{const j=await call('/api/defend/rehearse',{proposal_id:currentProposal});currentReceipt=j.receipt.id;rehearse.disabled=true;verify.disabled=false;show(j)}catch(e){show(e)}};document.getElementById('verify').onclick=async()=>{try{show(await call('/api/defend/verify',{receipt_id:currentReceipt}))}catch(e){show(e)}};document.getElementById('refresh-cases').onclick=async()=>{try{show(await call('/api/defend/cases?limit=25'))}catch(e){show(e)}};status();
+const out=document.getElementById('output');let currentProposal=null,currentReceipt=null;const key='killinchu-defend-session-v1';function token(){let v=localStorage.getItem(key);if(!v||v.length<32){const a=new Uint8Array(32);crypto.getRandomValues(a);v=Array.from(a,b=>b.toString(16).padStart(2,'0')).join('');localStorage.setItem(key,v)}return v}const headers=()=>({'Content-Type':'application/json','X-SZL-Session':token()});async function call(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?headers():{'X-SZL-Session':token()},cache:'no-store',body:body?JSON.stringify(body):undefined});let j;try{j=await r.json()}catch(e){j={error:'NON_JSON_RESPONSE',status:r.status}}if(!r.ok)throw j;return j}function show(v){out.textContent=JSON.stringify(v,null,2)}async function status(){try{const j=await call('/api/defend/status');document.getElementById('runtime-state').textContent=j.state;document.getElementById('runtime-copy').textContent=`local snapshot ${j.local_demo_readable?'readable':'unavailable'} · signing ${j.signing.state==='HMAC_SHA256_READY'?'available':'unavailable'} · production receipts ${j.production_receipts_ready?'qualified':'unqualified'} · ${j.store.backend}`;}catch(e){document.getElementById('runtime-state').textContent='UNAVAILABLE';document.getElementById('runtime-copy').textContent='Runtime status could not be observed.'}}document.getElementById('event-form').addEventListener('submit',async e=>{e.preventDefault();try{const now=Date.now().toString(36);const indicators={source_authenticated:source_authenticated.checked,asset_owner_known:asset_owner_known.checked,rollback_available:rollback_available.checked,known_exploited:known_exploited.checked,public_exposure:public_exposure.checked,privilege_escalation:privilege_escalation.checked,agent_tool_policy_violation:event_type.value==='agent.policy_violation',destructive_capability:false,evidence_count:Number(evidence_count.value)};const j=await call('/api/defend/analyze',{source_event_id:`browser-${now}`,event_type:event_type.value,asset_ref:asset_ref.value,actor_id:actor_id.value,severity:severity.value,summary:summary.value,requested_by:requested_by.value,indicators});currentProposal=j.proposal?.id||null;currentReceipt=j.receipt?.id||null;approve.disabled=!currentProposal||j.proposal?.state!=='PROPOSED';rehearse.disabled=true;verify.disabled=!currentReceipt;show(j)}catch(e){show(e)}});document.getElementById('approve').onclick=async()=>{const approver=prompt('Independent approver identifier','operator/approver');if(!approver)return;try{const j=await call('/api/defend/approve',{proposal_id:currentProposal,approver});currentReceipt=j.receipt.id;approve.disabled=true;rehearse.disabled=false;verify.disabled=false;show(j)}catch(e){show(e)}};document.getElementById('rehearse').onclick=async()=>{try{const j=await call('/api/defend/rehearse',{proposal_id:currentProposal});currentReceipt=j.receipt.id;rehearse.disabled=true;verify.disabled=false;show(j)}catch(e){show(e)}};document.getElementById('verify').onclick=async()=>{try{show(await call('/api/defend/verify',{receipt_id:currentReceipt}))}catch(e){show(e)}};document.getElementById('refresh-cases').onclick=async()=>{try{show(await call('/api/defend/cases?limit=25'))}catch(e){show(e)}};status();
 </script>
 </body>
 </html>
@@ -1322,7 +1349,7 @@ def _routes(ns: str) -> Iterable[Route]:
         Route("/aegis", _legacy_redirect, methods=["GET"], name=f"{ns}_aegis_alias"),
         Route("/sentra", _legacy_redirect, methods=["GET"], name=f"{ns}_sentra_alias"),
         Route("/api/defend/status", _status, methods=["GET"], name=f"{ns}_defend_status"),
-        Route("/api/defend/readyz", _status, methods=["GET"], name=f"{ns}_defend_ready"),
+        Route("/api/defend/readyz", _readyz, methods=["GET"], name=f"{ns}_defend_ready"),
         Route("/api/defend/source", _source, methods=["GET"], name=f"{ns}_defend_source"),
         Route("/api/defend/analyze", _analyze, methods=["POST"], name=f"{ns}_defend_analyze"),
         Route("/api/defend/approve", _approve, methods=["POST"], name=f"{ns}_defend_approve"),

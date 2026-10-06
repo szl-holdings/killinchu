@@ -60,7 +60,14 @@ def test_credential_key_matches_fingerprint_and_attestation(
 
         response = client.get("/api/killinchu/v1/assurance/attest")
         assert response.status_code == 200
-        envelope = response.json()["dsse"]
+        observation = response.json()
+        assert observation["dsse"] is None
+        assert observation["signed"] is False
+        assert observation["receipt_minted"] is False
+        assert observation["export_read_only"] is True
+        # Verify the active credential against the direct signer using an
+        # ephemeral test key. GET no longer creates this signature.
+        envelope = szl_dsse.sign_payload(observation["statement"])
         assert credential["signing_available"] is (key_source == "inline")
         if key_source == "inline":
             signature = envelope["signatures"][0]
