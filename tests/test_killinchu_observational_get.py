@@ -218,6 +218,9 @@ def test_twin_fix_observation_preserves_previous_history_and_trust(
         tmp_path, monkeypatch, host, kind, method):
     runtime, adapter, database = _runtime(tmp_path, host, monkeypatch, EPHEMERAL)
     twin = host[2]
+    # Both observations must use one fixture clock; elapsed wall time is not
+    # evidence that the GET changed history or trust. Keep this module-local.
+    monkeypatch.setattr(twin, "time", SimpleNamespace(time=lambda: 1_800_000_000.0))
     history_name = "_LAST_FIX_AIR" if kind == "air" else "_LAST_FIX"
     history = {"LOCAL": {"lat": 59.0, "lon": 22.0, "ts": 1.0, "track": 85.0}}
     monkeypatch.setattr(twin, history_name, deepcopy(history))
