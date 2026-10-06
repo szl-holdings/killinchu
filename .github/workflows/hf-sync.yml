@@ -41,12 +41,12 @@ jobs:
       restart-space: true
       source-revision-variable: SZL_GIT_SHA
       source-revision-probe-path: /api/build-info
-      smoke-paths: '["/","/healthz","/api/killinchu/healthz","/api/build-info","/console","/defend","/resilience","/api/defend/status","/api/defend/readyz","/api/defend/source","/api/killinchu/v1/code/capabilities","/static/analyst.html","/api/killinchu/v1/defensive-intake/tools"]'
+      smoke-paths: '["/","/healthz","/api/killinchu/healthz","/api/build-info","/console","/defend","/resilience","/api/defend/status","/api/defend/source","/api/killinchu/v1/code/capabilities","/static/analyst.html","/api/killinchu/v1/defensive-intake/tools"]'
     secrets:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
   verify-risk-status-fails-closed:
-    name: Verify public risk status is intentionally unavailable
+    name: Verify unqualified public readiness is unavailable
     needs: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -74,6 +74,30 @@ jobs:
           assert (
               payload["reason_code"] == "CI_ATTESTATION_EVIDENCE_UNPROVED"
           ), payload
+          PY
+
+      - name: Require Defend production readiness to fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(
+            curl --silent --show-error \
+              --output "$body" \
+              --write-out '%{http_code}' \
+              --max-time 30 \
+              https://szlholdings-killinchu.hf.space/api/defend/readyz
+          )"
+          test "$code" = "503"
+          python - "$body" <<'PY'
+          import json
+          import sys
+
+          payload = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert payload["schema"] == "szl.killinchu.defend-status/v1", payload
+          assert payload["production_ready"] is False, payload
+          assert payload["production_receipts_ready"] is False, payload
+          assert payload["production_gate"] == "DURABLE_STATE_AND_IDENTITY_UNVERIFIED", payload
           PY
 
   release-receipt:
