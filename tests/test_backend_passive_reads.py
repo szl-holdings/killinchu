@@ -1,5 +1,6 @@
 """Actual backend GET/HEAD reads observe state; explicit writers still commit."""
 from copy import deepcopy
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import sqlite3
 import sys
@@ -260,8 +261,8 @@ def test_attestation_chain_diagnostics_remain_coherent_during_explicit_writer(mo
     first = store.emit("LOCAL_TEST", {"synthetic": True})
     attempted = threading.Event()
     completed = threading.Event()
-    original_verify = store.verify
-    original_head = store.head
+    original_all = store._all
+    snapshots = []
 
     def writer():
         attempted.set()
@@ -270,20 +271,17 @@ def test_attestation_chain_diagnostics_remain_coherent_during_explicit_writer(mo
 
     thread = threading.Thread(target=writer)
 
-    def verify():
-        result = original_verify()
-        thread.start()
-        assert attempted.wait(1)
-        return result
+    def read_then_attempt_write():
+        rows = original_all()
+        snapshots.append(rows)
+        if len(snapshots) == 1:
+            thread.start()
+            assert attempted.wait(1)
+            # The same store's explicit writer still waits on its own lock.
+            assert not completed.is_set()
+        return rows
 
-    def head():
-        # The writer tried to enter between verify and head. It must remain
-        # blocked until this coherent diagnostic observation is captured.
-        assert not completed.is_set()
-        return original_head()
-
-    monkeypatch.setattr(store, "verify", verify)
-    monkeypatch.setattr(store, "head", head)
+    monkeypatch.setattr(store, "_all", read_then_attempt_write)
     response = host[1].get(BASE + "/assurance/attest")
     thread.join(2)
     assert not thread.is_alive()
@@ -293,3 +291,73 @@ def test_attestation_chain_diagnostics_remain_coherent_during_explicit_writer(mo
     assert chain["depth"] == 1
     assert chain["head"] == first["digest"]
     assert store.count() == 2
+
+
+@pytest.mark.parametrize("journal_mode", ["DELETE", "WAL"])
+def test_attestation_keeps_one_snapshot_during_independent_append(
+    monkeypatch, host, journal_mode
+):
+    store = host[0].state.be_khipu
+    assert store._db.execute("PRAGMA journal_mode=" + journal_mode).fetchone()[0] == journal_mode.lower()
+    writer = backend.DurableKhipu(ORGAN, path=str(host[2]))
+    assert writer._db is not store._db
+    assert writer._lock is not store._lock
+    first = writer.emit("LOCAL_TEST", {"evidence_class": "SAMPLE"})
+    original_all = store._all
+    snapshots = []
+    committed = []
+    calls, sql = _guards(monkeypatch, host)
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            def read_then_append():
+                rows = original_all()
+                snapshots.append(rows)
+                if len(snapshots) == 1:
+                    # An independent lock/connection commits after the observer
+                    # fetched rows and before it constructs the response.
+                    committed.append(pool.submit(
+                        writer.emit, "LOCAL_TEST_SECOND", {"evidence_class": "SAMPLE"}
+                    ).result(timeout=5))
+                return rows
+
+            monkeypatch.setattr(store, "_all", read_then_append)
+            response = host[1].get(BASE + "/assurance/attest")
+
+        assert response.status_code == 200
+        body = _assert_unsigned(response, "get")
+        chain = body["statement"]["khipu_chain"]
+        assert committed[0]["prev"] == first["digest"]
+        assert writer.verify() == (True, 2, -1)
+        assert writer.head() == committed[0]["digest"]
+        assert chain["chain_ok"] is True
+        assert chain["depth"] == 1
+        assert chain["first_break_seq"] == -1
+        assert chain["head"] == first["digest"]
+        assert chain["head"] != writer.head()
+        assert len(snapshots) == 1
+        assert len(sql) == 1 and sql[0].lstrip().upper().startswith("SELECT")
+        assert calls == {name: 0 for name in calls}
+        _assert_no_sql_write(sql)
+    finally:
+        writer._db.close()
+
+
+@pytest.mark.parametrize("state", ["empty", "valid", "broken"])
+def test_snapshot_helper_preserves_verify_tuple_and_chain_evidence(monkeypatch, host, state):
+    store = host[0].state.be_khipu
+    expected = (True, 0, -1, backend._GENESIS)
+    if state != "empty":
+        record = store.emit("LOCAL_TEST", {"evidence_class": "SAMPLE"})
+        expected = (True, 1, -1, record["digest"])
+    if state == "broken":
+        store._db.execute("UPDATE khipu SET digest=? WHERE seq=0", ("0" * 64,))
+        store._db.commit()
+        expected = (False, 1, 0, "0" * 64)
+    before = _files(host)
+    calls, sql = _guards(monkeypatch, host)
+    assert store.verify_with_head() == expected
+    assert store.verify() == expected[:3]
+    assert _files(host) == before
+    assert calls == {name: 0 for name in calls}
+    _assert_no_sql_write(sql)

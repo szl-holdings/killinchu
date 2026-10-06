@@ -8,6 +8,14 @@ deployment attestation. A broken chain remains visible as `chain_ok: false`;
 unavailable store reads retain the framework's failure response without
 creating or recovering storage.
 
+Chain verification, depth, and head are derived from one fetched rowset on the
+existing SQLite connection. A separate connection can append after that SELECT;
+the response still describes the complete earlier snapshot. The process-local
+lock alone does not serialize independent writers. `DurableKhipu.verify()` keeps
+its three-value return contract; `verify_with_head()` adds the matching head.
+Empty chains retain the genesis head, and broken chains retain their observed
+head without claiming that it is valid.
+
 `/assurance/credential` still exports the active verifying key. Consumers must
 not expect `/assurance/attest` to create a matching signature on GET. The
 credential tests retain direct signer verification with ephemeral test keys.
