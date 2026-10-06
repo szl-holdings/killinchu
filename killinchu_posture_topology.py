@@ -44,6 +44,7 @@ All computation is CPU-only, 0 runtime CDN; only live DATA fetches occur.
 """
 from __future__ import annotations
 
+import hashlib
 import math
 import os
 from pathlib import Path
@@ -345,65 +346,193 @@ def _betweenness(adj: np.ndarray) -> np.ndarray:
 # ─────────────────────────────────────────────────────────────────────────────
 # UDS Package CR (real config) loader for attack-surface + zero-trust
 # ─────────────────────────────────────────────────────────────────────────────
-def _load_uds_package() -> dict:
-    """Parse deploy/uds-package.yaml WITHOUT requiring PyYAML — a tiny tolerant
-    parser sufficient for the allow/expose blocks we need. Returns a normalized
-    dict {allow:[...], expose:[...]} or {} if not found."""
-    candidates = [
+_KNOWN_UDS_PACKAGE_SHA256 = "d4b6aebd4eb713c725548fef92d954622ab86920067753b20457ba0295984eeb"
+
+
+def _parse_known_uds_rules(text: str) -> tuple[list[dict], list[dict]]:
+    """Read graph fields from the byte-pinned packaged CR without PyYAML."""
+    allow: list[dict] = []
+    expose: list[dict] = []
+    section: Optional[str] = None
+    current: Optional[dict] = None
+    fields = {
+        "allow": {"direction", "remoteNamespace", "remoteGenerated", "port", "description"},
+        "expose": {"service", "host", "gateway", "port", "description"},
+    }
+
+    def finish() -> None:
+        nonlocal current
+        if section and current is not None:
+            (allow if section == "allow" else expose).append(current)
+        current = None
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if section and indent <= (4 if section == "allow" else 2):
+            finish()
+            section = None
+        if indent == 4 and stripped == "allow:":
+            section = "allow"
+            continue
+        if indent == 2 and stripped == "expose:":
+            section = "expose"
+            continue
+        if section is None:
+            continue
+        item_indent = 6 if section == "allow" else 4
+        field_indent = item_indent + 2
+        if indent == item_indent and stripped.startswith("- "):
+            finish()
+            current = {}
+            stripped = stripped[2:]
+        elif indent != field_indent or current is None:
+            continue
+        if ":" in stripped:
+            key, _, value = stripped.partition(":")
+            if key in fields[section] and value.strip():
+                parsed_value = value.strip().strip('"')
+                current[key] = int(parsed_value) if key == "port" else parsed_value
+    finish()
+    return allow, expose
+
+
+def _load_uds_package(path: Optional[Path] = None) -> dict[str, Any]:
+    """Load observed UDS rules, distinguishing absent and invalid evidence."""
+    def unavailable(state: str, reason: str) -> dict[str, Any]:
+        return {"state": state, "reason_code": reason, "allow": [], "expose": []}
+
+    candidates = [Path(path)] if path is not None else [
         Path("/app/deploy/uds-package.yaml"),
         Path(__file__).resolve().parent / "deploy" / "uds-package.yaml",
     ]
-    text = ""
-    for p in candidates:
-        if p.is_file():
-            text = p.read_text()
-            break
-    if not text:
-        return {}
+    try:
+        selected = next((candidate for candidate in candidates if candidate.is_file()), None)
+        if selected is None:
+            return unavailable("UNAVAILABLE", "UDS_PACKAGE_MISSING")
+        raw = selected.read_bytes()
+        text = raw.decode("utf-8")
+    except (OSError, UnicodeError):
+        return unavailable("UNAVAILABLE", "UDS_PACKAGE_UNREADABLE")
+    if not text.strip():
+        return unavailable("MALFORMED", "UDS_PACKAGE_EMPTY")
     try:
         import yaml  # type: ignore
-        doc = yaml.safe_load(text) or {}
-        net = (doc.get("spec") or {}).get("network") or {}
-        return {"allow": net.get("allow") or [], "expose": (doc.get("spec") or {}).get("expose") or []}
     except Exception:
-        pass
-    # minimal fallback parser: walk the allow/expose list items
-    allow: list[dict] = []
-    expose: list[dict] = []
-    section = None
-    cur: dict = {}
-    for raw in text.splitlines():
-        line = raw.rstrip()
-        if not line.strip() or line.strip().startswith("#"):
-            continue
-        stripped = line.strip()
-        len(line) - len(line.lstrip())
-        if stripped == "allow:":
-            section = "allow"
-            continue
-        if stripped == "expose:":
-            section = "expose"
-            continue
-        if stripped in ("sso:", "monitor:", "network:", "spec:"):
-            if stripped in ("sso:", "monitor:"):
-                section = None
-            continue
-        if section and stripped.startswith("- "):
-            if cur:
-                (allow if section == "allow" else expose).append(cur)
-            cur = {}
-            kv = stripped[2:]
-            if ":" in kv:
-                k, _, v = kv.partition(":")
-                cur[k.strip()] = v.strip().strip('"')
-        elif section and ":" in stripped and not stripped.startswith("- "):
-            k, _, v = stripped.partition(":")
-            v = v.strip().strip('"')
-            if v:
-                cur[k.strip()] = v
-    if cur and section:
-        (allow if section == "allow" else expose).append(cur)
-    return {"allow": allow, "expose": expose}
+        # The Dockerfile keeps PyYAML optional. Preserve the packaged graph
+        # contract only for source bytes whose relevant rules are known.
+        if hashlib.sha256(raw).hexdigest() != _KNOWN_UDS_PACKAGE_SHA256:
+            return unavailable("UNAVAILABLE", "UDS_PARSER_UNAVAILABLE")
+        try:
+            allow, expose = _parse_known_uds_rules(text)
+        except (TypeError, ValueError):
+            return unavailable("UNAVAILABLE", "UDS_FALLBACK_PARSE_FAILED")
+        if len(allow) != 4 or len(expose) != 1:
+            return unavailable("UNAVAILABLE", "UDS_FALLBACK_PARSE_FAILED")
+        return {"state": "OBSERVED", "reason_code": None, "allow": allow, "expose": expose,
+                "expose_layout": "SPEC_EXPOSE_PINNED_LEGACY"}
+    try:
+        class UniqueKeyLoader(yaml.SafeLoader):
+            pass
+
+        def construct_mapping(loader: Any, node: Any) -> dict:
+            mapping: dict = {}
+            for key_node, value_node in node.value:
+                key = loader.construct_object(key_node)
+                try:
+                    duplicate = key in mapping
+                except TypeError as exc:
+                    raise yaml.constructor.ConstructorError(
+                        "invalid mapping key", node.start_mark, str(exc), key_node.start_mark
+                    ) from exc
+                if duplicate:
+                    raise yaml.constructor.ConstructorError(
+                        "duplicate mapping key", node.start_mark, repr(key), key_node.start_mark
+                    )
+                mapping[key] = loader.construct_object(value_node)
+            return mapping
+
+        UniqueKeyLoader.add_constructor(
+            yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_mapping
+        )
+        loader = UniqueKeyLoader(text)
+        try:
+            doc = loader.get_single_data()
+        finally:
+            loader.dispose()
+    except yaml.YAMLError:
+        return unavailable("MALFORMED", "UDS_PACKAGE_INVALID_YAML")
+    except Exception:
+        return unavailable("UNAVAILABLE", "UDS_PARSER_FAILED")
+    if not isinstance(doc, dict) or doc.get("kind") != "Package" or not str(
+        doc.get("apiVersion", "")
+    ).startswith("uds.dev/"):
+        return unavailable("MALFORMED", "UDS_PACKAGE_INVALID_SHAPE")
+    spec = doc.get("spec")
+    if not isinstance(spec, dict):
+        return unavailable("MALFORMED", "UDS_PACKAGE_INVALID_SHAPE")
+    network = spec.get("network", {})
+    if not isinstance(network, dict):
+        return unavailable("MALFORMED", "UDS_PACKAGE_INVALID_SHAPE")
+    canonical_expose = "expose" in network
+    legacy_expose = "expose" in spec
+    if canonical_expose and legacy_expose:
+        return unavailable("MALFORMED", "UDS_PACKAGE_AMBIGUOUS_EXPOSE_LAYOUT")
+    if legacy_expose and hashlib.sha256(raw).hexdigest() != _KNOWN_UDS_PACKAGE_SHA256:
+        return unavailable("MALFORMED", "UDS_PACKAGE_LEGACY_EXPOSE_UNVERIFIED")
+    allow = network.get("allow", [])
+    expose = spec["expose"] if legacy_expose else network.get("expose", [])
+    if not isinstance(allow, list) or not isinstance(expose, list):
+        return unavailable("MALFORMED", "UDS_PACKAGE_INVALID_RULES")
+
+    def valid_port(item: dict) -> bool:
+        if "port" not in item:
+            return True  # UDS allow rules may use ports[] or omit a single port.
+        port = item["port"]
+        if type(port) is int:
+            valid = 1 <= port <= 65535
+        elif type(port) is float:
+            valid = math.isfinite(port) and port.is_integer() and 1 <= port <= 65535
+        else:
+            valid = False
+        if valid:
+            item["port"] = int(port)
+        return valid
+
+    for item in allow:
+        if (not isinstance(item, dict)
+                or not isinstance(item.get("direction"), str)
+                or item["direction"].lower() not in ("ingress", "egress")
+                or any(key in item and not isinstance(item[key], str)
+                       for key in ("remoteNamespace", "remoteGenerated", "description"))
+                or not valid_port(item)):
+            return unavailable("MALFORMED", "UDS_PACKAGE_INVALID_RULES")
+    for item in expose:
+        if (not isinstance(item, dict)
+                or any(key in item and not isinstance(item[key], str)
+                       for key in ("host", "service", "gateway", "description"))
+                or not (str(item.get("host", "")).strip() or str(item.get("service", "")).strip())
+                or not valid_port(item)):
+            return unavailable("MALFORMED", "UDS_PACKAGE_INVALID_RULES")
+    return {"state": "OBSERVED", "reason_code": None, "allow": allow, "expose": expose,
+            "expose_layout": ("SPEC_EXPOSE_PINNED_LEGACY" if legacy_expose
+                              else "SPEC_NETWORK_EXPOSE")}
+
+
+def _uds_graph_unavailable(tab: str, uds: dict[str, Any]) -> JSONResponse:
+    return JSONResponse({
+        "ok": False,
+        "tab": tab,
+        "evidence_state": uds["state"],
+        "reason_code": uds["reason_code"],
+        "nodes": [],
+        "edges": [],
+        "empty": None,
+        "empty_state": None,
+        "data_source": "deploy/uds-package.yaml",
+    }, status_code=503)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -612,8 +741,10 @@ def register(app: FastAPI, ns: str = "killinchu",
     @app.get(f"/api/{ns}/v1/attack-surface/graph")
     async def attack_surface_graph() -> JSONResponse:
         uds = _load_uds_package()
-        allow = uds.get("allow", [])
-        expose = uds.get("expose", [])
+        if uds["state"] != "OBSERVED":
+            return _uds_graph_unavailable("Attack-Surface Graph", uds)
+        allow = uds["allow"]
+        expose = uds["expose"]
         nodes: list[dict] = [{"id": "killinchu", "kind": "app", "role": "killinchu surface"}]
         edges: list[list[str]] = []
         exposed_ids: list[str] = []
@@ -641,6 +772,8 @@ def register(app: FastAPI, ns: str = "killinchu",
         out = {
             "ok": True,
             "tab": "Attack-Surface Graph",
+            "evidence_state": "OBSERVED_EMPTY" if empty else "OBSERVED",
+            "expose_layout": uds["expose_layout"],
             "nodes": nodes,
             "edges": edges,
             "exposures": exposed_ids,
@@ -648,7 +781,8 @@ def register(app: FastAPI, ns: str = "killinchu",
             "data_source": "killinchu deploy/uds-package.yaml (real UDS Package CR allow/expose)",
             "empty": empty,
             "empty_state": ("No exposures discovered in the UDS Package CR." if empty else None),
-            "honesty": "Edges reflect actual allow/expose rules only; no invented CVEs or exposures.",
+            "honesty": ("Edges reflect source-manifest allow/expose declarations only; "
+                        "deployed ingress was not verified. No invented CVEs or exposures."),
             "cited_leaders": [
                 {"name": "MITRE ATT&CK Enterprise (adversary techniques)",
                  "url": "https://attack.mitre.org/"},
@@ -663,7 +797,9 @@ def register(app: FastAPI, ns: str = "killinchu",
     @app.get(f"/api/{ns}/v1/zerotrust/mesh")
     async def zerotrust_mesh() -> JSONResponse:
         uds = _load_uds_package()
-        allow = uds.get("allow", [])
+        if uds["state"] != "OBSERVED":
+            return _uds_graph_unavailable("Zero-Trust Mesh", uds)
+        allow = uds["allow"]
         nodes = {"killinchu": {"id": "killinchu", "kind": "app", "role": "killinchu surface"}}
         edges: list[dict] = []
         for a in allow:
@@ -692,6 +828,7 @@ def register(app: FastAPI, ns: str = "killinchu",
         out = {
             "ok": True,
             "tab": "Zero-Trust Mesh",
+            "evidence_state": "OBSERVED_EMPTY" if empty else "OBSERVED",
             "nodes": list(nodes.values()),
             "edges": edges,
             "mesh_mode": "Istio ambient (UDS Core default)",
