@@ -33,9 +33,9 @@ shared-file drift gate). Registers four live endpoints on the killinchu FastAPI 
         exposures are discovered.
 
   GET /api/killinchu/v1/zerotrust/mesh
-        Zero-Trust Mesh. mTLS/allow-policy mesh graph from the same UDS Package CR
-        allow rules (Istio ambient). Edges = actual PeerAuthentication/allow
-        rules only; empty state if none.
+        Zero-Trust Mesh. Declared allow-rule graph from the UDS Package CR.
+        Deployed policy and mTLS enforcement are not checked; empty state if
+        no allow rules are declared.
 
 Doctrine: trust ceiling 0.97; Lambda = Conjecture 1 (open); locked formulas = 8;
 honest empty / SIMULATED labels; organ public names = Quechua/honest roles
@@ -820,10 +820,10 @@ def register(app: FastAPI, ns: str = "killinchu",
                 nodes[rid] = {"id": rid, "kind": "peer", "role": role}
             if direction == "egress":
                 edges.append({"source": "killinchu", "target": rid, "port": port,
-                              "direction": "egress", "policy": desc, "mtls": "Istio ambient"})
+                              "direction": "egress", "policy": desc, "mtls": "UNVERIFIED"})
             elif direction == "ingress":
                 edges.append({"source": rid, "target": "killinchu", "port": port,
-                              "direction": "ingress", "policy": desc, "mtls": "Istio ambient"})
+                              "direction": "ingress", "policy": desc, "mtls": "UNVERIFIED"})
         empty = (len(edges) == 0)
         out = {
             "ok": True,
@@ -831,12 +831,14 @@ def register(app: FastAPI, ns: str = "killinchu",
             "evidence_state": "OBSERVED_EMPTY" if empty else "OBSERVED",
             "nodes": list(nodes.values()),
             "edges": edges,
-            "mesh_mode": "Istio ambient (UDS Core default)",
+            "mesh_mode": "UDS Package CR allow declarations",
+            "runtime_enforcement_state": "UNVERIFIED",
             "data_source": "killinchu deploy/uds-package.yaml spec.network.allow (real)",
             "empty": empty,
             "empty_state": ("No allow rules found in the UDS Package CR." if empty else None),
-            "honesty": ("Edges = actual allow rules from the UDS Package CR only; mTLS via Istio "
-                        "ambient. Public role names (no banned codenames). Lambda = Conjecture 1."),
+            "honesty": ("Edges reflect allow declarations in the UDS Package CR only. "
+                        "Deployed policy and mTLS enforcement were not checked. "
+                        "Public role names (no banned codenames). Lambda = Conjecture 1."),
             "cited_leaders": [
                 {"name": "NIST SP 800-207 Zero Trust Architecture",
                  "url": "https://csrc.nist.gov/pubs/sp/800/207/final"},

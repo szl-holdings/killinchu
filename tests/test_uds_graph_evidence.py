@@ -114,6 +114,9 @@ def test_populated_package_keeps_observed_edges(tmp_path, monkeypatch):
     assert mesh.json()["evidence_state"] == "OBSERVED"
     assert mesh.json()["empty"] is False
     assert len(mesh.json()["edges"]) == 1
+    assert mesh.json()["runtime_enforcement_state"] == "UNVERIFIED"
+    assert mesh.json()["edges"][0]["mtls"] == "UNVERIFIED"
+    assert "mTLS enforcement were not checked" in mesh.json()["honesty"]
 
 
 def test_canonical_expose_without_allow_rules_is_observed(tmp_path, monkeypatch):
