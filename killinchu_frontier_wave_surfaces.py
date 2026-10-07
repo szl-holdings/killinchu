@@ -145,7 +145,7 @@ def _js() -> str:
         "  var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98', RED='#ff6b6b';\n"
         "  var SURF=" + data + ";\n"
         "  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\n"
-        "  function labelColor(l){ l=String(l||'').toUpperCase(); if(l.indexOf('LIVE')>=0)return TEAL; if(l.indexOf('SIMULATED')>=0||l.indexOf('SAMPLE')>=0)return GOLD; if(l.indexOf('ROADMAP')>=0||l.indexOf('UNAVAILABLE')>=0)return RED; return DIM; }\n"
+        "  function labelColor(l){ l=String(l||'').toUpperCase().trim(); if(l.indexOf('ERROR')>=0||l.indexOf('UNAVAILABLE')>=0||l.indexOf('ROADMAP')>=0)return RED; if(l.indexOf('SIMULATED')>=0||l.indexOf('SAMPLE')>=0||l.indexOf('MODELED')>=0)return GOLD; if(l==='LIVE'||l.indexOf('LIVE ')===0||l.indexOf('LIVE:')===0)return TEAL; return DIM; }\n"
         "  function pill(l){ var c=labelColor(l); return '<span style=\"display:inline-block;padding:2px 9px;border-radius:999px;font-family:monospace;font-size:10px;letter-spacing:.06em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a;\">'+esc(l)+'</span>'; }\n"
         "  function xlinks(ep){ return '<div style=\"margin-top:14px;font-family:monospace;font-size:11px;color:'+DIM+';\">'\n"
         "      +'\\u25c8 endpoint <a href=\"'+esc(ep)+'\" target=\"_blank\" rel=\"noopener\" style=\"color:'+GOLD+';\">'+esc(ep)+'</a>'\n"
@@ -167,8 +167,8 @@ def _js() -> str:
         "      +xlinks(ep)+'</div>';\n"
         "    fetch(ep,{headers:{'accept':'application/json'}}).then(function(r){ return r.json().then(function(j){ return {ok:r.ok,st:r.status,j:j}; }); })\n"
         "      .then(function(res){ var live=document.getElementById(s.key+'-live'); var body=document.getElementById(s.key+'-body');\n"
-        "        var j=res.j||{}; var lbl=j.label||j.data_label||j.status_label||(j.inference_state&&j.inference_state.sovereign?'LIVE':'SIMULATED/ROADMAP')||(res.ok?'LIVE 200':'ERROR');\n"
-        "        if(live){ live.innerHTML='\\u25c8 GET '+esc(ep)+' \\u2192 '+res.st+' '+pill(lbl)+' \\u00b7 honest label read from the live response'; }\n"
+        "        var j=res.j||{}; var sourceLabel=j.label||j.data_label||j.status_label; var failed=!res.ok||j.ok===false||!!j.error; var lbl=failed?'ERROR':(sourceLabel||'UNLABELLED');\n"
+        "        if(live){ live.innerHTML='\\u25c8 GET '+esc(ep)+' \\u2192 '+res.st+' '+pill(lbl)+' \\u00b7 '+(failed?'response error':(sourceLabel?'response label':'no response label')); }\n"
         "        if(body){ var rows=flat(j,'',[],0); var H='<div style=\"margin-top:12px;border:1px solid #222;border-radius:8px;padding:10px 14px;background:#0d0f12;\">';\n"
         "          rows.forEach(function(p){ H+=kv(p[0], typeof p[1]==='number'?(''+p[1]).slice(0,12):String(p[1]).slice(0,90)); }); H+='</div>'; body.innerHTML=H; } })\n"
         "      .catch(function(e){ var live=document.getElementById(s.key+'-live'); if(live){ live.innerHTML='\\u25c8 GET '+esc(ep)+' \\u2192 '+pill('FETCH ERROR')+' '+esc(String(e).slice(0,120))+' \\u2014 honest degrade, no fabricated data'; } });\n"
@@ -202,76 +202,81 @@ class _WaveSurfacesInjector:
     Only fires on text/html responses that carry the elite sidebar so the SPA
     shell and non-deck pages are untouched. Never raises into a request."""
 
+    _MAX_HTML_BYTES = 4 * 1024 * 1024
+
     def __init__(self, app, ns: str = "killinchu"):
         self.app = app
         self.ns = ns
         self._marker = 'data-kc-wave-surfaces="%s"' % _INJECT_KEY
 
     async def __call__(self, scope, receive, send):
-        if scope.get("type") != "http":
+        deck_paths = ("/elite", "/%s/elite" % self.ns)
+        if (scope.get("type") != "http" or scope.get("method") != "GET"
+                or scope.get("path") not in deck_paths):
             await self.app(scope, receive, send)
             return
-        chunks: list = []
-        status_code = {"v": 200}
-        headers_ref: dict = {}
-        started = {"v": False}
+        chunks: list[dict] = []
+        buffered_bytes = 0
+        start_msg = None
+        streaming = False
 
         async def _send(message):
+            nonlocal buffered_bytes, start_msg, streaming
             if message["type"] == "http.response.start":
-                status_code["v"] = message.get("status", 200)
-                hdrs = message.get("headers") or []
-                ct = ""
-                for k, v in hdrs:
-                    if k.decode("latin-1").lower() == "content-type":
-                        ct = v.decode("latin-1").lower()
-                headers_ref["ct"] = ct
-                headers_ref["raw"] = list(hdrs)
-                headers_ref["start"] = message
-                started["v"] = True
-                return  # defer sending start until we know final body length
+                start_msg = message
+                headers = {k.lower(): v.lower() for k, v in message.get("headers", [])}
+                content_type = headers.get(b"content-type", b"").split(b";", 1)[0].strip()
+                encoding = headers.get(b"content-encoding", b"identity").strip()
+                content_length = headers.get(b"content-length", b"0").strip()
+                try:
+                    oversized = int(content_length) > self._MAX_HTML_BYTES
+                except ValueError:
+                    oversized = True
+                eligible = (message.get("status") == 200
+                            and scope.get("method") != "HEAD"
+                            and content_type == b"text/html"
+                            and encoding in (b"", b"identity")
+                            and not oversized)
+                if not eligible:
+                    streaming = True
+                    await send(message)
+                return
             if message["type"] == "http.response.body":
-                chunks.append(message.get("body", b"") or b"")
+                if streaming or start_msg is None:
+                    await send(message)
+                    return
+                chunks.append(message)
+                buffered_bytes += len(message.get("body", b"") or b"")
+                if buffered_bytes > self._MAX_HTML_BYTES:
+                    await send(start_msg)
+                    for chunk in chunks:
+                        await send(chunk)
+                    chunks.clear()
+                    streaming = True
+                    return
                 if message.get("more_body"):
                     return
-                # last chunk — decide whether to inject
-                body = b"".join(chunks)
-                ct = headers_ref.get("ct", "")
-                inject = False
-                if "text/html" in ct and self._marker.encode() not in body:
-                    # only decks: must carry the elite sidebar AND the VIEWS registry
-                    if (b'class="side"' in body or b"class='side'" in body) and b"window.VIEWS" in body or b"VIEWS[" in body:
-                        inject = True
-                if inject:
-                    try:
-                        tag = (
-                            '<script %s src="%s" defer></script>'
-                            % (self._marker, _MOUNT_PATH)
-                        ).encode("utf-8")
-                        if b"</body>" in body:
-                            body = body.replace(b"</body>", tag + b"</body>", 1)
-                        else:
-                            body = body + tag
-                    except Exception:
-                        pass  # honest degrade — never break the deck
-                # rebuild headers with corrected content-length
-                raw = []
-                for k, v in headers_ref.get("raw", []):
-                    if k.decode("latin-1").lower() == "content-length":
-                        continue
-                    raw.append((k, v))
-                raw.append((b"content-length", str(len(body)).encode("latin-1")))
-                start_msg = dict(headers_ref.get("start", {"type": "http.response.start", "status": status_code["v"]}))
-                start_msg["headers"] = raw
-                await send(start_msg)
-                await send({"type": "http.response.body", "body": body, "more_body": False})
+                body = b"".join(chunk.get("body", b"") or b"" for chunk in chunks)
+                sidebar = b'class="side"' in body or b"class='side'" in body
+                registry = b"window.VIEWS" in body or b"VIEWS[" in body
+                if (self._marker.encode() not in body and sidebar and registry
+                        and b"</body>" in body):
+                    tag = ('<script %s src="%s" defer></script>'
+                           % (self._marker, _MOUNT_PATH)).encode("utf-8")
+                    body = body.replace(b"</body>", tag + b"</body>", 1)
+                    headers = [(k, v) for k, v in start_msg.get("headers", [])
+                               if k.lower() != b"content-length"]
+                    headers.append((b"content-length", str(len(body)).encode("ascii")))
+                    await send({**start_msg, "headers": headers})
+                    await send({"type": "http.response.body", "body": body, "more_body": False})
+                else:
+                    await send(start_msg)
+                    for chunk in chunks:
+                        await send(chunk)
                 return
             await send(message)
 
-        try:
-            await self.app(scope, receive, _send)
-        except Exception:
-            # if anything above went wrong before we sent, fall back to a clean pass
-            raise
+        await self.app(scope, receive, _send)
 
 
 def register(app, ns: str = "killinchu") -> Dict[str, Any]:
