@@ -67,7 +67,6 @@ from __future__ import annotations
 import json as _json
 import os as _os
 import time as _time
-import urllib.request as _urllib_request
 from typing import Any, Dict, List, Optional
 
 MODELED_LABEL = "MODELED"
@@ -286,7 +285,8 @@ def read_live_meter(url: Optional[str] = None,
     JSON, or a shape that carries no live=true real reading ALL return None — the organ then
     degrades to the existing MODELED / OFFLINE path. This function NEVER fabricates a joule,
     NEVER raises, and NEVER trusts a reading unless a GPU reports live=true with a numeric
-    power_w. Pure stdlib urllib (browser-like UA for the Cloudflare-fronted meter).
+    power_w. The shared meter transport signs the exact request and denies reads when
+    authentication is not configured; the browser-like User-Agent is retained.
 
     Returns, on success, a normalized dict:
       {"url": str, "exporter": str|None, "ts": float|None, "fetched_at": float,
@@ -302,8 +302,9 @@ def read_live_meter(url: Optional[str] = None,
     to = _METER_TIMEOUT_S if timeout is None else float(timeout)
     fetched_at = _time.time()
     try:
-        req = _urllib_request.Request(target, headers={"User-Agent": _METER_PROBE_UA})
-        with _urllib_request.urlopen(req, timeout=to) as r:  # noqa: S310
+        from szl_meter_access import open_meter_get
+        with open_meter_get(target, timeout=to,
+                            headers={"User-Agent": _METER_PROBE_UA}) as r:
             status = getattr(r, "status", None)
             if status is None:
                 try:
