@@ -61,6 +61,19 @@ def test_shared_http_payload_is_content_bound():
     assert storage["payload_id"] == "estate-rag-operator-auth-20261004-v2"
     assert set(storage["files"]) == set(current["files"])
     expected = {**payload["files"], **current["files"], **storage["files"]}
+    # The scoped answer hydrator is the next explicit RAG source generation.
+    # Preserve every predecessor byte and retain every unrelated runtime pin.
+    previous_guard = (root / ".github/shared-source-payloads/"
+                      "agent-loop-execution-guards-20261008-v1.json").read_bytes()
+    assert hashlib.sha256(previous_guard).hexdigest() == (
+        "bb60cb1ee4ec606edb79f381ca2235349fbc298f14713bd6a0104958b6eaa8ac"
+    )
+    handoff = json.loads((root / ".github/shared-source-payload-manifest.json").read_bytes())
+    assert handoff["schema"] == "szl-shared-source-payload/v1"
+    assert handoff["payload_id"] == "authorized-rag-answer-handoff-20261008-v1"
+    rag_successor = "d3b6975c40397aa5135652e5d9a45b31e8de931ef1bbff59047d0c5b127f7aa4"
+    assert handoff["files"]["a11oy_org_rag.py"] == rag_successor
+    expected["a11oy_org_rag.py"] = rag_successor
     for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 
