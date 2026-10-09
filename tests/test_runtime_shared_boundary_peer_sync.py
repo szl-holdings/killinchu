@@ -38,10 +38,19 @@ RESTRAINT_EXPECTED_SHA256 = {
 }
 # The RAG successor adds the separate estate receipt route. Its source commit
 # is unsigned; byte identity is verified here without claiming a signature.
-CURRENT_A11OY_COMMIT = "74dbd5ce75bdb704168a05abceeb186fcf7f49ca"
-CURRENT_EXPECTED_SHA256 = {
+RAG_A11OY_COMMIT = "74dbd5ce75bdb704168a05abceeb186fcf7f49ca"
+RAG_EXPECTED_SHA256 = {
     **RESTRAINT_EXPECTED_SHA256,
     "szl_operator_auth.py": "86ed8b445c05f26c66c8d41dba09fe889970aad0e091090efe795299b9336539",
+}
+# The run-loop successor records which backend produced a retrieve hop.
+# Byte identity only. This does not claim a new retrieval qualification.
+RUNLOOP_A11OY_COMMIT = "4e1463cac8df3d4c685f2eafa07a08880d7fad4c"
+CURRENT_A11OY_COMMIT = RUNLOOP_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **RAG_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "ac7393a9394ed4a8a1acdc801260c0e505c9940868668c1c7c43a2aad8c1129d",
+    "szl_agentic_loop.py": "20543887d96d594c3a71289744d6e82a0ba339f78ed16924dcd75fa015d1e6d5",
 }
 TOKEN = "test-killinchu-runtime-operator"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
