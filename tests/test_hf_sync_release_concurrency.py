@@ -9,7 +9,7 @@ def test_release_receipt_publication_is_serialized_and_rejects_stale_source() ->
     for contract in (
         "group: hf-write/space/SZLHOLDINGS/killinchu",
         "cancel-in-progress: false",
-        "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da",
+        "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@6e7581c08cd2fb884d9faf90193c8db628aa3f37",
         "require-default-branch-tip: true",
         "GITHUB_TOKEN: ${{ github.token }}",
         'f"/repos/{os.environ[\'GITHUB_REPOSITORY\']}/commits/main"',

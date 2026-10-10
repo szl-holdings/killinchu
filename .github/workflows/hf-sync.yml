@@ -29,7 +29,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy, source-bind, and attest exact surface
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@6e7581c08cd2fb884d9faf90193c8db628aa3f37
     with:
       hf-repo: SZLHOLDINGS/killinchu
       ref: ${{ github.sha }}
@@ -103,7 +103,9 @@ jobs:
   release-receipt:
     name: Mint and publish exact-source release receipt
     needs: [deploy, verify-risk-status-fails-closed]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    # Python 3.12.10 has no Ubuntu 26 distribution. Remove this temporary pin
+    # after the shared publisher closure and exact-interpreter checks are revalidated.
     timeout-minutes: 20
     steps:
       - name: Harden runner
@@ -164,14 +166,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: szl-holdings/.github
-          ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          ref: 6e7581c08cd2fb884d9faf90193c8db628aa3f37
           path: shared-hf-publisher
           persist-credentials: false
           fetch-depth: 1
 
       - name: Install exact shared hash-locked publisher closure
         env:
-          SHARED_PUBLISHER_SHA: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          SHARED_PUBLISHER_SHA: 6e7581c08cd2fb884d9faf90193c8db628aa3f37
           SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
           PUBLISHER_VENV: ${{ runner.temp }}/hf-receipt-publisher-venv
         shell: bash

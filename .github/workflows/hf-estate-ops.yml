@@ -328,7 +328,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: szl-holdings/.github
-          ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          ref: 6e7581c08cd2fb884d9faf90193c8db628aa3f37
           path: shared-hf-publisher
           persist-credentials: false
           fetch-depth: 1
@@ -336,7 +336,7 @@ jobs:
       # repository (huggingface-hub 1.19.0), installed before any secret exists.
       - name: Install exact shared hash-locked Hub client
         env:
-          SHARED_PUBLISHER_SHA: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          SHARED_PUBLISHER_SHA: 6e7581c08cd2fb884d9faf90193c8db628aa3f37
           SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
           PUBLISHER_VENV: ${{ runner.temp }}/hf-training-dispatch-venv
         shell: bash
