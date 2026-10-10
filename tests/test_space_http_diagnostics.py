@@ -71,7 +71,7 @@ def test_shared_http_payload_is_content_bound():
     handoff = json.loads((root / ".github/shared-source-payload-manifest.json").read_bytes())
     assert handoff["schema"] == "szl-shared-source-payload/v1"
     assert handoff["payload_id"] == "authorized-rag-answer-handoff-20261008-v1"
-    rag_successor = "d3b6975c40397aa5135652e5d9a45b31e8de931ef1bbff59047d0c5b127f7aa4"
+    rag_successor = "dbeca108e10a40210db375b66f9411efd347c8188643a65c6df6987aa80fb26d"
     assert handoff["files"]["a11oy_org_rag.py"] == rag_successor
     expected["a11oy_org_rag.py"] = rag_successor
     for relative, digest in expected.items():

@@ -25,7 +25,7 @@ def _reset_rag_runtime(monkeypatch, db_path: Path) -> None:
     monkeypatch.setattr(org_rag, "_GRAPH", org_rag.OrgGraph())
     monkeypatch.setattr(org_rag, "_BUILD_META", {"built": False})
     monkeypatch.setattr(org_rag, "_REHYDRATE_ATTEMPTED", False)
-    monkeypatch.setattr(org_rag, "_maybe_embedder", lambda: None)
+    monkeypatch.setattr(org_rag, "_maybe_embedder", lambda load=False: None)
 
 
 def _stage_generation(conn, generation_id: str, body: str) -> org_rag.OrgGraph:
