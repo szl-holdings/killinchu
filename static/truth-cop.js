@@ -464,6 +464,25 @@
     document.querySelectorAll("szl-space-ecosystem-bar").forEach(enhanceBar);
   }
 
+  function enhanceFamilyRail() {
+    var rail = document.getElementById("szl-family-rail");
+    if (!rail || !document.body) return;
+    var legacyMark = rail.querySelector("span.szl-family-mark");
+    if (legacyMark) {
+      var mark = document.createElement("img");
+      mark.className = "szl-family-mark";
+      mark.src = "/static/szl/logos/szl_logo_mono_white.svg";
+      mark.alt = "";
+      mark.width = 40;
+      mark.height = 40;
+      legacyMark.replaceWith(mark);
+    }
+    var skip = document.body.querySelector(":scope > .landing-skip, :scope > .kcd-skip");
+    if (skip && document.body.firstElementChild !== skip) {
+      document.body.insertBefore(skip, document.body.firstChild);
+    }
+  }
+
   function startBarObserver() {
     enhanceBars();
     if (!window.MutationObserver || observer) return;
@@ -471,6 +490,7 @@
       records.forEach(function (record) {
         record.addedNodes.forEach(function (node) {
           if (!node || node.nodeType !== 1) return;
+          if (node.id === "szl-family-rail") enhanceFamilyRail();
           if (node.matches && node.matches("szl-space-ecosystem-bar")) enhanceBar(node);
           if (node.querySelectorAll) node.querySelectorAll("szl-space-ecosystem-bar").forEach(enhanceBar);
         });
@@ -491,6 +511,7 @@
   }
 
   function initialize() {
+    enhanceFamilyRail();
     applyViewportState();
     startRootStyleObserver();
     startBarObserver();

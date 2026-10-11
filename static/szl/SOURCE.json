@@ -1,0 +1,13 @@
+{
+  "name": "szl-brand-assets",
+  "source_repository": "https://github.com/szl-holdings/szl-brand",
+  "source_commit": "27d12e77fc0f9f1a0e5fae8b34adf2380d51d070",
+  "source_path": "kit/logos/szl_logo_mono_white.svg",
+  "source_bundle": "kanchay",
+  "license": "CC-BY-4.0",
+  "attribution": "SZL Holdings \u00b7 Stephen P. Lutar \u00b7 ORCID 0009-0001-0110-4173",
+  "modifications": "None; the approved monochrome white artwork is copied byte-for-byte.",
+  "sha256": {
+    "logos/szl_logo_mono_white.svg": "0c2dde0e828f94a30f5727395d63f934413b96cd5394d3df1efb428e6d617aa5"
+  }
+}
