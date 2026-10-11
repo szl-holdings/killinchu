@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import tomllib
 
 import pytest
 from fastapi import FastAPI
@@ -152,8 +153,11 @@ def test_gitleaks_exception_is_bound_to_the_public_auth_digest_row() -> None:
         r'''^\s*"gdw_auth\.py"\s*:\s*"[0-9a-f]{64}",?\s*$'''
         in config
     )
-    paths_block = config.split("paths = [", 1)[1]
-    assert "shared-source-payload-manifest" not in paths_block
+    # A later paired contribution adds one exact-row, exact-path meter digest
+    # exception. This prior boundary prohibits a broad GLOBAL path exclusion;
+    # the actual-scanner regression tests enforce the narrower rule exception.
+    global_paths = tomllib.loads(config)["allowlist"]["paths"]
+    assert all("shared-source-payload-manifest" not in path for path in global_paths)
 
 
 def test_killinchu_mcp_notification_has_empty_202_response() -> None:
