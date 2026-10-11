@@ -68,7 +68,12 @@ def test_shared_http_payload_is_content_bound():
     assert hashlib.sha256(previous_guard).hexdigest() == (
         "bb60cb1ee4ec606edb79f381ca2235349fbc298f14713bd6a0104958b6eaa8ac"
     )
-    handoff = json.loads((root / ".github/shared-source-payload-manifest.json").read_bytes())
+    handoff_raw = (root / ".github/shared-source-payloads/"
+                   "authorized-rag-answer-handoff-20261008-v1.json").read_bytes()
+    assert hashlib.sha256(handoff_raw).hexdigest() == (
+        "6e4138d0c4901ad60cfb93fed81d7f3737c02d78c4fd13befe137d02c84c7c13"
+    )
+    handoff = json.loads(handoff_raw)
     assert handoff["schema"] == "szl-shared-source-payload/v1"
     assert handoff["payload_id"] == "authorized-rag-answer-handoff-20261008-v1"
     rag_successor = "dbeca108e10a40210db375b66f9411efd347c8188643a65c6df6987aa80fb26d"
