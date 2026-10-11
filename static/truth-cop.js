@@ -49,12 +49,7 @@
     var identity = element("a", "szl-family-identity");
     identity.href = "/";
     identity.setAttribute("aria-label", "Open Killinchu field command");
-    var mark = element("img", "szl-family-mark");
-    mark.src = "/static/szl/logos/szl_logo_mono_white.svg";
-    mark.alt = "";
-    mark.width = 40;
-    mark.height = 40;
-    identity.appendChild(mark);
+    identity.appendChild(element("span", "szl-family-mark"));
     var copy = element("span", "szl-family-copy");
     copy.appendChild(element("small", "", "SZL / Product family"));
     copy.appendChild(element("strong", "", "Killinchu Field"));
@@ -72,8 +67,7 @@
 
     rail.appendChild(identity);
     rail.appendChild(track);
-    var skip = document.body.querySelector(":scope > .landing-skip, :scope > .kcd-skip");
-    document.body.insertBefore(rail, skip ? skip.nextSibling : document.body.firstChild);
+    document.body.insertBefore(rail, document.body.firstChild);
   }
 
   /*
@@ -470,6 +464,25 @@
     document.querySelectorAll("szl-space-ecosystem-bar").forEach(enhanceBar);
   }
 
+  function enhanceFamilyRail() {
+    var rail = document.getElementById("szl-family-rail");
+    if (!rail || !document.body) return;
+    var legacyMark = rail.querySelector("span.szl-family-mark");
+    if (legacyMark) {
+      var mark = document.createElement("img");
+      mark.className = "szl-family-mark";
+      mark.src = "/static/szl/logos/szl_logo_mono_white.svg";
+      mark.alt = "";
+      mark.width = 40;
+      mark.height = 40;
+      legacyMark.replaceWith(mark);
+    }
+    var skip = document.body.querySelector(":scope > .landing-skip, :scope > .kcd-skip");
+    if (skip && document.body.firstElementChild !== skip) {
+      document.body.insertBefore(skip, document.body.firstChild);
+    }
+  }
+
   function startBarObserver() {
     enhanceBars();
     if (!window.MutationObserver || observer) return;
@@ -477,6 +490,7 @@
       records.forEach(function (record) {
         record.addedNodes.forEach(function (node) {
           if (!node || node.nodeType !== 1) return;
+          if (node.id === "szl-family-rail") enhanceFamilyRail();
           if (node.matches && node.matches("szl-space-ecosystem-bar")) enhanceBar(node);
           if (node.querySelectorAll) node.querySelectorAll("szl-space-ecosystem-bar").forEach(enhanceBar);
         });
@@ -497,6 +511,7 @@
   }
 
   function initialize() {
+    enhanceFamilyRail();
     applyViewportState();
     startRootStyleObserver();
     startBarObserver();
