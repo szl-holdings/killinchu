@@ -79,6 +79,9 @@ class PublicDigestScannerBoundary(unittest.TestCase):
     def test_shared_meter_digest_elsewhere_not_exempt(self):
         self.assertEqual(self.scan(
             '{\n  "szl_meter_access.py": "' + METER_SOURCE_DIGEST + '"\n}\n'), 1)
+        self.assertEqual(self.scan(
+            '{\n  "szl_meter_access.py": "' + METER_SOURCE_DIGEST + '"\n}\n',
+            "other/shared-source-payload-manifest.json"), 1)
 
 
 if __name__ == "__main__":
