@@ -4,10 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>killinchu — Governed Counter-UAS &amp; Maritime C2 · SZL Holdings</title>
-<meta name="description" content="killinchu is SZL Holdings' governed counter-UAS and maritime decision surface. Every value on this page is read live from the killinchu FastAPI backend in-request; anything the backend does not return is shown as UNAVAILABLE." />
+<meta name="description" content="Inspect Killinchu's reported air and sea systems, declared capabilities, and receipt evidence. Missing observations remain UNAVAILABLE; effector action stays SIMULATED." />
 <meta name="theme-color" content="#000000" />
 <meta name="color-scheme" content="dark" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%23ffffff' stroke-width='1.6'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23f0eee6'/%3E%3C/svg%3E" />
+<link rel="icon" href="/static/szl/logos/szl_logo_mono_white.svg" type="image/svg+xml" />
 <!-- SOVEREIGN: self-hosted fonts (0 runtime CDN). Space Grotesk + JetBrains Mono are
      vendored in-image and served same-origin via /vendor/fonts/fonts.css. NO font CDN. -->
 <link rel="stylesheet" href="/vendor/fonts/fonts.css" />
@@ -32,7 +32,7 @@
 :root{
   --bg:#000000; --bg-soft:#0a0a0b; --panel:#0d0d0f;
   --ink:#ffffff; --cream:#f0eee6;
-  --t1:#e8e8ea; --t2:#9a9a9e; --t3:#5f5f63;
+  --t1:#e8e8ea; --t2:#b2b2b6; --t3:#94949a;
   --line:#1c1c1f; --line2:#2a2a2e;
   --head:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -40,7 +40,7 @@
   --ease:cubic-bezier(.22,1,.36,1);
 
   /* fluid modular scale — 1.25 from 12px: 12 15 19 24 30 37 46 58 72 */
-  --f1:clamp(11px,.28vw + 10.1px,12px);
+  --f1:12px;
   --f2:clamp(13px,.42vw + 11.7px,15px);
   --f3:clamp(15px,.75vw + 13.1px,19px);
   --f4:clamp(19px,1.05vw + 16.2px,24px);
@@ -66,7 +66,10 @@ body{
 a{color:inherit;text-decoration:none;}
 canvas{display:block;}
 ::selection{background:rgba(240,238,230,.18);color:#fff;}
-:focus-visible{outline:1px solid var(--t2);outline-offset:3px;}
+:focus-visible{outline:3px solid var(--cream);outline-offset:4px;}
+.landing-skip{position:fixed;left:12px;top:12px;z-index:2147483001;display:inline-flex;align-items:center;min-height:44px;padding:12px 18px;border:1px solid var(--cream);border-radius:8px;background:var(--cream);color:var(--bg);font:600 14px/1.4 var(--head);transform:translateY(-180%);}
+.landing-skip:focus{transform:translateY(0);}
+#main-content{scroll-margin-top:140px;}
 
 /* every number on this page is tabular */
 .mono,.num,.tele__v,.tele__sub,.strip__v,.card__metrics,.axis__k,.topbar__meta{
@@ -102,8 +105,8 @@ p.lede{
   max-width:var(--maxw);margin:0 auto;padding:0 clamp(18px,5vw,32px);
   min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:14px;
 }
-.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:var(--f2);letter-spacing:-.015em;color:var(--ink);}
-.brand__mark{width:9px;height:9px;border-radius:50%;border:1px solid var(--t2);box-shadow:0 0 0 4px rgba(255,255,255,.04);}
+.brand{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:600;font-size:var(--f2);letter-spacing:-.015em;color:var(--ink);}
+.brand__mark{width:40px;height:40px;flex:none;}
 .brand__sub{color:var(--t3);font-weight:400;font-family:var(--mono);font-size:var(--f1);letter-spacing:.08em;}
 .topbar__meta{font-family:var(--mono);font-size:var(--f1);letter-spacing:.1em;color:var(--t3);text-transform:uppercase;text-align:right;white-space:nowrap;}
 @media (max-width:560px){
@@ -218,7 +221,7 @@ h1.hero__h1{
   font-family:var(--mono);font-size:var(--f1);color:var(--t3);margin:2px 0 0;
   border-top:1px solid var(--line);padding-top:10px;word-break:break-all;
 }
-.card__foot a{color:var(--t2);transition:color .15s var(--ease);}
+.card__foot a{display:inline-flex;align-items:center;min-width:44px;min-height:44px;max-width:100%;padding-block:8px;color:var(--t2);transition:color .15s var(--ease);}
 .card__foot a:hover{color:var(--ink);}
 .card--wide{grid-column:1/-1;}
 .card ul{margin:0;padding-left:1.05em;color:var(--t2);font-size:var(--f2);}
@@ -238,6 +241,10 @@ h1.hero__h1{
 .foot__line{font-family:var(--mono);font-size:var(--f1);color:var(--t3);letter-spacing:.03em;margin:0 0 8px;text-wrap:pretty;}
 .foot__line a{color:var(--t2);}
 .foot__line a:hover{color:var(--ink);}
+.foot.wrap{padding-inline:clamp(18px,5vw,32px);}
+.foot__links{display:flex;align-items:center;flex-wrap:wrap;gap:4px 20px;font:400 var(--f1)/1.6 var(--mono);color:var(--t3);}
+.foot__links a{display:inline-flex;align-items:center;min-height:44px;color:var(--t2);text-underline-offset:.25em;}
+.foot__links a:hover{text-decoration:underline;color:var(--ink);}
 
 /* ---- RESPONSIVE --------------------------------------------------------- */
 @media (min-width:560px){
@@ -272,26 +279,27 @@ h1.hero__h1{
 }
 </style>
 </head>
-<body>
+<body class="szl-killinchu-landing">
+<a class="landing-skip" href="#main-content">Skip to main content</a>
 
 <header class="topbar">
   <div class="topbar__in">
-    <a class="brand" href="/"><span class="brand__mark" aria-hidden="true"></span>killinchu <span class="brand__sub">SZL HOLDINGS</span></a>
+    <a class="brand" href="/"><img class="brand__mark" src="/static/szl/logos/szl_logo_mono_white.svg" alt="" width="40" height="40" />killinchu <span class="brand__sub">SZL HOLDINGS</span></a>
     <span class="topbar__meta" id="topDoctrine">DOCTRINE · <b class="mono" id="topDoctrineVal">UNAVAILABLE</b> <span class="topbar__clock"> · UTC <b class="mono" id="topClock">—</b></span></span>
   </div>
 </header>
 
 <!-- ======================= HERO ·  cinematic C2 scene ======================= -->
+<main id="main-content" tabindex="-1">
 <section class="hero">
   <canvas class="hero__canvas" id="c2scene" aria-hidden="true"></canvas>
   <div class="wrap hero__in">
     <p class="eyebrow">SZL Holdings · Governed Counter-UAS &amp; Maritime C2</p>
-    <h1 class="hero__h1">Counter-UAS that proves every decision.</h1>
+    <h1 class="hero__h1">Inspect the field.<br />Follow the evidence.</h1>
     <p class="hero__lede">
-      A governed field surface for air and sea. Every gate, every track and every
-      engagement leaves a hash-chained receipt you can check offline. Every figure
-      on this page is read from this Space's own FastAPI backend in-request —
-      nothing here is typed in by hand.
+      A governed view of air and sea. Inspect reported system state, declared
+      capabilities and receipt-readiness evidence from this Space. Missing
+      observations stay UNAVAILABLE.
     </p>
     <p class="hero__note">
       Human on the loop; effector action is SIMULATED. Detector is Waman (ROADMAP, no weights).
@@ -579,6 +587,7 @@ h1.hero__h1{
   </div>
 </section>
 
+</main>
 <footer class="foot wrap">
   <p class="foot__line">offline-checkable · no trust in SZL</p>
   <p class="foot__line">
@@ -588,9 +597,13 @@ h1.hero__h1{
   <p class="foot__line">
     ADS-B and Remote-ID are unauthenticated broadcast — decoded fields are claims, not attested truth.
   </p>
-  <p class="foot__line">
-    © 2026 SZL Holdings · <a href="/api/killinchu/v1/honest">honest endpoint</a> · <a href="/cosign.pub">/cosign.pub</a> · <a href="/landing.html">this page</a>
-  </p>
+  <nav class="foot__links" aria-label="Evidence and source links">
+    <span>© 2026 SZL Holdings</span>
+    <a href="/api/killinchu/v1/honest">Honest status</a>
+    <a href="/cosign.pub">Public key</a>
+    <a href="/landing.html">Landing page</a>
+    <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">SZL mark · CC BY 4.0</a>
+  </nav>
 </footer>
 
 <script>

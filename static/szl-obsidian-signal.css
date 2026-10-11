@@ -28,6 +28,7 @@ html[data-szl-family-shell="obsidian-signal"] ::selection{color:var(--szl-field-
 .szl-family-mark{position:relative;width:28px;height:28px;flex:0 0 auto;border:1px solid var(--szl-field-line);border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 5px,rgba(104,232,216,.24) 6px 7px);box-shadow:0 0 22px rgba(104,232,216,.15)}
 .szl-family-mark::before{position:absolute;inset:3px;border-top:1px solid var(--szl-field-signal);border-radius:50%;transform:rotate(38deg);content:""}
 .szl-family-mark::after{position:absolute;right:5px;top:6px;width:5px;height:5px;border-radius:50%;background:var(--szl-field-accent);box-shadow:0 0 12px var(--szl-field-accent);content:""}
+img.szl-family-mark{width:40px;height:40px;border:0;border-radius:0;background:none;box-shadow:none}
 .szl-family-copy{min-width:0;display:grid;gap:1px}.szl-family-copy small{color:var(--szl-field-faint);font:700 9px/1.2 var(--szl-field-mono);letter-spacing:.18em;text-transform:uppercase}.szl-family-copy strong{overflow:hidden;color:var(--szl-field-ink);font:650 13px/1.25 var(--szl-field-font);text-overflow:ellipsis;white-space:nowrap}
 .szl-family-track{min-width:0;display:flex;align-items:center;justify-content:flex-start;justify-content:safe flex-end;gap:4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:rgba(104,232,216,.3) transparent;touch-action:pan-x;-webkit-overflow-scrolling:touch}
 .szl-family-track::-webkit-scrollbar{height:4px}.szl-family-track::-webkit-scrollbar-thumb{border-radius:999px;background:rgba(104,232,216,.3)}
@@ -65,3 +66,31 @@ html[data-szl-family-shell="obsidian-signal"] :where(.grid,.cards,.stats){min-wi
 @media(forced-colors:active){html[data-szl-family-shell="obsidian-signal"] body::before{display:none}.szl-family-rail,.szl-family-link,html[data-szl-family-shell="obsidian-signal"] :where(.card,.panel,.stat,.metric,.tile,.wire,.rule,.btn,button){border:1px solid CanvasText!important;color:CanvasText!important;background:Canvas!important;box-shadow:none!important}}
 @supports not (color:color-mix(in srgb,black 50%,white)){.szl-family-rail{background:var(--szl-field-deep)}}
 @media print{.szl-family-rail{display:none!important}html[data-szl-family-shell="obsidian-signal"] body{color:#000!important;background:#fff!important}html[data-szl-family-shell="obsidian-signal"] :where(.card,.panel,.stat,.metric,.tile,.wire,.rule){color:#000!important;background:#fff!important;box-shadow:none!important}}
+
+/* The landing's monochrome contract must survive the later family stylesheet. */
+body.szl-killinchu-landing{
+  --szl-field-bg:var(--bg);--szl-field-deep:var(--bg-soft);--szl-field-panel:var(--panel);--szl-field-panel-2:var(--panel);
+  --szl-field-ink:var(--t1);--szl-field-bone:var(--cream);--szl-field-muted:var(--t2);--szl-field-faint:var(--t3);
+  --szl-field-accent:var(--cream);--szl-field-accent-2:var(--t1);--szl-field-signal:var(--t2);--szl-field-danger:var(--t1);--szl-field-success:var(--t1);
+  --szl-field-line:var(--line2);--szl-field-line-soft:var(--line);--szl-field-font:var(--head);--szl-field-mono:var(--mono);
+}
+html[data-szl-family-shell="obsidian-signal"] body.szl-killinchu-landing{color:var(--t1)!important;background:var(--bg)!important}
+html[data-szl-family-shell="obsidian-signal"] body.szl-killinchu-landing::before,
+html[data-szl-family-shell="obsidian-signal"] .szl-killinchu-landing .hero::after{display:none}
+html[data-szl-family-shell="obsidian-signal"] .szl-killinchu-landing .topbar{background:var(--bg-soft)!important}
+html[data-szl-family-shell="obsidian-signal"] .szl-killinchu-landing .card{
+  background:var(--panel)!important;border-color:var(--line2)!important;
+  box-shadow:inset 0 1px 0 color-mix(in srgb,var(--cream) 9%,transparent),var(--szl-field-shadow)
+}
+html[data-szl-family-shell="obsidian-signal"] .szl-killinchu-landing .card:hover{border-color:var(--t3)!important}
+.szl-killinchu-landing .szl-family-link:hover,.szl-killinchu-landing .szl-family-link:focus-visible,
+.szl-killinchu-landing .szl-family-link[aria-current="page"]{background:var(--panel);border-color:var(--t3)}
+.szl-killinchu-landing .szl-family-track{scrollbar-color:var(--t3) transparent}
+.szl-killinchu-landing .szl-family-track::-webkit-scrollbar-thumb{background:var(--t3)}
+html[data-szl-family-shell="obsidian-signal"] .szl-killinchu-landing #killinchu-track-truth{background:var(--panel)!important;color:var(--t2)!important}
+@media(forced-colors:active){
+  html[data-szl-family-shell="obsidian-signal"] body.szl-killinchu-landing,
+  html[data-szl-family-shell="obsidian-signal"] .szl-killinchu-landing .card,
+  html[data-szl-family-shell="obsidian-signal"] .szl-killinchu-landing .topbar,
+  html[data-szl-family-shell="obsidian-signal"] .szl-killinchu-landing #killinchu-track-truth{background:Canvas!important;color:CanvasText!important;border-color:CanvasText!important;box-shadow:none}
+}

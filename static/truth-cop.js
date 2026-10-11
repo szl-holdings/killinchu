@@ -49,7 +49,12 @@
     var identity = element("a", "szl-family-identity");
     identity.href = "/";
     identity.setAttribute("aria-label", "Open Killinchu field command");
-    identity.appendChild(element("span", "szl-family-mark"));
+    var mark = element("img", "szl-family-mark");
+    mark.src = "/static/szl/logos/szl_logo_mono_white.svg";
+    mark.alt = "";
+    mark.width = 40;
+    mark.height = 40;
+    identity.appendChild(mark);
     var copy = element("span", "szl-family-copy");
     copy.appendChild(element("small", "", "SZL / Product family"));
     copy.appendChild(element("strong", "", "Killinchu Field"));
@@ -67,7 +72,8 @@
 
     rail.appendChild(identity);
     rail.appendChild(track);
-    document.body.insertBefore(rail, document.body.firstChild);
+    var skip = document.body.querySelector(":scope > .landing-skip, :scope > .kcd-skip");
+    document.body.insertBefore(rail, skip ? skip.nextSibling : document.body.firstChild);
   }
 
   /*
