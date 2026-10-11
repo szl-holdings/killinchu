@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from html.parser import HTMLParser
 import json
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI
@@ -139,6 +140,33 @@ class PlaneTabsParser(HTMLParser):
             self.pending_route = None
         if tag == "nav":
             self.in_tabs = False
+
+
+@pytest.mark.parametrize("middleware_layers", (1, 2))
+def test_landing_slot_keeps_skip_before_the_actual_navigation(middleware_layers):
+    """Exercise actual HTML middleware without registering any operation routes."""
+    raw = (Path(__file__).resolve().parents[1] / "static/landing.html").read_text()
+    app = FastAPI()
+
+    @app.get("/", response_class=HTMLResponse)
+    def landing():
+        return raw
+
+    for _ in range(middleware_layers):
+        app.add_middleware(defend.PlaneTabsMiddleware)
+    response = TestClient(app).get("/")
+    assert response.status_code == 200
+    html = response.text
+    assert html.index('class="landing-skip"') < html.index('data-killinchu-plane-tabs="v1"')
+    assert html.count('data-killinchu-plane-tabs="v1"') == 1
+    assert '<!-- killinchu:capability-navigation -->' not in html
+    tabs = PlaneTabsParser()
+    tabs.feed(html)
+    assert tabs.links == ["/resilience", "/defend", "/elite/maritime", "/elite#cuas_lab"]
+    assert tabs.unavailable == {
+        "/immune": "Immune · migration pending",
+        "/khipu": "Evidence page · unavailable",
+    }
 
 
 @pytest.mark.parametrize("page_path", ("/defend", "/resilience", "/existing"))

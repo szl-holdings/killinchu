@@ -70,6 +70,19 @@ canvas{display:block;}
 .landing-skip{position:fixed;left:12px;top:12px;z-index:2147483001;display:inline-flex;align-items:center;min-height:44px;padding:12px 18px;border:1px solid var(--cream);border-radius:8px;background:var(--cream);color:var(--bg);font:600 14px/1.4 var(--head);transform:translateY(-180%);}
 .landing-skip:focus{transform:translateY(0);}
 #main-content{scroll-margin-top:140px;}
+/* Server and client navigation share normal flow; the product bar alone sticks. */
+body.szl-killinchu-landing > .szl-family-rail{position:relative;top:auto;z-index:1;}
+.landing-capabilities{position:relative;z-index:1;background:var(--bg);border-bottom:1px solid var(--line);}
+.landing-capabilities > summary{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:48px;max-width:var(--maxw);margin:auto;padding:12px clamp(18px,5vw,32px);list-style:none;cursor:pointer;color:var(--t2);font:600 12px/1.5 var(--mono);letter-spacing:.04em;}
+.landing-capabilities > summary::-webkit-details-marker{display:none;}
+.landing-capabilities__cue{font-size:20px;line-height:1;}
+.landing-capabilities[open] .landing-capabilities__cue{transform:rotate(45deg);}
+.landing-capabilities .kc-plane-tabs{position:static;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;overflow:visible;max-width:var(--maxw);margin:auto;padding:0 clamp(18px,5vw,32px) 12px;background:var(--bg);border:0;}
+.landing-capabilities .kc-plane-tabs a{order:0;min-height:44px;justify-content:center;border-color:var(--line2);}
+.landing-capabilities .kc-unavailable{order:1;grid-column:span 2;white-space:normal;line-height:1.6;}
+.landing-capabilities .kc-state{order:2;grid-column:1/-1;}
+@media(max-width:620px){.landing-capabilities .kc-plane-tabs{grid-template-columns:repeat(2,minmax(0,1fr));}.landing-capabilities .kc-unavailable{grid-column:1/-1;}}
+body.szl-killinchu-landing > header.topbar{position:sticky!important;top:0!important;z-index:60;background:var(--bg);}
 
 /* every number on this page is tabular */
 .mono,.num,.tele__v,.tele__sub,.strip__v,.card__metrics,.axis__k,.topbar__meta{
@@ -112,6 +125,7 @@ p.lede{
 @media (max-width:560px){
   .brand__sub{display:none;}
   .topbar__clock{display:none;}
+  .topbar__meta{min-width:0;white-space:normal;overflow-wrap:anywhere;}
 }
 .topbar__meta b{color:var(--t2);font-weight:400;}
 
@@ -281,6 +295,10 @@ h1.hero__h1{
 </head>
 <body class="szl-killinchu-landing">
 <a class="landing-skip" href="#main-content">Skip to main content</a>
+<details class="landing-capabilities">
+<summary>Explore capability pages <span class="landing-capabilities__cue" aria-hidden="true">+</span></summary>
+<!-- killinchu:capability-navigation -->
+</details>
 
 <header class="topbar">
   <div class="topbar__in">
