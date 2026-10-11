@@ -14,13 +14,17 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 BINARY = os.environ.get("SZL_TEST_GITLEAKS_BINARY")
 PUBLIC_DIGEST = "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2cf"
+METER_SOURCE_DIGEST = "e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4"
+SHARED_MANIFEST_PATH = ".github/shared-source-payload-manifest.json"
 
 
 @unittest.skipUnless(BINARY, "actual scanner not configured; NOT VERIFIED")
 class PublicDigestScannerBoundary(unittest.TestCase):
-    def scan(self, text):
+    def scan(self, text, path="probe.json"):
         with tempfile.TemporaryDirectory(prefix="szl-public-digest-probe-") as folder:
-            (Path(folder) / "probe.json").write_text(text, encoding="utf-8")
+            target = Path(folder) / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text, encoding="utf-8")
             result = subprocess.run(
                 [BINARY, "detect", "--source", folder, "--no-git",
                  "--config", str(ROOT / ".gitleaks.toml"), "--redact",
@@ -49,6 +53,32 @@ class PublicDigestScannerBoundary(unittest.TestCase):
     def test_other_auth_named_value_is_not_exempt(self):
         self.assertEqual(self.scan(
             '{\n  "other_auth.py": "' + secrets.token_hex(32) + '"\n}\n'), 1)
+
+    def test_exact_shared_meter_source_digest_is_public_identity(self):
+        self.assertEqual(self.scan(
+            '{\n  "szl_meter_access.py": "' + METER_SOURCE_DIGEST + '"\n}\n',
+            SHARED_MANIFEST_PATH), 0)
+
+    def test_shared_manifest_adjacent_credential_still_detected(self):
+        self.assertEqual(self.scan(
+            '{\n  "szl_meter_access.py": "' + METER_SOURCE_DIGEST
+            + '",\n  "private_api_key": "' + secrets.token_hex(32) + '"\n}\n',
+            SHARED_MANIFEST_PATH), 1)
+
+    def test_shared_manifest_same_line_credential_still_detected(self):
+        self.assertEqual(self.scan(
+            '{\n  "szl_meter_access.py": "' + METER_SOURCE_DIGEST
+            + '", "private_api_key": "' + secrets.token_hex(32) + '"\n}\n',
+            SHARED_MANIFEST_PATH), 1)
+
+    def test_shared_manifest_other_digest_not_exempt(self):
+        self.assertEqual(self.scan(
+            '{\n  "szl_meter_access.py": "' + secrets.token_hex(32) + '"\n}\n',
+            SHARED_MANIFEST_PATH), 1)
+
+    def test_shared_meter_digest_elsewhere_not_exempt(self):
+        self.assertEqual(self.scan(
+            '{\n  "szl_meter_access.py": "' + METER_SOURCE_DIGEST + '"\n}\n'), 1)
 
 
 if __name__ == "__main__":
