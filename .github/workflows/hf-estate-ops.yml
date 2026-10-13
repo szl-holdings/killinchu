@@ -86,7 +86,7 @@ jobs:
       INPUT_PROFILE: ${{ inputs.profile }}
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -312,7 +312,7 @@ jobs:
       INPUT_TRAINING_MANIFEST: ${{ inputs.training_manifest }}
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
         with:
           egress-policy: audit
       - name: Checkout exact source
@@ -364,7 +364,7 @@ jobs:
         run: '"$HF_PUBLISHER_PYTHON" -E -s -m scripts.dispatch_receipt_training --submit --receipt-dir training-receipts'
       - name: Retain sanitized phase receipts, including failures
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: training-receipts-${{ github.run_id }}-${{ github.run_attempt }}
           path: training-receipts/*.json
