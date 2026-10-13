@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from html.parser import HTMLParser
 import json
+import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -104,6 +105,22 @@ def test_product_tabs_are_visible_and_legacy_names_redirect(tmp_path, monkeypatc
         response = c.get(alias, follow_redirects=False)
         assert response.status_code == 308
         assert response.headers["location"] == "/defend"
+
+
+@pytest.mark.parametrize("page_path", ("/existing", "/defend"))
+def test_plane_tabs_keep_44px_links_in_scrollable_rail(tmp_path, monkeypatch, page_path):
+    page = client(tmp_path, monkeypatch).get(page_path)
+    assert page.status_code == 200
+
+    link_rule = re.search(r"\.kc-plane-tabs a\{([^}]*)\}", page.text)
+    rail_rule = re.search(r"\.kc-plane-tabs\{([^}]*)\}", page.text)
+    assert link_rule is not None
+    assert rail_rule is not None
+    link_css = link_rule.group(1)
+    rail_css = rail_rule.group(1)
+    assert "min-height:44px" in link_css
+    assert "flex:0 0 auto" in link_css
+    assert "overflow-x:auto" in rail_css
 
 
 class PlaneTabsParser(HTMLParser):
