@@ -46,11 +46,18 @@ RAG_EXPECTED_SHA256 = {
 # The run-loop successor records which backend produced a retrieve hop.
 # Byte identity only. This does not claim a new retrieval qualification.
 RUNLOOP_A11OY_COMMIT = "4e1463cac8df3d4c685f2eafa07a08880d7fad4c"
-CURRENT_A11OY_COMMIT = RUNLOOP_A11OY_COMMIT
-CURRENT_EXPECTED_SHA256 = {
+RUNLOOP_EXPECTED_SHA256 = {
     **RAG_EXPECTED_SHA256,
     "a11oy_code_engine.py": "ac7393a9394ed4a8a1acdc801260c0e505c9940868668c1c7c43a2aad8c1129d",
     "szl_agentic_loop.py": "20543887d96d594c3a71289744d6e82a0ba339f78ed16924dcd75fa015d1e6d5",
+}
+# Evaluation now requires the existing operator before parsing or publication.
+# Retain earlier evidence; this pins reviewed source bytes, not a deployment.
+EVALUATION_A11OY_COMMIT = "7d67e807dd4189576b3d48a6b92700bff99fa443"
+CURRENT_A11OY_COMMIT = EVALUATION_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **RUNLOOP_EXPECTED_SHA256,
+    "szl_operator_auth.py": "38880e4b02658718dd8d69070a4edd2d4abca7793c535ecc95978e5a35a3a8d7",
 }
 TOKEN = "test-killinchu-runtime-operator"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
