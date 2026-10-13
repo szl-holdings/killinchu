@@ -55,6 +55,17 @@ CURRENT_EXPECTED_SHA256 = {
 TOKEN = "test-killinchu-runtime-operator"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 
+# The mandatory-rlimit successor (predecessor engine digest ac7393a9...) refuses
+# to run code when any sandbox child rlimit cannot be applied and drops the
+# unenforced seccomp/container label. It is layered on the current generation
+# above. Byte identity only; this pins reviewed source, not a deployment.
+RLIMITS_A11OY_COMMIT = "3595c3f0eb8b7c59efe38522a12341e553ea1c0f"
+CURRENT_A11OY_COMMIT = RLIMITS_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "e515e66d812ed8f9be4cbd2cb042c9a99919d29f7e746df37b1532912a868493",
+}
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()

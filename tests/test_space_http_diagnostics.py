@@ -79,8 +79,14 @@ def test_shared_http_payload_is_content_bound():
     rag_successor = "dbeca108e10a40210db375b66f9411efd347c8188643a65c6df6987aa80fb26d"
     assert handoff["files"]["a11oy_org_rag.py"] == rag_successor
     # The explicit lexical-only reference mode is the next RAG source generation.
-    # The active manifest pins the archived handoff above byte-for-byte.
-    lexical = json.loads((root / ".github/shared-source-payload-manifest.json").read_bytes())
+    # Its manifest pins the archived handoff above byte-for-byte. A later pair
+    # replaced the active slot, so this proof is read from its immutable archive.
+    lexical_raw = (root / ".github/shared-source-payloads/"
+                   "org-rag-lexical-reference-20261013-v1.json").read_bytes()
+    assert hashlib.sha256(lexical_raw).hexdigest() == (
+        "65f404ffe7c235d6a549ccd608761e1f4ed0101d074590d1e50e6fb12e115b7a"
+    )
+    lexical = json.loads(lexical_raw)
     lexical_successor = "0c98b17b37f5013a0a77aaccd71405d5be57dd37a0af4dceeff4f46f0982f227"
     assert lexical == {
         "files": {

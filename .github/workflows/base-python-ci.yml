@@ -134,6 +134,12 @@ jobs:
           tests/test_shared_operator_boundary.py
           tests/test_runtime_shared_boundary_peer_sync.py
 
+      - name: Shared code-engine mandatory rlimits (blocking)
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m pytest -q -p no:cacheprovider tests/test_code_engine_mandatory_limits.py
+
       - name: Install the runtime cryptography pin for assurance tests
         run: python -m pip install --disable-pip-version-check --no-cache-dir "cryptography==49.0.0"
 
