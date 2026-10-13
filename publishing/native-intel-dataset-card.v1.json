@@ -1,0 +1,31 @@
+{
+  "schema": "szl.native-dataset-card-projection/v1",
+  "evidence_class": "UNSIGNED_SOURCE_PRESENTATION",
+  "source_repository": "szl-holdings/killinchu",
+  "base_revision": "32760a15fcecfe50211654713d7e4e6a86d947fa",
+  "source_path": "datasets/killinchu-osint-corpus/README.md",
+  "before_sha256": "48c1b61726863ee315f09bc9580b5f10bd72769ac1f1bf779b4a92160a170581",
+  "after_sha256": "6d86ab83204e0de048ea10fd045bc6fbe8af5b863eda2617f535001d048ef195",
+  "frontmatter_sha256": "d23bf6e02f76cadaa13856f5e4353d35ba120e8940e8189e53705e5f602dc487",
+  "preserved_technical_body_sha256": "68ecbc141340033f57af225a752ac2917f8f906025dbca3f1b407a3569168c4d",
+  "original_bytes_reconstructable": true,
+  "change": "Replace obsolete 112px remote emblem with exact native 40px icon; add artwork attribution outside technical content.",
+  "native_art": {
+    "repository": "szl-holdings/szl-brand",
+    "revision": "27d12e77fc0f9f1a0e5fae8b34adf2380d51d070",
+    "path": "kit/logos/orbit-v2/suite/szl-icon-32.svg",
+    "sha256": "6e2b7d72a3af3d9602b79de41df0194ede6496a9661f057108ec224c0efc92e6",
+    "render_width": 40,
+    "render_height": 40,
+    "license": "CC-BY-4.0",
+    "license_scope": "SZL artwork"
+  },
+  "canonical_publisher": ".github/workflows/publish-intel-archive-card.yml",
+  "publisher_changed": false,
+  "technical_body_changed": false,
+  "metadata_changed": false,
+  "authority_or_training_claim_changed": false,
+  "historical_presentation_manifest_changed": false,
+  "provider_publication": "NOT_ESTABLISHED_BY_THIS_SOURCE_RECORD",
+  "underlying_dataset_records_changed": false
+}

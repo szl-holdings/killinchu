@@ -43,6 +43,49 @@ jobs:
       - name: Verify graph error escaping
         run: node --test tests/test_elite_graph_errors.cjs
 
+  landing-presentation:
+    name: Served landing presentation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12.10"
+
+      - name: Install exact presentation qualification runtime
+        run: |
+          python -m pip install --disable-pip-version-check \
+            "starlette==1.3.1" "httpx==0.28.1" "playwright==1.60.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Render the composed source with unavailable local fixtures
+        run: |
+          python tools/verify_landing_browser.py --output "$RUNNER_TEMP/landing-presentation"
+          git diff --check
+
+      - name: Retain unsigned frontend observations
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: served-landing-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/landing-presentation/
+          if-no-files-found: warn
+          retention-days: 14
+
   defend-contract:
     name: Defend plane — source, workflow, and route contract
     runs-on: ubuntu-24.04
