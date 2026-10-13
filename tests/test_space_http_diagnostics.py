@@ -68,12 +68,30 @@ def test_shared_http_payload_is_content_bound():
     assert hashlib.sha256(previous_guard).hexdigest() == (
         "bb60cb1ee4ec606edb79f381ca2235349fbc298f14713bd6a0104958b6eaa8ac"
     )
-    handoff = json.loads((root / ".github/shared-source-payload-manifest.json").read_bytes())
+    handoff_raw = (root / ".github/shared-source-payloads/"
+                   "authorized-rag-answer-handoff-20261008-v1.json").read_bytes()
+    assert hashlib.sha256(handoff_raw).hexdigest() == (
+        "6e4138d0c4901ad60cfb93fed81d7f3737c02d78c4fd13befe137d02c84c7c13"
+    )
+    handoff = json.loads(handoff_raw)
     assert handoff["schema"] == "szl-shared-source-payload/v1"
     assert handoff["payload_id"] == "authorized-rag-answer-handoff-20261008-v1"
     rag_successor = "dbeca108e10a40210db375b66f9411efd347c8188643a65c6df6987aa80fb26d"
     assert handoff["files"]["a11oy_org_rag.py"] == rag_successor
-    expected["a11oy_org_rag.py"] = rag_successor
+    # The explicit lexical-only reference mode is the next RAG source generation.
+    # The active manifest pins the archived handoff above byte-for-byte.
+    lexical = json.loads((root / ".github/shared-source-payload-manifest.json").read_bytes())
+    lexical_successor = "0c98b17b37f5013a0a77aaccd71405d5be57dd37a0af4dceeff4f46f0982f227"
+    assert lexical == {
+        "files": {
+            ".github/shared-source-payloads/authorized-rag-answer-handoff-20261008-v1.json":
+                "6e4138d0c4901ad60cfb93fed81d7f3737c02d78c4fd13befe137d02c84c7c13",
+            "a11oy_org_rag.py": lexical_successor,
+        },
+        "payload_id": "org-rag-lexical-reference-20261013-v1",
+        "schema": "szl-shared-source-payload/v1",
+    }
+    expected["a11oy_org_rag.py"] = lexical_successor
     for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 
