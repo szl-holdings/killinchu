@@ -5229,11 +5229,22 @@ except Exception as _kfw_e:
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
 try:
-    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
-        from szl_substrate import a11oy_code_engine as _kc_code  # single source of truth
-    except Exception:
-        import a11oy_code_engine as _kc_code
+    # SECURITY (fail closed): bind ONLY to the reviewed vendored engine, the
+    # a11oy<->killinchu shared-source copy whose bytes the payload manifest pins.
+    # It requires the operator credential and gates execution on the
+    # deny-by-default two-person allow_exec chokepoint. An installed szl_substrate
+    # copy is never preferred, even when importable: its governed_turn has no
+    # allow_exec and its register() checks no operator credential, so code from
+    # any unauthenticated caller that passed its policy gate would reach its
+    # sandbox. If the bound copy lacks a deny-by-default allow_exec, nothing is
+    # mounted under /api/killinchu/v1/code/*.
+    import a11oy_code_engine as _kc_code
+    import inspect as _kc_code_inspect
     import sys as _kc_code_sys
+    _kc_code_allow = _kc_code_inspect.signature(_kc_code.governed_turn).parameters.get("allow_exec")
+    if _kc_code_allow is None or _kc_code_allow.default is not False:
+        raise ImportError("a11oy_code_engine.governed_turn lacks a deny-by-default "
+                          "allow_exec; /api/killinchu/v1/code/* not mounted")
     # Reuse the loop's REAL persistent cosign signer/verifier (defined above).
     _kc_code_status = _kc_code.register(
         app, "killinchu",
