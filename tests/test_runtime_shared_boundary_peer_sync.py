@@ -66,6 +66,18 @@ CURRENT_EXPECTED_SHA256 = {
     "a11oy_code_engine.py": "e515e66d812ed8f9be4cbd2cb042c9a99919d29f7e746df37b1532912a868493",
 }
 
+# The attested-sandbox successor (predecessor engine digest e515e66d...) runs the
+# sandbox child as the server's own non-root uid in a fresh user + network
+# namespace, refuses a root server, requires the child's attestation before any
+# user code runs, and reports a run as executed only on execution_attempted=True.
+# Byte identity only; this pins reviewed source, not a deployment.
+ATTESTED_A11OY_COMMIT = "603b410c6c1309ba0050af32ddc74fd84ca1b99c"
+CURRENT_A11OY_COMMIT = ATTESTED_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "2670d8e3acaadb7f2e4fe8cf87c8c12ae111b4e1b38aba802864a3dbdbe5c574",
+}
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
