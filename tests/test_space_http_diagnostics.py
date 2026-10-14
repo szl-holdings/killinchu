@@ -98,6 +98,14 @@ def test_shared_http_payload_is_content_bound():
         "schema": "szl-shared-source-payload/v1",
     }
     expected["a11oy_org_rag.py"] = lexical_successor
+    # Evaluation admission adds the operator gate without rewriting historical
+    # manifests. Bind this reviewed successor and retain every unrelated pin.
+    assert expected["szl_operator_auth.py"] == (
+        "86ed8b445c05f26c66c8d41dba09fe889970aad0e091090efe795299b9336539"
+    )
+    expected["szl_operator_auth.py"] = (
+        "38880e4b02658718dd8d69070a4edd2d4abca7793c535ecc95978e5a35a3a8d7"
+    )
     for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 
