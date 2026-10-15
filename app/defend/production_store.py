@@ -119,8 +119,8 @@ class ProductionStore:
                             reasons.append("latest backup older than 36h")
             finally:
                 conn.close()
-        except Exception as exc:  # unreachable / unwritable DB fails closed
-            return False, {"durable": False, "reasons": [f"database error: {exc}"]}
+        except Exception:  # unreachable / unwritable DB fails closed
+            return False, {"durable": False, "reasons": ["DATABASE_ERROR"]}
         if reasons:
             return False, {"durable": False, "reasons": reasons}
         return True, {"durable": True, "alembic_head": EXPECTED_ALEMBIC_HEAD,
