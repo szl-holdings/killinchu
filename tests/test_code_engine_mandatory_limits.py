@@ -954,3 +954,61 @@ def test_real_host_identity_is_read_only_and_refuses_root():
     elif refusal is None:
         assert identity["uid"] == os.geteuid()
         assert identity["net"].startswith("net:[") and identity["user"].startswith("user:[")
+
+
+def _block_strict_companions(monkeypatch):
+    """Model Killinchu's shipped image, which has neither optional companion."""
+    import builtins
+
+    attempted = []
+    original_import = builtins.__import__
+
+    def guarded_import(name, *args, **kwargs):
+        if name.split(".", 1)[0] in {"szl_router_client", "a11oy_vertical_feeds"}:
+            attempted.append(name)
+            raise ModuleNotFoundError(name)
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+    return attempted
+
+
+def test_shared_engine_import_does_not_require_a11oy_strict_companions(monkeypatch):
+    import importlib.util
+
+    attempted = _block_strict_companions(monkeypatch)
+    spec = importlib.util.spec_from_file_location("killinchu_engine_import_probe", code_engine.__file__)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert callable(module.governed_turn)
+    assert attempted == []
+
+
+def test_default_chat_does_not_import_strict_companions_or_change_execution_path(monkeypatch, launcher):
+    attempted = _block_strict_companions(monkeypatch)
+    signed, sign = _signing_sink()
+    monkeypatch.setattr(code_engine, "_LOCAL_MODEL_CMD", "")
+    run = code_engine.governed_turn("chat", "explain the governance receipt", sign, "killinchu")
+    assert run["decision"] == "ALLOW"
+    assert run["executed"] is False
+    assert signed
+    assert attempted == []
+    assert launcher.calls == []
+
+
+def test_opt_in_chat_without_strict_companions_is_signed_deny_before_inference(monkeypatch, launcher):
+    attempted = _block_strict_companions(monkeypatch)
+    signed, sign = _signing_sink()
+    run = code_engine.governed_turn(
+        "chat", "explain the governance receipt", sign, "killinchu",
+        execution_budget=object(), want_model="Qwen/Qwen2.5-7B-Instruct",
+        selected_model_slug="qwen2.5-7b", output_token_limit=64,
+    )
+    assert attempted == ["szl_router_client"]
+    assert run["decision"] == "DENY"
+    assert run["error"] == "STRICT_INFERENCE_ADMISSION_UNAVAILABLE"
+    assert run["ok"] is run["executed"] is run["emitted"] is False
+    assert run["execution_limits"] is None
+    assert run["execution_status"] == "NOT_REQUESTED"
+    assert signed["decision"] == "DENY"
+    assert launcher.calls == []

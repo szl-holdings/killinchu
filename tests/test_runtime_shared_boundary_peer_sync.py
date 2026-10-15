@@ -86,6 +86,17 @@ CURRENT_EXPECTED_SHA256 = {
     "a11oy_code_engine.py": "2670d8e3acaadb7f2e4fe8cf87c8c12ae111b4e1b38aba802864a3dbdbe5c574",
 }
 
+# This successor binds the reviewed shared payload bytes before a publication
+# commit exists. The prior commit observations above remain immutable; the
+# payload digest does not claim a signature, deployment, or model execution.
+BOUNDED_MODEL_MANIFEST_SHA256 = (
+    "d8e50108743e7f02ac7b3c2af17e70c47e38922be3f4e214c5d98d1561c54ea6"
+)
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "a03aa1c294b69c8dfe3ce20d85aaf2347fac93ad7cba3544c1697d381639ac6f",
+}
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -153,6 +164,11 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         relative: _digest(ROOT / relative)
         for relative in CURRENT_EXPECTED_SHA256
     } == CURRENT_EXPECTED_SHA256
+    active = ROOT / ".github/shared-source-payload-manifest.json"
+    assert _digest(active) == BOUNDED_MODEL_MANIFEST_SHA256
+    payload = json.loads(active.read_text(encoding="utf-8"))
+    assert payload["payload_id"] == "code-engine-bounded-model-20261015-v1"
+    assert payload["files"]["a11oy_code_engine.py"] == CURRENT_EXPECTED_SHA256["a11oy_code_engine.py"]
 
 
 def test_operator_auth_dependency_is_in_the_runtime_image() -> None:
