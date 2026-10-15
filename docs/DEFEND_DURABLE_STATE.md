@@ -184,6 +184,27 @@ It never means pointing a newer binary at an older unknown schema.
 
 ## 10. Remaining proof before closure
 
+The internal `ProductionStore.readyz()` currently performs only passive
+connectivity, schema-head, and backup-timestamp reads. It returns
+`durable: false` even when those reads pass, with `state: BLOCKED`,
+`preliminary_checks_passed: true`, and
+`PRODUCTION_QUALIFICATION_INCOMPLETE`. A future-dated backup is rejected.
+These source checks do not verify a backup object or its receipt-chain event.
+The injected connector and declared `POOL_CONFIG` do not establish a bounded
+pool, TLS identity, or a committed write/read/delete probe. The write probe and
+its receipt belong in explicit qualification work, never in a public GET.
+
+Qualification must next bind the non-secret provider/account, project,
+branch or cluster, database, approved transport, backup destination, isolated
+restore destination, and credential owners to the operator's selected target.
+The companion identity contract requires the exact issuer, client audience,
+tenant identifier, tenant-claim mapping, and rotation ownership.
+Missing target identifiers remain **UNKNOWN**; provider access that is absent
+remains **UNAVAILABLE**. Configuring these values alone cannot promote readiness.
+Live connectivity/TLS, pool bounds, committed probe, receipt-chain validation,
+backup/restore rehearsal, credential rotation, and identity acceptance must all
+be qualified before production readiness can change.
+
 Source contracts and injected-connection tests are necessary but not sufficient.
 The durable-state portion of `#399` remains open until a selected database
 provider, exact deployed Space revision, live connection, migration, backup,

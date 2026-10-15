@@ -1,19 +1,21 @@
 """Defend production store — killinchu #399 follow-up 1 per spec #401.
 
-Wires the durable-state seam onto PostgreSQL 16+. The demo SQLite path from
-#410 is untouched; this module owns the production engine:
+Source seam for PostgreSQL 16+; live production qualification is incomplete.
+The demo SQLite path from #410 is separate. This module provides:
 
-- psycopg connection factory with the spec pool contract (5/5/30/1800)
+- an injectable connection factory and declared pool contract (5/5/30/1800);
+  this module does not implement that pool
 - REPEATABLE READ for reads, SERIALIZABLE for approval/receipt writes —
   the receipt chain must not tolerate phantom reads between prior-hash
   read and insert
 - approval persistence: approval requests live in Postgres, so a restart
   mid-incident cannot silently drop a pending or approved request
-- production readyz: writable probe, alembic head equality, fresh backup
-  event — all three must pass or the plane refuses to serve
+- passive preliminary readiness reads: connectivity, Alembic head, and
+  backup timestamp. These cannot establish production durability.
 
-The connection factory is injectable so the contract is testable without a
-live database; production passes psycopg's connect.
+The connection factory is injectable so the source contract is testable without
+a live database. Readiness remains BLOCKED until the full durable-state contract
+has an implementation and live qualification; no caller flag can promote it.
 """
 
 from __future__ import annotations
@@ -96,7 +98,7 @@ class ProductionStore:
                 "approvers": json.loads(row[6]), "denier": row[7],
                 "created_at_epoch": row[8]}
 
-    # --- production readyz: writable + alembic head + fresh backup ---
+    # --- passive preliminary checks; never production qualification ---
     def readyz(self, now: datetime | None = None) -> tuple[bool, dict]:
         now = now or datetime.now(timezone.utc)
         reasons = []
@@ -108,14 +110,16 @@ class ProductionStore:
                     cur.execute("SELECT version_num FROM alembic_version")
                     head = cur.fetchone()
                     if not head or head[0] != EXPECTED_ALEMBIC_HEAD:
-                        reasons.append(f"alembic head drift: {head and head[0]!r}")
+                        reasons.append("ALEMBIC_HEAD_DRIFT")
                     cur.execute("SELECT MAX(created_at) FROM backup_events")
                     latest = cur.fetchone()
                     if not latest or not latest[0]:
                         reasons.append("no backup events")
                     else:
-                        fresh = now - latest[0] <= timedelta(hours=BACKUP_FRESHNESS_HOURS)
-                        if not fresh:
+                        age = now - latest[0]
+                        if age < timedelta(0):
+                            reasons.append("BACKUP_TIMESTAMP_IN_FUTURE")
+                        elif age > timedelta(hours=BACKUP_FRESHNESS_HOURS):
                             reasons.append("latest backup older than 36h")
             finally:
                 conn.close()
@@ -123,5 +127,11 @@ class ProductionStore:
             return False, {"durable": False, "reasons": ["DATABASE_ERROR"]}
         if reasons:
             return False, {"durable": False, "reasons": reasons}
-        return True, {"durable": True, "alembic_head": EXPECTED_ALEMBIC_HEAD,
-                      "backup_fresh": True}
+        return False, {
+            "durable": False,
+            "state": "BLOCKED",
+            "preliminary_checks_passed": True,
+            "reasons": ["PRODUCTION_QUALIFICATION_INCOMPLETE"],
+            "alembic_head": EXPECTED_ALEMBIC_HEAD,
+            "backup_fresh": True,
+        }
