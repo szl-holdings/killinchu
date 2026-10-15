@@ -87,10 +87,13 @@ def test_stale_or_missing_backup_fails_closed():
 
 
 def test_unreachable_database_fails_closed():
+    sentinel = "CREDENTIAL_CANARY_FOR_TEST_ONLY"
+
     def boom(url):
-        raise ConnectionError("refused")
+        raise ConnectionError(f"refused; {sentinel}")
     ok, info = ProductionStore("postgres://x", connect=boom).readyz(now=NOW)
-    assert not ok and "database error" in info["reasons"][0]
+    assert not ok and info == {"durable": False, "reasons": ["DATABASE_ERROR"]}
+    assert sentinel not in str(info)
 
 
 def test_approval_writes_are_serializable_and_reads_repeatable():
