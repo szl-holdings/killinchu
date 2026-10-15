@@ -78,7 +78,34 @@ def test_shared_http_payload_is_content_bound():
     assert handoff["payload_id"] == "authorized-rag-answer-handoff-20261008-v1"
     rag_successor = "dbeca108e10a40210db375b66f9411efd347c8188643a65c6df6987aa80fb26d"
     assert handoff["files"]["a11oy_org_rag.py"] == rag_successor
-    expected["a11oy_org_rag.py"] = rag_successor
+    # The explicit lexical-only reference mode is the next RAG source generation.
+    # Its manifest pins the archived handoff above byte-for-byte. A later pair
+    # replaced the active slot, so this proof is read from its immutable archive.
+    lexical_raw = (root / ".github/shared-source-payloads/"
+                   "org-rag-lexical-reference-20261013-v1.json").read_bytes()
+    assert hashlib.sha256(lexical_raw).hexdigest() == (
+        "65f404ffe7c235d6a549ccd608761e1f4ed0101d074590d1e50e6fb12e115b7a"
+    )
+    lexical = json.loads(lexical_raw)
+    lexical_successor = "0c98b17b37f5013a0a77aaccd71405d5be57dd37a0af4dceeff4f46f0982f227"
+    assert lexical == {
+        "files": {
+            ".github/shared-source-payloads/authorized-rag-answer-handoff-20261008-v1.json":
+                "6e4138d0c4901ad60cfb93fed81d7f3737c02d78c4fd13befe137d02c84c7c13",
+            "a11oy_org_rag.py": lexical_successor,
+        },
+        "payload_id": "org-rag-lexical-reference-20261013-v1",
+        "schema": "szl-shared-source-payload/v1",
+    }
+    expected["a11oy_org_rag.py"] = lexical_successor
+    # Evaluation admission adds the operator gate without rewriting historical
+    # manifests. Bind this reviewed successor and retain every unrelated pin.
+    assert expected["szl_operator_auth.py"] == (
+        "86ed8b445c05f26c66c8d41dba09fe889970aad0e091090efe795299b9336539"
+    )
+    expected["szl_operator_auth.py"] = (
+        "38880e4b02658718dd8d69070a4edd2d4abca7793c535ecc95978e5a35a3a8d7"
+    )
     for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 

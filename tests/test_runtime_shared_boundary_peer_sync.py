@@ -47,14 +47,44 @@ RAG_EXPECTED_SHA256 = {
 # The run-loop successor records which backend produced a retrieve hop.
 # Byte identity only. This does not claim a new retrieval qualification.
 RUNLOOP_A11OY_COMMIT = "4e1463cac8df3d4c685f2eafa07a08880d7fad4c"
-CURRENT_A11OY_COMMIT = RUNLOOP_A11OY_COMMIT
-CURRENT_EXPECTED_SHA256 = {
+RUNLOOP_EXPECTED_SHA256 = {
     **RAG_EXPECTED_SHA256,
     "a11oy_code_engine.py": "ac7393a9394ed4a8a1acdc801260c0e505c9940868668c1c7c43a2aad8c1129d",
     "szl_agentic_loop.py": "20543887d96d594c3a71289744d6e82a0ba339f78ed16924dcd75fa015d1e6d5",
 }
+# Evaluation now requires the existing operator before parsing or publication.
+# Retain earlier evidence; this pins reviewed source bytes, not a deployment.
+EVALUATION_A11OY_COMMIT = "7d67e807dd4189576b3d48a6b92700bff99fa443"
+CURRENT_A11OY_COMMIT = EVALUATION_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **RUNLOOP_EXPECTED_SHA256,
+    "szl_operator_auth.py": "38880e4b02658718dd8d69070a4edd2d4abca7793c535ecc95978e5a35a3a8d7",
+}
 TOKEN = "test-killinchu-runtime-operator"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
+
+# The mandatory-rlimit successor (predecessor engine digest ac7393a9...) refuses
+# to run code when any sandbox child rlimit cannot be applied and drops the
+# unenforced seccomp/container label. It is layered on the current generation
+# above. Byte identity only; this pins reviewed source, not a deployment.
+RLIMITS_A11OY_COMMIT = "3595c3f0eb8b7c59efe38522a12341e553ea1c0f"
+CURRENT_A11OY_COMMIT = RLIMITS_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "e515e66d812ed8f9be4cbd2cb042c9a99919d29f7e746df37b1532912a868493",
+}
+
+# The attested-sandbox successor (predecessor engine digest e515e66d...) runs the
+# sandbox child as the server's own non-root uid in a fresh user + network
+# namespace, refuses a root server, requires the child's attestation before any
+# user code runs, and reports a run as executed only on execution_attempted=True.
+# Byte identity only; this pins reviewed source, not a deployment.
+ATTESTED_A11OY_COMMIT = "603b410c6c1309ba0050af32ddc74fd84ca1b99c"
+CURRENT_A11OY_COMMIT = ATTESTED_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "2670d8e3acaadb7f2e4fe8cf87c8c12ae111b4e1b38aba802864a3dbdbe5c574",
+}
 
 
 def _digest(path: Path) -> str:

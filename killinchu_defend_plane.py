@@ -1273,6 +1273,7 @@ _TABS_CSS = r"""
 """.encode("utf-8")
 # Missing pages remain visibly unavailable, not links to an unrelated surface.
 _TABS = r"""<nav class="kc-plane-tabs" data-killinchu-plane-tabs="v1" aria-label="Killinchu capability planes"><a class="kc-product" href="/resilience">Killinchu</a><a href="/defend">Defend</a><span class="kc-unavailable" data-unavailable-route="/immune">Immune · migration pending</span><a href="/elite/maritime">Maritime</a><a href="/elite#cuas_lab">Airspace</a><span class="kc-unavailable" data-unavailable-route="/khipu">Evidence page · unavailable</span><span class="kc-state">One public runtime</span></nav>""".encode("utf-8")
+_TABS_SLOT = b"<!-- killinchu:capability-navigation -->"
 
 
 class PlaneTabsMiddleware(BaseHTTPMiddleware):
@@ -1295,12 +1296,17 @@ class PlaneTabsMiddleware(BaseHTTPMiddleware):
             if b'data-killinchu-plane-tabs="v1"' not in body:
                 if b"</head>" in body:
                     body = body.replace(b"</head>", _TABS_CSS + b"</head>", 1)
-                body_lower = body.lower()
-                start = body_lower.find(b"<body")
-                if start >= 0:
-                    close = body.find(b">", start)
-                    if close >= 0:
-                        body = body[: close + 1] + _TABS + body[close + 1 :]
+                if _TABS_SLOT in body:
+                    # The landing declares its insertion point after its skip
+                    # link, so keyboard order works before JavaScript loads.
+                    body = body.replace(_TABS_SLOT, _TABS, 1)
+                else:
+                    body_lower = body.lower()
+                    start = body_lower.find(b"<body")
+                    if start >= 0:
+                        close = body.find(b">", start)
+                        if close >= 0:
+                            body = body[: close + 1] + _TABS + body[close + 1 :]
             headers = dict(response.headers)
             headers.pop("content-length", None)
             headers.pop("content-type", None)
