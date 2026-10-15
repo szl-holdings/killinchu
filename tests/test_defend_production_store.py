@@ -69,14 +69,44 @@ def test_empty_database_url_rejected():
         ProductionStore("")
 
 
-def test_healthy_database_readyz_passes():
-    ok, info = make_store(make_db()).readyz(now=NOW)
-    assert ok and info["durable"] and info["backup_fresh"]
+def test_preliminary_reads_cannot_qualify_production_durability():
+    db = make_db()
+    ok, info = make_store(db).readyz(now=NOW)
+    assert not ok and info["durable"] is False
+    assert info["state"] == "BLOCKED"
+    assert info["preliminary_checks_passed"] is True
+    assert info["reasons"] == ["PRODUCTION_QUALIFICATION_INCOMPLETE"]
+    assert info["backup_fresh"] is True
+    # The probe is passive, including when every preliminary read succeeds.
+    assert all(sql.startswith("SELECT ") for sql in db["statements"])
+    assert db["commits"] == 0
 
 
 def test_alembic_drift_fails_closed():
-    ok, info = make_store(make_db(alembic_head="0002")).readyz(now=NOW)
-    assert not ok and any("drift" in r for r in info["reasons"])
+    sentinel = "SCHEMA_VALUE_CANARY_FOR_TEST_ONLY"
+    ok, info = make_store(make_db(alembic_head=sentinel)).readyz(now=NOW)
+    assert not ok and info["reasons"] == ["ALEMBIC_HEAD_DRIFT"]
+    assert sentinel not in str(info)
+
+
+@pytest.mark.parametrize("age, expected_reason", [
+    (timedelta(microseconds=-1), "BACKUP_TIMESTAMP_IN_FUTURE"),
+    (timedelta(0), "PRODUCTION_QUALIFICATION_INCOMPLETE"),
+    (timedelta(hours=36), "PRODUCTION_QUALIFICATION_INCOMPLETE"),
+    (timedelta(hours=36, microseconds=1), "latest backup older than 36h"),
+])
+def test_backup_freshness_has_both_time_bounds(age, expected_reason):
+    ok, info = make_store(make_db(latest_backup=NOW - age)).readyz(now=NOW)
+    assert not ok and info["durable"] is False
+    assert info["reasons"] == [expected_reason]
+
+
+@pytest.mark.parametrize("latest_backup", [
+    NOW.replace(tzinfo=None), "2030-01-01T00:00:00Z", 1,
+])
+def test_malformed_backup_timestamp_fails_closed(latest_backup):
+    ok, info = make_store(make_db(latest_backup=latest_backup)).readyz(now=NOW)
+    assert not ok and info == {"durable": False, "reasons": ["DATABASE_ERROR"]}
 
 
 def test_stale_or_missing_backup_fails_closed():
