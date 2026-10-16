@@ -82,6 +82,12 @@ jobs:
           PYTHONDONTWRITEBYTECODE: "1"
         run: python -m unittest discover -s tests -p test_agent_loop_execution_guards.py -v
 
+      - name: Shared MCP advertised inventory observations (blocking)
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m pytest -q -p no:cacheprovider tests/test_mcp_inventory_observation.py
+
       - name: Shared authorized RAG synthesis boundary (blocking)
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
