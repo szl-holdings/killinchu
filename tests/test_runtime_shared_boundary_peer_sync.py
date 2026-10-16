@@ -98,6 +98,20 @@ CURRENT_EXPECTED_SHA256 = {
 }
 
 
+# This successor binds the reviewed LMDB operator-admission modules together
+# with the prior model and meter payload. Historical observations above remain
+# immutable; byte identity does not establish deployment or authorization.
+LMDB_OPERATOR_ADMISSION_MANIFEST_SHA256 = (
+    "a8cbee893796d97e2c09078b16b95ce2e136664b616cd45086704542a6387e0e"
+)
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "szl_meter_access.py": "e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4",
+    "szl_operator_auth.py": "dee83d50973c6539581e0c32b597e0888a47e578f6b78cdf1f56bbf966c0747f",
+    "szl_unay_routes.py": "0fb54ad9a696de178abc0f8f9d15422f708d46a1b455f0f5dc546fa6228c3cf0",
+}
+
+
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -165,10 +179,14 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         for relative in CURRENT_EXPECTED_SHA256
     } == CURRENT_EXPECTED_SHA256
     active = ROOT / ".github/shared-source-payload-manifest.json"
-    assert _digest(active) == BOUNDED_MODEL_MANIFEST_SHA256
+    assert _digest(active) == LMDB_OPERATOR_ADMISSION_MANIFEST_SHA256
     payload = json.loads(active.read_text(encoding="utf-8"))
-    assert payload["payload_id"] == "code-engine-bounded-model-20261015-v1"
-    assert payload["files"]["a11oy_code_engine.py"] == CURRENT_EXPECTED_SHA256["a11oy_code_engine.py"]
+    assert payload == {
+        "files": {relative: CURRENT_EXPECTED_SHA256[relative] for relative in (
+            "a11oy_code_engine.py", "szl_meter_access.py", "szl_operator_auth.py", "szl_unay_routes.py")},
+        "payload_id": "shared-lmdb-operator-admission-20261015-v1",
+        "schema": "szl-shared-source-payload/v1",
+    }
 
 
 def test_operator_auth_dependency_is_in_the_runtime_image() -> None:
