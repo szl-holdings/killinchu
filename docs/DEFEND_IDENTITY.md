@@ -196,3 +196,33 @@ public_effectors: DISABLED
 | session expiry and revocation | §7 |
 | rate limits and audit without token storage | §§8–9 |
 | exact deployed proof | §10 |
+
+## 12. Offline source validator
+
+`app/defend/identity.py` provides `PinnedOIDCVerifier` with an operator-pinned
+issuer, audience, public JWKS, tenant claim, and one-to-one tenant mapping.
+It accepts only RS256 with RSA keys of at least 2,048 bits or ES256 with P-256.
+Token-supplied key locations, unknown keys, duplicate JSON fields, ambiguous
+audiences, malformed timestamps, and unknown or combined roles are rejected.
+Expiry has zero leeway; a bounded monotonic clock check fails on clock drift.
+A synchronized observed-time floor prevents a small clock rollback from reviving
+an expired token across concurrent validations.
+
+The returned frozen identity carries the UUIDv5 principal, mapped tenant,
+reviewed role capabilities, token times, and a SHA-256 correlation of `jti`.
+It does not retain the bearer token or display attributes. Typed errors do not
+echo provider or token contents. The validator performs no network fetch,
+receipt write, or action execution.
+
+Install `requirements-defend-identity.txt` in an isolated environment and run:
+
+```sh
+python -m pytest -q tests/test_defend_identity.py
+```
+
+The dedicated qualification CI job uses generated signing keys and **SIMULATED**
+identities; it rejects skipped tests. A passing run is **MEASURED** cryptographic
+harness evidence. The public route remains unqualified. Online JWKS rotation,
+revocation, state/nonce replay protection, durable sessions, tenant-scoped
+services, distributed limits, audit receipts, and the live acceptance tests in
+§10 remain separate implementation and qualification requirements.
