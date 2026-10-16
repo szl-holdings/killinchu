@@ -142,6 +142,7 @@ jobs:
           python -m pytest -q -p no:cacheprovider
           tests/test_shared_operator_boundary.py
           tests/test_runtime_shared_boundary_peer_sync.py
+          tests/test_shared_observer_operator_gate.py
 
       - name: Shared code-engine mandatory rlimits (blocking)
         env:
