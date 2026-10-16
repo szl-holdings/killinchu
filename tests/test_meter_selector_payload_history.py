@@ -37,7 +37,10 @@ def test_prior_meter_manifest_fixture_retains_its_original_content_address():
 
 
 def test_paired_meter_and_bounded_engine_do_not_activate_a_credential():
-    raw = (ROOT / ".github/shared-source-payload-manifest.json").read_bytes()
+    # The write-admission successor occupies the active slot. Keep verifying
+    # this exact predecessor manifest and both runtime digests from its archive.
+    raw = (ROOT / ".github/shared-source-payloads/"
+           "code-engine-bounded-model-20261015-v1.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
         "d8e50108743e7f02ac7b3c2af17e70c47e38922be3f4e214c5d98d1561c54ea6"
     )
