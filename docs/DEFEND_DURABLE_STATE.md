@@ -216,3 +216,42 @@ production_durable_state: NOT_VERIFIED
 demo_sqlite: AVAILABLE_BUT_NOT_PRODUCTION
 public_effectors: DISABLED
 ```
+
+## 11. Executable source qualification
+
+`app/defend/postgres_connection.py` supplies an optional direct PostgreSQL
+adapter. It fixes one target, implements the 5/5/30/1800 connection-pool contract,
+rolls back returned connections, bounds connection/statement/lock waits, and
+rejects servers older than PostgreSQL 16. Production configuration requires
+`sslmode=verify-full` and a root certificate source. Socket hosts, inherited
+libpq target overrides, and GSS transport substitution are rejected. The default
+port is explicit. Typed failures never echo the connection URL or provider error.
+
+Install `requirements-defend-postgres.txt` in an isolated environment. For an
+approved target with `DATABASE_URL` delivered through its secret mechanism,
+the existing immutable baseline migration is now executable:
+
+```sh
+python -m alembic -c app/defend/alembic.ini upgrade head
+```
+
+That command mutates the selected database. It is operator work, never startup
+or GET behavior. Baseline `0001` covers only the original idempotency and backup
+tables; it is not a complete tenant-scoped production schema. The adapter is
+injectable into `ProductionStore`, whose readiness result remains **BLOCKED**.
+It is not wired into the public application or an HTTPS gateway.
+
+The `Defend qualification harness` workflow uses an isolated PostgreSQL 16
+service with **SIMULATED** data. It exercises migration upgrade/downgrade,
+committed write/read/delete, rollback on pool return, and the real 10-connection
+ceiling and 30-second acquisition timeout. A configured but broken test target
+fails; the dedicated job rejects skipped tests. Successful results are
+**MEASURED** harness evidence, not managed-provider, TLS, backup/restore, or
+production qualification.
+
+For an explicitly disposable local PostgreSQL 16 administrator target, the same
+tests use `DEFEND_POSTGRES_TEST_URL`. The URL must name a literal loopback address
+and `sslmode=disable`; each test creates and removes only its own randomly named
+scratch database. Missing local targets are reported as skipped (**UNAVAILABLE**).
+`DEFEND_POSTGRES_LOCAL_TEST=1` enables that loopback-only migration test mode;
+it cannot disable TLS for a remote host.

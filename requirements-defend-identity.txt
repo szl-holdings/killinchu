@@ -1,0 +1,3 @@
+# Optional offline identity qualification dependencies; no public route wiring.
+PyJWT==2.15.0
+cryptography==50.0.0

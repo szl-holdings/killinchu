@@ -1,0 +1,132 @@
+name: Defend qualification harness
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - 'app/defend/**'
+      - 'tests/test_defend_*.py'
+      - 'requirements-defend-*.txt'
+      - '.github/workflows/defend-qualification.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/defend/**'
+      - 'tests/test_defend_*.py'
+      - 'requirements-defend-*.txt'
+      - '.github/workflows/defend-qualification.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres:
+    name: PostgreSQL 16 migration and bounded pool
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+        env:
+          POSTGRES_USER: defend_test
+          POSTGRES_DB: postgres
+          # Disposable runner service only. No production credentials or data.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U defend_test -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DEFEND_POSTGRES_TEST_URL: postgresql+psycopg://defend_test@127.0.0.1:5432/postgres?sslmode=disable
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+        with:
+          egress-policy: audit
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12.10'
+      - name: Install qualification dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-defend-postgres.txt 'pytest==9.0.3'
+          python -m pip check
+          python -c 'import psycopg, sqlalchemy, alembic'
+      - name: Exercise disposable PostgreSQL
+        run: |
+          python -m pytest -q tests/test_defend_postgres_connection.py tests/test_defend_postgres_migrations.py tests/test_defend_postgres_integration.py --junitxml=reports/defend-postgres.xml
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('reports/defend-postgres.xml').getroot()
+          cases = root.findall('.//testcase')
+          assert len(cases) >= 3, 'qualification tests missing'
+          assert not root.findall('.//skipped'), 'qualification must run, never skip'
+          assert not root.findall('.//failure') and not root.findall('.//error')
+          print('MEASURED: disposable PostgreSQL harness; SIMULATED inputs; production readiness BLOCKED')
+          PY
+      - name: Retain harness observations
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: defend-postgres-${{ github.event.pull_request.head.sha || github.sha }}
+          path: reports/defend-postgres.xml
+          retention-days: 14
+          if-no-files-found: warn
+
+  identity:
+    name: Pinned OIDC source validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+        with:
+          egress-policy: audit
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12.10'
+      - name: Install identity validation dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-defend-identity.txt 'pytest==9.0.3'
+          python -m pip check
+          python -c 'import jwt, cryptography'
+      - name: Verify pinned identity contract with generated test keys
+        run: |
+          python -m pytest -q tests/test_defend_identity.py --junitxml=reports/defend-identity.xml
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('reports/defend-identity.xml').getroot()
+          assert root.findall('.//testcase'), 'identity tests missing'
+          assert not root.findall('.//skipped'), 'identity tests must run, never skip'
+          assert not root.findall('.//failure') and not root.findall('.//error')
+          print('MEASURED: offline cryptographic harness; SIMULATED identities; production readiness BLOCKED')
+          PY
+      - name: Retain harness observations
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: defend-identity-${{ github.event.pull_request.head.sha || github.sha }}
+          path: reports/defend-identity.xml
+          retention-days: 14
+          if-no-files-found: warn
