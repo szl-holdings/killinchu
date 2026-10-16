@@ -85,13 +85,13 @@ paths = [
 
 # The exact public SHA-256 of the shared meter helper is source identity, not
 # an API credential. Do not exempt the manifest path or arbitrary hex values:
-# require this complete row at this exact path, with the paired payload
+# require this complete row at the active or exact archived manifest path, with the paired payload
 # validator independently checking it against both repositories' source bytes.
 [[rules]]
 id = "generic-api-key"
 [[rules.allowlists]]
-description = "Exact reviewed szl_meter_access.py source digest in shared payload"
+description = "Exact reviewed szl_meter_access.py source digest in active or archived shared payload"
 condition = "AND"
 regexTarget = "line"
-paths = ['''(^|[\\/])\.github[\\/]shared-source-payload-manifest\.json$''']
+paths = ['''(^|[\\/])\.github[\\/](shared-source-payload-manifest\.json|shared-source-payloads[\\/]code-engine-bounded-model-20261015-v1\.json)$''']
 regexes = ['''^\s*"szl_meter_access\.py"\s*:\s*"e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4",?\s*$''']

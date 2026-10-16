@@ -16,6 +16,7 @@ BINARY = os.environ.get("SZL_TEST_GITLEAKS_BINARY")
 PUBLIC_DIGEST = "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2cf"
 METER_SOURCE_DIGEST = "e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4"
 SHARED_MANIFEST_PATH = ".github/shared-source-payload-manifest.json"
+ARCHIVED_MANIFEST_PATH = ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json"
 
 
 @unittest.skipUnless(BINARY, "actual scanner not configured; NOT VERIFIED")
@@ -82,6 +83,22 @@ class PublicDigestScannerBoundary(unittest.TestCase):
         self.assertEqual(self.scan(
             '{\n  "szl_meter_access.py": "' + METER_SOURCE_DIGEST + '"\n}\n',
             "other/shared-source-payload-manifest.json"), 1)
+
+    def test_exact_archived_public_row_and_credential_boundaries(self):
+        row = '  "szl_meter_access.py": "' + METER_SOURCE_DIGEST + '"'
+        self.assertEqual(self.scan('{\n' + row + '\n}\n', ARCHIVED_MANIFEST_PATH), 0)
+        self.assertEqual(self.scan(
+            '{\n' + row + ',\n  "private_api_key": "' + secrets.token_hex(32) + '"\n}\n',
+            ARCHIVED_MANIFEST_PATH), 1)
+        self.assertEqual(self.scan(
+            '{\n' + row + ', "private_api_key": "' + secrets.token_hex(32) + '"\n}\n',
+            ARCHIVED_MANIFEST_PATH), 1)
+        self.assertEqual(self.scan(
+            '{\n  "szl_meter_access.py": "' + secrets.token_hex(32) + '"\n}\n',
+            ARCHIVED_MANIFEST_PATH), 1)
+        self.assertEqual(self.scan(
+            '{\n' + row + '\n}\n',
+            ".github/shared-source-payloads/unreviewed-successor.json"), 1)
 
 
 if __name__ == "__main__":

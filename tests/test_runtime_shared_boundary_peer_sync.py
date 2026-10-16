@@ -97,6 +97,16 @@ CURRENT_EXPECTED_SHA256 = {
     "a11oy_code_engine.py": "a03aa1c294b69c8dfe3ce20d85aaf2347fac93ad7cba3544c1697d381639ac6f",
 }
 
+# This paired successor adds operator admission for observation/native writes
+# and fail-closed outbound delivery accounting. It is source identity only.
+OPERATOR_ADMISSION_MANIFEST_SHA256 = (
+    "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c"
+)
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "szl_operator_auth.py": "5b511c270ebb0268974f144e2dc4d3754ad48803a9434f6976eb8c1681265c0d",
+}
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -164,11 +174,21 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         relative: _digest(ROOT / relative)
         for relative in CURRENT_EXPECTED_SHA256
     } == CURRENT_EXPECTED_SHA256
-    active = ROOT / ".github/shared-source-payload-manifest.json"
-    assert _digest(active) == BOUNDED_MODEL_MANIFEST_SHA256
-    payload = json.loads(active.read_text(encoding="utf-8"))
+    bounded = ROOT / ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json"
+    assert _digest(bounded) == BOUNDED_MODEL_MANIFEST_SHA256
+    payload = json.loads(bounded.read_text(encoding="utf-8"))
     assert payload["payload_id"] == "code-engine-bounded-model-20261015-v1"
     assert payload["files"]["a11oy_code_engine.py"] == CURRENT_EXPECTED_SHA256["a11oy_code_engine.py"]
+    active = ROOT / ".github/shared-source-payload-manifest.json"
+    assert _digest(active) == OPERATOR_ADMISSION_MANIFEST_SHA256
+    admission = json.loads(active.read_text(encoding="utf-8"))
+    assert admission["payload_id"] == "execution-observer-operator-auth-20261016-v1"
+    assert set(admission["files"]) == {
+        ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json",
+        "szl_khipu_replicate.py", "szl_operator_auth.py", "szl_unay_routes.py",
+    }
+    for relative, digest in admission["files"].items():
+        assert _digest(ROOT / relative) == digest
 
 
 def test_operator_auth_dependency_is_in_the_runtime_image() -> None:

@@ -106,6 +106,18 @@ def test_shared_http_payload_is_content_bound():
     expected["szl_operator_auth.py"] = (
         "38880e4b02658718dd8d69070a4edd2d4abca7793c535ecc95978e5a35a3a8d7"
     )
+    # The paired observation/native-write repair is an explicit successor to
+    # evaluation admission. Historical manifests and unrelated pins stay fixed.
+    admission_raw = (root / ".github/shared-source-payload-manifest.json").read_bytes()
+    assert hashlib.sha256(admission_raw).hexdigest() == (
+        "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c"
+    )
+    admission = json.loads(admission_raw)
+    assert admission["payload_id"] == "execution-observer-operator-auth-20261016-v1"
+    assert admission["files"]["szl_operator_auth.py"] == (
+        "5b511c270ebb0268974f144e2dc4d3754ad48803a9434f6976eb8c1681265c0d"
+    )
+    expected["szl_operator_auth.py"] = admission["files"]["szl_operator_auth.py"]
     for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 
