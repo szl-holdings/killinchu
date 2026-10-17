@@ -108,7 +108,8 @@ def test_shared_http_payload_is_content_bound():
     )
     # The paired observation/native-write repair is an explicit successor to
     # evaluation admission. Historical manifests and unrelated pins stay fixed.
-    admission_raw = (root / ".github/shared-source-payload-manifest.json").read_bytes()
+    admission_raw = (root / ".github/shared-source-payloads/"
+                     "execution-observer-operator-auth-20261016-v1.json").read_bytes()
     assert hashlib.sha256(admission_raw).hexdigest() == (
         "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c"
     )
