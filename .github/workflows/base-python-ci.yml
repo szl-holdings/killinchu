@@ -143,6 +143,7 @@ jobs:
           tests/test_shared_operator_boundary.py
           tests/test_runtime_shared_boundary_peer_sync.py
           tests/test_shared_observer_operator_gate.py
+          tests/test_model_endpoint_credentials.py
           tests/test_unay_write_authorization.py
           tests/test_khipu_replication_delivery.py
 

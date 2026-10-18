@@ -107,6 +107,13 @@ CURRENT_EXPECTED_SHA256 = {
     "szl_operator_auth.py": "5b511c270ebb0268974f144e2dc4d3754ad48803a9434f6976eb8c1681265c0d",
 }
 
+# Credential origin admission changes the shared engine only. Prior source
+# digests above remain historical evidence; this is not deployment evidence.
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "60b196bc7118ffb08a9ddf3ca1a006026aec969d3a1a8f10a5b8a0e454acc8b7",
+}
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -178,7 +185,9 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
     assert _digest(bounded) == BOUNDED_MODEL_MANIFEST_SHA256
     payload = json.loads(bounded.read_text(encoding="utf-8"))
     assert payload["payload_id"] == "code-engine-bounded-model-20261015-v1"
-    assert payload["files"]["a11oy_code_engine.py"] == CURRENT_EXPECTED_SHA256["a11oy_code_engine.py"]
+    assert payload["files"]["a11oy_code_engine.py"] == (
+        "a03aa1c294b69c8dfe3ce20d85aaf2347fac93ad7cba3544c1697d381639ac6f"
+    )
     archived = ROOT / ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json"
     assert _digest(archived) == OPERATOR_ADMISSION_MANIFEST_SHA256
     admission = json.loads(archived.read_text(encoding="utf-8"))
@@ -207,10 +216,29 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
     for relative, digest in integrity["files"].items():
         assert _digest(ROOT / relative) == digest
 
+    credential_path = ROOT / ".github/shared-source-payloads/model-credential-origin-20261017-v1.json"
+    assert _digest(credential_path) == "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c"
+    credential = json.loads(credential_path.read_bytes())
+    assert credential["schema"] == "szl-shared-source-payload/v1"
+    assert credential["payload_id"] == "model-credential-origin-20261017-v1"
+    assert set(credential["files"]) == {
+        ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json",
+        "a11oy_code_engine.py", "szl_khipu_replicate.py",
+    }
+    for relative, digest in credential["files"].items():
+        assert _digest(ROOT / relative) == digest
+    prior = {**credential, "files": {key: value for key, value in credential["files"].items()
+                                    if key != "a11oy_code_engine.py"},
+             "payload_id": "replication-payload-integrity-20261017-v1"}
+    assert hashlib.sha256((json.dumps(prior, indent=2) + "\n").encode()).hexdigest() == (
+        "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc"
+    )
+
     active = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
     assert active["schema"] == "szl-shared-source-payload/v1"
     assert active["payload_id"] == "replication-origin-index-20261017-v1"
     assert set(active["files"]) == {
+        ".github/shared-source-payloads/model-credential-origin-20261017-v1.json",
         ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json",
         "scripts/sync_from_monorepo.sh", "szl_khipu_lmdb.py", "szl_unay_routes.py",
         "tests/test_unay_write_authorization.py", "tests/test_vendor_sync_contract.py",

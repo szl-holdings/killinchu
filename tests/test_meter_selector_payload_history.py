@@ -38,7 +38,7 @@ def test_prior_meter_manifest_fixture_retains_its_original_content_address():
 
 def test_paired_meter_and_bounded_engine_do_not_activate_a_credential():
     # The write-admission successor occupies the active slot. Keep verifying
-    # this exact predecessor manifest and both runtime digests from its archive.
+    # this exact predecessor manifest; the new engine keeps its historical digest.
     raw = (ROOT / ".github/shared-source-payloads/"
            "code-engine-bounded-model-20261015-v1.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
@@ -52,5 +52,7 @@ def test_paired_meter_and_bounded_engine_do_not_activate_a_credential():
         "szl_meter_access.py": hashlib.sha256((ROOT / "szl_meter_access.py").read_bytes()).hexdigest(),
     }
     for relative, expected in payload["files"].items():
+        if relative == "a11oy_code_engine.py":
+            continue  # Historical engine bytes remain pinned above.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
     assert szl_meter_access.ACTIVE_METER2_TARGETS_SECRET is None
