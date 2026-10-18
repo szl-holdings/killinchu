@@ -32,8 +32,10 @@ import math
 import os
 import re
 import sqlite3
+import stat
 import threading
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -197,16 +199,24 @@ def _state_path() -> str:
     return os.environ.get("KILLINCHU_DEFEND_STATE_PATH", "/tmp/killinchu-defend.sqlite3")
 
 
+class DefendReadUnavailable(RuntimeError):
+    """An existing local snapshot could not be read without changing it."""
+
+
 class DefendStore:
     """Single-writer SQLite store with append-only receipt evidence."""
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, *, read_only: bool = False) -> None:
         self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._read_only = read_only
         self._lock = threading.RLock()
-        self._migrate()
+        if not read_only:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._migrate()
 
     def connect(self) -> sqlite3.Connection:
+        if self._read_only:
+            raise RuntimeError("READ_ONLY_STORE")
         connection = sqlite3.connect(
             self.path,
             timeout=10,
@@ -218,6 +228,41 @@ class DefendStore:
         connection.execute("PRAGMA busy_timeout = 10000")
         connection.execute("PRAGMA journal_mode = WAL")
         return connection
+
+    @contextmanager
+    def read_connection(self):
+        """Read only a stable main file; never recover or create SQLite journals."""
+        try:
+            database = self.path.resolve(strict=True)
+            sidecars = tuple(Path(f"{database}{suffix}") for suffix in ("-wal", "-shm", "-journal"))
+
+            def fingerprint():
+                value = database.stat()
+                if not stat.S_ISREG(value.st_mode):
+                    raise DefendReadUnavailable("NON_REGULAR_DATABASE")
+                return (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+
+            if any(sidecar.exists() for sidecar in sidecars):
+                raise DefendReadUnavailable("ACTIVE_SQLITE_SIDECAR")
+            before = fingerprint()
+            connection = sqlite3.connect(
+                database.as_uri() + "?mode=ro&immutable=1",
+                uri=True,
+                timeout=0.2,
+                isolation_level=None,
+            )
+            try:
+                connection.row_factory = sqlite3.Row
+                connection.execute("PRAGMA query_only = ON")
+                yield connection
+            finally:
+                connection.close()
+                # Check even on a lookup failure: a changed snapshot is not a
+                # trustworthy empty result or a trustworthy NOT_FOUND response.
+                if any(sidecar.exists() for sidecar in sidecars) or fingerprint() != before:
+                    raise DefendReadUnavailable("SNAPSHOT_CHANGED")
+        except (OSError, sqlite3.Error) as exc:
+            raise DefendReadUnavailable(type(exc).__name__) from None
 
     def _migrate(self) -> None:
         with self._lock:
@@ -750,8 +795,7 @@ class DefendStore:
                 connection.close()
 
     def verify(self, scope: str, receipt_id: str) -> dict[str, Any]:
-        connection = self.connect()
-        try:
+        with self.read_connection() as connection:
             row = connection.execute(
                 "SELECT * FROM receipts WHERE scope=? AND id=?",
                 (scope, receipt_id),
@@ -790,12 +834,9 @@ class DefendStore:
                 "chain_hash": chain_hash,
                 "truth_label": "MEASURED",
             }
-        finally:
-            connection.close()
 
     def cases(self, scope: str, limit: int = 25) -> list[dict[str, Any]]:
-        connection = self.connect()
-        try:
+        with self.read_connection() as connection:
             rows = connection.execute(
                 "SELECT * FROM cases WHERE scope=? ORDER BY rowid DESC LIMIT ?",
                 (scope, max(1, min(MAX_CASES, limit))),
@@ -818,12 +859,9 @@ class DefendStore:
                     }
                 )
             return output
-        finally:
-            connection.close()
 
     def receipt(self, scope: str, receipt_id: str) -> dict[str, Any]:
-        connection = self.connect()
-        try:
+        with self.read_connection() as connection:
             row = connection.execute(
                 "SELECT * FROM receipts WHERE scope=? AND id=?",
                 (scope, receipt_id),
@@ -842,8 +880,6 @@ class DefendStore:
                 "signature_present": bool(str(row["signature"])),
                 "created_at": str(row["created_at"]),
             }
-        finally:
-            connection.close()
 
     @staticmethod
     def _event_public(row: sqlite3.Row | None) -> dict[str, Any] | None:
@@ -902,6 +938,11 @@ def _store() -> DefendStore:
             store = DefendStore(path)
             _STORES[path] = store
         return store
+
+
+def _read_store() -> DefendStore:
+    # Do not use the writer cache: its first acquisition initializes the schema.
+    return DefendStore(_state_path(), read_only=True)
 
 
 def _normalize_event(value: Any) -> dict[str, Any]:
@@ -1028,6 +1069,8 @@ async def _json_body(request: Request) -> Any:
 
 
 def _error(exc: Exception) -> JSONResponse:
+    if isinstance(exc, DefendReadUnavailable):
+        return JSONResponse({"error": "LOCAL_STORE_UNAVAILABLE", "detail": str(exc)}, status_code=503)
     if isinstance(exc, ValueError):
         return JSONResponse({"error": "INVALID_REQUEST", "detail": str(exc)}, status_code=422)
     if isinstance(exc, LookupError):
@@ -1197,7 +1240,7 @@ async def _verify(request: Request) -> JSONResponse:
         receipt_id = _bounded_identifier(body.get("receipt_id"), "receipt_id")
         if RECEIPT_ID_RE.fullmatch(receipt_id) is None:
             raise ValueError("receipt_id has an invalid shape")
-        result = _store().verify(scope, receipt_id)
+        result = _read_store().verify(scope, receipt_id)
         return JSONResponse(
             {"schema": "szl.killinchu.defend-verification/v1", **result},
             status_code=200 if result["integrity_verified"] else 409,
@@ -1212,7 +1255,7 @@ async def _cases(request: Request) -> JSONResponse:
         raw = request.query_params.get("limit", "25")
         if not raw.isdigit():
             raise ValueError("limit must be an integer")
-        cases = _store().cases(scope, int(raw))
+        cases = _read_store().cases(scope, int(raw))
         return JSONResponse(
             {
                 "schema": "szl.killinchu.defend-cases/v1",
@@ -1235,7 +1278,7 @@ async def _receipt(request: Request) -> JSONResponse:
         return JSONResponse(
             {
                 "schema": "szl.killinchu.defend-receipt/v1",
-                "receipt": _store().receipt(scope, receipt_id),
+                "receipt": _read_store().receipt(scope, receipt_id),
                 "truth_label": "MEASURED",
             }
         )
