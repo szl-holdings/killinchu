@@ -191,16 +191,29 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         "c3f1a5e76e7c6df0c19b932afca30d99fbdd12e508e95ed9f7dfa9fd798dbbf1"
     )
     for relative, digest in admission["files"].items():
-        if relative == "szl_khipu_replicate.py":
+        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py"):
             continue  # The successor changes this source, never the archived hash.
+        assert _digest(ROOT / relative) == digest
+
+    integrity_path = ROOT / ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json"
+    assert _digest(integrity_path) == "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc"
+    integrity = json.loads(integrity_path.read_bytes())
+    assert integrity["schema"] == "szl-shared-source-payload/v1"
+    assert integrity["payload_id"] == "replication-payload-integrity-20261017-v1"
+    assert set(integrity["files"]) == {
+        ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json",
+        "szl_khipu_replicate.py",
+    }
+    for relative, digest in integrity["files"].items():
         assert _digest(ROOT / relative) == digest
 
     active = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
     assert active["schema"] == "szl-shared-source-payload/v1"
-    assert active["payload_id"] == "replication-payload-integrity-20261017-v1"
+    assert active["payload_id"] == "replication-origin-index-20261017-v1"
     assert set(active["files"]) == {
-        ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json",
-        "szl_khipu_replicate.py",
+        ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json",
+        "scripts/sync_from_monorepo.sh", "szl_khipu_lmdb.py", "szl_unay_routes.py",
+        "tests/test_unay_write_authorization.py", "tests/test_vendor_sync_contract.py",
     }
     for relative, digest in active["files"].items():
         assert _digest(ROOT / relative) == digest
