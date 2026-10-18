@@ -117,6 +117,14 @@ reporting possibly stale counts. `GET /api/defend/readyz` returns HTTP
 readable SQLite file, or working demo flow does not satisfy the production
 contract below. The deployment workflow checks this 503 explicitly.
 
+Case and receipt GETs, and receipt verification, also read only an existing
+local snapshot. They never initialize the demo store, run migrations, change
+journal mode, or recover SQLite sidecars. A missing or unreadable snapshot,
+an existing WAL/SHM/rollback journal, or a file that changes during the read
+returns `503 LOCAL_STORE_UNAVAILABLE`; it does not return a fabricated empty
+store. Valid demo write requests retain their existing initialization path.
+These passive reads do not establish production durability or identity.
+
 Production `/api/defend/readyz` returns `503` unless all of the following are
 true for the same source revision and tenant-neutral probe transaction:
 
