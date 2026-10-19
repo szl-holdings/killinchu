@@ -1,5 +1,5 @@
 # Optional direct PostgreSQL qualification dependencies. This does not enable
 # public Defend routes or establish a qualified production provider.
-SQLAlchemy==2.0.52
-alembic==1.19.1
+SQLAlchemy==2.1.4
+alembic==1.20.0
 psycopg[binary]==3.3.6
