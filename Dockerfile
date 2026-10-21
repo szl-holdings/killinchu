@@ -117,6 +117,8 @@ COPY static/ ./static/
 COPY cathedral.html knowledge.json operator_shell_v4.py serve.py killinchu_ledger.py killinchu_receipt_export.py szl_evidence_research.py szl_readiness.py szl_quantum_bio.py szl_quant_qbio_holo.py szl_unified_formulas.py szl_cuas_formulas.py killinchu_research_sources.py szl_contracting.py szl_conjecture_factory.py killinchu_backend.py killinchu_defensive_intake.py a11oy_hf_assets.py drones_db.json killinchu_protocols.py killinchu_expansion.py killinchu_naval_haps.py szl_dsse.py szl_content_address.py szl_safe_static.py szl_provenance.py LEGAL_BOUNDARIES.md ./
 # Consolidated Aegis/Sentra capability plane — real same-origin UI, API, state and receipts.
 COPY killinchu_defend_plane.py ./killinchu_defend_plane.py
+# Civilian inspection rehearsal inside the Defend plane (guarded import in register()).
+COPY killinchu_defend_inspection.py ./killinchu_defend_inspection.py
 COPY killinchu_ledger_sqlite.py ./killinchu_ledger_sqlite.py
 COPY killinchu_ledger_attribution.py ./killinchu_ledger_attribution.py
 # Shared Spaces modules (Dev2+3) — canonical handoffs + isolated-origin tiles.
