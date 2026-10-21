@@ -125,6 +125,13 @@ CURRENT_EXPECTED_SHA256 = {
 }
 
 
+# Replication dispatch adds an outer operator gate; original digest remains above.
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "szl_operator_auth.py": "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6",
+}
+
+
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -210,7 +217,7 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         "c3f1a5e76e7c6df0c19b932afca30d99fbdd12e508e95ed9f7dfa9fd798dbbf1"
     )
     for relative, digest in admission["files"].items():
-        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py"):
+        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py", "szl_operator_auth.py"):
             continue  # The successor changes this source, never the archived hash.
         assert _digest(ROOT / relative) == digest
 
