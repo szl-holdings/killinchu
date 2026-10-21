@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "3e04e7d562d6132253298cf2c34e4a33a8dca7b4a05574bde337d30deccd28b9"
+    "sha256": "3e92d17e27aaab3c5a1bfe94dd13bebef5f9f9756985cd0cc6cd1d5e83ac5350"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "3e04e7d562d6132253298cf2c34e4a33a8dca7b4a05574bde337d30deccd28b9"
+    "sha256": "3e92d17e27aaab3c5a1bfe94dd13bebef5f9f9756985cd0cc6cd1d5e83ac5350"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -45,6 +45,7 @@
     "killinchu_cannonico.py",
     "killinchu_cop_fusion.py",
     "killinchu_cot_interop.py",
+    "killinchu_defend_inspection.py",
     "killinchu_defend_plane.py",
     "killinchu_defensive_intake.py",
     "killinchu_drone_routes.py",
