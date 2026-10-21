@@ -25,14 +25,11 @@ from datetime import datetime, timezone, timedelta
 
 POOL_CONFIG = {"pool_size": 5, "max_overflow": 5, "pool_timeout": 30, "pool_recycle": 1800}
 BACKUP_FRESHNESS_HOURS = 36
-EXPECTED_ALEMBIC_HEAD = "0001"
+EXPECTED_ALEMBIC_HEAD = "0002"
 
-DDL_APPROVALS = (
-    "CREATE TABLE IF NOT EXISTS approval_requests ("
-    "request_id TEXT PRIMARY KEY, requester TEXT NOT NULL, scope TEXT NOT NULL, "
-    "justification TEXT NOT NULL, policy_mode TEXT NOT NULL, "
-    "state TEXT NOT NULL, approvers TEXT NOT NULL, denier TEXT, "
-    "created_at_epoch DOUBLE PRECISION NOT NULL)")
+
+class ProductionSchemaError(RuntimeError):
+    """Typed schema failure without target names or provider diagnostics."""
 
 
 class ProductionStore:
@@ -50,14 +47,33 @@ class ProductionStore:
         return self._connect(self.database_url)
 
     def initialize(self) -> None:
-        """Own the approvals table; Alembic owns everything else."""
-        conn = self._conn()
+        """Check the migrated seam without creating or changing its schema.
+
+        Alembic owns every table. Operators apply migrations explicitly before
+        this passive check; passing it does not qualify production readiness.
+        """
+        conn = None
         try:
+            conn = self._conn()
             with conn.cursor() as cur:
-                cur.execute(DDL_APPROVALS)
-            conn.commit()
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                cur.execute("SELECT version_num FROM alembic_version")
+                if cur.fetchall() != [(EXPECTED_ALEMBIC_HEAD,)]:
+                    raise ProductionSchemaError("ALEMBIC_HEAD_DRIFT")
+                cur.execute(
+                    "SELECT request_id, requester, scope, justification, policy_mode, "
+                    "state, approvers, denier, created_at_epoch "
+                    "FROM approval_requests LIMIT 0")
+        except ProductionSchemaError:
+            raise
+        except Exception:
+            raise ProductionSchemaError("DATABASE_SCHEMA_UNAVAILABLE") from None
         finally:
-            conn.close()
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    raise ProductionSchemaError("DATABASE_SCHEMA_UNAVAILABLE") from None
 
     # --- SERIALIZABLE write path for approvals/receipts (spec #401) ---
     def persist_approval(self, req) -> None:
@@ -108,8 +124,8 @@ class ProductionStore:
                 with conn.cursor() as cur:
                     cur.execute("SELECT 1")
                     cur.execute("SELECT version_num FROM alembic_version")
-                    head = cur.fetchone()
-                    if not head or head[0] != EXPECTED_ALEMBIC_HEAD:
+                    heads = cur.fetchall()
+                    if heads != [(EXPECTED_ALEMBIC_HEAD,)]:
                         reasons.append("ALEMBIC_HEAD_DRIFT")
                     cur.execute("SELECT MAX(created_at) FROM backup_events")
                     latest = cur.fetchone()

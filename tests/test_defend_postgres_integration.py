@@ -9,6 +9,7 @@ An absent test target is reported as skipped; a configured broken target fails.
 import os
 from pathlib import Path
 import time
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -22,6 +23,7 @@ from alembic.config import Config
 from sqlalchemy import text
 
 from app.defend.postgres_connection import PostgresConnectionError, PostgresConnectionFactory, validated_url
+from app.defend.production_store import EXPECTED_ALEMBIC_HEAD, ProductionSchemaError, ProductionStore
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -70,14 +72,72 @@ def test_migration_upgrade_is_repeatable_and_downgrade_round_trips(scratch_datab
     config = migration_config()
     command.upgrade(config, "head")
     with factory.engine.connect() as connection:
-        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0001"
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar() == EXPECTED_ALEMBIC_HEAD
         assert connection.execute(text("SELECT count(*) FROM idempotency_keys")).scalar() == 0
         assert connection.execute(text("SELECT count(*) FROM backup_events")).scalar() == 0
+        assert connection.execute(text("SELECT count(*) FROM approval_requests")).scalar() == 0
     command.downgrade(config, "base")
     with factory.engine.connect() as connection:
         assert connection.execute(text("SELECT to_regclass('backup_events')")).scalar() is None
         assert connection.execute(text("SELECT to_regclass('idempotency_keys')")).scalar() is None
+        assert connection.execute(text("SELECT to_regclass('approval_requests')")).scalar() is None
     command.upgrade(config, "head")
+
+
+def test_approval_schema_upgrade_preserves_baseline_rows_and_round_trips_approval(scratch_database):
+    url, factory = scratch_database
+    config = migration_config()
+    command.downgrade(config, "0001")
+    with factory.engine.begin() as connection:
+        connection.execute(text("INSERT INTO idempotency_keys (key, request_hash, response) "
+                                "VALUES ('SIMULATED_BASELINE', 'SIMULATED', 'SIMULATED')"))
+    store = ProductionStore(url, connect=factory)
+    with pytest.raises(ProductionSchemaError, match="^ALEMBIC_HEAD_DRIFT$"):
+        store.initialize()
+    with factory.engine.connect() as connection:
+        assert connection.execute(text("SELECT to_regclass('approval_requests')")).scalar() is None
+    command.upgrade(config, "head")
+    store.initialize()
+    request = SimpleNamespace(
+        request_id="SIMULATED_REQUEST", requester="SIMULATED_REQUESTER", scope="SIMULATED_SCOPE",
+        justification="SIMULATED", policy_mode="SIMULATED", state="pending",
+        approvers=[], denier=None, created_at_epoch=1.0,
+    )
+    store.persist_approval(request)
+    loaded = store.load_approval(request.request_id)
+    assert loaded == vars(request)
+    assert factory.engine.pool.checkedout() == 0
+    with factory.engine.connect() as connection:
+        assert connection.execute(text("SELECT response FROM idempotency_keys WHERE key = 'SIMULATED_BASELINE'")).scalar() == "SIMULATED"
+    command.downgrade(config, "0001")
+    with factory.engine.connect() as connection:
+        assert connection.execute(text("SELECT to_regclass('approval_requests')")).scalar() is None
+        assert connection.execute(text("SELECT count(*) FROM idempotency_keys")).scalar() == 1
+
+
+def test_legacy_approval_table_conflict_keeps_data_and_old_revision(scratch_database):
+    _, factory = scratch_database
+    config = migration_config()
+    command.downgrade(config, "0001")
+    with factory.engine.begin() as connection:
+        connection.execute(text("CREATE TABLE approval_requests (legacy_value TEXT NOT NULL)"))
+        connection.execute(text("INSERT INTO approval_requests VALUES ('SIMULATED_RETAIN_ME')"))
+    with pytest.raises(RuntimeError, match="^DEFEND_MIGRATION_FAILED$"):
+        command.upgrade(config, "head")
+    with factory.engine.connect() as connection:
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0001"
+        assert connection.execute(text("SELECT legacy_value FROM approval_requests")).scalar() == "SIMULATED_RETAIN_ME"
+
+
+def test_initialize_does_not_recreate_missing_table_even_at_current_head(scratch_database):
+    url, factory = scratch_database
+    with factory.engine.begin() as connection:
+        connection.execute(text("DROP TABLE approval_requests"))
+    with pytest.raises(ProductionSchemaError, match="^DATABASE_SCHEMA_UNAVAILABLE$"):
+        ProductionStore(url, connect=factory).initialize()
+    assert factory.engine.pool.checkedout() == 0
+    with factory.engine.connect() as connection:
+        assert connection.execute(text("SELECT to_regclass('approval_requests')")).scalar() is None
 
 
 def test_committed_probe_and_pool_return_rollback(scratch_database):

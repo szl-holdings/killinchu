@@ -29,6 +29,8 @@ def test_existing_migration_renders_offline_without_disclosing_target(monkeypatc
     rendered = output.getvalue()
     assert "CREATE TABLE IF NOT EXISTS idempotency_keys" in rendered
     assert "CREATE TABLE IF NOT EXISTS backup_events" in rendered
+    assert "CREATE TABLE approval_requests" in rendered
+    assert "CREATE TABLE IF NOT EXISTS approval_requests" not in rendered
     assert "COMMIT" in rendered
     assert "CREDENTIAL_CANARY" not in rendered
     assert "database.example" not in rendered
