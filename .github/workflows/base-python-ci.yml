@@ -146,6 +146,8 @@ jobs:
           tests/test_model_endpoint_credentials.py
           tests/test_unay_write_authorization.py
           tests/test_khipu_replication_delivery.py
+          tests/test_khipu_delivery_routes.py
+          tests/test_replication_shared_payload.py
 
       - name: Shared code-engine mandatory rlimits (blocking)
         env:
