@@ -9,7 +9,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.defend.production_store import POOL_CONFIG, ProductionStore
+from app.defend.production_store import (
+    EXPECTED_ALEMBIC_HEAD, POOL_CONFIG, ProductionSchemaError, ProductionStore,
+)
 
 NOW = datetime(2026, 9, 5, 19, 0, tzinfo=timezone.utc)
 
@@ -28,12 +30,17 @@ class FakeCursor:
     def execute(self, sql, params=None):
         self.db["statements"].append(sql)
         if "alembic_version" in sql:
-            self._result = [(self.db["alembic_head"],)]
+            self._result = self.db.get("heads", [(self.db["alembic_head"],)])
         elif "MAX(created_at)" in sql:
             self._result = [(self.db["latest_backup"],)]
+        elif "FROM approval_requests LIMIT 0" in sql and self.db.get("missing_approvals"):
+            raise RuntimeError("PROVIDER_CREDENTIAL_CANARY")
 
     def fetchone(self):
         return self._result[0] if self._result else None
+
+    def fetchall(self):
+        return self._result
 
 
 class FakeConn:
@@ -47,11 +54,11 @@ class FakeConn:
         self.db["commits"] += 1
 
     def close(self):
-        pass
+        self.db["closed"] += 1
 
 
-def make_db(alembic_head="0001", latest_backup=NOW - timedelta(hours=2)):
-    return {"statements": [], "commits": 0, "alembic_head": alembic_head,
+def make_db(alembic_head=EXPECTED_ALEMBIC_HEAD, latest_backup=NOW - timedelta(hours=2)):
+    return {"statements": [], "commits": 0, "closed": 0, "alembic_head": alembic_head,
             "latest_backup": latest_backup}
 
 
@@ -67,6 +74,51 @@ def test_pool_config_matches_spec_401():
 def test_empty_database_url_rejected():
     with pytest.raises(ValueError):
         ProductionStore("")
+
+
+def test_initialize_only_checks_migrated_schema_and_closes_connection():
+    db = make_db()
+    make_store(db).initialize()
+    assert db["statements"][0].endswith("READ ONLY")
+    assert all(sql.startswith(("SELECT ", "SET TRANSACTION ")) for sql in db["statements"])
+    assert db["commits"] == 0
+    assert db["closed"] == 1
+
+
+@pytest.mark.parametrize("heads", [[], [("0001",)], [("0002",), ("unexpected",)]])
+def test_initialize_rejects_missing_old_or_multiple_heads_without_schema_writes(heads):
+    db = make_db()
+    db["heads"] = heads
+    with pytest.raises(ProductionSchemaError, match="^ALEMBIC_HEAD_DRIFT$"):
+        make_store(db).initialize()
+    assert db["commits"] == 0
+    assert db["closed"] == 1
+    assert not any("FROM approval_requests" in sql for sql in db["statements"])
+
+
+def test_initialize_missing_table_does_not_create_or_disclose_it():
+    db = make_db()
+    db["missing_approvals"] = True
+    with pytest.raises(ProductionSchemaError, match="^DATABASE_SCHEMA_UNAVAILABLE$") as failure:
+        make_store(db).initialize()
+    assert "PROVIDER_CREDENTIAL_CANARY" not in str(failure.value)
+    assert db["commits"] == 0
+    assert db["closed"] == 1
+
+
+def test_initialize_connection_failure_is_redacted():
+    def unavailable(url):
+        raise ConnectionError("PROVIDER_CREDENTIAL_CANARY")
+    with pytest.raises(ProductionSchemaError, match="^DATABASE_SCHEMA_UNAVAILABLE$"):
+        ProductionStore("postgres://x", connect=unavailable).initialize()
+
+
+def test_initialize_close_failure_is_redacted():
+    class FailingCloseConn(FakeConn):
+        def close(self):
+            raise RuntimeError("PROVIDER_CREDENTIAL_CANARY")
+    with pytest.raises(ProductionSchemaError, match="^DATABASE_SCHEMA_UNAVAILABLE$"):
+        ProductionStore("postgres://x", connect=lambda _: FailingCloseConn(make_db())).initialize()
 
 
 def test_preliminary_reads_cannot_qualify_production_durability():
@@ -87,6 +139,16 @@ def test_alembic_drift_fails_closed():
     ok, info = make_store(make_db(alembic_head=sentinel)).readyz(now=NOW)
     assert not ok and info["reasons"] == ["ALEMBIC_HEAD_DRIFT"]
     assert sentinel not in str(info)
+
+
+@pytest.mark.parametrize("heads", [[], [("0001",)], [("0002",), ("unexpected",)]])
+def test_readyz_rejects_missing_old_or_multiple_heads(heads):
+    db = make_db()
+    db["heads"] = heads
+    ok, info = make_store(db).readyz(now=NOW)
+    assert not ok and info["reasons"] == ["ALEMBIC_HEAD_DRIFT"]
+    assert info.get("preliminary_checks_passed") is not True
+    assert db["commits"] == 0
 
 
 @pytest.mark.parametrize("age, expected_reason", [
