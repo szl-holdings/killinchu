@@ -290,7 +290,10 @@ def _parse_time(value: str, field: str) -> datetime:
         raise ValueError(f"{field} must be an RFC 3339 timestamp") from exc
     if parsed.tzinfo is None:
         raise ValueError(f"{field} must include a timezone")
-    return parsed.astimezone(timezone.utc)
+    try:
+        return parsed.astimezone(timezone.utc)
+    except OverflowError as exc:
+        raise ValueError(f"{field} is outside the supported time range") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -317,7 +320,7 @@ def normalize_request(value: Any) -> dict[str, Any]:
         if observation_id in seen:
             raise ValueError("observation_id values must be unique")
         seen.add(observation_id)
-        if raw["source_kind"] not in SOURCE_KINDS:
+        if not isinstance(raw["source_kind"], str) or raw["source_kind"] not in SOURCE_KINDS:
             raise ValueError(f"unsupported source_kind: {raw['source_kind']!r}")
         content = raw["content"]
         if not isinstance(content, str) or not content.strip() or len(content) > MAX_CONTENT_CHARS:
@@ -462,6 +465,13 @@ def assess(observations: list[dict[str, Any]], now: datetime, adapter: Any) -> d
     if stale:
         return abstain(["STALE_EVIDENCE"], stale_observations=stale)
 
+    # Support is counted over distinct content hashes, so the same observation
+    # resubmitted under another observation_id is not independent support.
+    content_of = {item["observation_id"]: item["computed_sha256"] for item in evidence}
+
+    def independent(items: list[dict[str, Any]]) -> int:
+        return len({content_of[f["observation_id"]] for f in items})
+
     findings: list[dict[str, Any]] = []
     try:
         for observation in observations:
@@ -487,7 +497,7 @@ def assess(observations: list[dict[str, Any]], now: datetime, adapter: Any) -> d
             },
         )
     if not defects:
-        if len({f["observation_id"] for f in negations}) >= MIN_SUPPORT:
+        if independent(negations) >= MIN_SUPPORT:
             return {
                 **base,
                 "decision": "NO_REFERRAL",
@@ -505,15 +515,16 @@ def assess(observations: list[dict[str, Any]], now: datetime, adapter: Any) -> d
         items = defects[code]
         support = sorted({f["observation_id"] for f in items})
         mean = statistics.fmean(f["confidence"] for f in items)
-        confidence = round(mean * min(1.0, len(support) / MIN_SUPPORT), 4)
+        distinct = independent(items)
+        confidence = round(mean * min(1.0, distinct / MIN_SUPPORT), 4)
         record = {
             "finding_code": code,
             "confidence": confidence,
             "uncertainty": round(1.0 - confidence, 4),
-            "interval": _interval(confidence, len(support)),
+            "interval": _interval(confidence, distinct),
             "evidence": support,
         }
-        if len(support) >= MIN_SUPPORT and confidence >= MIN_CONFIDENCE:
+        if distinct >= MIN_SUPPORT and confidence >= MIN_CONFIDENCE:
             claims.append({**record, "citations": retrieve_checklist(code)})
         else:
             unconfirmed.append(record)
@@ -1249,6 +1260,21 @@ class InspectionStore(plane.DefendStore):
                 proposal = self._load_proposal(connection, scope, proposal_id)
                 if str(proposal["state"]) != "APPROVED_FOR_REHEARSAL":
                     raise RuntimeError(f"proposal is not ready for rehearsal: {proposal['state']}")
+                expiry = datetime.fromisoformat(str(proposal["expires_at"]).replace("Z", "+00:00"))
+                if expiry <= now:
+                    connection.execute(
+                        "UPDATE inspection_proposals SET state='EXPIRED' WHERE scope=? AND id=?",
+                        (scope, proposal_id),
+                    )
+                    self._receipt(
+                        connection,
+                        scope=scope,
+                        kind="INSPECTION_PROPOSAL_EXPIRED",
+                        object_id=proposal_id,
+                        payload={"proposal_id": proposal_id, "expires_at": str(proposal["expires_at"]), "decision": "EXPIRED"},
+                    )
+                    connection.commit()
+                    raise RuntimeError("proposal has expired")
                 problems = self._binding_problems(connection, scope, proposal)
                 approval = connection.execute(
                     "SELECT * FROM inspection_approvals WHERE scope=? AND proposal_id=?",

@@ -480,3 +480,48 @@ def test_bundle_read_does_not_initialize_state(tmp_path, monkeypatch):
     assert c.get("/api/defend/inspection/scenario").status_code == 200
     assert not path.exists()
     _forget(path)
+
+
+# Review follow-ups -----------------------------------------------------------
+def test_duplicate_content_under_new_ids_is_not_independent_support(runtime):
+    c, _ = runtime
+    body = inspection.fixture_request("happy_displaced_shingles")
+    first = body["observations"][0]
+    for index, observation in enumerate(body["observations"][1:], start=1):
+        observation.update(content=first["content"], sha256=first["sha256"], observation_id=f"dup-{index}")
+    response = c.post("/api/defend/inspection/assess", headers=HEADERS, json=body)
+    assert response.status_code == 200
+    result = response.json()
+    assert result["decision"] == "ABSTAIN"
+    assert result["assessment"]["abstain_reasons"] == ["INSUFFICIENT_EVIDENCE"]
+    assert result["proposal"] is None
+
+
+@pytest.mark.parametrize("captured_at", ["0001-01-01T00:00:00+14:00", "9999-12-31T23:59:59-14:00"])
+def test_out_of_range_timestamps_are_rejected_as_input_errors(runtime, captured_at):
+    c, _ = runtime
+    body = inspection.fixture_request("happy_displaced_shingles")
+    body["observations"][0]["captured_at"] = captured_at
+    assert c.post("/api/defend/inspection/assess", headers=HEADERS, json=body).status_code == 422
+
+
+@pytest.mark.parametrize("source_kind", [["fixture_photo"], {"kind": "x"}, 7])
+def test_non_string_source_kind_is_rejected_as_input_error(runtime, source_kind):
+    c, _ = runtime
+    body = inspection.fixture_request("happy_displaced_shingles")
+    body["observations"][0]["source_kind"] = source_kind
+    assert c.post("/api/defend/inspection/assess", headers=HEADERS, json=body).status_code == 422
+
+
+def test_rehearsal_after_proposal_expiry_is_refused_and_receipted(runtime, monkeypatch):
+    c, _ = runtime
+    proposal_id = _assess(c)[0].json()["proposal"]["id"]
+    ok = c.post("/api/defend/inspection/approve", headers=HEADERS, json={"proposal_id": proposal_id, "approver": APPROVER})
+    assert ok.status_code == 200
+    later = defend._utcnow() + inspection.PROPOSAL_TTL + timedelta(days=90)
+    monkeypatch.setattr(inspection, "_now", lambda: later)
+    response = c.post("/api/defend/inspection/rehearse", headers=HEADERS, json={"proposal_id": proposal_id})
+    assert response.status_code == 409
+    assert "expired" in response.json()["detail"]
+    bundle = c.get(f"/api/defend/inspection/bundle/{proposal_id}", headers=HEADERS).json()
+    assert bundle["proposal"]["state"] == "EXPIRED"
