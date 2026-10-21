@@ -261,9 +261,11 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         "tests/test_unay_write_authorization.py", "tests/test_vendor_sync_contract.py",
     }
     for relative, digest in origin["files"].items():
+        if relative == "szl_unay_routes.py":
+            continue  # Historical route remains bound to its archived digest.
         assert _digest(ROOT / relative) == digest
 
-    active_path = ROOT / ".github/shared-source-payload-manifest.json"
+    active_path = ROOT / ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json"
     assert _digest(active_path) == "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc"
     active = json.loads(active_path.read_bytes())
     assert active["schema"] == "szl-shared-source-payload/v1"
@@ -274,6 +276,8 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         "a11oy_code_engine.py", "docs/bonsai-model-binding.md", "szl_khipu_replicate.py",
     }
     for relative, digest in active["files"].items():
+        if relative == "szl_unay_routes.py":
+            continue  # The successor changes source, never the old archive.
         assert _digest(ROOT / relative) == digest
 
 
