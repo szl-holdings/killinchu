@@ -153,7 +153,7 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
           PYTHONDONTWRITEBYTECODE: "1"
-        run: python -m pytest -q -p no:cacheprovider tests/test_code_engine_mandatory_limits.py
+        run: python -m pytest -q -p no:cacheprovider tests/test_code_engine_mandatory_limits.py tests/test_code_receipt_binding.py
 
       # serve.py must mount /code/* only from the reviewed vendored engine with
       # its deny-by-default two-person allow_exec, never from szl_substrate.
