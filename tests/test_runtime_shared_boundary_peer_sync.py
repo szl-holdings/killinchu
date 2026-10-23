@@ -125,6 +125,13 @@ CURRENT_EXPECTED_SHA256 = {
 }
 
 
+# Replication dispatch adds an outer operator gate; original digest remains above.
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "szl_operator_auth.py": "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6",
+}
+
+
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -210,7 +217,7 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         "c3f1a5e76e7c6df0c19b932afca30d99fbdd12e508e95ed9f7dfa9fd798dbbf1"
     )
     for relative, digest in admission["files"].items():
-        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py"):
+        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py", "szl_operator_auth.py"):
             continue  # The successor changes this source, never the archived hash.
         assert _digest(ROOT / relative) == digest
 
@@ -261,9 +268,11 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         "tests/test_unay_write_authorization.py", "tests/test_vendor_sync_contract.py",
     }
     for relative, digest in origin["files"].items():
+        if relative == "szl_unay_routes.py":
+            continue  # Historical route remains bound to its archived digest.
         assert _digest(ROOT / relative) == digest
 
-    active_path = ROOT / ".github/shared-source-payload-manifest.json"
+    active_path = ROOT / ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json"
     assert _digest(active_path) == "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc"
     active = json.loads(active_path.read_bytes())
     assert active["schema"] == "szl-shared-source-payload/v1"
@@ -274,6 +283,8 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         "a11oy_code_engine.py", "docs/bonsai-model-binding.md", "szl_khipu_replicate.py",
     }
     for relative, digest in active["files"].items():
+        if relative == "szl_unay_routes.py":
+            continue  # The successor changes source, never the old archive.
         assert _digest(ROOT / relative) == digest
 
 

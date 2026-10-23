@@ -244,8 +244,18 @@ python -m alembic -c app/defend/alembic.ini upgrade head
 ```
 
 That command mutates the selected database. It is operator work, never startup
-or GET behavior. Baseline `0001` covers only the original idempotency and backup
-tables; it is not a complete tenant-scoped production schema. The adapter is
+or GET behavior. Baseline `0001` covers the original idempotency and backup
+tables; additive revision `0002` owns the existing `approval_requests` seam.
+Neither revision establishes a complete tenant-scoped production schema.
+`ProductionStore.initialize()` now checks the single expected Alembic head and
+the approval columns in a read-only transaction; it creates no tables and does
+not commit. A missing or incompatible schema fails closed. A legacy approval
+table created outside Alembic causes migration `0002` to fail without adopting,
+dropping, or overwriting its data. Inventory, backup, and an explicit reviewed
+reconciliation are required before migrating such a target. Downgrading `0002`
+drops its approval table and is destructive; only the disposable harness runs
+that downgrade here, and production rollback retains the separate approval and
+recovery requirements in §§4 and 8. The adapter is
 injectable into `ProductionStore`, whose readiness result remains **BLOCKED**.
 It is not wired into the public application or an HTTPS gateway.
 

@@ -119,6 +119,11 @@ def test_shared_http_payload_is_content_bound():
         "5b511c270ebb0268974f144e2dc4d3754ad48803a9434f6976eb8c1681265c0d"
     )
     expected["szl_operator_auth.py"] = admission["files"]["szl_operator_auth.py"]
+    # Snapshot replication adds the paired explicit-dispatch gates. Preserve the
+    # historical admission above and bind this reviewed source successor exactly.
+    expected["szl_operator_auth.py"] = (
+        "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6"
+    )
     for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 
