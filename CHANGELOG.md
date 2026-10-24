@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - receipt payload binding
+
+- Require the code verification route to bind the signed payload to the submitted
+  run, receipt prefix, issuer, mode and outcome. Report chain integrity, signature
+  validity and payload binding separately; missing verifiers fail closed.
+- Share the exact reviewed A11oy engine and 60 synthetic binding regressions.
+  Preserve the replication predecessor manifest byte for byte and validate every
+  file in its 25-entry successor. Historical source hashes remain historical.
+- This source change grants no execution authority and makes no deployment,
+  model evaluation or operational readiness claim. Effectors remain SIMULATED.
+
 ### Fixed - atomic inbound replication replay
 
 - Commit the foreign receipt index and local mirror wrapper together, so an

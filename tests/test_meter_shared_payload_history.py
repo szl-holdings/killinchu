@@ -70,8 +70,9 @@ def test_archived_write_boundary_payload_preserves_prior_evidence():
         "szl_operator_auth.py", "szl_khipu_replicate.py", "szl_unay_routes.py",
     } <= set(manifest["files"])
     assert manifest["files"]["szl_khipu_replicate.py"] == "c3f1a5e76e7c6df0c19b932afca30d99fbdd12e508e95ed9f7dfa9fd798dbbf1"
+    assert manifest["files"]["szl_operator_auth.py"] == "5b511c270ebb0268974f144e2dc4d3754ad48803a9434f6976eb8c1681265c0d"
     for relative, expected in manifest["files"].items():
-        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py"):
+        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py", "szl_operator_auth.py"):
             continue  # The original source remains pinned in this immutable archive.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
@@ -126,12 +127,17 @@ def test_archived_replication_origin_payload_binds_current_source_and_predecesso
         "scripts/sync_from_monorepo.sh", "szl_khipu_lmdb.py", "szl_unay_routes.py",
         "tests/test_unay_write_authorization.py", "tests/test_vendor_sync_contract.py",
     }
+    assert manifest["files"]["szl_unay_routes.py"] == "1fefe85eb25a289c492bdb8b0ec17e69fa647a675e0b2caf8c579cdb1ca733f9"
     for relative, expected in manifest["files"].items():
+        if relative == "szl_unay_routes.py":
+            continue  # Historical route is pinned above and in the immutable archive.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
-def test_active_bonsai_payload_binds_current_source_and_predecessors():
-    manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
+def test_archived_bonsai_payload_binds_predecessors():
+    raw = (ROOT / ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc"
+    manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "bonsai-model-catalog-20261017-v1"
     assert set(manifest["files"]) == {
@@ -148,7 +154,10 @@ def test_active_bonsai_payload_binds_current_source_and_predecessors():
         'tests/test_unay_write_authorization.py',
         'tests/test_vendor_sync_contract.py',
     }
+    assert manifest["files"]["a11oy_code_engine.py"] == "5994454fb6b699f94aec417ea637dec4459a6d2abcc1654df4a7f4bfba0ee67c"
     for relative, expected in manifest["files"].items():
+        if relative in ("a11oy_code_engine.py", "szl_unay_routes.py"):
+            continue  # Historical source stays pinned in the immutable archive.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 

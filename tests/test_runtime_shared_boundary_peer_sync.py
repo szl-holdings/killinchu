@@ -131,6 +131,15 @@ CURRENT_EXPECTED_SHA256 = {
     "szl_operator_auth.py": "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6",
 }
 
+# Receipt binding advances only the engine in this runtime proof. Keep every
+# prior source observation above; this exact peer commit is source evidence only.
+RECEIPT_BINDING_A11OY_COMMIT = "86592c225f997a43aa8ef2ec5ee78ead3943560d"
+CURRENT_A11OY_COMMIT = RECEIPT_BINDING_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "6968839865154818babe7e85c2bf37c944b9d0e90eb6fc600bf0e6c2d25bf73e",
+}
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -282,8 +291,11 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         ".github/shared-source-payloads/replication-origin-index-20261017-v1.json",
         "a11oy_code_engine.py", "docs/bonsai-model-binding.md", "szl_khipu_replicate.py",
     }
+    assert active["files"]["a11oy_code_engine.py"] == (
+        "5994454fb6b699f94aec417ea637dec4459a6d2abcc1654df4a7f4bfba0ee67c"
+    )
     for relative, digest in active["files"].items():
-        if relative == "szl_unay_routes.py":
+        if relative in ("a11oy_code_engine.py", "szl_unay_routes.py"):
             continue  # The successor changes source, never the old archive.
         assert _digest(ROOT / relative) == digest
 
