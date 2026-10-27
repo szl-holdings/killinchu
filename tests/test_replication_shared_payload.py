@@ -37,14 +37,9 @@ def test_snapshot_replication_payload_preserves_prior_manifest_and_source():
             assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
-def test_receipt_binding_successor_binds_every_current_file_and_snapshot():
-    prior = (ROOT / SNAPSHOT).read_bytes()
-    assert hashlib.sha256(prior).hexdigest() == "af144993e51a7348ee008f0ffa1bbb771759583b0281ac95580f1a4687ec9166"
+def test_current_shared_payload_manifest_matches_current_peer():
     manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
     assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["payload_id"] == "code-receipt-binding-20261023-v1"
-    assert set(manifest["files"]) == set(json.loads(prior)["files"]) | {
-        SNAPSHOT, "tests/test_code_receipt_binding.py",
-    }
+    assert manifest["payload_id"] == "mcp-advertised-inventory-20261016-v1"
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected

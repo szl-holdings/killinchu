@@ -211,12 +211,10 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
     assert _digest(bounded) == BOUNDED_MODEL_MANIFEST_SHA256
     payload = json.loads(bounded.read_text(encoding="utf-8"))
     assert payload["payload_id"] == "code-engine-bounded-model-20261015-v1"
-    assert payload["files"]["a11oy_code_engine.py"] == (
-        "a03aa1c294b69c8dfe3ce20d85aaf2347fac93ad7cba3544c1697d381639ac6f"
-    )
-    archived = ROOT / ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json"
-    assert _digest(archived) == OPERATOR_ADMISSION_MANIFEST_SHA256
-    admission = json.loads(archived.read_text(encoding="utf-8"))
+    assert payload["files"]["a11oy_code_engine.py"] == "a03aa1c294b69c8dfe3ce20d85aaf2347fac93ad7cba3544c1697d381639ac6f"
+    archived_admission = ROOT / ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json"
+    assert _digest(archived_admission) == OPERATOR_ADMISSION_MANIFEST_SHA256
+    admission = json.loads(archived_admission.read_text(encoding="utf-8"))
     assert admission["payload_id"] == "execution-observer-operator-auth-20261016-v1"
     assert set(admission["files"]) == {
         ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json",
