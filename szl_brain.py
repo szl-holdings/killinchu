@@ -75,7 +75,11 @@ def observe_mcp_inventory(manifest: dict, *, space: str) -> None:
             or any(not isinstance(tool, dict)
                    or not isinstance(tool.get("name"), str)
                    or not tool["name"].strip() for tool in tools)):
-        _MCP_INVENTORY_OBSERVATION = None
+        # Preserve the distinction between a malformed observed manifest and
+        # a cold start with no observation. The count remains unavailable.
+        _MCP_INVENTORY_OBSERVATION = (
+            None, None, None, space, "MCP_MANIFEST_INVALID",
+        )
         return
     # One immutable assignment keeps concurrent readers on a complete observation.
     try:
@@ -98,15 +102,24 @@ def mcp_inventory_snapshot(space: str) -> dict:
     age = None
     reason = "MCP_MANIFEST_NOT_OBSERVED"
     if observation:
-        try:
-            elapsed = time.monotonic() - observation[0]
-            if not math.isfinite(elapsed) or elapsed < 0:
-                raise ValueError("invalid observation age")
-            age = elapsed
-            reason = "MCP_MANIFEST_OBSERVATION_EXPIRED"
-        except Exception:
-            reason = "MCP_MANIFEST_CLOCK_UNAVAILABLE"
-    fresh = age is not None and age <= _MCP_INVENTORY_MAX_AGE_S
+        # Invalid observations carry an explicit reason and no age/count.
+        if len(observation) >= 5:
+            reason = observation[4]
+        else:
+            try:
+                elapsed = time.monotonic() - observation[0]
+                if not math.isfinite(elapsed) or elapsed < 0:
+                    raise ValueError("invalid observation age")
+                age = elapsed
+                reason = "MCP_MANIFEST_OBSERVATION_EXPIRED"
+            except Exception:
+                reason = "MCP_MANIFEST_CLOCK_UNAVAILABLE"
+    fresh = (
+        bool(observation)
+        and len(observation) < 5
+        and age is not None
+        and age <= _MCP_INVENTORY_MAX_AGE_S
+    )
     return {
         "count": observation[2] if fresh else None,
         "label": "CACHED" if fresh else "UNAVAILABLE",
