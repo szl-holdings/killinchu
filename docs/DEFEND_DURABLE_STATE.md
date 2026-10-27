@@ -117,6 +117,14 @@ reporting possibly stale counts. `GET /api/defend/readyz` returns HTTP
 readable SQLite file, or working demo flow does not satisfy the production
 contract below. The deployment workflow checks this 503 explicitly.
 
+Case and receipt GETs, and receipt verification, also read only an existing
+local snapshot. They never initialize the demo store, run migrations, change
+journal mode, or recover SQLite sidecars. A missing or unreadable snapshot,
+an existing WAL/SHM/rollback journal, or a file that changes during the read
+returns `503 LOCAL_STORE_UNAVAILABLE`; it does not return a fabricated empty
+store. Valid demo write requests retain their existing initialization path.
+These passive reads do not establish production durability or identity.
+
 Production `/api/defend/readyz` returns `503` unless all of the following are
 true for the same source revision and tenant-neutral probe transaction:
 
@@ -236,8 +244,18 @@ python -m alembic -c app/defend/alembic.ini upgrade head
 ```
 
 That command mutates the selected database. It is operator work, never startup
-or GET behavior. Baseline `0001` covers only the original idempotency and backup
-tables; it is not a complete tenant-scoped production schema. The adapter is
+or GET behavior. Baseline `0001` covers the original idempotency and backup
+tables; additive revision `0002` owns the existing `approval_requests` seam.
+Neither revision establishes a complete tenant-scoped production schema.
+`ProductionStore.initialize()` now checks the single expected Alembic head and
+the approval columns in a read-only transaction; it creates no tables and does
+not commit. A missing or incompatible schema fails closed. A legacy approval
+table created outside Alembic causes migration `0002` to fail without adopting,
+dropping, or overwriting its data. Inventory, backup, and an explicit reviewed
+reconciliation are required before migrating such a target. Downgrading `0002`
+drops its approval table and is destructive; only the disposable harness runs
+that downgrade here, and production rollback retains the separate approval and
+recovery requirements in §§4 and 8. The adapter is
 injectable into `ProductionStore`, whose readiness result remains **BLOCKED**.
 It is not wired into the public application or an HTTPS gateway.
 

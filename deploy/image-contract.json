@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "3e04e7d562d6132253298cf2c34e4a33a8dca7b4a05574bde337d30deccd28b9"
+    "sha256": "c708fd9bc73a6509ad83c910db847d97e3ab5c35aa4ac94d99586ff519b51cb1"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "3e04e7d562d6132253298cf2c34e4a33a8dca7b4a05574bde337d30deccd28b9"
+    "sha256": "c708fd9bc73a6509ad83c910db847d97e3ab5c35aa4ac94d99586ff519b51cb1"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -33,6 +33,7 @@
     "drones_db.json",
     "fleet_vessels_data.json",
     "gdw_auth.py",
+    "khipu_lmdb/",
     "killinchu_active_flux.py",
     "killinchu_after_action.py",
     "killinchu_ais_aug2024.py",
@@ -45,6 +46,7 @@
     "killinchu_cannonico.py",
     "killinchu_cop_fusion.py",
     "killinchu_cot_interop.py",
+    "killinchu_defend_inspection.py",
     "killinchu_defend_plane.py",
     "killinchu_defensive_intake.py",
     "killinchu_drone_routes.py",
@@ -240,6 +242,7 @@
     "szl_ken.py",
     "szl_keyless.py",
     "szl_khipu_consensus.py",
+    "szl_khipu_delivery_routes.py",
     "szl_khipu_lmdb.py",
     "szl_khipu_replicate.py",
     "szl_killinchu_cookbook.py",

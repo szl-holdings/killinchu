@@ -32,8 +32,10 @@ import math
 import os
 import re
 import sqlite3
+import stat
 import threading
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -197,16 +199,24 @@ def _state_path() -> str:
     return os.environ.get("KILLINCHU_DEFEND_STATE_PATH", "/tmp/killinchu-defend.sqlite3")
 
 
+class DefendReadUnavailable(RuntimeError):
+    """An existing local snapshot could not be read without changing it."""
+
+
 class DefendStore:
     """Single-writer SQLite store with append-only receipt evidence."""
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, *, read_only: bool = False) -> None:
         self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._read_only = read_only
         self._lock = threading.RLock()
-        self._migrate()
+        if not read_only:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._migrate()
 
     def connect(self) -> sqlite3.Connection:
+        if self._read_only:
+            raise RuntimeError("READ_ONLY_STORE")
         connection = sqlite3.connect(
             self.path,
             timeout=10,
@@ -218,6 +228,41 @@ class DefendStore:
         connection.execute("PRAGMA busy_timeout = 10000")
         connection.execute("PRAGMA journal_mode = WAL")
         return connection
+
+    @contextmanager
+    def read_connection(self):
+        """Read only a stable main file; never recover or create SQLite journals."""
+        try:
+            database = self.path.resolve(strict=True)
+            sidecars = tuple(Path(f"{database}{suffix}") for suffix in ("-wal", "-shm", "-journal"))
+
+            def fingerprint():
+                value = database.stat()
+                if not stat.S_ISREG(value.st_mode):
+                    raise DefendReadUnavailable("NON_REGULAR_DATABASE")
+                return (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+
+            if any(sidecar.exists() for sidecar in sidecars):
+                raise DefendReadUnavailable("ACTIVE_SQLITE_SIDECAR")
+            before = fingerprint()
+            connection = sqlite3.connect(
+                database.as_uri() + "?mode=ro&immutable=1",
+                uri=True,
+                timeout=0.2,
+                isolation_level=None,
+            )
+            try:
+                connection.row_factory = sqlite3.Row
+                connection.execute("PRAGMA query_only = ON")
+                yield connection
+            finally:
+                connection.close()
+                # Check even on a lookup failure: a changed snapshot is not a
+                # trustworthy empty result or a trustworthy NOT_FOUND response.
+                if any(sidecar.exists() for sidecar in sidecars) or fingerprint() != before:
+                    raise DefendReadUnavailable("SNAPSHOT_CHANGED")
+        except (OSError, sqlite3.Error) as exc:
+            raise DefendReadUnavailable(type(exc).__name__) from None
 
     def _migrate(self) -> None:
         with self._lock:
@@ -750,8 +795,7 @@ class DefendStore:
                 connection.close()
 
     def verify(self, scope: str, receipt_id: str) -> dict[str, Any]:
-        connection = self.connect()
-        try:
+        with self.read_connection() as connection:
             row = connection.execute(
                 "SELECT * FROM receipts WHERE scope=? AND id=?",
                 (scope, receipt_id),
@@ -790,12 +834,9 @@ class DefendStore:
                 "chain_hash": chain_hash,
                 "truth_label": "MEASURED",
             }
-        finally:
-            connection.close()
 
     def cases(self, scope: str, limit: int = 25) -> list[dict[str, Any]]:
-        connection = self.connect()
-        try:
+        with self.read_connection() as connection:
             rows = connection.execute(
                 "SELECT * FROM cases WHERE scope=? ORDER BY rowid DESC LIMIT ?",
                 (scope, max(1, min(MAX_CASES, limit))),
@@ -818,12 +859,9 @@ class DefendStore:
                     }
                 )
             return output
-        finally:
-            connection.close()
 
     def receipt(self, scope: str, receipt_id: str) -> dict[str, Any]:
-        connection = self.connect()
-        try:
+        with self.read_connection() as connection:
             row = connection.execute(
                 "SELECT * FROM receipts WHERE scope=? AND id=?",
                 (scope, receipt_id),
@@ -842,8 +880,6 @@ class DefendStore:
                 "signature_present": bool(str(row["signature"])),
                 "created_at": str(row["created_at"]),
             }
-        finally:
-            connection.close()
 
     @staticmethod
     def _event_public(row: sqlite3.Row | None) -> dict[str, Any] | None:
@@ -902,6 +938,11 @@ def _store() -> DefendStore:
             store = DefendStore(path)
             _STORES[path] = store
         return store
+
+
+def _read_store() -> DefendStore:
+    # Do not use the writer cache: its first acquisition initializes the schema.
+    return DefendStore(_state_path(), read_only=True)
 
 
 def _normalize_event(value: Any) -> dict[str, Any]:
@@ -1028,6 +1069,8 @@ async def _json_body(request: Request) -> Any:
 
 
 def _error(exc: Exception) -> JSONResponse:
+    if isinstance(exc, DefendReadUnavailable):
+        return JSONResponse({"error": "LOCAL_STORE_UNAVAILABLE", "detail": str(exc)}, status_code=503)
     if isinstance(exc, ValueError):
         return JSONResponse({"error": "INVALID_REQUEST", "detail": str(exc)}, status_code=422)
     if isinstance(exc, LookupError):
@@ -1197,7 +1240,7 @@ async def _verify(request: Request) -> JSONResponse:
         receipt_id = _bounded_identifier(body.get("receipt_id"), "receipt_id")
         if RECEIPT_ID_RE.fullmatch(receipt_id) is None:
             raise ValueError("receipt_id has an invalid shape")
-        result = _store().verify(scope, receipt_id)
+        result = _read_store().verify(scope, receipt_id)
         return JSONResponse(
             {"schema": "szl.killinchu.defend-verification/v1", **result},
             status_code=200 if result["integrity_verified"] else 409,
@@ -1212,7 +1255,7 @@ async def _cases(request: Request) -> JSONResponse:
         raw = request.query_params.get("limit", "25")
         if not raw.isdigit():
             raise ValueError("limit must be an integer")
-        cases = _store().cases(scope, int(raw))
+        cases = _read_store().cases(scope, int(raw))
         return JSONResponse(
             {
                 "schema": "szl.killinchu.defend-cases/v1",
@@ -1235,7 +1278,7 @@ async def _receipt(request: Request) -> JSONResponse:
         return JSONResponse(
             {
                 "schema": "szl.killinchu.defend-receipt/v1",
-                "receipt": _store().receipt(scope, receipt_id),
+                "receipt": _read_store().receipt(scope, receipt_id),
                 "truth_label": "MEASURED",
             }
         )
@@ -1337,7 +1380,7 @@ _PAGE = r"""<!doctype html>
 <header class="hero"><div><div class="eyebrow">Cyber-physical resilience / defensive intelligence</div><h1>Killinchu / Defend</h1><p class="lede">Evidence-bound detection becomes a deterministic case and a bounded containment proposal, then independent human approval, simulation-only rehearsal, rollback state and an independently verifiable receipt.</p></div><aside class="boundary"><strong>One product. Distinct capability planes.</strong><p><b>Aegis</b> is the portfolio name. <b>Sentra</b> is the internal defensive-control-plane engine. <b>Killinchu</b> is the sole public product and Hugging Face runtime.</p><div class="chips"><span class="chip good">same-origin</span><span class="chip">source pinned</span><span class="chip">human authority</span><span class="chip">no public effector</span></div></aside></header>
 <section><div class="section-head"><div><div class="eyebrow">01 / Runtime proof</div><h2>Operational truth</h2></div><p>Status comes from the running store, exact source binding and signing-secret availability. Reachability is never promoted into an authorization claim.</p></div><div class="grid"><article class="card"><span class="state" id="runtime-state">PROBING</span><h3>Control plane</h3><p id="runtime-copy">Loading exact runtime status.</p></article><article class="card"><span class="state">BOUNDED</span><h3>Authority</h3><p>Independent approval can authorize a rehearsal only. External effectors remain disabled.</p></article><article class="card"><span class="state">APPEND-ONLY</span><h3>Evidence</h3><p>Every detection, proposal, approval and rehearsal extends a session-scoped receipt chain.</p></article></div></section>
 <section><div class="section-head"><div><div class="eyebrow">02 / Detect → approve → verify</div><h2>Run the governed loop</h2></div><p>The browser creates a private caller-held session token. The service stores only its SHA-256 scope, never the token.</p></div><div class="workflow"><form id="event-form" class="card"><label>Event type<select id="event_type"><option>vulnerability.known_exploited</option><option>identity.privilege_change</option><option>asset.public_exposure</option><option>agent.policy_violation</option><option>network.anomalous_egress</option><option>custom.defensive_signal</option></select></label><label>Severity<select id="severity"><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label><label>Asset reference<input id="asset_ref" value="asset/demo-gateway" maxlength="128" required></label><label>Actor reference<input id="actor_id" value="actor/observed-service" maxlength="128" required></label><label>Requester<input id="requested_by" value="operator/requester" maxlength="128" required></label><label>Evidence count<input id="evidence_count" type="number" min="0" max="32" value="3"></label><label class="wide">Summary<textarea id="summary" maxlength="500">Known-exploited vulnerability observed on a public-facing asset; validate a reversible containment proposal.</textarea></label><div class="checks"><label><input id="source_authenticated" type="checkbox" checked>Source authenticated</label><label><input id="asset_owner_known" type="checkbox" checked>Asset owner known</label><label><input id="rollback_available" type="checkbox" checked>Rollback available</label><label><input id="known_exploited" type="checkbox" checked>Known exploited</label><label><input id="public_exposure" type="checkbox" checked>Public exposure</label><label><input id="privilege_escalation" type="checkbox">Privilege escalation</label></div><div class="actions"><button type="submit">Analyze event</button><button type="button" class="secondary" id="refresh-cases">Refresh cases</button></div></form><article class="card"><div class="eyebrow">Receipt-bound output</div><pre id="output" aria-live="polite">Ready. Submit an event to create a case and bounded proposal.</pre><div class="receipt-actions"><button type="button" class="secondary" id="approve" disabled>Approve rehearsal</button><button type="button" class="secondary" id="rehearse" disabled>Run rehearsal</button><button type="button" class="secondary" id="verify" disabled>Verify receipt</button></div></article></div><p class="notice">This is a real stateful decision-and-evidence workflow with deterministic calculations and durable process-local SQLite. The external action is intentionally not real: the public runtime cannot isolate an asset, disable a session, create a provider ticket or operate against another system.</p></section>
-<section><div class="section-head"><div><div class="eyebrow">03 / Capability map</div><h2>What moved into Killinchu</h2></div><p>Public-product consolidation preserves component provenance rather than erasing it.</p></div><div class="grid"><article class="card"><span class="state">CAPTURED</span><h3>Sentra contract</h3><p>Replay-safe ingestion, deterministic detection, cases, proposals, human independence, rehearsal and receipts.</p></article><article class="card"><span class="state">CANONICAL</span><h3>Aegis portfolio</h3><p>The complete cyber-physical resilience family now resolves to this one product surface.</p></article><article class="card"><span class="state">SEPARATE PLANE</span><h3>Immune</h3><p>AI admission, signed authority and tripwire parity remain a distinct same-origin migration gate; no false completion claim is made here.</p></article></div></section>
+<section><div class="section-head"><div><div class="eyebrow">03 / Capability map</div><h2>What moved into Killinchu</h2></div><p>Public-product consolidation preserves component provenance rather than erasing it.</p></div><div class="grid"><article class="card"><span class="state">CAPTURED</span><h3>Sentra contract</h3><p>Replay-safe ingestion, deterministic detection, cases, proposals, human independence, rehearsal and receipts.</p></article><article class="card"><span class="state">CANONICAL</span><h3>Aegis portfolio</h3><p>The complete cyber-physical resilience family now resolves to this one product surface.</p></article><article class="card"><span class="state">SYNTHETIC REHEARSAL</span><h3>Civilian inspection</h3><p>Roof and building maintenance scenario: cited synthetic checklist, abstention on weak evidence, simulated approval and a modeled ticket. <a href="/defend/inspection">Open the rehearsal</a>.</p></article><article class="card"><span class="state">SEPARATE PLANE</span><h3>Immune</h3><p>AI admission, signed authority and tripwire parity remain a distinct same-origin migration gate; no false completion claim is made here.</p></article></div></section>
 <footer class="mono">SOURCE <a href="/api/defend/source">PIN</a> · STATUS <a href="/api/defend/status">JSON</a> · CASES <a href="/api/defend/cases">SESSION-SCOPED</a> · KILLINCHU / DEFEND {version}</footer>
 </main>
 <script>
@@ -1374,6 +1417,15 @@ def register(app: Any, ns: str = "killinchu") -> dict[str, Any]:
         return {"status": "already_registered", "plane": PLANE}
     existing_names = {getattr(route, "name", None) for route in app.router.routes}
     routes = [route for route in _routes(ns) if route.name not in existing_names]
+    # Civilian roof/building inspection rehearsal: a bounded scenario inside
+    # this plane that shares its session scope, store and receipt chain.
+    try:
+        import killinchu_defend_inspection as _inspection
+
+        routes += [route for route in _inspection.routes(ns) if route.name not in existing_names]
+        inspection_state = "REGISTERED"
+    except ImportError:
+        inspection_state = "MODULE_UNAVAILABLE"
     for route in reversed(routes):
         app.router.routes.insert(0, route)
     app.add_middleware(PlaneTabsMiddleware)
@@ -1386,6 +1438,7 @@ def register(app: Any, ns: str = "killinchu") -> dict[str, Any]:
         "source_repository": SOURCE_REPOSITORY,
         "source_revision": SOURCE_REVISION,
         "routes": [route.path for route in routes],
+        "inspection_scenario": inspection_state,
         "external_effectors_enabled": False,
     }
 

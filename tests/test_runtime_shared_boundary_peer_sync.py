@@ -107,6 +107,39 @@ CURRENT_EXPECTED_SHA256 = {
     "szl_operator_auth.py": "5b511c270ebb0268974f144e2dc4d3754ad48803a9434f6976eb8c1681265c0d",
 }
 
+# Credential origin admission changes the shared engine only. Prior source
+# digests above remain historical evidence; this is not deployment evidence.
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "60b196bc7118ffb08a9ddf3ca1a006026aec969d3a1a8f10a5b8a0e454acc8b7",
+}
+
+# The external Bonsai successor adds exact artifact declarations and bounded
+# custom-HTTPS default selection. Source identity does not establish model
+# quality, endpoint availability, deployment, or production acceptance.
+BONSAI_A11OY_COMMIT = "aef361bc3c831f3f1648ffcb5e5ac4576e785668"
+CURRENT_A11OY_COMMIT = BONSAI_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "5994454fb6b699f94aec417ea637dec4459a6d2abcc1654df4a7f4bfba0ee67c",
+}
+
+
+# Replication dispatch adds an outer operator gate; original digest remains above.
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "szl_operator_auth.py": "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6",
+}
+
+# Receipt binding advances only the engine in this runtime proof. Keep every
+# prior source observation above; this exact peer commit is source evidence only.
+RECEIPT_BINDING_A11OY_COMMIT = "86592c225f997a43aa8ef2ec5ee78ead3943560d"
+CURRENT_A11OY_COMMIT = RECEIPT_BINDING_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "6968839865154818babe7e85c2bf37c944b9d0e90eb6fc600bf0e6c2d25bf73e",
+}
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -187,7 +220,81 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json",
         "szl_khipu_replicate.py", "szl_operator_auth.py", "szl_unay_routes.py",
     }
+    assert admission["files"]["szl_khipu_replicate.py"] == (
+        "c3f1a5e76e7c6df0c19b932afca30d99fbdd12e508e95ed9f7dfa9fd798dbbf1"
+    )
     for relative, digest in admission["files"].items():
+        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py", "szl_operator_auth.py"):
+            continue  # The successor changes this source, never the archived hash.
+        assert _digest(ROOT / relative) == digest
+
+    integrity_path = ROOT / ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json"
+    assert _digest(integrity_path) == "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc"
+    integrity = json.loads(integrity_path.read_bytes())
+    assert integrity["schema"] == "szl-shared-source-payload/v1"
+    assert integrity["payload_id"] == "replication-payload-integrity-20261017-v1"
+    assert set(integrity["files"]) == {
+        ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json",
+        "szl_khipu_replicate.py",
+    }
+    for relative, digest in integrity["files"].items():
+        assert _digest(ROOT / relative) == digest
+
+    credential_path = ROOT / ".github/shared-source-payloads/model-credential-origin-20261017-v1.json"
+    assert _digest(credential_path) == "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c"
+    credential = json.loads(credential_path.read_bytes())
+    assert credential["schema"] == "szl-shared-source-payload/v1"
+    assert credential["payload_id"] == "model-credential-origin-20261017-v1"
+    assert set(credential["files"]) == {
+        ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json",
+        "a11oy_code_engine.py", "szl_khipu_replicate.py",
+    }
+    assert credential["files"]["a11oy_code_engine.py"] == (
+        "60b196bc7118ffb08a9ddf3ca1a006026aec969d3a1a8f10a5b8a0e454acc8b7"
+    )
+    for relative, digest in credential["files"].items():
+        if relative == "a11oy_code_engine.py":
+            continue  # The immutable prior engine digest is asserted above.
+        assert _digest(ROOT / relative) == digest
+    prior = {**credential, "files": {key: value for key, value in credential["files"].items()
+                                    if key != "a11oy_code_engine.py"},
+             "payload_id": "replication-payload-integrity-20261017-v1"}
+    assert hashlib.sha256((json.dumps(prior, indent=2) + "\n").encode()).hexdigest() == (
+        "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc"
+    )
+
+    origin_path = ROOT / ".github/shared-source-payloads/replication-origin-index-20261017-v1.json"
+    assert _digest(origin_path) == "3df663c60fc5f332174c83e4cec5e28831ec9b1c670e86bf13058f0fdebc3cce"
+    origin = json.loads(origin_path.read_bytes())
+    assert origin["schema"] == "szl-shared-source-payload/v1"
+    assert origin["payload_id"] == "replication-origin-index-20261017-v1"
+    assert set(origin["files"]) == {
+        ".github/shared-source-payloads/model-credential-origin-20261017-v1.json",
+        ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json",
+        "scripts/sync_from_monorepo.sh", "szl_khipu_lmdb.py", "szl_unay_routes.py",
+        "tests/test_unay_write_authorization.py", "tests/test_vendor_sync_contract.py",
+    }
+    for relative, digest in origin["files"].items():
+        if relative == "szl_unay_routes.py":
+            continue  # Historical route remains bound to its archived digest.
+        assert _digest(ROOT / relative) == digest
+
+    active_path = ROOT / ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json"
+    assert _digest(active_path) == "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc"
+    active = json.loads(active_path.read_bytes())
+    assert active["schema"] == "szl-shared-source-payload/v1"
+    assert active["payload_id"] == "bonsai-model-catalog-20261017-v1"
+    assert set(active["files"]) == set(origin["files"]) | {
+        ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json",
+        ".github/shared-source-payloads/replication-origin-index-20261017-v1.json",
+        "a11oy_code_engine.py", "docs/bonsai-model-binding.md", "szl_khipu_replicate.py",
+    }
+    assert active["files"]["a11oy_code_engine.py"] == (
+        "5994454fb6b699f94aec417ea637dec4459a6d2abcc1654df4a7f4bfba0ee67c"
+    )
+    for relative, digest in active["files"].items():
+        if relative in ("a11oy_code_engine.py", "szl_unay_routes.py"):
+            continue  # The successor changes source, never the old archive.
         assert _digest(ROOT / relative) == digest
 
 

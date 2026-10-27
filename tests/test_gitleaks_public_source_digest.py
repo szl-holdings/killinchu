@@ -6,7 +6,7 @@ Only disposable generated credentials are used; scanner output is never printed.
 """
 import os
 from pathlib import Path
-import secrets
+import hashlib
 import subprocess
 import tempfile
 import unittest
@@ -17,6 +17,15 @@ PUBLIC_DIGEST = "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2c
 METER_SOURCE_DIGEST = "e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4"
 SHARED_MANIFEST_PATH = ".github/shared-source-payload-manifest.json"
 ARCHIVED_MANIFEST_PATH = ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json"
+
+
+def disposable_credential():
+    """Stable synthetic positive control, shared with the A11oy scanner tests.
+
+    Random hex may hit an upstream stopword or entropy filter. The actual
+    scanner must still detect this reproducible control in every test below.
+    """
+    return hashlib.sha256(b"szl-gitleaks-positive-control-v1").hexdigest()
 
 
 @unittest.skipUnless(BINARY, "actual scanner not configured; NOT VERIFIED")
@@ -40,20 +49,20 @@ class PublicDigestScannerBoundary(unittest.TestCase):
             '{\n  "szl_operator_auth.py": "' + PUBLIC_DIGEST + '"\n}\n'), 0)
 
     def test_adjacent_disposable_credential_remains_detected(self):
-        credential = secrets.token_hex(32)
+        credential = disposable_credential()
         self.assertEqual(self.scan(
             '{\n  "szl_operator_auth.py": "' + PUBLIC_DIGEST
             + '",\n  "private_api_key": "' + credential + '"\n}\n'), 1)
 
     def test_same_line_disposable_credential_cannot_borrow_public_exemption(self):
-        credential = secrets.token_hex(32)
+        credential = disposable_credential()
         self.assertEqual(self.scan(
             '{\n  "szl_operator_auth.py": "' + PUBLIC_DIGEST
             + '", "private_api_key": "' + credential + '"\n}\n'), 1)
 
     def test_other_auth_named_value_is_not_exempt(self):
         self.assertEqual(self.scan(
-            '{\n  "other_auth.py": "' + secrets.token_hex(32) + '"\n}\n'), 1)
+            '{\n  "other_auth.py": "' + disposable_credential() + '"\n}\n'), 1)
 
     def test_exact_shared_meter_source_digest_is_public_identity(self):
         self.assertEqual(self.scan(
@@ -63,18 +72,18 @@ class PublicDigestScannerBoundary(unittest.TestCase):
     def test_shared_manifest_adjacent_credential_still_detected(self):
         self.assertEqual(self.scan(
             '{\n  "szl_meter_access.py": "' + METER_SOURCE_DIGEST
-            + '",\n  "private_api_key": "' + secrets.token_hex(32) + '"\n}\n',
+            + '",\n  "private_api_key": "' + disposable_credential() + '"\n}\n',
             SHARED_MANIFEST_PATH), 1)
 
     def test_shared_manifest_same_line_credential_still_detected(self):
         self.assertEqual(self.scan(
             '{\n  "szl_meter_access.py": "' + METER_SOURCE_DIGEST
-            + '", "private_api_key": "' + secrets.token_hex(32) + '"\n}\n',
+            + '", "private_api_key": "' + disposable_credential() + '"\n}\n',
             SHARED_MANIFEST_PATH), 1)
 
     def test_shared_manifest_other_digest_not_exempt(self):
         self.assertEqual(self.scan(
-            '{\n  "szl_meter_access.py": "' + secrets.token_hex(32) + '"\n}\n',
+            '{\n  "szl_meter_access.py": "' + disposable_credential() + '"\n}\n',
             SHARED_MANIFEST_PATH), 1)
 
     def test_shared_meter_digest_elsewhere_not_exempt(self):
@@ -88,13 +97,13 @@ class PublicDigestScannerBoundary(unittest.TestCase):
         row = '  "szl_meter_access.py": "' + METER_SOURCE_DIGEST + '"'
         self.assertEqual(self.scan('{\n' + row + '\n}\n', ARCHIVED_MANIFEST_PATH), 0)
         self.assertEqual(self.scan(
-            '{\n' + row + ',\n  "private_api_key": "' + secrets.token_hex(32) + '"\n}\n',
+            '{\n' + row + ',\n  "private_api_key": "' + disposable_credential() + '"\n}\n',
             ARCHIVED_MANIFEST_PATH), 1)
         self.assertEqual(self.scan(
-            '{\n' + row + ', "private_api_key": "' + secrets.token_hex(32) + '"\n}\n',
+            '{\n' + row + ', "private_api_key": "' + disposable_credential() + '"\n}\n',
             ARCHIVED_MANIFEST_PATH), 1)
         self.assertEqual(self.scan(
-            '{\n  "szl_meter_access.py": "' + secrets.token_hex(32) + '"\n}\n',
+            '{\n  "szl_meter_access.py": "' + disposable_credential() + '"\n}\n',
             ARCHIVED_MANIFEST_PATH), 1)
         self.assertEqual(self.scan(
             '{\n' + row + '\n}\n',
