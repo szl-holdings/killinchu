@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ".github/shared-source-payloads/replication-snapshot-delivery-20261021-v1.json"
+MCP_ARCHIVE = ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json"
 
 
 def test_snapshot_replication_payload_preserves_prior_manifest_and_source():
@@ -37,9 +38,18 @@ def test_snapshot_replication_payload_preserves_prior_manifest_and_source():
             assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
+def test_mcp_inventory_payload_is_retained_byte_exact():
+    raw = (ROOT / MCP_ARCHIVE).read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35"
+    manifest = json.loads(raw)
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["payload_id"] == "mcp-advertised-inventory-20261016-v1"
+
+
 def test_current_shared_payload_manifest_matches_current_peer():
     manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
     assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["payload_id"] == "mcp-advertised-inventory-20261016-v1"
+    assert manifest["payload_id"] == "snowflake-sql-result-classification-20261028-v1"
+    assert MCP_ARCHIVE in manifest["files"]
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
