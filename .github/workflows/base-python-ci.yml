@@ -88,6 +88,12 @@ jobs:
           PYTHONDONTWRITEBYTECODE: "1"
         run: python -m pytest -q -p no:cacheprovider tests/test_mcp_inventory_observation.py
 
+      - name: Shared Snowflake SQL API result classification (blocking)
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m pytest -q -p no:cacheprovider tests/test_snowflake_sql_result_classification.py
+
       - name: Shared authorized RAG synthesis boundary (blocking)
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
