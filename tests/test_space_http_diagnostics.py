@@ -124,6 +124,23 @@ def test_shared_http_payload_is_content_bound():
     expected["szl_operator_auth.py"] = (
         "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6"
     )
+    # Atlas retention is a new shared-source generation. Keep the 2026-10-03
+    # payload immutable and bind the current shared surface and policy bytes.
+    atlas_raw = (root / ".github/shared-source-payloads/"
+                 "atlas-retention-space-policy-20261028-v1.json").read_bytes()
+    atlas = json.loads(atlas_raw)
+    assert atlas["schema"] == "szl-shared-source-payload/v1"
+    assert atlas["payload_id"] == "atlas-retention-space-policy-20261028-v1"
+    assert atlas["files"] == {
+        ".github/shared-source-payloads/"
+        "restraint-active-signer-space-policy-20261003-v1.json":
+            "06f15a69fa4c6691e2547cdd9ed6af9459d8667134e2057e6cfe313c341a20ce",
+        "docs/estate/hf-nine-flagship-keep.yaml":
+            "dc217b5804c330f89009ee38c71f3a5b6b59e42b9895b0d4ff48db9647369d2e",
+        "szl_spaces_surface.py":
+            "6125466150f6b6b351a440ab04d22c1540c41ca01dbffe7b0414a1d06e42ee0d",
+    }
+    expected.update(atlas["files"])
     for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 
@@ -131,7 +148,7 @@ def test_shared_http_payload_is_content_bound():
 def test_current_keep_policy_does_not_clear_extra_public_spaces():
     expected = {
         "a11oy", "killinchu", "terra", "counsel", "finance", "lyte",
-        "david-leads", "szl-foundation-confirmation",
+        "curation-atlas", "david-leads", "szl-foundation-confirmation",
     }
     assert surface.PUBLIC_ORG_KEEP_POLICY == expected
     assert len(surface.SPACES) == 5
@@ -145,9 +162,9 @@ def test_current_keep_policy_does_not_clear_extra_public_spaces():
             )
 
     inventory = asyncio.run(surface._probe_inventory(Client()))
-    assert inventory["canonical_count"] == 8
+    assert inventory["canonical_count"] == 9
     assert inventory["configured_runtime_count"] == 5
-    assert inventory["observed_count"] == 9
+    assert inventory["observed_count"] == 10
     assert inventory["missing"] == []
     assert inventory["unexpected"] == ["extra"]
     assert inventory["state"] == "DEGRADED"

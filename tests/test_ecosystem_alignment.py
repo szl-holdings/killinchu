@@ -10,7 +10,7 @@ import szl_spaces_surface as surface
 
 EXPECTED = [
     # Five configured runtime doors, in lockstep with a11oy. The current
-    # eight-org visibility keep policy is a separate scope.
+    # nine-org visibility keep policy is a separate scope.
     ("a11oy", "a11oy", "a11oy — Command Center", "docker"),
     ("killinchu", "killinchu", "killinchu — Counter-UAS", "docker"),
     ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker"),
@@ -36,17 +36,17 @@ UNIFY_EXPECTED = (
 )
 UNIFY_DEST = "https://a-11-oy.com/console"
 
-# The compatibility registry includes five current policy keepers that were
+# The compatibility registry includes six current policy keepers that were
 # once called folds. They are unprobed here and hand off to isolated Hub apps.
-FOLD_COUNT = 43
+FOLD_COUNT = 44
 PLAN_FOLD_COUNT = 38
-HANDOFF_COUNT = 52
+HANDOFF_COUNT = 53
 FOLD_ORIGINS = ("https://a-11-oy.com", "https://a11oy.net")
 FOLD_SPOT_NAMES = {
     "yarqa", "anatomy", "energy-attested-runs",
     "szl-forge-lab", "llm-router-live", "holographic", "cosmos",
 }
-POLICY_ONLY = {"terra", "counsel", "finance", "david-leads", "szl-foundation-confirmation"}
+POLICY_ONLY = {"terra", "counsel", "finance", "curation-atlas", "david-leads", "szl-foundation-confirmation"}
 
 
 def _rows(records):
@@ -62,7 +62,7 @@ def test_space_inventory_is_exact_and_shared():
     assert len({row[1] for row in EXPECTED}) == 5
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
     # The handoff registry is total and disjoint; its legacy fold list includes
-    # five current policy keepers, which must not be rendered as fold plans.
+    # six current policy keepers, which must not be rendered as fold plans.
     runtime_names = {row[0] for row in EXPECTED}
     fold_names = {sp["name"] for sp in surface.FOLD_SPACES}
     unify_names = {sp["name"] for sp in surface.UNIFY_SPACES}
@@ -224,7 +224,7 @@ def test_tiles_and_fallback_include_all_audited_titles():
     # Fold panel honesty: the cut is labelled and the fold is a plan whose
     # provider state (Hub visibility/runtime) is not observed by the ledger.
     assert "5 configured runtime doors are probed" in tiles
-    assert "current organization keep policy lists 8 Spaces" in tiles
+    assert "current organization keep policy lists 9 Spaces" in tiles
     assert "5 configured runtime doors" in fallback
     assert "Fold plan · provider state UNOBSERVED" in tiles
     assert f"{PLAN_FOLD_COUNT} planned folds" in tiles

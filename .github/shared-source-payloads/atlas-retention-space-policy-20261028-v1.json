@@ -1,0 +1,9 @@
+{
+  "files": {
+    ".github/shared-source-payloads/restraint-active-signer-space-policy-20261003-v1.json": "06f15a69fa4c6691e2547cdd9ed6af9459d8667134e2057e6cfe313c341a20ce",
+    "docs/estate/hf-nine-flagship-keep.yaml": "dc217b5804c330f89009ee38c71f3a5b6b59e42b9895b0d4ff48db9647369d2e",
+    "szl_spaces_surface.py": "6125466150f6b6b351a440ab04d22c1540c41ca01dbffe7b0414a1d06e42ee0d"
+  },
+  "payload_id": "atlas-retention-space-policy-20261028-v1",
+  "schema": "szl-shared-source-payload/v1"
+}
