@@ -371,10 +371,14 @@ class DefendStore:
 
         try:
             database = Path(path).resolve(strict=True)
-            sidecars = (Path(f"{database}-wal"), Path(f"{database}-shm"))
-            if any(sidecar.exists() for sidecar in sidecars):
-                return unavailable("ACTIVE_WAL_SIDECAR")
+            sidecars = tuple(Path(f"{database}{suffix}") for suffix in ("-wal", "-shm", "-journal"))
             before = database.stat()
+            if not stat.S_ISREG(before.st_mode):
+                return unavailable("NON_REGULAR_DATABASE")
+            if any(sidecar.exists() for sidecar in sidecars[:2]):
+                return unavailable("ACTIVE_WAL_SIDECAR")
+            if sidecars[2].exists():
+                return unavailable("ACTIVE_ROLLBACK_JOURNAL")
             connection = sqlite3.connect(
                 database.as_uri() + "?mode=ro&immutable=1",
                 uri=True,
@@ -392,8 +396,8 @@ class DefendStore:
                 connection.close()
             after = database.stat()
             if any(sidecar.exists() for sidecar in sidecars) or (
-                before.st_size, before.st_mtime_ns
-            ) != (after.st_size, after.st_mtime_ns):
+                before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns
+            ) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns):
                 return unavailable("SNAPSHOT_CHANGED")
             return {
                 "state": "READABLE" if integrity == "ok" else "FAILED_CLOSED",
