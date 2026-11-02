@@ -140,6 +140,13 @@ CURRENT_EXPECTED_SHA256 = {
     "a11oy_code_engine.py": "6968839865154818babe7e85c2bf37c944b9d0e90eb6fc600bf0e6c2d25bf73e",
 }
 
+# Retained signing gates the receipt-minting verifier. Keep the replication
+# predecessor above and bind this successor to the active shared payload below.
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "szl_operator_auth.py": "8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0",
+}
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -203,6 +210,10 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         "payload_id": "runtime-boundary-1994-v2",
         "schema": "szl-shared-source-payload/v1",
     }
+    retained = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
+    assert retained["schema"] == "szl-shared-source-payload/v1"
+    assert retained["payload_id"] == "retained-signing-ledger-20261101-v1"
+    assert retained["files"]["szl_operator_auth.py"] == CURRENT_EXPECTED_SHA256["szl_operator_auth.py"]
     assert {
         relative: _digest(ROOT / relative)
         for relative in CURRENT_EXPECTED_SHA256
