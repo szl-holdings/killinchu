@@ -223,4 +223,3 @@ def legacy_signer_view(state):
             "UNTIL_PROCESS_RESTART" if source == "ephemeral" else "UNAVAILABLE"),
         "signing_state": state,
     }
-
