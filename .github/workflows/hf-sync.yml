@@ -51,7 +51,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Require HTTP 503 and the evidence-unproved reason
+      - name: Checkout exact source refusal contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Require HTTP 503 and the dated source-bound refusal
+        env:
+          SOURCE_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -65,16 +73,8 @@ jobs:
             || true
           )"
           test "$code" = "503"
-          python - "$body" <<'PY'
-          import json
-          import sys
-
-          payload = json.load(open(sys.argv[1], encoding="utf-8"))
-          assert payload["state"] == "UNAVAILABLE", payload
-          assert (
-              payload["reason_code"] == "CI_ATTESTATION_EVIDENCE_UNPROVED"
-          ), payload
-          PY
+          python3 scripts/verify_public_risk_unavailable.py "$body" \
+            --http-status "$code" --source-sha "$SOURCE_SHA"
 
       - name: Require Defend production readiness to fail closed
         shell: bash
