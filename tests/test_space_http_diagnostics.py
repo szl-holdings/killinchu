@@ -124,6 +124,21 @@ def test_shared_http_payload_is_content_bound():
     expected["szl_operator_auth.py"] = (
         "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6"
     )
+    # Retained signing adds authorization for the receipt-minting verifier.
+    # Preserve every archived generation and bind the reviewed active successor.
+    retained = json.loads((root / ".github/shared-source-payload-manifest.json").read_bytes())
+    assert retained["schema"] == "szl-shared-source-payload/v1"
+    assert retained["payload_id"] == "retained-signing-ledger-20261101-v1"
+    assert retained["files"]["szl_operator_auth.py"] == (
+        "8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0"
+    )
+    expected["szl_operator_auth.py"] = retained["files"]["szl_operator_auth.py"]
+    # The optional rights registry is now synchronized from A11oy; default
+    # indexing remains unchanged. The lexical predecessor above stays archived.
+    assert retained["files"]["a11oy_org_rag.py"] == (
+        "5e4c159160256455977491186c22cbd5ef5abf855591b66cd95cdc5181461279"
+    )
+    expected["a11oy_org_rag.py"] = retained["files"]["a11oy_org_rag.py"]
     # Atlas retention is a new shared-source generation. Keep the 2026-10-03
     # payload immutable and bind the current shared surface and policy bytes.
     atlas_raw = (root / ".github/shared-source-payloads/"
