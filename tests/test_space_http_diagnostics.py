@@ -98,6 +98,27 @@ def test_shared_http_payload_is_content_bound():
         "schema": "szl-shared-source-payload/v1",
     }
     expected["a11oy_org_rag.py"] = lexical_successor
+    # The rights-bound source interface already on protected A11oy main is
+    # an explicit successor. Preserve its lexical predecessor and every other
+    # runtime pin; this source binding does not qualify the opt-in rights path.
+    rights_raw = (root / ".github/shared-source-payloads/"
+                  "rag-rights-source-sync-20261101-v1.json").read_bytes()
+    assert hashlib.sha256(rights_raw).hexdigest() == (
+        "30351da34e8b1e6b9569252a2e29956c45c9dffda633048d906de20d03c408c0"
+    )
+    rights = json.loads(rights_raw)
+    assert rights == {
+        "files": {
+            ".github/shared-source-payloads/"
+            "org-rag-lexical-reference-20261013-v1.json":
+                "65f404ffe7c235d6a549ccd608761e1f4ed0101d074590d1e50e6fb12e115b7a",
+            "a11oy_org_rag.py":
+                "5e4c159160256455977491186c22cbd5ef5abf855591b66cd95cdc5181461279",
+        },
+        "payload_id": "rag-rights-source-sync-20261101-v1",
+        "schema": "szl-shared-source-payload/v1",
+    }
+    expected["a11oy_org_rag.py"] = rights["files"]["a11oy_org_rag.py"]
     # Evaluation admission adds the operator gate without rewriting historical
     # manifests. Bind this reviewed successor and retain every unrelated pin.
     assert expected["szl_operator_auth.py"] == (

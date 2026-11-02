@@ -1,0 +1,8 @@
+{
+  "files": {
+    ".github/shared-source-payloads/org-rag-lexical-reference-20261013-v1.json": "65f404ffe7c235d6a549ccd608761e1f4ed0101d074590d1e50e6fb12e115b7a",
+    "a11oy_org_rag.py": "5e4c159160256455977491186c22cbd5ef5abf855591b66cd95cdc5181461279"
+  },
+  "payload_id": "rag-rights-source-sync-20261101-v1",
+  "schema": "szl-shared-source-payload/v1"
+}
