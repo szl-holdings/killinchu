@@ -1107,8 +1107,8 @@ class PublicRouteRepairTests(unittest.TestCase):
             "HF_TOKEN: ${{ secrets.HF_TOKEN }}",
             "verify-risk-status-fails-closed:",
             'test "$code" = "503"',
-            'payload["state"] == "UNAVAILABLE"',
-            'payload["reason_code"] == "CI_ATTESTATION_EVIDENCE_UNPROVED"',
+            "scripts/verify_public_risk_unavailable.py",
+            '--http-status "$code" --source-sha "$SOURCE_SHA"',
             "id-token: write",
             "attestations: write",
             "release-receipt:",
@@ -1123,6 +1123,28 @@ class PublicRouteRepairTests(unittest.TestCase):
             line for line in workflow.splitlines() if "smoke-paths:" in line
         )
         self.assertNotIn("/api/public-risk-status", smoke_paths)
+
+    def test_deploy_verifier_matches_actual_refusal_across_review_deadline(self) -> None:
+        from scripts.verify_public_risk_unavailable import verify
+
+        root = Path(__file__).resolve().parents[1]
+        path = root / "public-risk-transition.json"
+        contract = json.loads(path.read_text(encoding="utf-8"))
+        revision = "a" * 40
+        for today, reason in (
+            (date(2026, 10, 22), "CI_ATTESTATION_EVIDENCE_UNPROVED"),
+            (date(2026, 10, 23), "OPTION_A_REVIEW_EXPIRED"),
+        ):
+            with self.subTest(today=today), \
+                    patch.dict(os.environ, {"SZL_GIT_SHA": revision}), \
+                    patch("killinchu_public_route_repair._utc_today", return_value=today):
+                response = TestClient(self._app(None, risk_artifact_path=path)).get(
+                    "/api/public-risk-status"
+                )
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.json()["state"], "UNAVAILABLE")
+                self.assertEqual(verify(response.json(), http_status=str(response.status_code),
+                                        source_sha=revision, contract=contract, today=today), reason)
 
     def test_production_source_attestation_uses_captured_runtime_identity(self) -> None:
         repository_root = Path(__file__).resolve().parents[1]
