@@ -26,6 +26,8 @@ COPY vsp_otel/__init__.py vsp_otel/middleware.py ./vsp_otel/
 
 # Shared handlers resolve operator identity from headers before protected work.
 COPY szl_operator_auth.py ./
+# Shared provenance GETs project passive observations; absent lifecycle remains unknown.
+COPY szl_signing_state.py ./
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates && \
