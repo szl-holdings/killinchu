@@ -212,8 +212,8 @@ def test_manual_workflow_is_fixed_scope_locked_and_protected_main_only() -> None
         "EXPECTED_GITHUB_REF: refs/heads/main",
         "GITHUB_REF_PROTECTED: ${{ github.ref_protected }}",
         'os.environ["OBSERVED_GITHUB_REF"]\n              == os.environ["EXPECTED_GITHUB_REF"]',
-        "SHARED_PUBLISHER_SHA: 6e7581c08cd2fb884d9faf90193c8db628aa3f37",
-        "SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9",
+        "SHARED_PUBLISHER_SHA: 7ddbbc5e8a90df78607b770c2119aa2058419b7c",
+        "SHARED_LOCK_BLOB: 6683a7b9963b94f64860d8f061e4009e93cbfbf1",
         "HF_TOKEN: ${{ secrets.HF_TOKEN }}",
         "HF_CAPACITY_TRANSFER_CONFIRMATION: ${{ inputs.confirmation }}",
     ):
