@@ -187,6 +187,7 @@ jobs:
           tests/test_roe_decisions_api.py
           tests/test_after_action_bundle.py
           tests/test_dsse_real_signing.py
+          tests/test_provenance_standalone.py
 
   mavlink-decoder:
     name: MAVLink decoder — CRC rejection contract
