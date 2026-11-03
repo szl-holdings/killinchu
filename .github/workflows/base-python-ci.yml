@@ -146,6 +146,14 @@ jobs:
           PYTHONDONTWRITEBYTECODE: "1"
         run: python -m pytest -q -p no:cacheprovider tests/test_vsp_otel_packaging.py
 
+      # Stdlib-only: the Dockerfile is the runtime manifest; every import in the
+      # COPY'd modules must be pinned, registered, shipped or explicitly excluded.
+      - name: Image dependency contract (blocking)
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m pytest -q -p no:cacheprovider tests/test_dependency_contract.py
+
       - name: Shared operator boundary contract (blocking)
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
