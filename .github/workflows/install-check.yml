@@ -96,6 +96,40 @@ jobs:
           import killinchu_cot_interop  # noqa: F401
 
           print("vsp_otel (vendored)", vsp_otel.__version__, "->", origin)
-          print("szl-receipt", md.version("szl-receipt"), "->", szl_receipt.__file__)
+          print("szl-receipt-dsse", md.version("szl-receipt-dsse"), "->", szl_receipt.__file__)
           print("defusedxml", md.version("defusedxml"))
+          PY
+
+      - name: Receipt tests against the installed szl-receipt-dsse (never skipped)
+        run: |
+          set -euo pipefail
+          # A sign/verify round trip through one implementation cannot see a PAE
+          # mismatch: szl-receipt v0.2.0 passed it while the vendored fallback
+          # rejected its envelopes. tests/test_engagement_receipt.py cross-verifies
+          # installed and vendored in both directions and skips that test when the
+          # library is absent, so any skip fails this step. Its import chain
+          # (killinchu_edge_formulas -> szl_shared_formulas.kalman) needs numpy,
+          # which requirements.txt leaves to the Dockerfile, so the image's single
+          # numpy pin is installed here instead of a second copy of it.
+          numpy_pin=$(grep -oE 'numpy==[0-9][0-9.]*' Dockerfile | sort -u || true)
+          if [ "$(printf '%s\n' "$numpy_pin" | grep -c .)" != "1" ]; then
+            echo "::error::expected exactly one numpy pin in Dockerfile, found: ${numpy_pin:-none}"
+            exit 1
+          fi
+          "$RUNNER_TEMP/req-venv/bin/python" -m pip install \
+            --disable-pip-version-check --no-cache-dir pytest==9.2.0 "$numpy_pin"
+          "$RUNNER_TEMP/req-venv/bin/python" -m pytest -q -p no:cacheprovider \
+            --junitxml="$RUNNER_TEMP/receipt-tests.xml" tests/test_engagement_receipt.py
+          "$RUNNER_TEMP/req-venv/bin/python" - "$RUNNER_TEMP/receipt-tests.xml" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse(sys.argv[1]).getroot()
+          suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
+          tot = {k: sum(int(s.get(k, 0)) for s in suites)
+                 for k in ("tests", "failures", "errors", "skipped")}
+          print("receipt tests:", tot)
+          if tot["tests"] < 9 or tot["failures"] or tot["errors"] or tot["skipped"]:
+              sys.exit("::error::tests/test_engagement_receipt.py must run all 9 tests "
+                       "against the installed library, none failed or skipped")
           PY
