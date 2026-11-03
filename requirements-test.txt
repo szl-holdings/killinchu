@@ -2,4 +2,4 @@
 # pytest-asyncio: async tests (tests/test_backend_scheduler.py) use
 # @pytest.mark.asyncio; without the plugin they fail collection.
 # Exact pin (what the range resolved to in CI, 2026-09-26); Dependabot bumps it.
-pytest-asyncio==1.4.0
+pytest-asyncio==1.4.1
