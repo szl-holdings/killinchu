@@ -210,7 +210,14 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         "payload_id": "runtime-boundary-1994-v2",
         "schema": "szl-shared-source-payload/v1",
     }
-    retained = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
+    # Keep the retained-signing proof independent of the mutable peer-admission slot.
+    retained_path = ROOT / (
+        "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json"
+    )
+    assert _digest(retained_path) == (
+        "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
+    )
+    retained = json.loads(retained_path.read_bytes())
     assert retained["schema"] == "szl-shared-source-payload/v1"
     assert retained["payload_id"] == "retained-signing-ledger-20261101-v1"
     assert retained["files"]["szl_operator_auth.py"] == CURRENT_EXPECTED_SHA256["szl_operator_auth.py"]
