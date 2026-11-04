@@ -29,7 +29,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy, source-bind, and attest exact surface
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@6e7581c08cd2fb884d9faf90193c8db628aa3f37
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@7ddbbc5e8a90df78607b770c2119aa2058419b7c
     with:
       hf-repo: SZLHOLDINGS/killinchu
       ref: ${{ github.sha }}
@@ -109,7 +109,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
 
@@ -166,15 +166,15 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: szl-holdings/.github
-          ref: 6e7581c08cd2fb884d9faf90193c8db628aa3f37
+          ref: 7ddbbc5e8a90df78607b770c2119aa2058419b7c
           path: shared-hf-publisher
           persist-credentials: false
           fetch-depth: 1
 
       - name: Install exact shared hash-locked publisher closure
         env:
-          SHARED_PUBLISHER_SHA: 6e7581c08cd2fb884d9faf90193c8db628aa3f37
-          SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
+          SHARED_PUBLISHER_SHA: 7ddbbc5e8a90df78607b770c2119aa2058419b7c
+          SHARED_LOCK_BLOB: 6683a7b9963b94f64860d8f061e4009e93cbfbf1
           PUBLISHER_VENV: ${{ runner.temp }}/hf-receipt-publisher-venv
         shell: bash
         run: |
@@ -189,7 +189,7 @@ jobs:
             --disable-pip-version-check --require-hashes --only-binary=:all: \
             --ignore-installed -r shared-hf-publisher/requirements/hf-publisher.lock
           "$PUBLISHER_PYTHON" -I -P -c \
-            'import importlib.metadata as m, huggingface_hub as h, requests; assert m.version("huggingface-hub") == "1.19.0" == h.__version__; assert requests.__version__ == "2.32.5"'
+            'import importlib.metadata as m, huggingface_hub as h, requests; assert m.version("huggingface-hub") == "1.19.0" == h.__version__; assert requests.__version__ == "2.33.0"'
           echo "HF_PUBLISHER_PYTHON=$PUBLISHER_PYTHON" >> "$GITHUB_ENV"
 
       - name: Publish receipt reference and verify restarted runtime
