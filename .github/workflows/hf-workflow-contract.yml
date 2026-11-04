@@ -22,6 +22,10 @@ on:
       - "tests/test_legacy_resilience_space_retirement.py"
       - "tests/test_hf_cpu_basic_capacity_transfer.py"
       - "tests/test_hf_sync_release_concurrency.py"
+      - "scripts/verify_public_risk_unavailable.py"
+      - "tests/test_public_risk_deploy_verification.py"
+      - "killinchu_public_route_repair.py"
+      - "public-risk-transition.json"
   push:
     branches: [main]
     paths:
@@ -34,6 +38,10 @@ on:
       - "tests/test_legacy_resilience_space_retirement.py"
       - "tests/test_hf_cpu_basic_capacity_transfer.py"
       - "tests/test_hf_sync_release_concurrency.py"
+      - "scripts/verify_public_risk_unavailable.py"
+      - "tests/test_public_risk_deploy_verification.py"
+      - "killinchu_public_route_repair.py"
+      - "public-risk-transition.json"
   workflow_dispatch: {}
 
 permissions:
@@ -50,7 +58,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
 
@@ -76,8 +84,10 @@ jobs:
           tests/test_legacy_resilience_space_retirement.py
           tests/test_hf_cpu_basic_capacity_transfer.py
           tests/test_hf_sync_release_concurrency.py
+          tests/test_public_risk_deploy_verification.py
 
       - name: Compile scripts and check patch whitespace
         run: |
           python -m py_compile scripts/retire_legacy_resilience_spaces.py scripts/hf_cpu_basic_capacity_transfer.py
+          python -m py_compile scripts/verify_public_risk_unavailable.py
           git diff --check

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Rosie cross-link receipt verification
+
+- Keep the shared Rosie companion byte-identical with A11oy. Separate receipt
+  presence from schema-, role-, identity-, digest-, and signature-verification;
+  only validated digest leaves enter cross-link Merkle roots.
+- Strip unverified attestation claims from retained evidence and use
+  `chain_observed` for remote receipt presence. `chain_verified` remains false
+  until digest and cryptographic signature verification both succeed.
+
 ### Fixed - receipt payload binding
 
 - Require the code verification route to bind the signed payload to the submitted

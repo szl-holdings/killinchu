@@ -11,11 +11,15 @@
 # are disabled before the CoT schema-shape validator sees a document.
 defusedxml==0.7.1
 # PCGI proof-carrying engagement receipts (killinchu_engagement_receipt.py). The
-# module PREFERS this installed lib and falls back to a byte-identical vendored
-# implementation of the same shapes when the install is blocked (offline edge).
-# Pinned to the commit the annotated v0.2.0 tag points at (tag object b33ce876),
-# so a moved or re-created tag cannot change what installs.
-szl-receipt @ git+https://github.com/szl-holdings/szl-receipt.git@54a44e9e7826ffe591083c4cda3007c2058834a1
+# module PREFERS this installed lib and falls back to a vendored implementation
+# of the same shapes when the install is blocked (offline edge). v0.3.1+ builds
+# the DSSEv1 PAE with decimal lengths, the bytes the vendored fallback signs;
+# v0.2.0's struct.pack PAE made installed-signed envelopes fail vendored verify.
+# From v0.3.3 the distribution is named szl-receipt-dsse; the import name is
+# still szl_receipt. Pinned to the commit the lightweight v0.3.3 tag points at,
+# so a moved or re-created tag cannot change what installs. install-check.yml
+# runs tests/test_engagement_receipt.py against this install, never skipped.
+szl-receipt-dsse @ git+https://github.com/szl-holdings/szl-receipt.git@28e0d65c3f77cf86d20a84b5a817f046e3d3b141
 # ADDITIVE (szl-substrate repoint, Wave J Dev 2): the shared substrate package is
 # the single source of truth for modules duplicated across a11oy + killinchu
 # (szl-holdings/szl-substrate). killinchu's serve.py registration call sites now
