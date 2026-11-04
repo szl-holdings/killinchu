@@ -147,6 +147,16 @@ CURRENT_EXPECTED_SHA256 = {
     "szl_operator_auth.py": "8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0",
 }
 
+# Verifier fail-closed successor: no verify_fn reports signature_valid=None and
+# verified requires signature_valid is True. Paired with a11oy#3204 squash.
+# Byte identity only; this pins reviewed source, not a deployment.
+VERIFIER_FAIL_CLOSED_A11OY_COMMIT = "de6a547ac0f9d802047e42b37b0c55db77aed060"
+CURRENT_A11OY_COMMIT = VERIFIER_FAIL_CLOSED_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "szl_agentic_loop.py": "2f3233a8c77b8dce6cb95a5ea3ce33090b63c08077763ada5568fc310e096967",
+}
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
