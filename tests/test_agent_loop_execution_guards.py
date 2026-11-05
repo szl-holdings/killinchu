@@ -200,6 +200,40 @@ class ExecutionGuardTests(unittest.TestCase):
         self.assertTrue(all(row["gate_allow"] for row in result["steps"]))
         self.assertFalse(result["chain_verified"])
 
+    def test_missing_chain_verified_stays_false_on_finalize_and_halt(self):
+        def omit_flag(owner):
+            def receipt(action, payload):
+                record = _Callbacks.receipt(owner, action, payload)
+                record.pop("chain_verified")
+                return record
+            owner.receipt = receipt
+            return owner
+
+        finalized_calls = omit_flag(_Callbacks())
+        finalized = asyncio.run(finalized_calls.loop().run("read repo and verify"))
+        self.assertTrue(finalized["ok"])
+        self.assertEqual(finalized["final_state"], agent.S_FINALIZE)
+        self.assertIs(finalized["chain_verified"], False)
+
+        halted_calls = omit_flag(_Callbacks())
+        halted = asyncio.run(halted_calls.loop(lambda_floor=0.93).run("summarize"))
+        self.assertFalse(halted["ok"])
+        self.assertEqual(halted["final_state"], agent.S_HALT)
+        self.assertIs(halted["chain_verified"], False)
+
+    def test_explicit_chain_verified_true_is_preserved(self):
+        calls = _Callbacks()
+
+        def receipt(action, payload):
+            record = _Callbacks.receipt(calls, action, payload)
+            record["chain_verified"] = True
+            return record
+
+        calls.receipt = receipt
+        result = asyncio.run(calls.loop().run("read repo and verify"))
+        self.assertTrue(result["ok"])
+        self.assertIs(result["chain_verified"], True)
+
 
 if __name__ == "__main__":
     unittest.main()
