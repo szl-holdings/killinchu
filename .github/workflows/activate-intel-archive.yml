@@ -64,15 +64,15 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: szl-holdings/.github
-          ref: 6e7581c08cd2fb884d9faf90193c8db628aa3f37
+          ref: 7ddbbc5e8a90df78607b770c2119aa2058419b7c
           path: shared-hf-publisher
           persist-credentials: false
           fetch-depth: 1
 
       - name: Install exact shared hash-locked publisher closure
         env:
-          SHARED_PUBLISHER_SHA: 6e7581c08cd2fb884d9faf90193c8db628aa3f37
-          SHARED_LOCK_BLOB: 9cc19359ddd5e77556740b66201096b812ef48d9
+          SHARED_PUBLISHER_SHA: 7ddbbc5e8a90df78607b770c2119aa2058419b7c
+          SHARED_LOCK_BLOB: 6683a7b9963b94f64860d8f061e4009e93cbfbf1
           PUBLISHER_VENV: ${{ runner.temp }}/hf-publisher-venv
         shell: bash
         run: |

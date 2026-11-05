@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "c708fd9bc73a6509ad83c910db847d97e3ab5c35aa4ac94d99586ff519b51cb1"
+    "sha256": "3d8533f2dd50a546a477f764753502fe343b2232cb605dbe4ec1316af0335648"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "c708fd9bc73a6509ad83c910db847d97e3ab5c35aa4ac94d99586ff519b51cb1"
+    "sha256": "3d8533f2dd50a546a477f764753502fe343b2232cb605dbe4ec1316af0335648"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -277,6 +277,7 @@
     "szl_shared_formulas/kalman.py",
     "szl_shared_formulas/pac_bayes.py",
     "szl_shared_formulas/welford.py",
+    "szl_signing_state.py",
     "szl_spaces_proxy.py",
     "szl_spaces_surface.py",
     "szl_specexec.py",
@@ -290,6 +291,7 @@
     "szl_warhacker_aliases.py",
     "szl_yupay.py",
     "tools/killinchu_verify_after_action.py",
+    "vendor_yarqa/",
     "vsp_otel/__init__.py",
     "vsp_otel/middleware.py",
     "web/autoreview.html",

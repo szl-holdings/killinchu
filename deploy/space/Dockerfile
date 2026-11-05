@@ -26,6 +26,8 @@ COPY vsp_otel/__init__.py vsp_otel/middleware.py ./vsp_otel/
 
 # Shared handlers resolve operator identity from headers before protected work.
 COPY szl_operator_auth.py ./
+# Shared provenance GETs project passive observations; absent lifecycle remains unknown.
+COPY szl_signing_state.py ./
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates && \
@@ -691,6 +693,10 @@ COPY killinchu_maritime_globe.py ./
 # killinchu_elite_wiring wires the /elite console; killinchu_flow_compartments backs the
 # flow-compartments surface. Per-file COPY (this Dockerfile never uses `COPY . .`).
 COPY killinchu_elite_wiring.py killinchu_flow_compartments.py ./
+# killinchu_flow_compartments puts ./vendor_yarqa on sys.path and imports the
+# vendored yarqa engine from it (try/except); without this COPY the surface
+# reports yarqa=unavailable in the image. Ships yarqa with its LICENSE/PROVENANCE.
+COPY vendor_yarqa/ ./vendor_yarqa/
 # CoT INTEROP (MITRE Cursor on Target export/ingest): serve.py imports
 # killinchu_cot_interop (try/except-guarded) to serve /api/killinchu/v1/cot/*.
 # Per-file COPY (this Dockerfile never uses `COPY . .`) or the guarded import

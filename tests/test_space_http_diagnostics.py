@@ -13,6 +13,47 @@ import pytest
 import szl_spaces_surface as surface
 
 
+_RETAINED_SIGNING_PAYLOAD = Path(
+    "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json"
+)
+
+
+def _retained_signing_payload(root):
+    # Exact former active manifest from reviewed base
+    # b225eb9d8665f527967bc523e0523bd90d3aa0c0, not regenerated evidence.
+    # The active peer-admission slot now belongs to the Snowflake successor;
+    # this HTTP proof must retain its historical source generation independently.
+    raw = (root / _RETAINED_SIGNING_PAYLOAD).read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == (
+        "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
+    )
+    return json.loads(raw)
+
+
+@pytest.mark.parametrize("change", ["bytes", "generation", "authorization"])
+def test_retained_signing_payload_rejects_rewritten_history(tmp_path, change):
+    root = Path(__file__).resolve().parents[1]
+    raw = (root / _RETAINED_SIGNING_PAYLOAD).read_bytes()
+    if change == "bytes":
+        changed = raw + b"\n"
+    elif change == "generation":
+        changed = raw.replace(
+            b"retained-signing-ledger-20261101-v1",
+            b"snowflake-account-host-boundary-20261102-v1",
+        )
+    else:
+        changed = raw.replace(
+            b"8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0",
+            b"0" * 64,
+        )
+    assert changed != raw
+    target = tmp_path / _RETAINED_SIGNING_PAYLOAD
+    target.parent.mkdir(parents=True)
+    target.write_bytes(changed)
+    with pytest.raises(AssertionError):
+        _retained_signing_payload(tmp_path)
+
+
 def test_shared_http_payload_is_content_bound():
     root = Path(__file__).resolve().parents[1]
     # The active admission manifest changes with each paired contribution.
@@ -124,6 +165,21 @@ def test_shared_http_payload_is_content_bound():
     expected["szl_operator_auth.py"] = (
         "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6"
     )
+    # Retained signing adds authorization for the receipt-minting verifier.
+    # Preserve this reviewed predecessor independently of the active peer payload.
+    retained = _retained_signing_payload(root)
+    assert retained["schema"] == "szl-shared-source-payload/v1"
+    assert retained["payload_id"] == "retained-signing-ledger-20261101-v1"
+    assert retained["files"]["szl_operator_auth.py"] == (
+        "8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0"
+    )
+    expected["szl_operator_auth.py"] = retained["files"]["szl_operator_auth.py"]
+    # The optional rights registry is now synchronized from A11oy; default
+    # indexing remains unchanged. The lexical predecessor above stays archived.
+    assert retained["files"]["a11oy_org_rag.py"] == (
+        "5e4c159160256455977491186c22cbd5ef5abf855591b66cd95cdc5181461279"
+    )
+    expected["a11oy_org_rag.py"] = retained["files"]["a11oy_org_rag.py"]
     # Atlas retention is a new shared-source generation. Keep the 2026-10-03
     # payload immutable and bind the current shared surface and policy bytes.
     atlas_raw = (root / ".github/shared-source-payloads/"
