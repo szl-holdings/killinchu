@@ -1,3 +1,7 @@
+**Killinchu: the estate's OSINT and evidence-collection organ — gathering, hashing, and receipting external observations.**
+
+Demo: https://a-11-oy.com · Verify in 60s: `git clone https://github.com/szl-holdings/killinchu && cd killinchu && python -m pytest -q`
+
 ---
 title: "killinchu — Andean Drone Intelligence"
 emoji: "🦅"
