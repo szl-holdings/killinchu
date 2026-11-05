@@ -39,6 +39,30 @@ def test_front_matter_parser_rejects_absent_metadata() -> None:
         MODULE.parse_front_matter("# Missing front matter\n")
 
 
+def test_committed_readme_keeps_hf_front_matter_ahead_of_the_opener() -> None:
+    """Hugging Face reads YAML only when the card starts at byte zero.
+
+    A showcase line before the opening fence is a lost header, not a docs tweak.
+    The opener stays in the body, and the Space still does not command an effector.
+    """
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert text.startswith("---\n")
+    end = text.find("\n---\n", 4)
+    assert end > 0
+    front = text[: end + len("\n---\n")]
+    body = text[end + len("\n---\n") :]
+    assert "sdk: docker" in front
+    assert "Verify in 60s" not in front
+    assert body.startswith(
+        "\n**Killinchu: the estate's OSINT and evidence-collection organ"
+    )
+    assert "Demo: https://a-11-oy.com · Verify in 60s:" in body
+    assert "never exercised by this Space" in body
+    parsed = MODULE.parse_front_matter(text)
+    assert parsed.values["sdk"] == "docker"
+    assert parsed.values["app_port"] == "7860"
+
+
 def test_static_adapter_injects_viewport_and_css(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _bind_root(monkeypatch, tmp_path)
     (tmp_path / "README.md").write_text(_readme("static", "index.html"), encoding="utf-8")

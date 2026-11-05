@@ -1,7 +1,3 @@
-**Killinchu: the estate's OSINT and evidence-collection organ — gathering, hashing, and receipting external observations.**
-
-Demo: https://a-11-oy.com · Verify in 60s: `git clone https://github.com/szl-holdings/killinchu && cd killinchu && python -m pytest -q`
-
 ---
 title: "killinchu — Andean Drone Intelligence"
 emoji: "🦅"
@@ -28,6 +24,10 @@ fullWidth: true
 header: mini
 datasets: [SZLHOLDINGS/killinchu-osint-corpus, SZLHOLDINGS/szl-lake]
 ---
+
+**Killinchu: the estate's OSINT and evidence-collection organ — gathering, hashing, and receipting external observations.**
+
+Demo: https://a-11-oy.com · Verify in 60s: `git clone https://github.com/szl-holdings/killinchu && cd killinchu && python -m pytest -q`
 
 <!-- Native identity: szl-brand@4309f6fce89179331b0b3ed8c99494e76c5be256; Orbit v2 icon sha256 6e2b7d72a3af3d9602b79de41df0194ede6496a9661f057108ec224c0efc92e6. -->
 <p><a href="https://github.com/szl-holdings"><img src="https://raw.githubusercontent.com/szl-holdings/szl-brand/4309f6fce89179331b0b3ed8c99494e76c5be256/kit/logos/orbit-v2/suite/szl-icon-32.svg" alt="SZL Holdings — Orbit v2" width="32" height="32" /></a></p>
