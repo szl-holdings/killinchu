@@ -189,6 +189,43 @@ jobs:
           tests/test_dsse_real_signing.py
           tests/test_provenance_standalone.py
 
+  alert-redaction-and-shared-imports:
+    name: Alert redaction + shared import compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Install the hash-locked CI core (pytest, PyYAML)
+        run: python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+
+      # The alert steps of hf-drift-check, killinchu-api-health and
+      # knowledge-corpus-autosync must never print the relay's response body
+      # (an edge error page echoes the secret webhook path). The shared import
+      # test was red on main from #553 on because no workflow ran it.
+      - name: Alert-step redaction and shared import compatibility (blocking)
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: >-
+          python -m pytest -q -p no:cacheprovider
+          tests/test_alert_webhook_redaction.py
+          tests/test_shared_managed_import_compatibility.py
+
   mavlink-decoder:
     name: MAVLink decoder — CRC rejection contract
     runs-on: ubuntu-24.04
