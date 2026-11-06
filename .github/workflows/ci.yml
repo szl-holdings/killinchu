@@ -216,7 +216,8 @@ jobs:
       # The alert steps of hf-drift-check, killinchu-api-health and
       # knowledge-corpus-autosync must never print the relay's response body
       # (an edge error page echoes the secret webhook path). scap-scan must not
-      # push to main or pass green when oscap evaluated no rule; it runs only on
+      # push to main or pass green when oscap evaluated no rule; it exports the
+      # image and runs oscap as root (OSCAP_PROBE_ROOT). It runs only on
       # main, so its step scripts are exercised here. The shared import test
       # was red on main from #553 on because no workflow ran it.
       - name: Alert-step redaction, SCAP recording and shared import compatibility (blocking)
