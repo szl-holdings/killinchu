@@ -48,13 +48,26 @@ def isolated_runtime(monkeypatch, tmp_path):
 
         def __init__(self, **kwargs): self.options = kwargs
 
+    # szl_unay_routes hands its two live stores to the replication delivery
+    # adapter (#553). That adapter's own routes are proven by
+    # tests/test_khipu_delivery_routes.py; here it stays synthetic and records
+    # the hand-off so the source module's own contract stays exact.
+    delivery_calls = []
+
+    def delivery_register(app, *, ns, source, mirror):
+        delivery_calls.append({"ns": ns, "source": source, "mirror": mirror})
+        return {"configured_peers": 0, "execution_authorized": False}
+
     # The source modules' unrelated service dependencies stay synthetic. No
     # database is opened, while their complete import and registration run.
+    # szl_unay_routes imports the store as `khipu_lmdb` (not `szl_khipu_lmdb`)
+    # since #553, so the synthetic store is bound under that name.
     dependencies = {
         "fastapi": {"Request": object},
         "fastapi.responses": {"JSONResponse": lambda value, **kwargs: (value, kwargs)},
         "szl_unay": {"UnayStore": Store, "__version__": "synthetic"},
-        "szl_khipu_lmdb": {"KhipuLMDB": Store},
+        "khipu_lmdb": {"KhipuLMDB": Store},
+        "szl_khipu_delivery_routes": {"register": delivery_register, "calls": delivery_calls},
         "szl_khipu_replicate": {"Replicator": Replicator},
         "lmdb": {"version": lambda: (0, 0, 0)},
     }
@@ -246,6 +259,10 @@ def test_legacy_unay_registers_all_twelve_killinchu_routes_without_policy(tmp_pa
                 ("GET", "khipu/lmdb/verify"), ("GET", "khipu/lmdb/tail"),
                 ("POST", "khipu/replicate"), ("GET", "khipu/replicate/status")]
     assert app.routes == [(method, "/api/killinchu/v2/" + suffix) for method, suffix in expected]
+    handoff = sys.modules["szl_khipu_delivery_routes"].calls
+    assert len(handoff) == 1 and handoff[0]["ns"] == "killinchu"
+    assert handoff[0]["source"].options["organ"] == "khipu"
+    assert handoff[0]["mirror"].options["organ"] == "khipu-repl"
     assert result["registered"] is True and result["ns"] == "killinchu"
     assert result["replication_enabled"] is False and result["snapshot_restored"] is False
     assert calls == [] and not (tmp_path / "synthetic-stores").exists()
