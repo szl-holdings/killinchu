@@ -190,7 +190,7 @@ jobs:
           tests/test_provenance_standalone.py
 
   alert-redaction-and-shared-imports:
-    name: Alert redaction + shared import compatibility
+    name: Alert redaction, SCAP recording + shared import compatibility
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
@@ -215,15 +215,18 @@ jobs:
 
       # The alert steps of hf-drift-check, killinchu-api-health and
       # knowledge-corpus-autosync must never print the relay's response body
-      # (an edge error page echoes the secret webhook path). The shared import
-      # test was red on main from #553 on because no workflow ran it.
-      - name: Alert-step redaction and shared import compatibility (blocking)
+      # (an edge error page echoes the secret webhook path). scap-scan must not
+      # push to main or pass green when oscap evaluated no rule; it runs only on
+      # main, so its step scripts are exercised here. The shared import test
+      # was red on main from #553 on because no workflow ran it.
+      - name: Alert-step redaction, SCAP recording and shared import compatibility (blocking)
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
           PYTHONDONTWRITEBYTECODE: "1"
         run: >-
           python -m pytest -q -p no:cacheprovider
           tests/test_alert_webhook_redaction.py
+          tests/test_scap_scan_workflow.py
           tests/test_shared_managed_import_compatibility.py
 
   mavlink-decoder:

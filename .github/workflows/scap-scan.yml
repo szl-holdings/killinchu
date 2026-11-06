@@ -3,11 +3,18 @@ name: SCAP STIG Scan
 # DISA STIG / SCAP compliance scan on the container image (DoD requirement).
 # Runs OpenSCAP (oscap) with the DISA STIG RHEL9 profile against the built image
 # root filesystem, produces XCCDF + ARF reports, uploads them as workflow
-# artifacts, commits the summary to .compliance/scap-reports/, and attaches the
+# artifacts, writes the pass/fail counts to the run summary, and attaches the
 # full reports to the GitHub Release on tag.
 #
+# Nothing here writes to main. main is protected (pull request, signed commits,
+# required checks), so the old "commit the summary" step's `git push` was
+# rejected on every run from 2026-06-02 on and its `|| echo "push skipped"` hid
+# that. The committed .compliance/scap-reports/scan_summary.json is not
+# refreshed by CI; the artifact and the run summary are the per-run record.
+#
 # Author: Yachay <yachay@szlholdings.dev> (DCO signed). ADDITIVE — never blocks
-# the existing build; report-only baseline so judges see the honest score.
+# the existing build; report-only baseline so judges see the honest score. A
+# scan that evaluates no rules fails this workflow instead of reporting zeros.
 # Doctrine v11/v12 · SLSA L1 honest · cosign keyid szlholdings-cosign.
 
 on:
@@ -35,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
-      contents: write   # commit summary to .compliance + attach reports on release
+      contents: write   # gh release upload on release events; nothing is pushed
     env:
       SSG_VERSION: "0.1.73"
       PROFILE: ${{ github.event.inputs.profile || 'xccdf_org.ssgproject.content_profile_stig' }}
@@ -48,6 +55,9 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No step pushes; the release upload authenticates with GH_TOKEN.
+          persist-credentials: false
 
       - name: Install OpenSCAP + SCAP Security Guide
         run: |
@@ -92,17 +102,27 @@ jobs:
             oscap xccdf generate report .compliance/scap-reports/stig-xccdf.xml \
               > .compliance/scap-reports/stig-report.html || true
           fi
-          PASS=$(grep -oE "<result>pass</result>" .compliance/scap-reports/stig-xccdf.xml | wc -l)
-          FAIL=$(grep -oE "<result>fail</result>" .compliance/scap-reports/stig-xccdf.xml | wc -l)
-          SCORE=$(grep -oE 'maximum="100.000000">[0-9.]+' .compliance/scap-reports/stig-xccdf.xml | head -1 | grep -oE '[0-9.]+$')
-          echo "pass=$PASS"  >> "$GITHUB_OUTPUT"
-          echo "fail=$FAIL"  >> "$GITHUB_OUTPUT"
-          echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+          # Count only what oscap wrote. Without XCCDF results there is nothing
+          # to count: the counts stay empty (null in the JSON), never a made-up 0.
+          PASS=""; FAIL=""; SCORE=""; COMPLETED=false
+          if [ -s .compliance/scap-reports/stig-xccdf.xml ]; then
+            PASS=$(grep -oE "<result>pass</result>" .compliance/scap-reports/stig-xccdf.xml | wc -l)
+            FAIL=$(grep -oE "<result>fail</result>" .compliance/scap-reports/stig-xccdf.xml | wc -l)
+            SCORE=$(grep -oE 'maximum="100.000000">[0-9.]+' .compliance/scap-reports/stig-xccdf.xml | head -1 | grep -oE '[0-9.]+$')
+            if [ $((PASS + FAIL)) -gt 0 ]; then COMPLETED=true; fi
+          fi
+          {
+            echo "pass=$PASS"
+            echo "fail=$FAIL"
+            echo "score=$SCORE"
+            echo "completed=$COMPLETED"
+          } >> "$GITHUB_OUTPUT"
           mkdir -p .compliance/scap-reports
           cat > .compliance/scap-reports/scan_summary.json <<JSON
           {"scanner":"OpenSCAP oscap (ubuntu-latest)","content":"scap-security-guide-${SSG_VERSION}",
-           "profile":"${PROFILE}","image":"${IMAGE}","rules_passed":${PASS:-0},"rules_failed":${FAIL:-0},
-           "score_pct":${SCORE:-0},"scanned_at":"$(date -u +%FT%TZ)","commit":"${GITHUB_SHA}"}
+           "profile":"${PROFILE}","image":"${IMAGE}","scan_completed":${COMPLETED},
+           "rules_passed":${PASS:-null},"rules_failed":${FAIL:-null},
+           "score_pct":${SCORE:-null},"scanned_at":"$(date -u +%FT%TZ)","commit":"${GITHUB_SHA}"}
           JSON
 
       - name: Upload SCAP reports (workflow artifact)
@@ -112,14 +132,37 @@ jobs:
           path: .compliance/scap-reports/
           if-no-files-found: error
 
-      - name: Commit summary to .compliance/scap-reports/ (main only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      # The per-run record is the artifact above plus this run summary; nothing
+      # is committed (see the header). A scan that evaluated no rule fails here
+      # instead of passing green with zero counts.
+      - name: Record the scan outcome in the run summary
+        env:
+          COMPLETED: ${{ steps.scan.outputs.completed }}
+          PASS: ${{ steps.scan.outputs.pass }}
+          FAIL: ${{ steps.scan.outputs.fail }}
+          SCORE: ${{ steps.scan.outputs.score }}
         run: |
-          git config user.name "Yachay"
-          git config user.email "yachay@szlholdings.dev"
-          git add .compliance/scap-reports/scan_summary.json
-          git commit -s -m "chore(scap): refresh STIG baseline (pass=${{ steps.scan.outputs.pass }} fail=${{ steps.scan.outputs.fail }} score=${{ steps.scan.outputs.score }}) [skip ci]" || echo "no change"
-          git push || echo "push skipped"
+          set -euo pipefail
+          {
+            echo "### OpenSCAP DISA STIG scan"
+            echo ""
+            echo "Profile \`${PROFILE}\` · image \`${IMAGE}\` · scap-security-guide ${SSG_VERSION}"
+            echo ""
+            if [ "${COMPLETED}" = "true" ]; then
+              echo "| rules passed | rules failed | score |"
+              echo "|---|---|---|"
+              echo "| ${PASS} | ${FAIL} | ${SCORE:-not reported} |"
+            else
+              echo "**No scan result.** oscap evaluated no rule as pass or fail, so there are no counts and no score. See the scan step log."
+            fi
+            echo ""
+            echo "Reports and \`scan_summary.json\`: workflow artifact \`scap-stig-reports\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${COMPLETED}" != "true" ]; then
+            echo "::error title=SCAP scan produced no result::oscap evaluated no rule as pass or fail (no XCCDF results, or none evaluated). No score is reported; see the scan step log."
+            exit 1
+          fi
+          echo "SCAP scan recorded: pass=${PASS} fail=${FAIL} score=${SCORE:-not reported}."
 
       - name: Attach full SCAP reports to release
         if: github.event_name == 'release'
