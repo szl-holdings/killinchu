@@ -15,6 +15,13 @@ name: SCAP STIG Scan
 # Author: Yachay <yachay@szlholdings.dev> (DCO signed). ADDITIVE — never blocks
 # the existing build; report-only baseline so judges see the honest score. A
 # scan that evaluates no rules fails this workflow instead of reporting zeros.
+#
+# ubuntu-latest (Python 3.14) makes oscap-docker raise tarfile.AbsoluteLinkError
+# on UBI absolute symlinks such as etc/alternatives/libnssckbi.so.x86_64. The
+# offline fallback then runs oscap as the runner user, and the RPM probe's
+# chroot returns EPERM, so no XCCDF results are written. Export with GNU tar
+# (it keeps those links) and evaluate as root with OSCAP_PROBE_ROOT. Do not
+# report a pass when no rule evaluates as pass or fail.
 # Doctrine v11/v12 · SLSA L1 honest · cosign keyid szlholdings-cosign.
 
 on:
@@ -62,7 +69,9 @@ jobs:
       - name: Install OpenSCAP + SCAP Security Guide
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends openscap-scanner openscap-utils unzip
+          # openscap-utils (oscap-docker) is omitted on purpose: its extractor
+          # aborts on this runner. oscap itself is in openscap-scanner.
+          sudo apt-get install -y --no-install-recommends openscap-scanner unzip
           curl -sSL -o ssg.zip \
             "https://github.com/ComplianceAsCode/content/releases/download/v${SSG_VERSION}/scap-security-guide-${SSG_VERSION}.zip"
           unzip -o ssg.zip "scap-security-guide-${SSG_VERSION}/ssg-rhel9-ds.xml" -d .
@@ -75,54 +84,84 @@ jobs:
           # pull credentials arrive — see .compliance/iron_bank_parity.json.)
           docker pull "${IMAGE}"
 
-      - name: Run oscap-docker DISA STIG scan (live container — RPM probes evaluable)
+      - name: Run oscap DISA STIG scan (root, exported rootfs)
         id: scan
         run: |
-          # oscap-docker runs the scan INSIDE the live container so the RPM
-          # probe can read the rpmdb (the offline OSCAP_PROBE_ROOT rootfs scan
-          # cannot open the sqlite rpmdb on a hosted runner — chroot is denied,
-          # which zeroes package_* rules; documented honest limitation). This
-          # live-container path produces the real DISA STIG score.
+          # oscap-docker extracts the image with Python tarfile and then runs
+          # oscap as the current user. On this runner that extract raises
+          # AbsoluteLinkError, and a non-root oscap cannot chroot into the
+          # rootfs (EPERM), so the RPM probe never opens the image rpmdb and
+          # no results file is written. GNU tar keeps the absolute symlinks.
+          # oscap as root, with OSCAP_PROBE_ROOT, is what actually evaluates.
+          # oscap exits 2 when rules fail; that is a result, not a crash.
+          # Extract as root so uid, gid, device nodes and xattrs match the
+          # image. An unprivileged tar rewrites ownership to the runner and
+          # the ownership rules then fail for the wrong reason. An empty
+          # export is not scanned: an empty tree would fail file and package
+          # rules and look like a real score.
           set +e
-          mkdir -p .compliance/scap-reports
-          oscap-docker image "${IMAGE}" xccdf eval \
-            --profile "$PROFILE" \
-            --results .compliance/scap-reports/stig-xccdf.xml \
-            --results-arf .compliance/scap-reports/stig-arf.xml \
-            --report .compliance/scap-reports/stig-report.html \
-            ssg-rhel9-ds.xml | tee scan.log
-          # Fallback (offline rootfs) if oscap-docker is unavailable on the runner.
-          if [ ! -f .compliance/scap-reports/stig-xccdf.xml ]; then
-            echo "oscap-docker unavailable — offline rootfs fallback (package_* rules NOT evaluable)"
-            docker create --name scan-target "${IMAGE}"; mkdir -p rootfs
-            docker export scan-target | tar -x -C rootfs; docker rm scan-target
-            OSCAP_PROBE_ROOT="$PWD/rootfs" oscap xccdf eval --profile "$PROFILE" \
+          mkdir -p .compliance/scap-reports rootfs
+          {
+            echo "Exporting ${IMAGE}"
+            docker rm -f scan-target
+            docker create --name scan-target "${IMAGE}"
+            docker export scan-target | sudo tar --xattrs --xattrs-include='*' -x -C rootfs
+            docker rm -f scan-target
+          } > .compliance/scap-reports/scan.log 2>&1
+          if [ ! -e rootfs/etc/os-release ] || [ ! -s rootfs/var/lib/rpm/rpmdb.sqlite ]; then
+            echo "Image export is not an evaluable rootfs (missing os-release or rpmdb). Refusing to evaluate an empty tree." | tee -a .compliance/scap-reports/scan.log
+          else
+            echo "Evaluating ${PROFILE} as root with OSCAP_PROBE_ROOT=${PWD}/rootfs" | tee -a .compliance/scap-reports/scan.log
+            sudo OSCAP_PROBE_ROOT="$PWD/rootfs" oscap xccdf eval \
+              --profile "$PROFILE" \
               --results .compliance/scap-reports/stig-xccdf.xml \
-              --results-arf .compliance/scap-reports/stig-arf.xml ssg-rhel9-ds.xml | tee -a scan.log
-            oscap xccdf generate report .compliance/scap-reports/stig-xccdf.xml \
-              > .compliance/scap-reports/stig-report.html || true
+              --results-arf .compliance/scap-reports/stig-arf.xml \
+              --report .compliance/scap-reports/stig-report.html \
+              ssg-rhel9-ds.xml 2>&1 | tee -a .compliance/scap-reports/scan.log
+            # oscap writes the reports as root. The counting step and the
+            # artifact upload run as the runner user.
+            sudo chown -- "$(id -u):$(id -g)" \
+              .compliance/scap-reports/stig-xccdf.xml \
+              .compliance/scap-reports/stig-arf.xml \
+              .compliance/scap-reports/stig-report.html || true
           fi
           # Count only what oscap wrote. Without XCCDF results there is nothing
           # to count: the counts stay empty (null in the JSON), never a made-up 0.
-          PASS=""; FAIL=""; SCORE=""; COMPLETED=false
+          PASS=""; FAIL=""; SCORE=""; COMPLETED=false; REASON=""
           if [ -s .compliance/scap-reports/stig-xccdf.xml ]; then
             PASS=$(grep -oE "<result>pass</result>" .compliance/scap-reports/stig-xccdf.xml | wc -l)
             FAIL=$(grep -oE "<result>fail</result>" .compliance/scap-reports/stig-xccdf.xml | wc -l)
             SCORE=$(grep -oE 'maximum="100.000000">[0-9.]+' .compliance/scap-reports/stig-xccdf.xml | head -1 | grep -oE '[0-9.]+$')
             if [ $((PASS + FAIL)) -gt 0 ]; then COMPLETED=true; fi
           fi
+          if [ "$COMPLETED" != true ]; then
+            if grep -q "chroot failed" .compliance/scap-reports/scan.log 2>/dev/null; then
+              REASON="oscap probe chroot was denied, so the exported image was not evaluated. oscap must run as root with OSCAP_PROBE_ROOT set to that rootfs."
+            elif grep -q "not an evaluable rootfs" .compliance/scap-reports/scan.log 2>/dev/null; then
+              REASON="The image export is not an evaluable rootfs (missing os-release or rpmdb). Refusing to scan an empty tree."
+            elif grep -q "AbsoluteLinkError" .compliance/scap-reports/scan.log 2>/dev/null; then
+              REASON="Image extract hit tarfile.AbsoluteLinkError on an absolute symlink. Extract with GNU tar, which keeps those links."
+            elif [ ! -s .compliance/scap-reports/stig-xccdf.xml ]; then
+              REASON="oscap wrote no XCCDF results. See scan.log in the scap-stig-reports artifact."
+            else
+              REASON="The XCCDF results contain no rule evaluated as pass or fail."
+            fi
+          fi
           {
             echo "pass=$PASS"
             echo "fail=$FAIL"
             echo "score=$SCORE"
             echo "completed=$COMPLETED"
+            echo "reason=$REASON"
           } >> "$GITHUB_OUTPUT"
           mkdir -p .compliance/scap-reports
+          if [ -n "$REASON" ]; then REASON_JSON="\"$REASON\""; else REASON_JSON=null; fi
           cat > .compliance/scap-reports/scan_summary.json <<JSON
-          {"scanner":"OpenSCAP oscap (ubuntu-latest)","content":"scap-security-guide-${SSG_VERSION}",
+          {"scanner":"OpenSCAP oscap (ubuntu-latest, root, OSCAP_PROBE_ROOT)","content":"scap-security-guide-${SSG_VERSION}",
            "profile":"${PROFILE}","image":"${IMAGE}","scan_completed":${COMPLETED},
            "rules_passed":${PASS:-null},"rules_failed":${FAIL:-null},
-           "score_pct":${SCORE:-null},"scanned_at":"$(date -u +%FT%TZ)","commit":"${GITHUB_SHA}"}
+           "score_pct":${SCORE:-null},"failure_reason":${REASON_JSON},
+           "scanned_at":"$(date -u +%FT%TZ)","commit":"${GITHUB_SHA}"}
           JSON
 
       - name: Upload SCAP reports (workflow artifact)
@@ -141,6 +180,7 @@ jobs:
           PASS: ${{ steps.scan.outputs.pass }}
           FAIL: ${{ steps.scan.outputs.fail }}
           SCORE: ${{ steps.scan.outputs.score }}
+          REASON: ${{ steps.scan.outputs.reason }}
         run: |
           set -euo pipefail
           {
@@ -153,13 +193,17 @@ jobs:
               echo "|---|---|---|"
               echo "| ${PASS} | ${FAIL} | ${SCORE:-not reported} |"
             else
-              echo "**No scan result.** oscap evaluated no rule as pass or fail, so there are no counts and no score. See the scan step log."
+              echo "**No scan result.** oscap evaluated no rule as pass or fail, so there are no counts and no score."
+              if [ -n "${REASON}" ]; then
+                echo ""
+                echo "${REASON}"
+              fi
             fi
             echo ""
-            echo "Reports and \`scan_summary.json\`: workflow artifact \`scap-stig-reports\`."
+            echo "Reports, \`scan.log\` and \`scan_summary.json\`: workflow artifact \`scap-stig-reports\`."
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "${COMPLETED}" != "true" ]; then
-            echo "::error title=SCAP scan produced no result::oscap evaluated no rule as pass or fail (no XCCDF results, or none evaluated). No score is reported; see the scan step log."
+            echo "::error title=SCAP scan produced no result::oscap evaluated no rule as pass or fail (no XCCDF results, or none evaluated). ${REASON} No score is reported; see the scan step log."
             exit 1
           fi
           echo "SCAP scan recorded: pass=${PASS} fail=${FAIL} score=${SCORE:-not reported}."
