@@ -86,7 +86,7 @@ esac
 """
 
 # sudo on the runner is passwordless and accepts `sudo VAR=value command`.
-# The fake drops sudo's flags, honors leading assignments, and execs.
+# The fake drops sudo's own flags, exports VAR=value arguments, and execs the rest.
 FAKE_SUDO = r"""#!/usr/bin/env bash
 while [ $# -gt 0 ]; do
   case "$1" in
