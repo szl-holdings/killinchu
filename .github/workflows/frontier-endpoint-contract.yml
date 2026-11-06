@@ -48,5 +48,7 @@ jobs:
         run: |
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
           pip install --require-hashes -r .github/requirements/ci-core.txt
+      # test_counter_uas_axis_provenance: evaluate and /v1/lambda must say when
+      # their 13 axis scores are the fixed default prior, not a measurement.
       - name: Frontier-endpoint contract — the 422 / silent-degrade safety net
-        run: python -m pytest tests/test_frontier_endpoints.py -q
+        run: python -m pytest tests/test_frontier_endpoints.py tests/test_counter_uas_axis_provenance.py -q
