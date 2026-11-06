@@ -72,12 +72,15 @@ links to its parent digest. The Khipu root is available at `/api/killinchu/v1/re
 # FULL clone
 git clone https://github.com/szl-holdings/killinchu.git && cd killinchu
 
-pip install fastapi uvicorn httpx cryptography pydantic numpy
+pip install -r requirements.txt fastapi uvicorn httpx cryptography pydantic numpy lmdb
 # Optional real decoders:
 pip install pyModeS pymavlink
 
 PORT=7860 uvicorn serve:app --host 0.0.0.0 --port 7860 --reload
 ```
+
+To run the test suite against the image's exact pins, see
+[CONTRIBUTING.md § Run the tests](CONTRIBUTING.md#run-the-tests).
 
 ---
 
