@@ -36,13 +36,17 @@ EVALUATE = "/api/killinchu/v1/counter-uas/evaluate"
 @pytest.fixture(scope="module")
 def client():
     # Same reason as tests/test_qa_input_hardening.py: lift the per-IP limiter
-    # for this in-process client; the limiter is not what is under test.
-    try:
-        import szl_be_hardening
-        szl_be_hardening.RATE_LIMIT_PER_MIN = 10_000_000
-    except Exception:
-        pass
-    return TestClient(serve.app)
+    # for this in-process client; the limiter is not what is under test. The
+    # limit is restored afterwards: tests/test_be_hardening.py sends
+    # RATE_LIMIT_PER_MIN + 5 requests, so a leaked 10,000,000 hangs it.
+    with pytest.MonkeyPatch.context() as mp:
+        try:
+            import szl_be_hardening
+        except ImportError:
+            pass
+        else:
+            mp.setattr(szl_be_hardening, "RATE_LIMIT_PER_MIN", 10_000_000)
+        yield TestClient(serve.app)
 
 
 def test_evaluate_without_axis_scores_labels_the_fixed_prior(client):
