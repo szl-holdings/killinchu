@@ -23,11 +23,13 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
-  attestations: write
 
 jobs:
   deploy:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     name: Deploy, source-bind, and attest exact surface
     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@7ddbbc5e8a90df78607b770c2119aa2058419b7c
     with:
@@ -46,6 +48,10 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
   verify-risk-status-fails-closed:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     name: Verify unqualified public readiness is unavailable
     needs: deploy
     runs-on: ubuntu-latest
@@ -101,6 +107,10 @@ jobs:
           PY
 
   release-receipt:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     name: Mint and publish exact-source release receipt
     needs: [deploy, verify-risk-status-fails-closed]
     runs-on: ubuntu-24.04
