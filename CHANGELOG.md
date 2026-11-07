@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - SCAP STIG scan evaluated no rules
+
+- Export the image with GNU tar as root and run `oscap` as root
+  (`OSCAP_PROBE_ROOT`). `oscap-docker` on ubuntu-latest aborts with Python
+  3.14 `AbsoluteLinkError` on UBI absolute symlinks, and a non-root `oscap`
+  cannot chroot, so the workflow wrote no XCCDF results and fail-closed.
+  Root keeps the image's file ownership. An empty export is not scanned.
+  No pass is reported when no rule evaluates as pass or fail.
+
 ### Fixed - Rosie cross-link receipt verification
 
 - Keep the shared Rosie companion byte-identical with A11oy. Separate receipt
