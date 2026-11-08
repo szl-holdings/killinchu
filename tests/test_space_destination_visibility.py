@@ -162,16 +162,17 @@ class FullSurfaceTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertNotIn("https://huggingface.co/spaces/SZLHOLDINGS/" + name, links)
         self.assertEqual(" ".join(doc.text).count("Hub repository not publicly readable"),
-                         len(s.HUB_UNREADABLE))
+                         sum(1 for row in s.FOLD_SPACES if row.get("hub_unreadable")))
 
     def test_complete_tiles_page_distinguishes_plan_from_provider_state(self):
         s = self.surface
         doc = Document(s._tiles_page("a11oy").decode("utf-8"))
         text = " ".join(doc.text)
         self.assertEqual(text.count("PLANNED · provider state UNOBSERVED"),
-                         sum(row["action"] == "FOLD" for row in s.FOLD_SPACES) + len(s.UNIFY_SPACES))
+                         sum(row["action"] == "FOLD" and row["name"] not in s.PUBLIC_ORG_KEEP_POLICY
+                             for row in s.FOLD_SPACES) + len(s.UNIFY_SPACES))
         self.assertEqual(text.count("KEEP · current org policy · runtime UNPROBED here"),
-                         len(s.PUBLIC_ORG_KEEP_POLICY - {row["name"] for row in s.SPACES}))
+                         sum(row["name"] in s.PUBLIC_ORG_KEEP_POLICY for row in s.FOLD_SPACES))
         self.assertIn("Fold plan · provider state UNOBSERVED", text)
         for false_claim in ("Hub (private)", "PAUSED + PRIVATE", "Hub Space is PAUSED+PRIVATE",
                             "Hub Space re-privatized", "Unmapped RUNNING Space", "Not public Hub."):
