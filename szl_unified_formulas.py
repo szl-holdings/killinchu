@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — replit-sync/szl_unified_formulas.py
+# VENDORED FROM szl-holdings/platform@034766fafe1ee98b8a9f9f2d3fd9dc45da1a778f — replit-sync/szl_unified_formulas.py
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. Jr. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11

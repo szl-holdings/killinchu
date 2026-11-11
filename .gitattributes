@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — .gitattributes
+# VENDORED FROM szl-holdings/platform@034766fafe1ee98b8a9f9f2d3fd9dc45da1a778f — .gitattributes
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 # .gitattributes — SZL Holdings
 # Force consistent line endings
@@ -40,3 +40,8 @@
 # Linguist overrides
 *.lean linguist-language=Lean
 docs/ linguist-documentation
+
+# Preserve this byte-exact upstream license's intentional final blank line.
+patches/licenses/node-forge-1.4.0.LICENSE whitespace=-blank-at-eof
+# Unified patch context includes a required leading space on empty lines.
+patches/*.patch whitespace=-blank-at-eol

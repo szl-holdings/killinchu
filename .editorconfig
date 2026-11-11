@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — .editorconfig
+# VENDORED FROM szl-holdings/platform@034766fafe1ee98b8a9f9f2d3fd9dc45da1a778f — .editorconfig
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 # EditorConfig — https://editorconfig.org
 root = true
