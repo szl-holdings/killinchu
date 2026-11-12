@@ -39,14 +39,14 @@ UNIFY_DEST = "https://a-11-oy.com/console"
 # The compatibility registry includes six current policy keepers that were
 # once called folds. They are unprobed here and hand off to isolated Hub apps.
 FOLD_COUNT = 44
-PLAN_FOLD_COUNT = 38
-HANDOFF_COUNT = 53
+PLAN_FOLD_COUNT = 37
+HANDOFF_COUNT = 54
 FOLD_ORIGINS = ("https://a-11-oy.com", "https://a11oy.net")
 FOLD_SPOT_NAMES = {
     "yarqa", "anatomy", "energy-attested-runs",
     "szl-forge-lab", "llm-router-live", "holographic", "cosmos",
 }
-POLICY_ONLY = {"terra", "counsel", "finance", "curation-atlas", "david-leads", "szl-foundation-confirmation"}
+POLICY_ONLY = {"terra", "counsel", "finance", "curation-atlas", "david-leads", "szl-foundation-confirmation", "anatomy"}
 
 
 def _rows(records):
@@ -68,7 +68,8 @@ def test_space_inventory_is_exact_and_shared():
     unify_names = {sp["name"] for sp in surface.UNIFY_SPACES}
     assert surface.PUBLIC_ORG_KEEP_POLICY == (runtime_names & surface.PUBLIC_ORG_KEEP_POLICY) | POLICY_ONLY
     assert {sp["name"] for sp in surface.FOLD_SPACES if sp["action"] == "KEEP_POLICY"} == POLICY_ONLY
-    assert sum(sp["action"] == "FOLD" for sp in surface.FOLD_SPACES) == PLAN_FOLD_COUNT
+    assert sum(sp["action"] == "FOLD" and sp["name"] not in surface.PUBLIC_ORG_KEEP_POLICY
+               for sp in surface.FOLD_SPACES) == PLAN_FOLD_COUNT
     assert tuple(sp["slug"] for sp in surface.UNIFY_SPACES) == UNIFY_EXPECTED
     assert surface.UNIFY_TARGET == 4
     assert len(fold_names) == FOLD_COUNT
@@ -174,11 +175,14 @@ def test_space_urls_and_canonical_handoff_boundary_are_fail_closed():
         # neither record type is a runtime observation.
         assert surface.hf_url(slug) == hub_url
         assert proxy.hf_url(slug) == hub_url
-        assert surface.canonical_url(slug) == sp["dest"]
-        if sp["action"] == "FOLD":
+        if sp["action"] == "FOLD" and sp["name"] not in surface.PUBLIC_ORG_KEEP_POLICY:
+            assert surface.canonical_url(slug) == sp["dest"]
             assert surface.canonical_url(slug).startswith(FOLD_ORIGINS)
         else:
-            assert sp["action"] == "KEEP_POLICY"
+            # KEEP_POLICY records — and legacy plan records for names that a
+            # later owner decision promoted to keeper — resolve to the
+            # canonical organization Space, not the superseded plan dest.
+            assert sp["action"] == "KEEP_POLICY" or sp["name"] in surface.PUBLIC_ORG_KEEP_POLICY
             assert surface.canonical_url(slug) == hub_url
     for slug in UNIFY_EXPECTED:
         # UNIFY: Hub URL remains derivable; canonical handoff is a11oy /console.
@@ -224,7 +228,7 @@ def test_tiles_and_fallback_include_all_audited_titles():
     # Fold panel honesty: the cut is labelled and the fold is a plan whose
     # provider state (Hub visibility/runtime) is not observed by the ledger.
     assert "5 configured runtime doors are probed" in tiles
-    assert "current organization keep policy lists 9 Spaces" in tiles
+    assert "current organization keep policy lists 10 Spaces" in tiles
     assert "5 configured runtime doors" in fallback
     assert "Fold plan · provider state UNOBSERVED" in tiles
     assert f"{PLAN_FOLD_COUNT} planned folds" in tiles
