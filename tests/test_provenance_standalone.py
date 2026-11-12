@@ -2,6 +2,7 @@
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Shared provenance remains usable without a11oy's managed storage engine."""
 import base64
+import json
 from pathlib import Path
 
 import pytest
@@ -112,3 +113,124 @@ def test_mirrored_a11oy_verification_gate_refuses_anonymous_signing(standalone, 
 def test_passive_projection_module_is_copied_into_image(dockerfile):
     root = Path(__file__).resolve().parents[1]
     assert "COPY szl_signing_state.py ./" in (root / dockerfile).read_text()
+
+
+class _LegacyLedger:
+    """Minimal managed owner: validate the stored chain, then append."""
+
+    def __init__(self):
+        self.rows = []
+
+    def provenance_nodes(self, space, validate):
+        assert space == "killinchu"
+        validate(self.rows)
+        return list(self.rows)
+
+    def append_provenance_node(self, space, build, validate, *, confirm=False):
+        assert space == "killinchu" and confirm is False
+        validate(self.rows)
+        parents = [self.rows[-1]["digest"]] if self.rows else []
+        node = build(len(self.rows), parents)
+        validate([*self.rows, node])
+        self.rows.append(node)
+        return node, None
+
+
+class _LegacyStore:
+    def __init__(self, ledger):
+        self._ledger = ledger
+
+    def active(self):
+        return self._ledger
+
+    def enabled(self):
+        return True
+
+
+@pytest.mark.parametrize(("number", "token"), [
+    (float("nan"), b"NaN"),
+    (float("inf"), b"Infinity"),
+    (-float("inf"), b"-Infinity"),
+], ids=["nan", "infinity", "negative-infinity"])
+def test_legacy_nonfinite_chain_reloads_and_accepts_finite_append(monkeypatch, number, token):
+    """A chain signed before non-finite rejection must load, then accept a finite append."""
+    private = ec.generate_private_key(ec.SECP256R1())
+    private_pem = private.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption()).decode("ascii")
+    for name in szl_dsse.PRIVATE_KEY_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("SZL_COSIGN_PRIVATE_PEM", private_pem)
+    monkeypatch.setenv("A11OY_STATE_STORE", "v2")
+    monkeypatch.setattr(szl_dsse, "_RUNTIME_PUBLIC_KEYS", {})
+    monkeypatch.setattr(szl_dsse, "_ACTIVE_RUNTIME_KEYID", None)
+
+    receipt = {"schema": "legacy/nonfinite", "evidence": [{"score": number}]}
+    raw = json.dumps(
+        receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode("utf-8")
+    assert b'"score":' + token in raw
+    public_pem = private.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+    keyid = szl_dsse.keyid_for_public_pem(public_pem)
+    signature = private.sign(
+        szl_dsse.pae(szl_dsse.KHIPU_PAYLOAD_TYPE, raw), ec.ECDSA(hashes.SHA256()),
+    )
+    envelope = {
+        "payloadType": szl_dsse.KHIPU_PAYLOAD_TYPE,
+        "payload": base64.b64encode(raw).decode("ascii"),
+        "signatures": [{"keyid": keyid, "sig": base64.b64encode(signature).decode("ascii")}],
+        "signed": True,
+    }
+    ledger = _LegacyLedger()
+    monkeypatch.setattr(provenance, "_state_store", _LegacyStore(ledger))
+    dag = provenance._KhipuDAG("killinchu")
+    assert dag.managed is True
+    legacy = {
+        "index": 0,
+        "space": "killinchu",
+        "receipt": json.loads(raw),
+        "dsse": envelope,
+        "parents": [],
+        "signed": True,
+        "keyid": keyid,
+        "digest": dag._digest(raw, []),
+    }
+    with pytest.raises(ValueError):
+        szl_dsse.canonical_json(legacy["receipt"])
+    tampered = dict(legacy, receipt={
+        "schema": "legacy/nonfinite", "evidence": [{"score": 0.0}],
+    })
+    with pytest.raises(ValueError, match="invalid retained provenance chain"):
+        dag._validate([tampered])
+    spaced_payload = base64.b64encode(raw + b" ").decode("ascii")
+    spaced = dict(legacy, dsse=dict(envelope, payload=spaced_payload))
+    with pytest.raises(ValueError, match="invalid retained provenance chain"):
+        dag._validate([spaced])
+
+    ledger.rows.append(legacy)
+    loaded = dag.nodes
+    assert len(loaded) == 1
+    assert base64.b64decode(loaded[0]["dsse"]["payload"]) == raw
+    score = loaded[0]["receipt"]["evidence"][0]["score"]
+    if token == b"NaN":
+        assert score != score
+    else:
+        assert score == number
+    assert szl_dsse.verify_envelope(loaded[0]["dsse"])["verified"] is True
+
+    with pytest.raises(ValueError):
+        dag.append_signed({"schema": "legacy/nonfinite", "evidence": [{"score": number}]})
+    assert len(dag.nodes) == 1
+
+    appended = dag.append_signed({"schema": "successor/finite", "score": 1})
+    assert appended["index"] == 1
+    assert appended["parents"] == [loaded[0]["digest"]]
+    assert appended["signed"] is True
+    reloaded = dag.nodes
+    assert [node["digest"] for node in reloaded] == [loaded[0]["digest"], appended["digest"]]
+    assert base64.b64decode(reloaded[0]["dsse"]["payload"]) == raw
+    assert reloaded[1]["receipt"] == {"schema": "successor/finite", "score": 1}
+    assert szl_dsse.verify_envelope(reloaded[0]["dsse"])["verified"] is True
+    assert szl_dsse.verify_envelope(reloaded[1]["dsse"])["verified"] is True
