@@ -779,9 +779,12 @@ def register(app, space: str = "killinchu") -> dict[str, Any]:
         sig_b64 = (env.get("signatures") or [{}])[0].get("sig", "")
         ptype = env.get("payloadType", AGG_PAYLOAD_TYPE)
         # The signed blob is the DSSE PAE; key-based offline verify uses --insecure-ignore-tlog.
+        # The org key is fetched from a commit-pinned URL and its SHA-256 is checked
+        # before cosign runs; a mismatch stops the recipe (SCPIN-KEY-1).
         cosign_cmd = (
             "# Reconstruct the DSSE PAE (the exact bytes signed), then cosign verify-blob.\n"
-            "curl -sSL https://raw.githubusercontent.com/szl-holdings/.github/main/cosign.pub -o cosign.pub\n"
+            "curl -sSL https://raw.githubusercontent.com/szl-holdings/.github/1c93da6d81e36f5205ad8f9c067fe6f0f69e2b75/cosign.pub -o cosign.pub\n"
+            "echo 'c8c5e82330590f3ee04e75350e345704e4b69df3000cc211e4e18fb0ea8854ad  cosign.pub' > cosign.pub.sha256\n"
             f"echo -n '{sig_b64}' > sig.b64\n"
             "python3 - <<'PY'\n"
             "import base64\n"
@@ -790,8 +793,8 @@ def register(app, space: str = "killinchu") -> dict[str, Any]:
             "pae=b'DSSEv1 '+str(len(t)).encode()+b' '+t+b' '+str(len(body)).encode()+b' '+body\n"
             "open('payload.bin','wb').write(pae)\n"
             "PY\n"
-            "cosign verify-blob --key cosign.pub --signature sig.b64 --insecure-ignore-tlog payload.bin\n"
-            "# expected output: Verified OK"
+            "sha256sum -c cosign.pub.sha256 && cosign verify-blob --key cosign.pub --signature sig.b64 --insecure-ignore-tlog payload.bin\n"
+            "# expected output: cosign.pub: OK, then Verified OK"
         )
         return JSONResponse({
             "sha": sha, "uds_mission_id": mid, "verified": verdict.get("verified", False),
