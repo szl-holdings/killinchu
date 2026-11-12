@@ -17,7 +17,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 # Deletes Spaces other than this repo's own, so it takes the org-wide Hub
 # write lock shared by every multi-asset writer in this repository.
@@ -27,6 +26,9 @@ concurrency:
 
 jobs:
   retire:
+    permissions:
+      contents: read
+      issues: write
     name: Snapshot, gate, delete, and verify exact legacy Spaces
     if: >-
       github.event_name == 'workflow_dispatch' &&
