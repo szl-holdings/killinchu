@@ -63,7 +63,7 @@ OPTIONAL = {
 # Shipped modules that cannot import in the image (they hard-import an OPTIONAL name).
 UNIMPORTABLE_IN_IMAGE = {"szl_mosaic_core.py": "sklearn"}
 # Modules provided by other szl-holdings repositories or the host; absent from this tree.
-CROSS_REPO = frozenset(["a11oy_active_flux_router", "a11oy_code_orchestrator", "a11oy_signing_key", "a11oy_state_store", "a11oy_vertical_feeds", "ayllu", "gdw_durable_source", "killinchu_drone_3d_health", "second_brain", "szl3d_holographic", "szl_backend_hardening", "szl_brain_api", "szl_corpus_publish", "szl_demo", "szl_energy_live", "szl_energy_operator", "szl_energy_provenance", "szl_jack", "szl_khipu", "szl_ltc_dynamics", "szl_model_harness", "szl_pnt_mesh", "szl_router", "szl_router_client", "szl_sgh_scheduler", "szl_sidebar", "szl_substrate", "szl_thesis_about", "szl_uds_pages", "szl_wire"])
+CROSS_REPO = frozenset(["a11oy_active_flux_router", "a11oy_code_orchestrator", "a11oy_signing_key", "a11oy_state_store", "a11oy_vertical_feeds", "ayllu", "gdw_durable_source", "killinchu_drone_3d_health", "second_brain", "szl3d_holographic", "szl_backend_hardening", "szl_brain_api", "szl_corpus_publish", "szl_demo", "szl_energy_live", "szl_energy_operator", "szl_energy_provenance", "szl_jack", "szl_ltc_dynamics", "szl_model_harness", "szl_pnt_mesh", "szl_router", "szl_router_client", "szl_sgh_scheduler", "szl_sidebar", "szl_substrate", "szl_thesis_about", "szl_uds_pages", "szl_wire"])
 # Repository modules that shipped code imports (guarded) but that are deliberately
 # kept out of the image. Each entry must exist in the repo, stay un-COPY'd and still
 # be imported by shipped code, so an exclusion cannot go stale silently.
