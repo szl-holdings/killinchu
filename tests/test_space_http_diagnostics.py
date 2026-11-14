@@ -221,6 +221,26 @@ def test_shared_http_payload_is_content_bound():
     expected["docs/estate/hf-nine-flagship-keep.yaml"] = (
         anatomy["files"]["docs/estate/hf-nine-flagship-keep.yaml"]
     )
+    # The stale pre-decision anatomy FOLD row removal (owner, 2026-11-14) is
+    # the next explicit shared-source generation: the repaired surface and
+    # the retained anatomy manifest are bound byte-for-byte below.
+    fold_removal_raw = (root / ".github/shared-source-payloads/"
+                        "fold-spaces-anatomy-row-removal-20261114-v1.json").read_bytes()
+    assert hashlib.sha256(fold_removal_raw).hexdigest() == (
+        "f1ee9f74e94153b8b5ac6b4b609daf9db351dee574c8480af93175360c8923c4"
+    )
+    fold_removal = json.loads(fold_removal_raw)
+    assert fold_removal["schema"] == "szl-shared-source-payload/v1"
+    assert fold_removal["payload_id"] == "fold-spaces-anatomy-row-removal-20261114-v1"
+    assert fold_removal["files"] == {
+        ".github/shared-source-payloads/"
+        "anatomy-org-keeper-space-policy-20261108-v1.json":
+            "1dcfabbeedba88cd34d7f8cf454bbe217dc5e3bcac71a87750ad3977a20f7ae1",
+        "szl_spaces_surface.py":
+            "0d33f06277c9c60efadd7a7fa2f2c7541c4f23b7a9bba755981b3f7f78a7cbc2",
+    }
+    expected["szl_spaces_surface.py"] = fold_removal["files"]["szl_spaces_surface.py"]
+
     for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 
