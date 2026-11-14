@@ -173,12 +173,21 @@ jobs:
 
           payload=$(jq -n --arg text "$text" '{text: $text}')
           echo "Posting hf-drift-check alert to the shared webhook..."
-          code=$(curl -sS -o /tmp/resp.txt -w '%{http_code}' \
+          code=$(curl -sS -o /tmp/resp.txt -D /tmp/resp_headers.txt -w '%{http_code}' \
                    -X POST -H 'Content-Type: application/json' \
                    --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
           echo "Webhook responded HTTP ${code}."
           if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
-            echo "::error::Alert webhook POST failed (HTTP ${code}): $(cat /tmp/resp.txt)"
+            # Never print the response body: an edge error page can echo the
+            # request path, and the webhook path is part of the secret.
+            if [ "${code}" = "402" ]; then
+              why="edge returned 402 (x402 paywall) in front of the alert relay"
+            elif grep -qi '^cf-mitigated: *challenge' /tmp/resp_headers.txt 2>/dev/null; then
+              why="edge returned ${code} (Cloudflare managed challenge) in front of the alert relay"
+            else
+              why="response body withheld; it can echo the secret webhook path"
+            fi
+            echo "::error::Alert webhook POST failed (HTTP ${code}): ${why}"
             exit 1
           fi
           echo "Direct alert delivered."

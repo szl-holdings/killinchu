@@ -574,7 +574,11 @@ async def counter_uas_evaluate(request: Request) -> JSONResponse:
     telemetry = body.get("telemetry", {})
     geofence = body.get("geofence", {})  # {center_lat, center_lon, radius_m}
     policy = body.get("policy", {})  # {max_speed_m_s, allow_sides:[...], require_remote_id}
-    axes = body.get("axis_scores") or [0.93, 0.91, 0.94, 0.9, 0.92, 0.91, 0.93, 0.9, 0.95, 0.92, 0.94, 0.91, 0.93]
+    supplied_axes = body.get("axis_scores")
+    axes = supplied_axes or [0.93, 0.91, 0.94, 0.9, 0.92, 0.91, 0.93, 0.9, 0.95, 0.92, 0.94, 0.91, 0.93]
+    # Without caller-supplied scores the 13 axes are a fixed prior, not a
+    # measurement of this track; the response and receipt say which it was.
+    axis_scores_source = "REQUEST" if supplied_axes else "FIXED_DEFAULT_PRIOR"
 
     reasons: list[str] = []
     breaches: list[str] = []
@@ -617,6 +621,7 @@ async def counter_uas_evaluate(request: Request) -> JSONResponse:
     receipt_node = _emit_receipt("counter_uas_decision", {
         "decision": decision, "breaches": breaches, "lambda": round(L, 6),
         "lambda_floor": _LAMBDA_FLOOR, "geofence_inside": inside,
+        "axis_scores_source": axis_scores_source,
     })
     return JSONResponse({
         "ok": True,
@@ -627,6 +632,7 @@ async def counter_uas_evaluate(request: Request) -> JSONResponse:
         "lambda_floor": _LAMBDA_FLOOR,
         "lambda_pass": lambda_pass,
         "axis_scores": dict(zip(_AXIS_NAMES, [round(x, 4) for x in axes])),
+        "axis_scores_source": axis_scores_source,
         "lambda_receipt": {
             "index": receipt_node["index"], "digest": receipt_node["digest"],
             "khipu_root": _khipu_root(), "dsse": receipt_node["dsse"],
@@ -785,6 +791,9 @@ async def lambda_axes(request: Request) -> JSONResponse:
         "axes": [{"name": n, "score": s} for n, s in zip(_AXIS_NAMES, axes)],
         "lambda": round(L, 6), "lambda_floor": _LAMBDA_FLOOR, "pass": L >= _LAMBDA_FLOOR,
         "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
+        "axis_scores_source": "FIXED_DEFAULT_PRIOR",
+        "axis_scores_note": ("Example scores: the same fixed prior counter-uas/evaluate uses "
+                             "when a request supplies no axis_scores. Not a live measurement."),
         "uniqueness": "Conjecture, not a Theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "declarations": 749,
         "axioms_unique": 14,

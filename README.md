@@ -8,6 +8,7 @@ sdk: docker
 app_port: 7860
 pinned: true
 license: apache-2.0
+source_repo: https://github.com/szl-holdings/killinchu
 short_description: Governed autonomous-systems command surface
 tags:
   - doctrine-v11
