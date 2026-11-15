@@ -59,7 +59,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install exact focused test runtime
-        run: python3 -m pip install --disable-pip-version-check 'pytest==9.0.3'
+        run: python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-pytest.txt
 
       - name: Verify source-native adapter and managed files
         run: |

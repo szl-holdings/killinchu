@@ -68,8 +68,8 @@ jobs:
 
       - name: Install exact presentation qualification runtime
         run: |
-          python -m pip install --disable-pip-version-check \
-            "starlette==1.3.1" "httpx==0.28.1" "playwright==1.60.0"
+          python -m pip install --disable-pip-version-check --require-hashes \
+            -r .github/requirements/ci-presentation.txt
           python -m playwright install --with-deps chromium
 
       - name: Render the composed source with unavailable local fixtures
@@ -109,11 +109,8 @@ jobs:
 
       - name: Install exact focused test closure
         run: |
-          python -m pip install --disable-pip-version-check --no-cache-dir \
-            "fastapi==0.137.2" \
-            "starlette==1.3.1" \
-            "httpx==0.28.1" \
-            -r requirements-test.txt
+          python -m pip install --disable-pip-version-check --no-cache-dir --require-hashes \
+            -r .github/requirements/ci-focused.txt
           python -m pip check
 
       - name: Compile and prove Defend consolidation
@@ -166,9 +163,8 @@ jobs:
 
       - name: Install focused HTTP and signing test dependencies
         run: |
-          python -m pip install --disable-pip-version-check --no-cache-dir \
-            "fastapi==0.137.2" "starlette==1.3.1" "httpx==0.28.1" \
-            "cryptography==49.0.0" "pytest==9.0.3"
+          python -m pip install --disable-pip-version-check --no-cache-dir --require-hashes \
+            -r .github/requirements/ci-signing.txt
           python -m pip check
 
       - name: Verify credential and real ephemeral attestations
@@ -251,16 +247,17 @@ jobs:
         with:
           python-version: "3.12.10"
 
-      # Same pin the runtime image installs; the grep keeps the two in lockstep.
+      # Same pin the runtime image installs (hash-locked in space-core.txt); the
+      # greps keep canonical Dockerfile, image lock, and CI lock in lockstep.
       - name: Install the image's pymavlink pin
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq '"pymavlink==2.4.50"' Dockerfile
-          grep -Fq '"pymavlink==2.4.50"' deploy/space/Dockerfile
-          python -m pip install --disable-pip-version-check --no-cache-dir \
-            "pymavlink==2.4.50" \
-            -r requirements-test.txt
+          grep -Fq -- '-r /tmp/pins/space-core.txt' Dockerfile
+          grep -Fq 'pymavlink==2.4.50' deploy/space/requirements/space-core.txt
+          grep -Fq 'pymavlink==2.4.50' .github/requirements/ci-mavlink.txt
+          python -m pip install --disable-pip-version-check --no-cache-dir --require-hashes \
+            -r .github/requirements/ci-mavlink.txt
           python -m pip check
 
       - name: Prove bad-CRC frames are rejected, never decoded

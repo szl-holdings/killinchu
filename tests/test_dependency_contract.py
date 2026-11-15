@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Dependency contract for the shipped killinchu image (stdlib only).
 
-The image is ``Dockerfile``: per-file COPY of the runtime modules plus pinned
-``RUN pip install`` lines, started with ``python serve.py``. requirements.txt is
+The image is ``Dockerfile``: per-file COPY of the runtime modules plus
+hash-locked ``RUN pip install --require-hashes -r /tmp/pins/<lock>.txt``
+lines (the pins live in ``deploy/space/requirements/``), started with
+``python serve.py``. requirements.txt is
 deliberately partial (see its header), so the Dockerfile is the runtime
 manifest here and every COPY'd module's import graph is checked against it:
 
@@ -33,7 +35,7 @@ DOCKERFILE = "Dockerfile"
 ENTRYPOINT = "serve.py"
 SKIP_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", "build", "dist"}
 
-# Import name -> distribution pinned in the Dockerfile (hard or `|| true`).
+# Import name -> distribution pinned in the Dockerfile's hash locks (hard or `|| true` on the RUN line that installs the lock).
 # Import names were measured with importlib.metadata.packages_distributions()
 # in a venv built from the Dockerfile RUN lines (Python 3.14.7).
 DOCKER_IMPORTS = {
@@ -105,6 +107,19 @@ def _norm(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
+PIN_LOCKS = ROOT / "deploy" / "space" / "requirements"
+
+
+def _lock_pins(lock: str) -> dict[str, str]:
+    """Pinned distributions inside one hash-locked requirements file."""
+    pins: dict[str, str] = {}
+    for line in (PIN_LOCKS / lock).read_text(encoding="utf-8").splitlines():
+        m = re.match(r"([A-Za-z0-9][A-Za-z0-9._-]*)==", line)
+        if m:
+            pins[_norm(m.group(1))] = m.group(0)
+    return pins
+
+
 def dockerfile_pins(text: str) -> tuple[dict[str, str], dict[str, str]]:
     hard: dict[str, str] = {}
     soft: dict[str, str] = {}
@@ -116,6 +131,10 @@ def dockerfile_pins(text: str) -> tuple[dict[str, str], dict[str, str]]:
             m = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", spec)
             if m:
                 bucket[_norm(m.group(0))] = spec
+        # Hash-locked installs: the pins live in deploy/space/requirements/,
+        # so resolve each -r /tmp/pins/<lock>.txt into its pinned names.
+        for lock in re.findall(r"-r\s+/tmp/pins/([A-Za-z0-9._-]+\.txt)", ins):
+            bucket.update(_lock_pins(lock))
     return hard, soft
 
 
@@ -148,9 +167,10 @@ def shipped_files(text: str, root: Path) -> tuple[set[str], list[str]]:
             s = src.rstrip("/")
             path = root / s
             if path.is_dir():
-                if dnorm != s:
+                pyfiles = list(path.rglob("*.py"))
+                if dnorm != s and pyfiles:
                     renamed.append(f"{src} -> {dst}")
-                shipped.update(p.relative_to(root).as_posix() for p in path.rglob("*.py"))
+                shipped.update(p.relative_to(root).as_posix() for p in pyfiles)
             elif path.is_file() and s.endswith(".py"):
                 if dnorm in ("", "."):
                     target = Path(s).name

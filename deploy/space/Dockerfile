@@ -47,40 +47,39 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # honest pure-python / SQLite / ROADMAP-skeleton fallback (no fabricated data).
 # pymavlink 2.4.50 (not the 2.4.49 build-log pin): first release with a cp314
 # manylinux x86_64 wheel, so python:3.14-slim needs no compiler (no gcc here).
-RUN pip install --no-cache-dir \
-    "fastapi==0.137.2" \
-    "uvicorn[standard]==0.49.0" \
-    "httpx==0.28.1" \
-    "starlette==1.3.1" \
-    "pyModeS==3.3.0" \
-    "pymavlink==2.4.50"
+# HASH-LOCKED (PinnedDependencies doctrine): every install below runs
+# --require-hashes against a pip-compile --generate-hashes lock in
+# deploy/space/requirements/, so PyPI can never substitute a different
+# artifact. The || true / fallback-chain safety is INTENTIONALLY KEPT.
+COPY deploy/space/requirements/ /tmp/pins/
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-core.txt
 # BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
-RUN pip install --no-cache-dir "slowapi==0.1.10"
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-slowapi.txt
 
 # Real persistent backend: psycopg (v3) so killinchu_backend is genuinely Postgres-first
 # when a DATABASE_URL is configured. Pure-python wheel; if absent the backend still runs
 # on durable SQLite (HF Spaces has no Postgres). `|| true` so a wheel hiccup can never
 # break the image build — the backend degrades to SQLite, never crashes.
-RUN pip install --no-cache-dir "psycopg[binary]==3.3.4" || pip install --no-cache-dir "psycopg==3.3.4" || true
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-psycopg-binary.txt || pip install --no-cache-dir --require-hashes -r /tmp/pins/space-psycopg.txt || true
 
 # ADDITIVE (Yachay / Provenance Hardening): cryptography for DSSE+Cosign Khipu signing.
-RUN pip install --no-cache-dir "cryptography==49.0.0"
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-cryptography.txt
 # ADDITIVE (Formulas real-edge-v2, Opus 4.8, 2026-06-03): numpy is REQUIRED for the real
 # Kalman trajectory smoother in szl_shared_formulas/kalman.py (no pure-Python mock path).
-RUN pip install --no-cache-dir "numpy==2.4.6"
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-numpy.txt
 # ADDITIVE (Yachay / PQC): pure-Python ML-DSA-65 (NIST FIPS 204) backend for
 # /khipu/sign?mode={pqc,hybrid}. liboqs (oqs-python) is preferred in prod but is
 # a C lib not always installable; dilithium-py is the pure-Python fallback so
 # hybrid signing works in the Space. ECDSA stays the default regardless.
-RUN pip install --no-cache-dir "dilithium-py==1.4.0"
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-dilithium.txt
 # ADDITIVE (Wave A real-data feeds): websocket-client for the AISStream.io live
 # wss vessel collector (PRIMARY keyed AIS source). Optional — the vessels feed
 # degrades gracefully to the no-key Digitraffic REST fallback if this is absent
 # or no AISStream key is in the Space secret store. Real data either way.
-RUN pip install --no-cache-dir "websocket-client==1.9.0" || true
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-websocket-client.txt || true
 # ADDITIVE (real-edge): numpy for the constant-velocity Kalman trajectory smoother
 # in szl_shared_formulas/kalman.py (real linear-algebra filter, no mocks).
-RUN pip install --no-cache-dir "numpy==2.4.6"
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-numpy.txt
 
 # ADDITIVE (DEV-WIRE-K R1, Opus 4.8, 2026-06-09): scipy for exact KS two-sample
 # (scipy.stats.ks_2samp) in the Posture & Drift detectors; networkx for real graph
@@ -90,13 +89,13 @@ RUN pip install --no-cache-dir "numpy==2.4.6"
 # _topology.py ships pure-python/numpy fallbacks (identical Kolmogorov asymptotic KS,
 # numpy-based graph metrics, hand-rolled YAML reader) so a rebuild lag never breaks the
 # surface. `|| true` keeps the build green if a wheel is unavailable.
-RUN pip install --no-cache-dir "scipy==1.17.1" "networkx==3.6.1" "PyYAML==6.0.3" || true
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-science.txt || true
 
 # Hardens the Odoo ERP connector's XML-RPC parser against XML entity-expansion /
 # decompression-bomb attacks (bandit B411). szl_connectors/erp/odoo.py applies
 # defusedxml.xmlrpc.monkey_patch() before parsing untrusted server responses;
 # this pin makes that path active in the running image (pure-python wheel).
-RUN pip install --no-cache-dir "defusedxml==0.7.1"
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-defusedxml.txt
 
 # Copy the pre-built SPA to the static root.
 # index.html + assets/* served directly at / and /assets/*; unknown GET -> index.html.
@@ -381,12 +380,12 @@ EXPOSE 7860
 # ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay): real durable lmdb persistence
 # + optional sqlite-vss vector recall (szl_unay degrades to honest cosine-fallback if
 # the extension cannot load in the slim image). Never affects existing routes.
-RUN pip install --no-cache-dir "lmdb==2.2.1" "sqlite-vss==0.1.2"
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-vector.txt
 # ADDITIVE (Mosaic SDA elevation, 2026-06-13): python-sgp4 (MIT) is the sovereign
 # orbital propagator for the space-domain ROADMAP conjunction stub. Guarded with
 # `|| true` so a wheel/build hiccup never breaks the image — killinchu_mosaic falls
 # back to an honest ROADMAP SKELETON when sgp4 is absent (no conjunction fabricated).
-RUN pip install --no-cache-dir "sgp4==2.25" || true
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-sgp4.txt || true
 # ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay / Perplexity Computer Agent):
 # explicit per-file COPY (this Dockerfile does not use `COPY . .`). serve.py imports
 # szl_unay_routes and calls .register(app, ns="killinchu") -> /api/killinchu/v2/unay/* +
@@ -406,7 +405,7 @@ RUN pip install --no-cache-dir "sgp4==2.25" || true
 # szl_understudy` (and its substrate imports) fail and every /api/killinchu/v2/*
 # understudy route 404s. szl_brain/szl_rag/szl_formulas are VENDORED from the
 # platform monorepo (header in each file) until `pip install ./packages/*` lands.
-RUN pip install --no-cache-dir "huggingface_hub==1.20.0" || true
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-huggingface-hub.txt || true
 # ADDITIVE (Defense Runtime Cookbook, 2026-06-01, Yachay / Perplexity Computer Agent):
 # the self-contained cookbook module. Explicit per-file COPY (this Dockerfile never uses
 # `COPY . .`); without it `import szl_killinchu_cookbook` fails and every /api/killinchu/
