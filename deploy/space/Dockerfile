@@ -166,6 +166,10 @@ COPY szl_kc_onebit.py ./
 COPY szl_kc_jpt.py szl_meter_access.py szl_heart_blood.py ./
 # Wave 14 frontier organs (keyless value-only-cache attention, GitOfThoughts reasoning memory, HeRo-Q quant).
 COPY szl_keyless.py szl_gitthoughts.py szl_herotq.py ./
+# IMMUNE organ mount (fold migration, killinchu #607): the byte-shared
+# egress-gate organ + its dependency-free Khipu receipt store + the shared
+# codename gate; serve.py imports all three try/except-guarded. NEVER `COPY . .`.
+COPY szl_immune.py szl_khipu.py szl_codename_gate.py ./
 # Wave 13 frontier organs (muon optimizer, tree speculative execution, NVFP4 4-bit format).
 # Per-file COPY (this Dockerfile never uses `COPY . .`); serve.py imports them try/except-guarded.
 COPY szl_muon.py szl_specexec.py szl_nvfp4.py ./

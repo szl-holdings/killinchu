@@ -1002,8 +1002,10 @@ def _energy_attest():
         "citations": {
             "szl-energy-attest (canonical NVML joule attestation)":
                 "https://github.com/szl-holdings/szl-energy-attest",
-            "governed-inference-meter (tokens/joule at inference boundary)":
-                "https://github.com/szl-holdings/governed-inference-meter",
+            # The governed-inference-meter repo is archived; its meter now
+            # lives in szl-energy-attest as szl_energy_attest.inference_meter.
+            "szl_energy_attest.inference_meter (tokens/joule at inference boundary)":
+                "https://github.com/szl-holdings/szl-energy-attest/tree/main/szl_energy_attest/inference_meter",
             "Energentic Intelligence (viability from energy budget)":
                 "https://arxiv.org/abs/2506.04916",
         },

@@ -164,6 +164,99 @@ except Exception as _killinchu_defend_error:
         file=sys.stderr,
     )
 
+# ---------------------------------------------------------------------------
+# KILLINCHU_IMMUNE_MOUNT_V1 — capability-plane migration for SZLHOLDINGS/immune
+# (keep-list docs/series-a/hf-space-keep-list.yaml, a11oy repo: state
+# MIGRATION_REQUIRED, target_route https://szlholdings-killinchu.hf.space/immune).
+# Mounts the SAME byte-shared organ module the a11oy runtime serves
+# (szl_immune.py — identical git blob dfc3ba2b) under ns="killinchu":
+# /api/killinchu/v1/immune/* plus /v1/immune/*, plus a bare GET /immune landing
+# route. szl_khipu.py is the same dependency-free shared Khipu receipt store
+# (Doctrine v13 section 5) the organ's status/verdict/verify handlers lazily
+# import. ADDITIVE, try/except-guarded, registered EARLY (before the SPA
+# catch-all), exactly like the defend plane. Fail-closed organ; no presentation
+# fallback can satisfy the API contract. Never crash the existing app.
+# ---------------------------------------------------------------------------
+_KILLINCHU_IMMUNE_PAGE_HTML = """<!doctype html>
+<html lang="en" data-killinchu-immune="v1">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<link rel="canonical" href="/immune">
+<title>Killinchu / Immune</title>
+<meta name="description" content="Killinchu Immune organ — fail-closed egress gate migrated from the folded SZLHOLDINGS/immune Space. Deny-by-default verdicts, Khipu-receipted, honest labels.">
+<style>
+:root{color-scheme:dark}
+body{margin:0;min-height:100vh;background:#0b1118;color:#cfd9e2;font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;align-items:center;justify-content:center;padding:24px 0}
+main{max-width:760px;padding:0 24px}
+h1{font-size:1.5rem;margin:0 0 4px}
+p{margin:.4rem 0}
+.tags{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.tag{font-size:.78rem;border:1px solid #2a3a4a;border-radius:999px;padding:3px 10px;color:#9fb2c2}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.85em;color:#8fd3ff}
+table{border-collapse:collapse;margin:16px 0;width:100%}
+td{border-top:1px solid #1c2833;padding:6px 8px;font-size:.9rem}
+a{color:#8fd3ff}
+footer{font-size:.75rem;color:#748899;margin-top:26px}
+</style>
+</head>
+<body>
+<main>
+<h1>Immune — Killinchu capability plane</h1>
+<p>Fail-closed egress gate · deny-by-default · Khipu-receipted verdicts</p>
+<div class="tags"><span class="tag">doctrine v11</span><span class="tag">fail-closed</span><span class="tag">egress gate</span><span class="tag">migrated capability</span></div>
+<p>Killinchu is the sole public cyber-resilience runtime for this capability (owner decision 2026-09-04). The Immune organ serves here after the <code>SZLHOLDINGS/immune</code> Space fold; its API is the same byte-shared organ module the a11oy runtime mounts.</p>
+<table>
+<tr><td><code>GET /v1/immune/healthz</code></td><td>liveness</td></tr>
+<tr><td><code>GET /v1/immune/status</code></td><td>organ status, gates, deny/allow counters</td></tr>
+<tr><td><code>GET /v1/immune/gates</code></td><td>gate configuration</td></tr>
+<tr><td><code>GET /v1/immune/threats</code></td><td>threat signature corpus</td></tr>
+<tr><td><code>GET /v1/immune/feed?limit=50</code></td><td>recent verdict feed</td></tr>
+<tr><td><code>GET /v1/immune/verify</code></td><td>Khipu chain verification</td></tr>
+<tr><td><code>POST /v1/immune/verdict</code></td><td>request a verdict (fail-closed)</td></tr>
+</table>
+<p>Also served under <code>/api/killinchu/v1/immune/*</code>.</p>
+<p>Honesty: receipt SIGNATURE is DSSE PLACEHOLDER (Sigstore not wired into CI); the receipt HASH CHAIN is verified. This page exercises no effectors.</p>
+<footer>Source: github.com/szl-holdings/killinchu · organ module <code>szl_immune.py</code> (byte-shared with a11oy) · <a href="/defend">Defend plane</a></footer>
+</main>
+</body>
+</html>
+"""
+
+_killinchu_immune_status = "immune-not-wired"
+try:
+    import szl_immune as _killinchu_szl_immune
+
+    _killinchu_immune_result = _killinchu_szl_immune.register(app, ns="killinchu")
+
+    def _killinchu_immune_page() -> Response:
+        """Bare /immune landing route for the folded immune capability plane."""
+        return Response(
+            content=_KILLINCHU_IMMUNE_PAGE_HTML,
+            media_type="text/html; charset=utf-8",
+        )
+
+    app.add_api_route(
+        "/immune",
+        _killinchu_immune_page,
+        methods=["GET", "HEAD"],
+        include_in_schema=True,
+    )
+    _killinchu_immune_status = "immune-mounted"
+    print(
+        "[killinchu] Immune organ mounted (ns=killinchu): "
+        "/api/killinchu/v1/immune/* + /v1/immune/* + /immune",
+        file=sys.stderr,
+    )
+except Exception as _killinchu_immune_error:  # pragma: no cover
+    _killinchu_immune_status = f"immune-not-wired:{_killinchu_immune_error!r}"
+    print(
+        f"[killinchu] Immune organ NOT mounted "
+        f"({_killinchu_immune_error!r}); existing app unaffected",
+        file=sys.stderr,
+    )
+
 # ── Evidence & Research layer (evidence-research-185) — curated + live arXiv/GitHub citations.
 # Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
 try:
@@ -2185,7 +2278,11 @@ async def counter_uas_evaluate(request: Request) -> JSONResponse:
     telemetry = body.get("telemetry", {})
     geofence = body.get("geofence", {})  # {center_lat, center_lon, radius_m}
     policy = body.get("policy", {})  # {max_speed_m_s, allow_sides:[...], require_remote_id}
-    axes = body.get("axis_scores") or [0.93, 0.91, 0.94, 0.9, 0.92, 0.91, 0.93, 0.9, 0.95, 0.92, 0.94, 0.91, 0.93]
+    supplied_axes = body.get("axis_scores")
+    axes = supplied_axes or [0.93, 0.91, 0.94, 0.9, 0.92, 0.91, 0.93, 0.9, 0.95, 0.92, 0.94, 0.91, 0.93]
+    # Without caller-supplied scores the 13 axes are a fixed prior, not a
+    # measurement of this track; the response and receipt say which it was.
+    axis_scores_source = "REQUEST" if supplied_axes else "FIXED_DEFAULT_PRIOR"
 
     reasons: list[str] = []
     breaches: list[str] = []
@@ -2228,6 +2325,7 @@ async def counter_uas_evaluate(request: Request) -> JSONResponse:
     receipt_node = _emit_receipt("counter_uas_decision", {
         "decision": decision, "breaches": breaches, "lambda": round(L, 6),
         "lambda_floor": _LAMBDA_FLOOR, "geofence_inside": inside,
+        "axis_scores_source": axis_scores_source,
     })
     return JSONResponse({
         "ok": True,
@@ -2238,6 +2336,7 @@ async def counter_uas_evaluate(request: Request) -> JSONResponse:
         "lambda_floor": _LAMBDA_FLOOR,
         "lambda_pass": lambda_pass,
         "axis_scores": dict(zip(_AXIS_NAMES, [round(x, 4) for x in axes])),
+        "axis_scores_source": axis_scores_source,
         "lambda_receipt": {
             "index": receipt_node["index"], "digest": receipt_node["digest"],
             "khipu_root": _khipu_root(), "dsse": receipt_node["dsse"],
@@ -2456,6 +2555,9 @@ async def lambda_axes(request: Request) -> JSONResponse:
         "axes": [{"name": n, "score": s} for n, s in zip(_AXIS_NAMES, axes)],
         "lambda": round(L, 6), "lambda_floor": _LAMBDA_FLOOR, "pass": L >= _LAMBDA_FLOOR,
         "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
+        "axis_scores_source": "FIXED_DEFAULT_PRIOR",
+        "axis_scores_note": ("Example scores: the same fixed prior counter-uas/evaluate uses "
+                             "when a request supplies no axis_scores. Not a live measurement."),
         "uniqueness": "Conjecture 1 (OPEN), not a Theorem unconditionally (open CAUCHY_ND sorry + missing symmetry axiom); conditional uniqueness = Theorem U (TheoremU_LambdaUnique, corollaries U₁/U₂) modulo the kernel Decidable ≈Λ relation (instDecidableLambdaEquiv), strict = only under the Anchored/Normalized gauge",
         "declarations": 749,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
@@ -3699,7 +3801,7 @@ try:
         return _OPW_KC_Resp(content=f.read_bytes(), media_type=ct,
                             headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
-    _OPW_KC_TAG = b'<script src="/vendor/a11oy-operator-widget.js?v=a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c" data-surface="killinchu" defer></script>'
+    _OPW_KC_TAG = b'<script src="/vendor/a11oy-operator-widget.js?v=693a7b56469cc7ae182d44c8ebaef5dfd6cd84f7149c5dbed517b32c1aba145d" data-surface="killinchu" defer></script>'
     _OPW_KC_MARK = b'a11oy-operator-widget.js'
 
     class _OperatorWidgetInjectorKC(_OPW_KC_Base):
