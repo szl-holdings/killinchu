@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "d1c67ef4aba6df14dd5846e6776af3a2e550b9d144e60f55687b098e71a1ba44"
+    "sha256": "6549afbe1396a8857cfc2909ce13987bd8efcd6256470baa77a6500b40597b3c"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "d1c67ef4aba6df14dd5846e6776af3a2e550b9d144e60f55687b098e71a1ba44"
+    "sha256": "6549afbe1396a8857cfc2909ce13987bd8efcd6256470baa77a6500b40597b3c"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
@@ -29,6 +29,7 @@
     "cathedral.html",
     "corpus/",
     "datasets/killinchu-osint-corpus/",
+    "deploy/space/requirements/",
     "deploy/uds-package.yaml",
     "drones_db.json",
     "fleet_vessels_data.json",

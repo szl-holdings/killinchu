@@ -247,13 +247,15 @@ jobs:
         with:
           python-version: "3.12.10"
 
-      # Same pin the runtime image installs; the grep keeps the two in lockstep.
+      # Same pin the runtime image installs (hash-locked in space-core.txt); the
+      # greps keep canonical Dockerfile, image lock, and CI lock in lockstep.
       - name: Install the image's pymavlink pin
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq '"pymavlink==2.4.50"' Dockerfile
+          grep -Fq -- '-r /tmp/pins/space-core.txt' Dockerfile
           grep -Fq 'pymavlink==2.4.50' deploy/space/requirements/space-core.txt
+          grep -Fq 'pymavlink==2.4.50' .github/requirements/ci-mavlink.txt
           python -m pip install --disable-pip-version-check --no-cache-dir --require-hashes \
             -r .github/requirements/ci-mavlink.txt
           python -m pip check

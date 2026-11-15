@@ -7,7 +7,8 @@ name: install-check
 # index, so the install died with "No matching distribution found for
 # vsp-otel>=0.1". The vsp_otel package serve.py imports is the vendored copy
 # under ./vsp_otel/; requirements.txt is a partial list (primary runtime deps
-# are pinned in the Dockerfile), so this gate does not import serve.py.
+# are hash-pinned in the lock files the Dockerfile installs), so this gate
+# does not import serve.py.
 
 "on":
   push:
@@ -109,9 +110,10 @@ jobs:
           # installed and vendored in both directions and skips that test when the
           # library is absent, so any skip fails this step. Its import chain
           # (killinchu_edge_formulas -> szl_shared_formulas.kalman) needs numpy,
-          # which requirements.txt leaves to the Dockerfile, so the image's single
-          # numpy pin is installed here instead of a second copy of it.
-          numpy_pin=$(grep -oE 'numpy==[0-9][0-9.]*' Dockerfile | sort -u || true)
+          # which requirements.txt leaves to the image's hash-locked space-numpy.txt
+          # (what the Dockerfile installs), so the image's single numpy pin is
+          # installed here instead of a second copy of it.
+          numpy_pin=$(grep -oE 'numpy==[0-9][0-9.]*' deploy/space/requirements/space-numpy.txt | sort -u || true)
           if [ "$(printf '%s\n' "$numpy_pin" | grep -c .)" != "1" ]; then
             echo "::error::expected exactly one numpy pin in Dockerfile, found: ${numpy_pin:-none}"
             exit 1
