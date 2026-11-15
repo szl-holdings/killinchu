@@ -1382,7 +1382,7 @@ except Exception as _demo_e:
 # /sidebar /status /doctrine /formulas /uds /spaceweather /seismic /drone-health
 # resolve LOCALLY. Each route guarded: never shadows an existing route. Collapsible
 # rail + search + Cmd-K palette + recents + healthz status dots + concept DOI
-# 10.5281/zenodo.19944926 + Doctrine v11 LOCKED 749/14/163 badge + mobile drawer.
+# 10.5281/zenodo.24239896 + Doctrine v11 LOCKED 749/14/163 badge + mobile drawer.
 # Three.js stays LOCAL on the 3D pages (no CDN here). Λ Conjecture 1.
 try:
     import szl_sidebar as _sidebar
