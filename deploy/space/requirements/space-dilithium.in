@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
+# Hash-locked toolset for the deploy/space Dockerfile stage named below.
+# Compiled with: pip-compile --allow-unsafe --generate-hashes --index-url=https://pypi.org/simple --no-emit-index-url --no-emit-trusted-host --strip-extras
+dilithium-py==1.4.0

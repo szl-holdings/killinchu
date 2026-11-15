@@ -62,7 +62,7 @@ jobs:
           python-version: '3.12.10'
       - name: Install qualification dependencies
         run: |
-          python -m pip install --disable-pip-version-check -r requirements-defend-postgres.txt 'pytest==9.0.3'
+          python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/defend-postgres.txt
           python -m pip check
           python -c 'import psycopg, sqlalchemy, alembic'
       - name: Exercise disposable PostgreSQL
@@ -108,7 +108,7 @@ jobs:
           python-version: '3.12.10'
       - name: Install identity validation dependencies
         run: |
-          python -m pip install --disable-pip-version-check -r requirements-defend-identity.txt 'pytest==9.0.3'
+          python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/defend-identity.txt
           python -m pip check
           python -c 'import jwt, cryptography'
       - name: Verify pinned identity contract with generated test keys

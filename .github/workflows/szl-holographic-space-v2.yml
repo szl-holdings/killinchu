@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install exact focused test runtime
-        run: python -m pip install --disable-pip-version-check 'pytest==9.0.3'
+        run: python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-pytest.txt
       - name: Verify host, pure presentation, and generated source ownership
         run: |
           set -euo pipefail

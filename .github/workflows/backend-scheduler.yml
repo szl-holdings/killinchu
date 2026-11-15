@@ -70,7 +70,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install test deps
-        run: python -m pip install --disable-pip-version-check pytest pytest-asyncio fastapi httpx "psycopg[binary]==3.3.4"
+        run: python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/scheduler-test.txt
       - name: Run scheduler + operator mutation transaction tests
         env:
           KILLINCHU_TEST_POSTGRES_DSN: postgresql://postgres:killinchu_test_password@127.0.0.1:5432/killinchu_test

@@ -87,7 +87,7 @@ jobs:
             python killinchu_intel_archive_card.py \
               --card-out "$EVIDENCE_DIR/rendered/README.md" \
               --license-out "$EVIDENCE_DIR/rendered/LICENSE.md"
-            python -m pip install --disable-pip-version-check pytest
+            python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-pytest.txt
             PYTHONPATH="$HF_PUBLISHER_SITE${PYTHONPATH:+:$PYTHONPATH}" python -m pytest -q \
               tests/test_killinchu_intel_archive_card.py \
               tests/test_killinchu_intel_archive_publish.py \

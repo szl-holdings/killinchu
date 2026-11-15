@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Hash-locked toolset for the named CI workflow step.
+# Compiled with: pip-compile --allow-unsafe --generate-hashes --index-url=https://pypi.org/simple --no-emit-index-url --no-emit-trusted-host --strip-extras
+# PyPI subset of requirements.txt (the szl-receipt-dsse git pin is
+# installed by the workflow via a commit-pinned editable URL).
+defusedxml==0.7.1
