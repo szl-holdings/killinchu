@@ -13,6 +13,47 @@ import pytest
 import szl_spaces_surface as surface
 
 
+_RETAINED_SIGNING_PAYLOAD = Path(
+    "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json"
+)
+
+
+def _retained_signing_payload(root):
+    # Exact former active manifest from reviewed base
+    # b225eb9d8665f527967bc523e0523bd90d3aa0c0, not regenerated evidence.
+    # The active peer-admission slot now belongs to the Snowflake successor;
+    # this HTTP proof must retain its historical source generation independently.
+    raw = (root / _RETAINED_SIGNING_PAYLOAD).read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == (
+        "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
+    )
+    return json.loads(raw)
+
+
+@pytest.mark.parametrize("change", ["bytes", "generation", "authorization"])
+def test_retained_signing_payload_rejects_rewritten_history(tmp_path, change):
+    root = Path(__file__).resolve().parents[1]
+    raw = (root / _RETAINED_SIGNING_PAYLOAD).read_bytes()
+    if change == "bytes":
+        changed = raw + b"\n"
+    elif change == "generation":
+        changed = raw.replace(
+            b"retained-signing-ledger-20261101-v1",
+            b"snowflake-account-host-boundary-20261102-v1",
+        )
+    else:
+        changed = raw.replace(
+            b"8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0",
+            b"0" * 64,
+        )
+    assert changed != raw
+    target = tmp_path / _RETAINED_SIGNING_PAYLOAD
+    target.parent.mkdir(parents=True)
+    target.write_bytes(changed)
+    with pytest.raises(AssertionError):
+        _retained_signing_payload(tmp_path)
+
+
 def test_shared_http_payload_is_content_bound():
     root = Path(__file__).resolve().parents[1]
     # The active admission manifest changes with each paired contribution.
@@ -125,8 +166,8 @@ def test_shared_http_payload_is_content_bound():
         "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6"
     )
     # Retained signing adds authorization for the receipt-minting verifier.
-    # Preserve every archived generation and bind the reviewed active successor.
-    retained = json.loads((root / ".github/shared-source-payload-manifest.json").read_bytes())
+    # Preserve this reviewed predecessor independently of the active peer payload.
+    retained = _retained_signing_payload(root)
     assert retained["schema"] == "szl-shared-source-payload/v1"
     assert retained["payload_id"] == "retained-signing-ledger-20261101-v1"
     assert retained["files"]["szl_operator_auth.py"] == (
@@ -156,6 +197,50 @@ def test_shared_http_payload_is_content_bound():
             "6125466150f6b6b351a440ab04d22c1540c41ca01dbffe7b0414a1d06e42ee0d",
     }
     expected.update(atlas["files"])
+    # The anatomy org-keeper decision (owner 2026-11-07) is the next explicit
+    # shared-source generation: the surface, the keep policy, and the retained
+    # atlas manifest are bound byte-for-byte. Historical manifests stay fixed.
+    anatomy_raw = (root / ".github/shared-source-payloads/"
+                   "anatomy-org-keeper-space-policy-20261108-v1.json").read_bytes()
+    assert hashlib.sha256(anatomy_raw).hexdigest() == (
+        "1dcfabbeedba88cd34d7f8cf454bbe217dc5e3bcac71a87750ad3977a20f7ae1"
+    )
+    anatomy = json.loads(anatomy_raw)
+    assert anatomy["schema"] == "szl-shared-source-payload/v1"
+    assert anatomy["payload_id"] == "anatomy-org-keeper-space-policy-20261108-v1"
+    assert anatomy["files"] == {
+        ".github/shared-source-payloads/"
+        "atlas-retention-space-policy-20261028-v1.json":
+            "5b0f5321c03794559cbf89f214f253d4b0979b150083ff148a23688357323288",
+        "docs/estate/hf-nine-flagship-keep.yaml":
+            "b6a8ccdeb67b206cf599e2e82a730eab8ff56a5bdea0441197d934c3c036dd4f",
+        "szl_spaces_surface.py":
+            "270311519b9cb8ddc1c51f41e944201aa7dec5f528390f1ae7c7b9f37ce6edfd",
+    }
+    expected["szl_spaces_surface.py"] = anatomy["files"]["szl_spaces_surface.py"]
+    expected["docs/estate/hf-nine-flagship-keep.yaml"] = (
+        anatomy["files"]["docs/estate/hf-nine-flagship-keep.yaml"]
+    )
+    # The stale pre-decision anatomy FOLD row removal (owner, 2026-11-14) is
+    # the next explicit shared-source generation: the repaired surface and
+    # the retained anatomy manifest are bound byte-for-byte below.
+    fold_removal_raw = (root / ".github/shared-source-payloads/"
+                        "fold-spaces-anatomy-row-removal-20261114-v1.json").read_bytes()
+    assert hashlib.sha256(fold_removal_raw).hexdigest() == (
+        "f1ee9f74e94153b8b5ac6b4b609daf9db351dee574c8480af93175360c8923c4"
+    )
+    fold_removal = json.loads(fold_removal_raw)
+    assert fold_removal["schema"] == "szl-shared-source-payload/v1"
+    assert fold_removal["payload_id"] == "fold-spaces-anatomy-row-removal-20261114-v1"
+    assert fold_removal["files"] == {
+        ".github/shared-source-payloads/"
+        "anatomy-org-keeper-space-policy-20261108-v1.json":
+            "1dcfabbeedba88cd34d7f8cf454bbe217dc5e3bcac71a87750ad3977a20f7ae1",
+        "szl_spaces_surface.py":
+            "0d33f06277c9c60efadd7a7fa2f2c7541c4f23b7a9bba755981b3f7f78a7cbc2",
+    }
+    expected["szl_spaces_surface.py"] = fold_removal["files"]["szl_spaces_surface.py"]
+
     for relative, digest in expected.items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
 
@@ -164,6 +249,7 @@ def test_current_keep_policy_does_not_clear_extra_public_spaces():
     expected = {
         "a11oy", "killinchu", "terra", "counsel", "finance", "lyte",
         "curation-atlas", "david-leads", "szl-foundation-confirmation",
+        "anatomy",
     }
     assert surface.PUBLIC_ORG_KEEP_POLICY == expected
     assert len(surface.SPACES) == 5
@@ -177,9 +263,9 @@ def test_current_keep_policy_does_not_clear_extra_public_spaces():
             )
 
     inventory = asyncio.run(surface._probe_inventory(Client()))
-    assert inventory["canonical_count"] == 9
+    assert inventory["canonical_count"] == 10
     assert inventory["configured_runtime_count"] == 5
-    assert inventory["observed_count"] == 10
+    assert inventory["observed_count"] == 11
     assert inventory["missing"] == []
     assert inventory["unexpected"] == ["extra"]
     assert inventory["state"] == "DEGRADED"

@@ -24,6 +24,14 @@ Starlette = pytest.importorskip("starlette.applications").Starlette
 TestClient = pytest.importorskip("starlette.testclient").TestClient
 
 
+@pytest.fixture(autouse=True)
+def _khipu_chain_outside_the_source_tree(tmp_path, monkeypatch):
+    # The module defaults its durable chain to <repo>/live_snapshots/khipu_flow,
+    # so the endpoint tests used to leave an LMDB in the working tree. The real
+    # store still runs; it just lives in this test's temporary directory.
+    monkeypatch.setattr(flow, "_KHIPU_DIR", str(tmp_path / "khipu_flow"))
+
+
 def _client():
     app = Starlette()
     flow.register(app, ns="killinchu")

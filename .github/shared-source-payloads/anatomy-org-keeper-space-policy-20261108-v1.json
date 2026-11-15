@@ -1,0 +1,9 @@
+{
+  "files": {
+    ".github/shared-source-payloads/atlas-retention-space-policy-20261028-v1.json": "5b0f5321c03794559cbf89f214f253d4b0979b150083ff148a23688357323288",
+    "docs/estate/hf-nine-flagship-keep.yaml": "b6a8ccdeb67b206cf599e2e82a730eab8ff56a5bdea0441197d934c3c036dd4f",
+    "szl_spaces_surface.py": "270311519b9cb8ddc1c51f41e944201aa7dec5f528390f1ae7c7b9f37ce6edfd"
+  },
+  "payload_id": "anatomy-org-keeper-space-policy-20261108-v1",
+  "schema": "szl-shared-source-payload/v1"
+}

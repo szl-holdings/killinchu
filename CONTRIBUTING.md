@@ -41,11 +41,30 @@ The full layout is in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) and
 
 ```bash
 git clone https://github.com/szl-holdings/killinchu.git && cd killinchu
-pip install fastapi uvicorn httpx cryptography pydantic numpy
+pip install -r requirements.txt fastapi uvicorn httpx cryptography pydantic numpy lmdb
 pip install pyModeS pymavlink            # optional: real protocol decoders
 PORT=7860 uvicorn serve:app --host 0.0.0.0 --port 7860 --reload
 # then open http://127.0.0.1:7860/elite  (the operator console)
 ```
+
+`requirements.txt` brings `defusedxml` (Cursor-on-Target interop) and
+`szl-receipt-dsse`; `lmdb` mounts the UNAY / Khipu-LMDB v2 routes. Without them
+those surfaces log `NOT registered` at boot and stay unmounted.
+
+### Run the tests
+
+The suite runs against the image's exact pins (the `RUN pip install` lines in the
+`Dockerfile`), not the minimal install above:
+
+```bash
+grep -oE '"[A-Za-z0-9_.-]+(\[[a-z]+\])?==[0-9][0-9.]*"' Dockerfile | tr -d '"' | sort -u > /tmp/image-pins.txt
+pip install -r requirements.txt -r requirements-test.txt -r /tmp/image-pins.txt pytest
+python -m pytest -q tests
+```
+
+CI runs curated slices of this suite in dedicated workflows (see
+`.github/base-python-ci.defer`), so run the whole `tests/` tree locally before
+you open a PR.
 
 ### The `register()` pattern
 
