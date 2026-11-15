@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "killinchu"
+version = "0.1.0"
+description = "Counter-UAS reference at /elite. Tracks, fusion, ROE, BFT, DSSE per interdiction. Public synthetic — no public effector. Λ = Conjecture 1."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Stephen Lutar", email = "stephen@szlholdings.com" }]
+dependencies = ["defusedxml==0.7.1"]
+
+[project.urls]
+Homepage = "https://a-11-oy.com/killinchu"
+Repository = "https://github.com/szl-holdings/killinchu"
+
+[tool.setuptools]
+packages = ["killinchu"]
+package-dir = { "" = "src" }
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["build", "dist", ".venv", "node_modules"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
