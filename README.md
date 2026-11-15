@@ -542,7 +542,3 @@ Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 </details>
 
 Artwork: SZL Orbit · © 2026 SZL Holdings / Stephen Lutar · [CC BY 4.0](https://github.com/szl-holdings/szl-brand/blob/4309f6fce89179331b0b3ed8c99494e76c5be256/kit/LICENSE).
-
-## Commercial support
-
-killinchu is open source under Apache-2.0. Commercial licensing, dedicated support, and governed-AI estate integration are available through SZL Holdings - contact stephenlutar2@gmail.com. Sponsor development at https://github.com/sponsors/stephenlutar2-hash.
