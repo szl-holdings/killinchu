@@ -157,6 +157,16 @@ CURRENT_EXPECTED_SHA256 = {
     "szl_agentic_loop.py": "2f3233a8c77b8dce6cb95a5ea3ce33090b63c08077763ada5568fc310e096967",
 }
 
+# The mesh successor forwards observed optional backend readiness off the event
+# loop. Keep prior verifier evidence unchanged. This is source byte identity
+# only; no historical signature, deployment, or model execution is claimed.
+HATUN_BACKEND_A11OY_COMMIT = "1b7f3263912c442273ae2420ba73ff4b9524d401"
+CURRENT_A11OY_COMMIT = HATUN_BACKEND_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "szl_agentic_loop.py": "b30b02886292d38b0d369d19314a24eec57bb499683ccfda57b62301cd6a6510",
+}
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
