@@ -158,6 +158,17 @@ CURRENT_EXPECTED_SHA256 = {
 }
 
 
+# Protected-model boundary successor changes only fail-closed delegation.
+# Preserve every prior source observation; the companion is not mirrored.
+# Byte identity only, without endpoint, deployment, or qualification claims.
+MODEL_COMPANION_A11OY_COMMIT = "bea45b367032dd2417c71064fbef629263b377c2"
+CURRENT_A11OY_COMMIT = MODEL_COMPANION_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "613183938099a18c82e59941079c7824de3978c74c423df8a7a59436d0801c98",
+}
+
+
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
