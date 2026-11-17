@@ -62,6 +62,16 @@ updates:
       semver-major-days: 21
       semver-minor-days: 7
       semver-patch-days: 3
+    ignore:
+      # numpy 2.5 declares Requires-Python >=3.12, but pyproject.toml keeps
+      # requires-python >=3.11 and install-check.yml installs on 3.11, so a
+      # 2.5.x pin cannot install on Python 3.11, which is still supported
+      # (PR #633). Drop this hold together with Python 3.11 support.
+      # Trade-off: ignore rules also suppress Dependabot security-update PRs
+      # for numpy >=2.5. Alerts still surface; a fix that ships only in 2.5+
+      # must be handled by hand (or by ending 3.11 support).
+      - dependency-name: "numpy"
+        versions: [">=2.5"]
 
   # Docker dependencies
   - package-ecosystem: "docker"
@@ -77,6 +87,14 @@ updates:
     open-pull-requests-limit: 3
     cooldown:
       default-days: 3
+    ignore:
+      # The image pins numpy 2.4.6 (held below 2.5 in the pip entry above),
+      # which publishes no cp315 wheel, and python:*-slim ships no compiler,
+      # so a 3.15 base fails the full docker build on the numpy sdist (PR #622).
+      # Other hard pins (lmdb 3.0.0, for one) also lack cp315 wheels. Lift this
+      # hold once every hash-locked Dockerfile install succeeds on 3.15-slim.
+      - dependency-name: "python"
+        versions: [">=3.15"]
     groups:
       szl-minor-patch:
         patterns:

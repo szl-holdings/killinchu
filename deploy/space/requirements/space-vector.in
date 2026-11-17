@@ -1,4 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Hash-locked toolset for the deploy/space Dockerfile stage named below.
 # Compiled with: pip-compile --allow-unsafe --generate-hashes --index-url=https://pypi.org/simple --no-emit-index-url --no-emit-trusted-host --strip-extras
-lmdb==2.2.1
+lmdb==3.0.0
+# sqlite-vss is imported by szl_unay.py. 0.1.2 ships only manylinux x86_64 and
+# macOS wheels (no sdist, no Windows wheel), so compile this profile on Linux:
+# pip-compile on Windows cannot resolve it. Listing it here keeps every
+# regeneration (including Dependabot's) from dropping it out of the lock.
+sqlite-vss==0.1.2
