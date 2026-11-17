@@ -10,12 +10,13 @@ name: Dockerfile build-file guard
 # A full `docker build` runs weekly (and on manual dispatch) to catch deeper
 # breakage the static parser cannot see. It also runs on every PR that changes
 # a file that defines the image build (the Dockerfile, its generated HF mirror,
-# .dockerignore, or this workflow). COPY sources are checked statically by
-# copy-sources; widen the path list in image-inputs if a RUN step ever executes
-# copied repo files. If image-inputs fails, the PR build runs anyway (fails
-# closed). #452 (python 3.12-slim -> 3.14-slim) and #459 (gcc for pymavlink on
-# 3.14) both merged with this job SKIPPED, so no PR check built either image
-# before merge.
+# .dockerignore, runtime dependency profiles, or this workflow). The copied
+# requirements directory feeds the hash-locked RUN installs, so its input and
+# lock changes require a full build. Other COPY sources are checked statically by
+# copy-sources; widen image-inputs when more copied files affect RUN steps.
+# A failed image-inputs job still selects the PR build. #452 (python 3.12-slim
+# -> 3.14-slim) and #459 (gcc for pymavlink on 3.14) both merged with this job
+# SKIPPED, so no PR check built either image before merge.
 
 on:
   push:
@@ -46,6 +47,8 @@ jobs:
           python-version: '3.12'
       - name: Verify every Dockerfile COPY/ADD source exists
         run: python3 .github/dockerfile-copy-check.py Dockerfile .
+      - name: Verify image-input selection against PR merge commits
+        run: python3 -m unittest discover -s tests -p test_dockerfile_image_inputs.py -v
 
   image-inputs:
     name: Detect image-input changes
@@ -72,7 +75,7 @@ jobs:
           changed=false
           while IFS= read -r path; do
             case "$path" in
-              Dockerfile|deploy/space/Dockerfile|.dockerignore|.github/workflows/dockerfile-copy-guard.yml)
+              Dockerfile|deploy/space/Dockerfile|.dockerignore|deploy/space/requirements/*|.github/workflows/dockerfile-copy-guard.yml)
                 echo "Image input changed: $path"
                 changed=true
                 ;;

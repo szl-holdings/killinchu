@@ -29,9 +29,12 @@ updates:
     cooldown:
       default-days: 3
 
-  # Python pip dependencies
+  # Python pip dependencies, including independent CI and runtime pip-compile profiles.
   - package-ecosystem: "pip"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/requirements"
+      - "/deploy/space/requirements"
     schedule:
       interval: "weekly"
       day: "monday"
