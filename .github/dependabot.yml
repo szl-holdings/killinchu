@@ -67,6 +67,9 @@ updates:
       # requires-python >=3.11 and install-check.yml installs on 3.11, so a
       # 2.5.x pin cannot install on Python 3.11, which is still supported
       # (PR #633). Drop this hold together with Python 3.11 support.
+      # Trade-off: ignore rules also suppress Dependabot security-update PRs
+      # for numpy >=2.5. Alerts still surface; a fix that ships only in 2.5+
+      # must be handled by hand (or by ending 3.11 support).
       - dependency-name: "numpy"
         versions: [">=2.5"]
 
