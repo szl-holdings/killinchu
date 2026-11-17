@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes --index-url=https://pypi.org/simple --no-emit-index-url --no-emit-trusted-host --output-file=space-dilithium.txt --strip-extras space-dilithium.in
 #
-dilithium-py==1.4.0 \
-    --hash=sha256:b6d455c6af34012062a0af906ad1617803bf46b37dc54938f68c478b2524252a \
-    --hash=sha256:dda3ae43e6e3d212ae1fe1b30d5b6dffe5e25a1f389d1fea26faad4afdc33ff8
+dilithium-py==1.5.1 \
+    --hash=sha256:21ab0cbd56e959d22b9dca59bd8af0e2a6f73703b14ad71d483ecf70438c73d7 \
+    --hash=sha256:b86b734445d1dddf41179e901f82c92412a9c22cdec98075790de8882f0bf2c1
     # via -r space-dilithium.in

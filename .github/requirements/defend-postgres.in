@@ -2,4 +2,4 @@
 # Hash-locked toolset for the named CI workflow step.
 # Compiled with: pip-compile --allow-unsafe --generate-hashes --index-url=https://pypi.org/simple --no-emit-index-url --no-emit-trusted-host --strip-extras
 -r ../../requirements-defend-postgres.txt
-pytest==9.0.3
+pytest==9.2.0
