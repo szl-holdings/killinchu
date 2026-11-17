@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # Hash-locked toolset for the deploy/space Dockerfile stage named below.
 # Compiled with: pip-compile --allow-unsafe --generate-hashes --index-url=https://pypi.org/simple --no-emit-index-url --no-emit-trusted-host --strip-extras
-fastapi==0.137.2
-uvicorn[standard]==0.49.0
+fastapi==0.162.2
+uvicorn[standard]==0.54.0
 httpx==0.28.1
-starlette==1.3.1
-pyModeS==3.3.0
+starlette==1.10.0
+pyModeS==3.6.1
 pymavlink==2.4.50
-numpy==2.4.6
+numpy==2.5.4
 # uvloop (uvicorn[standard] extra, sys_platform != win32 marker) is appended to the
 # .txt manually from PyPI - Windows pip-compile cannot resolve Linux-only wheels.
