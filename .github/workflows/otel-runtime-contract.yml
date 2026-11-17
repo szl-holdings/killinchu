@@ -1,0 +1,56 @@
+name: Killinchu real OTLP runtime contract
+
+# Source-only, bounded, credential-free loopback proof; NO HF/production effect.
+# A passing job is not a deployed trace or a five-organ acceptance receipt.
+"on":
+  pull_request:
+    paths:
+      - Dockerfile
+      - deploy/space/Dockerfile
+      - "deploy/space/requirements/space-otel.*"
+      - "vsp_otel/**"
+      - tests/test_vsp_otel_real_export.py
+      - tests/test_vsp_otel_packaging.py
+      - .github/workflows/otel-runtime-contract.yml
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - deploy/space/Dockerfile
+      - "deploy/space/requirements/space-otel.*"
+      - "vsp_otel/**"
+      - tests/test_vsp_otel_real_export.py
+      - tests/test_vsp_otel_packaging.py
+      - .github/workflows/otel-runtime-contract.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: killinchu-otel-runtime-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  exact-otlp:
+    name: Hash-locked Python 3.14 and real isolated W3C child export
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      # actions/checkout v7.0.1, immutable commit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      # actions/setup-python v7.1.0, immutable commit
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.14"
+      - name: Exact hashed OTLP runtime dependency closure
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir --require-hashes \
+            -r deploy/space/requirements/space-otel.txt
+          python -m pip check
+      - name: Real loopback gRPC collector accepts a W3C child span
+        run: |
+          set -euo pipefail
+          python -I -B tests/test_vsp_otel_real_export.py
