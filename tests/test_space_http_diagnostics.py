@@ -174,6 +174,21 @@ def test_shared_http_payload_is_content_bound():
         "8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0"
     )
     expected["szl_operator_auth.py"] = retained["files"]["szl_operator_auth.py"]
+    # Anatomy observation signing is the next reviewed operator-auth generation.
+    # Keep the retained ledger above immutable and bind the current source to
+    # this explicit successor's identity and reviewed authorization digest.
+    anatomy_raw = (root / ".github/shared-source-payloads/"
+                   "anatomy-observation-20261116-v1.json").read_bytes()
+    assert hashlib.sha256(anatomy_raw).hexdigest() == (
+        "3c1ae61a001b98a87cafb767048b2f9c50b3efd70f44c351835d9f132b6918b6"
+    )
+    anatomy_auth = json.loads(anatomy_raw)
+    assert anatomy_auth["schema"] == "szl-shared-source-payload/v1"
+    assert anatomy_auth["payload_id"] == "anatomy-observation-auth-20261116-v1"
+    assert anatomy_auth["files"]["szl_operator_auth.py"] == (
+        "f31fc4d4f960eb840583d7b32c9598d2c96319c9818acc3f39f078de8394fa8f"
+    )
+    expected["szl_operator_auth.py"] = anatomy_auth["files"]["szl_operator_auth.py"]
     # The optional rights registry is now synchronized from A11oy; default
     # indexing remains unchanged. The lexical predecessor above stays archived.
     assert retained["files"]["a11oy_org_rag.py"] == (
