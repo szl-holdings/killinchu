@@ -177,7 +177,12 @@ def test_shared_http_payload_is_content_bound():
     # Anatomy observation signing is the next reviewed operator-auth generation.
     # Keep the retained ledger above immutable and bind the current source to
     # this explicit successor's identity and reviewed authorization digest.
-    anatomy_auth = json.loads((root / ".github/shared-source-payload-manifest.json").read_bytes())
+    anatomy_raw = (root / ".github/shared-source-payloads/"
+                   "anatomy-observation-20261116-v1.json").read_bytes()
+    assert hashlib.sha256(anatomy_raw).hexdigest() == (
+        "3c1ae61a001b98a87cafb767048b2f9c50b3efd70f44c351835d9f132b6918b6"
+    )
+    anatomy_auth = json.loads(anatomy_raw)
     assert anatomy_auth["schema"] == "szl-shared-source-payload/v1"
     assert anatomy_auth["payload_id"] == "anatomy-observation-auth-20261116-v1"
     assert anatomy_auth["files"]["szl_operator_auth.py"] == (
