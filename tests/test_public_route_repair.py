@@ -1112,7 +1112,7 @@ class PublicRouteRepairTests(unittest.TestCase):
             "id-token: write",
             "attestations: write",
             "release-receipt:",
-            "actions/attest@36051bcae73b7c2a8a6945a48cbf80953c6baa35",
+            "actions/attest@badbb428b0055a04f53d6ce00bda98cf1c04e56e",
             'key="RELEASE_ATTESTATION"',
             'body.get("receipt_minted") is True',
             "killinchu-release-receipt",

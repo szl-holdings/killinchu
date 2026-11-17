@@ -4,5 +4,5 @@
 fastapi==0.162.2
 starlette==1.10.0
 httpx==0.28.1
-lmdb==2.2.1
+lmdb==3.0.0
 -r ../../requirements-test.txt
