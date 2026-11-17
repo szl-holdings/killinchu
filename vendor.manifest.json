@@ -17,7 +17,8 @@
     },
     ".github/workflows/commit-lint.yml": {
       "source": ".github/workflows/commit-lint.yml",
-      "header": true
+      "header": true,
+      "revision": "966fb4c71243f6a06c32de0fed36ffae93218854"
     },
     ".github/workflows/pin-check.yml": {
       "source": ".github/workflows/pin-check.yml",

@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — .github/workflows/commit-lint.yml
+# VENDORED FROM szl-holdings/platform@966fb4c71243f6a06c32de0fed36ffae93218854 — .github/workflows/commit-lint.yml
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 name: Conventional Commits PR title lint
 
