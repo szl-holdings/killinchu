@@ -234,3 +234,49 @@ def test_legacy_nonfinite_chain_reloads_and_accepts_finite_append(monkeypatch, n
     assert reloaded[1]["receipt"] == {"schema": "successor/finite", "score": 1}
     assert szl_dsse.verify_envelope(reloaded[0]["dsse"])["verified"] is True
     assert szl_dsse.verify_envelope(reloaded[1]["dsse"])["verified"] is True
+
+
+def test_standalone_evidence_window_slices_memory_without_read_side_effects(standalone, monkeypatch):
+    dag = provenance._KhipuDAG("killinchu")
+    assert dag.managed is False
+    for index in range(40):
+        dag.append_signed({"schema": "test/standalone-window", "index": index})
+    before = list(dag.nodes)
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("bounded memory inspection reached full-history loading, validation, or signing")
+
+    monkeypatch.setattr(dag, "recent", forbidden)
+    monkeypatch.setattr(dag, "_validate", forbidden)
+    monkeypatch.setattr(szl_dsse, "sign_payload", forbidden)
+    monkeypatch.setattr(szl_dsse, "_load_private_key", forbidden)
+    monkeypatch.setattr(type(dag), "nodes", property(forbidden))
+    assert dag.evidence_window(33) == before[-33:]
+    assert dag._nodes == before
+    for invalid in (0, 34, True):
+        with pytest.raises(ValueError):
+            dag.evidence_window(invalid)
+
+
+def test_missing_optional_window_interface_preserves_existing_managed_contract(standalone, monkeypatch):
+    ledger = _LegacyLedger()
+    store = _LegacyStore(ledger)
+    monkeypatch.setenv("A11OY_STATE_STORE", "v2")
+    monkeypatch.setattr(provenance, "_state_store", store)
+    reads = []
+    full_reader = ledger.provenance_nodes
+    def observed_full_reader(space, validate):
+        reads.append(space)
+        return full_reader(space, validate)
+    monkeypatch.setattr(ledger, "provenance_nodes", observed_full_reader)
+    dag = provenance._KhipuDAG("killinchu")
+    assert dag.managed is True
+    assert dag.nodes == []
+    before_reads = len(reads)
+    with pytest.raises(provenance._LedgerUnavailable):
+        dag.evidence_window(33)
+    assert len(reads) == before_reads, "unsupported inspection must not fall back to the full reader"
+    assert dag.recent(10) == []
+    appended = dag.append_signed({"schema": "test/existing-managed-contract", "score": 1})
+    assert appended["index"] == 0
+    assert dag.nodes == [appended]
