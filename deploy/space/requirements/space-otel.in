@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Exact OTel/gRPC exporter closure for the owned Killinchu runtime.
+# This is required for real five-organ spans; merely copying vsp_otel source
+# without an SDK left the runtime honestly in-process-only.
+# The base image's space-core.txt already pins opentelemetry-api==1.45.2.
+opentelemetry-api==1.45.2
+opentelemetry-sdk==1.45.2
+opentelemetry-exporter-otlp-proto-grpc==1.45.2

@@ -4,6 +4,7 @@
 
 import ast
 import json
+import re
 from pathlib import Path
 import runpy
 import shlex
@@ -17,6 +18,48 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_FILES = {"vsp_otel/__init__.py", "vsp_otel/middleware.py"}
 DOCKERFILES = ("Dockerfile", "deploy/space/Dockerfile")
+
+
+def test_production_otel_exporter_has_a_hash_locked_nonoptional_runtime_closure():
+    """Real spans require SDK + proto/grpc, not just vsp_otel COPY or API."""
+    sources = ROOT / "deploy/space/requirements"
+    direct = (sources / "space-otel.in").read_text(encoding="utf-8")
+    locked = (sources / "space-otel.txt").read_text(encoding="utf-8")
+    assert "uv pip compile" in locked.splitlines()[1]
+    versions = {
+        "opentelemetry-api": "1.45.2",
+        "opentelemetry-sdk": "1.45.2",
+        "opentelemetry-exporter-otlp-proto-grpc": "1.45.2",
+    }
+    for name, version in versions.items():
+        assert f"{name}=={version}" in direct
+        # Each exact version is accompanied by a real SHA-256 hash.
+        rows = locked.splitlines()
+        exact = [i for i, line in enumerate(rows)
+                 if line.startswith(f"{name}=={version} ")]
+        assert len(exact) == 1, name
+        assert "--hash=sha256:" in rows[exact[0] + 1]
+        assert re.search(r"[0-9a-f]{64}", rows[exact[0] + 1]), name
+        assert len(re.findall(rf"(?m)^{re.escape(name)}==", locked)) == 1
+    for dependency in ("grpcio", "protobuf", "googleapis-common-protos",
+                       "opentelemetry-proto", "opentelemetry-semantic-conventions"):
+        assert re.search(rf"(?m)^{re.escape(dependency)}==", locked), dependency
+    assert "--extra-index-url" not in locked
+    assert "--trusted-host" not in locked
+    for dockerfile in DOCKERFILES:
+        text = (ROOT / dockerfile).read_text(encoding="utf-8")
+        install = "RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-otel.txt"
+        assert text.count(install) == 1
+        assert "COPY deploy/space/requirements/ /tmp/pins/" in text
+        assert text.index("-r /tmp/pins/space-core.txt") < text.index(install)
+        assert not any("|| true" in line for line in text.splitlines() if install in line)
+        assert text.count("RUN python -c \"import grpc; from opentelemetry.sdk.trace import TracerProvider;") == 1
+        assert "from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter" in text
+
+    tracer = (ROOT / "vsp_otel/middleware.py").read_text(encoding="utf-8")
+    assert "from opentelemetry.sdk.trace import TracerProvider" in tracer
+    assert "from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import" in tracer
+    assert "if not self.endpoint_policy[\"allowed\"]:" in tracer
 
 
 def _packaged_runtime(tmp_path: Path, dockerfile: str) -> Path:
