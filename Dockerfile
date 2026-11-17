@@ -53,6 +53,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # artifact. The || true / fallback-chain safety is INTENTIONALLY KEPT.
 COPY deploy/space/requirements/ /tmp/pins/
 RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-core.txt
+# The image contains vsp_otel middleware, but a tracing SDK and OTLP/gRPC
+# exporter are required for *real* spans. Strict hash-locked, no || true.
+# No egress is activated unless the operator's private collector endpoint
+# passes vsp_otel's explicit host policy; mere installation is not delivery.
+RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-otel.txt
+# Build-time import witness is stronger than a successful pip command alone.
+# It never contacts an OTLP endpoint or claims collector delivery.
+RUN python -c "import grpc; from opentelemetry.sdk.trace import TracerProvider; from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter; print('killinchu: otlp-grpc import closure verified')"
 # BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
 RUN pip install --no-cache-dir --require-hashes -r /tmp/pins/space-slowapi.txt
 

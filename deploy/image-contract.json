@@ -1,13 +1,13 @@
 {
   "canonical_dockerfile": {
     "path": "Dockerfile",
-    "sha256": "6549afbe1396a8857cfc2909ce13987bd8efcd6256470baa77a6500b40597b3c"
+    "sha256": "ca26302dbf71b85096c42539cf52d5271e85b2a4ce9391db58cd1e340555bcc2"
   },
   "entrypoint": "serve.py",
   "hf_deploy_dockerfile": {
     "generated_from": "Dockerfile",
     "path": "deploy/space/Dockerfile",
-    "sha256": "6549afbe1396a8857cfc2909ce13987bd8efcd6256470baa77a6500b40597b3c"
+    "sha256": "ca26302dbf71b85096c42539cf52d5271e85b2a4ce9391db58cd1e340555bcc2"
   },
   "local_copy_sources": [
     ".compliance/SECTION_889_REP.md",
