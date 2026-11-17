@@ -163,7 +163,7 @@ jobs:
 
       - name: Attest exact deployment manifest with GitHub OIDC
         id: attest
-        uses: actions/attest@badbb428b0055a04f53d6ce00bda98cf1c04e56e # v4.0.0
+        uses: actions/attest@badbb428b0055a04f53d6ce00bda98cf1c04e56e # upstream 2026-11-06 fix: missing subject-path fails closed
         with:
           subject-path: release-evidence/hf-deploy-manifest.json
 
