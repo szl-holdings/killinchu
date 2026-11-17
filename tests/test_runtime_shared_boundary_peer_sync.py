@@ -146,6 +146,7 @@ CURRENT_EXPECTED_SHA256 = {
     **CURRENT_EXPECTED_SHA256,
     "szl_operator_auth.py": "8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0",
 }
+RETAINED_SIGNING_OPERATOR_AUTH_SHA256 = CURRENT_EXPECTED_SHA256["szl_operator_auth.py"]
 
 # Verifier fail-closed successor: no verify_fn reports signature_valid=None and
 # verified requires signature_valid is True. Paired with a11oy#3204 squash.
@@ -155,6 +156,16 @@ CURRENT_A11OY_COMMIT = VERIFIER_FAIL_CLOSED_A11OY_COMMIT
 CURRENT_EXPECTED_SHA256 = {
     **CURRENT_EXPECTED_SHA256,
     "szl_agentic_loop.py": "2f3233a8c77b8dce6cb95a5ea3ce33090b63c08077763ada5568fc310e096967",
+}
+
+# The paired anatomy successor adds the two namespaced operator protections.
+# Retain every prior source observation; current bytes are bound to this
+# published source and its explicit shared-payload generation below.
+ANATOMY_OBSERVATION_A11OY_COMMIT = "64f9c0b7b68cb3de61ea6af9b6d508aa9737f3d9"
+CURRENT_A11OY_COMMIT = ANATOMY_OBSERVATION_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "szl_operator_auth.py": "f31fc4d4f960eb840583d7b32c9598d2c96319c9818acc3f39f078de8394fa8f",
 }
 
 
@@ -230,7 +241,11 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
     retained = json.loads(retained_path.read_bytes())
     assert retained["schema"] == "szl-shared-source-payload/v1"
     assert retained["payload_id"] == "retained-signing-ledger-20261101-v1"
-    assert retained["files"]["szl_operator_auth.py"] == CURRENT_EXPECTED_SHA256["szl_operator_auth.py"]
+    assert retained["files"]["szl_operator_auth.py"] == RETAINED_SIGNING_OPERATOR_AUTH_SHA256
+    anatomy_auth = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
+    assert anatomy_auth["schema"] == "szl-shared-source-payload/v1"
+    assert anatomy_auth["payload_id"] == "anatomy-observation-auth-20261116-v1"
+    assert anatomy_auth["files"]["szl_operator_auth.py"] == CURRENT_EXPECTED_SHA256["szl_operator_auth.py"]
     assert {
         relative: _digest(ROOT / relative)
         for relative in CURRENT_EXPECTED_SHA256
