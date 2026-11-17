@@ -169,8 +169,48 @@ CURRENT_EXPECTED_SHA256 = {
 }
 
 
+# Protected-model boundary successor changes only fail-closed delegation.
+# Preserve every prior source observation; the companion is not mirrored.
+# Byte identity only, without endpoint, deployment, or qualification claims.
+MODEL_COMPANION_A11OY_COMMIT = "bea45b367032dd2417c71064fbef629263b377c2"
+CURRENT_A11OY_COMMIT = MODEL_COMPANION_A11OY_COMMIT
+CURRENT_EXPECTED_SHA256 = {
+    **CURRENT_EXPECTED_SHA256,
+    "a11oy_code_engine.py": "613183938099a18c82e59941079c7824de3978c74c423df8a7a59436d0801c98",
+}
+
+
+# The reconciled source proof has mixed current and historical coverage:
+# seven files match this canonical tree; middleware retains its earlier bytes.
+# This records source identity, without a deployment or capability claim.
+RECONCILED_A11OY_COMMIT = "b12e6e547540d46cfaeccba86a08c6112937a402"
+CURRENT_A11OY_COMMIT = RECONCILED_A11OY_COMMIT
+RETAINED_MIDDLEWARE_A11OY_COMMIT = SOURCE_A11OY_COMMIT
+CURRENT_A11OY_SOURCE_COMMITS = {
+    "a11oy_code_engine.py": CURRENT_A11OY_COMMIT,
+    "gdw_auth.py": CURRENT_A11OY_COMMIT,
+    "szl_agentic_loop.py": CURRENT_A11OY_COMMIT,
+    "szl_immune.py": CURRENT_A11OY_COMMIT,
+    "szl_ken.py": CURRENT_A11OY_COMMIT,
+    "szl_operator_auth.py": CURRENT_A11OY_COMMIT,
+    "vsp_otel/__init__.py": CURRENT_A11OY_COMMIT,
+    "vsp_otel/middleware.py": RETAINED_MIDDLEWARE_A11OY_COMMIT,
+}
+
+
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _assert_a11oy_source_coverage(source_commits: dict[str, str]) -> None:
+    middleware = "vsp_otel/middleware.py"
+    assert len(source_commits) == 8
+    assert set(source_commits) == set(CURRENT_EXPECTED_SHA256)
+    assert CURRENT_A11OY_COMMIT != RETAINED_MIDDLEWARE_A11OY_COMMIT
+    assert source_commits[middleware] == RETAINED_MIDDLEWARE_A11OY_COMMIT
+    assert CURRENT_EXPECTED_SHA256[middleware] == EXPECTED_SHA256[middleware]
+    assert all(commit == CURRENT_A11OY_COMMIT
+               for path, commit in source_commits.items() if path != middleware)
 
 
 def _app() -> FastAPI:
@@ -215,6 +255,7 @@ def _operator_registry(monkeypatch):
 
 
 def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
+    _assert_a11oy_source_coverage(CURRENT_A11OY_SOURCE_COMMITS)
     assert len(SOURCE_A11OY_COMMIT) == 40
     assert len(CURRENT_A11OY_COMMIT) == 40
     # Each new paired contribution replaces the active admission manifest.
@@ -242,7 +283,11 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
     assert retained["schema"] == "szl-shared-source-payload/v1"
     assert retained["payload_id"] == "retained-signing-ledger-20261101-v1"
     assert retained["files"]["szl_operator_auth.py"] == RETAINED_SIGNING_OPERATOR_AUTH_SHA256
-    anatomy_auth = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
+    anatomy_path = ROOT / ".github/shared-source-payloads/anatomy-observation-20261116-v1.json"
+    assert _digest(anatomy_path) == (
+        "3c1ae61a001b98a87cafb767048b2f9c50b3efd70f44c351835d9f132b6918b6"
+    )
+    anatomy_auth = json.loads(anatomy_path.read_bytes())
     assert anatomy_auth["schema"] == "szl-shared-source-payload/v1"
     assert anatomy_auth["payload_id"] == "anatomy-observation-auth-20261116-v1"
     assert anatomy_auth["files"]["szl_operator_auth.py"] == CURRENT_EXPECTED_SHA256["szl_operator_auth.py"]
@@ -339,6 +384,26 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         if relative in ("a11oy_code_engine.py", "szl_unay_routes.py"):
             continue  # The successor changes source, never the old archive.
         assert _digest(ROOT / relative) == digest
+
+
+@pytest.mark.parametrize("change", [
+    "missing_current", "missing_retained", "extra_file",
+    "retained_as_current", "current_as_retained",
+])
+def test_source_map_rejects_partial_or_misattributed_coverage(change) -> None:
+    sources = dict(CURRENT_A11OY_SOURCE_COMMITS)
+    if change == "missing_current":
+        del sources["a11oy_code_engine.py"]
+    elif change == "missing_retained":
+        del sources["vsp_otel/middleware.py"]
+    elif change == "extra_file":
+        sources["unreviewed_source.py"] = CURRENT_A11OY_COMMIT
+    elif change == "retained_as_current":
+        sources["vsp_otel/middleware.py"] = CURRENT_A11OY_COMMIT
+    else:
+        sources["a11oy_code_engine.py"] = RETAINED_MIDDLEWARE_A11OY_COMMIT
+    with pytest.raises(AssertionError):
+        _assert_a11oy_source_coverage(sources)
 
 
 def test_operator_auth_dependency_is_in_the_runtime_image() -> None:
