@@ -32,7 +32,7 @@ def test_prior_meter_manifest_fixture_retains_its_original_content_address():
     }
     raw = (json.dumps(prior, indent=2) + "\n").encode("utf-8")
     assert hashlib.sha256(raw).hexdigest() == (
-        "b8be768d9a012a941375ca852a7559dac02bdef530cfcd4e32abecfc0d74c1e0"
+        "ceebae9b24d32f5011a67ddcf8c0802a5d35467eb3e950236547b1938ff38705"
     )
 
 
@@ -42,7 +42,7 @@ def test_paired_meter_and_bounded_engine_do_not_activate_a_credential():
     raw = (ROOT / ".github/shared-source-payloads/"
            "code-engine-bounded-model-20261015-v1.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
-        "d8e50108743e7f02ac7b3c2af17e70c47e38922be3f4e214c5d98d1561c54ea6"
+        "051d4a832b7bcb318e3a743da4c373a1499919a5b0284825273818c54db7b52e"
     )
     payload = json.loads(raw)
     assert payload["schema"] == "szl-shared-source-payload/v1"

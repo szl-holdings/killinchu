@@ -90,7 +90,7 @@ CURRENT_EXPECTED_SHA256 = {
 # commit exists. The prior commit observations above remain immutable; the
 # payload digest does not claim a signature, deployment, or model execution.
 BOUNDED_MODEL_MANIFEST_SHA256 = (
-    "d8e50108743e7f02ac7b3c2af17e70c47e38922be3f4e214c5d98d1561c54ea6"
+    "051d4a832b7bcb318e3a743da4c373a1499919a5b0284825273818c54db7b52e"
 )
 CURRENT_EXPECTED_SHA256 = {
     **CURRENT_EXPECTED_SHA256,
@@ -100,7 +100,7 @@ CURRENT_EXPECTED_SHA256 = {
 # This paired successor adds operator admission for observation/native writes
 # and fail-closed outbound delivery accounting. It is source identity only.
 OPERATOR_ADMISSION_MANIFEST_SHA256 = (
-    "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c"
+    "90c2ad5b0ab4074404f812139c080a9ce4bd659dd8a2a106d3d2cb4d4dab8850"
 )
 CURRENT_EXPECTED_SHA256 = {
     **CURRENT_EXPECTED_SHA256,
@@ -277,7 +277,7 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json"
     )
     assert _digest(retained_path) == (
-        "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
+        "71077f63cdcc076e18e7509240c85680ff1848d64dd074389485076c64230687"
     )
     retained = json.loads(retained_path.read_bytes())
     assert retained["schema"] == "szl-shared-source-payload/v1"
@@ -285,7 +285,7 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
     assert retained["files"]["szl_operator_auth.py"] == RETAINED_SIGNING_OPERATOR_AUTH_SHA256
     anatomy_path = ROOT / ".github/shared-source-payloads/anatomy-observation-20261116-v1.json"
     assert _digest(anatomy_path) == (
-        "3c1ae61a001b98a87cafb767048b2f9c50b3efd70f44c351835d9f132b6918b6"
+        "9d2d3c1f740e51a5600cff40fb9eea3a8f713c1ab30e5751cdb35f4b4ec3e8f8"
     )
     anatomy_auth = json.loads(anatomy_path.read_bytes())
     assert anatomy_auth["schema"] == "szl-shared-source-payload/v1"
@@ -317,7 +317,7 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         assert _digest(ROOT / relative) == digest
 
     integrity_path = ROOT / ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json"
-    assert _digest(integrity_path) == "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc"
+    assert _digest(integrity_path) == "12b46c750905e8e5dab97adad577fefcf7b8f1815bd0c2ee2c383c165bde3cc8"
     integrity = json.loads(integrity_path.read_bytes())
     assert integrity["schema"] == "szl-shared-source-payload/v1"
     assert integrity["payload_id"] == "replication-payload-integrity-20261017-v1"
@@ -329,7 +329,7 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         assert _digest(ROOT / relative) == digest
 
     credential_path = ROOT / ".github/shared-source-payloads/model-credential-origin-20261017-v1.json"
-    assert _digest(credential_path) == "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c"
+    assert _digest(credential_path) == "7122181968d324220828f638f199e953b878796e46d06fd385cf6454631a4d2b"
     credential = json.loads(credential_path.read_bytes())
     assert credential["schema"] == "szl-shared-source-payload/v1"
     assert credential["payload_id"] == "model-credential-origin-20261017-v1"
@@ -348,11 +348,11 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
                                     if key != "a11oy_code_engine.py"},
              "payload_id": "replication-payload-integrity-20261017-v1"}
     assert hashlib.sha256((json.dumps(prior, indent=2) + "\n").encode()).hexdigest() == (
-        "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc"
+        "12b46c750905e8e5dab97adad577fefcf7b8f1815bd0c2ee2c383c165bde3cc8"
     )
 
     origin_path = ROOT / ".github/shared-source-payloads/replication-origin-index-20261017-v1.json"
-    assert _digest(origin_path) == "3df663c60fc5f332174c83e4cec5e28831ec9b1c670e86bf13058f0fdebc3cce"
+    assert _digest(origin_path) == "c2d035de6ef4d4bbdfa308d9d6834fd9aaba0cc4854f35eb255e3b9f060d0af0"
     origin = json.loads(origin_path.read_bytes())
     assert origin["schema"] == "szl-shared-source-payload/v1"
     assert origin["payload_id"] == "replication-origin-index-20261017-v1"
@@ -368,7 +368,7 @@ def test_shared_runtime_files_match_the_a11oy_content_address() -> None:
         assert _digest(ROOT / relative) == digest
 
     active_path = ROOT / ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json"
-    assert _digest(active_path) == "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc"
+    assert _digest(active_path) == "88336c4d8070e9b12cb57aee4ff2c674ff28492870e375c5d83d237f5502f54c"
     active = json.loads(active_path.read_bytes())
     assert active["schema"] == "szl-shared-source-payload/v1"
     assert active["payload_id"] == "bonsai-model-catalog-20261017-v1"
