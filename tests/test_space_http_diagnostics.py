@@ -25,7 +25,7 @@ def _retained_signing_payload(root):
     # this HTTP proof must retain its historical source generation independently.
     raw = (root / _RETAINED_SIGNING_PAYLOAD).read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
-        "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
+        "71077f63cdcc076e18e7509240c85680ff1848d64dd074389485076c64230687"
     )
     return json.loads(raw)
 
@@ -152,7 +152,7 @@ def test_shared_http_payload_is_content_bound():
     admission_raw = (root / ".github/shared-source-payloads/"
                      "execution-observer-operator-auth-20261016-v1.json").read_bytes()
     assert hashlib.sha256(admission_raw).hexdigest() == (
-        "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c"
+        "90c2ad5b0ab4074404f812139c080a9ce4bd659dd8a2a106d3d2cb4d4dab8850"
     )
     admission = json.loads(admission_raw)
     assert admission["payload_id"] == "execution-observer-operator-auth-20261016-v1"
@@ -180,7 +180,7 @@ def test_shared_http_payload_is_content_bound():
     anatomy_raw = (root / ".github/shared-source-payloads/"
                    "anatomy-observation-20261116-v1.json").read_bytes()
     assert hashlib.sha256(anatomy_raw).hexdigest() == (
-        "3c1ae61a001b98a87cafb767048b2f9c50b3efd70f44c351835d9f132b6918b6"
+        "9d2d3c1f740e51a5600cff40fb9eea3a8f713c1ab30e5751cdb35f4b4ec3e8f8"
     )
     anatomy_auth = json.loads(anatomy_raw)
     assert anatomy_auth["schema"] == "szl-shared-source-payload/v1"

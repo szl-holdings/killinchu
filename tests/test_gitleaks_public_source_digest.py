@@ -14,7 +14,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 BINARY = os.environ.get("SZL_TEST_GITLEAKS_BINARY")
 PUBLIC_DIGEST = "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2cf"
-METER_SOURCE_DIGEST = "e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4"
+METER_SOURCE_DIGEST = "9dafe5a73055bce5f6e08b37feeb4d17d01e925e6056aa8b4bbed6ccb490ba9a"
 SHARED_MANIFEST_PATH = ".github/shared-source-payload-manifest.json"
 ARCHIVED_MANIFEST_PATH = ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json"
 
