@@ -147,15 +147,15 @@ killinchu is a **full left-nav application** at `/elite` in the unified SZL hous
 
 ## What it does
 
-**killinchu is the counter-UAS edge tool of the SZL drones & vessels product.** Detection, classification, and the governed-decision layer are LIVE and operational: it evaluates hostile UAS tracks at machine speed, hash-chains every engagement *decision* (SHA3-256 Khipu receipt; DSSE signing is labelled separately), and surfaces the result to a **human operator**. Physical effector engagement is operator-owned — gated on customer authorization and hardware integration. This Space does not command a live weapon or establish production authorization.
+**killinchu is the counter-UAS edge tool of the SZL drones & vessels product.** Detection, classification, and the governed-decision layer run in a public demo Space (HTTP 200 on declared routes; not field-tested; no customer deployment or acceptance on record as of 2026-11-19): it evaluates hostile UAS tracks at machine speed, hash-chains every engagement *decision* (SHA3-256 Khipu receipt; DSSE signing is labelled separately), and surfaces the result to a **human operator**. Physical effector engagement is operator-owned — gated on customer authorization and hardware integration. This Space does not command a live weapon or establish production authorization.
 
-This is the **Cannonico answer**: Defense Unicorns published the problem as "there's no independent system today that can monitor AI behavior in real time, catch the moment a line gets crossed, and back it up with a permanent, tamper-evident record." killinchu is that system — deployed in one signed UDS command.
+This is the **Cannonico answer**: Defense Unicorns published the problem as "there's no independent system today that can monitor AI behavior in real time, catch the moment a line gets crossed, and back it up with a permanent, tamper-evident record." killinchu is a research prototype aimed at that problem. Defense Unicorns has not evaluated or accepted it, and the UDS bundle has not been exercised at a customer site.
 
 Key capabilities:
 - **Real protocol decoders (no mocks)** — Remote ID (ASTM F3411-22a), ADS-B (Mode-S 1090ES via pyModeS), MAVLink v1/v2 (pymavlink)
 - **13-axis Λ-gate** — haversine geofence breach check fused with `yuyay_v3` score; decisions emit DSSE Khipu receipts in a real SHA-256 Merkle DAG
 - **53 drone fingerprints** — pre-loaded drone signature library
-- **ROE / policy endpoint** — `/roe/policy`, `/counter-uas/evaluate` (Anduril parity, live HTTP 200)
+- **ROE / policy endpoint** — `/roe/policy`, `/counter-uas/evaluate` (live HTTP 200 on declared routes)
 - **Named public contracts (MEASURED HTTP 200 on declared routes)** — `/roe/policy`, `/counter-uas/evaluate`. Not competitive parity. Not an exclusivity claim.
 
 **Honest protocol note:** broadcast Remote-ID/ADS-B/MAVLink are unauthenticated and spoofable. Every decoded field is a *claim*, never ground truth. This is stated explicitly in `/v1/honest`.
@@ -319,13 +319,13 @@ The full, canonical endpoint list is on the [docs site](https://szl-holdings.git
 
 ---
 
-## Parity vs. leaders
+## Self-assessed capability comparison (not independently tested; not a parity claim)
 
 | Capability | Anduril | killinchu | Differentiator |
 |---|---|---|---|
 | UAS track classification | ✅ | ✅ 53 fingerprints, 13-axis | — |
 | Protocol decoders | ✅ (proprietary) | ✅ **open-source** (ASTM/ADS-B/MAVLink) | Open, auditable |
-| Signed verdicts per interdiction | — | ✅ **DSSE receipt per decision** | Each block is a verifiable artifact |
+| Verdict record per interdiction | — | ✅ hash-chained receipt per decision (DSSE signing state labelled separately; independent verification not yet available) | Each block is an inspectable artifact |
 | Human-on-the-loop gate | ✅ | ✅ operator confirmation | — |
 | Supply-chain provenance | — | ✅ **cosign keyless + build-attested (SLSA L1 honest · L2 build-attested)** | container provenance via attest-build-provenance, Rekor-anchored; SLSA L3 roadmap |
 | Air-gap deployment | ✅ | ✅ **UDS bundle** | Open-source |
