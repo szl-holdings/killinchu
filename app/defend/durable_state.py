@@ -20,7 +20,16 @@ from datetime import datetime, timezone, timedelta
 
 POOL_CONFIG = {"pool_size": 5, "max_overflow": 5, "pool_timeout": 30, "pool_recycle": 1800}
 IDEMPOTENCY_TTL_HOURS = 24
+_STATE_PENDING = "pending"
+_STATE_COMPLETE = "complete"
 BACKUP_FRESHNESS_HOURS = 36  # nightly pg_dump + grace
+
+
+class IdempotencyPending(RuntimeError):
+    """The key is claimed but its side effect has not completed (in flight or abandoned).
+
+    Never treat this as a finished result: wait and retry, or let the TTL expire.
+    """
 
 
 class DurableState:
@@ -39,7 +48,12 @@ class DurableState:
             self._conn.execute(
                 "CREATE TABLE IF NOT EXISTS idempotency_keys ("
                 "key TEXT PRIMARY KEY, request_hash TEXT NOT NULL, "
-                "response TEXT NOT NULL, created_at TEXT NOT NULL)")
+                "response TEXT NOT NULL, created_at TEXT NOT NULL, "
+                "state TEXT NOT NULL DEFAULT 'complete')")
+            cols = {r[1] for r in self._conn.execute("PRAGMA table_info(idempotency_keys)")}
+            if "state" not in cols:  # pre-claim demo databases: existing rows are finished results
+                self._conn.execute(
+                    "ALTER TABLE idempotency_keys ADD COLUMN state TEXT NOT NULL DEFAULT 'complete'")
             self._conn.execute(
                 "CREATE TABLE IF NOT EXISTS backup_events ("
                 "id TEXT PRIMARY KEY, dump_sha256 TEXT NOT NULL, created_at TEXT NOT NULL)")
@@ -59,7 +73,7 @@ class DurableState:
         if not self.demo_mode:
             raise RuntimeError("production driver not attached in this harness")
         row = self._conn.execute(
-            "SELECT request_hash, response, created_at FROM idempotency_keys WHERE key = ?",
+            "SELECT request_hash, response, created_at, state FROM idempotency_keys WHERE key = ?",
             (key,)).fetchone()
         if not row:
             return None
@@ -70,16 +84,76 @@ class DurableState:
             self._conn.execute("DELETE FROM idempotency_keys WHERE key = ?", (key,))
             self._conn.commit()
             return None
+        if row[3] == _STATE_PENDING:
+            raise IdempotencyPending(f"idempotency key {key!r} is claimed and not yet completed")
         return json.loads(row[1])
 
     def idempotent_store(self, key: str, request_hash: str, response: dict) -> None:
         if not self.demo_mode:
             raise RuntimeError("production driver not attached in this harness")
-        self._conn.execute(
-            "INSERT OR REPLACE INTO idempotency_keys (key, request_hash, response, created_at) "
-            "VALUES (?, ?, ?, ?)",
-            (key, request_hash, json.dumps(response, sort_keys=True), self._now_iso()))
+        # First writer wins; a different body under the same key is a conflict,
+        # never a silent overwrite (expired rows are purged by idempotent_lookup).
+        cur = self._conn.execute(
+            "INSERT INTO idempotency_keys (key, request_hash, response, created_at, state) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(key) DO NOTHING",
+            (key, request_hash, json.dumps(response, sort_keys=True), self._now_iso(),
+             _STATE_COMPLETE))
+        if cur.rowcount == 0:
+            row = self._conn.execute(
+                "SELECT request_hash FROM idempotency_keys WHERE key = ?", (key,)).fetchone()
+            if row and row[0] != request_hash:
+                self._conn.commit()
+                raise ValueError("idempotency key replayed with a different request body")
+            # Same body: a finished row is never rewritten, and a pending claim belongs to
+            # its owner (only idempotent_complete finishes it), so storing over it is refused.
+            if self._conn.execute(
+                    "SELECT 1 FROM idempotency_keys WHERE key = ? AND state = ?",
+                    (key, _STATE_PENDING)).fetchone():
+                self._conn.commit()
+                raise IdempotencyPending(
+                    f"idempotency key {key!r} has a pending claim; finish it with idempotent_complete")
         self._conn.commit()
+
+    def idempotent_claim(self, key: str, request_hash: str) -> bool:
+        """Atomically reserve `key` before running the side effect.
+
+        Returns True for exactly one caller per live key; others must wait for
+        or read the stored response (idempotent_lookup raises IdempotencyPending
+        until the owner calls idempotent_complete).
+        """
+        if not self.demo_mode:
+            raise RuntimeError("production driver not attached in this harness")
+        try:
+            self.idempotent_lookup(key, request_hash)  # purges an expired row, raises on body mismatch
+        except IdempotencyPending:
+            return False  # live claim by another caller, same body
+        cur = self._conn.execute(
+            "INSERT INTO idempotency_keys (key, request_hash, response, created_at, state) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(key) DO NOTHING",
+            (key, request_hash, json.dumps(None), self._now_iso(), _STATE_PENDING))
+        self._conn.commit()
+        if cur.rowcount == 1:
+            return True
+        # Lost the race: re-check the winner's body so a concurrent different body is a conflict.
+        row = self._conn.execute(
+            "SELECT request_hash FROM idempotency_keys WHERE key = ?", (key,)).fetchone()
+        if row and row[0] != request_hash:
+            raise ValueError("idempotency key replayed with a different request body")
+        return False
+
+    def idempotent_complete(self, key: str, request_hash: str, response: dict) -> None:
+        """Finish a pending claim. Only a pending claim can be completed; a finished
+        response is never overwritten."""
+        if not self.demo_mode:
+            raise RuntimeError("production driver not attached in this harness")
+        cur = self._conn.execute(
+            "UPDATE idempotency_keys SET response = ?, state = ? "
+            "WHERE key = ? AND request_hash = ? AND state = ?",
+            (json.dumps(response, sort_keys=True), _STATE_COMPLETE, key, request_hash,
+             _STATE_PENDING))
+        self._conn.commit()
+        if cur.rowcount != 1:
+            raise ValueError("no matching pending idempotency claim to complete")
 
     def record_backup_event(self, dump_sha256: str) -> str:
         if not self.demo_mode:
