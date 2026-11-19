@@ -36,11 +36,12 @@ UNIFY_EXPECTED = (
 )
 UNIFY_DEST = "https://a-11-oy.com/console"
 
-# The compatibility registry includes six current policy keepers that were
+# The compatibility registry includes seven current policy keepers that were
 # once called folds. They are unprobed here and hand off to isolated Hub apps.
 FOLD_COUNT = 44
 PLAN_FOLD_COUNT = 37
-HANDOFF_COUNT = 54
+# #604 (6c1333e) removed the duplicate pre-decision anatomy FOLD row; anatomy remains only as KEEP_POLICY.
+HANDOFF_COUNT = 53
 FOLD_ORIGINS = ("https://a-11-oy.com", "https://a11oy.net")
 FOLD_SPOT_NAMES = {
     "yarqa", "anatomy", "energy-attested-runs",
@@ -62,7 +63,7 @@ def test_space_inventory_is_exact_and_shared():
     assert len({row[1] for row in EXPECTED}) == 5
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
     # The handoff registry is total and disjoint; its legacy fold list includes
-    # six current policy keepers, which must not be rendered as fold plans.
+    # seven current policy keepers, which must not be rendered as fold plans.
     runtime_names = {row[0] for row in EXPECTED}
     fold_names = {sp["name"] for sp in surface.FOLD_SPACES}
     unify_names = {sp["name"] for sp in surface.UNIFY_SPACES}

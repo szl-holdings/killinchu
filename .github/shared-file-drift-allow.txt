@@ -76,5 +76,4 @@ a11oy_agent_loop.py        # KI#581 fail-closed chain_verified=False default on 
 #     telemetry rework likewise never landed upstream). Reconcile by adopting the
 #     changes on killinchu, then delete these entries when the files become
 #     byte-identical again (the guard warns stale-allow when they do).
-szl_readiness.py           # a11oy#3423 honours the warm-up delay (port of KI#601); killinchu main lacks it - reconcile when killinchu adopts
 vsp_otel/middleware.py     # a11oy#3389 binds spans to the admitted local provider; killinchu main lacks it - reconcile when killinchu adopts
