@@ -104,12 +104,14 @@ class DurableState:
             if row and row[0] != request_hash:
                 self._conn.commit()
                 raise ValueError("idempotency key replayed with a different request body")
-            # Same body: finishes this key's own pending claim; a finished row is never rewritten.
-            self._conn.execute(
-                "UPDATE idempotency_keys SET response = ?, state = ? "
-                "WHERE key = ? AND request_hash = ? AND state = ?",
-                (json.dumps(response, sort_keys=True), _STATE_COMPLETE, key, request_hash,
-                 _STATE_PENDING))
+            # Same body: a finished row is never rewritten, and a pending claim belongs to
+            # its owner (only idempotent_complete finishes it), so storing over it is refused.
+            if self._conn.execute(
+                    "SELECT 1 FROM idempotency_keys WHERE key = ? AND state = ?",
+                    (key, _STATE_PENDING)).fetchone():
+                self._conn.commit()
+                raise IdempotencyPending(
+                    f"idempotency key {key!r} has a pending claim; finish it with idempotent_complete")
         self._conn.commit()
 
     def idempotent_claim(self, key: str, request_hash: str) -> bool:

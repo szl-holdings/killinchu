@@ -122,3 +122,14 @@ def test_legacy_database_without_state_column_is_migrated(tmp_path):
     conn.close()
     ds = DurableState(demo_mode=True, sqlite_path=path)
     assert ds.idempotent_lookup("old", "h") == {"a": 1}
+
+
+def test_store_cannot_complete_or_replace_a_pending_claim():
+    ds = DurableState(demo_mode=True)
+    assert ds.idempotent_claim("k9", "h") is True
+    with pytest.raises(IdempotencyPending):
+        ds.idempotent_store("k9", "h", {"stolen": True})
+    with pytest.raises(IdempotencyPending):
+        ds.idempotent_lookup("k9", "h")  # still pending, not served as a result
+    ds.idempotent_complete("k9", "h", {"owner": True})
+    assert ds.idempotent_lookup("k9", "h") == {"owner": True}
