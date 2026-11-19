@@ -75,11 +75,44 @@ class DurableState:
     def idempotent_store(self, key: str, request_hash: str, response: dict) -> None:
         if not self.demo_mode:
             raise RuntimeError("production driver not attached in this harness")
-        self._conn.execute(
-            "INSERT OR REPLACE INTO idempotency_keys (key, request_hash, response, created_at) "
-            "VALUES (?, ?, ?, ?)",
+        # First writer wins; a different body under the same key is a conflict,
+        # never a silent overwrite (expired rows are purged by idempotent_lookup).
+        cur = self._conn.execute(
+            "INSERT INTO idempotency_keys (key, request_hash, response, created_at) "
+            "VALUES (?, ?, ?, ?) ON CONFLICT(key) DO NOTHING",
             (key, request_hash, json.dumps(response, sort_keys=True), self._now_iso()))
         self._conn.commit()
+        if cur.rowcount == 0:
+            row = self._conn.execute(
+                "SELECT request_hash FROM idempotency_keys WHERE key = ?", (key,)).fetchone()
+            if row and row[0] != request_hash:
+                raise ValueError("idempotency key replayed with a different request body")
+
+    def idempotent_claim(self, key: str, request_hash: str) -> bool:
+        """Atomically reserve `key` before running the side effect.
+
+        Returns True for exactly one caller per live key; others must wait for
+        or read the stored response. Pending claims carry response '"__pending__"'.
+        """
+        if not self.demo_mode:
+            raise RuntimeError("production driver not attached in this harness")
+        self.idempotent_lookup(key, request_hash)  # purges an expired row, raises on body mismatch
+        cur = self._conn.execute(
+            "INSERT INTO idempotency_keys (key, request_hash, response, created_at) "
+            "VALUES (?, ?, ?, ?) ON CONFLICT(key) DO NOTHING",
+            (key, request_hash, json.dumps("__pending__"), self._now_iso()))
+        self._conn.commit()
+        return cur.rowcount == 1
+
+    def idempotent_complete(self, key: str, request_hash: str, response: dict) -> None:
+        if not self.demo_mode:
+            raise RuntimeError("production driver not attached in this harness")
+        cur = self._conn.execute(
+            "UPDATE idempotency_keys SET response = ? WHERE key = ? AND request_hash = ?",
+            (json.dumps(response, sort_keys=True), key, request_hash))
+        self._conn.commit()
+        if cur.rowcount != 1:
+            raise ValueError("no matching idempotency claim to complete")
 
     def record_backup_event(self, dump_sha256: str) -> str:
         if not self.demo_mode:
