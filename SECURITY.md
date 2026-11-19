@@ -97,6 +97,6 @@ Per NDAA Section 889, 41 U.S.C. § 4713.
 
 - **Security disclosures:** security@szlholdings.com
 - **General:** hello@szlholdings.com
-- **Website:** https://szlholdings.ai
+- **Website:** https://a-11-oy.com
 
 *This policy follows [OpenSSF Vulnerability Disclosure Guide](https://github.com/ossf/oss-vulnerability-guide).*
