@@ -78,7 +78,13 @@
   }
 
   function normalizedObjects(value) {
-    return Array.isArray(value) ? value.filter(validObject) : [];
+    // The source-owned batch contract requires stable IDs on every row. Do not
+    // silently discard malformed entries and then render a partial batch LIVE.
+    if (!Array.isArray(value)) return null;
+    if (!value.every(function (track) {
+      return validObject(track) && typeof track.track_id === "string" && track.track_id.trim() !== "";
+    })) return null;
+    return value;
   }
 
   function humanizeKey(value) {
@@ -118,7 +124,11 @@
 
     // A 2xx response is transport success, not evidence of a valid observation
     // contract. Never render LIVE from an untyped or unsupported payload.
-    var acceptedShape = sourceField !== null;
+    var acceptedShape = sourceField !== null && tracks !== null;
+    if (!acceptedShape) {
+      sourceField = null;
+      tracks = [];
+    }
     var mode = acceptedShape ? text(body.mode, "UNLABELLED").toUpperCase() : "UNAVAILABLE";
     var fieldLabel = sourceField === "threats" ? "threats array" : "typed tracks compatibility";
     return {

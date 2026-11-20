@@ -163,6 +163,52 @@ def test_untyped_http_200_live_claim_is_not_accepted_as_live_evidence():
         assert "http 200" in normalized["honesty"].lower()
 
 
+def test_malformed_elements_in_accepted_batch_cannot_display_live():
+    """A typed outer array with untyped inner elements must fail closed."""
+    invalid_batches = (
+        {"mode": "LIVE", "threats": [None, {"track_id": "ADS-B-1"}]},
+        {"mode": "LIVE", "threats": [{"status": "claimed"}]},
+        {"mode": "LIVE", "threats": [{"track_id": "  "}]},
+        {
+            "schema": "killinchu.track-batch.v1",
+            "mode": "LIVE",
+            "tracks": [{"track_id": "ADS-B-1"}, 7],
+        },
+        {
+            "schema": "killinchu.track-batch.v1",
+            "mode": "LIVE",
+            "tracks": [{"track_id": ""}],
+        },
+    )
+    for body in invalid_batches:
+        normalized = _run_contract(
+            "normalizeObservationResult",
+            {"ok": True, "status": 200, "body": body},
+        )
+        assert normalized["healthy"] is False
+        assert normalized["mode"] == "UNAVAILABLE"
+        assert normalized["sourceField"] is None
+        assert normalized["tracks"] == []
+        assert normalized["age"] is None
+        assert normalized["authentication"] == "UNAVAILABLE"
+
+    for body in (
+        {"mode": "LIVE", "threats": []},
+        {
+            "schema": "killinchu.track-batch.v1",
+            "mode": "LIVE",
+            "tracks": [],
+        },
+    ):
+        normalized = _run_contract(
+            "normalizeObservationResult",
+            {"ok": True, "status": 200, "body": body},
+        )
+        assert normalized["healthy"] is True
+        assert normalized["mode"] == "LIVE"
+        assert normalized["tracks"] == []
+
+
 def test_live_honest_labels_doctrine_and_revision_are_renderable():
     normalized = _run_contract(
         "normalizeHonestyResult",
