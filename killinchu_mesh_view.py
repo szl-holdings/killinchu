@@ -282,11 +282,13 @@ img,svg,canvas{max-width:100%;}
     we show an honest empty state — we never fabricate a node or a quorum.
   </p>
 
+  <p class="honesty" id="mesh-passive-honesty"><b>Evidence scope:</b> This view reads an <b>in-process, ephemeral harness</b> in one Space. Counts and generated witness signatures are not independently enrolled fleet evidence, persistent signed provenance, production Khipu inference, or a distributed deployment. Opening this view performs no CRDT write or quorum signing.</p>
+
   <div class="kpis" id="top-kpis">
     <div class="kpi"><div class="k">Mesh nodes</div><div class="v" id="kpi-nodes">—</div><div class="d">from /mesh/topology</div></div>
     <div class="kpi"><div class="k">Edges</div><div class="v teal" id="kpi-edges">—</div><div class="d">relational topology (08)</div></div>
     <div class="kpi"><div class="k">Quorum config</div><div class="v" id="kpi-qcfg">n=4 · t=3</div><div class="d">tolerates f=1</div></div>
-    <div class="kpi"><div class="k">Receipts</div><div class="v teal" id="kpi-receipts">—</div><div class="d">DSSE on CRDT transitions</div></div>
+    <div class="kpi"><div class="k">Reported chain depth</div><div class="v teal" id="kpi-receipts">—</div><div class="d">in-process /mesh/status · unverified</div></div>
   </div>
 
   <!-- ============ 1 · LIVE TOPOLOGY GRAPH ============ -->
@@ -362,8 +364,8 @@ img,svg,canvas{max-width:100%;}
   <div class="card">
     <div class="card-h"><span class="sect-num">03</span><span class="card-t">Receipt Chain — DSSE on CRDT transitions</span>
       <span class="mode-pill empty" id="receipts-mode">…</span>
-      <span class="card-ep mono">POST /mesh/write · GET /mesh/receipt/&lt;id&gt;/canonical</span></div>
-    <p class="view-sub" style="margin:.2rem 0 .8rem">The DSSE-receipted CRDT state-transition chain. Pick a receipt and <b>re-hash it in your browser</b> (Web&nbsp;Crypto SHA-256) over its canonical bytes &rArr; <b>MATCH&nbsp;&check;</b>. Then flip a single byte &rArr; the hash changes and the <b>MATCH fails</b> — real, in-browser re-verification (no server trust required).</p>
+      <span class="card-ep mono">GET /mesh/status · read-only</span></div>
+    <p class="view-sub" style="margin:.2rem 0 .8rem">Read-only reported receipt-chain depth from the <b>ephemeral in-process harness</b>. Individual receipt listing and independently trusted signatures are <b>UNAVAILABLE</b> here; no receipt or quorum is created when opening this page. Re-hash controls stay disabled until a separately reviewed, authorization-safe read endpoint exists.</p>
     <div class="tbl-scroll"><table class="dtbl"><thead><tr><th>Receipt</th><th>Class</th><th>Node</th><th>Change hash</th><th>Signed</th><th></th></tr></thead><tbody id="receipt-rows"><tr><td colspan="6" class="loading">loading receipts…</td></tr></tbody></table></div>
     <div class="card" style="background:var(--panel2);margin-top:1rem">
       <div class="card-h"><span class="card-t" style="font-size:.95rem">Re-hash demo</span><span class="card-ep mono" id="rehash-recid">no receipt selected</span></div>
@@ -376,7 +378,7 @@ img,svg,canvas{max-width:100%;}
       <div id="rehash-badge"><span class="verify-badge pending"><span class="dot"></span>select a receipt above, then re-hash</span></div>
       <details class="raw"><summary>canonical bytes used (SHA-256 input)</summary><pre class="out" id="rehash-canon">…</pre></details>
     </div>
-    <details class="raw"><summary>raw /mesh/write receipts</summary><pre class="out" id="receipts-raw">…</pre></details>
+    <details class="raw"><summary>source status readback (GET /mesh/status)</summary><pre class="out" id="receipts-raw">…</pre></details>
   </div>
 
   <!-- ============ 4 · ENROLLMENT ============ -->
@@ -706,39 +708,34 @@ function normReceiptList(d){
   });
 }
 async function loadReceipts(){
-  // The REAL mesh has NO receipt-list endpoint: receipts are PRODUCED by POSTing
-  // real CRDT state transitions to /mesh/write (each returns a genuine DSSE
-  // receipt on the live hash-chain). We seed a few demo transitions so the
-  // investor sees a populated, re-hashable chain driven entirely by real writes.
-  // If /mesh/write is unreachable, we show an honest empty state — no fabrication.
-  var seeds=[
-    {transition_class:'PLATFORM_STATUS', payload:{op:'surface-open', note:'mesh surface viewed'}},
-    {transition_class:'DEPLOYMENT',      payload:{op:'deploy-probe',  note:'investor walk-through'}},
-    {transition_class:'PACKAGE',         payload:{op:'package-attest',note:'receipt demo'}}
-  ];
-  var produced=[]; var anyOk=false; var lastRaw=null;
-  for(var i=0;i<seeds.length;i++){
-    var w=await postJSON('/mesh/write', seeds[i]);
-    lastRaw=w;
-    // REAL /mesh/write wraps the receipt: {live, spec, receipt:{...}}. Unwrap.
-    var rec=(w && !w.__error) ? (w.receipt||w) : w;
-    if(rec && !rec.__error && (rec.receipt_id||rec.change_hash)){anyOk=true; produced.push(rec);}
+  // PASSIVE CONSUMER READ: never mint CRDT receipts or sign on page navigation.
+  // This harness has no safe read-only receipt-list endpoint. Show only the
+  // reported ephemeral chain depth from the existing GET /mesh/status; do not
+  // invent receipt rows, claim signature trust, or turn unavailable into zero.
+  var d=await getJSON('/mesh/status');
+  var mode=document.getElementById('receipts-mode');
+  var table=document.getElementById('receipt-rows');
+  var raw=document.getElementById('receipts-raw');
+  _receipts=[]; _selected=null; _prov.receiptCount=null;
+  document.getElementById('btn-rehash').disabled=true;
+  document.getElementById('btn-tamper').disabled=true;
+  document.getElementById('rehash-recid').textContent='no receipt selected';
+  document.getElementById('rh-expected').textContent='—';
+  document.getElementById('rh-computed').textContent='—';
+  document.getElementById('rehash-badge').textContent='Read-only receipt list unavailable; nothing is signed or minted on navigation.';
+  raw.textContent=JSON.stringify({source:'GET /mesh/status',state:d},null,2);
+  if(!d || d.__error || d.__stale || d.__throttled){
+    mode.className='mode-pill empty';mode.textContent='UNAVAILABLE';
+    document.getElementById('kpi-receipts').textContent='—';
+    table.innerHTML='<tr><td colspan="6" class="loading">Receipt depth UNAVAILABLE. Read-only page did not create any receipts.</td></tr>';
+    return;
   }
-  var d = anyOk ? {receipts: produced} : (lastRaw||{__error:true});
-  document.getElementById('receipts-raw').textContent=JSON.stringify(d,null,2);
-  if(!anyOk){setMode('receipts-mode',false,true);
-    document.getElementById('receipt-rows').innerHTML='<tr><td colspan="6" class="loading">/mesh/write unreachable — honest empty state. No fabricated receipts.</td></tr>';
-    document.getElementById('kpi-receipts').textContent='0';return;}
-  _receipts=normReceiptList(d);
-  _prov.receiptCount=_receipts.length;
-  document.getElementById('kpi-receipts').textContent=_receipts.length;
-  setMode('receipts-mode',_receipts.length>0,_receipts.length===0);
-  if(_receipts.length>0)_prov.anyLive=true;
-  var rows=_receipts.slice(0,20).map(function(r,i){
-    return '<tr><td class="mono">'+esc(String(r.id||'r'+i).slice(0,16))+'</td><td class="mono">'+esc(r.cls||'—')+'</td><td class="mono">'+esc(String(r.node||'—').slice(0,10))+'</td><td class="mono dim">'+esc(String(r.change_hash||'—').slice(0,14))+'…</td><td>'+(r.signed?'<span class="badge b-live">YES</span>':'<span class="badge b-err">NO</span>')+'</td><td><button class="btn" style="padding:.3rem .6rem;min-height:0" onclick="selectReceipt('+i+')">select</button></td></tr>';
-  }).join('');
-  document.getElementById('receipt-rows').innerHTML=rows||'<tr><td colspan="6" class="loading">honest empty state — no receipts in the chain yet</td></tr>';
-  if(_receipts.length>0)selectReceipt(0);
+  var depth=(Number.isSafeInteger(d.receipt_chain_depth)&&d.receipt_chain_depth>=0)
+    ? d.receipt_chain_depth : null;
+  _prov.receiptCount=depth;
+  mode.className='mode-pill sample';mode.textContent='IN-PROCESS · UNVERIFIED';
+  document.getElementById('kpi-receipts').textContent=depth===null?'—':String(depth);
+  table.innerHTML='<tr><td colspan="6" class="loading">No safe read-only receipt-list endpoint. '+(depth===null?'Chain depth unavailable.':'In-process reported chain depth '+depth+'.')+' Individual signatures and canonical preimages have NOT been verified. Page navigation never issues POST /mesh/write or POST /mesh/quorum.</td></tr>';
 }
 function b64ToBytes(b64){
   var bin=atob(String(b64).replace(/-/g,'+').replace(/_/g,'/'));
@@ -876,7 +873,7 @@ async function loadHud(){
   feeds.push(['Topology', _prov.nodeCount!=null&&_prov.nodeCount>0, '/mesh/topology · '+(_prov.nodeCount!=null?_prov.nodeCount+' nodes':'—')]);
   feeds.push(['Edges', _prov.edgeCount!=null&&_prov.edgeCount>0, '/mesh/topology · '+(_prov.edgeCount!=null?_prov.edgeCount+' edges':'—')]);
   feeds.push(['Quorum', !!(_prov.quorum&&_prov.quorum.canonical), '/mesh/quorum · n=4 t=3'+(_prov.quorum?(' · '+_prov.quorum.allows+'-of-'+_prov.quorum.n):' · not run')]);
-  feeds.push(['Receipts', _prov.receiptCount!=null&&_prov.receiptCount>0, '/mesh/write · '+(_prov.receiptCount!=null?_prov.receiptCount+' DSSE':'—')]);
+  feeds.push(['Receipt depth (unverified)', false, '/mesh/status · in-process reported '+(_prov.receiptCount!=null?_prov.receiptCount:'UNAVAILABLE')]);
   feeds.push(['Enrollment', !!(_prov.enroll), '/mesh/enroll · doctrine-gated']);
   document.getElementById('hud-grid').innerHTML=feeds.map(function(f){
     return '<div class="hud-feed"><div class="fn">'+modePill(f[1])+' '+esc(f[0])+'</div><div class="src">'+esc(f[2])+'</div></div>';
@@ -889,7 +886,7 @@ async function loadHud(){
 (async function(){
   await loadTopology();
   await loadReceipts();
-  await runQuorum();
+  // A quorum signs only after an explicit user click; page navigation stays passive.
   // Pre-fill the enrollment panel from a clean GET /mesh/status (the enrolled
   // witnesses that genuinely passed the gate). The rejection demo (which exercises
   // honest server 4xx responses) runs only on explicit button click, so the initial
