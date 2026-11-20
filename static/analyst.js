@@ -116,18 +116,25 @@
       tracks = normalizedObjects(body.tracks);
     }
 
-    var mode = text(body.mode, sourceField ? "UNLABELLED" : "UNAVAILABLE").toUpperCase();
-    var fieldLabel = sourceField === "threats" ? "threats array" : sourceField ? "typed tracks compatibility" : "unsupported response shape";
+    // A 2xx response is transport success, not evidence of a valid observation
+    // contract. Never render LIVE from an untyped or unsupported payload.
+    var acceptedShape = sourceField !== null;
+    var mode = acceptedShape ? text(body.mode, "UNLABELLED").toUpperCase() : "UNAVAILABLE";
+    var fieldLabel = sourceField === "threats" ? "threats array" : "typed tracks compatibility";
     return {
-      healthy: true,
+      healthy: acceptedShape,
       httpStatus: status,
       mode: mode,
       tracks: tracks,
       sourceField: sourceField,
-      sourceLabel: text(body.source, "Source not reported") + " · " + fieldLabel,
-      authentication: text(body.authentication, "UNAVAILABLE"),
-      age: body.age_s,
-      honesty: text(body.honesty, "The observation response did not include an honesty label.")
+      sourceLabel: acceptedShape
+        ? text(body.source, "Source not reported") + " · " + fieldLabel
+        : "Unsupported response shape; no accepted observation contract",
+      authentication: acceptedShape ? text(body.authentication, "UNAVAILABLE") : "UNAVAILABLE",
+      age: acceptedShape ? body.age_s : null,
+      honesty: acceptedShape
+        ? text(body.honesty, "The observation response did not include an honesty label.")
+        : "HTTP 200 alone does not validate a source-owned observation batch."
     };
   }
 
