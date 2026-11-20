@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
-from html.parser import HTMLParser
 import json
-from pathlib import Path
 import subprocess
-
+from html.parser import HTMLParser
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HTML = ROOT / "static" / "analyst.html"
@@ -48,11 +47,15 @@ def test_workspace_is_semantic_read_only_and_accessible():
     source, tags = _parsed_document()
     mains = [attrs for tag, attrs in tags if tag == "main"]
     assert mains == [{"id": "workspace", "class": "shell", "tabindex": "-1", "aria-busy": "true"}]
-    assert any(tag == "a" and attrs.get("class") == "skip-link" and attrs.get("href") == "#workspace" for tag, attrs in tags)
+    assert any(
+        tag == "a" and attrs.get("class") == "skip-link" and attrs.get("href") == "#workspace" for tag, attrs in tags
+    )
     assert any(tag == "nav" and attrs.get("aria-label") == "Primary navigation" for tag, attrs in tags)
     assert any(tag == "table" for tag, _ in tags)
     assert any(tag == "caption" and attrs.get("id") == "observation-caption" for tag, attrs in tags)
-    assert any(tag == "p" and attrs.get("role") == "status" and attrs.get("aria-live") == "polite" for tag, attrs in tags)
+    assert any(
+        tag == "p" and attrs.get("role") == "status" and attrs.get("aria-live") == "polite" for tag, attrs in tags
+    )
     assert {attrs.get("for") for tag, attrs in tags if tag == "label"} >= {"observation-search", "mode-filter"}
     assert not any(tag == "form" for tag, _ in tags)
     assert "never dispatches, targets, jams, spoofs, or actuates anything" in source
@@ -70,10 +73,10 @@ def test_client_reads_only_the_four_bounded_evidence_endpoints():
     }
     assert all(endpoint in source for endpoint in endpoints)
     assert 'method: "GET"' in source
-    assert "method: \"POST\"" not in source
+    assert 'method: "POST"' not in source
     assert ".innerHTML" not in source
-    assert "credentials: \"same-origin\"" in source
-    assert "cache: \"no-store\"" in source
+    assert 'credentials: "same-origin"' in source
+    assert 'cache: "no-store"' in source
     assert "body.signed === true && verification.verified === true" in source
 
 
@@ -140,6 +143,72 @@ def test_tracks_compatibility_requires_the_canonical_schema_and_non_2xx_fails_cl
     assert rejected["sourceLabel"].startswith("HTTP 503")
 
 
+def test_untyped_http_200_live_claim_is_not_accepted_as_live_evidence():
+    """Schema invalidity, not HTTP success, determines consumer evidence state."""
+    untrusted_shapes = (
+        {"mode": "LIVE", "tracks": [{"track_id": "fixture-only"}]},
+        {"mode": "LIVE", "threats": {"track_id": "fixture-only"}},
+        {"mode": "LIVE", "age_s": 0, "source": "self-declared-live"},
+    )
+    for body in untrusted_shapes:
+        normalized = _run_contract(
+            "normalizeObservationResult",
+            {"ok": True, "status": 200, "body": body},
+        )
+        assert normalized["healthy"] is False
+        assert normalized["sourceField"] is None
+        assert normalized["mode"] == "UNAVAILABLE"
+        assert normalized["tracks"] == []
+        assert "unsupported" in normalized["sourceLabel"].lower()
+        assert "http 200" in normalized["honesty"].lower()
+
+
+def test_malformed_elements_in_accepted_batch_cannot_display_live():
+    """A typed outer array with untyped inner elements must fail closed."""
+    invalid_batches = (
+        {"mode": "LIVE", "threats": [None, {"track_id": "ADS-B-1"}]},
+        {"mode": "LIVE", "threats": [{"status": "claimed"}]},
+        {"mode": "LIVE", "threats": [{"track_id": "  "}]},
+        {
+            "schema": "killinchu.track-batch.v1",
+            "mode": "LIVE",
+            "tracks": [{"track_id": "ADS-B-1"}, 7],
+        },
+        {
+            "schema": "killinchu.track-batch.v1",
+            "mode": "LIVE",
+            "tracks": [{"track_id": ""}],
+        },
+    )
+    for body in invalid_batches:
+        normalized = _run_contract(
+            "normalizeObservationResult",
+            {"ok": True, "status": 200, "body": body},
+        )
+        assert normalized["healthy"] is False
+        assert normalized["mode"] == "UNAVAILABLE"
+        assert normalized["sourceField"] is None
+        assert normalized["tracks"] == []
+        assert normalized["age"] is None
+        assert normalized["authentication"] == "UNAVAILABLE"
+
+    for body in (
+        {"mode": "LIVE", "threats": []},
+        {
+            "schema": "killinchu.track-batch.v1",
+            "mode": "LIVE",
+            "tracks": [],
+        },
+    ):
+        normalized = _run_contract(
+            "normalizeObservationResult",
+            {"ok": True, "status": 200, "body": body},
+        )
+        assert normalized["healthy"] is True
+        assert normalized["mode"] == "LIVE"
+        assert normalized["tracks"] == []
+
+
 def test_live_honest_labels_doctrine_and_revision_are_renderable():
     normalized = _run_contract(
         "normalizeHonestyResult",
@@ -197,9 +266,7 @@ def test_public_front_doors_link_to_the_workspace():
 
 def test_hf_release_smokes_the_workspace_and_inert_registry():
     workflow = HF_SYNC.read_text(encoding="utf-8")
-    smoke_paths = next(
-        line for line in workflow.splitlines() if "smoke-paths:" in line
-    )
+    smoke_paths = next(line for line in workflow.splitlines() if "smoke-paths:" in line)
 
     assert '"/static/analyst.html"' in smoke_paths
     assert '"/api/killinchu/v1/defensive-intake/tools"' in smoke_paths
