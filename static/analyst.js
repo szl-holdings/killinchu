@@ -78,7 +78,13 @@
   }
 
   function normalizedObjects(value) {
-    return Array.isArray(value) ? value.filter(validObject) : [];
+    // The source-owned batch contract requires stable IDs on every row. Do not
+    // silently discard malformed entries and then render a partial batch LIVE.
+    if (!Array.isArray(value)) return null;
+    if (!value.every(function (track) {
+      return validObject(track) && typeof track.track_id === "string" && track.track_id.trim() !== "";
+    })) return null;
+    return value;
   }
 
   function humanizeKey(value) {
@@ -116,18 +122,29 @@
       tracks = normalizedObjects(body.tracks);
     }
 
-    var mode = text(body.mode, sourceField ? "UNLABELLED" : "UNAVAILABLE").toUpperCase();
-    var fieldLabel = sourceField === "threats" ? "threats array" : sourceField ? "typed tracks compatibility" : "unsupported response shape";
+    // A 2xx response is transport success, not evidence of a valid observation
+    // contract. Never render LIVE from an untyped or unsupported payload.
+    var acceptedShape = sourceField !== null && tracks !== null;
+    if (!acceptedShape) {
+      sourceField = null;
+      tracks = [];
+    }
+    var mode = acceptedShape ? text(body.mode, "UNLABELLED").toUpperCase() : "UNAVAILABLE";
+    var fieldLabel = sourceField === "threats" ? "threats array" : "typed tracks compatibility";
     return {
-      healthy: true,
+      healthy: acceptedShape,
       httpStatus: status,
       mode: mode,
       tracks: tracks,
       sourceField: sourceField,
-      sourceLabel: text(body.source, "Source not reported") + " · " + fieldLabel,
-      authentication: text(body.authentication, "UNAVAILABLE"),
-      age: body.age_s,
-      honesty: text(body.honesty, "The observation response did not include an honesty label.")
+      sourceLabel: acceptedShape
+        ? text(body.source, "Source not reported") + " · " + fieldLabel
+        : "Unsupported response shape; no accepted observation contract",
+      authentication: acceptedShape ? text(body.authentication, "UNAVAILABLE") : "UNAVAILABLE",
+      age: acceptedShape ? body.age_s : null,
+      honesty: acceptedShape
+        ? text(body.honesty, "The observation response did not include an honesty label.")
+        : "HTTP 200 alone does not validate a source-owned observation batch."
     };
   }
 
