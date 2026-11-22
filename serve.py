@@ -2127,7 +2127,7 @@ async def healthz() -> JSONResponse:
         "pivoted_from": "vessels",
     }
     _payload.update(_be_health)
-    return JSONResponse(_payload)
+    return JSONResponse(_payload, headers={"cache-control": "no-store"})
 
 
 @app.api_route("/api/killinchu/readyz", methods=["GET", "HEAD"])
