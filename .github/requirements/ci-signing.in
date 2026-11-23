@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Hash-locked toolset for the named CI workflow step.
 # Compiled with: pip-compile --allow-unsafe --generate-hashes --index-url=https://pypi.org/simple --no-emit-index-url --no-emit-trusted-host --strip-extras
-fastapi==0.162.2
+fastapi==0.163.1
 starlette==1.10.0
 httpx==0.28.1
 cryptography==50.0.2
