@@ -2087,6 +2087,14 @@ async def healthz() -> JSONResponse:
     except Exception:
         _be_health = {}
     _ledger_health = _LEDGER_RUNTIME.readiness(recover=False, read_only=True)
+    # The signer is a runtime capability, not a compiled-in feature flag.
+    # Probe availability without minting a receipt on observational GET.
+    try:
+        _signing_available = (
+            _szl_dsse is not None and _szl_dsse.signing_available() is True
+        )
+    except Exception:
+        _signing_available = False
     _payload = {
         "status": "ok",
         "service": "killinchu",
@@ -2103,8 +2111,12 @@ async def healthz() -> JSONResponse:
         "lambda_floor": _LAMBDA_FLOOR,
         "lambda_uniqueness": "Conjecture 1 (OPEN) unconditionally — NOT a Theorem (open CAUCHY_ND sorry + missing symmetry axiom); CONDITIONAL uniqueness = Theorem U (TheoremU_LambdaUnique, corollaries U₁ separable / U₂ factorization; CI-green, axiom-clean) modulo the kernel Decidable ≈Λ relation (instDecidableLambdaEquiv), strict = only under the Anchored/Normalized gauge",
         "slsa": "L1 (honest; L2 in roadmap via Wire D)",
-        "receipt_signature": "REAL — ECDSA-P256-SHA256 DSSE; live at /khipu/sign + /api/killinchu/khipu/sign (Wire D shipped)",
-        "signing_available": True,
+        "receipt_signature": (
+            "AVAILABLE — ECDSA-P256-SHA256 DSSE; verify individual receipts"
+            if _signing_available
+            else "UNSIGNED — ECDSA-P256-SHA256 runtime signing unavailable"
+        ),
+        "signing_available": _signing_available,
         "numbers": {"declarations": 749, "axioms": 14, "sorries": 163, "putnam_sorries": 51, "baseline_sorries": 112, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "drones_in_database": len(_DRONES),
         "khipu_root": _khipu_root(),
@@ -2115,7 +2127,7 @@ async def healthz() -> JSONResponse:
         "pivoted_from": "vessels",
     }
     _payload.update(_be_health)
-    return JSONResponse(_payload)
+    return JSONResponse(_payload, headers={"cache-control": "no-store"})
 
 
 @app.api_route("/api/killinchu/readyz", methods=["GET", "HEAD"])
