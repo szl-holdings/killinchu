@@ -180,6 +180,7 @@ jobs:
           tests/test_be_hardening.py
           tests/test_killinchu_ledger_attribution.py
           tests/test_killinchu_passive_get.py
+          tests/test_health_signing_truth.py
           tests/test_roe_decisions_api.py
           tests/test_after_action_bundle.py
           tests/test_dsse_real_signing.py
