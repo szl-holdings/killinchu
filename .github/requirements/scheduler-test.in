@@ -2,7 +2,7 @@
 # Hash-locked toolset for the named CI workflow step.
 # Compiled with: pip-compile --allow-unsafe --generate-hashes --index-url=https://pypi.org/simple --no-emit-index-url --no-emit-trusted-host --strip-extras
 pytest==9.2.0
-pytest-asyncio==1.4.1.post1
-fastapi==0.162.2
+pytest-asyncio==1.5.0
+fastapi==0.163.1
 httpx==0.28.1
 psycopg[binary]==3.3.9

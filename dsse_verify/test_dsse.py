@@ -7,7 +7,6 @@ from dsse_verify.dsse import (
     SIGNATURE_MISMATCH,
     VERIFICATION_UNAVAILABLE,
     VERIFIED,
-    Verdict,
     pae,
     verify_envelope,
 )

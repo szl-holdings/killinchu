@@ -16,6 +16,7 @@ anyio==4.16.0 \
     --hash=sha256:59bb03251907983d1603d27c3087ddb1e93299ea2163adcdba37899a4fb12ffb \
     --hash=sha256:c66ae634e0b8228396b801741beb3294326d4b6102f7bba4041c0dfb58c29026
     # via
+    #   fastapi
     #   httpx
     #   starlette
     #   watchfiles
@@ -29,9 +30,9 @@ click==8.5.1 \
     --hash=sha256:8bb5376d2006950386f8c6427613334a2acadc5f559cb80e638d00b4df957e37 \
     --hash=sha256:9bbfada76703fd1d784b83eea012e3e8c6a001a876543ef104fa56aaaeb072b4
     # via uvicorn
-fastapi==0.162.2 \
-    --hash=sha256:9ebd2a69b579141315b2447d8e3f518e6fd909abd6c01cac5cc6b06d5c8841f4 \
-    --hash=sha256:d0584f9662317e01140df94c64f4bed1d8b059fe35496e30c9c92f70e6e5ff15
+fastapi==0.163.1 \
+    --hash=sha256:3d364b02a68b67292e833ff2dfed3b8dc3aeadf73e271c15316c6c166668792f \
+    --hash=sha256:68f2d8050f5c3583121c0d203046cc7def5c16a7d6c43a0e7707a8ea610fe2d3
     # via -r space-core.in
 fastcrc==0.5.0 \
     --hash=sha256:07790374ba8803204b3f2405bac9186c85677a0430c625451fe75b5d16f7c68c \
@@ -836,9 +837,9 @@ pymavlink==2.4.50 \
     --hash=sha256:fc577382a2bf3570e81855dd41799c492ad985729a88e0b2e25bc856c4c3f278 \
     --hash=sha256:fe1ffe85d9e0ec5004e0d8351835c8918adba50154080a5523323957cbdbe075
     # via -r space-core.in
-pymodes==3.6.1 \
-    --hash=sha256:7da700d5344be03c59cb5a966a63feeea74caed1a44078d2056ea5f0072edf07 \
-    --hash=sha256:9884d4ee12d858d8d4d4a16f86790d0f1fa6e2d2556d595dec727d9c9959033c
+pymodes==3.7.0 \
+    --hash=sha256:49b5f0c7413a0ce7e9a843518a7d2b55b28b999367f1656c2b429d3678e9bffa \
+    --hash=sha256:78e64e9c9ac81c6ea986b1a77729c1c517b5d6200c17418ca4ae0db3c4478c3d
     # via -r space-core.in
 python-dotenv==1.2.4 \
     --hash=sha256:42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc \
