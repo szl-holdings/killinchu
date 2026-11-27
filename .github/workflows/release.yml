@@ -9,6 +9,7 @@ permissions:
   contents: read
 jobs:
   attach:
+    environment: release
     runs-on: ubuntu-latest
     permissions:
       id-token: write
