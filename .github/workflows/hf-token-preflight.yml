@@ -15,13 +15,12 @@
 #   the Space deploy fails mid-run and the Space card drifts.
 #
 #   This preflight runs on every push to main that touches the Space card or an
-#   HF workflow, on pull requests that change an HF workflow (so a credential
-#   change is proven before it merges), and on demand. It never skips silently
-#   when it runs: a missing or under-scoped token fails the run with a precise
-#   owner action. The secret VALUE is never printed; only whoami metadata
-#   (token role, org role, granted permission names) is reported. Pull requests
-#   from forks and from Dependabot receive no repository secrets, so the job is
-#   skipped for them (reported as SKIPPED, not as a pass).
+#   HF workflow, and on demand. It never skips silently when it runs: a missing
+#   or under-scoped token fails the run with a precise owner action. The secret
+#   VALUE is never printed; only whoami metadata (token role, org role, granted
+#   permission names) is reported. The job is skipped on pull_request so a
+#   write token is never injected into a pull_request job (including same-repo
+#   PRs). Fork and Dependabot PRs already receive no repository secrets.
 #
 # LOCK
 #   Read-only: it never writes the Hub, so it must not join a hf-write/* group
@@ -58,10 +57,7 @@ concurrency:
 jobs:
   assert-hf-token:
     name: Assert HF_TOKEN is present and can write SZLHOLDINGS
-    if: >-
-      github.event_name != 'pull_request' ||
-      (github.event.pull_request.head.repo.full_name == github.repository &&
-      github.actor != 'dependabot[bot]')
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
