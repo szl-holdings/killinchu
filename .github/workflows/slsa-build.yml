@@ -37,6 +37,7 @@ concurrency:
 jobs:
   build-attest:
     name: pack + attest source provenance
+    environment: release
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
